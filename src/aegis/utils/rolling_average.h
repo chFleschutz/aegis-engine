@@ -36,6 +36,12 @@ namespace Aegis
 			return m_sum / N;
 		}
 
+		auto last() const -> double
+		{
+			size_t lastIndex = (m_index + N - 1) % N;
+			return m_values[lastIndex];
+		}
+
 	private:
 		std::array<double, N> m_values{};
 		double m_sum = 0.0;

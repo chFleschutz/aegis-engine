@@ -37,6 +37,15 @@ namespace Aegis
 			return it->second.average();
 		}
 
+		/// @brief Retrieve the last recorded time
+		[[nodiscard]] auto lastTime(const std::string& name) const -> double
+		{
+			auto it = m_times.find(name);
+			if (it == m_times.end())
+				return 0.0;
+			return it->second.last();
+		}
+
 		[[nodiscard]] auto times() const -> const std::unordered_map<std::string, RollingAverage<AVERAGE_FRAME_COUNT>>&
 		{
 			return m_times;
