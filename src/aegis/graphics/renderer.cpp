@@ -29,43 +29,50 @@ namespace Aegis::Graphics
 		static constexpr size_t WARMUP_FRAMES = 1000;
 		static constexpr size_t MEASURED_FRAMES = 1000;
 
-		static std::vector<double> gpuFrameTime(MEASURED_FRAMES);
-		static std::vector<double> gpuInstanceUpdate(MEASURED_FRAMES);
-		static std::vector<double> gpuCulling(MEASURED_FRAMES);
-		static std::vector<double> gpuGeometry(MEASURED_FRAMES);
-		static std::vector<double> gpuLighting(MEASURED_FRAMES);
-
 		static std::vector<double> cpuTotalFrameTime(MEASURED_FRAMES);
-		static std::vector<double> cpuRenderFrameTime(MEASURED_FRAMES);
+		static std::vector<double> gpuFrameTime(MEASURED_FRAMES);
+		
+		static std::vector<double> cpuRenderTime(MEASURED_FRAMES);
 		static std::vector<double> cpuInstanceUpdate(MEASURED_FRAMES);
 		static std::vector<double> cpuCulling(MEASURED_FRAMES);
-		static std::vector<double> cpuGeometry(MEASURED_FRAMES);
+		static std::vector<double> cpuGeometryGPUDriven(MEASURED_FRAMES);
+		static std::vector<double> cpuGeometryCPUDriven(MEASURED_FRAMES);
 		static std::vector<double> cpuLighting(MEASURED_FRAMES);
 		static std::vector<double> cpuGPUSync(MEASURED_FRAMES);
 
+		static std::vector<double> gpuInstanceUpdate(MEASURED_FRAMES);
+		static std::vector<double> gpuCulling(MEASURED_FRAMES);
+		static std::vector<double> gpuGeometryGPUDriven(MEASURED_FRAMES);
+		static std::vector<double> gpuGeometryCPUDriven(MEASURED_FRAMES);
+		static std::vector<double> gpuLighting(MEASURED_FRAMES);
+
 		static size_t frameCount = 0;
 
-		if (frameCount >= WARMUP_FRAMES and frameCount < WARMUP_FRAMES + MEASURED_FRAMES)
+		if (frameCount >= WARMUP_FRAMES && frameCount < WARMUP_FRAMES + MEASURED_FRAMES)
 		{
-			// Record timings
 			size_t index = frameCount - WARMUP_FRAMES;
+
+			// Record timings
+			auto& profiler = Profiler::instance();
+			cpuTotalFrameTime[index] = profiler.lastTime("Frame Time");
+			cpuRenderTime[index] = profiler.lastTime("CPU Render Frame");
+			cpuInstanceUpdate[index] = profiler.lastTime("Instance Update");
+			cpuCulling[index] = profiler.lastTime("Culling");
+			cpuGeometryGPUDriven[index] = profiler.lastTime("GPU Driven Geometry");
+			cpuGeometryCPUDriven[index] = profiler.lastTime("Geometry");
+			cpuLighting[index] = profiler.lastTime("Lighting");
+			cpuGPUSync[index] = profiler.lastTime("GPU Sync");
+
 			for (const auto& timing : gpuTimer.timings())
 			{
-				if (timing.name == "GPU Frame Time")               gpuFrameTime[index] = timing.timeMs;
+				if (timing.name == "GPU Frame Time")           gpuFrameTime[index] = timing.timeMs;
 				else if (timing.name == "Instance Update")     gpuInstanceUpdate[index] = timing.timeMs;
 				else if (timing.name == "Culling")             gpuCulling[index] = timing.timeMs;
-				else if (timing.name == "GPU Driven Geometry") gpuGeometry[index] = timing.timeMs;
+				else if (timing.name == "GPU Driven Geometry") gpuGeometryGPUDriven[index] = timing.timeMs;
+				else if (timing.name == "Geometry")            gpuGeometryCPUDriven[index] = timing.timeMs;
 				else if (timing.name == "Lighting")            gpuLighting[index] = timing.timeMs;
 			}
 
-			auto& profiler = Profiler::instance();
-			cpuTotalFrameTime[index] = profiler.lastTime("Frame Time");
-			cpuRenderFrameTime[index] = profiler.lastTime("CPU Render Frame");
-			cpuInstanceUpdate[index] = profiler.lastTime("Instance Update");
-			cpuCulling[index] = profiler.lastTime("Culling");
-			cpuGeometry[index] = profiler.lastTime("GPU Driven Geometry");
-			cpuLighting[index] = profiler.lastTime("Lighting");
-			cpuGPUSync[index] = profiler.lastTime("GPU Sync");
 		}
 		else if (frameCount == WARMUP_FRAMES + MEASURED_FRAMES)
 		{
@@ -76,33 +83,37 @@ namespace Aegis::Graphics
 			file << "Dynamic instances," << drawBatcher.dynamicInstanceCount() << "\n";
 			file << "\n";
 			file << "Frame,"
-				"GPU Frame Time(ms),"
-				"GPU Instance Update(ms),"
-				"GPU Culling(ms),"
-				"GPU Geometry(ms),"
-				"GPU Lighting(ms),"
 				"CPU Total Frame Time (ms),"
+				"GPU Frame Time (ms),"
 				"CPU Render Frame (ms),"
-				"CPU Instance Update (ms),"
-				"CPU Culling (ms),"
-				"CPU Geometry (ms),"
+				"CPU Instance Update (GPU-driven) (ms),"
+				"CPU Culling (GPU-driven) (ms),"
+				"CPU Geometry (GPU-driven) (ms),"
+				"CPU Geometry (CPU-driven) (ms),"
 				"CPU Lighting (ms),"
-				"CPU Wait for GPU (ms)\n";
+				"CPU Wait for GPU (ms),"
+				"GPU Instance Update (GPU-driven) (ms),"
+				"GPU Culling (GPU-driven) (ms),"
+				"GPU Geometry (GPU-driven) (ms),"
+				"GPU Geometry (CPU-driven) (ms),"
+				"GPU Lighting(ms)\n";
 			for (size_t i = 0; i < MEASURED_FRAMES; ++i)
 			{
 				file << (i + 1) << ","
-					<< gpuFrameTime[i] << ","
-					<< gpuInstanceUpdate[i] << ","
-					<< gpuCulling[i] << ","
-					<< gpuGeometry[i] << ","
-					<< gpuLighting[i] << ","
 					<< cpuTotalFrameTime[i] << ","
-					<< cpuRenderFrameTime[i] << ","
+					<< gpuFrameTime[i] << ","
+					<< cpuRenderTime[i] << ","
 					<< cpuInstanceUpdate[i] << ","
 					<< cpuCulling[i] << ","
-					<< cpuGeometry[i] << ","
+					<< cpuGeometryGPUDriven[i] << ","
+					<< cpuGeometryCPUDriven[i] << ","
 					<< cpuLighting[i] << ","
-					<< cpuGPUSync[i] << "\n";
+					<< cpuGPUSync[i] << ","
+					<< gpuInstanceUpdate[i] << ","
+					<< gpuCulling[i] << ","
+					<< gpuGeometryGPUDriven[i] << ","
+					<< gpuGeometryCPUDriven[i] << ","
+					<< gpuLighting[i] << "\n";
 			}
 
 			ALOG::info("Saved GPU frame times to frame_times.csv");
@@ -160,7 +171,6 @@ namespace Aegis::Graphics
 	{
 		AGX_PROFILE_FUNCTION();
 		{
-			AGX_PROFILE_SCOPE("CPU Render Frame");
 			beginFrame();
 			{
 				AGX_ASSERT_X(m_isFrameStarted, "Frame not started");
@@ -176,6 +186,7 @@ namespace Aegis::Graphics
 				};
 
 				AGX_GPU_PROFILE_SCOPE(frameInfo.cmd, "GPU Frame Time");
+				AGX_PROFILE_SCOPE("CPU Render Frame");
 
 				m_frameGraph.execute(frameInfo);
 			}
