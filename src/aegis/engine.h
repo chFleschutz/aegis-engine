@@ -35,12 +35,12 @@ namespace Aegis
 
 		/// @brief Creates a scene from a description
 		/// @tparam T Description of the scene (Derived from Scene::Description)
-		template<Scene::DescriptionDerived T>
-		void loadScene()
+		template<Scene::DescriptionDerived T, typename... Args>
+		void loadScene(Args&&... args)
 		{
 			m_scene.reset();
 			m_renderer.sceneChanged(m_scene);
-			T description{};
+			T description{ std::forward<Args>(args)... };
 			description.initialize(m_scene);
 			m_scene.begin();
 			m_renderer.sceneInitialized(m_scene);
