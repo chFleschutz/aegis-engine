@@ -19,8 +19,110 @@
 #include "graphics/vulkan/vulkan_context.h"
 #include "scene/scene.h"
 
+#include <fstream>
+
 namespace Aegis::Graphics
 {
+	void benchmarkFrameTimes(const GPUTimerManager& gpuTimer, const DrawBatchRegistry& drawBatcher)
+	{
+		// Save timings to disk
+		static constexpr size_t WARMUP_FRAMES = 1000;
+		static constexpr size_t MEASURED_FRAMES = 1000;
+
+		static std::vector<double> cpuTotalFrameTime(MEASURED_FRAMES);
+		static std::vector<double> gpuFrameTime(MEASURED_FRAMES);
+		
+		static std::vector<double> cpuRenderTime(MEASURED_FRAMES);
+		static std::vector<double> cpuInstanceUpdate(MEASURED_FRAMES);
+		static std::vector<double> cpuCulling(MEASURED_FRAMES);
+		static std::vector<double> cpuGeometryGPUDriven(MEASURED_FRAMES);
+		static std::vector<double> cpuGeometryCPUDriven(MEASURED_FRAMES);
+		static std::vector<double> cpuLighting(MEASURED_FRAMES);
+		static std::vector<double> cpuGPUSync(MEASURED_FRAMES);
+
+		static std::vector<double> gpuInstanceUpdate(MEASURED_FRAMES);
+		static std::vector<double> gpuCulling(MEASURED_FRAMES);
+		static std::vector<double> gpuGeometryGPUDriven(MEASURED_FRAMES);
+		static std::vector<double> gpuGeometryCPUDriven(MEASURED_FRAMES);
+		static std::vector<double> gpuLighting(MEASURED_FRAMES);
+
+		static size_t frameCount = 0;
+
+		if (frameCount >= WARMUP_FRAMES && frameCount < WARMUP_FRAMES + MEASURED_FRAMES)
+		{
+			size_t index = frameCount - WARMUP_FRAMES;
+
+			// Record timings
+			auto& profiler = Profiler::instance();
+			cpuTotalFrameTime[index] = profiler.lastTime("Frame Time");
+			cpuRenderTime[index] = profiler.lastTime("CPU Render Frame");
+			cpuInstanceUpdate[index] = profiler.lastTime("Instance Update");
+			cpuCulling[index] = profiler.lastTime("Culling");
+			cpuGeometryGPUDriven[index] = profiler.lastTime("GPU Driven Geometry");
+			cpuGeometryCPUDriven[index] = profiler.lastTime("Geometry");
+			cpuLighting[index] = profiler.lastTime("Lighting");
+			cpuGPUSync[index] = profiler.lastTime("GPU Sync");
+
+			for (const auto& timing : gpuTimer.timings())
+			{
+				if (timing.name == "GPU Frame Time")           gpuFrameTime[index] = timing.timeMs;
+				else if (timing.name == "Instance Update")     gpuInstanceUpdate[index] = timing.timeMs;
+				else if (timing.name == "Culling")             gpuCulling[index] = timing.timeMs;
+				else if (timing.name == "GPU Driven Geometry") gpuGeometryGPUDriven[index] = timing.timeMs;
+				else if (timing.name == "Geometry")            gpuGeometryCPUDriven[index] = timing.timeMs;
+				else if (timing.name == "Lighting")            gpuLighting[index] = timing.timeMs;
+			}
+
+		}
+		else if (frameCount == WARMUP_FRAMES + MEASURED_FRAMES)
+		{
+			// Save to disk
+			std::ofstream file("frame_times.csv");
+			file << "Total instance count," << drawBatcher.instanceCount() << "\n";
+			file << "Static instances," << drawBatcher.staticInstanceCount() << "\n";
+			file << "Dynamic instances," << drawBatcher.dynamicInstanceCount() << "\n";
+			file << "\n";
+			file << "Frame,"
+				"CPU Total Frame Time (ms),"
+				"GPU Frame Time (ms),"
+				"CPU Render Frame (ms),"
+				"CPU Instance Update (GPU-driven) (ms),"
+				"CPU Culling (GPU-driven) (ms),"
+				"CPU Geometry (GPU-driven) (ms),"
+				"CPU Geometry (CPU-driven) (ms),"
+				"CPU Lighting (ms),"
+				"CPU Wait for GPU (ms),"
+				"GPU Instance Update (GPU-driven) (ms),"
+				"GPU Culling (GPU-driven) (ms),"
+				"GPU Geometry (GPU-driven) (ms),"
+				"GPU Geometry (CPU-driven) (ms),"
+				"GPU Lighting(ms)\n";
+			for (size_t i = 0; i < MEASURED_FRAMES; ++i)
+			{
+				file << (i + 1) << ","
+					<< cpuTotalFrameTime[i] << ","
+					<< gpuFrameTime[i] << ","
+					<< cpuRenderTime[i] << ","
+					<< cpuInstanceUpdate[i] << ","
+					<< cpuCulling[i] << ","
+					<< cpuGeometryGPUDriven[i] << ","
+					<< cpuGeometryCPUDriven[i] << ","
+					<< cpuLighting[i] << ","
+					<< cpuGPUSync[i] << ","
+					<< gpuInstanceUpdate[i] << ","
+					<< gpuCulling[i] << ","
+					<< gpuGeometryGPUDriven[i] << ","
+					<< gpuGeometryCPUDriven[i] << ","
+					<< gpuLighting[i] << "\n";
+			}
+
+			ALOG::info("Saved GPU frame times to frame_times.csv");
+		}
+		++frameCount;
+	}
+
+
+
 	Renderer::Renderer(Core::Window& window) :
 		m_window{ window },
 		m_vulkanContext{ VulkanContext::initialize(m_window) },
@@ -68,26 +170,31 @@ namespace Aegis::Graphics
 	void Renderer::renderFrame(Scene::Scene& scene, UI::UI& ui)
 	{
 		AGX_PROFILE_FUNCTION();
-
-		beginFrame();
 		{
-			AGX_ASSERT_X(m_isFrameStarted, "Frame not started");
+			beginFrame();
+			{
+				AGX_ASSERT_X(m_isFrameStarted, "Frame not started");
 
-			FrameInfo frameInfo{
-				.scene = scene,
-				.ui = ui,
-				.drawBatcher = m_drawBatchRegistry,
-				.cmd = currentCommandBuffer(),
-				.frameIndex = m_currentFrameIndex,
-				.swapChainExtent = m_swapChain.extent(),
-				.aspectRatio = m_swapChain.aspectRatio()
-			};
+				FrameInfo frameInfo{
+					.scene = scene,
+					.ui = ui,
+					.drawBatcher = m_drawBatchRegistry,
+					.cmd = currentCommandBuffer(),
+					.frameIndex = m_currentFrameIndex,
+					.swapChainExtent = m_swapChain.extent(),
+					.aspectRatio = m_swapChain.aspectRatio()
+				};
 
-			AGX_GPU_PROFILE_FUNCTION(frameInfo.cmd);
+				AGX_GPU_PROFILE_SCOPE(frameInfo.cmd, "GPU Frame Time");
+				AGX_PROFILE_SCOPE("CPU Render Frame");
 
-			m_frameGraph.execute(frameInfo);
+				m_frameGraph.execute(frameInfo);
+			}
+			endFrame();
 		}
-		endFrame();
+
+		// TODO: Remove benchmarking code when not needed
+		benchmarkFrameTimes(m_gpuTimerManager, m_drawBatchRegistry);
 	}
 
 	void Renderer::waitIdle()

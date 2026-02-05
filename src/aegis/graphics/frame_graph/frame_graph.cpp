@@ -6,6 +6,8 @@
 #include "graphics/vulkan/vulkan_context.h"
 #include "graphics/vulkan/vulkan_tools.h"
 
+#include "graphics/gpu_timer.h"
+
 // Hash function for ResourceHandle to be used in unordered_map
 namespace std
 {
@@ -60,6 +62,8 @@ namespace Aegis::Graphics
 		for (auto nodeHandle : m_nodes)
 		{
 			auto& node = m_pool.node(nodeHandle);
+			AGX_GPU_PROFILE_SCOPE(frameInfo.cmd, node.info.name);
+			AGX_PROFILE_SCOPE(node.info.name);
 
 			Tools::vk::cmdBeginDebugUtilsLabel(frameInfo.cmd, node.info.name.c_str());
 			{

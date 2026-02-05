@@ -1,3 +1,4 @@
+add_subdirectory(eval-scene)
 add_subdirectory(helmets)
 add_subdirectory(simple-scene)
 add_subdirectory(sponza)
