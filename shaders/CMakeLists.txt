@@ -60,6 +60,22 @@ foreach(GLSL ${GLSL_SOURCES})
 endforeach()
 
 # Compile Slang shaders
+set(SLANG_CAPABILITIES
+    spirv_1_6
+    spvDerivativeControl
+    spvFragmentFullyCoveredEXT
+    spvGroupNonUniformBallot
+    spvImageGatherExtended
+    spvImageQuery
+    spvMeshShadingEXT
+    spvMinLod
+    spvRayTracingKHR
+    spvShaderNonUniform
+    spvSparseResidency
+    SPV_GOOGLE_user_type
+)
+string(REPLACE ";" "+" SLANG_PROFILE_STR "${SLANG_CAPABILITIES}")
+
 file(GLOB_RECURSE SLANG_SOURCES CONFIGURE_DEPENDS
     "${SHADERS_DIR}/*.slang"
 )
@@ -79,7 +95,7 @@ foreach(SLANG ${SLANG_SOURCES})
         OUTPUT ${SLANG_SPIRV}
         COMMAND ${SLANGC_EXE} ${SLANG} 
             -target spirv 
-            -profile spirv_1_6+spvMeshShadingEXT+spvRayTracingKHR
+            -profile ${SLANG_PROFILE_STR}
             -o ${SLANG_SPIRV} 
             -I ${SHADERS_DIR}
             -fvk-use-entrypoint-name 
