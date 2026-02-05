@@ -35,7 +35,7 @@ namespace Aegis::Core
 					.addColorAttachment(VK_FORMAT_R8G8B8A8_UNORM)
 					.addColorAttachment(VK_FORMAT_R8G8B8A8_UNORM)
 					.setDepthAttachment(VK_FORMAT_D32_SFLOAT);
-				if constexpr (Renderer::ENABLE_GPU_DRIVEN_RENDERING)
+				if (Renderer::useGPUDrivenRendering())
 				{
 					return builder
 						.addShaderStages(VK_SHADER_STAGE_TASK_BIT_EXT, 

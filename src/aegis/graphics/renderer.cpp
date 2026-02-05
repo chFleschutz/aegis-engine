@@ -27,6 +27,15 @@ namespace Aegis::Graphics
 		m_swapChain{ window.extent() }
 	{
 		createFrameContext();
+
+		if (useGPUDrivenRendering())
+		{
+			ALOG::info("Using GPU Driven Rendering");
+		}
+		else
+		{
+			ALOG::info("Using CPU Driven Rendering");
+		}
 	}
 
 	Renderer::~Renderer()
@@ -142,18 +151,18 @@ namespace Aegis::Graphics
 	{
 		// CPU and GPU Driven Geometry Passes are mutually exclusive 
 		// Note: They each need different shaders and pipelines (check asset_manager.cpp)
-		if constexpr (!ENABLE_GPU_DRIVEN_RENDERING)
-		{
-			// CPU Driven Rendering Passes
-			m_frameGraph.add<GeometryPass>()
-				.addRenderSystem<BindlessStaticMeshRenderSystem>(MaterialType::Opaque);
-		}
-		else
+		if (Renderer::useGPUDrivenRendering())
 		{
 			// GPU Driven Rendering Passes 
 			m_frameGraph.add<CullingPass>(m_drawBatchRegistry);
 			m_frameGraph.add<SceneUpdatePass>();
 			m_frameGraph.add<GPUDrivenGeometry>();
+		}
+		else
+		{
+			// CPU Driven Rendering Passes
+			m_frameGraph.add<GeometryPass>()
+				.addRenderSystem<BindlessStaticMeshRenderSystem>(MaterialType::Opaque);
 		}
 
 		m_frameGraph.add<SkyBoxPass>();
@@ -165,6 +174,7 @@ namespace Aegis::Graphics
 
 		m_frameGraph.add<TransparentPass>()
 			.addRenderSystem<PointLightRenderSystem>();
+
 		// TODO: Rework transparent rendering with GPU driven approach (need to sort transparents first)
 		// TODO: Alternatively add transparent tag component to avoid iterating all static meshes
 		//transparentPass.addRenderSystem<BindlessStaticMeshRenderSystem>(MaterialType::Transparent);

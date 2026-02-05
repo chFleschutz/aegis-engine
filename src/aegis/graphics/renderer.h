@@ -23,6 +23,12 @@ namespace Aegis::Graphics
 		};
 
 		static constexpr bool ENABLE_GPU_DRIVEN_RENDERING{ true };
+		static auto useGPUDrivenRendering() -> bool 
+		{ 
+			return ENABLE_GPU_DRIVEN_RENDERING 
+				&& VulkanContext::device().features().meshShaderEXT.meshShader
+				&& VulkanContext::device().features().meshShaderEXT.taskShader;
+		}
 
 		Renderer(Core::Window& window);
 		Renderer(const Renderer&) = delete;
