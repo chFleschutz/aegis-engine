@@ -33,6 +33,10 @@ public:
 
 // 2. Lumberyard Bistro 
 //    - larger scene with a lot of objects and details
+
+// NOTE: The Bistro scene is very large (~1.2 GB) and is not included in the repository.
+// It is originally available from NVIDIA's Orca collection as fbx: https://developer.nvidia.com/orca/amazon-lumberyard-bistro
+// A gltf version of the scene can be found here: https://github.com/zeux/niagara_bistro
 class Bistro : public Aegis::Scene::Description
 {
 public:
@@ -50,7 +54,11 @@ public:
 		scene.ambientLight().get<AmbientLight>().intensity = 0.25f;
 		scene.directionalLight().get<DirectionalLight>().intensity = 2.0f;
 
-		scene.load(ENGINE_DIR "temp/Bistro/bistro.gltf");
+		std::filesystem::path bistroPath = ENGINE_DIR "temp/Bistro/bistro.gltf";
+		AGX_ASSERT_X(std::filesystem::exists(bistroPath), 
+			"Bistro scene not found! Please download the scene from 'https://github.com/zeux/niagara_bistro' and place it in the 'temp/Bistro' folder.");
+
+		scene.load(bistroPath);
 		scene.mainCamera().get<Transform>() = Transform{
 			.location = { -24.5f, 2.75f, 5.25f},
 			.rotation = glm::radians(glm::vec3{ -1.5f, 0.0f, -90.0f })
@@ -308,7 +316,7 @@ auto main() -> int
 {
 	Aegis::Engine engine;
 	engine.loadScene<Sponza>();
-	//engine.loadScene<Bistro>();
+	//engine.loadScene<Bistro>(); 
 	//engine.loadScene<HighPolyHighObj>(0);
 	//engine.loadScene<HighPolyHighObj>(1);
 	//engine.loadScene<LowPolyHighObj>(0);
