@@ -26,7 +26,7 @@ namespace Aegis::Graphics
 		m_pipeline = Pipeline::ComputeBuilder{}
 			.addDescriptorSetLayout(m_gbufferSetLayout)
 			.addDescriptorSetLayout(m_iblSetLayout)
-			.setShaderStage(SHADER_DIR "pbr/pbr_lighting.slang.spv", "computeMain")
+			.setShaderStage(SHADER_DIR "pbr_lighting.slang.spv", "computeMain")
 			.buildUnique();
 
 		m_position = pool.addReference("Position",

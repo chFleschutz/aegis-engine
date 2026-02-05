@@ -38,9 +38,10 @@ namespace Aegis::Core
 				if constexpr (Renderer::ENABLE_GPU_DRIVEN_RENDERING)
 				{
 					return builder
-						.addShaderStages(VK_SHADER_STAGE_TASK_BIT_EXT, SHADER_DIR "pbr/task_meshlet_cull.slang.spv")
+						.addShaderStages(VK_SHADER_STAGE_TASK_BIT_EXT, 
+							SHADER_DIR "gpu-driven/task_meshlet_cull.slang.spv")
 						.addShaderStages(VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT,
-							SHADER_DIR "pbr/mesh_geometry_indirect.slang.spv")
+							SHADER_DIR "gpu-driven/mesh_geometry_indirect.slang.spv")
 						.addFlag(Pipeline::Flags::MeshShader)
 						.build();
 				}
@@ -48,7 +49,7 @@ namespace Aegis::Core
 				{
 					return builder
 						.addShaderStages(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-							SHADER_DIR "pbr/default_geometry_bindless.slang.spv")
+							SHADER_DIR "cpu-driven/vertex_geometry_bindless.slang.spv")
 						.build();
 				}
 			}();

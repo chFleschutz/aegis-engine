@@ -13,7 +13,7 @@ namespace Aegis::Graphics
 			// TODO: Maybe add convienience method to add bindless layout
 			.addDescriptorSetLayout(Engine::renderer().bindlessDescriptorSet().layout())
 			.addPushConstantRange(VK_SHADER_STAGE_COMPUTE_BIT, sizeof(CullingPushConstants))
-			.setShaderStage(SHADER_DIR "culling.slang.spv")
+			.setShaderStage(SHADER_DIR "gpu-driven/culling.slang.spv")
 			.build();
 
 		m_staticInstances = pool.addReference("StaticInstanceData",
