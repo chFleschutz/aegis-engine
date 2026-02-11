@@ -38,7 +38,7 @@ namespace Aegis::Core
 				if (Renderer::useGPUDrivenRendering())
 				{
 					return builder
-						.addShaderStages(VK_SHADER_STAGE_TASK_BIT_EXT, 
+						.addShaderStages(VK_SHADER_STAGE_TASK_BIT_EXT,
 							SHADER_DIR "gpu-driven/task_meshlet_cull.slang.spv")
 						.addShaderStages(VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT,
 							SHADER_DIR "gpu-driven/mesh_geometry_indirect.slang.spv")
@@ -47,12 +47,27 @@ namespace Aegis::Core
 				}
 				else
 				{
+					// Vertex shader
 					return builder
 						.addShaderStages(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
 							SHADER_DIR "cpu-driven/vertex_geometry_bindless.slang.spv")
 						.build();
+					
+					// Mesh shader
+					//return builder	
+					//	.addShaderStages(VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT,
+					//		SHADER_DIR "cpu-driven/mesh_geometry_bindless.slang.spv")
+					//	.addFlag(Pipeline::Flags::MeshShader)
+					//	.build();
+					
+					// Mesh shader + task shader culling (Need to adjust StaticMesh::drawMeshlets to use group size of 32)
+					//return builder
+					//	.addShaderStages(VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT,
+					//		SHADER_DIR "cpu-driven/mesh_geometry_cull.slang.spv")
+					//	.addFlag(Pipeline::Flags::MeshShader)
+					//	.build();
 				}
-			}();
+				}();
 
 			auto pbrMatTemplate = std::make_shared<MaterialTemplate>(std::move(pipeline));
 			pbrMatTemplate->addParameter("albedo", glm::vec3{ 1.0f, 1.0f, 1.0f });

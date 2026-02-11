@@ -102,6 +102,8 @@ namespace Aegis::Graphics
 
 	void StaticMesh::drawMeshlets(VkCommandBuffer cmd) const
 	{
-		vkCmdDrawMeshTasksEXT(cmd, m_meshletCount, 1, 1);
+		constexpr uint32_t MESHLETS_PER_GROUP = 1;
+		uint32_t groupCount = (m_meshletCount + MESHLETS_PER_GROUP - 1) / MESHLETS_PER_GROUP;
+		vkCmdDrawMeshTasksEXT(cmd, groupCount, 1, 1);
 	}
 }
