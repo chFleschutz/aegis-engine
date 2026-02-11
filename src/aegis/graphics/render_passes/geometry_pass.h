@@ -5,6 +5,7 @@
 #include "graphics/frame_graph/frame_graph_render_pass.h"
 #include "graphics/render_systems/render_system.h"
 #include "graphics/descriptors.h"
+#include "graphics/frustum.h"
 
 namespace Aegis::Graphics
 {
@@ -13,6 +14,8 @@ namespace Aegis::Graphics
 		glm::mat4 projection{ 1.0f };
 		glm::mat4 view{ 1.0f };
 		glm::mat4 inverseView{ 1.0f };
+		Frustum frustum;
+		glm::vec3 cameraPosition;
 	};
 
 	class GeometryPass : public FGRenderPass

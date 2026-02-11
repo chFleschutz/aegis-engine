@@ -151,7 +151,9 @@ namespace Aegis::Graphics
 		GBufferUbo ubo{
 			.projection = glm::rowMajor4(camera.projectionMatrix),
 			.view = glm::rowMajor4(camera.viewMatrix),
-			.inverseView = glm::rowMajor4(camera.inverseViewMatrix)
+			.inverseView = glm::rowMajor4(camera.inverseViewMatrix),
+			.frustum = Frustum::extractFrom(camera.projectionMatrix * camera.viewMatrix),
+			.cameraPosition = mainCamera.get<GlobalTransform>().location
 		};
 
 		m_globalUbo.buffer().writeToIndex(&ubo, frameInfo.frameIndex);
