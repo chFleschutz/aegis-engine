@@ -311,16 +311,53 @@ public:
 	}
 };
 
+// 6. Lucy Statue
+//     - extremly high poly model (~28 million triangles)
+
+// NOTE: The model is very large and is not included in the repository.
+// It is originally available from the Stanford 3D Scanning Repository: https://graphics.stanford.edu/data/3Dscanrep/
+class Lucy : public Aegis::Scene::Description
+{
+public:
+	/// @brief All objects in a scene are created here
+	void initialize(Aegis::Scene::Scene& scene) override
+	{
+		using namespace Aegis;
+
+		// Environment setup
+		auto& env = scene.environment().get<Environment>();
+		env.skybox = Graphics::Texture::loadFromFile(ASSETS_DIR "Environments/KloppenheimSky.hdr");
+		env.irradiance = Graphics::Texture::irradianceMap(env.skybox);
+		env.prefiltered = Graphics::Texture::prefilteredMap(env.skybox);
+
+		scene.ambientLight().get<AmbientLight>().intensity = 0.25f;
+		scene.directionalLight().get<DirectionalLight>().intensity = 2.0f;
+
+		std::filesystem::path bistroPath = ENGINE_DIR "temp/Lucy/lucy.gltf";
+		AGX_ASSERT_X(std::filesystem::exists(bistroPath),
+			"Lucy statue model not found! Please download the model from 'https://graphics.stanford.edu/data/3Dscanrep/' and place it in the 'temp/Lucy' folder.");
+
+		scene.load(bistroPath);
+		scene.mainCamera().get<Transform>() = Transform{
+			.location = { 0.0f, 16.0f, 14.0f},
+			.rotation = glm::radians(glm::vec3{ -17.0f, 0.0f, 175.0f })
+		};
+	}
+};
 
 auto main() -> int
 {
+	// Toggle between cpu/gpu driven by changing this constant:
+	Aegis::Graphics::Renderer::ENABLE_GPU_DRIVEN_RENDERING;
+
 	Aegis::Engine engine;
 	engine.loadScene<Sponza>();
-	//engine.loadScene<Bistro>(); 
+	//engine.loadScene<Bistro>(); // NOTE: Bistro model not included
 	//engine.loadScene<HighPolyHighObj>(0);
 	//engine.loadScene<HighPolyHighObj>(1);
 	//engine.loadScene<LowPolyHighObj>(0);
 	//engine.loadScene<LowPolyHighObj>(1);
 	//engine.loadScene<DynamicObjects>();
+	//engine.loadScene<Lucy>(); // NOTE: Lucy model not included
 	engine.run();
 }
