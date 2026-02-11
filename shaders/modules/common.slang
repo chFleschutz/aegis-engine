@@ -66,11 +66,11 @@ namespace common
 
     public struct Mesh
     {
-        public bindless::Handle<StorageBuffer<Vertex, ScalarDataLayout>> vertex;
-        public bindless::Handle<StorageBuffer<uint>> index;
-        public bindless::Handle<StorageBuffer<Meshlet>> meshlet;
-        public bindless::Handle<StorageBuffer<uint>> meshletIndex;
-        public bindless::Handle<StorageBuffer<uint8_t, ScalarDataLayout>> meshletPrimitive;
+        public bindless::Handle<StorageBuffer<Vertex, ScalarDataLayout>> vertices;
+        public bindless::Handle<StorageBuffer<uint>> indices;
+        public bindless::Handle<StorageBuffer<Meshlet>> meshlets;
+        public bindless::Handle<StorageBuffer<uint>> meshletVertices;
+        public bindless::Handle<StorageBuffer<uint8_t, ScalarDataLayout>> meshletPrimitives;
         public uint vertexCount;
         public uint indexCount;
         public uint meshletCount;

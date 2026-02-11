@@ -48,21 +48,21 @@ func meshMain(
     let instance = indirectDraw::getInstance(inPayload.instanceID);
     let mesh = instance.mesh.get();
     let meshletID = inPayload.groupMeshletOffset + inPayload.meshletIDs[groupID.x];
-    let meshlet = mesh.meshlet.get()[meshletID];
+    let meshlet = mesh.meshlets.get()[meshletID];
 
     SetMeshOutputCounts(meshlet.vertexCount, meshlet.primitiveCount);
 
     // Emit vertices
     for (uint i = threadID.x; i < uint(meshlet.vertexCount); i += MESH_GROUP_SIZE)
     {
-        uint index = mesh.meshletIndex.get()[meshlet.vertexOffset + i];
-        let v = mesh.vertex.get()[index];
+        uint vertexIndex = mesh.meshletVertices.get()[meshlet.vertexOffset + i];
+        let vertex = mesh.vertices.get()[vertexIndex];
 
-        float4 worldPos = mul(instance.modelMatrix, float4(v.position, 1.0));
+        float4 worldPos = mul(instance.modelMatrix, float4(vertex.position, 1.0));
         meshVertices[i].position = mul(camera.viewProjection, worldPos);
         meshVertices[i].worldPosition = worldPos.xyz;
-        meshVertices[i].worldNormal = normalize(mul(instance.normalMatrix, v.normal));
-        meshVertices[i].uv = v.uv;
+        meshVertices[i].worldNormal = normalize(mul(instance.normalMatrix, vertex.normal));
+        meshVertices[i].uv = vertex.uv;
         meshVertices[i].material = instance.material.asHandle<UniformBuffer<Material>>();
     }
 
@@ -71,9 +71,9 @@ func meshMain(
     {
         uint offset = meshlet.primitiveOffset + i * 3;
         meshPrimitives[i] = uint3(
-            mesh.meshletPrimitive.get()[offset + 0], 
-            mesh.meshletPrimitive.get()[offset + 1],
-            mesh.meshletPrimitive.get()[offset + 2]);
+            mesh.meshletPrimitives.get()[offset + 0], 
+            mesh.meshletPrimitives.get()[offset + 1],
+            mesh.meshletPrimitives.get()[offset + 2]);
     }
 }
 

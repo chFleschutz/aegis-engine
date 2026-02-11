@@ -28,7 +28,7 @@ func taskMain(
     if (dispatchThreadID.x < mesh.meshletCount)
     {
         let camera = indirectDraw::pc.camera.get();
-        let meshlet = mesh.meshlet.get()[dispatchThreadID.x];
+        let meshlet = mesh.meshlets.get()[dispatchThreadID.x];
         let worldBounds = meshlet.bounds.transform(instance.modelMatrix);
         let worldConeAxis = normalize(mul((float3x3)instance.modelMatrix, meshlet.cone.axis));
 

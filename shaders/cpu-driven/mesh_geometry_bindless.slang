@@ -12,6 +12,8 @@ struct Global
     float4x4 projection;
     float4x4 view;
     float4x4 viewInverse;
+    common::Frustum frustum;
+    float3 cameraPosition;
 }
 
 struct TaskPayload
@@ -79,7 +81,7 @@ func meshMain(
 {
     let global = push.global.get();
     let mesh = push.mesh.get();
-    let meshlet = mesh.meshlet.get()[groupID.x];
+    let meshlet = mesh.meshlets.get()[groupID.x];
 
     SetMeshOutputCounts(meshlet.vertexCount, meshlet.primitiveCount);
 
@@ -88,14 +90,14 @@ func meshMain(
     // Emit vertices
     for (uint i = threadID.x; i < uint(meshlet.vertexCount); i += NUM_THREADS)
     {
-        uint index = mesh.meshletIndex.get()[meshlet.vertexOffset + i];
-        let v = mesh.vertex.get()[index];
+        uint vertexIndex = mesh.meshletVertices.get()[meshlet.vertexOffset + i];
+        let vertex = mesh.vertices.get()[vertexIndex];
 
-        float4 worldPos = mul(push.modelMatrix, float4(v.position, 1.0));
+        float4 worldPos = mul(push.modelMatrix, float4(vertex.position, 1.0));
         meshVertices[i].position = mul(viewProjection, worldPos);
         meshVertices[i].worldPosition = worldPos.xyz;
-        meshVertices[i].worldNormal = normalize(mul(push.normalMatrix, v.normal));
-        meshVertices[i].uv = v.uv;
+        meshVertices[i].worldNormal = normalize(mul(push.normalMatrix, vertex.normal));
+        meshVertices[i].uv = vertex.uv;
     }
 
     // Emit primitives
@@ -103,9 +105,9 @@ func meshMain(
     {
         uint offset = meshlet.primitiveOffset + i * 3;
         meshPrimitives[i] = uint3(
-            mesh.meshletPrimitive.get()[offset + 0], 
-            mesh.meshletPrimitive.get()[offset + 1],
-            mesh.meshletPrimitive.get()[offset + 2]);
+            mesh.meshletPrimitives.get()[offset + 0], 
+            mesh.meshletPrimitives.get()[offset + 1],
+            mesh.meshletPrimitives.get()[offset + 2]);
     }
 }
 
