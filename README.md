@@ -24,8 +24,10 @@ A small render engine developed with Vulkan in modern C++.
 ## Prerequisites <a name="prerequisites"></a>
 
 Before building ensure you have the following installed:
-- [Vulkan SDK](https://vulkan.lunarg.com/) - Download an install the latest version (at least version 1.3).
-- CMake - Used for building the project. Either install it manually or use an IDE with built-in CMake support (Visual Studio is the recommended choice)
+- [Vulkan SDK](https://vulkan.lunarg.com/) - Download and install the latest version (at least version 1.3).
+- CMake - Used for building the project. Either install it manually or use an IDE with built-in CMake support (like Visual Studio)
+
+> Note: The engine currently only targets Windows.
 
 ## Getting Started <a name="getting-started"></a>
 
@@ -37,9 +39,10 @@ Follow these steps to get started:
     git clone --recurse-submodules https://github.com/chFleschutz/aegis-engine.git
     ```
 
-2. Open the folder in a CMake supported IDE (e.g. Visual Studio) or generate project files for your preferred platform using CMake.
+2. Open the folder in a CMake supported IDE (e.g. Visual Studio) or generate project files using CMake.
 
-4. Build and run the project to view an example scene.
+3. Build and Run one of the example projects.
+   
 
 ## Modules and External Libraries <a name="external-libraries"></a>
 
