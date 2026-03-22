@@ -9,6 +9,7 @@ x86/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+*.pdb
 
 # SPIRV compiled shader files
 shaders/**/*.spv
