@@ -4,6 +4,7 @@ project(AegisEngine)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
 option(BUILD_EXAMPLES "Build example projects" ON)
 option(COMPILE_SHADERS "Compile GLSL shaders to SPIR-V" ON)

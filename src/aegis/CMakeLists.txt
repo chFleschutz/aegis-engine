@@ -14,6 +14,7 @@ PRIVATE
 
 target_link_libraries(aegis-engine 
 	PUBLIC 
+		aegis-math
 		Aegis::GLTF
 		Aegis::Log
 		EnTT::EnTT
@@ -40,7 +41,8 @@ add_subdirectory(scripting)
 add_subdirectory(ui)
 add_subdirectory(utils)
 
-target_sources(aegis-engine PRIVATE
+target_sources(aegis-engine 
+PRIVATE
 	engine.cpp
 	engine.h
 )
