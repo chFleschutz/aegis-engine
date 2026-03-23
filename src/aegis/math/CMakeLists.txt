@@ -18,10 +18,10 @@ PUBLIC
 	FILE_SET CXX_MODULES 
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
-		"interpolation.cppm"
-		"math.cppm"
-		"perlin_noise.cppm"
-		"random.cppm"
+		interpolation.cppm
+		math.cppm
+		perlin_noise.cppm
+		random.cppm
 )
 
 # TODO: remove this once everything is a module

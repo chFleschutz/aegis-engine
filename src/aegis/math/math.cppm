@@ -18,7 +18,7 @@ export import :Interpolation;
 export import :PerlinNoise;
 export import :Random;
 
-export namespace Aegis
+export namespace glm
 {
 	using glm::vec2;
 	using glm::vec3;
