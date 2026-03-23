@@ -1,3 +1,18 @@
+add_library(aegis-graphics STATIC)
+
+add_subdirectory(bindless)
+
+# TODO: remove this once everything is a module
+target_include_directories(aegis-graphics PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+# TODO: remove this once everything is a module
+target_link_libraries(aegis-graphics PRIVATE
+	Aegis::Log
+)
+
+
 target_sources(aegis-engine PRIVATE
 	"bindless/bindless_buffer.h" 
 	"bindless/bindless_buffer.cpp"
