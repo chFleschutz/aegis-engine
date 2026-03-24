@@ -1,14 +1,19 @@
 module;
 
+#include "core/assert.h"
 #include "graphics/resources/texture.h"
 #include "graphics/resources/buffer.h"
 #include "graphics/vulkan/volk_include.h"
 
 #include <string_view>
+#include <filesystem>
 
 export module Aegis.Graphics.Vulkan.Tools;
 
-import module Aegis.Graphics.Vulkan;
+import Aegis.Graphics.Vulkan;
+import Aegis.Graphics.VulkanContext;
+import Aegis.Math;
+import Aegis.Utils.File;
 
 #define VK_CHECK(f)				\
 {								\
@@ -233,7 +238,7 @@ namespace Aegis::Tools
 
 	auto createShaderModule(VkDevice device, const std::filesystem::path& path) -> VkShaderModule
 	{
-		auto code = File::readBinary(path);
+		auto code = Utils::File::readBinary(path);
 		if (code.empty())
 			ALOG::fatal("Failed to read shader file: {}", path.string());
 		AGX_ASSERT_X(!code.empty(), "Shader code is empty");

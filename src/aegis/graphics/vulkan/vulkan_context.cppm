@@ -3,7 +3,7 @@ module;
 #include "core/assert.h"
 #include "core/window.h"
 
-export module Aegis.Graphics.Vulkan.Context;
+export module Aegis.Graphics.VulkanContext;
 
 import Aegis.Graphics.Vulkan;
 

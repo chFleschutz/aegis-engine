@@ -1,17 +1,9 @@
-target_sources(aegis-engine PRIVATE
-	interpolation.cpp
-	interpolation.h
-	math.cpp
-	math.h
-	perlin_noise.cpp
-	perlin_noise.h
-	print.h
-	random.cpp
-	random.h
-)
-
 add_library(aegis-math STATIC)
-target_link_libraries(aegis-math PUBLIC glm::glm)
+
+target_link_libraries(aegis-math 
+PRIVATE
+	glm::glm
+)
 
 target_sources(aegis-math 
 PUBLIC 
@@ -22,6 +14,18 @@ PUBLIC
 		math.cppm
 		perlin_noise.cppm
 		random.cppm
+)
+
+target_sources(aegis-engine PRIVATE
+	interpolation.cpp
+	interpolation.h
+	math.cpp
+	math.h
+	perlin_noise.cpp
+	perlin_noise.h
+	print.h
+	random.cpp
+	random.h
 )
 
 # TODO: remove this once everything is a module

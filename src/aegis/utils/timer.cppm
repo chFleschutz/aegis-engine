@@ -1,7 +1,7 @@
 module;
 
 #include <chrono>
-#include <ostream>
+#include <iostream>
 #include <string_view>
 
 export module Aegis.Utils.Timer;

@@ -11,6 +11,8 @@ target_include_directories(aegis-graphics PRIVATE
 # TODO: remove this once everything is a module
 target_link_libraries(aegis-graphics 
 PRIVATE
+	aegis-math
+	aegis-utils
 	Aegis::Log
 	volk::volk
 	GPUOpen::VulkanMemoryAllocator

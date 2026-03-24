@@ -15,6 +15,7 @@ PRIVATE
 target_link_libraries(aegis-engine 
 	PUBLIC 
 		aegis-math
+		aegis-utils
 		Aegis::GLTF
 		Aegis::Log
 		EnTT::EnTT

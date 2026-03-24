@@ -1,3 +1,9 @@
+module;
+
+#include "core/assert.h"
+
+#include <string>
+
 export module Aegis.Utils.Color;
 
 import Aegis.Math;
