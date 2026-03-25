@@ -1,7 +1,8 @@
 add_library(aegis-graphics STATIC)
 
-add_subdirectory(bindless)
 add_subdirectory(vulkan)
+add_subdirectory(resources)
+add_subdirectory(bindless)
 
 # TODO: remove this once everything is a module
 target_include_directories(aegis-graphics PRIVATE
@@ -16,6 +17,7 @@ PRIVATE
 	Aegis::Log
 	volk::volk
 	GPUOpen::VulkanMemoryAllocator
+	stb
 )
 
 target_sources(aegis-engine PRIVATE

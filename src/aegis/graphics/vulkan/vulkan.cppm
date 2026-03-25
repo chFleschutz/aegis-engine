@@ -24,6 +24,15 @@ export
 	using ::VkDescriptorSetLayout;
 	using ::VkDescriptorBufferInfo;
 	using ::VkDescriptorImageInfo;
+	using ::VkDeviceSize;
+	using ::VkBufferUsageFlags;
+	using ::VkExtent3D;
+	using ::VkFormat;
+	using ::VkImageLayout;
+	using ::VkImageMemoryBarrier;
+	using ::VkImageUsageFlags;
+	using ::VkImageType;
+	using ::VkImageCreateFlags;
 
 	using ::vkDestroyImageView;
 	using ::vkDestroySampler;
@@ -39,6 +48,7 @@ export
 	// TODO: Add all needed Vulkan types here
 
 	using ::VmaAllocation;
+	using ::VmaAllocationCreateFlags;
 	using ::vmaDestroyBuffer;
 	using ::vmaDestroyImage;
 }
