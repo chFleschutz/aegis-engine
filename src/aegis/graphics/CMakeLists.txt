@@ -6,6 +6,7 @@ add_subdirectory(bindless)
 add_subdirectory(material)
 add_subdirectory(frame_graph)
 add_subdirectory(render_passes)
+add_subdirectory(render_systems)
 
 # TODO: remove this once everything is a module
 target_include_directories(aegis-graphics PRIVATE
