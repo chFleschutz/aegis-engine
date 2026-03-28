@@ -24,7 +24,23 @@ PRIVATE
 	stb
 )
 
-target_sources(aegis-engine PRIVATE
+target_sources(aegis-engine 
+PUBLIC 
+	FILE_SET CXX_MODULES 
+	BASE_DIRS "${AEGIS_MODULE_ROOT}"
+	FILES
+		deletion_queue.cppm
+		descriptors.cppm
+		device.cppm
+		draw_batch_registry.cppm
+		frustum.cppm
+		globals.cppm
+		gpu_timer.cppm
+		pipeline.cppm
+		renderer.cppm
+		render_context.cppm
+		swap_chain.cppm
+PRIVATE
 	"bindless/bindless_buffer.h" 
 	"bindless/bindless_buffer.cpp"
 	"bindless/bindless_descriptor_set.cpp"
