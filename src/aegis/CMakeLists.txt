@@ -43,6 +43,11 @@ add_subdirectory(ui)
 add_subdirectory(utils)
 
 target_sources(aegis-engine 
+PUBLIC 
+	FILE_SET CXX_MODULES 
+	BASE_DIRS "${AEGIS_MODULE_ROOT}"
+	FILES
+		engine.cppm
 PRIVATE
 	engine.cpp
 	engine.h
