@@ -1,9 +1,4 @@
-#include <aegis/engine.h>
-#include <aegis/scene/components.h>
-#include <aegis/scene/description.h>
-#include <aegis/scripting/script_base.h>
-
-#include <aegis/math/random.h>
+import Aegis.Engine;
 
 class ColorChanger : public Aegis::Scripting::ScriptBase
 {

@@ -7,6 +7,7 @@ module;
 export module Aegis.Core.AssetManager;
 
 import Aegis.Core.Asset;
+import Aegis
 
 export namespace Aegis::Core
 {

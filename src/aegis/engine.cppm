@@ -1,17 +1,11 @@
-module;
-
-#include "core/profiler.h"
-#include "core/asset_manager.h"
-#include "core/globals.h"
-#include "core/input.h"
-#include "core/layer_stack.h"
-#include "core/logging.h"
-#include "graphics/renderer.h"
-#include "scene/description.h"
-#include "scene/scene.h"
-#include "ui/ui.h"
-
 export module Aegis.Engine;
+
+import Aegis.Core.Logging;
+import Aegis.Core.AssetManager;
+import Aegis.Core.LayerStack;
+import Aegis.Core.Window;
+import Aegis.Graphics.Renderer;
+import Aegis.UI.UI;
 
 export namespace Aegis
 {

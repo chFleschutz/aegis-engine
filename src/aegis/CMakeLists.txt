@@ -1,3 +1,5 @@
+set(AEGIS_MODULE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+
 add_library(aegis-engine STATIC)
 add_library(Aegis::Engine ALIAS aegis-engine)
 
