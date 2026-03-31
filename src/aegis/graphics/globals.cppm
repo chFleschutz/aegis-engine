@@ -1,3 +1,7 @@
+module;
+
+#include <cstdint>
+
 export module Aegis.Graphics.Globals;
 
 export namespace Aegis::Graphics

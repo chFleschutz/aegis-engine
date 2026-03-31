@@ -7,6 +7,8 @@ module;
 
 export module Aegis.Graphics.Vulkan.Device;
 
+import module Aegis.Graphics.Vulkan.Tools;
+
 export namespace Aegis::Graphics
 {
 	struct SwapChainSupportDetails

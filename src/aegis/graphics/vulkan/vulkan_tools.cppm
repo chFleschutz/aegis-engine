@@ -1,8 +1,6 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/resources/texture.h"
-#include "graphics/resources/buffer.h"
 #include "graphics/vulkan/vulkan_include.h"
 
 #include <string_view>
@@ -10,15 +8,9 @@ module;
 
 export module Aegis.Graphics.Vulkan.Tools;
 
-import Aegis.Graphics.VulkanContext;
 import Aegis.Math;
 import Aegis.Utils.File;
-
-#define VK_CHECK(f)				\
-{								\
-	VkResult vkResult = (f);		\
-	AGX_ASSERT_X(vkResult == VK_SUCCESS, "Vulkan Error: '" #f "'"); \
-}
+import Aegis.Graphics.Globals;
 
 namespace Aegis::Tools
 {
@@ -215,11 +207,6 @@ namespace Aegis::Tools
 		attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attachment.clearValue = clearValue;
 		return attachment;
-	}
-
-	auto renderingAttachmentInfo(const Graphics::Texture& texture, VkAttachmentLoadOp loadOp, VkClearValue clearValue = { 0.0f, 0.0f, 0.0f, 0.0f }) -> VkRenderingAttachmentInfo
-	{
-		return renderingAttachmentInfo(texture.view(), texture.image().layout(), loadOp, clearValue);
 	}
 
 	auto createShaderModule(VkDevice device, const std::vector<char>& code) -> VkShaderModule
@@ -450,34 +437,6 @@ namespace Aegis::Tools
 			if constexpr (Graphics::ENABLE_VALIDATION)
 			{
 				vkCmdEndDebugUtilsLabelEXT(cmd);
-			}
-		}
-
-		void setDebugUtilsObjectName(const Graphics::Buffer& buffer, const char* name)
-		{
-			if constexpr (Graphics::ENABLE_VALIDATION)
-			{
-				VkDebugUtilsObjectNameInfoEXT nameInfo{
-					.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-					.objectType = VK_OBJECT_TYPE_BUFFER,
-					.objectHandle = reinterpret_cast<uint64_t>(buffer.buffer()),
-					.pObjectName = name,
-				};
-				vkSetDebugUtilsObjectNameEXT(Graphics::VulkanContext::device(), &nameInfo);
-			}
-		}
-
-		void setDebugUtilsObjectName(const Graphics::Image& image, const char* name)
-		{
-			if constexpr (Graphics::ENABLE_VALIDATION)
-			{
-				VkDebugUtilsObjectNameInfoEXT nameInfo{
-					.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-					.objectType = VK_OBJECT_TYPE_IMAGE,
-					.objectHandle = reinterpret_cast<uint64_t>(image.image()),
-					.pObjectName = name,
-				};
-				vkSetDebugUtilsObjectNameEXT(Graphics::VulkanContext::device(), &nameInfo);
 			}
 		}
 	}

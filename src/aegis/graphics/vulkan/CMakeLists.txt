@@ -4,9 +4,9 @@ PUBLIC
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
 		debug_utils.cppm
-		
 		vulkan_context.cppm
 		vulkan_tools.cppm
+		resource_tools.cppm
 PRIVATE
 	volk_impl.cpp
 )

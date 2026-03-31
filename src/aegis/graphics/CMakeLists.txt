@@ -24,7 +24,7 @@ PRIVATE
 	stb
 )
 
-target_sources(aegis-engine 
+target_sources(aegis-graphics
 PUBLIC 
 	FILE_SET CXX_MODULES 
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
@@ -40,7 +40,9 @@ PUBLIC
 		renderer.cppm
 		render_context.cppm
 		swap_chain.cppm
-PRIVATE
+)
+
+target_sources(aegis-engine PRIVATE
 	"bindless/bindless_buffer.h" 
 	"bindless/bindless_buffer.cpp"
 	"bindless/bindless_descriptor_set.cpp"
