@@ -1,5 +1,7 @@
 module;
 
+#include "graphics/vulkan/vulkan_include.h"
+
 export module Aegis.Graphics.Sampler;
 
 import Aegis.Graphics.Vulkan;

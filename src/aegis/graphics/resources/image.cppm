@@ -1,11 +1,12 @@
 module;
 
+#include "graphics/vulkan/vulkan_include.h"
+
 #include <cstdint>
 
 export module Aegis.Graphics.Image;
 
 import Aegis.Graphics.Buffer;
-import Aegis.Graphics.Vulkan;
 
 export namespace Aegis::Graphics
 {

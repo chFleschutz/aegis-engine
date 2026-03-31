@@ -3,9 +3,7 @@ module;
 #include "core/window.h"
 #include "graphics/deletion_queue.h"
 #include "graphics/vulkan/debug_utils.h"
-#include "graphics/vulkan/volk_include.h"
-
-#include <vk_mem_alloc.h>
+#include "graphics/vulkan/vulkan_include.h"
 
 export module Aegis.Graphics.Vulkan.Device;
 
@@ -520,7 +518,7 @@ export namespace Aegis::Graphics
 			poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 			poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
-			VK_CHECK(vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool))
+			VK_CHECK(vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool));
 		}
 
 		auto queryRequiredInstanceExtensions() const -> std::vector<const char*>

@@ -2,10 +2,11 @@ module;
 
 #include "core/assert.h"
 #include "core/window.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 export module Aegis.Graphics.VulkanContext;
 
-import Aegis.Graphics.Vulkan;
+import Aegis.Graphics.Vulkan.Device;
 
 namespace Aegis::Graphics
 {

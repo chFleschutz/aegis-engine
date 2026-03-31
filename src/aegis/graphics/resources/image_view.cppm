@@ -1,8 +1,9 @@
 module;
 
+#include "graphics/vulkan/vulkan_include.h"
+
 export module Aegis.Graphics.ImageView;
 
-import Aegis.Graphics.Vulkan;
 import Aegis.Graphics.Image;
 
 export namespace Aegis::Graphics

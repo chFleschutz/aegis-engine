@@ -3,14 +3,13 @@ module;
 #include "core/assert.h"
 #include "graphics/resources/texture.h"
 #include "graphics/resources/buffer.h"
-#include "graphics/vulkan/volk_include.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #include <string_view>
 #include <filesystem>
 
 export module Aegis.Graphics.Vulkan.Tools;
 
-import Aegis.Graphics.Vulkan;
 import Aegis.Graphics.VulkanContext;
 import Aegis.Math;
 import Aegis.Utils.File;

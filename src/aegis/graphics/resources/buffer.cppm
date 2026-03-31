@@ -1,13 +1,13 @@
 module;
 
-#include <core/assert.h>
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #include <cstdint>
 
 export module Aegis.Graphics.Buffer;
 
 import Aegis.Graphics.Bindless;
-import Aegis.Graphics.Vulkan;
 
 export namespace Aegis::Graphics
 {

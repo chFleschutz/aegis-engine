@@ -4,7 +4,7 @@ PUBLIC
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
 		debug_utils.cppm
-		vulkan.cppm
+		
 		vulkan_context.cppm
 		vulkan_tools.cppm
 PRIVATE

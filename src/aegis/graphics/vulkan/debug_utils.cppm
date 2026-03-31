@@ -1,12 +1,12 @@
 module;
 
 #include "core/logging.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #include <string_view>
 
 export module Aegis.Graphics.DebugUtils;
 
-import Aegis.Graphics.Vulkan;
 import Aegis.Graphics.Vulkan.Context
 
 namespace Aegis::Graphics
