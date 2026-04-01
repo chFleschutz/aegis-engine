@@ -1,9 +1,9 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/vulkan/volk_include.h"
+#include "graphics/vulkan/vulkan_include.h"
 
-#include <GLFW/glfw3.h>
+#include <glfw/glfw3.h>
 
 #include <string>
 

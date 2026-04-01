@@ -15,13 +15,15 @@ target_include_directories(aegis-graphics PRIVATE
 
 # TODO: remove this once everything is a module
 target_link_libraries(aegis-graphics 
-PRIVATE
+PUBLIC
+	aegis-core
 	aegis-math
 	aegis-utils
 	Aegis::Log
 	volk::volk
 	GPUOpen::VulkanMemoryAllocator
 	stb
+	glfw
 )
 
 target_sources(aegis-graphics

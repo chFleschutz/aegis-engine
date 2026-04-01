@@ -1,13 +1,19 @@
 module;
 
-#include "core/window.h"
-#include "graphics/deletion_queue.h"
-#include "graphics/vulkan/debug_utils.h"
 #include "graphics/vulkan/vulkan_include.h"
+
+#include <glfw/glfw3.h>
+
+#include <array>
+#include <set>
+#include <unordered_set>
 
 export module Aegis.Graphics.Vulkan.Device;
 
-import module Aegis.Graphics.Vulkan.Tools;
+import Aegis.Core.Window;
+import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.DebugUtils;
+import Aegis.Graphics.Globals;
 
 export namespace Aegis::Graphics
 {
@@ -50,7 +56,7 @@ export namespace Aegis::Graphics
 			vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 			vmaDestroyAllocator(m_allocator);
 			vkDestroyDevice(m_device, nullptr);
-			m_debugMessenger.destroy();
+			m_debugMessenger.destroy(m_instance);
 			vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
 			vkDestroyInstance(m_instance, nullptr);
 		}
@@ -74,7 +80,7 @@ export namespace Aegis::Graphics
 		void initialize(Core::Window& window)
 		{
 			createInstance();
-			m_debugMessenger.create();
+			m_debugMessenger.create(m_instance);
 			createSurface(window);
 			createPhysicalDevice();
 			createLogicalDevice();
@@ -302,7 +308,7 @@ export namespace Aegis::Graphics
 			{
 				createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
 				createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
-
+				
 				VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = DebugUtilsMessenger::populateCreateInfo();
 				createInfo.pNext = &debugCreateInfo;
 				ALOG::info("Vulkan Validation Layer enabled");

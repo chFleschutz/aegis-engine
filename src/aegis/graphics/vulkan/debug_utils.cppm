@@ -7,9 +7,9 @@ module;
 
 export module Aegis.Graphics.DebugUtils;
 
-import Aegis.Graphics.Vulkan.Context
+import Aegis.Graphics.Globals;
 
-namespace Aegis::Graphics
+export namespace Aegis::Graphics
 {
 	class DebugUtilsMessenger
 	{
@@ -17,20 +17,20 @@ namespace Aegis::Graphics
 		DebugUtilsMessenger() = default;
 		~DebugUtilsMessenger() = default;
 
-		void create()
+		void create(VkInstance instance)
 		{
 			if constexpr (ENABLE_VALIDATION)
 			{
 				VkDebugUtilsMessengerCreateInfoEXT createInfo = populateCreateInfo();
-				VK_CHECK(vkCreateDebugUtilsMessengerEXT(VulkanContext::device().instance(), &createInfo, nullptr, &m_debugMessenger));
+				VK_CHECK(vkCreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &m_debugMessenger));
 			}
 		}
 
-		void destroy()
+		void destroy(VkInstance instance)
 		{
 			if (ENABLE_VALIDATION)
 			{
-				vkDestroyDebugUtilsMessengerEXT(VulkanContext::device().instance(), m_debugMessenger, nullptr);
+				vkDestroyDebugUtilsMessengerEXT(instance, m_debugMessenger, nullptr);
 			}
 		}
 

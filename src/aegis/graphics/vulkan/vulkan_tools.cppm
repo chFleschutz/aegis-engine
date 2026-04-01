@@ -12,7 +12,7 @@ import Aegis.Math;
 import Aegis.Utils.File;
 import Aegis.Graphics.Globals;
 
-namespace Aegis::Tools
+export namespace Aegis::Graphics::Tools
 {
 	/// @brief Returns the result as a string
 	auto resultString(VkResult result) -> std::string_view
