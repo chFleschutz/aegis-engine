@@ -29,6 +29,8 @@ export namespace glm
 	using glm::mat2;
 	using glm::mat3;
 	using glm::mat4;
+
+	using glm::value_ptr;
 }
 
 export namespace Aegis::Math

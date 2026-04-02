@@ -19,6 +19,9 @@ add_subdirectory(external)
 add_subdirectory(modules)
 add_subdirectory(src)
 
+set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
+set(BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
 target_compile_definitions(aegis-engine PUBLIC
     PROJECT_DIR="${CMAKE_SOURCE_DIR}"
     BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}"

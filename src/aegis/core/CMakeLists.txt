@@ -17,6 +17,11 @@ PUBLIC
 		window.cppm
 )
 
+target_compile_definitions(aegis-core PUBLIC
+    PROJECT_DIR="${PROJECT_DIR}"
+    BUILD_DIR="${BUILD_DIR}"
+)
+
 # TODO: remove this once everything is a module
 target_include_directories(aegis-core PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/..

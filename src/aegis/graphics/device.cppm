@@ -322,7 +322,7 @@ export namespace Aegis::Graphics
 
 		void createSurface(Core::Window& window)
 		{
-			window.createSurface(m_instance, m_surface);
+			VK_CHECK(glfwCreateWindowSurface(m_instance, window.glfwWindow(), nullptr, &m_surface));
 		}
 
 		void createPhysicalDevice()
