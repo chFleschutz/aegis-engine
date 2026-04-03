@@ -24,6 +24,7 @@ PUBLIC
 	GPUOpen::VulkanMemoryAllocator
 	stb
 	glfw
+	meshoptimizer
 )
 
 target_sources(aegis-graphics

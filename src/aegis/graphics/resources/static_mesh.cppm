@@ -11,7 +11,7 @@ module;
 export module Aegis.Graphics.StaticMesh;
 
 import Aegis.Math;
-import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Vulkan.ResourceTools;
 
 export namespace Aegis::Graphics
 {

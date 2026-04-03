@@ -3,13 +3,13 @@ module;
 #include "core/assert.h"
 #include "graphics/vulkan/vulkan_include.h"
 
+#include <memory>
 #include <unordered_map>
+#include <vector>
 
 export module Aegis.Graphics.Descriptors;
 
 import Aegis.Graphics.Globals;
-import Aegis.Graphics.Texture;
-import Aegis.Graphics.Buffer;
 import Aegis.Graphics.VulkanContext;
 
 export namespace Aegis::Graphics
@@ -130,7 +130,7 @@ export namespace Aegis::Graphics
 		auto allocateDescriptorSet() const -> VkDescriptorSet
 		{
 			VkDescriptorSet descriptorSet{ VK_NULL_HANDLE };
-			VulkanContext::descriptorPool().allocateDescriptorSet(m_descriptorSetLayout, descriptorSet);
+			VulkanContext::descriptorPool().allocateDescriptorSet(VulkanContext::device(), m_descriptorSetLayout, descriptorSet);
 			return descriptorSet;
 		}
 
@@ -155,33 +155,9 @@ export namespace Aegis::Graphics
 		auto operator=(const DescriptorWriter&) -> DescriptorWriter & = delete;
 		auto operator=(DescriptorWriter&&) -> DescriptorWriter & = default;
 
-		auto writeImage(uint32_t binding, const Texture& texture) -> DescriptorWriter&
+		auto writeImage(uint32_t binding, VkDescriptorImageInfo textureInfo) -> DescriptorWriter&
 		{
-			m_imageInfos.emplace_back(binding, texture.descriptorImageInfo());
-			return *this;
-		}
-
-		auto writeImage(uint32_t binding, const Texture& texture, VkImageLayout layoutOverride) -> DescriptorWriter&
-		{
-			m_imageInfos.emplace_back(binding, texture.descriptorImageInfo(layoutOverride));
-			return *this;
-		}
-
-		auto writeImage(uint32_t binding, VkDescriptorImageInfo imageInfo) -> DescriptorWriter&
-		{
-			m_imageInfos.emplace_back(binding, std::move(imageInfo));
-			return *this;
-		}
-
-		auto writeBuffer(uint32_t binding, const Buffer& buffer) -> DescriptorWriter&
-		{
-			m_bufferInfos.emplace_back(binding, buffer.descriptorBufferInfo());
-			return *this;
-		}
-
-		auto writeBuffer(uint32_t binding, const Buffer& buffer, uint32_t index) -> DescriptorWriter&
-		{
-			m_bufferInfos.emplace_back(binding, buffer.descriptorBufferInfoFor(index));
+			m_imageInfos.emplace_back(binding, std::move(textureInfo));
 			return *this;
 		}
 
@@ -258,22 +234,16 @@ export namespace Aegis::Graphics
 
 			auto operator=(const Builder&) noexcept -> Builder & = delete;
 
-			auto addBuffer(uint32_t binding, const Buffer& buffer) -> Builder&
+			auto addBuffer(uint32_t binding, VkDescriptorBufferInfo bufferInfo) -> Builder&
 			{
-				m_writer.writeBuffer(binding, buffer);
+				m_writer.writeBuffer(binding, std::move(bufferInfo));
 				return *this;
 			}
 
-			auto addTexture(uint32_t binding, const Texture& texture) -> Builder&
+			auto addTexture(uint32_t binding, VkDescriptorImageInfo textureInfo) -> Builder&
 			{
-				m_writer.writeImage(binding, texture);
+				m_writer.writeImage(binding, std::move(textureInfo));
 				return *this;
-			}
-
-			auto addTexture(uint32_t binding, std::shared_ptr<Texture> texture) -> Builder&
-			{
-				AGX_ASSERT_X(texture != nullptr, "Cannot add Texture if it is nullptr");
-				return addTexture(binding, *texture);
 			}
 
 			auto build() -> DescriptorSet
@@ -297,12 +267,12 @@ export namespace Aegis::Graphics
 
 		DescriptorSet(DescriptorSetLayout& setLayout)
 		{
-			VulkanContext::descriptorPool().allocateDescriptorSet(setLayout, m_descriptorSet);
+			VulkanContext::descriptorPool().allocateDescriptorSet(VulkanContext::device(), setLayout, m_descriptorSet);
 		}
 
 		DescriptorSet(DescriptorSetLayout& setLayout, DescriptorPool& pool)
 		{
-			pool.allocateDescriptorSet(setLayout, m_descriptorSet);
+			pool.allocateDescriptorSet(VulkanContext::device(), setLayout, m_descriptorSet);
 		}
 
 		DescriptorSet(const DescriptorSet&) = delete;

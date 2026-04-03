@@ -1,9 +1,11 @@
 module;
 
+#include "core/assert.h"
 #include "graphics/vulkan/vulkan_include.h"
 
 export module Aegis.Graphics.ImageView;
 
+import Aegis.Graphics.VulkanContext;
 import Aegis.Graphics.Image;
 
 export namespace Aegis::Graphics

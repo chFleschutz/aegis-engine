@@ -4,6 +4,7 @@ module;
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <unordered_map>
 
 export module Aegis.Core.AssetManager;

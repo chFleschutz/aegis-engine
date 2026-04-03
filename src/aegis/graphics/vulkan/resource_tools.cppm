@@ -4,11 +4,12 @@ module;
 
 export module Aegis.Graphics.Vulkan.ResourceTools;
 
-import Aegis.Graphics.Vulkan.Context;
+import Aegis.Graphics.VulkanContext;
 import Aegis.Graphics.Vulkan.Tools;
 import Aegis.Graphics.Texture;
 import Aegis.Graphics.Image;
 import Aegis.Graphics.Buffer;
+import Aegis.Graphics.Globals;
 
 export namespace Aegis::Graphics::Tools
 {
@@ -28,7 +29,7 @@ export namespace Aegis::Graphics::Tools
 				.objectHandle = reinterpret_cast<uint64_t>(buffer.buffer()),
 				.pObjectName = name,
 			};
-			vkSetDebugUtilsObjectNameEXT(Graphics::VulkanContext::device(), &nameInfo);
+			vkSetDebugUtilsObjectNameEXT(VulkanContext::device(), &nameInfo);
 		}
 	}
 
@@ -42,7 +43,7 @@ export namespace Aegis::Graphics::Tools
 				.objectHandle = reinterpret_cast<uint64_t>(image.image()),
 				.pObjectName = name,
 			};
-			vkSetDebugUtilsObjectNameEXT(Graphics::VulkanContext::device(), &nameInfo);
+			vkSetDebugUtilsObjectNameEXT(VulkanContext::device(), &nameInfo);
 		}
 	}
 }

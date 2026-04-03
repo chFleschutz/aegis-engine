@@ -4,7 +4,7 @@ module;
 
 export module Aegis.Graphics.Sampler;
 
-import Aegis.Graphics.Vulkan;
+import Aegis.Graphics.VulkanContext;
 
 export namespace Aegis::Graphics
 {

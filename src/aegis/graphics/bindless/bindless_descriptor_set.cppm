@@ -10,6 +10,7 @@ export module Aegis.Graphics.Bindless:BindlessDescriptorSet;
 
 import :DescriptorHandle;
 import Aegis.Graphics.VulkanContext;
+import Aegis.Graphics.Descriptors;
 
 namespace Aegis::Graphics::Bindless
 {

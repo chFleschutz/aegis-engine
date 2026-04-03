@@ -1,6 +1,15 @@
+module;
+
+#include "core/assert.h"
+
+#include <meshoptimizer.h>
+
+#include <vector>
+
 export module Aegis.Graphics.MeshPreprocessor;
 
 import Aegis.Graphics.StaticMesh;
+import Aegis.Math;
 
 export namespace Aegis::Graphics
 {

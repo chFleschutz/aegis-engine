@@ -4,6 +4,8 @@ module;
 #include "graphics/vulkan/vulkan_include.h"
 
 #include <cstdint>
+#include <utility>
+#include <vector>
 
 export module Aegis.Graphics.Buffer;
 
