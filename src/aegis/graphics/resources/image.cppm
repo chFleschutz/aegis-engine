@@ -7,6 +7,8 @@ module;
 export module Aegis.Graphics.Image;
 
 import Aegis.Graphics.Buffer;
+import Aegis.Graphics.Vulkan.Context;
+import Aegis.Graphics.Vulkan.ResourceTools;
 
 export namespace Aegis::Graphics
 {

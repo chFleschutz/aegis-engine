@@ -7,7 +7,7 @@ module;
 
 export module Aegis.Graphics.Bindless:DescriptorHandle;
 
-export namespace Aegis::Graphics
+export namespace Aegis::Graphics::Bindless
 {
 	/// @note This has to match the bindless::Handle struct on the slang side
 	/// @see shaders/modules/bindless.slang

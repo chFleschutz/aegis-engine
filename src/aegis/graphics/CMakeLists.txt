@@ -33,6 +33,7 @@ PUBLIC
 	FILES
 		deletion_queue.cppm
 		descriptors.cppm
+		descriptor_pool.cppm
 		device.cppm
 		draw_batch_registry.cppm
 		frustum.cppm

@@ -1,15 +1,15 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/descriptors.h"
-#include "graphics/resources/buffer.h"
-#include "graphics/resources/texture.h"
 #include "graphics/vulkan/volk_include.h"
 
 #include <cstdint>
 #include <vector>
 
 export module Aegis.Graphics.Bindless:BindlessDescriptorSet;
+
+import :DescriptorHandle;
+import Aegis.Graphics.VulkanContext;
 
 namespace Aegis::Graphics::Bindless
 {

@@ -1,15 +1,19 @@
 module;
 
-#include "graphics/globals.h"
-#include "graphics/vulkan/volk_include.h"
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
+#include <unordered_map>
 
 export module Aegis.Graphics.Descriptors;
 
+import Aegis.Graphics.Globals;
+import Aegis.Graphics.Texture;
+import Aegis.Graphics.Buffer;
+import Aegis.Graphics.VulkanContext;
+
 export namespace Aegis::Graphics
 {
-	class Buffer;
-	class Texture;
-
 	class DescriptorSetLayout
 	{
 		friend class DescriptorWriter;
@@ -133,121 +137,6 @@ export namespace Aegis::Graphics
 	private:
 		VkDescriptorSetLayout m_descriptorSetLayout{ VK_NULL_HANDLE };
 		std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> m_bindings;
-	};
-
-
-
-	class DescriptorPool
-	{
-		friend class DescriptorWriter;
-
-	public:
-		class Builder
-		{
-		public:
-			Builder() = default;
-
-			auto addPoolSize(VkDescriptorType descriptorType, uint32_t count) -> Builder&
-			{
-				m_poolSizes.push_back({ descriptorType, count });
-				return *this;
-			}
-
-			auto setPoolFlags(VkDescriptorPoolCreateFlags flags) -> Builder&
-			{
-				m_poolFlags = flags;
-				return *this;
-			}
-
-			auto setMaxSets(uint32_t count) -> Builder&
-			{
-				m_maxSets = count;
-				return *this;
-			}
-
-			auto build() const -> DescriptorPool
-			{
-				return DescriptorPool{ m_maxSets, m_poolFlags, m_poolSizes };
-			}
-
-			auto buildUnique() const -> std::unique_ptr<DescriptorPool>
-			{
-				return std::make_unique<DescriptorPool>(m_maxSets, m_poolFlags, m_poolSizes);
-			}
-
-		private:
-			std::vector<VkDescriptorPoolSize> m_poolSizes{};
-			uint32_t m_maxSets = 1000;
-			VkDescriptorPoolCreateFlags m_poolFlags = 0;
-		};
-
-		DescriptorPool() = default;
-		DescriptorPool(uint32_t maxSets, VkDescriptorPoolCreateFlags poolFlags,
-			const std::vector<VkDescriptorPoolSize>& poolSizes)
-		{
-			VkDescriptorPoolCreateInfo descriptorPoolInfo{};
-			descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-			descriptorPoolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-			descriptorPoolInfo.pPoolSizes = poolSizes.data();
-			descriptorPoolInfo.maxSets = maxSets;
-			descriptorPoolInfo.flags = poolFlags;
-
-			VK_CHECK(vkCreateDescriptorPool(VulkanContext::device(), &descriptorPoolInfo, nullptr, &m_descriptorPool))
-		}
-
-		DescriptorPool(const DescriptorPool&) = delete;
-		DescriptorPool(DescriptorPool&& other) noexcept
-			: m_descriptorPool{ other.m_descriptorPool }
-		{
-			other.m_descriptorPool = VK_NULL_HANDLE;
-		}
-
-		~DescriptorPool()
-		{
-			if (m_descriptorPool)
-			{
-				vkDestroyDescriptorPool(VulkanContext::device(), m_descriptorPool, nullptr);
-			}
-		}
-
-		auto operator=(const DescriptorPool&) -> DescriptorPool & = delete;
-		auto operator=(DescriptorPool&& other) noexcept -> DescriptorPool&
-		{
-			if (this != &other)
-			{
-				m_descriptorPool = other.m_descriptorPool;
-				other.m_descriptorPool = VK_NULL_HANDLE;
-			}
-			return *this;
-		}
-
-		operator VkDescriptorPool() const { return m_descriptorPool; }
-		auto descriptorPool() const -> VkDescriptorPool { return m_descriptorPool; }
-
-		void allocateDescriptorSet(const VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet& descriptorSet) const
-		{
-			VkDescriptorSetAllocateInfo allocInfo{
-				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-				.descriptorPool = m_descriptorPool,
-				.descriptorSetCount = 1,
-				.pSetLayouts = &descriptorSetLayout,
-			};
-
-			VK_CHECK(vkAllocateDescriptorSets(VulkanContext::device(), &allocInfo, &descriptorSet))
-		}
-
-		void freeDescriptors(std::vector<VkDescriptorSet>& descriptors) const
-		{
-			vkFreeDescriptorSets(VulkanContext::device(), m_descriptorPool, static_cast<uint32_t>(descriptors.size()), descriptors.data());
-		}
-
-		void resetPool()
-		{
-			vkResetDescriptorPool(VulkanContext::device(), m_descriptorPool, 0);
-		}
-
-	private:
-		VkDescriptorPool m_descriptorPool{ VK_NULL_HANDLE };
 	};
 
 

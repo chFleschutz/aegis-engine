@@ -7,7 +7,8 @@ module;
 
 export module Aegis.Graphics.Buffer;
 
-import Aegis.Graphics.Bindless;
+import Aegis.Graphics.Globals;
+import Aegis.Graphics.VulkanContext;
 
 export namespace Aegis::Graphics
 {

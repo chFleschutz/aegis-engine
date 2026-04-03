@@ -1,12 +1,14 @@
 module;
 
 #include "core/assert.h"
-#include "core/window.h"
 #include "graphics/vulkan/vulkan_include.h"
 
 export module Aegis.Graphics.VulkanContext;
 
+import Aegis.Core.Window;
 import Aegis.Graphics.Vulkan.Device;
+import Aegis.Graphics.DeletionQueue;
+import Aegis.Graphics.DescriptorPool;
 
 namespace Aegis::Graphics
 {
@@ -51,7 +53,7 @@ namespace Aegis::Graphics
 				.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000)
 				.addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000)
 				.addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 500)
-				.build();
+				.build(VulkanContext::device());
 
 			return context;
 		}
@@ -60,6 +62,7 @@ namespace Aegis::Graphics
 		{
 			auto& context = instance();
 			context.m_deletionQueue.flushAll();
+			context.m_descriptorPool.destroy(context.m_device);
 		}
 
 		static void destroy(VkBuffer buffer, VmaAllocation allocation)

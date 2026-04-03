@@ -4,7 +4,11 @@ module;
 #include "graphics/bindless/descriptor_handle.h"
 #include "graphics/resources/buffer.h"
 
+#include <array>
+
 export module Aegis.Graphics.Bindless:BindlessBuffer;
+
+import Aegis.Graphics.Globals;
 
 namespace Aegis::Graphics::Bindless
 {

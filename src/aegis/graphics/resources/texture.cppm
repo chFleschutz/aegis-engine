@@ -1,7 +1,7 @@
 module;
 
 #include "core/asset.h"
-#include "graphics/bindless/descriptor_handle.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>

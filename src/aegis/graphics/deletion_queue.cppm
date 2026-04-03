@@ -1,8 +1,12 @@
 module;
 
-#include "graphics/globals.h"
+#include <array>
+#include <functional>
+#include <vector>
 
 export module Aegis.Graphics.DeletionQueue;
+
+import Aegis.Graphics.Globals;
 
 export namespace Aegis::Graphics
 {
