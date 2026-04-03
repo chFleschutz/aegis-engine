@@ -3,6 +3,7 @@ add_library(aegis-math STATIC)
 target_link_libraries(aegis-math 
 PRIVATE
 	glm::glm
+	Aegis::Log
 )
 
 target_sources(aegis-math 
@@ -16,24 +17,7 @@ PUBLIC
 		random.cppm
 )
 
-target_sources(aegis-engine PRIVATE
-	interpolation.cpp
-	interpolation.h
-	math.cpp
-	math.h
-	perlin_noise.cpp
-	perlin_noise.h
-	print.h
-	random.cpp
-	random.h
-)
-
 # TODO: remove this once everything is a module
 target_include_directories(aegis-math PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/..
-)
-
-# TODO: remove this once everything is a module
-target_link_libraries(aegis-math PRIVATE
-	Aegis::Log
 )

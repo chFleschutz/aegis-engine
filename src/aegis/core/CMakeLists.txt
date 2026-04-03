@@ -1,5 +1,11 @@
 add_library(aegis-core STATIC)
 
+target_link_libraries(aegis-core 
+PRIVATE
+	imguizmo
+	Aegis::Log
+)
+
 target_sources(aegis-core
 PUBLIC 
 	FILE_SET CXX_MODULES 
@@ -25,27 +31,4 @@ target_compile_definitions(aegis-core PUBLIC
 # TODO: remove this once everything is a module
 target_include_directories(aegis-core PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/..
-)
-
-# TODO: remove this once everything is a module
-target_link_libraries(aegis-core 
-PRIVATE
-	imguizmo
-	Aegis::Log
-)
-
-target_sources(aegis-engine PRIVATE
-	"asset.h" 
-	"asset_manager.h" 
-	"asset_manager.cpp" 
-	"editor_layer.cpp"
-	"editor_layer.h"
-	"input.cpp"
-	"input.h"
-	"layer.h"
-	"layer_stack.h"
-	"logging.h"
-	"profiler.h"
-	"window.cpp"
-	"window.h"
 )

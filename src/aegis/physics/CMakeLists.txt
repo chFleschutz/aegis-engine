@@ -19,8 +19,3 @@ PUBLIC
 target_include_directories(aegis-physics PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/..
 )
-
-target_sources(aegis-engine PRIVATE
-	"motion_dynamics.cpp"
-	"motion_dynamics.h"
-)
