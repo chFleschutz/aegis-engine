@@ -1,11 +1,11 @@
 module;
 
-#include "graphics/bindless/descriptor_handle.h"
-#include "graphics/draw_batch_registry.h"
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/pipeline.h"
-
 export module Aegis.Graphics.RenderPasses.CullingPass;
+
+import Aegis.Graphics.Bindless;
+import Aegis.Graphics.DrawBatchRegistry;
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.Pipeline;
 
 export namespace Aegis::Graphics
 {

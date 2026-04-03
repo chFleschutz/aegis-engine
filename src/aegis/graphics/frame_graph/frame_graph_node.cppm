@@ -1,10 +1,14 @@
 module;
 
-#include "graphics/frame_graph/frame_graph_resources.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #include <vector>
+#include <string>
+#include <memory>
 
 export module Aegis.Graphics.FrameGraph.Node;
+
+import Aegis.Graphics.FrameGraph.Resource;
 
 export namespace Aegis::Graphics
 {

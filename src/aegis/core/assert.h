@@ -1,8 +1,9 @@
 #pragma once
 
-#include "core/logging.h"
-
 #include <cstdlib>
+#include <cassert>
+#include <iostream>
+#include <format>
 
 #ifdef _MSC_VER
 #define AGX_DEBUG_BREAK() __debugbreak()
@@ -35,7 +36,12 @@ namespace Aegis
 {
 	inline void assertFailed(const char* expr, const char* what, const char* file, int line, const char* function)
 	{
-		ALOG::fatal("Assertion failed: '{}'\n\tFile: {}, Line: {}, Function: {}\n\t{}",
+		// TODO: Replace this with logging
+		std::cout << std::format("Assertion failed: '{}'\n\tFile: {}, Line: {}, Function: {}\n\t{}\n",
 			expr, file, line, function, what);
+		assert(false && "Assertion failed!");
+
+		//ALOG::fatal("Assertion failed: '{}'\n\tFile: {}, Line: {}, Function: {}\n\t{}",
+		//	expr, file, line, function, what);
 	}
 }

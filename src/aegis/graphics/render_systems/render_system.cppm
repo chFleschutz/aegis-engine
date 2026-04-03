@@ -1,8 +1,6 @@
-module;
-
-#include "graphics/render_context.h"
-
 export module Aegis.Graphics.RenderSystem;
+
+import Aegis.Graphics.RenderContext;
 
 export namespace Aegis::Graphics
 {

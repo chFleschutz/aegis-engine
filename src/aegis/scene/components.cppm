@@ -1,18 +1,16 @@
 module;
 
-#include "graphics/material/material_instance.h"
-#include "graphics/resources/static_mesh.h"
-#include "graphics/resources/texture.h"
-#include "math/math.h"
-#include "scene/entity.h"
-#include "scene/component_traits.h"
-
 #include <string>
 #include <memory>
 
 export module Aegis.Scene.Components;
 
 import Aegis.Math;
+import Aegis.Scene.Entity;
+import Aegis.Scene.ComponentTraits;
+import Aegis.Graphics.StaticMesh;
+import Aegis.Graphics.MaterialInstance;
+import Aegis.Graphics.Texture;
 
 namespace Aegis::Scripting
 {

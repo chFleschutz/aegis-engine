@@ -1,10 +1,12 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/vulkan/vulkan_tools.h"
 
 export module Aegis.Graphics.RenderPasses.PresentPass;
+
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.SwapChain;
 
 export namespace Aegis::Graphics
 {

@@ -1,15 +1,15 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/bindless/descriptor_handle.h"
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/frustum.h"
 
 #include <vector>
 
 export module Aegis.Graphics.RenderPasses.SceneUpdatePass;
 
 import Aegis.Math;
+import Aegis.Graphics.Bindless;
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.Frustum;
 
 export namespace Aegis::Graphics
 {

@@ -1,10 +1,10 @@
 module;
 
-#include "engine.h"
-
 #include <imgui.h>
 
-export module Aegis.UI.Panels.MenuBarPanel;
+#include <cstdint>
+
+export module Aegis.UI.Panels:MenuBarPanel;
 
 export namespace Aegis::UI
 {

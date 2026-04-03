@@ -2,13 +2,12 @@ module;
 
 #include "core/assert.h"
 
-#include "scene/components.h"
-#include "scene/scene.h"
-#include "scene/system.h"
-
 export module Aegis.Scene.Systems.CameraSystem;
 
 import Aegis.Math;
+import Aegis.Scene;
+import Aegis.Scene.System;
+import Aegis.Scene.Components;
 
 export namespace Aegis::Scene
 {

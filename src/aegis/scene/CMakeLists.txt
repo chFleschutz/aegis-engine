@@ -31,4 +31,5 @@ PRIVATE
 	Aegis::GLTF
 	EnTT::EnTT
 	tinyobjloader
+	fastgltf
 )

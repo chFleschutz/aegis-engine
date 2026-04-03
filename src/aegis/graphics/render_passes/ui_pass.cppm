@@ -1,9 +1,11 @@
 module;
 
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/vulkan/vulkan_tools.h"
+#include <vector>
 
 export module Aegis.Graphics.RenderPasses.UIPass;
+
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.Vulkan.Tools;
 
 export namespace Aegis::Graphics
 {

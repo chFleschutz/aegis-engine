@@ -1,11 +1,10 @@
-#pragma once
-
-#include "scene/entity.h"
-#include "scene/components.h"
+module;
 
 #include <imgui.h>
 
-namespace Aegis::UI
+export module Aegis.UI.Panels:ScenePanel;
+
+export namespace Aegis::UI
 {
 	class ScenePanel
 	{

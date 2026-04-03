@@ -1,8 +1,15 @@
 module;
 
-#include "graphics/vulkan/volk_include.h"
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
+#include <vector>
+#include <filesystem>
 
 export module Aegis.Graphics.Pipeline;
+
+import Aegis.Graphics.VulkanContext;
+import Aegis.Graphics.Vulkan.Tools;
 
 export namespace Aegis::Graphics
 {

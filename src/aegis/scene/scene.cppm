@@ -1,9 +1,6 @@
 module;
 
-#include "scene/entity.h"
-#include "scene/system.h"
-#include "scripting/script_manager.h"
-#include "math/math.h"
+#include "core/assert.h"
 
 #include <entt/entt.hpp>
 
@@ -13,6 +10,8 @@ export module Aegis.Scene;
 
 import Aegis.Math;
 import Aegis.Scene.Components;
+import Aegis.Scene.Systems;
+import Aegis.Scene.Entity;
 
 namespace Aegis::Scripting
 {

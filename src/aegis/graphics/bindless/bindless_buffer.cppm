@@ -1,14 +1,15 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/bindless/descriptor_handle.h"
-#include "graphics/resources/buffer.h"
 
 #include <array>
 
 export module Aegis.Graphics.Bindless:BindlessBuffer;
 
+import :DescriptorHandle;
+
 import Aegis.Graphics.Globals;
+import Aegis.Graphics.Buffer;
 
 namespace Aegis::Graphics::Bindless
 {

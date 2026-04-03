@@ -2,7 +2,7 @@ module;
 
 #include <imgui.h>
 
-export module Aegis.UI.Panels.RendererPanel;
+export module Aegis.UI.Panels:RendererPanel;
 
 export namespace Aegis::UI
 {

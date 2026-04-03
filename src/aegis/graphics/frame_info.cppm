@@ -1,11 +1,12 @@
 module;
 
-#include "graphics/draw_batch_registry.h"
-#include "graphics/vulkan/volk_include.h"
-#include "scene/scene.h"
-#include "ui/ui.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 export module Aegis.Graphics.FrameInfo;
+
+import Aegis.Graphics.DrawBatchRegistry;
+import Aegis.Scene;
+import Aegis.UI;
 
 export namespace Aegis::Graphics
 {

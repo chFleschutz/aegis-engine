@@ -1,13 +1,14 @@
 module;
 
-#include "graphics/globals.h"
-#include "graphics/vulkan/volk_include.h"
-#include "graphics/vulkan/vulkan_context.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #define AGX_GPU_PROFILE_SCOPE(cmd, name) Aegis::Graphics::GPUScopeTimer gpuTimer##__LINE__(cmd, name)
 #define AGX_GPU_PROFILE_FUNCTION(cmd) AGX_GPU_PROFILE_SCOPE(cmd, __FUNCTION__)
 
 export module Aegis.Graphics.GPUTimer;
+
+import Aegis.Graphics.Globals;
+import Aegis.Graphics.VulkanContext;
 
 export namespace Aegis::Graphics
 {

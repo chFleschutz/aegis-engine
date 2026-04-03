@@ -1,13 +1,13 @@
 module;
 
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/frame_graph/frame_graph_resource_pool.h"
-#include "graphics/frame_info.h"
-#include "graphics/render_context.h"
-
 #include <vector>
 
 export module Aegis.Graphics.FrameGraph;
+
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.FrameGraph.ResourcePool;
+import Aegis.Graphics.FrameInfo;
+import Aegis.Graphics.RenderContext;
 
 export namespace Aegis::Graphics
 {

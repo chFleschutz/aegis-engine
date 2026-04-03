@@ -1,14 +1,18 @@
 module;
 
-#include "graphics/descriptors.h"
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/pipeline.h"
-#include "graphics/resources/buffer.h"
-#include "graphics/resources/texture.h"
+#include "core/assert.h"
+
+#include <vector>
+#include <memory>
 
 export module Aegis.Graphics.RenderPasses.SSAOPass;
 
 import Aegis.Math;
+import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.Pipeline;
+import Aegis.Graphics.Buffer;
+import Aegis.Graphics.Texture;
 
 export namespace Aegis::Graphics
 {

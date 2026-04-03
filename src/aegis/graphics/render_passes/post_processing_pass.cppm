@@ -1,12 +1,12 @@
 module;
 
-#include "graphics/descriptors.h"
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/pipeline.h"
-
 #include <vector>
 
 export module Aegis.Graphics.RenderPasses.PostProcessingPass;
+
+import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.Pipeline;
 
 export namespace Aegis::Graphics
 {

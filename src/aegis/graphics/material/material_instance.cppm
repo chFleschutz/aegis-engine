@@ -1,14 +1,16 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/descriptors.h"
-#include "graphics/material/material_template.h"
-#include "graphics/bindless/bindless_buffer.h"
 
 #include <unordered_map>
 #include <array>
 
 export module Aegis.Graphics.MaterialInstance;
+
+import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.MaterialTemplate;
+import Aegis.Graphics.Bindless;
+import Aegis.Graphics.Buffer;
 
 export namespace Aegis::Graphics
 {

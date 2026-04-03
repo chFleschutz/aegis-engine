@@ -1,10 +1,6 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/descriptors.h"
-#include "graphics/pipeline.h"
-#include "graphics/resources/static_mesh.h"
-#include "graphics/resources/texture.h"
 
 #include <variant>
 #include <unordered_map>
@@ -12,6 +8,11 @@ module;
 export module Aegis.Graphics.MaterialTemplate;
 
 import Aegis.Math;
+import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.Pipeline;
+import Aegis.Graphics.StaticMesh;
+import Aegis.Graphics.Texture;
+import Aegis.Core.Asset;
 
 export namespace Aegis::Graphics
 {

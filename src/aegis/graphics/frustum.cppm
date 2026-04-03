@@ -1,9 +1,12 @@
 module;
 
-#include "scene/components.h"
-#include "math/math.h"
+#include "core/assert.h"
+
+#include <array>
 
 export module Aegis.Graphics.Frustum;
+
+import Aegis.Math;
 
 export namespace Aegis::Graphics
 {

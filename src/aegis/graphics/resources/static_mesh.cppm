@@ -2,16 +2,14 @@ module;
 
 #include "core/assert.h"
 
-#include "graphics/bindless/bindless_buffer.h"
-#include "graphics/descriptors.h"
-#include "graphics/resources/buffer.h"
-
 #include <vector>
 
 export module Aegis.Graphics.StaticMesh;
 
 import Aegis.Math;
 import Aegis.Graphics.Vulkan.ResourceTools;
+import Aegis.Graphics.Bindless;
+import Aegis.Graphics.VulkanContext;
 
 export namespace Aegis::Graphics
 {

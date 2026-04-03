@@ -1,15 +1,15 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/pipeline.h"
-#include "graphics/descriptors.h"
 
 #include <vector>
 
 export module Aegis.Graphics.RenderPasses.LightingPass;
 
 import Aegis.Math;
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.Pipeline;
+import Aegis.Graphics.Descriptors;
 
 export namespace Aegis::Graphics
 {

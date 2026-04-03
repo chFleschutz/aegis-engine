@@ -1,13 +1,12 @@
 module;
 
-#include "graphics/render_systems/render_system.h"
-#include "graphics/pipeline.h"
-
 #include <memory>
 
 export module Aegis.Graphics.RenderSystems.PointLightRenderSystem;
 
 import Aegis.Math;
+import Aegis.Graphics.RenderSystem;
+import Aegis.Graphics.Pipeline;
 
 export namespace Aegis::Graphics
 {

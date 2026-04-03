@@ -1,12 +1,12 @@
 module;
 
-#include "utils/rolling_average.h"
-#include "utils/timer.h"
-
 #include <unordered_map>
 #include <string>
 
 export module Aegis.Core.Profiler;
+
+import Aegis.Utils.RollingAverage;
+import Aegis.Utils.Timer;
 
 #define AGX_PROFILE_SCOPE(name) Aegis::ScopeProfiler profiler##__LINE__(name)
 #define AGX_PROFILE_FUNCTION() AGX_PROFILE_SCOPE(__FUNCTION__)

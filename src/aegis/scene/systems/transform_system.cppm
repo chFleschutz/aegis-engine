@@ -1,11 +1,10 @@
 module;
 
-#include "scene/system.h"
-
 #include <vector>
 
 export module Aegis.Scene.TransformSystem;
 
+import Aegis.Scene.System;
 import Aegis.Scene.Entity;
 import Aegis.Scene.Components
 

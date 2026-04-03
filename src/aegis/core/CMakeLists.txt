@@ -2,6 +2,7 @@ add_library(aegis-core STATIC)
 
 target_link_libraries(aegis-core 
 PRIVATE
+	aegis-utils
 	imguizmo
 	Aegis::Log
 )
@@ -13,7 +14,6 @@ PUBLIC
 	FILES
 		asset.cppm
 		asset_manager.cppm
-		editor_layer.cppm
 		globals.cppm
 		input.cppm
 		layer.cppm

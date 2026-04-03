@@ -1,15 +1,15 @@
 module;
 
-#include "graphics/descriptors.h"
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/pipeline.h"
-#include "scene/components.h"
-
 #include <vector>
+#include <memory>
 
 export module Aegis.Graphics.RenderPasses.SkyBoxPass;
 
 import Aegis.Math;
+import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.Pipeline;
+import Scene.Components;
 
 export namespace Aegis::Graphics
 {

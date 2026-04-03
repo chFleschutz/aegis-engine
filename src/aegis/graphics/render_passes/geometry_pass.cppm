@@ -1,17 +1,16 @@
 module;
 
-#include "graphics/bindless/bindless_buffer.h"
-#include "graphics/frame_graph/frame_graph.h"
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/render_systems/render_system.h"
-#include "graphics/descriptors.h"
-#include "graphics/frustum.h"
-
 #include <vector>
 
 export module Aegis.Graphics.RenderPasses.GeometryPass;
 
 import Aegis.Math;
+import Aegis.Graphics.Bindless;
+import Aegis.Graphics.FrameGraph;
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.RenderSystem;
+import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.Frustum;
 
 export namespace Aegis::Graphics
 {

@@ -1,11 +1,12 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/frame_graph/frame_graph_render_pass.h"
 
 #include <array>
 
 export module Aegis.Graphics.RenderPasses.GPUDrivenGeometry;
+
+import Aegis.Graphics.FrameGraph.RenderPass;
 
 export namespace Aegis::Graphics
 {

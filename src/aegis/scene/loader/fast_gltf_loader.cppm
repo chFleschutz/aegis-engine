@@ -1,16 +1,18 @@
 module;
 
-#include "scene/scene.h"
-#include "graphics/resources/static_mesh.h"
-#include "graphics/resources/texture.h"
-#include "graphics/material/material_template.h"
-#include "graphics/material/material_instance.h"
+#include "core/assert.h"
 
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
 #include <fastgltf/types.hpp>
 
 export module Aegis.Scene.Loader.FastGLTFLoader;
+
+import Aegis.Scene;
+import Aegis.Graphics.StaticMesh;
+import Aegis.Graphics.Texture;
+import Aegis.Graphics.MaterialTemplate;
+import Aegis.Graphics.MaterialInstance;
 
 export namespace Aegis::Scene
 {

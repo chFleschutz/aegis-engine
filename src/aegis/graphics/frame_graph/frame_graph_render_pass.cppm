@@ -1,13 +1,9 @@
-module;
-
-#include "graphics/frame_graph/frame_graph_node.h"
-#include "graphics/frame_graph/frame_graph_resource_pool.h"
-#include "graphics/frame_info.h"
-
-// Included here to avoid issues in child classes
-#include "scene/entity.h" 
-
 export module Aegis.Graphics.FrameGraph.RenderPass;
+
+export import Aegis.Graphics.FrameGraph.Node;
+export import Aegis.Graphics.FrameGraph.ResourcePool;
+export import Aegis.Graphics.FrameInfo;
+export import Aegis.Scene.Entity;
 
 export namespace Aegis::Graphics
 {

@@ -1,11 +1,11 @@
 module;
 
 #include "core/assert.h"
-#include "scripting/script_base.h"
 
 export module Aegis.Physics.MotionDynamics;
 
 import Aegis.Math;
+import Aegis.ScriptBase;
 
 export namespace Aegis::Physics
 {

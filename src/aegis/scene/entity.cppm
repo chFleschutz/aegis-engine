@@ -9,6 +9,7 @@ module;
 export module Aegis.Scene.Entity;
 
 import Aegis.Scene.ComponentTraits;
+import Aegis.Scene;
 
 namespace Aegis::Scripting
 {

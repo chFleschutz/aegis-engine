@@ -1,10 +1,15 @@
 module;
 
-#include "graphics/material/material_template.h"
+#include "core/assert.h"
 
-#include "scene/scene.h"
+#include <vector>
+#include <memory>
 
 export module Aegis.Graphics.DrawBatchRegistry;
+
+import Aegis.Scene;
+import Aegis.Scene.Components;
+import Aegis.Graphics.MaterialTemplate;
 
 export namespace Aegis::Graphics
 {

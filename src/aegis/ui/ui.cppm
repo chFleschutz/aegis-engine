@@ -1,10 +1,15 @@
 module;
 
 #include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
+
+#include <ImGuizmo.h>
 
 export module Aegis.UI;
 
 import Aegis.Core.LayerStack;
+import Aegis.Graphics.Globals;
 
 namespace Aegis::Graphics
 {
@@ -119,8 +124,9 @@ export namespace Aegis::UI
 			{
 				layer->onUIRender();
 			}
-
+			
 			ImGui::End();
+			ImGui::EndFrame();
 
 			ImGui::Render();
 			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);

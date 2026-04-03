@@ -1,15 +1,16 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/frame_graph/frame_graph_node.h"
-#include "graphics/frame_graph/frame_graph_resources.h"
-#include "graphics/bindless/bindless_buffer.h"
-#include "graphics/resources/texture.h"
 
 #include <vector>
 #include <variant>
 
 export module Aegis.Graphics.FrameGraph.ResourcePool;
+
+import Aegis.Graphics.FrameGraph.Node;
+import Aegis.Graphics.FrameGraph.Resource;
+import Aegis.Graphics.Bindless;
+import Aegis.Graphics.Texture;
 
 export namespace Aegis::Graphics
 {

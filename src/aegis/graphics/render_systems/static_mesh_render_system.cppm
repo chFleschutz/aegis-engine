@@ -1,11 +1,8 @@
-module;
-
-#include "graphics/render_systems/render_system.h"
-#include "graphics/material/material_template.h"
-
 export module Aegis.Graphics.RenderSystems.StaticMeshRenderSystem;
 
 import Aegis.Math;
+import Aegis.Graphics.RenderSystem;
+import Aegis.Graphics.MaterialTemplate;
 
 export namespace Aegis::Graphics
 {

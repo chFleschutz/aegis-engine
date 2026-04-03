@@ -2,16 +2,16 @@
 
 #include "core/assert.h"
 
-#include "graphics/resources/static_mesh.h"
-#include "graphics/resources/texture.h"
-#include "scene/components.h"
-#include "scene/entity.h"
-
 #include <gltf.h>
 
 export module Aegis.Scene.GLTFLoader;
 
 import Aegis.Math;
+import Aegis.Graphics.StaticMesh;
+import Aegis.Graphics.MeshPreprocessor;
+import Aegis.Graphics.Texture;
+import Aegis.Scene.Components;
+import Aegis.Scene.Entity;
 
 export namespace Aegis::Scene
 {

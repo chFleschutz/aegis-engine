@@ -1,16 +1,19 @@
 module;
 
-#include "core/window.h"
-#include "draw_batch_registry.h"
-#include "graphics/bindless/bindless_descriptor_set.h"
-#include "graphics/frame_graph/frame_graph.h"
-#include "graphics/globals.h"
-#include "graphics/gpu_timer.h"
-#include "graphics/swap_chain.h"
-#include "scene/scene.h"
-#include "vulkan/vulkan_context.h"
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 export module Aegis.Graphics.Renderer;
+
+import Aegis.Core.Window;
+import Aegis.Graphics.DrawBatchRegistry;
+import Aegis.Graphics.Bindless;
+import Aegis.Graphics.FrameGraph;
+import Aegis.Graphics.Globals;
+import Aegis.Graphics.GPUTimer;
+import Aegis.Graphics.SwapChain;
+import Aegis.Graphics.VulkanContext;
+import Aegis.Scene;
 
 export namespace Aegis::Graphics
 {

@@ -1,16 +1,12 @@
 module;
 
-#include "core/layer.h"
-#include "ui/panels/demo_panel.h"
-#include "ui/panels/menu_bar_panel.h"
-#include "ui/panels/profiler_panel.h"
-#include "ui/panels/renderer_panel.h"
-#include "ui/panels/scene_panel.h"
-#include "ui/panels/statistics_panel.h"
-
 #include <ImGuizmo.h>
 
 export module Aegis.Core.EditorLayer;
+
+import Aegis.Core.Layer;
+import Aegis.Core.Input;
+import Aegis.UI.Panels;
 
 import Aegis.Math;
 

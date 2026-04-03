@@ -1,10 +1,10 @@
 module;
 
-#include "core/profiler.h"
-
 #include <imgui.h>
 
-export module Aegis.UI.Panels.ProfilerPanel;
+export module Aegis.UI.Panels:ProfilerPanel;
+
+import Aegis.Core.Profiler;
 
 export namespace Aegis::UI
 {

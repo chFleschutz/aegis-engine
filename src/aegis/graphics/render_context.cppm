@@ -1,11 +1,12 @@
 module;
 
-#include "graphics/bindless/descriptor_handle.h"
-#include "graphics/vulkan/volk_include.h"
-#include "scene/scene.h"
-#include "ui/ui.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 export module Aegis.Graphics.RenderContext;
+
+import Aegis.Scene;
+import Aegis.UI;
+import Aegis.Graphics.Bindless.DescriptorHandle;
 
 export namespace Aegis::Graphics
 {

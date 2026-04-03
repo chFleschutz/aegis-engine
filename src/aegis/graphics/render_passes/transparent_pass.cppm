@@ -1,14 +1,13 @@
 module;
 
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/render_systems/render_system.h"
-#include "graphics/descriptors.h"
-
 #include <vector>
 
 export module Aegis.Graphics.RenderPasses.TransparentPass;
 
 import Aegis.Math;
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.RenderSystem;
+import Aegis.Graphics.Descriptors;
 
 export namespace Aegis::Graphics
 {

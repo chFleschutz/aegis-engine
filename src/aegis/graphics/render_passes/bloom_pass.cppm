@@ -1,13 +1,13 @@
 module;
 
-#include "graphics/descriptors.h"
-#include "graphics/frame_graph/frame_graph_render_pass.h"
-#include "graphics/pipeline.h"
-#include "graphics/resources/image_view.h"
-#include "graphics/resources/sampler.h"
-#include "graphics/vulkan/vulkan_tools.h"
-
 export module Aegis.Graphics.RenderPasses.BloomPass;
+
+import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.Pipeline;
+import Aegis.Graphics.Resources.ImageView;
+import Aegis.Graphics.Resources.Sampler;
+import Aegis.Graphics.Vulkan.Tools;
 
 export namespace Aegis::Graphics
 {

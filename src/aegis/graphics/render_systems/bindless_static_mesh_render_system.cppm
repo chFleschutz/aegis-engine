@@ -1,13 +1,13 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/bindless/bindless_buffer.h"
-#include "graphics/render_systems/render_system.h"
-#include "graphics/material/material_template.h"
 
 export module Aegis.Graphics.RenderSystems.BindlessStaticMeshRenderSystem;
 
 import Aegis.Math;
+import Aegis.Graphics.Bindless;
+import Aegis.Graphics.RenderSystem;
+import Aegis.Graphics.MaterialTemplate;
 
 export namespace Aegis::Graphics
 {
