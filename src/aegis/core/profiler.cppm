@@ -20,6 +20,8 @@ export namespace Aegis
 	public:
 		static constexpr int AVERAGE_FRAME_COUNT = 50;
 
+		using TimeMap = std::unordered_map<std::string, Utils::RollingAverage<AVERAGE_FRAME_COUNT>>;
+
 		Profiler(const Profiler&) = delete;
 		Profiler(Profiler&&) = delete;
 		~Profiler() = default;
@@ -51,7 +53,7 @@ export namespace Aegis
 			return it->second.last();
 		}
 
-		[[nodiscard]] auto times() const -> const std::unordered_map<std::string, RollingAverage<AVERAGE_FRAME_COUNT>>&
+		[[nodiscard]] auto times() const -> const TimeMap&
 		{
 			return m_times;
 		}
@@ -64,7 +66,7 @@ export namespace Aegis
 	private:
 		Profiler() = default;
 
-		std::unordered_map<std::string, RollingAverage<AVERAGE_FRAME_COUNT>> m_times;
+		TimeMap m_times;
 	};
 
 
@@ -82,7 +84,7 @@ export namespace Aegis
 		}
 
 	private:
-		Timer m_timer;
+		Utils::Timer m_timer;
 		std::string m_name;
 	};
 }

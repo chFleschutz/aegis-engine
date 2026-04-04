@@ -1,11 +1,16 @@
 module;
 
+#include "core/assert.h"
+
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
 #include <filesystem>
 
 export module Aegis.Scene.OBJLoader;
+
+import Aegis.Scene.Entity;
+import Aegis.Graphics.MeshPreprocessor;
 
 export namespace Aegis::Scene
 {

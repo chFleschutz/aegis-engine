@@ -3,6 +3,7 @@ module;
 #include "core/assert.h"
 
 #include <string>
+#include <sstream>
 
 export module Aegis.Utils.Color;
 

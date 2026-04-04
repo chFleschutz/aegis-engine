@@ -5,6 +5,7 @@ module;
 #include <GLFW/glfw3.h>
 
 #include <unordered_map>
+#include <functional>
 
 export module Aegis.Core.Input;
 

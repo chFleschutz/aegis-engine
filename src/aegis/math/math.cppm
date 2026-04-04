@@ -29,8 +29,24 @@ export namespace glm
 	using glm::mat2;
 	using glm::mat3;
 	using glm::mat4;
+	using glm::mat2x2;
+	using glm::mat2x3;
+	using glm::mat2x4;
+	using glm::mat3x2;
+	using glm::mat3x3;
+	using glm::mat3x4;
+	using glm::mat4x4;
 
+	using glm::length;
+	using glm::radians;
+	using glm::row;
 	using glm::value_ptr;
+	using glm::normalize;
+
+	using glm::operator+;
+	using glm::operator-;
+	using glm::operator*;
+	using glm::operator/;
 }
 
 export namespace Aegis::Math
