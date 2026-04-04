@@ -2,9 +2,18 @@ module;
 
 #include <imgui.h>
 
-export module Aegis.UI.Panels:ScenePanel;
+#include <cstdint>
+#include <utility>
+#include <vector>
 
-export namespace Aegis::UI
+export module Aegis.Editor.Panels:ScenePanel;
+
+import Aegis.Scene;
+import Aegis.Scene.Entity;
+import Aegis.Scene.Components;
+import Aegis.Graphics.Components;
+
+export namespace Aegis::Editor
 {
 	class ScenePanel
 	{

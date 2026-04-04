@@ -4,9 +4,9 @@ module;
 
 #include <cstdint>
 
-export module Aegis.UI.Panels:MenuBarPanel;
+export module Aegis.Editor.Panels:MenuBarPanel;
 
-export namespace Aegis::UI
+export namespace Aegis::Editor
 {
 	/// @brief Shows the main menu bar of the application
 	class MenuBarPanel

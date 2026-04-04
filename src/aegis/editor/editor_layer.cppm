@@ -2,15 +2,14 @@ module;
 
 #include <ImGuizmo.h>
 
-export module Aegis.Core.EditorLayer;
-
-import Aegis.Core.Layer;
-import Aegis.Core.Input;
-import Aegis.UI.Panels;
+export module Aegis.Editor;
 
 import Aegis.Math;
+import Aegis.Core.Layer;
+import Aegis.Core.Input;
+import Aegis.Editor.Panels;
 
-namespace Aegis::Core
+namespace Aegis::Editor
 {
 	class EditorLayer : public Core::Layer
 	{
@@ -38,19 +37,19 @@ namespace Aegis::Core
 		{
 			m_menuBarPanel.draw();
 
-			if (m_menuBarPanel.flagActive(UI::MenuBarPanel::Renderer))
+			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Renderer))
 				m_rendererPanel.draw();
 
-			if (m_menuBarPanel.flagActive(UI::MenuBarPanel::Scene))
+			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Scene))
 				m_scenePanel.draw();
 
-			if (m_menuBarPanel.flagActive(UI::MenuBarPanel::Statistics))
+			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Statistics))
 				m_statisticsPanel.draw();
 
-			if (m_menuBarPanel.flagActive(UI::MenuBarPanel::Profiler))
+			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Profiler))
 				m_profilerPanel.draw();
 
-			if (m_menuBarPanel.flagActive(UI::MenuBarPanel::Demo))
+			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Demo))
 				m_demoPanel.draw();
 
 			if (m_gizmoType != -1)
@@ -95,12 +94,12 @@ namespace Aegis::Core
 			}
 		}
 
-		UI::MenuBarPanel m_menuBarPanel{};
-		UI::RendererPanel m_rendererPanel{};
-		UI::ScenePanel m_scenePanel{};
-		UI::StatisticsPanel m_statisticsPanel{};
-		UI::ProfilerPanel m_profilerPanel{};
-		UI::DemoPanel m_demoPanel{};
+		Editor::MenuBarPanel m_menuBarPanel{};
+		Editor::RendererPanel m_rendererPanel{};
+		Editor::ScenePanel m_scenePanel{};
+		Editor::StatisticsPanel m_statisticsPanel{};
+		Editor::ProfilerPanel m_profilerPanel{};
+		Editor::DemoPanel m_demoPanel{};
 		int m_gizmoType = -1;
 		bool m_snapping = false;
 	};

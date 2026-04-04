@@ -13,6 +13,7 @@ import Aegis.UI.UI;
 import Aegis.Math;
 import Aegis.Core.EditorLayer;
 import Aegis.Graphics.Texture;
+import Aegis.Editor;
 
 export namespace Aegis
 {

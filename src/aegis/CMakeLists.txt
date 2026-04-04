@@ -11,6 +11,7 @@ add_subdirectory(scene)
 add_subdirectory(scripting)
 add_subdirectory(ui)
 add_subdirectory(utils)
+add_subdirectory(editor)
 
 target_include_directories(aegis-engine 
 PUBLIC

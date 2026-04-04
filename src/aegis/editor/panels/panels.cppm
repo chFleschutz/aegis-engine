@@ -1,4 +1,4 @@
-export module Aegis.UI.Panels;
+export module Aegis.Editor.Panels;
 
 export import :DemoPanel;
 export import :MenuBarPanel;

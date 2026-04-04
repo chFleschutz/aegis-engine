@@ -2,11 +2,12 @@ module;
 
 #include <imgui.h>
 
-export module Aegis.UI.Panels:ProfilerPanel;
+export module Aegis.Editor.Panels:ProfilerPanel;
 
 import Aegis.Core.Profiler;
+import Aegis.Graphics.GPUTimer;
 
-export namespace Aegis::UI
+export namespace Aegis::Editor
 {
 	class ProfilerPanel
 	{

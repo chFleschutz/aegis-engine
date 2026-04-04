@@ -14,11 +14,4 @@ PUBLIC
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
 		ui.cppm
-		editor_layer.cppm
-		panels/demo_panel.cppm
-		panels/menu_bar_panel.cppm
-		panels/profiler_panel.cppm
-		panels/renderer_panel.cppm
-		panels/scene_panel.cppm
-		panels/statistics_panel.cppm
 )

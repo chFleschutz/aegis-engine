@@ -1,10 +1,16 @@
 module;
 
+#include "graphics/vulkan/vulkan_include.h"
+
 #include <imgui.h>
 
-export module Aegis.UI.Panels:RendererPanel;
+#include <variant>
 
-export namespace Aegis::UI
+export module Aegis.Editor.Panels:RendererPanel;
+
+import Aegis.Graphics.FrameGraph.Resource;
+
+export namespace Aegis::Editor
 {
 	class RendererPanel
 	{
