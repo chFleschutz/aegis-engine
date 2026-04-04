@@ -5,11 +5,13 @@ module;
 #include <glfw/glfw3.h>
 
 #include <array>
+#include <optional>
 #include <set>
 #include <unordered_set>
 
 export module Aegis.Graphics.Vulkan.Device;
 
+import Aegis.Core.Logging;
 import Aegis.Core.Window;
 import Aegis.Graphics.Vulkan.Tools;
 import Aegis.Graphics.DebugUtils;

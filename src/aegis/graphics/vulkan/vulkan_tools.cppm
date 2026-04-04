@@ -3,6 +3,8 @@ module;
 #include "core/assert.h"
 #include "graphics/vulkan/vulkan_include.h"
 
+#include <aegis-log/log.h>
+
 #include <string_view>
 #include <filesystem>
 

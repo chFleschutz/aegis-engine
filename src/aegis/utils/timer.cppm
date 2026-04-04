@@ -6,7 +6,7 @@ module;
 
 export module Aegis.Utils.Timer;
 
-namespace Aegis::Utils
+export namespace Aegis::Utils
 {
 	class Timer
 	{

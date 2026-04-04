@@ -9,8 +9,10 @@ module;
 
 export module Aegis.Scene.OBJLoader;
 
-import Aegis.Scene.Entity;
+import Aegis.Math;
 import Aegis.Graphics.MeshPreprocessor;
+import Aegis.Scene.Entity;
+import Aegis.Scene;
 
 export namespace Aegis::Scene
 {

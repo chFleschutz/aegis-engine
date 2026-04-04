@@ -1,7 +1,7 @@
 add_library(aegis-core STATIC)
 
 target_link_libraries(aegis-core 
-PRIVATE
+PUBLIC
 	aegis-utils
 	imguizmo
 	Aegis::Log

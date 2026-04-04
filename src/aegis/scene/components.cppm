@@ -8,9 +8,6 @@ export module Aegis.Scene.Components;
 import Aegis.Math;
 import Aegis.Scene.Entity;
 import Aegis.Scene.ComponentTraits;
-import Aegis.Graphics.StaticMesh;
-import Aegis.Graphics.MaterialInstance;
-import Aegis.Graphics.Texture;
 
 namespace Aegis::Scripting
 {
@@ -98,16 +95,6 @@ export namespace Aegis
 		auto rend() const -> Children::ReverseIterator { return { Scene::Entity{} }; }
 	};
 
-	struct Mesh
-	{
-		std::shared_ptr<Graphics::StaticMesh> staticMesh;
-	};
-
-	struct Material
-	{
-		std::shared_ptr<Graphics::MaterialInstance> instance;
-	};
-
 	struct DynamicTag
 	{
 		// Used to tag an entity as dynamic (updated every frame)
@@ -147,14 +134,6 @@ export namespace Aegis
 		glm::mat4 viewMatrix = glm::mat4{ 1.0f };
 		glm::mat4 inverseViewMatrix = glm::mat4{ 1.0f };
 		glm::mat4 projectionMatrix = glm::mat4{ 1.0f };
-	};
-
-	struct Environment
-	{
-		std::shared_ptr<Graphics::Texture> skybox;
-		std::shared_ptr<Graphics::Texture> irradiance;
-		std::shared_ptr<Graphics::Texture> prefiltered;
-		std::shared_ptr<Graphics::Texture> brdfLUT;
 	};
 
 

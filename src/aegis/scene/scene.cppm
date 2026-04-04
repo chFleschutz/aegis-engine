@@ -97,28 +97,6 @@ export namespace Aegis::Scene
 			m_scriptManager.update(deltaSeconds);
 		}
 
-		/// @brief Loads a scene from a file and returns the root entity
-		auto load(const std::filesystem::path& path) -> Entity
-		{
-			if (path.extension() == ".gltf" || path.extension() == ".glb")
-			{
-				//GLTFLoader loader{ *this, path };
-				FastGLTFLoader loader{ *this, path };
-				return loader.rootEntity();
-			}
-			else if (path.extension() == ".obj")
-			{
-				OBJLoader loader{ *this, path };
-				return loader.rootEntity();
-			}
-			else
-			{
-				AGX_ASSERT_X(false, "Unsupported file format");
-			}
-
-			return Entity{};
-		}
-
 		void reset()
 		{
 			// TODO: Clear old scene

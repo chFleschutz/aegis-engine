@@ -2,7 +2,11 @@ module;
 
 #include "graphics/vulkan/vulkan_include.h"
 
+#include <vector>
+
 export module Aegis.Graphics.SwapChain;
+
+import Aegis.Graphics.VulkanContext;
 
 export namespace Aegis::Graphics
 {

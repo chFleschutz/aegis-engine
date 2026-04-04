@@ -12,6 +12,7 @@ target_link_libraries(aegis-graphics
 PUBLIC
 	aegis-core
 	aegis-math
+	aegis-scene
 	aegis-utils
 	Aegis::Log
 	volk::volk
@@ -26,6 +27,7 @@ PUBLIC
 	FILE_SET CXX_MODULES 
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
+		components.cppm
 		deletion_queue.cppm
 		descriptors.cppm
 		descriptor_pool.cppm
