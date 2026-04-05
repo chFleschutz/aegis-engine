@@ -2,6 +2,8 @@ module;
 
 #include "graphics/vulkan/vulkan_include.h"
 
+#include <aegis-log/log.h>
+
 #include <vector>
 
 export module Aegis.Graphics.SwapChain;

@@ -10,4 +10,5 @@ PUBLIC
 		sampler.cppm
 		static_mesh.cppm
 		texture.cppm
+		vertex.cppm
 )

@@ -10,6 +10,7 @@ export module Aegis.Graphics.Pipeline;
 
 import Aegis.Graphics.VulkanContext;
 import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Vertex;
 
 export namespace Aegis::Graphics
 {
@@ -410,8 +411,8 @@ export namespace Aegis::Graphics
 			configInfo.dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(configInfo.dynamicStateEnables.size());
 			configInfo.dynamicStateInfo.flags = 0;
 
-			configInfo.bindingDescriptions = { StaticMesh::bindingDescription() };
-			configInfo.attributeDescriptions = StaticMesh::attributeDescriptions();
+			configInfo.bindingDescriptions = { Vertex::bindingDescription() };
+			configInfo.attributeDescriptions = Vertex::attributeDescriptions();
 		}
 
 	private:

@@ -5,7 +5,7 @@ module;
 #include <vector>
 
 export module Aegis.Graphics.StaticMesh;
-
+export import Aegis.Graphics.Vertex;
 import Aegis.Math;
 import Aegis.Graphics.Vulkan.ResourceTools;
 import Aegis.Graphics.Bindless;
@@ -16,14 +16,6 @@ export namespace Aegis::Graphics
 	class StaticMesh
 	{
 	public:
-		struct Vertex
-		{
-			glm::vec3 position;
-			glm::vec3 normal;
-			glm::vec2 uv;
-			glm::vec3 color;
-		};
-
 		struct BoundingSphere
 		{
 			glm::vec3 center;
@@ -63,47 +55,6 @@ export namespace Aegis::Graphics
 			std::vector<uint8_t> primitiveIndices;
 			BoundingSphere bounds;
 		};
-
-		static auto bindingDescription() -> VkVertexInputBindingDescription
-		{
-			static VkVertexInputBindingDescription bindingDescription{
-				.binding = 0,
-				.stride = sizeof(Vertex),
-				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-			};
-			return bindingDescription;
-		}
-
-		static auto attributeDescriptions() -> std::vector<VkVertexInputAttributeDescription>
-		{
-			static auto attributeDescriptions = std::vector{
-				VkVertexInputAttributeDescription{
-					.location = 0,
-					.binding = 0,
-					.format = VK_FORMAT_R32G32B32_SFLOAT,
-					.offset = offsetof(Vertex, position)
-				},
-				VkVertexInputAttributeDescription{
-					.location = 1,
-					.binding = 0,
-					.format = VK_FORMAT_R32G32B32_SFLOAT,
-					.offset = offsetof(Vertex, normal)
-				},
-				VkVertexInputAttributeDescription{
-					.location = 2,
-					.binding = 0,
-					.format = VK_FORMAT_R32G32_SFLOAT,
-					.offset = offsetof(Vertex, uv)
-				},
-				VkVertexInputAttributeDescription{
-					.location = 3,
-					.binding = 0,
-					.format = VK_FORMAT_R32G32B32_SFLOAT,
-					.offset = offsetof(Vertex, color)
-				}
-			};
-			return attributeDescriptions;
-		}
 
 		StaticMesh(const CreateInfo& info) :
 			m_vertexBuffer{ Buffer::vertexBuffer(sizeof(Vertex) * info.vertices.size(), 1, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) },

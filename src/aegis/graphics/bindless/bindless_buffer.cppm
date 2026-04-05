@@ -1,6 +1,7 @@
 module;
 
 #include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #include <array>
 
@@ -11,7 +12,7 @@ import :DescriptorHandle;
 import Aegis.Graphics.Globals;
 import Aegis.Graphics.Buffer;
 
-namespace Aegis::Graphics::Bindless
+export namespace Aegis::Graphics::Bindless
 {
 	static auto allocateBindlessHandle(const Buffer& buffer) -> DescriptorHandle
 	{

@@ -1,7 +1,9 @@
 module;
 
-#include "core/asset.h"
+#include "core/assert.h"
 #include "graphics/vulkan/vulkan_include.h"
+
+#include <aegis-log/log.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
@@ -11,9 +13,15 @@ module;
 export module Aegis.Graphics.Texture;
 
 import Aegis.Math;
+import Aegis.Core.Asset;
 import Aegis.Graphics.Image;
 import Aegis.Graphics.ImageView;
 import Aegis.Graphics.Sampler;
+import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.VulkanContext;
+import Aegis.Graphics.Pipeline;
+import Aegis.Graphics.Bindless;
 
 export namespace Aegis::Graphics
 {

@@ -2,6 +2,11 @@ module;
 
 #include "graphics/vulkan/vulkan_include.h"
 
+#include <vector>
+#include <array>
+#include <string>
+#include <string_view>
+
 #define AGX_GPU_PROFILE_SCOPE(cmd, name) Aegis::Graphics::GPUScopeTimer gpuTimer##__LINE__(cmd, name)
 #define AGX_GPU_PROFILE_FUNCTION(cmd) AGX_GPU_PROFILE_SCOPE(cmd, __FUNCTION__)
 
