@@ -12,11 +12,6 @@ PUBLIC
 		scene.cppm
 		system.cppm
 
-		loader/fast_gltf_loader.cppm
-		loader/gltf_loader.cppm
-		loader/loader.cppm
-		loader/obj_loader.cppm
-
 		systems/camera_system.cppm
 		systems/transform_system.cppm
 )
@@ -30,8 +25,5 @@ target_link_libraries(aegis-scene
 PRIVATE
 	aegis-core
 	aegis-math
-	Aegis::GLTF
 	EnTT::EnTT
-	tinyobjloader
-	fastgltf
 )

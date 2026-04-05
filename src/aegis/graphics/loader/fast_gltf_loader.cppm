@@ -6,7 +6,7 @@ module;
 #include <fastgltf/tools.hpp>
 #include <fastgltf/types.hpp>
 
-export module Aegis.Scene.Loader.FastGLTFLoader;
+export module Aegis.Graphics.Loader:FastGLTFLoader;
 
 import Aegis.Scene;
 import Aegis.Graphics.StaticMesh;
@@ -14,12 +14,12 @@ import Aegis.Graphics.Texture;
 import Aegis.Graphics.MaterialTemplate;
 import Aegis.Graphics.MaterialInstance;
 
-export namespace Aegis::Scene
+export namespace Aegis::Graphics
 {
 	class FastGLTFLoader
 	{
 	public:
-		FastGLTFLoader(Scene& scene, const std::filesystem::path& path)
+		FastGLTFLoader(Scene::Scene& scene, const std::filesystem::path& path)
 		{
 			auto data = fastgltf::GltfDataBuffer::FromPath(path);
 			if (data.error() != fastgltf::Error::None)

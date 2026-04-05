@@ -7,6 +7,7 @@ add_subdirectory(material)
 add_subdirectory(frame_graph)
 add_subdirectory(render_passes)
 add_subdirectory(render_systems)
+add_subdirectory(loader)
 
 target_link_libraries(aegis-graphics 
 PUBLIC
@@ -15,11 +16,14 @@ PUBLIC
 	aegis-scene
 	aegis-utils
 	Aegis::Log
+	Aegis::GLTF
 	volk::volk
 	GPUOpen::VulkanMemoryAllocator
 	stb
 	glfw
 	meshoptimizer
+	fastgltf
+	tinyobjloader
 )
 
 target_sources(aegis-graphics

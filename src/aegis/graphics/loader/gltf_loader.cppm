@@ -4,7 +4,7 @@ module;
 
 #include <gltf.h>
 
-export module Aegis.Scene.GLTFLoader;
+export module Aegis.Graphics.Loader:GLTFLoader;
 
 import Aegis.Math;
 import Aegis.Graphics.StaticMesh;
@@ -13,7 +13,7 @@ import Aegis.Graphics.Texture;
 import Aegis.Scene.Components;
 import Aegis.Scene.Entity;
 
-export namespace Aegis::Scene
+export namespace Aegis::Graphics
 {
 	class GLTFLoader
 	{

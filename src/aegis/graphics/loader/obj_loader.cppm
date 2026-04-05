@@ -7,14 +7,14 @@ module;
 
 #include <filesystem>
 
-export module Aegis.Scene.OBJLoader;
+export module Aegis.Graphics.Loader:OBJLoader;
 
 import Aegis.Math;
 import Aegis.Graphics.MeshPreprocessor;
 import Aegis.Scene.Entity;
 import Aegis.Scene;
 
-export namespace Aegis::Scene
+export namespace Aegis::Graphics
 {
 	class OBJLoader
 	{
