@@ -14,6 +14,7 @@ import Aegis.Math;
 import Aegis.Core.EditorLayer;
 import Aegis.Graphics.Texture;
 import Aegis.Editor;
+import Aegis.Core.Globals;
 
 export namespace Aegis
 {

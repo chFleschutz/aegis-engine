@@ -10,7 +10,7 @@ import Aegis.Graphics.Vulkan.Device;
 import Aegis.Graphics.DeletionQueue;
 import Aegis.Graphics.DescriptorPool;
 
-namespace Aegis::Graphics
+export namespace Aegis::Graphics
 {
 	class VulkanContext
 	{

@@ -4,9 +4,10 @@ module;
 
 export module Aegis.Scene.TransformSystem;
 
-import Aegis.Scene.System;
+import Aegis.Scene;
+import Aegis.Scene.Components;
 import Aegis.Scene.Entity;
-import Aegis.Scene.Components
+import Aegis.Scene.System;
 
 export namespace Aegis::Scene
 {

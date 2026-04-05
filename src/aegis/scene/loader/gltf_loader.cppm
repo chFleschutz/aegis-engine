@@ -1,4 +1,4 @@
-#pragma once
+module;
 
 #include "core/assert.h"
 

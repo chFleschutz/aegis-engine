@@ -10,8 +10,9 @@ export module Aegis.Scene;
 
 import Aegis.Math;
 import Aegis.Scene.Components;
-import Aegis.Scene.Systems;
+import Aegis.Scene.System;
 import Aegis.Scene.Entity;
+import Aegis.Scripting.ScriptManager;
 
 namespace Aegis::Scripting
 {

@@ -67,32 +67,33 @@ export namespace Aegis
 	/// @note Use Entity::addChild to add a child to an entity
 	struct Children
 	{
-		struct Iterator
-		{
-			Scene::Entity current{};
+		// TODO: This is currentl broken because the entity does not have a pointer to the scene anymore
+		//struct Iterator
+		//{
+		//	Scene::Entity current{};
 
-			auto operator*() const -> Scene::Entity { return current; }
-			auto operator++() -> Iterator& { current = current.get<Siblings>().next; return *this; }
-			auto operator==(const Iterator& other) const -> bool { return current == other.current; }
-		};
+		//	auto operator*() const -> Scene::Entity { return current; }
+		//	auto operator++() -> Iterator& { current = current.get<Siblings>().next; return *this; }
+		//	auto operator==(const Iterator& other) const -> bool { return current == other.current; }
+		//};
 
-		struct ReverseIterator
-		{
-			Scene::Entity current{};
+		//struct ReverseIterator
+		//{
+		//	Scene::Entity current{};
 
-			auto operator*() const -> Scene::Entity { return current; }
-			auto operator++() -> ReverseIterator& { current = current.get<Siblings>().prev; return *this; }
-			auto operator==(const ReverseIterator& other) const -> bool { return current == other.current; };
-		};
+		//	auto operator*() const -> Scene::Entity { return current; }
+		//	auto operator++() -> ReverseIterator& { current = current.get<Siblings>().prev; return *this; }
+		//	auto operator==(const ReverseIterator& other) const -> bool { return current == other.current; };
+		//};
 
 		size_t count = 0;
 		Scene::Entity first{};
 		Scene::Entity last{};
 
-		auto begin() const -> Children::Iterator { return { first }; }
-		auto end() const -> Children::Iterator { return { Scene::Entity{} }; }
-		auto rbegin() const -> Children::ReverseIterator { return { last }; }
-		auto rend() const -> Children::ReverseIterator { return { Scene::Entity{} }; }
+		//auto begin() const -> Children::Iterator { return { first }; }
+		//auto end() const -> Children::Iterator { return { Scene::Entity{} }; }
+		//auto rbegin() const -> Children::ReverseIterator { return { last }; }
+		//auto rend() const -> Children::ReverseIterator { return { Scene::Entity{} }; }
 	};
 
 	struct DynamicTag

@@ -1,5 +1,7 @@
 module;
 
+#include "graphics/vulkan/vulkan_include.h"
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
@@ -10,6 +12,8 @@ export module Aegis.UI;
 
 import Aegis.Core.LayerStack;
 import Aegis.Graphics.Globals;
+import Aegis.Graphics.Renderer;
+import Aegis.Graphics.VulkanContext;
 
 namespace Aegis::Graphics
 {
