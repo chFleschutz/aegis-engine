@@ -1,5 +1,7 @@
 export module Aegis.Scripting.ScriptBase;
 
+import Aegis.Scene.Entity;
+
 export namespace Aegis::Scripting
 {
 	class ScriptBase
@@ -40,11 +42,11 @@ export namespace Aegis::Scripting
 		}
 
 		/// @brief Returns the entity
-		Aegis::Scene::Entity entity() const { return m_entity; }
+		Scene::Entity entity() const { return m_entity; }
 
 	private:
-		Aegis::Scene::Entity m_entity;
+		Scene::Entity m_entity;
 
-		friend class Aegis::Scene::Entity;
+		friend class Scene::Entity;
 	};
 }

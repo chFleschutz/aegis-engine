@@ -30,7 +30,6 @@ target_link_libraries(aegis-scene
 PRIVATE
 	aegis-core
 	aegis-math
-	aegis-scripting
 	Aegis::GLTF
 	EnTT::EnTT
 	tinyobjloader

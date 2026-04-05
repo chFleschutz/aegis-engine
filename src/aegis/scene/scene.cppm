@@ -12,7 +12,6 @@ import Aegis.Math;
 import Aegis.Scene.Components;
 import Aegis.Scene.System;
 import Aegis.Scene.Entity;
-import Aegis.Scripting.ScriptManager;
 
 namespace Aegis::Scripting
 {
@@ -75,9 +74,6 @@ export namespace Aegis::Scene
 			m_registry.destroy(entity);
 		}
 
-		/// @brief Adds tracking for a script component to call its virtual functions
-		void addScript(Scripting::ScriptBase* script) { m_scriptManager.addScript(script); }
-
 		void begin()
 		{
 			for (auto& system : m_systems)
@@ -94,8 +90,6 @@ export namespace Aegis::Scene
 			{
 				system->onUpdate(deltaSeconds, *this);
 			}
-
-			m_scriptManager.update(deltaSeconds);
 		}
 
 		void reset()
@@ -132,7 +126,6 @@ export namespace Aegis::Scene
 	private:
 		entt::registry m_registry;
 		std::vector<std::unique_ptr<System>> m_systems;
-		Scripting::ScriptManager m_scriptManager;
 
 		Entity m_mainCamera;
 		Entity m_ambientLight;

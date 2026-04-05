@@ -4,6 +4,7 @@ module;
 
 export module Aegis.Scripting.ScriptManager;
 
+import Aegis.Scene;
 import Aegis.Scripting.ScriptBase;
 
 export namespace Aegis::Scripting
@@ -11,7 +12,7 @@ export namespace Aegis::Scripting
 	class ScriptManager
 	{
 	public:
-		ScriptManager() = default;
+		ScriptManager(Scene::Scene& scene) : m_scene(scene) {}
 		ScriptManager(const ScriptManager&) = delete;
 		ScriptManager(ScriptManager&&) = delete;
 		~ScriptManager()
@@ -57,6 +58,7 @@ export namespace Aegis::Scripting
 			m_newScripts.clear();
 		}
 
+		Scene::Scene& m_scene;
 		std::vector<ScriptBase*> m_scripts;
 		std::vector<ScriptBase*> m_newScripts;
 	};

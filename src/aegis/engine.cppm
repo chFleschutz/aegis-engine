@@ -15,6 +15,8 @@ import Aegis.Core.EditorLayer;
 import Aegis.Graphics.Texture;
 import Aegis.Editor;
 import Aegis.Core.Globals;
+import Aegis.Scene.Scene;
+import Aegis.Scripting.ScriptManager;
 
 export namespace Aegis
 {
@@ -200,5 +202,6 @@ export namespace Aegis
 		UI::UI m_ui{ m_renderer, m_layerStack };
 		Input m_input{ m_window };
 		Scene::Scene m_scene;
+		Scripting::ScriptManager m_scriptManager{ m_scene };
 	};
 }
