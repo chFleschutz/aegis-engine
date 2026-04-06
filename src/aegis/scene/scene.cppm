@@ -49,18 +49,177 @@ export namespace Aegis::Scene
 			m_systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
 		}
 
+		/// @brief Checks if the entity has all components of type T...
+		template<typename... T>
+		auto has(Entity entity) const -> bool
+		{
+			return registry().all_of<T...>(entity.m_id);
+		}
+
+		/// @brief Acces to the component of type T
+		template<typename T>
+		auto get(Entity entity) const -> T&
+		{
+			AGX_ASSERT_X(has<T>(), "Cannot get Component: Entity does not have the component");
+			return registry().get<T>(entity.m_id);
+		}
+
+		/// @brief Adds a component of type T to the entity
+		/// @return A refrence to the new component
+		template<typename T, typename... Args>
+		auto add(Entity entity, Args&&... args) -> T&
+		{
+			AGX_ASSERT_X(!has<T>(), "Cannot add Component: Entity already has the component");
+			return registry().emplace<T>(entity.m_id, std::forward<Args>(args)...);
+		}
+
+		/// @brief Overload to add tag components (empty structs) to the entity
+		template<TagComponent T>
+		auto add(Entity entity)
+		{
+			AGX_ASSERT_X(!has<T>(), "Cannot add Component: Entity already has the component");
+			registry().emplace<T>(entity.m_id);
+		}
+
+		template<typename T>
+		auto getOrAdd(Entity entity) -> T&
+		{
+			return registry().get_or_emplace<T>(m_id);
+		}
+
+		/// @brief Removes a component of type T from the entity
+		/// @note Entity MUST have the component and it MUST be an optional component
+		template<typename T>
+			requires IsOptionalComponent<T>
+		void remove(Entity entity)
+		{
+			AGX_ASSERT_X(has<T>(), "Cannot remove Component: Entity does not have the component");
+			registry().remove<T>(m_id);
+		}
+
+		void setParent(Entity entity, Entity parent)
+		{
+			AGX_ASSERT_X(entity, "Cannot set parent: Entity is null");
+			AGX_ASSERT_X(parent, "Cannot set parent: Parent entity is null");
+			AGX_ASSERT_X(parent != entity, "Cannot set parent: Entity cannot be its own parent");
+
+			addChild(parent, entity);
+		}
+
+		void removeParent(Entity entity)
+		{
+			AGX_ASSERT_X(entity, "Cannot remove parent: Entity is null");
+			AGX_ASSERT_X(has<Parent>(entity), "Cannot remove parent: Entity does not have a parent");
+
+			auto& parent = get<Parent>(entity);
+			if (!parent.entity)
+				return;
+
+			removeChild(parent.entity, entity);
+			parent.entity = Entity{};
+		}
+
+		void addChild(Entity entity, Entity child)
+		{
+			AGX_ASSERT_X(entity, "Cannot add child: Entity is null");
+			AGX_ASSERT_X(child, "Cannot add child: Child entity is null");
+
+			auto& parent = get<Parent>(child);
+			if (parent.entity == entity) // Already added as a child
+				return;
+
+			parent.entity = entity;
+
+			auto& children = get<Children>(entity);
+			if (children.first)
+			{
+				get<Siblings>(children.last).next = child;
+				get<Siblings>(child).prev = children.last;
+			}
+			else // No children yet
+			{
+				children.first = child;
+			}
+			children.last = child;
+			children.count++;
+		}
+
+		void removeChild(Entity entity, Entity child)
+		{
+			AGX_ASSERT_X(entity, "Cannot remove child: Entity is null");
+			AGX_ASSERT_X(has<Children>(entity), "Cannot remove child: Entity does not have children");
+			AGX_ASSERT_X(child, "Cannot remove child: Child entity is null");
+			AGX_ASSERT_X(has<Parent>(child), "Cannot remove child: Entity does not have a parent");
+			AGX_ASSERT_X(get<Parent>(child).entity == entity, "Cannot remove child: Entity is not a child of this entity");
+
+			auto& children = get<Children>(entity);
+			children.count--;
+
+			auto& siblings = get<Siblings>(child);
+			Entity prevSibling = siblings.prev;
+			Entity nextSibling = siblings.next;
+
+			// Update siblings and first/last child
+			if (prevSibling)
+			{
+				get<Siblings>(prevSibling).next = nextSibling;
+			}
+			else // First Child
+			{
+				children.first = siblings.next;
+			}
+
+			if (nextSibling)
+			{
+				get<Siblings>(nextSibling).prev = prevSibling;
+			}
+			else // Last Child
+			{
+				children.last = siblings.prev;
+			}
+
+			// Remove parent at the end
+			get<Parent>(child) = Parent{};
+		}
+
+		void removeChildren(Entity entity)
+		{
+			AGX_ASSERT_X(entity, "Cannot remove children: Entity is null");
+			AGX_ASSERT_X(has<Children>(entity), "Cannot remove children: Entity does not have children");
+
+			// This needs to be done in two steps to avoid invalidating the iterator
+			auto& children = get<Children>(entity);
+			std::vector<Entity> childrenToRemove;
+			childrenToRemove.reserve(children.count);
+
+			// TODO: This can be simplified by repairing the iterators for the children
+			Entity current = children.first;
+			while (current)
+			{
+				childrenToRemove.emplace_back(current);
+				current = get<Siblings>(current).next;
+			}
+
+			children = Children{};
+			for (auto& child : childrenToRemove)
+			{
+				get<Parent>(child) = Parent{};
+				get<Siblings>(child) = Siblings{};
+			}
+		}
+
 		/// @brief Creates an entity with a NameComponent and TransformComponent
 		/// @note Scene::Entity can be passed by value
 		auto createEntity(const std::string& name = std::string(), const glm::vec3& location = glm::vec3{ 0.0f },
 			const glm::quat& rotation = glm::quat{ 1.0f, 0.0f, 0.0f, 0.0f }, const glm::vec3& scale = glm::vec3{ 1.0f }) -> Entity
 		{
-			Entity entity = { m_registry.create(), this };
-			entity.add<Name>(name.empty() ? "Entity" : name);
-			entity.add<Transform>(location, rotation, scale);
-			entity.add<GlobalTransform>();
-			entity.add<Parent>();
-			entity.add<Siblings>();
-			entity.add<Children>();
+			Entity entity{ m_registry.create() };
+			add<Name>(entity, name.empty() ? "Entity" : name);
+			add<Transform>(entity, location, rotation, scale);
+			add<GlobalTransform>(entity);
+			add<Parent>(entity);
+			add<Siblings>(entity);
+			add<Children>(entity);
 			return entity;
 		}
 
@@ -68,8 +227,8 @@ export namespace Aegis::Scene
 		{
 			// TODO: Destroy all scripts attached to the entity
 
-			entity.removeParent();
-			entity.removeChildren();
+			removeParent(entity);
+			removeChildren(entity);
 
 			m_registry.destroy(entity);
 		}
@@ -100,23 +259,23 @@ export namespace Aegis::Scene
 			addSystem<TransformSystem>();
 
 			m_mainCamera = createEntity("Main Camera");
-			m_mainCamera.add<Camera>();
-			m_mainCamera.add<Scripting::KinematcMovementController>();
-			m_mainCamera.add<DynamicTag>();
-			m_mainCamera.get<Transform>() = Transform{
+			add<Camera>(m_mainCamera);
+			add<Scripting::KinematcMovementController>(m_mainCamera);
+			add<DynamicTag>(m_mainCamera);
+			get<Transform>(m_mainCamera) = Transform{
 				.location = { 0.0f, -15.0f, 10.0f },
 				.rotation = glm::radians(glm::vec3{ -30.0f, 0.0f, 0.0f })
 			};
 
 			m_ambientLight = createEntity("Ambient Light");
-			m_ambientLight.add<AmbientLight>();
+			add<AmbientLight>(m_ambientLight);
 
 			m_directionalLight = createEntity("Directional Light");
-			m_directionalLight.add<DirectionalLight>();
-			m_directionalLight.get<Transform>().rotation = glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f });
+			add<DirectionalLight>(m_directionalLight);
+			get<Transform>(m_directionalLight).rotation = glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f });
 
 			m_skybox = createEntity("Skybox");
-			auto& env = m_skybox.add<Environment>();
+			auto& env = add<Environment>(m_skybox);
 			env.skybox = Engine::assets().get<Graphics::Texture>("default/cubemap_black");
 			env.irradiance = env.skybox;
 			env.prefiltered = env.skybox;

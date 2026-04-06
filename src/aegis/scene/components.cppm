@@ -1,18 +1,12 @@
 module;
 
 #include <string>
-#include <memory>
 
 export module Aegis.Scene.Components;
 
 import Aegis.Math;
 import Aegis.Scene.Entity;
 import Aegis.Scene.ComponentTraits;
-
-namespace Aegis::Scripting
-{
-	class ScriptBase;
-}
 
 export namespace Aegis
 {
@@ -136,6 +130,10 @@ export namespace Aegis
 		glm::mat4 inverseViewMatrix = glm::mat4{ 1.0f };
 		glm::mat4 projectionMatrix = glm::mat4{ 1.0f };
 	};
+
+
+	template<typename T>
+	concept TagComponent = std::is_empty_v<T>;
 
 
 	// Specialize component traits
