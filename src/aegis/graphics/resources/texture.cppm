@@ -21,7 +21,7 @@ import Aegis.Graphics.Descriptors;
 import Aegis.Graphics.Vulkan.Tools;
 import Aegis.Graphics.VulkanContext;
 import Aegis.Graphics.Pipeline;
-import Aegis.Graphics.Bindless;
+import Aegis.Graphics.Bindless:DescriptorHandle;
 
 export namespace Aegis::Graphics
 {

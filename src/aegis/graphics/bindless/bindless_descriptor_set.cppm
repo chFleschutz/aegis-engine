@@ -1,7 +1,7 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/vulkan/volk_include.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #include <cstdint>
 #include <vector>
@@ -11,6 +11,7 @@ export module Aegis.Graphics.Bindless:BindlessDescriptorSet;
 import :DescriptorHandle;
 import Aegis.Graphics.VulkanContext;
 import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.DescriptorPool;
 
 namespace Aegis::Graphics::Bindless
 {
@@ -71,27 +72,34 @@ namespace Aegis::Graphics::Bindless
 			m_bindlessPool{ createDescriptorPool() },
 			m_bindlessSetLayout{ createDescriptorSetLayout() },
 			m_bindlessDescriptorSet{ m_bindlessSetLayout, m_bindlessPool }
-		{}
+		{
+			AGX_ASSERT_X(s_instance == nullptr, "BindlessDescriptorSet instance already exists!");
+			s_instance = this;
+		}
 
 		~BindlessDescriptorSet() = default;
 
 		operator VkDescriptorSet() const { return m_bindlessDescriptorSet.descriptorSet(); }
 
+		[[nodiscard]] static auto instance() -> BindlessDescriptorSet& 
+		{ 
+			AGX_ASSERT_X(s_instance, "BindlessDescriptorSet instance not initialized!");
+			return *s_instance; 
+		}
+
 		[[nodiscard]] auto descriptorSet() const -> const DescriptorSet& { return m_bindlessDescriptorSet; }
 		[[nodiscard]] auto layout() const -> const DescriptorSetLayout& { return m_bindlessSetLayout; }
 
-		auto allocateSampledImage(const Texture& texture) -> DescriptorHandle
+		auto allocateSampledImage(const VkDescriptorImageInfo& textureInfo) -> DescriptorHandle
 		{
 			auto handle = m_sampledImageCache.fetch(DescriptorHandle::Type::SampledImage);
-			auto textureInfo = texture.descriptorImageInfo(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 			writeSet(SAMPLED_IMAGE_BINDING, handle.index(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &textureInfo, nullptr);
 			return handle;
 		}
 
-		auto allocateStorageImage(const Texture& texture) -> DescriptorHandle
+		auto allocateStorageImage(const VkDescriptorImageInfo& textureInfo) -> DescriptorHandle
 		{
 			auto handle = m_storageImageCache.fetch(DescriptorHandle::Type::StorageImage);
-			auto textureInfo = texture.descriptorImageInfo(VK_IMAGE_LAYOUT_GENERAL);
 			writeSet(STORAGE_IMAGE_BINDING, handle.index(), VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &textureInfo, nullptr);
 			return handle;
 		}
@@ -146,7 +154,7 @@ namespace Aegis::Graphics::Bindless
 				.addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, std::min(MAX_UNIFORM_BUFFERS, limits.maxDescriptorSetUniformBuffers))
 				.setPoolFlags(VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
 				.setMaxSets(1)
-				.build();
+				.build(VulkanContext::device());
 		}
 
 		auto createDescriptorSetLayout() -> DescriptorSetLayout
@@ -181,6 +189,8 @@ namespace Aegis::Graphics::Bindless
 			};
 			vkUpdateDescriptorSets(VulkanContext::device(), 1, &write, 0, nullptr);
 		}
+
+		inline static BindlessDescriptorSet* s_instance = nullptr;
 
 		DescriptorPool m_bindlessPool;
 		DescriptorSetLayout m_bindlessSetLayout;

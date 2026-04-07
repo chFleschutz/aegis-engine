@@ -77,8 +77,8 @@ export namespace Aegis::Scene
 		template<TagComponent T>
 		auto add(Entity entity)
 		{
-			AGX_ASSERT_X(!has<T>(), "Cannot add Component: Entity already has the component");
-			registry().emplace<T>(entity.m_id);
+			AGX_ASSERT_X(!has<T>(entity), "Cannot add Component: Entity already has the component");
+			registry().emplace<T>(entity);
 		}
 
 		template<typename T>

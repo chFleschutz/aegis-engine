@@ -8,15 +8,15 @@ module;
 export module Aegis.Graphics.Bindless:BindlessBuffer;
 
 import :DescriptorHandle;
-
+import :BindlessDescriptorSet;
 import Aegis.Graphics.Globals;
 import Aegis.Graphics.Buffer;
 
 export namespace Aegis::Graphics::Bindless
 {
-	static auto allocateBindlessHandle(const Buffer& buffer) -> DescriptorHandle
+	auto allocateBindlessHandle(const Buffer& buffer) -> DescriptorHandle
 	{
-		auto& bindlessSet = Engine::renderer().bindlessDescriptorSet();
+		auto& bindlessSet = BindlessDescriptorSet::instance();
 		if (buffer.usage() & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
 		{
 			return bindlessSet.allocateStorageBuffer(buffer.descriptorBufferInfo());
@@ -32,9 +32,9 @@ export namespace Aegis::Graphics::Bindless
 		}
 	}
 
-	static auto allocateBindlessHandle(const Buffer& buffer, uint32_t index) -> DescriptorHandle
+	auto allocateBindlessHandle(const Buffer& buffer, uint32_t index) -> DescriptorHandle
 	{
-		auto& bindlessSet = Engine::renderer().bindlessDescriptorSet();
+		auto& bindlessSet = BindlessDescriptorSet::instance();
 		if (buffer.usage() & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
 		{
 			return bindlessSet.allocateStorageBuffer(buffer.descriptorBufferInfoFor(index));
@@ -71,7 +71,7 @@ export namespace Aegis::Graphics::Bindless
 
 		~BindlessBuffer()
 		{
-			Engine::renderer().bindlessDescriptorSet().freeHandle(m_handle);
+			BindlessDescriptorSet::instance().freeHandle(m_handle);
 		}
 
 		auto operator=(const BindlessBuffer&) -> BindlessBuffer & = delete;
@@ -79,7 +79,7 @@ export namespace Aegis::Graphics::Bindless
 		{
 			if (this != &other)
 			{
-				Engine::renderer().bindlessDescriptorSet().freeHandle(m_handle);
+				BindlessDescriptorSet::instance().freeHandle(m_handle);
 				m_buffer = std::move(other.m_buffer);
 				m_handle = other.m_handle;
 				other.m_handle.invalidate();
@@ -125,7 +125,7 @@ export namespace Aegis::Graphics::Bindless
 
 		~BindlessMultiBuffer()
 		{
-			auto& bindlessSet = Engine::renderer().bindlessDescriptorSet();
+			auto& bindlessSet = BindlessDescriptorSet::instance();
 			for (auto& handle : m_handles)
 			{
 				bindlessSet.freeHandle(handle);
@@ -137,7 +137,7 @@ export namespace Aegis::Graphics::Bindless
 		{
 			if (this != &other)
 			{
-				auto& bindlessSet = Engine::renderer().bindlessDescriptorSet();
+				auto& bindlessSet = BindlessDescriptorSet::instance();
 				for (auto& handle : m_handles)
 				{
 					bindlessSet.freeHandle(handle);
@@ -174,7 +174,7 @@ export namespace Aegis::Graphics::Bindless
 			AGX_ASSERT_X(bufferInfo.instanceCount == MAX_FRAMES_IN_FLIGHT,
 				"BindlessBufferArray requires instanceCount to be equal to MAX_FRAMES_IN_FLIGHT");
 
-			auto& bindlessSet = Engine::renderer().bindlessDescriptorSet();
+			auto& bindlessSet = BindlessDescriptorSet::instance();
 			for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 			{
 				m_handles[i] = allocateBindlessHandle(m_buffer, static_cast<uint32_t>(i));
@@ -185,7 +185,7 @@ export namespace Aegis::Graphics::Bindless
 		BindlessFrameBuffer(BindlessFrameBuffer&&) = default;
 		~BindlessFrameBuffer()
 		{
-			auto& bindlessSet = Engine::renderer().bindlessDescriptorSet();
+			auto& bindlessSet = BindlessDescriptorSet::instance();
 			for (auto& handle : m_handles)
 			{
 				bindlessSet.freeHandle(handle);
