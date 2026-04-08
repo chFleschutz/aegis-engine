@@ -14,6 +14,7 @@ export module Aegis.Graphics.Texture;
 
 import Aegis.Math;
 import Aegis.Core.Asset;
+import Aegis.Core.Globals;
 import Aegis.Graphics.Image;
 import Aegis.Graphics.ImageView;
 import Aegis.Graphics.Sampler;
@@ -162,7 +163,7 @@ export namespace Aegis::Graphics
 
 			auto pipeline = Pipeline::ComputeBuilder{}
 				.addDescriptorSetLayout(descriptorSetLayout)
-				.setShaderStage(SHADER_DIR "ibl/equirect_to_cube.slang.spv")
+				.setShaderStage(Core::SHADER_DIR / "ibl/equirect_to_cube.slang.spv")
 				.build();
 
 			// Convert spherical image to cubemap
@@ -257,7 +258,7 @@ export namespace Aegis::Graphics
 
 			auto pipeline = Pipeline::ComputeBuilder{}
 				.addDescriptorSetLayout(descriptorSetLayout)
-				.setShaderStage(SHADER_DIR "ibl/irradiance_convolution.slang.spv")
+				.setShaderStage(Core::SHADER_DIR / "ibl/irradiance_convolution.slang.spv")
 				.build();
 
 			// Convert skybox to irradiance map
@@ -310,7 +311,7 @@ export namespace Aegis::Graphics
 			auto pipeline = Pipeline::ComputeBuilder{}
 				.addDescriptorSetLayout(descriptorSetLayout)
 				.addPushConstantRange(VK_SHADER_STAGE_COMPUTE_BIT, sizeof(pushConstants))
-				.setShaderStage(SHADER_DIR "ibl/prefilter_environment.slang.spv")
+				.setShaderStage(Core::SHADER_DIR / "ibl/prefilter_environment.slang.spv")
 				.build();
 
 			// Create image views for mip levels
@@ -390,7 +391,7 @@ export namespace Aegis::Graphics
 
 			auto pipeline = Pipeline::ComputeBuilder{}
 				.addDescriptorSetLayout(descriptorSetLayout)
-				.setShaderStage(SHADER_DIR "ibl/brdf_lut.slang.spv")
+				.setShaderStage(Core::SHADER_DIR / "ibl/brdf_lut.slang.spv")
 				.build();
 
 			// Convert skybox to irradiance map
@@ -419,7 +420,7 @@ export namespace Aegis::Graphics
 			m_view{ info.view, m_image },
 			m_sampler{ info.sampler, m_image.mipLevels() }
 		{
-			auto& bindlessSet = Engine::renderer().bindlessDescriptorSet();
+			auto& bindlessSet = BindlessDescriptorSet::instance();
 			if (info.image.usage & VK_IMAGE_USAGE_SAMPLED_BIT)
 				m_sampledHandle = bindlessSet.allocateSampledImage(*this);
 
@@ -514,8 +515,8 @@ export namespace Aegis::Graphics
 	private:
 		void destroy()
 		{
-			Engine::renderer().bindlessDescriptorSet().freeHandle(m_storageHandle);
-			Engine::renderer().bindlessDescriptorSet().freeHandle(m_sampledHandle);
+			BindlessDescriptorSet::instance().freeHandle(m_storageHandle);
+			BindlessDescriptorSet::instance().freeHandle(m_sampledHandle);
 		}
 
 		Image m_image;

@@ -1,7 +1,7 @@
 module;
 
 #include <chrono>
-#include <string_view>
+#include <filesystem>
 
 export module Aegis.Core.Globals;
 
@@ -16,7 +16,7 @@ export namespace Aegis::Core
 
 	constexpr uint32_t INVALID_HANDLE{ std::numeric_limits<uint32_t>::max() };
 
-	constexpr std::string_view ENGINE_DIR{ PROJECT_DIR "/"};
-	constexpr std::string_view SHADER_DIR{ BUILD_DIR "/shaders/" };
-	constexpr std::string_view ASSETS_DIR{ PROJECT_DIR "modules/aegis-assets/" };
+	const std::filesystem::path ENGINE_DIR{ PROJECT_DIR "/"};
+	const std::filesystem::path SHADER_DIR{ BUILD_DIR "/shaders/" };
+	const std::filesystem::path ASSETS_DIR{ PROJECT_DIR "modules/aegis-assets/" };
 }

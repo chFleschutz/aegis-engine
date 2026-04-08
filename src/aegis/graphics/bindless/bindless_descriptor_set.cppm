@@ -13,7 +13,7 @@ import Aegis.Graphics.VulkanContext;
 import Aegis.Graphics.Descriptors;
 import Aegis.Graphics.DescriptorPool;
 
-namespace Aegis::Graphics::Bindless
+export namespace Aegis::Graphics::Bindless
 {
 	class DescriptorHandleCache
 	{

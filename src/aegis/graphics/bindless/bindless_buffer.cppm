@@ -9,8 +9,8 @@ export module Aegis.Graphics.Bindless:BindlessBuffer;
 
 import :DescriptorHandle;
 import :BindlessDescriptorSet;
-import Aegis.Graphics.Globals;
 import Aegis.Graphics.Buffer;
+import Aegis.Graphics.Globals;
 
 export namespace Aegis::Graphics::Bindless
 {
