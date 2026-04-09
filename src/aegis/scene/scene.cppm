@@ -9,6 +9,7 @@ module;
 export module Aegis.Scene;
 
 import Aegis.Math;
+import Aegis.Core.Profiler;
 import Aegis.Scene.Components;
 import Aegis.Scene.System;
 import Aegis.Scene.Entity;
@@ -53,15 +54,15 @@ export namespace Aegis::Scene
 		template<typename... T>
 		auto has(Entity entity) const -> bool
 		{
-			return registry().all_of<T...>(entity.m_id);
+			return m_registry.all_of<T...>(entity);
 		}
 
 		/// @brief Acces to the component of type T
 		template<typename T>
-		auto get(Entity entity) const -> T&
+		auto get(Entity entity) -> T&
 		{
-			AGX_ASSERT_X(has<T>(), "Cannot get Component: Entity does not have the component");
-			return registry().get<T>(entity.m_id);
+			AGX_ASSERT_X(has<T>(entity), "Cannot get Component: Entity does not have the component");
+			return m_registry.get<T>(entity);
 		}
 
 		/// @brief Adds a component of type T to the entity
@@ -69,8 +70,8 @@ export namespace Aegis::Scene
 		template<typename T, typename... Args>
 		auto add(Entity entity, Args&&... args) -> T&
 		{
-			AGX_ASSERT_X(!has<T>(), "Cannot add Component: Entity already has the component");
-			return registry().emplace<T>(entity.m_id, std::forward<Args>(args)...);
+			AGX_ASSERT_X(!has<T>(entity), "Cannot add Component: Entity already has the component");
+			return m_registry.emplace<T>(entity, std::forward<Args>(args)...);
 		}
 
 		/// @brief Overload to add tag components (empty structs) to the entity
@@ -78,13 +79,13 @@ export namespace Aegis::Scene
 		auto add(Entity entity)
 		{
 			AGX_ASSERT_X(!has<T>(entity), "Cannot add Component: Entity already has the component");
-			registry().emplace<T>(entity);
+			m_registry.emplace<T>(entity);
 		}
 
 		template<typename T>
 		auto getOrAdd(Entity entity) -> T&
 		{
-			return registry().get_or_emplace<T>(m_id);
+			return m_registry.get_or_emplace<T>(entity);
 		}
 
 		/// @brief Removes a component of type T from the entity
@@ -93,8 +94,8 @@ export namespace Aegis::Scene
 			requires IsOptionalComponent<T>
 		void remove(Entity entity)
 		{
-			AGX_ASSERT_X(has<T>(), "Cannot remove Component: Entity does not have the component");
-			registry().remove<T>(m_id);
+			AGX_ASSERT_X(has<T>(entity), "Cannot remove Component: Entity does not have the component");
+			m_registry.remove<T>(entity);
 		}
 
 		void setParent(Entity entity, Entity parent)
@@ -243,7 +244,7 @@ export namespace Aegis::Scene
 
 		void update(float deltaSeconds)
 		{
-			AGX_PROFILE_FUNCTION();
+			Aegis::ScopeProfiler profiler("Scene Update");
 
 			for (auto& system : m_systems)
 			{
@@ -254,32 +255,6 @@ export namespace Aegis::Scene
 		void reset()
 		{
 			// TODO: Clear old scene
-
-			addSystem<CameraSystem>();
-			addSystem<TransformSystem>();
-
-			m_mainCamera = createEntity("Main Camera");
-			add<Camera>(m_mainCamera);
-			add<Scripting::KinematcMovementController>(m_mainCamera);
-			add<DynamicTag>(m_mainCamera);
-			get<Transform>(m_mainCamera) = Transform{
-				.location = { 0.0f, -15.0f, 10.0f },
-				.rotation = glm::radians(glm::vec3{ -30.0f, 0.0f, 0.0f })
-			};
-
-			m_ambientLight = createEntity("Ambient Light");
-			add<AmbientLight>(m_ambientLight);
-
-			m_directionalLight = createEntity("Directional Light");
-			add<DirectionalLight>(m_directionalLight);
-			get<Transform>(m_directionalLight).rotation = glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f });
-
-			m_skybox = createEntity("Skybox");
-			auto& env = add<Environment>(m_skybox);
-			env.skybox = Engine::assets().get<Graphics::Texture>("default/cubemap_black");
-			env.irradiance = env.skybox;
-			env.prefiltered = env.skybox;
-			env.brdfLUT = Graphics::Texture::BRDFLUT();
 		}
 
 	private:

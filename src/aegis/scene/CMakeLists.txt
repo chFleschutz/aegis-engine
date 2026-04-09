@@ -10,6 +10,7 @@ PUBLIC
 		description.cppm
 		entity.cppm
 		scene.cppm
+		scene_defaults.cppm
 		system.cppm
 
 		systems/camera_system.cppm

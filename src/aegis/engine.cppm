@@ -16,6 +16,7 @@ import Aegis.Graphics.Texture;
 import Aegis.Editor;
 import Aegis.Core.Globals;
 import Aegis.Scene.Scene;
+import Aegis.Scene.Defaults;
 import Aegis.Scripting.ScriptManager;
 
 export namespace Aegis
@@ -90,6 +91,7 @@ export namespace Aegis
 		{
 			m_scene.reset();
 			m_renderer.sceneChanged(m_scene);
+			Scene::Defaults::createDefaultScene(m_scene);
 			T description{ std::forward<Args>(args)... };
 			description.initialize(m_scene);
 			m_scene.begin();
