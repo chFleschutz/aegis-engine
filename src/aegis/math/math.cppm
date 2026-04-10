@@ -37,11 +37,13 @@ export namespace glm
 	using glm::mat3x4;
 	using glm::mat4x4;
 
+	using glm::cross;
+	using glm::dot;
 	using glm::length;
+	using glm::normalize;
 	using glm::radians;
 	using glm::row;
 	using glm::value_ptr;
-	using glm::normalize;
 
 	using glm::operator+;
 	using glm::operator-;
