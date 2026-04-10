@@ -6,9 +6,9 @@ module;
 #include <cstdint>
 #include <vector>
 
-export module Aegis.Graphics.Bindless:BindlessDescriptorSet;
+export module Aegis.Graphics.Bindless.BindlessDescriptorSet;
 
-import :DescriptorHandle;
+import Aegis.Graphics.Bindless.DescriptorHandle;
 import Aegis.Graphics.VulkanContext;
 import Aegis.Graphics.Descriptors;
 import Aegis.Graphics.DescriptorPool;

@@ -5,10 +5,10 @@ module;
 
 #include <array>
 
-export module Aegis.Graphics.Bindless:BindlessBuffer;
+export module Aegis.Graphics.Bindless.BindlessBuffer;
 
-import :DescriptorHandle;
-import :BindlessDescriptorSet;
+import Aegis.Graphics.Bindless.DescriptorHandle;
+import Aegis.Graphics.Bindless.BindlessDescriptorSet;
 import Aegis.Graphics.Buffer;
 import Aegis.Graphics.Globals;
 

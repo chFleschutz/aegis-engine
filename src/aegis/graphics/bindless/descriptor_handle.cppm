@@ -5,7 +5,7 @@ module;
 #include <cstdint>
 #include <limits>
 
-export module Aegis.Graphics.Bindless:DescriptorHandle;
+export module Aegis.Graphics.Bindless.DescriptorHandle;
 
 export namespace Aegis::Graphics::Bindless
 {

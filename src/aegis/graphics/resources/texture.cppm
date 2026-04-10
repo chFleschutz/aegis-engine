@@ -22,7 +22,8 @@ import Aegis.Graphics.Descriptors;
 import Aegis.Graphics.Vulkan.Tools;
 import Aegis.Graphics.VulkanContext;
 import Aegis.Graphics.Pipeline;
-import Aegis.Graphics.Bindless:DescriptorHandle;
+import Aegis.Graphics.Bindless.DescriptorHandle;
+import Aegis.Graphics.Bindless.BindlessDescriptorSet;
 
 export namespace Aegis::Graphics
 {
@@ -420,12 +421,12 @@ export namespace Aegis::Graphics
 			m_view{ info.view, m_image },
 			m_sampler{ info.sampler, m_image.mipLevels() }
 		{
-			auto& bindlessSet = BindlessDescriptorSet::instance();
+			auto& bindlessSet = Bindless::BindlessDescriptorSet::instance();
 			if (info.image.usage & VK_IMAGE_USAGE_SAMPLED_BIT)
-				m_sampledHandle = bindlessSet.allocateSampledImage(*this);
+				m_sampledHandle = bindlessSet.allocateSampledImage(descriptorImageInfo(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
 
 			if (info.image.usage & VK_IMAGE_USAGE_STORAGE_BIT)
-				m_storageHandle = bindlessSet.allocateStorageImage(*this);
+				m_storageHandle = bindlessSet.allocateStorageImage(descriptorImageInfo(VK_IMAGE_LAYOUT_GENERAL));
 		}
 
 		Texture(const Texture&) = delete;
@@ -470,8 +471,8 @@ export namespace Aegis::Graphics
 		[[nodiscard]] auto sampler() const -> const Sampler& { return m_sampler; }
 		[[nodiscard]] auto extent() const -> VkExtent3D { return m_image.extent(); }
 		[[nodiscard]] auto extent2D() const -> VkExtent2D { return VkExtent2D{ m_image.width(), m_image.height() }; }
-		[[nodiscard]] auto sampledDescriptorHandle() const -> DescriptorHandle { return m_sampledHandle; }
-		[[nodiscard]] auto storageDescriptorHandle() const -> DescriptorHandle { return m_storageHandle; }
+		[[nodiscard]] auto sampledDescriptorHandle() const -> Bindless::DescriptorHandle { return m_sampledHandle; }
+		[[nodiscard]] auto storageDescriptorHandle() const -> Bindless::DescriptorHandle { return m_storageHandle; }
 
 		[[nodiscard]] auto descriptorImageInfo() const -> VkDescriptorImageInfo
 		{
@@ -515,14 +516,14 @@ export namespace Aegis::Graphics
 	private:
 		void destroy()
 		{
-			BindlessDescriptorSet::instance().freeHandle(m_storageHandle);
-			BindlessDescriptorSet::instance().freeHandle(m_sampledHandle);
+			Bindless::BindlessDescriptorSet::instance().freeHandle(m_storageHandle);
+			Bindless::BindlessDescriptorSet::instance().freeHandle(m_sampledHandle);
 		}
 
 		Image m_image;
 		ImageView m_view;
 		Sampler m_sampler;
-		DescriptorHandle m_sampledHandle;
-		DescriptorHandle m_storageHandle;
+		Bindless::DescriptorHandle m_sampledHandle;
+		Bindless::DescriptorHandle m_storageHandle;
 	};
 }
