@@ -1,10 +1,11 @@
 module;
 
 #include <vector>
+#include <ranges>
 
 export module Aegis.Scene.TransformSystem;
 
-import Aegis.Scene;
+import Aegis.Scene.Registry;
 import Aegis.Scene.Components;
 import Aegis.Scene.Entity;
 import Aegis.Scene.System;
@@ -17,26 +18,26 @@ export namespace Aegis::Scene
 		TransformSystem() = default;
 		~TransformSystem() = default;
 
-		void onBegin(Scene& scene) override
+		void onBegin(Registry& registry) override
 		{
 			// Calculate initial global transforms for all entities
 			std::vector<Entity> hierarchy;
-			auto view = scene.registry().view<GlobalTransform>();
+			auto view = registry.view<GlobalTransform>();
 			for (auto&& [entity, globalTransform] : view.each())
 			{
 				// Find hierarchy of all parents
 				hierarchy.clear();
-				Entity current = Entity{ entity, &scene };
+				Entity current = Entity{ entity };
 				while (current)
 				{
 					hierarchy.emplace_back(current);
-					current = current.get<Parent>().entity;
+					current = registry.get<Parent>(current).entity;
 				}
 
 				globalTransform = GlobalTransform{};
 				for (auto e : std::ranges::views::reverse(hierarchy))
 				{
-					auto& localTransform = e.get<Transform>();
+					auto& localTransform = registry.get<Transform>(e);
 					globalTransform.location = globalTransform.location + localTransform.location;
 					globalTransform.rotation = globalTransform.rotation * localTransform.rotation;
 					globalTransform.scale = globalTransform.scale * localTransform.scale;
@@ -44,13 +45,13 @@ export namespace Aegis::Scene
 			}
 		}
 
-		void onUpdate(float deltaSeconds, Scene& scene) override
+		void onUpdate(Registry& registry, float deltaSeconds) override
 		{
 			// Note: This lags 1 frame per parent behind the actual local transform (but this is fine :)
-			auto view = scene.registry().view<Transform, GlobalTransform, Parent, DynamicTag>();
+			auto view = registry.view<Transform, GlobalTransform, Parent, DynamicTag>();
 			for (auto&& [entity, transform, globalTransform, parent] : view.each())
 			{
-				if (!parent.entity || !parent.entity.has<GlobalTransform>())
+				if (!parent.entity || !registry.has<GlobalTransform>(parent.entity))
 				{
 					globalTransform.location = transform.location;
 					globalTransform.rotation = transform.rotation;
@@ -58,7 +59,7 @@ export namespace Aegis::Scene
 					continue;
 				}
 
-				auto& parentGlobal = parent.entity.get<GlobalTransform>();
+				auto& parentGlobal = registry.get<GlobalTransform>(parent.entity);
 				globalTransform.location = parentGlobal.location + transform.location;
 				globalTransform.rotation = parentGlobal.rotation * transform.rotation;
 				globalTransform.scale = parentGlobal.scale * transform.scale;

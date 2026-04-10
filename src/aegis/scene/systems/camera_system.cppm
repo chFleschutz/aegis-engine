@@ -5,7 +5,8 @@ module;
 export module Aegis.Scene.Systems.CameraSystem;
 
 import Aegis.Math;
-import Aegis.Scene;
+import Aegis.Scene.Registry;
+import Aegis.Scene.Entity;
 import Aegis.Scene.System;
 import Aegis.Scene.Components;
 
@@ -14,9 +15,9 @@ export namespace Aegis::Scene
 	class CameraSystem : public System
 	{
 	public:
-		virtual void onUpdate(float deltaSeconds, Scene& scene) override
+		virtual void onUpdate(Registry& registry, float deltaSeconds) override
 		{
-			auto view = scene.registry().view<GlobalTransform, Camera>();
+			auto view = registry.view<GlobalTransform, Camera>();
 			for (auto&& [entity, transform, camera] : view.each())
 			{
 				calcViewMatrix(camera, transform);

@@ -4,10 +4,10 @@ module;
 
 export module Aegis.Scene.System;
 
+import Aegis.Scene.Registry;
+
 export namespace Aegis::Scene
 {
-	class Scene;
-
 	class System
 	{
 	public:
@@ -16,8 +16,8 @@ export namespace Aegis::Scene
 
 		virtual void onAttach() {}
 		virtual void onDetach() {}
-		virtual void onBegin(Scene& scene) {}
-		virtual void onUpdate(float deltaSeconds, Scene& scene) {}
+		virtual void onBegin(Registry& registry) {}
+		virtual void onUpdate(Registry& registry, float deltaSeconds) {}
 	};
 
 	template <typename T>

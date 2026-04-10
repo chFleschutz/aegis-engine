@@ -9,6 +9,7 @@ PUBLIC
 		component_traits.cppm
 		description.cppm
 		entity.cppm
+		registry.cppm
 		scene.cppm
 		scene_defaults.cppm
 		system.cppm

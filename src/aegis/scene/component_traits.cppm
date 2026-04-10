@@ -23,4 +23,7 @@ export namespace Aegis
 
 	template<typename T>
 	concept IsOptionalComponent = !IsRequiredComponent<T>;
+
+	template<typename T>
+	concept TagComponent = std::is_empty_v<T>;
 }

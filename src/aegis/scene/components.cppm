@@ -132,10 +132,6 @@ export namespace Aegis
 	};
 
 
-	template<typename T>
-	concept TagComponent = std::is_empty_v<T>;
-
-
 	// Specialize component traits
 	template<>
 	struct ComponentTraits<Name>
