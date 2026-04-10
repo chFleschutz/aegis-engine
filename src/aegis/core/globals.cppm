@@ -16,7 +16,7 @@ export namespace Aegis::Core
 
 	constexpr uint32_t INVALID_HANDLE{ std::numeric_limits<uint32_t>::max() };
 
-	const std::filesystem::path ENGINE_DIR{ PROJECT_DIR "/"};
-	const std::filesystem::path SHADER_DIR{ BUILD_DIR "/shaders/" };
-	const std::filesystem::path ASSETS_DIR{ PROJECT_DIR "modules/aegis-assets/" };
+	export const std::filesystem::path ENGINE_DIR{ PROJECT_DIR "/"};
+	export const std::filesystem::path SHADER_DIR{ BUILD_DIR "/shaders/" };
+	export const std::filesystem::path ASSETS_DIR{ PROJECT_DIR "modules/aegis-assets/" };
 }
