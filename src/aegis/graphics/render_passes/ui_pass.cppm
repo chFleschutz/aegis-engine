@@ -2,6 +2,10 @@ module;
 
 #include <vector>
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
+
 export module Aegis.Graphics.RenderPasses.UIPass;
 
 import Aegis.Graphics.FrameGraph.RenderPass;
@@ -45,7 +49,13 @@ export namespace Aegis::Graphics
 
 			vkCmdBeginRendering(cmd, &renderingInfo);
 			{
-				frameInfo.ui.render(cmd);
+				ImGui_ImplVulkan_NewFrame();
+				ImGui_ImplGlfw_NewFrame();
+
+				frameInfo.ui.render();
+
+				ImGui::Render();
+				ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 			}
 			vkCmdEndRendering(cmd);
 		}

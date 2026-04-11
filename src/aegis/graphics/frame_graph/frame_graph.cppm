@@ -1,13 +1,41 @@
 module;
 
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
+#include <aegis-log/log.h>
+
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <variant>
 #include <vector>
 
 export module Aegis.Graphics.FrameGraph;
 
 import Aegis.Graphics.FrameGraph.RenderPass;
 import Aegis.Graphics.FrameGraph.ResourcePool;
+import Aegis.Graphics.FrameGraph.ResourceHandle;
+import Aegis.Graphics.FrameGraph.Node;
 import Aegis.Graphics.FrameInfo;
 import Aegis.Graphics.RenderContext;
+import Aegis.Graphics.VulkanContext;
+import Aegis.Core.Profiler;
+import Aegis.Graphics.GPUTimer;
+import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Scene;
+
+namespace std
+{
+	template<>
+	struct hash<Aegis::Graphics::FGResourceHandle>
+	{
+		auto operator()(const Aegis::Graphics::FGResourceHandle& handle) const noexcept -> size_t
+		{
+			return std::hash<uint32_t>()(handle.handle);
+		}
+	};
+}
 
 export namespace Aegis::Graphics
 {
@@ -23,16 +51,30 @@ export namespace Aegis::Graphics
 		auto operator=(const FrameGraph&) -> FrameGraph = delete;
 		auto operator=(FrameGraph&&) -> FrameGraph = delete;
 
-		[[nodiscard]] auto nodes() -> std::vector<FGNodeHandle>& { return m_nodes; }
+		[[nodiscard]] auto nodes() -> std::vector<FGNodeHandle>& { return m_nodesSorted; }
 		[[nodiscard]] auto resourcePool() -> FGResourcePool& { return m_pool; }
+
+		[[nodiscard]] auto queryNode(FGNodeHandle handle) -> FGNode&
+		{
+			AGX_ASSERT(handle.isValid());
+			AGX_ASSERT(handle.handle < m_nodes.size());
+			return m_nodes[handle.handle];
+		}
+
+		auto addNode(std::unique_ptr<FGRenderPass> pass) -> FGNodeHandle
+		{
+			auto nodeInfo = pass->info();
+			m_nodes.emplace_back(nodeInfo, std::move(pass));
+			return FGNodeHandle{ static_cast<uint32_t>(m_nodes.size() - 1) };
+		}
 
 		template<typename T, typename... Args>
 			requires std::is_base_of_v<FGRenderPass, T>&& std::constructible_from<T, FGResourcePool&, Args...>
 		auto add(Args&&... args) -> T&
 		{
-			auto handle = m_pool.addNode(std::make_unique<T>(m_pool, std::forward<Args>(args)...));
-			m_nodes.emplace_back(handle);
-			return static_cast<T&>(*m_pool.node(handle).pass);
+			auto handle = addNode(std::make_unique<T>(m_pool, std::forward<Args>(args)...));
+			m_nodesSorted.emplace_back(handle);
+			return static_cast<T&>(*queryNode(handle).pass);
 		}
 
 		/// @brief Compiles the frame graph by sorting the nodes and creating resources
@@ -42,7 +84,7 @@ export namespace Aegis::Graphics
 
 			{
 				auto graph = buildDependencyGraph();
-				m_nodes = topologicalSort(graph);
+				m_nodesSorted = topologicalSort(graph);
 			}
 
 			// TODO: Compute resource lifetimes for aliasing
@@ -51,10 +93,10 @@ export namespace Aegis::Graphics
 			generateBarriers();
 
 			// Print info
-			ALOG::info("FrameGraph compiled with {} passes", m_nodes.size());
-			for (size_t i = 0; i < m_nodes.size(); i++)
+			ALOG::info("FrameGraph compiled with {} passes", m_nodesSorted.size());
+			for (size_t i = 0; i < m_nodesSorted.size(); i++)
 			{
-				auto& node = m_pool.node(m_nodes[i]);
+				auto& node = queryNode(m_nodesSorted[i]);
 				ALOG::info("  [{}] {}", i, node.info.name);
 			}
 		}
@@ -62,9 +104,9 @@ export namespace Aegis::Graphics
 		/// @brief Notifies all render passes that the scene has been initialized
 		void sceneInitialized(Scene::Scene& scene)
 		{
-			for (const auto& nodeHandle : m_nodes)
+			for (const auto& nodeHandle : m_nodesSorted)
 			{
-				auto& node = m_pool.node(nodeHandle);
+				auto& node = queryNode(nodeHandle);
 				node.pass->sceneInitialized(m_pool, scene);
 			}
 		}
@@ -72,13 +114,13 @@ export namespace Aegis::Graphics
 		/// @brief Executes the frame graph by executing each node in order
 		void execute(const FrameInfo& frameInfo)
 		{
-			AGX_PROFILE_FUNCTION();
+			ScopeProfiler execute("FrameGraph Execute");
 
-			for (auto nodeHandle : m_nodes)
+			for (auto nodeHandle : m_nodesSorted)
 			{
-				auto& node = m_pool.node(nodeHandle);
-				AGX_GPU_PROFILE_SCOPE(frameInfo.cmd, node.info.name);
-				AGX_PROFILE_SCOPE(node.info.name);
+				auto& node = queryNode(nodeHandle);
+				GPUScopeTimer gpuScope(frameInfo.cmd, node.info.name.c_str());
+				ScopeProfiler cpuScope(node.info.name.c_str());
 
 				Tools::vk::cmdBeginDebugUtilsLabel(frameInfo.cmd, node.info.name.c_str());
 				{
@@ -94,10 +136,23 @@ export namespace Aegis::Graphics
 		{
 			m_pool.resizeImages(width, height);
 
-			for (const auto& nodeHandle : m_nodes)
+			// Update VkImage ref in barriers to new resized images
+			for (auto& node : m_nodes)
 			{
-				auto& node = m_pool.node(nodeHandle);
-				node.pass->createResources(m_pool);
+				AGX_ASSERT_X(node.imageBarriers.size() == node.accessedTextures.size(),
+					"Mismatched image barriers and accessed textures count in FGNode");
+				for (size_t i = 0; i < node.accessedTextures.size(); i++)
+				{
+					auto& tex = m_pool.texture(node.accessedTextures[i]);
+					auto& barrier = node.imageBarriers[i];
+					barrier.image = tex.image();
+				}
+			}
+
+			for (const auto& nodeHandle : m_nodesSorted)
+			{
+				auto& n = queryNode(nodeHandle);
+				n.pass->createResources(m_pool);
 			}
 		}
 
@@ -108,26 +163,26 @@ export namespace Aegis::Graphics
 		{
 			// Register producers
 			std::unordered_map<FGResourceHandle, FGNodeHandle> producers;
-			for (const auto& FGNodeHandle : m_nodes)
+			for (const auto& handle : m_nodesSorted)
 			{
-				auto& node = m_pool.node(FGNodeHandle);
-				for (auto& write : node.info.writes)
+				auto& n = queryNode(handle);
+				for (auto& write : n.info.writes)
 				{
 					const auto& resource = m_pool.resource(write);
 					if (!std::holds_alternative<FGReferenceInfo>(resource.info))
 					{
-						producers[write] = FGNodeHandle;
+						producers[write] = handle;
 					}
 				}
 			}
 
 			// Build adjacency list
-			std::vector<std::vector<FGNodeHandle>> adjacency(m_nodes.size());
+			std::vector<std::vector<FGNodeHandle>> adjacency(m_nodesSorted.size());
 
 			// Link write -> write dependencies
-			for (const auto& FGNodeHandle : m_nodes)
+			for (const auto& FGNodeHandle : m_nodesSorted)
 			{
-				auto& node = m_pool.node(FGNodeHandle);
+				auto& node = queryNode(FGNodeHandle);
 
 				for (auto& write : node.info.writes)
 				{
@@ -149,10 +204,10 @@ export namespace Aegis::Graphics
 			}
 
 			// Link write -> read dependencies
-			for (const auto& FGNodeHandle : m_nodes)
+			for (const auto& FGNodeHandle : m_nodesSorted)
 			{
-				auto& node = m_pool.node(FGNodeHandle);
-				for (auto& read : node.info.reads)
+				auto& n = queryNode(FGNodeHandle);
+				for (auto& read : n.info.reads)
 				{
 					const auto& resource = m_pool.resource(read);
 					if (!std::holds_alternative<FGReferenceInfo>(resource.info))
@@ -177,7 +232,7 @@ export namespace Aegis::Graphics
 		{
 			// Kahn's algorithm
 
-			std::vector<size_t> inDegree(m_nodes.size(), 0);
+			std::vector<size_t> inDegree(m_nodesSorted.size(), 0);
 			for (const auto& edges : adjacency)
 			{
 				for (const auto& target : edges)
@@ -198,7 +253,7 @@ export namespace Aegis::Graphics
 			}
 
 			std::vector<FGNodeHandle> sortedNodes;
-			sortedNodes.reserve(m_nodes.size());
+			sortedNodes.reserve(m_nodesSorted.size());
 
 			while (!queue.empty())
 			{
@@ -226,10 +281,10 @@ export namespace Aegis::Graphics
 		void createResources()
 		{
 			m_pool.createResources();
-			for (const auto& nodeHandle : m_nodes)
+			for (const auto& nodeHandle : m_nodesSorted)
 			{
-				auto& node = m_pool.node(nodeHandle);
-				node.pass->createResources(m_pool);
+				auto& n = queryNode(nodeHandle);
+				n.pass->createResources(m_pool);
 			}
 		}
 
@@ -260,22 +315,22 @@ export namespace Aegis::Graphics
 				};
 
 			// Generate barriers for all resources between their uses
-			for (auto nodeHandle : m_nodes)
+			for (auto nodeHandle : m_nodesSorted)
 			{
-				auto& node = m_pool.node(nodeHandle);
-				node.imageBarriers.clear();
-				node.bufferBarriers.clear();
-				node.srcStage = 0;
-				node.dstStage = 0;
+				auto& n = queryNode(nodeHandle);
+				n.imageBarriers.clear();
+				n.bufferBarriers.clear();
+				n.srcStage = 0;
+				n.dstStage = 0;
 
-				for (auto readHandle : node.info.reads)
+				for (auto readHandle : n.info.reads)
 				{
-					barrierLambda(nodeHandle, node, readHandle);
+					barrierLambda(nodeHandle, n, readHandle);
 				}
 
-				for (auto writeHandle : node.info.writes)
+				for (auto writeHandle : n.info.writes)
 				{
-					barrierLambda(nodeHandle, node, writeHandle);
+					barrierLambda(nodeHandle, n, writeHandle);
 				}
 			}
 
@@ -288,7 +343,7 @@ export namespace Aegis::Graphics
 					continue;
 
 				// Transition image layout between frames (last use frame N -> first use frame N + 1)
-				auto& node = m_pool.node(usage.producer);
+				auto& node = queryNode(usage.producer);
 				auto interFrameBarrier = generateBarrier(node, usage.lastUse, usage.firstUse, resourceHandle);
 
 				// Transition initial image layout (for correct use on the first frame)
@@ -303,7 +358,7 @@ export namespace Aegis::Graphics
 		}
 
 		auto generateBarrier(FGNode& node, FGResourceHandle srcHandle, FGResourceHandle dstHandle,
-			FGResourceHandle actualHandle) -> bool -> bool
+			FGResourceHandle actualHandle) -> bool 
 		{
 			const auto& srcResource = m_pool.resource(srcHandle);
 			const auto& dstResource = m_pool.resource(dstHandle);
@@ -380,7 +435,8 @@ export namespace Aegis::Graphics
 			}
 		}
 
-		std::vector<FGNodeHandle> m_nodes; // Sorted in execution order
+		std::vector<FGNode> m_nodes;
+		std::vector<FGNodeHandle> m_nodesSorted; // Sorted in execution order
 		FGResourcePool m_pool;
 	};
 }

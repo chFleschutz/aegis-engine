@@ -1,16 +1,25 @@
 module;
 
 #include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
+#include <aegis-log/log.h>
 
 #include <vector>
 #include <variant>
+#include <memory>
 
 export module Aegis.Graphics.FrameGraph.ResourcePool;
 
-import Aegis.Graphics.FrameGraph.Node;
 import Aegis.Graphics.FrameGraph.Resource;
-import Aegis.Graphics.Bindless;
+import Aegis.Graphics.FrameGraph.ResourceHandle;
+import Aegis.Graphics.Bindless.BindlessBuffer;
 import Aegis.Graphics.Texture;
+import Aegis.Graphics.VulkanContext;
+import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Vulkan.ResourceTools;
+import Aegis.Core.Globals;
+import Aegis.Graphics.Buffer;
 
 export namespace Aegis::Graphics
 {
@@ -28,17 +37,9 @@ export namespace Aegis::Graphics
 		auto operator=(const FGResourcePool&) -> FGResourcePool & = delete;
 		auto operator=(FGResourcePool&&) -> FGResourcePool & = delete;
 
-		[[nodiscard]] auto nodes() const -> const std::vector<FGNode>& { return m_nodes; }
 		[[nodiscard]] auto resources() const -> const std::vector<FGResource>& { return m_resources; }
-		[[nodiscard]] auto buffers() const -> const std::vector<BindlessMultiBuffer>& { return m_buffers; }
+		[[nodiscard]] auto buffers() const -> const std::vector<Bindless::BindlessMultiBuffer>& { return m_buffers; }
 		[[nodiscard]] auto textures() const -> const std::vector<Texture>& { return m_textures; }
-
-		[[nodiscard]] auto node(FGNodeHandle handle) -> FGNode&
-		{
-			AGX_ASSERT(handle.isValid());
-			AGX_ASSERT(handle.handle < m_nodes.size());
-			return m_nodes[handle.handle];
-		}
 
 		[[nodiscard]] auto resource(FGResourceHandle handle) -> FGResource&
 		{
@@ -61,14 +62,14 @@ export namespace Aegis::Graphics
 			return handle;
 		}
 
-		[[nodiscard]] auto buffer(FGBufferHandle handle) -> BindlessMultiBuffer&
+		[[nodiscard]] auto buffer(FGBufferHandle handle) -> Bindless::BindlessMultiBuffer&
 		{
 			AGX_ASSERT(handle.isValid());
 			AGX_ASSERT(handle.handle < m_buffers.size());
 			return m_buffers[handle.handle];
 		}
 
-		[[nodiscard]] auto buffer(FGResourceHandle handle) -> BindlessMultiBuffer&
+		[[nodiscard]] auto buffer(FGResourceHandle handle) -> Bindless::BindlessMultiBuffer&
 		{
 			auto& res = resource(actualHandle(handle));
 			AGX_ASSERT_X(std::holds_alternative<FGBufferInfo>(res.info), "Resource is not a buffer");
@@ -87,13 +88,6 @@ export namespace Aegis::Graphics
 			auto& res = resource(actualHandle(handle));
 			AGX_ASSERT_X(std::holds_alternative<FGTextureInfo>(res.info), "Resource is not a texture");
 			return texture(std::get<FGTextureInfo>(res.info).handle);
-		}
-
-		auto addNode(std::unique_ptr<FGRenderPass> pass) -> FGNodeHandle
-		{
-			auto nodeInfo = pass->info();
-			m_nodes.emplace_back(nodeInfo, std::move(pass));
-			return FGNodeHandle{ static_cast<uint32_t>(m_nodes.size() - 1) };
 		}
 
 		auto addBuffer(const std::string& name, FGResource::Usage usage, const FGBufferInfo& info) -> FGResourceHandle
@@ -199,7 +193,7 @@ export namespace Aegis::Graphics
 			};
 			m_buffers.emplace_back(bufferCreateInfo);
 
-			Tools::vk::setDebugUtilsObjectName(m_buffers.back().buffer(), name);
+			Tools::setDebugUtilsObjectName(m_buffers.back().buffer(), name);
 			return FGBufferHandle{ static_cast<uint32_t>(m_buffers.size() - 1) };
 		}
 
@@ -217,7 +211,7 @@ export namespace Aegis::Graphics
 			textureCreateInfo.image.mipLevels = info.mipLevels;
 			m_textures.emplace_back(textureCreateInfo);
 
-			Tools::vk::setDebugUtilsObjectName(m_textures.back().image(), name);
+			Tools::setDebugUtilsObjectName(m_textures.back().image(), name);
 			return FGTextureHandle{ static_cast<uint32_t>(m_textures.size() - 1) };
 		}
 
@@ -242,23 +236,10 @@ export namespace Aegis::Graphics
 			}
 			VulkanContext::device().endSingleTimeCommands(cmd);
 
-			// Update VkImage ref in barriers to new resized images
-			for (auto& node : m_nodes)
-			{
-				AGX_ASSERT_X(node.imageBarriers.size() == node.accessedTextures.size(),
-					"Mismatched image barriers and accessed textures count in FGNode");
-				for (size_t i = 0; i < node.accessedTextures.size(); i++)
-				{
-					auto& tex = texture(node.accessedTextures[i]);
-					auto& barrier = node.imageBarriers[i];
-					barrier.image = tex.image();
-				}
-			}
 		}
 
-		std::vector<FGNode> m_nodes;
 		std::vector<FGResource> m_resources;
-		std::vector<BindlessMultiBuffer> m_buffers;
+		std::vector<Bindless::BindlessMultiBuffer> m_buffers;
 		std::vector<Texture> m_textures;
 	};
 }

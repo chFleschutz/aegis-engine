@@ -2,6 +2,8 @@ module;
 
 #include "graphics/vulkan/vulkan_include.h"
 
+#include <cstdint>
+
 export module Aegis.Graphics.FrameInfo;
 
 import Aegis.Graphics.DrawBatchRegistry;

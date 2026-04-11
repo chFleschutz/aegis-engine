@@ -3,7 +3,6 @@ add_library(aegis-ui STATIC)
 target_link_libraries(aegis-ui
 PUBLIC
 	aegis-core
-	aegis-graphics
 	imgui::imgui
 	imguizmo
 )

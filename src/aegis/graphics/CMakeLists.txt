@@ -15,6 +15,7 @@ PUBLIC
 	aegis-math
 	aegis-scene
 	aegis-utils
+	aegis-ui
 	Aegis::Log
 	Aegis::GLTF
 	volk::volk
@@ -37,6 +38,7 @@ PUBLIC
 		descriptor_pool.cppm
 		device.cppm
 		draw_batch_registry.cppm
+		frame_info.cppm
 		frustum.cppm
 		globals.cppm
 		gpu_timer.cppm

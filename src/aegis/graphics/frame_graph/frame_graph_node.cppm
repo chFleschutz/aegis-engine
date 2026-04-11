@@ -8,22 +8,15 @@ module;
 
 export module Aegis.Graphics.FrameGraph.Node;
 
-import Aegis.Graphics.FrameGraph.Resource;
+export import Aegis.Graphics.FrameGraph.Resource;
+export import Aegis.Graphics.FrameGraph.ResourceHandle;
+export import Aegis.Graphics.FrameGraph.RenderPass;
 
 export namespace Aegis::Graphics
 {
-	class FGRenderPass;
-
 	struct FGNode
 	{
-		struct Info
-		{
-			std::string name;
-			std::vector<FGResourceHandle> reads;
-			std::vector<FGResourceHandle> writes;
-		};
-
-		Info info;
+		FGRenderPass::Info info;
 		std::unique_ptr<FGRenderPass> pass;
 		VkPipelineStageFlags srcStage{ 0 };
 		VkPipelineStageFlags dstStage{ 0 };

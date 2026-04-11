@@ -6,7 +6,7 @@ PUBLIC
 		frame_graph.cppm
 		frame_graph_node.cppm
 		frame_graph_render_pass.cppm
-		
 		frame_graph_resources.cppm
+		frame_graph_resource_handle.cppm
 		frame_graph_resource_pool.cppm
 )

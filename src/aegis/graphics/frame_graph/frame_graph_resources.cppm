@@ -3,29 +3,16 @@ module;
 #include "core/assert.h"
 #include "graphics/vulkan/vulkan_include.h"
 
-#include <vk_mem_alloc.h>
-
 #include <variant>
+#include <string>
+#include <cstdint>
 
 export module Aegis.Graphics.FrameGraph.Resource;
 
+import Aegis.Graphics.FrameGraph.ResourceHandle;
+
 export namespace Aegis::Graphics
 {
-	struct FGHandle
-	{
-		static constexpr uint32_t INVALID_HANDLE = std::numeric_limits<uint32_t>::max();
-
-		uint32_t handle{ INVALID_HANDLE };
-
-		[[nodiscard]] auto operator==(const FGHandle& other) const -> bool { return handle == other.handle; }
-		[[nodiscard]] auto isValid() const -> bool { return handle != INVALID_HANDLE; }
-	};
-
-	struct FGNodeHandle : FGHandle {};
-	struct FGResourceHandle : FGHandle {};
-	struct FGBufferHandle : FGHandle {};
-	struct FGTextureHandle : FGHandle {};
-
 	// TODO: Simplify by seperating shader stage and usage
 	enum class FGResourceUsage
 	{

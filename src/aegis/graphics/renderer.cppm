@@ -3,6 +3,10 @@ module;
 #include "core/assert.h"
 #include "graphics/vulkan/vulkan_include.h"
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
+
 export module Aegis.Graphics.Renderer;
 
 import Aegis.Core.Window;
@@ -62,6 +66,10 @@ export namespace Aegis::Graphics
 				vkDestroySemaphore(VulkanContext::device(), frame.imageAvailable, nullptr);
 				vkDestroyFence(VulkanContext::device(), frame.inFlightFence, nullptr);
 			}
+
+			ImGui_ImplVulkan_Shutdown();
+			ImGui_ImplGlfw_Shutdown();
+			ImGui::DestroyContext();
 		}
 
 		auto operator=(const Renderer&) -> Renderer & = delete;
@@ -176,6 +184,37 @@ export namespace Aegis::Graphics
 			m_swapChain.resize(extent);
 			m_frameGraph.swapChainResized(extent.width, extent.height);
 			m_window.resetResizedFlag();
+		}
+
+		void setupUI()
+		{
+			ImGui_ImplGlfw_InitForVulkan(window.glfwWindow(), true);
+
+			VkFormat colorFormat = VK_FORMAT_R8G8B8A8_UNORM;
+			ImGui_ImplVulkan_InitInfo initInfo{
+				.ApiVersion = Graphics::VulkanDevice::API_VERSION,
+				.Instance = device.instance(),
+				.PhysicalDevice = device.physicalDevice(),
+				.Device = device.device(),
+				.QueueFamily = device.findPhysicalQueueFamilies().graphicsFamily.value(),
+				.Queue = device.graphicsQueue(),
+				.DescriptorPool = Graphics::VulkanContext::descriptorPool(),
+				.MinImageCount = Graphics::MAX_FRAMES_IN_FLIGHT,
+				.ImageCount = Graphics::MAX_FRAMES_IN_FLIGHT,
+				.PipelineInfoMain = {
+					.RenderPass = VK_NULL_HANDLE,
+					.Subpass = 0,
+					.MSAASamples = VK_SAMPLE_COUNT_1_BIT,
+					.PipelineRenderingCreateInfo = {
+						.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+						.colorAttachmentCount = 1,
+						.pColorAttachmentFormats = &colorFormat,
+					}
+				},
+				.UseDynamicRendering = true,
+			};
+
+			ImGui_ImplVulkan_Init(&initInfo);
 		}
 
 		void createFrameGraph()

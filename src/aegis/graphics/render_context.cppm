@@ -17,6 +17,6 @@ export namespace Aegis::Graphics
 		uint32_t frameIndex{ 0 };
 		VkCommandBuffer cmd{ VK_NULL_HANDLE };
 		VkDescriptorSet globalSet{ VK_NULL_HANDLE };
-		DescriptorHandle globalHandle;
+		Bindless::DescriptorHandle globalHandle;
 	};
 }
