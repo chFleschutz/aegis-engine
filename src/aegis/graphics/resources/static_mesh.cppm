@@ -1,15 +1,18 @@
 module;
 
 #include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #include <vector>
 
 export module Aegis.Graphics.StaticMesh;
+
 export import Aegis.Graphics.Vertex;
 import Aegis.Math;
 import Aegis.Graphics.Vulkan.ResourceTools;
 import Aegis.Graphics.Bindless;
 import Aegis.Graphics.VulkanContext;
+import Aegis.Graphics.Buffer;
 
 export namespace Aegis::Graphics
 {
@@ -35,11 +38,11 @@ export namespace Aegis::Graphics
 
 		struct MeshData
 		{
-			DescriptorHandle vertexBuffer;
-			DescriptorHandle indexBuffer;
-			DescriptorHandle meshletBuffer;
-			DescriptorHandle meshletVertexBuffer;
-			DescriptorHandle meshletPrimitiveBuffer;
+			Bindless::DescriptorHandle vertexBuffer;
+			Bindless::DescriptorHandle indexBuffer;
+			Bindless::DescriptorHandle meshletBuffer;
+			Bindless::DescriptorHandle meshletVertexBuffer;
+			Bindless::DescriptorHandle meshletPrimitiveBuffer;
 			uint32_t vertexCount;
 			uint32_t indexCount;
 			uint32_t meshletCount;
@@ -92,12 +95,12 @@ export namespace Aegis::Graphics
 			AGX_ASSERT_X(meshData.meshletPrimitiveBuffer.isValid(), "Invalid meshlet primitive buffer handle in StaticMesh!");
 			m_meshDataBuffer.buffer().singleWrite(&meshData, sizeof(MeshData), 0);
 
-			Tools::vk::setDebugUtilsObjectName(m_vertexBuffer.buffer(), "StaticMesh Vertices");
-			Tools::vk::setDebugUtilsObjectName(m_indexBuffer.buffer(), "StaticMesh Indices");
-			Tools::vk::setDebugUtilsObjectName(m_meshletBuffer.buffer(), "StaticMesh Meshlets");
-			Tools::vk::setDebugUtilsObjectName(m_meshletVertexBuffer.buffer(), "StaticMesh Meshlet Vertices");
-			Tools::vk::setDebugUtilsObjectName(m_meshletPrimitiveBuffer.buffer(), "StaticMesh Meshlet Primitives");
-			Tools::vk::setDebugUtilsObjectName(m_meshDataBuffer.buffer(), "StaticMesh Mesh Data");
+			Tools::setDebugUtilsObjectName(m_vertexBuffer.buffer(), "StaticMesh Vertices");
+			Tools::setDebugUtilsObjectName(m_indexBuffer.buffer(), "StaticMesh Indices");
+			Tools::setDebugUtilsObjectName(m_meshletBuffer.buffer(), "StaticMesh Meshlets");
+			Tools::setDebugUtilsObjectName(m_meshletVertexBuffer.buffer(), "StaticMesh Meshlet Vertices");
+			Tools::setDebugUtilsObjectName(m_meshletPrimitiveBuffer.buffer(), "StaticMesh Meshlet Primitives");
+			Tools::setDebugUtilsObjectName(m_meshDataBuffer.buffer(), "StaticMesh Mesh Data");
 		}
 
 		StaticMesh(const StaticMesh&) = delete;
@@ -110,7 +113,7 @@ export namespace Aegis::Graphics
 		[[nodiscard]] auto vertexCount() const -> uint32_t { return m_vertexCount; }
 		[[nodiscard]] auto indexCount() const -> uint32_t { return m_indexCount; }
 		[[nodiscard]] auto meshletCount() const -> uint32_t { return m_meshletCount; }
-		[[nodiscard]] auto meshDataBuffer() const -> const BindlessBuffer& { return m_meshDataBuffer; }
+		[[nodiscard]] auto meshDataBuffer() const -> const Bindless::BindlessBuffer& { return m_meshDataBuffer; }
 
 		void draw(VkCommandBuffer cmd) const
 		{
@@ -129,12 +132,12 @@ export namespace Aegis::Graphics
 		}
 
 	private:
-		BindlessBuffer m_meshDataBuffer;
-		BindlessBuffer m_vertexBuffer;
-		BindlessBuffer m_indexBuffer;
-		BindlessBuffer m_meshletBuffer;
-		BindlessBuffer m_meshletVertexBuffer;
-		BindlessBuffer m_meshletPrimitiveBuffer;
+		Bindless::BindlessBuffer m_meshDataBuffer;
+		Bindless::BindlessBuffer m_vertexBuffer;
+		Bindless::BindlessBuffer m_indexBuffer;
+		Bindless::BindlessBuffer m_meshletBuffer;
+		Bindless::BindlessBuffer m_meshletVertexBuffer;
+		Bindless::BindlessBuffer m_meshletPrimitiveBuffer;
 
 		uint32_t m_vertexCount;
 		uint32_t m_indexCount;
