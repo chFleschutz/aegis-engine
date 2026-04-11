@@ -1,12 +1,26 @@
 module;
 
-#include "core/assert.h"
-
 #include <entt/entt.hpp>
 
-#include <concepts>
-
 export module Aegis.Scene.Entity;
+
+export namespace entt
+{
+	using entt::entity;
+	using entt::registry;
+	using entt::view;
+	using entt::basic_view;
+	using entt::exclude_t;
+
+	using entt::operator==;
+	using entt::operator!=;
+
+	namespace internal
+	{
+		using entt::internal::operator==;
+		using entt::internal::operator!=;
+	}
+}
 
 export namespace Aegis::Scene
 {
@@ -16,23 +30,14 @@ export namespace Aegis::Scene
 	{
 	public:
 		Entity() = default;
-		explicit Entity(entt::entity entityHandle/*, Scene* scene*/)
-			: m_id(entityHandle) //, m_scene(scene)
-		{
-			//AGX_ASSERT_X(m_scene, "Entity must have a scene");
-		}
+		explicit Entity(entt::entity entityHandle) : m_id{ entityHandle } {}
 
-		Entity(const Entity&) = default;
-		Entity(Entity&&) = default;
-
-		auto operator=(const Entity&) -> Entity & = default;
-		auto operator=(Entity&&) -> Entity & = default;
-
-		auto operator<=>(const Entity&) const = default;
+		auto operator==(const Entity&) const -> bool = default;
+		auto operator!=(const Entity&) const -> bool = default;
 
 		operator bool() const { return m_id != entt::null; }
-		operator entt::entity() const { return m_id; }
-		operator uint32_t() const { return static_cast<uint32_t>(m_id); }
+
+		[[nodiscard]] auto id() const -> entt::entity { return m_id; }
 
 	private:
 		entt::entity m_id{ entt::null };

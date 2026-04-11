@@ -13,23 +13,15 @@ export module Aegis.Scene;
 
 import Aegis.Math;
 import Aegis.Core.Profiler;
-import Aegis.Scene.Components;
 import Aegis.Scene.System;
 import Aegis.Scene.Entity;
 import Aegis.Scene.Registry;
-
-namespace Aegis::Scripting
-{
-	class ScriptBase;
-}
 
 export namespace Aegis::Scene
 {
 	/// @brief Scene contains all entities and systems
 	class Scene
 	{
-		friend class Entity;
-
 	public:
 		Scene() = default;
 		Scene(const Scene&) = delete;
@@ -39,13 +31,16 @@ export namespace Aegis::Scene
 		auto operator=(const Scene&) -> Scene & = delete;
 		auto operator=(Scene&&) -> Scene & = delete;
 
-		[[nodiscard]] auto registry() -> entt::registry& { return m_registry.enttRegistry(); }
+		[[nodiscard]] auto registry() -> Registry& { return m_registry; }
 		[[nodiscard]] auto mainCamera() const -> Entity { return m_mainCamera; }
 		[[nodiscard]] auto ambientLight() const -> Entity { return m_ambientLight; }
 		[[nodiscard]] auto directionalLight() const -> Entity { return m_directionalLight; }
 		[[nodiscard]] auto environment() const -> Entity { return m_skybox; }
 
 		void setMainCamera(Entity camera) { m_mainCamera = camera; }
+		void setAmbientLight(Entity light) { m_ambientLight = light; }
+		void setDirectionalLight(Entity light) { m_directionalLight = light; }
+		void setEnvironment(Entity environment) { m_skybox = environment; }
 
 		template <SystemDerived T, typename... Args>
 			requires std::constructible_from<T, Args...>

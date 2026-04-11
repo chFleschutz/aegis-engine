@@ -51,4 +51,5 @@ PUBLIC
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
 		engine.cppm
+		scene_defaults.cppm
 )

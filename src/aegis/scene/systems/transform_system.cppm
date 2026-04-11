@@ -3,11 +3,9 @@ module;
 #include <vector>
 #include <ranges>
 
-export module Aegis.Scene.TransformSystem;
+export module Aegis.Scene.Systems.TransformSystem;
 
 import Aegis.Scene.Registry;
-import Aegis.Scene.Components;
-import Aegis.Scene.Entity;
 import Aegis.Scene.System;
 
 export namespace Aegis::Scene

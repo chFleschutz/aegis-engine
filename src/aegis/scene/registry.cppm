@@ -2,14 +2,15 @@ module;
 
 #include "core/assert.h"
 
-#include <entt/entt.hpp>
+#include <string>
+#include <utility>
+#include <vector>
 
 export module Aegis.Scene.Registry;
 
-import Aegis.Math;
-import Aegis.Scene.Entity;
-import Aegis.Scene.Components;
-import Aegis.Scene.ComponentTraits;
+export import Aegis.Math;
+export import Aegis.Scene.Entity;
+export import Aegis.Scene.Components;
 
 export namespace Aegis::Scene
 {
@@ -23,11 +24,11 @@ export namespace Aegis::Scene
 		auto operator=(const Registry&) -> Registry & = delete;
 		auto operator=(Registry&&) -> Registry & = delete;
 
-		[[nodiscard]] auto enttRegistry() -> entt::registry& { return m_registry; }
+		//[[nodiscard]] auto enttRegistry() -> entt::registry& { return m_registry; }
 
 		/// @brief Creates an entity with a NameComponent and TransformComponent
 		/// @note Scene::Entity can be passed by value
-		auto create(const std::string& name = std::string(), const glm::vec3& location = glm::vec3{ 0.0f },
+		auto create(const std::string& name = std::string{}, const glm::vec3& location = glm::vec3{ 0.0f },
 			const glm::quat& rotation = glm::quat{ 1.0f, 0.0f, 0.0f, 0.0f }, const glm::vec3& scale = glm::vec3{ 1.0f }) -> Entity
 		{
 			Entity entity{ m_registry.create() };
@@ -47,14 +48,14 @@ export namespace Aegis::Scene
 			removeParent(entity);
 			removeChildren(entity);
 
-			m_registry.destroy(entity);
+			m_registry.destroy(entity.id());
 		}
 
 		/// @brief Checks if the entity has all components of type T...
 		template<typename... T>
 		auto has(Entity entity) const -> bool
 		{
-			return m_registry.all_of<T...>(entity);
+			return m_registry.all_of<T...>(entity.id());
 		}
 
 		/// @brief Acces to the component of type T
@@ -62,7 +63,7 @@ export namespace Aegis::Scene
 		auto get(Entity entity) -> T&
 		{
 			AGX_ASSERT_X(has<T>(entity), "Cannot get Component: Entity does not have the component");
-			return m_registry.get<T>(entity);
+			return m_registry.get<T>(entity.id());
 		}
 
 		/// @brief Adds a component of type T to the entity
@@ -71,21 +72,21 @@ export namespace Aegis::Scene
 		auto add(Entity entity, Args&&... args) -> T&
 		{
 			AGX_ASSERT_X(!has<T>(entity), "Cannot add Component: Entity already has the component");
-			return m_registry.emplace<T>(entity, std::forward<Args>(args)...);
+			return m_registry.emplace<T>(entity.id(), std::forward<Args>(args)...);
 		}
 
 		/// @brief Overload to add tag components (empty structs) to the entity
 		template<TagComponent T>
-		auto add(Entity entity)
+		void add(Entity entity)
 		{
 			AGX_ASSERT_X(!has<T>(entity), "Cannot add Component: Entity already has the component");
-			m_registry.emplace<T>(entity);
+			m_registry.emplace<T>(entity.id());
 		}
 
 		template<typename T>
 		auto getOrAdd(Entity entity) -> T&
 		{
-			return m_registry.get_or_emplace<T>(entity);
+			return m_registry.get_or_emplace<T>(entity.id());
 		}
 
 		/// @brief Removes a component of type T from the entity
@@ -95,7 +96,7 @@ export namespace Aegis::Scene
 		void remove(Entity entity)
 		{
 			AGX_ASSERT_X(has<T>(entity), "Cannot remove Component: Entity does not have the component");
-			m_registry.remove<T>(entity);
+			m_registry.remove<T>(entity.id());
 		}
 
 		template<typename... Components, typename... Exclude>

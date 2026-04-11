@@ -4,9 +4,9 @@ module;
 
 export module Aegis.Scene.Components;
 
-import Aegis.Math;
-import Aegis.Scene.Entity;
-import Aegis.Scene.ComponentTraits;
+export import Aegis.Math;
+export import Aegis.Scene.Entity;
+export import Aegis.Scene.ComponentTraits;
 
 export namespace Aegis
 {

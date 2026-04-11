@@ -4,7 +4,7 @@ module;
 
 export module Aegis.Scene.System;
 
-import Aegis.Scene.Registry;
+export import Aegis.Scene.Registry;
 
 export namespace Aegis::Scene
 {

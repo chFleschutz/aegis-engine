@@ -11,9 +11,7 @@ PUBLIC
 		entity.cppm
 		registry.cppm
 		scene.cppm
-		scene_defaults.cppm
 		system.cppm
-
 		systems/camera_system.cppm
 		systems/transform_system.cppm
 )
