@@ -9,6 +9,7 @@ module;
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/euler_angles.hpp>
+#include <glm/gtx/matrix_major_storage.hpp>
 #include <glm/gtx/vector_angle.hpp>
 
 #include <cmath>
@@ -39,10 +40,12 @@ export namespace glm
 
 	using glm::cross;
 	using glm::dot;
+	using glm::inverse;
 	using glm::length;
 	using glm::normalize;
 	using glm::radians;
 	using glm::row;
+	using glm::rowMajor4;
 	using glm::value_ptr;
 
 	using glm::operator+;

@@ -8,8 +8,8 @@ module;
 
 export module Aegis.Graphics.MeshPreprocessor;
 
-import Aegis.Graphics.StaticMesh;
 import Aegis.Math;
+import Aegis.Graphics.StaticMesh;
 
 export namespace Aegis::Graphics
 {
@@ -33,7 +33,7 @@ export namespace Aegis::Graphics
 
 		static auto process(Input& input) -> StaticMesh::CreateInfo
 		{
-			std::vector<StaticMesh::Vertex> vertices = interleave(input);
+			std::vector<Vertex> vertices = interleave(input);
 			std::vector<uint32_t> indices = std::move(input.indices);
 			size_t initialVertexCount = vertices.size();
 			bool hasIndices = !indices.empty();
@@ -48,7 +48,7 @@ export namespace Aegis::Graphics
 				hasIndices ? indices.size() : initialVertexCount,
 				vertices.data(),
 				initialVertexCount,
-				sizeof(StaticMesh::Vertex));
+				sizeof(Vertex));
 
 			indices.resize(indexCount);
 			meshopt_remapIndexBuffer(
@@ -61,7 +61,7 @@ export namespace Aegis::Graphics
 				vertices.data(),
 				vertices.data(),
 				initialVertexCount,
-				sizeof(StaticMesh::Vertex),
+				sizeof(Vertex),
 				remap.data());
 
 			// Optimizations
@@ -78,7 +78,7 @@ export namespace Aegis::Graphics
 				indices.size(),
 				&vertices[0].position.x,
 				vertices.size(),
-				sizeof(StaticMesh::Vertex),
+				sizeof(Vertex),
 				input.overdrawThreshold);
 
 			meshopt_optimizeVertexFetch(
@@ -87,14 +87,14 @@ export namespace Aegis::Graphics
 				indices.size(),
 				vertices.data(),
 				vertices.size(),
-				sizeof(StaticMesh::Vertex));
+				sizeof(Vertex));
 
 			// Bounding sphere
 
 			meshopt_Bounds bounds = meshopt_computeSphereBounds(
 				&vertices[0].position.x,
 				vertices.size(),
-				sizeof(StaticMesh::Vertex),
+				sizeof(Vertex),
 				nullptr,
 				0);
 
@@ -122,7 +122,7 @@ export namespace Aegis::Graphics
 				indices.size(),
 				&vertices[0].position.x,
 				vertices.size(),
-				sizeof(StaticMesh::Vertex),
+				sizeof(Vertex),
 				input.maxVerticesPerMeshlet,
 				input.maxTrianglesPerMeshlet,
 				input.coneWeight);
@@ -148,7 +148,7 @@ export namespace Aegis::Graphics
 					meshlet.triangle_count,
 					&vertices[0].position.x,
 					vertices.size(),
-					sizeof(StaticMesh::Vertex));
+					sizeof(Vertex));
 
 				meshlets.emplace_back(StaticMesh::Meshlet{
 					.bounds = { glm::vec3{ bounds.center[0], bounds.center[1], bounds.center[2] }, bounds.radius },
@@ -174,11 +174,11 @@ export namespace Aegis::Graphics
 		}
 
 	private:
-		static auto interleave(const Input& input) -> std::vector<StaticMesh::Vertex>
+		static auto interleave(const Input& input) -> std::vector<Vertex>
 		{
 			AGX_ASSERT_X(input.positions.size() == input.normals.size(), "Positions and normals size mismatch");
 
-			std::vector<StaticMesh::Vertex> vertices(input.positions.size());
+			std::vector<Vertex> vertices(input.positions.size());
 			for (size_t i = 0; i < input.positions.size(); i++)
 			{
 				vertices[i].position = input.positions[i];

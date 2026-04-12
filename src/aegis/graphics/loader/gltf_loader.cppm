@@ -13,6 +13,7 @@ import Aegis.Graphics.Texture;
 import Aegis.Scene.Components;
 import Aegis.Scene.Entity;
 
+
 export namespace Aegis::Graphics
 {
 	class GLTFLoader

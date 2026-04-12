@@ -1,6 +1,6 @@
 export module Aegis.Graphics.RenderSystem;
 
-import Aegis.Graphics.RenderContext;
+export import Aegis.Graphics.RenderContext;
 
 export namespace Aegis::Graphics
 {

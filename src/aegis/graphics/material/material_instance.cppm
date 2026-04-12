@@ -2,8 +2,11 @@ module;
 
 #include "core/assert.h"
 
-#include <unordered_map>
 #include <array>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <variant>
 
 export module Aegis.Graphics.MaterialInstance;
 
@@ -11,6 +14,8 @@ import Aegis.Graphics.Descriptors;
 import Aegis.Graphics.MaterialTemplate;
 import Aegis.Graphics.Bindless;
 import Aegis.Graphics.Buffer;
+import Aegis.Graphics.Globals;
+import Aegis.Core.Asset;
 
 export namespace Aegis::Graphics
 {
@@ -54,7 +59,7 @@ export namespace Aegis::Graphics
 			return m_template->queryDefaultParameter(name);
 		}
 
-		[[nodiscard]] auto buffer() const -> const BindlessFrameBuffer& { return m_uniformBuffer; }
+		[[nodiscard]] auto buffer() const -> const Bindless::BindlessFrameBuffer& { return m_uniformBuffer; }
 
 		void setParameter(const std::string& name, const MaterialParameter::Value& value)
 		{
@@ -96,7 +101,7 @@ export namespace Aegis::Graphics
 	private:
 		std::shared_ptr<MaterialTemplate> m_template;
 		std::unordered_map<std::string, MaterialParameter::Value> m_overrides;
-		BindlessFrameBuffer m_uniformBuffer;
+		Bindless::BindlessFrameBuffer m_uniformBuffer;
 		std::array<bool, MAX_FRAMES_IN_FLIGHT> m_dirtyFlags;
 	};
 }

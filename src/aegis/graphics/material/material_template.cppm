@@ -1,9 +1,14 @@
 module;
 
 #include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
 
-#include <variant>
+#include <aegis-log/log.h>
+
+#include <memory>
+#include <string>
 #include <unordered_map>
+#include <variant>
 
 export module Aegis.Graphics.MaterialTemplate;
 
@@ -12,6 +17,8 @@ import Aegis.Graphics.Descriptors;
 import Aegis.Graphics.Pipeline;
 import Aegis.Graphics.StaticMesh;
 import Aegis.Graphics.Texture;
+import Aegis.Graphics.Bindless.DescriptorHandle;
+import Aegis.Graphics.Bindless.BindlessDescriptorSet;
 import Aegis.Core.Asset;
 
 export namespace Aegis::Graphics
@@ -62,7 +69,7 @@ export namespace Aegis::Graphics
 				else if constexpr (std::is_same_v<T, glm::vec2>) return 8;
 				else if constexpr (std::is_same_v<T, glm::vec3>) return 16;
 				else if constexpr (std::is_same_v<T, glm::vec4>) return 16;
-				else if constexpr (std::is_same_v<T, std::shared_ptr<Texture>>) return sizeof(DescriptorHandle);
+				else if constexpr (std::is_same_v<T, std::shared_ptr<Texture>>) return sizeof(Bindless::DescriptorHandle);
 				else
 				{
 					AGX_ASSERT_X(false, "Unknown material parameter type");
@@ -81,7 +88,7 @@ export namespace Aegis::Graphics
 				else if constexpr (std::is_same_v<T, glm::vec2>) return 8;
 				else if constexpr (std::is_same_v<T, glm::vec3>) return 12;
 				else if constexpr (std::is_same_v<T, glm::vec4>) return 16;
-				else if constexpr (std::is_same_v<T, std::shared_ptr<Texture>>) return sizeof(DescriptorHandle);
+				else if constexpr (std::is_same_v<T, std::shared_ptr<Texture>>) return sizeof(Bindless::DescriptorHandle);
 				else
 				{
 					AGX_ASSERT_X(false, "Unknown material parameter type");
@@ -142,7 +149,7 @@ export namespace Aegis::Graphics
 
 		void bindBindlessSet(VkCommandBuffer cmd)
 		{
-			m_pipeline.bindDescriptorSet(cmd, 0, Engine::renderer().bindlessDescriptorSet().descriptorSet());
+			m_pipeline.bindDescriptorSet(cmd, 0, Bindless::BindlessDescriptorSet::instance().descriptorSet());
 		}
 
 		void pushConstants(VkCommandBuffer cmd, const void* data, size_t size, uint32_t offset = 0)

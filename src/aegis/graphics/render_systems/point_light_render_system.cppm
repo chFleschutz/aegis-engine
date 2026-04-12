@@ -1,5 +1,8 @@
 module;
 
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
 #include <memory>
 
 export module Aegis.Graphics.RenderSystems.PointLightRenderSystem;
@@ -7,6 +10,8 @@ export module Aegis.Graphics.RenderSystems.PointLightRenderSystem;
 import Aegis.Math;
 import Aegis.Graphics.RenderSystem;
 import Aegis.Graphics.Pipeline;
+import Aegis.Graphics.Descriptors;
+import Aegis.Core.Globals;
 
 export namespace Aegis::Graphics
 {
@@ -30,7 +35,7 @@ export namespace Aegis::Graphics
 			m_pipeline = Pipeline::GraphicsBuilder{}
 				.addDescriptorSetLayout(globalSetLayout)
 				.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(PointLightPushConstants))
-				.addShaderStages(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, SHADER_DIR "point_light.slang.spv")
+				.addShaderStages(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, Core::SHADER_DIR / "point_light.slang.spv")
 				.addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT, true)
 				.setDepthAttachment(VK_FORMAT_D32_SFLOAT)
 				.setDepthTest(true, false)

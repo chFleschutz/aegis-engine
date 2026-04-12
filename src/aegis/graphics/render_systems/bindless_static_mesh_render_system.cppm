@@ -8,6 +8,9 @@ import Aegis.Math;
 import Aegis.Graphics.Bindless;
 import Aegis.Graphics.RenderSystem;
 import Aegis.Graphics.MaterialTemplate;
+import Aegis.Graphics.MaterialInstance;
+import Aegis.Graphics.StaticMesh;
+import Aegis.Graphics.Components;
 
 export namespace Aegis::Graphics
 {
@@ -17,9 +20,9 @@ export namespace Aegis::Graphics
 		struct alignas(16) PushConstantData
 		{
 			glm::mat3x4 modelMatrix;
-			glm::vec3 normalRow0; DescriptorHandle globalBuffer;
-			glm::vec3 normalRow1; DescriptorHandle meshBuffer;
-			glm::vec3 normalRow2; DescriptorHandle materialBuffer;
+			glm::vec3 normalRow0; Bindless::DescriptorHandle globalBuffer;
+			glm::vec3 normalRow1; Bindless::DescriptorHandle meshBuffer;
+			glm::vec3 normalRow2; Bindless::DescriptorHandle materialBuffer;
 		};
 
 		BindlessStaticMeshRenderSystem(MaterialType type = MaterialType::Opaque) :

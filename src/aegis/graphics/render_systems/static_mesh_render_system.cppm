@@ -3,6 +3,10 @@ export module Aegis.Graphics.RenderSystems.StaticMeshRenderSystem;
 import Aegis.Math;
 import Aegis.Graphics.RenderSystem;
 import Aegis.Graphics.MaterialTemplate;
+import Aegis.Graphics.MaterialInstance;
+import Aegis.Graphics.Components;
+import Aegis.Scene.Components;
+import Aegis.Scene;
 
 export namespace Aegis::Graphics
 {
