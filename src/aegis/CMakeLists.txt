@@ -6,7 +6,6 @@ add_library(Aegis::Engine ALIAS aegis-engine)
 add_subdirectory(math)
 add_subdirectory(core)
 add_subdirectory(graphics)
-add_subdirectory(physics)
 add_subdirectory(scene)
 add_subdirectory(scripting)
 add_subdirectory(ui)
@@ -31,6 +30,7 @@ PUBLIC
 	aegis-scene
 	aegis-ui
 	aegis-editor
+	aegis-scripting
 #	Aegis::GLTF
 #	Aegis::Log
 #	EnTT::EnTT

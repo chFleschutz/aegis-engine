@@ -38,6 +38,7 @@ export namespace glm
 	using glm::mat3x4;
 	using glm::mat4x4;
 
+	using glm::clamp;
 	using glm::cross;
 	using glm::degrees;
 	using glm::dot;
@@ -46,10 +47,12 @@ export namespace glm
 	using glm::length;
 	using glm::make_mat4;
 	using glm::make_vec3;
+	using glm::mod;
 	using glm::normalize;
 	using glm::radians;
 	using glm::row;
 	using glm::rowMajor4;
+	using glm::two_pi;
 	using glm::value_ptr;
 
 	using glm::operator+;

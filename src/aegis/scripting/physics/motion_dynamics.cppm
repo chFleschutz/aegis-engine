@@ -5,7 +5,8 @@ module;
 export module Aegis.Physics.MotionDynamics;
 
 import Aegis.Math;
-import Aegis.ScriptBase;
+import Aegis.Scripting.ScriptBase;
+import Aegis.Scene.Components;
 
 export namespace Aegis::Physics
 {
@@ -67,7 +68,7 @@ export namespace Aegis::Physics
 
 
 	/// @brief Adds motion dynamics to an object to update its position and rotation each frame.
-	class MotionDynamics : public Aegis::Scripting::ScriptBase
+	class MotionDynamics : public Scripting::ScriptBase
 	{
 	public:
 		struct Properties

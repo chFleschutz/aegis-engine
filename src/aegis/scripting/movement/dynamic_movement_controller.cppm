@@ -1,6 +1,7 @@
 export module Aegis.Scripting.Movement.DynamicMovementController;
 
 import Aegis.Scripting.ScriptBase;
+import Aegis.Physics.MotionDynamics;
 import Aegis.Core.Input;
 
 namespace Aegis::Scripting

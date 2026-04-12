@@ -1,3 +1,9 @@
+module;
+
+#include <glfw/glfw3.h>
+
+#include <algorithm>
+
 export module Aegis.Scripting.Movement.KinematicMovementController;
 
 import Aegis.Scripting.ScriptBase;

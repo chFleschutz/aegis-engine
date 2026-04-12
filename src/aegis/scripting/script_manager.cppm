@@ -30,9 +30,14 @@ export namespace Aegis::Scripting
 
 		/// @brief Adds a script to call its virtual functions
 		/// @param script The script to add
-		void addScript(ScriptBase* script)
+		template <typename T, typename... Args>
+			requires std::derived_from<T, ScriptBase>&& std::constructible_from<T, Args...>
+		void addScript(Scene::Entity entity, Args&&... args)
 		{
+			T* script = new T(std::forward<Args>(args)...);
 			m_newScripts.emplace_back(script);
+			script->m_registry = &m_scene.registry();
+			script->m_entity = script->entity();
 		}
 
 		/// @brief Calls the update function of each script

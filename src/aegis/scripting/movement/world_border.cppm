@@ -1,7 +1,13 @@
+module;
+
+#include <cfloat>
+#include <algorithm>
+
 export module Aegis.Scripting.Movement.WorldBorder;
 
 import Aegis.Math;
 import Aegis.Scripting.ScriptBase;
+import Aegis.Scene.Components;
 
 namespace Aegis::Scripting
 {
@@ -18,7 +24,7 @@ namespace Aegis::Scripting
 
 		virtual void update(float delta) override
 		{
-			auto& location = getComponent<Aegis::Component::Transform>().location;
+			auto& location = get<Transform>().location;
 			location.x = std::clamp(location.x, -m_limits.x, m_limits.x);
 			location.y = std::clamp(location.y, -m_limits.y, m_limits.y);
 			location.z = std::clamp(location.z, -m_limits.z, m_limits.z);
