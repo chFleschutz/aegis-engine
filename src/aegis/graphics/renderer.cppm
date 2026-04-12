@@ -3,21 +3,45 @@ module;
 #include "core/assert.h"
 #include "graphics/vulkan/vulkan_include.h"
 
+#include <aegis-log/log.h>
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
+#include <glfw/glfw3.h>
+
+#include <array>
+#include <limits>
+
 export module Aegis.Graphics.Renderer;
 
 import Aegis.Core.Window;
+import Aegis.Core.Globals;
+import Aegis.Core.Profiler;
 import Aegis.Graphics.DrawBatchRegistry;
 import Aegis.Graphics.Bindless;
 import Aegis.Graphics.FrameGraph;
+import Aegis.Graphics.RenderPasses.BloomPass;
+import Aegis.Graphics.RenderPasses.CullingPass;
+import Aegis.Graphics.RenderPasses.SceneUpdatePass;
+import Aegis.Graphics.RenderPasses.GPUDrivenGeometry;
+import Aegis.Graphics.RenderPasses.GeometryPass;
+import Aegis.Graphics.RenderPasses.SkyBoxPass;
+import Aegis.Graphics.RenderPasses.LightingPass;
+import Aegis.Graphics.RenderPasses.PresentPass;
+import Aegis.Graphics.RenderPasses.UIPass;
+import Aegis.Graphics.RenderPasses.PostProcessingPass;
+import Aegis.Graphics.RenderPasses.BloomPass;
+import Aegis.Graphics.RenderPasses.TransparentPass;
+import Aegis.Graphics.RenderSystems.BindlessStaticMeshRenderSystem;
+import Aegis.Graphics.RenderSystems.PointLightRenderSystem;
 import Aegis.Graphics.Globals;
 import Aegis.Graphics.GPUTimer;
 import Aegis.Graphics.SwapChain;
 import Aegis.Graphics.VulkanContext;
 import Aegis.Scene;
+import Aegis.UI;
 
 export namespace Aegis::Graphics
 {
@@ -42,7 +66,7 @@ export namespace Aegis::Graphics
 		Renderer(Core::Window& window) :
 			m_window{ window },
 			m_vulkanContext{ VulkanContext::initialize(m_window) },
-			m_swapChain{ window.extent() }
+			m_swapChain{ VkExtent2D{ m_window.width(), m_window.height() } }
 		{
 			createFrameContext();
 
@@ -77,7 +101,7 @@ export namespace Aegis::Graphics
 
 		[[nodiscard]] auto window() -> Core::Window& { return m_window; }
 		[[nodiscard]] auto swapChain() -> SwapChain& { return m_swapChain; }
-		[[nodiscard]] auto bindlessDescriptorSet() -> BindlessDescriptorSet& { return m_bindlessDescriptorSet; }
+		[[nodiscard]] auto bindlessDescriptorSet() -> Bindless::BindlessDescriptorSet& { return m_bindlessDescriptorSet; }
 		[[nodiscard]] auto drawBatchRegistry() -> DrawBatchRegistry& { return m_drawBatchRegistry; }
 		[[nodiscard]] auto frameGraph() -> FrameGraph& { return m_frameGraph; }
 		[[nodiscard]] auto aspectRatio() const -> float { return m_swapChain.aspectRatio(); }
@@ -113,7 +137,7 @@ export namespace Aegis::Graphics
 		/// @brief Renders the given scene
 		void renderFrame(Scene::Scene& scene, UI::UI& ui)
 		{
-			AGX_PROFILE_FUNCTION();
+			ScopeProfiler renderFrame("Render Frame");
 			{
 				beginFrame();
 				{
@@ -129,8 +153,8 @@ export namespace Aegis::Graphics
 						.aspectRatio = m_swapChain.aspectRatio()
 					};
 
-					AGX_GPU_PROFILE_SCOPE(frameInfo.cmd, "GPU Frame Time");
-					AGX_PROFILE_SCOPE("CPU Render Frame");
+					GPUScopeTimer gpuFrameTimer(frameInfo.cmd, "GPU Frame Time");
+					ScopeProfiler cpuFrameProfiler("CPU Frame Time");
 
 					m_frameGraph.execute(frameInfo);
 				}
@@ -173,11 +197,11 @@ export namespace Aegis::Graphics
 
 		void recreateSwapChain()
 		{
-			VkExtent2D extent = m_window.extent();
+			VkExtent2D extent{ m_window.width(), m_window.height() };
 			while (extent.width == 0 || extent.height == 0) // minimized
 			{
 				glfwWaitEvents();
-				extent = m_window.extent();
+				extent = VkExtent2D{ m_window.width(), m_window.height() };
 			}
 
 			waitIdle();
@@ -188,8 +212,9 @@ export namespace Aegis::Graphics
 
 		void setupUI()
 		{
-			ImGui_ImplGlfw_InitForVulkan(window.glfwWindow(), true);
+			ImGui_ImplGlfw_InitForVulkan(m_window.glfwWindow(), true);
 
+			auto& device = VulkanContext::device();
 			VkFormat colorFormat = VK_FORMAT_R8G8B8A8_UNORM;
 			ImGui_ImplVulkan_InitInfo initInfo{
 				.ApiVersion = Graphics::VulkanDevice::API_VERSION,
@@ -291,7 +316,7 @@ export namespace Aegis::Graphics
 			VK_CHECK(vkEndCommandBuffer(frame.commandBuffer));
 
 			{
-				AGX_PROFILE_SCOPE("GPU Sync");
+				ScopeProfiler gpuSync("GPU Sync");
 
 				// Ensure the previous frame using this image has finished (for frameIndex != imageIndex)
 				m_swapChain.waitForImageInFlight(frame.inFlightFence);
@@ -331,7 +356,7 @@ export namespace Aegis::Graphics
 		uint32_t m_currentFrameIndex{ 0 };
 		bool m_isFrameStarted{ false };
 
-		BindlessDescriptorSet m_bindlessDescriptorSet;
+		Bindless::BindlessDescriptorSet m_bindlessDescriptorSet;
 		DrawBatchRegistry m_drawBatchRegistry;
 		FrameGraph m_frameGraph;
 

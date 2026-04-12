@@ -41,6 +41,8 @@ export namespace Aegis::Core
 		[[nodiscard]] auto glfwWindow() const -> GLFWwindow* { return m_window; }
 		[[nodiscard]] auto shouldClose() const -> bool { return glfwWindowShouldClose(m_window); }
 		[[nodiscard]] auto extent() const -> std::pair<uint32_t, uint32_t> { return { m_width, m_height }; }
+		[[nodiscard]] auto width() const -> uint32_t { return m_width; }
+		[[nodiscard]] auto height() const -> uint32_t { return m_height; }
 		[[nodiscard]] auto wasResized() const -> bool { return m_windowResized; }
 
 		void resetResizedFlag() { m_windowResized = false; }
