@@ -217,6 +217,18 @@ export namespace Aegis::Scene
 			}
 		}
 
+		template<typename Component>
+		auto onConstruct()
+		{
+			return m_registry.on_construct<Component>();
+		}
+
+		template<typename Component>
+		auto onDestroy()
+		{
+			return m_registry.on_destroy<Component>();
+		}
+
 	private:
 		entt::registry m_registry;
 	};

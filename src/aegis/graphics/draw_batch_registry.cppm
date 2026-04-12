@@ -10,6 +10,7 @@ export module Aegis.Graphics.DrawBatchRegistry;
 import Aegis.Scene;
 import Aegis.Scene.Components;
 import Aegis.Graphics.MaterialTemplate;
+import Aegis.Graphics.Components;
 
 export namespace Aegis::Graphics
 {
@@ -71,10 +72,10 @@ export namespace Aegis::Graphics
 		void sceneChanged(Scene::Scene& scene)
 		{
 			auto& reg = scene.registry();
-			reg.on_construct<Material>().connect<&DrawBatchRegistry::onMaterialCreated>(this);
-			reg.on_destroy<Material>().connect<&DrawBatchRegistry::onMaterialRemoved>(this);
-			reg.on_construct<DynamicTag>().connect<&DrawBatchRegistry::onDynamicTagCreated>(this);
-			reg.on_destroy<DynamicTag>().connect<&DrawBatchRegistry::onDynamicTagRemoved>(this);
+			reg.onConstruct<Material>().connect<&DrawBatchRegistry::onMaterialCreated>(this);
+			reg.onDestroy<Material>().connect<&DrawBatchRegistry::onMaterialRemoved>(this);
+			reg.onConstruct<DynamicTag>().connect<&DrawBatchRegistry::onDynamicTagCreated>(this);
+			reg.onDestroy<DynamicTag>().connect<&DrawBatchRegistry::onDynamicTagRemoved>(this);
 		}
 
 	private:

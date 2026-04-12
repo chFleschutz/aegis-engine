@@ -12,7 +12,6 @@ module;
 export module Aegis.Scene;
 
 export import Aegis.Scene.Registry;
-export import Aegis.Scene.Entity;
 import Aegis.Math;
 import Aegis.Core.Profiler;
 import Aegis.Scene.System;
