@@ -1,11 +1,18 @@
 module;
 
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
+#include <algorithm>
+
 export module Aegis.Graphics.RenderPasses.CullingPass;
 
+import Aegis.Core.Globals;
 import Aegis.Graphics.Bindless;
 import Aegis.Graphics.DrawBatchRegistry;
 import Aegis.Graphics.FrameGraph.RenderPass;
 import Aegis.Graphics.Pipeline;
+import Aegis.Graphics.Vulkan.Tools;
 
 export namespace Aegis::Graphics
 {
@@ -16,13 +23,13 @@ export namespace Aegis::Graphics
 
 		struct CullingPushConstants
 		{
-			DescriptorHandle cameraData;
-			DescriptorHandle staticInstances;
-			DescriptorHandle dynamicInstances;
-			DescriptorHandle drawBatches;
-			DescriptorHandle visibilityInstances;
-			DescriptorHandle indirectDrawCommands;
-			DescriptorHandle indirectDrawCounts;
+			Bindless::DescriptorHandle cameraData;
+			Bindless::DescriptorHandle staticInstances;
+			Bindless::DescriptorHandle dynamicInstances;
+			Bindless::DescriptorHandle drawBatches;
+			Bindless::DescriptorHandle visibilityInstances;
+			Bindless::DescriptorHandle indirectDrawCommands;
+			Bindless::DescriptorHandle indirectDrawCounts;
 			uint32_t staticInstanceCount;
 			uint32_t dynamicInstanceCount;
 		};
@@ -32,9 +39,9 @@ export namespace Aegis::Graphics
 		{
 			m_pipeline = Pipeline::ComputeBuilder{}
 				// TODO: Maybe add convienience method to add bindless layout
-				.addDescriptorSetLayout(Engine::renderer().bindlessDescriptorSet().layout())
+				.addDescriptorSetLayout(Bindless::BindlessDescriptorSet::instance().layout())
 				.addPushConstantRange(VK_SHADER_STAGE_COMPUTE_BIT, sizeof(CullingPushConstants))
-				.setShaderStage(SHADER_DIR "gpu-driven/culling.slang.spv")
+				.setShaderStage(Core::SHADER_DIR / "gpu-driven/culling.slang.spv")
 				.build();
 
 			m_staticInstances = pool.addReference("StaticInstanceData",
@@ -69,9 +76,9 @@ export namespace Aegis::Graphics
 				FGResource::Usage::ComputeReadUniform);
 		}
 
-		virtual auto info() -> FGNode::Info override
+		virtual auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "Culling",
 				.reads = { m_cameraData, m_staticInstances, m_dynamicInstances },
 				.writes = { m_visibleIndices, m_indirectDrawCommands, m_indirectDrawCounts },
@@ -97,7 +104,7 @@ export namespace Aegis::Graphics
 			};
 
 			m_pipeline.bind(frameInfo.cmd);
-			m_pipeline.bindDescriptorSet(frameInfo.cmd, 0, Engine::renderer().bindlessDescriptorSet());
+			m_pipeline.bindDescriptorSet(frameInfo.cmd, 0, Bindless::BindlessDescriptorSet::instance());
 			m_pipeline.pushConstants(frameInfo.cmd, VK_SHADER_STAGE_COMPUTE_BIT, push);
 
 			Tools::vk::cmdDispatch(frameInfo.cmd, m_drawBatcher.instanceCount(), WORKGROUP_SIZE);

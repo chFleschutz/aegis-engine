@@ -1,6 +1,10 @@
 module;
 
+#include "core/assert.h"	
+#include "graphics/vulkan/vulkan_include.h"
+
 #include <vector>
+#include <memory>
 
 export module Aegis.Graphics.RenderPasses.TransparentPass;
 
@@ -8,6 +12,10 @@ import Aegis.Math;
 import Aegis.Graphics.FrameGraph.RenderPass;
 import Aegis.Graphics.RenderSystem;
 import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.Buffer;
+import Aegis.Graphics.Globals;
+import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Vulkan.ResourceTools;
 
 export namespace Aegis::Graphics
 {
@@ -29,7 +37,7 @@ export namespace Aegis::Graphics
 			{
 				m_globalSets.emplace_back(m_globalSetLayout);
 				DescriptorWriter{ m_globalSetLayout }
-					.writeBuffer(0, m_globalUbo, i)
+					.writeBuffer(0, m_globalUbo.descriptorBufferInfoFor(i))
 					.update(m_globalSets[i]);
 			}
 
@@ -40,9 +48,9 @@ export namespace Aegis::Graphics
 				FGResource::Usage::DepthStencilAttachment);
 		}
 
-		virtual auto info() -> FGNode::Info override
+		virtual auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "Transparent",
 				.reads = { m_depth },
 				.writes = { m_sceneColor }
@@ -107,12 +115,13 @@ export namespace Aegis::Graphics
 
 		void updateUBO(const FrameInfo& frameInfo)
 		{
+			auto& registry = frameInfo.scene.registry();
 			Scene::Entity mainCamera = frameInfo.scene.mainCamera();
 			if (!mainCamera)
 				return;
 
 			// TODO: Check if these need to be transposed for shaders (row-major layout)
-			auto& camera = mainCamera.get<Camera>();
+			auto& camera = registry.get<Camera>(mainCamera);
 			TransparentUbo ubo{
 				.view = glm::rowMajor4(camera.viewMatrix),
 				.projection = glm::rowMajor4(camera.projectionMatrix)

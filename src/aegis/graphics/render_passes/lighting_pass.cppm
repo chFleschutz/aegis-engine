@@ -1,15 +1,27 @@
 module;
 
 #include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
 
+#include <imgui/imgui.h>
+
+#include <array>
+#include <memory>
 #include <vector>
 
 export module Aegis.Graphics.RenderPasses.LightingPass;
 
 import Aegis.Math;
+import Aegis.Core.Globals;
 import Aegis.Graphics.FrameGraph.RenderPass;
 import Aegis.Graphics.Pipeline;
 import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.Globals;
+import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Buffer;
+import Aegis.Graphics.Globals;
+import Aegis.Graphics.Components;
+import Aegis.Scene.Components;
 
 export namespace Aegis::Graphics
 {
@@ -70,7 +82,7 @@ export namespace Aegis::Graphics
 			m_pipeline = Pipeline::ComputeBuilder{}
 				.addDescriptorSetLayout(m_gbufferSetLayout)
 				.addDescriptorSetLayout(m_iblSetLayout)
-				.setShaderStage(SHADER_DIR "pbr_lighting.slang.spv", "computeMain")
+				.setShaderStage(Core::SHADER_DIR / "pbr_lighting.slang.spv", "computeMain")
 				.buildUnique();
 
 			m_position = pool.addReference("Position",
@@ -99,9 +111,9 @@ export namespace Aegis::Graphics
 				});
 		}
 
-		virtual auto info() -> FGNode::Info override
+		virtual auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "Lighting",
 				.reads = { m_position, m_normal, m_albedo, m_arm, m_emissive/*, m_ssao*/ },
 				.writes = { m_sceneColor }
@@ -113,24 +125,25 @@ export namespace Aegis::Graphics
 			VkCommandBuffer cmd = frameInfo.cmd;
 
 			updateLightingUBO(frameInfo);
-			auto& environment = frameInfo.scene.environment().get<Environment>();
+			auto& registry = frameInfo.scene.registry();
+			auto& environment = registry.get<Environment>(frameInfo.scene.environment());
 			AGX_ASSERT_X(environment.irradiance, "Environment irradiance map is not set");
 
 			DescriptorWriter{ m_gbufferSetLayout }
-				.writeImage(0, pool.texture(m_sceneColor))
-				.writeImage(1, pool.texture(m_position))
-				.writeImage(2, pool.texture(m_normal))
-				.writeImage(3, pool.texture(m_albedo))
-				.writeImage(4, pool.texture(m_arm))
-				.writeImage(5, pool.texture(m_emissive))
+				.writeImage(0, pool.texture(m_sceneColor).descriptorImageInfo())
+				.writeImage(1, pool.texture(m_position).descriptorImageInfo())
+				.writeImage(2, pool.texture(m_normal).descriptorImageInfo())
+				.writeImage(3, pool.texture(m_albedo).descriptorImageInfo())
+				.writeImage(4, pool.texture(m_arm).descriptorImageInfo())
+				.writeImage(5, pool.texture(m_emissive).descriptorImageInfo())
 				//.writeImage(6, pool.texture(m_ssao))
-				.writeBuffer(7, m_ubo, frameInfo.frameIndex)
+				.writeBuffer(7, m_ubo.descriptorBufferInfoFor(frameInfo.frameIndex))
 				.update(m_gbufferSets[frameInfo.frameIndex]);
 
 			DescriptorWriter{ m_iblSetLayout }
-				.writeImage(0, *environment.irradiance)
-				.writeImage(1, *environment.prefiltered)
-				.writeImage(2, *environment.brdfLUT)
+				.writeImage(0, environment.irradiance->descriptorImageInfo())
+				.writeImage(1, environment.prefiltered->descriptorImageInfo())
+				.writeImage(2, environment.brdfLUT->descriptorImageInfo())
 				.update(m_iblSets[frameInfo.frameIndex]);
 
 			m_pipeline->bind(cmd);
@@ -179,27 +192,28 @@ export namespace Aegis::Graphics
 
 		void updateLightingUBO(const FrameInfo& frameInfo)
 		{
+			auto& registry = frameInfo.scene.registry();
 			LightingUniforms lighting;
 
 			Scene::Entity mainCamera = frameInfo.scene.mainCamera();
-			if (mainCamera && mainCamera.has<Transform>())
+			if (mainCamera && registry.has<Transform>(mainCamera))
 			{
-				auto& cameraTransform = mainCamera.get<Transform>();
+				auto& cameraTransform = registry.get<Transform>(mainCamera);
 				lighting.cameraPosition = glm::vec4(cameraTransform.location, 1.0f);
 			}
 
 			Scene::Entity ambientLight = frameInfo.scene.ambientLight();
-			if (ambientLight && ambientLight.has<AmbientLight>())
+			if (ambientLight && registry.has<AmbientLight>(ambientLight))
 			{
-				auto& ambient = ambientLight.get<AmbientLight>();
+				auto& ambient = registry.get<AmbientLight>(ambientLight);
 				lighting.ambient.color = glm::vec4(ambient.color, ambient.intensity);
 			}
 
 			Scene::Entity directionalLight = frameInfo.scene.directionalLight();
-			if (directionalLight && directionalLight.has<DirectionalLight, Transform>())
+			if (directionalLight && registry.has<DirectionalLight, Transform>(directionalLight))
 			{
-				auto& directional = directionalLight.get<DirectionalLight>();
-				auto& transform = directionalLight.get<Transform>();
+				auto& directional = registry.get<DirectionalLight>(directionalLight);
+				auto& transform = registry.get<Transform>(directionalLight);
 				lighting.directional.color = glm::vec4(directional.color, directional.intensity);
 				lighting.directional.direction = glm::vec4(glm::normalize(transform.forward()), 0.0f);
 			}

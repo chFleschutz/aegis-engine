@@ -1,6 +1,9 @@
 module;
 
 #include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
+#include <aegis-log/log.h>
 
 #include <vector>
 
@@ -10,6 +13,10 @@ import Aegis.Math;
 import Aegis.Graphics.Bindless;
 import Aegis.Graphics.FrameGraph.RenderPass;
 import Aegis.Graphics.Frustum;
+import Aegis.Graphics.Components;
+import Aegis.Graphics.Globals;
+import Aegis.Graphics.DrawBatchRegistry;
+import Aegis.Scene;
 
 export namespace Aegis::Graphics
 {
@@ -18,9 +25,9 @@ export namespace Aegis::Graphics
 	{
 		glm::mat3x4 modelMatrix;
 		glm::vec3 normalRow0;
-		DescriptorHandle meshHandle;
+		Bindless::DescriptorHandle meshHandle;
 		glm::vec3 normalRow1;
-		DescriptorHandle materialHandle;
+		Bindless::DescriptorHandle materialHandle;
 		glm::vec3 normalRow2;
 		uint32_t drawBatchID;
 	};
@@ -89,9 +96,9 @@ export namespace Aegis::Graphics
 				});
 		}
 
-		auto info() -> FGNode::Info override
+		auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "Instance Update",
 				.reads = {},
 				.writes = { m_staticInstances, m_dynamicInstances, m_drawBatchBuffer, m_cameraData },
@@ -203,14 +210,16 @@ export namespace Aegis::Graphics
 
 		void updateCameraData(FGResourcePool& pool, const FrameInfo& frameInfo)
 		{
+			auto& registry = frameInfo.scene.registry();
+
 			auto mainCamera = frameInfo.scene.mainCamera();
 			AGX_ASSERT_X(mainCamera, "Scene Update Pass: No main camera set in scene");
 
 			// TODO: Don't update this here (move to renderer or similar)
-			auto& camera = mainCamera.get<Camera>();
+			auto& camera = registry.get<Camera>(mainCamera);
 			camera.aspect = frameInfo.aspectRatio;
 
-			auto& cameraTransform = mainCamera.get<GlobalTransform>();
+			auto& cameraTransform = registry.get<GlobalTransform>(mainCamera);
 			glm::mat4 viewProjection = camera.projectionMatrix * camera.viewMatrix;
 
 			auto& cameraBuffer = pool.buffer(m_cameraData);

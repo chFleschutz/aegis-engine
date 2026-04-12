@@ -1,12 +1,17 @@
 module;
 
 #include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #include <array>
 
 export module Aegis.Graphics.RenderPasses.GPUDrivenGeometry;
 
 import Aegis.Graphics.FrameGraph.RenderPass;
+import Aegis.Graphics.Bindless;
+import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Vulkan.ResourceTools;
 
 export namespace Aegis::Graphics
 {
@@ -15,10 +20,10 @@ export namespace Aegis::Graphics
 	public:
 		struct PushConstant
 		{
-			DescriptorHandle cameraData;
-			DescriptorHandle staticInstances;
-			DescriptorHandle dynamicInstances;
-			DescriptorHandle visibility;
+			Bindless::DescriptorHandle cameraData;
+			Bindless::DescriptorHandle staticInstances;
+			Bindless::DescriptorHandle dynamicInstances;
+			Bindless::DescriptorHandle visibility;
 			uint32_t batchFirstID;
 			uint32_t batchSize;
 			uint32_t staticCount;
@@ -91,9 +96,9 @@ export namespace Aegis::Graphics
 				FGResource::Usage::ComputeReadUniform);
 		}
 
-		virtual auto info() -> FGNode::Info override
+		virtual auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "GPU Driven Geometry",
 				.reads = { m_staticInstanceData, m_dynamicInstanceData, m_visibleInstances,
 					m_indirectDrawCommands, m_indirectDrawCounts, m_cameraData },

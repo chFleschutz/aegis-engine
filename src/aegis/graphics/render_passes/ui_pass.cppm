@@ -1,5 +1,8 @@
 module;
 
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
 #include <vector>
 
 #include <imgui.h>
@@ -9,7 +12,7 @@ module;
 export module Aegis.Graphics.RenderPasses.UIPass;
 
 import Aegis.Graphics.FrameGraph.RenderPass;
-import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Vulkan.ResourceTools;
 
 export namespace Aegis::Graphics
 {
@@ -22,9 +25,9 @@ export namespace Aegis::Graphics
 				FGResource::Usage::ColorAttachment);
 		}
 
-		virtual auto info() -> FGNode::Info override
+		virtual auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "UI",
 				.reads = {},
 				.writes = { m_final }

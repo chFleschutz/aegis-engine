@@ -1,6 +1,7 @@
 module;
 
 #include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 export module Aegis.Graphics.RenderPasses.PresentPass;
 
@@ -20,9 +21,9 @@ export namespace Aegis::Graphics
 				FGResource::Usage::TransferSrc);
 		}
 
-		virtual auto info() -> FGNode::Info override
+		virtual auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "Present",
 				.reads = { m_final },
 				.writes = {}

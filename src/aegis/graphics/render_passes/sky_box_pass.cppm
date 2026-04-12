@@ -1,15 +1,24 @@
 module;
 
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
 #include <vector>
 #include <memory>
 
 export module Aegis.Graphics.RenderPasses.SkyBoxPass;
 
 import Aegis.Math;
+import Aegis.Core.Globals;
 import Aegis.Graphics.Descriptors;
+import Aegis.Graphics.Buffer;
 import Aegis.Graphics.FrameGraph.RenderPass;
 import Aegis.Graphics.Pipeline;
-import Scene.Components;
+import Aegis.Graphics.Globals;
+import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Vulkan.ResourceTools;
+import Aegis.Graphics.Components;
+import Aegis.Scene;
 
 export namespace Aegis::Graphics
 {
@@ -33,7 +42,7 @@ export namespace Aegis::Graphics
 			m_pipeline = Pipeline::GraphicsBuilder{}
 				.addDescriptorSetLayout(m_descriptorSetLayout)
 				.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(SkyBoxUniforms))
-				.addShaderStages(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, SHADER_DIR "sky_box.slang.spv")
+				.addShaderStages(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, Core::SHADER_DIR / "sky_box.slang.spv")
 				.addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT)
 				.setDepthAttachment(VK_FORMAT_D32_SFLOAT)
 				.setDepthTest(true, false, VK_COMPARE_OP_LESS_OR_EQUAL)
@@ -81,9 +90,9 @@ export namespace Aegis::Graphics
 				FGResource::Usage::DepthStencilAttachment);
 		}
 
-		virtual auto info() -> FGNode::Info override
+		virtual auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "Sky Box",
 				.reads = { m_depth },
 				.writes = { m_sceneColor },
@@ -92,11 +101,12 @@ export namespace Aegis::Graphics
 
 		virtual void execute(FGResourcePool& pool, const FrameInfo& frameInfo) override
 		{
+			auto& registry = frameInfo.scene.registry();
 			auto skyBoxEntity = frameInfo.scene.environment();
-			if (!skyBoxEntity || !skyBoxEntity.has<Environment>())
+			if (!skyBoxEntity || !registry.has<Environment>(skyBoxEntity))
 				return;
 
-			auto& environment = skyBoxEntity.get<Environment>();
+			auto& environment = registry.get<Environment>(skyBoxEntity);
 			if (!environment.skybox)
 				return;
 
@@ -124,7 +134,7 @@ export namespace Aegis::Graphics
 			Tools::vk::cmdViewport(cmd, frameInfo.swapChainExtent);
 			Tools::vk::cmdScissor(cmd, frameInfo.swapChainExtent);
 
-			auto& camera = frameInfo.scene.mainCamera().get<Camera>();
+			auto& camera = registry.get<Camera>(frameInfo.scene.mainCamera());
 			glm::mat4 viewRotOnly = glm::mat4{ glm::mat3{ camera.viewMatrix } }; // Strip translation from view matrix
 			SkyBoxUniforms uniforms{
 				.viewProjection = glm::rowMajor4(camera.projectionMatrix * viewRotOnly),

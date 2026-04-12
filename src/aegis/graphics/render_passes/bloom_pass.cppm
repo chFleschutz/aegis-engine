@@ -1,13 +1,24 @@
 module;
 
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
+#include <imgui/imgui.h>
+
+#include <vector>
+#include <memory>
+
 export module Aegis.Graphics.RenderPasses.BloomPass;
 
+import Aegis.Core.Globals;
 import Aegis.Graphics.Descriptors;
 import Aegis.Graphics.FrameGraph.RenderPass;
 import Aegis.Graphics.Pipeline;
-import Aegis.Graphics.Resources.ImageView;
-import Aegis.Graphics.Resources.Sampler;
+import Aegis.Graphics.ImageView;
+import Aegis.Graphics.Sampler;
+import Aegis.Graphics.Texture;
 import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.FrameInfo;
 
 export namespace Aegis::Graphics
 {
@@ -51,7 +62,7 @@ export namespace Aegis::Graphics
 			m_thresholdPipeline = Pipeline::ComputeBuilder{}
 				.addDescriptorSetLayout(m_thresholdSetLayout)
 				.addPushConstantRange(VK_SHADER_STAGE_COMPUTE_BIT, sizeof(BloomThreshold))
-				.setShaderStage(SHADER_DIR "bloom/bloom_threshold.slang.spv")
+				.setShaderStage(Core::SHADER_DIR / "bloom/bloom_threshold.slang.spv")
 				.buildUnique();
 
 			// Downsample
@@ -63,7 +74,7 @@ export namespace Aegis::Graphics
 			m_downsamplePipeline = Pipeline::ComputeBuilder{}
 				.addDescriptorSetLayout(m_downsampleSetLayout)
 				.addPushConstantRange(VK_SHADER_STAGE_COMPUTE_BIT, sizeof(BloomDownsample))
-				.setShaderStage(SHADER_DIR "bloom/bloom_downsample.slang.spv")
+				.setShaderStage(Core::SHADER_DIR / "bloom/bloom_downsample.slang.spv")
 				.buildUnique();
 
 			// Upsample
@@ -76,7 +87,7 @@ export namespace Aegis::Graphics
 			m_upsamplePipeline = Pipeline::ComputeBuilder{}
 				.addDescriptorSetLayout(m_upsampleSetLayout)
 				.addPushConstantRange(VK_SHADER_STAGE_COMPUTE_BIT, sizeof(BloomUpsample))
-				.setShaderStage(SHADER_DIR "bloom/bloom_upsample.slang.spv")
+				.setShaderStage(Core::SHADER_DIR / "bloom/bloom_upsample.slang.spv")
 				.buildUnique();
 
 			m_sceneColor = pool.addReference("SceneColor",
@@ -92,16 +103,16 @@ export namespace Aegis::Graphics
 				});
 		}
 
-		virtual auto info() -> FGNode::Info override
+		virtual auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "Bloom",
 				.reads = { m_sceneColor },
 				.writes = { m_bloom },
 			};
 		}
 
-		virtual void createResources(FGResourcePool& resources) override
+		virtual void createResources(FGResourcePool& pool) override
 		{
 			auto& bloom = pool.texture(m_bloom);
 			auto& sceneColor = pool.texture(m_sceneColor);
@@ -135,7 +146,7 @@ export namespace Aegis::Graphics
 			}
 		}
 
-		virtual void execute(FGResourcePool& resources, const FrameInfo& frameInfo) override
+		virtual void execute(FGResourcePool& pool, const FrameInfo& frameInfo) override
 		{
 			VkCommandBuffer cmd = frameInfo.cmd;
 			auto& bloom = pool.texture(m_bloom);

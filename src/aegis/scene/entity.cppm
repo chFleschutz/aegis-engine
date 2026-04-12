@@ -11,6 +11,7 @@ export namespace entt
 	using entt::view;
 	using entt::basic_view;
 	using entt::exclude_t;
+	using entt::exclude;
 
 	using entt::operator==;
 	using entt::operator!=;

@@ -1,18 +1,24 @@
 module;
 
 #include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
 
-#include <vector>
+#include <imgui/imgui.h>
+
 #include <memory>
+#include <random>
+#include <vector>
 
 export module Aegis.Graphics.RenderPasses.SSAOPass;
 
 import Aegis.Math;
+import Aegis.Core.Globals;
 import Aegis.Graphics.Descriptors;
 import Aegis.Graphics.FrameGraph.RenderPass;
 import Aegis.Graphics.Pipeline;
 import Aegis.Graphics.Buffer;
 import Aegis.Graphics.Texture;
+import Aegis.Graphics.Vulkan.Tools;
 
 export namespace Aegis::Graphics
 {
@@ -49,11 +55,11 @@ export namespace Aegis::Graphics
 
 			m_pipeline = Pipeline::ComputeBuilder{}
 				.addDescriptorSetLayout(*m_descriptorSetLayout)
-				.setShaderStage(SHADER_DIR "ssao.comp.spv")
+				.setShaderStage(Core::SHADER_DIR / "ssao.comp.spv")
 				.buildUnique();
 
 			// Generate random samples
-			auto& gen = Random::generator();
+			auto& gen = Math::Random::generator();
 			std::uniform_real_distribution dis(0.0f, 1.0f);
 			std::vector<glm::vec4> samples;
 			samples.reserve(SAMPLE_COUNT);
@@ -104,9 +110,9 @@ export namespace Aegis::Graphics
 				});
 		}
 
-		virtual auto info() -> FGNode::Info override
+		virtual auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "SSAO",
 				.reads = { m_position, m_normal },
 				.writes = { m_ssao }
@@ -116,21 +122,22 @@ export namespace Aegis::Graphics
 		virtual void execute(FGResourcePool& pool, const FrameInfo& frameInfo) override
 		{
 			VkCommandBuffer cmd = frameInfo.cmd;
+			auto& registry = frameInfo.scene.registry();
 
 			// Update push constants
-			auto& camera = frameInfo.scene.mainCamera().get<Camera>();
+			auto& camera = registry.get<Camera>(frameInfo.scene.mainCamera());
 			m_uniformData.view = camera.viewMatrix;
 			m_uniformData.projection = camera.projectionMatrix;
 			m_uniformData.noiseScale.x = m_uniformData.noiseScale.y * camera.aspect;
 			m_uniforms.writeToIndex(&m_uniformData, frameInfo.frameIndex);
 
 			DescriptorWriter{ *m_descriptorSetLayout }
-				.writeImage(0, pool.texture(m_ssao))
-				.writeImage(1, pool.texture(m_position))
-				.writeImage(2, pool.texture(m_normal))
-				.writeImage(3, m_ssaoNoise)
-				.writeBuffer(4, m_ssaoSamples)
-				.writeBuffer(5, m_uniforms, frameInfo.frameIndex)
+				.writeImage(0, pool.texture(m_ssao).descriptorImageInfo())
+				.writeImage(1, pool.texture(m_position).descriptorImageInfo())
+				.writeImage(2, pool.texture(m_normal).descriptorImageInfo())
+				.writeImage(3, m_ssaoNoise.descriptorImageInfo())
+				.writeBuffer(4, m_ssaoSamples.descriptorBufferInfo())
+				.writeBuffer(5, m_uniforms.descriptorBufferInfoFor(frameInfo.frameIndex))
 				.update(*m_descriptorSet);
 
 			m_pipeline->bind(cmd);

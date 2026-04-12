@@ -1,5 +1,11 @@
 module;
 
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
+#include <array>
+#include <memory>
+#include <type_traits>
 #include <vector>
 
 export module Aegis.Graphics.RenderPasses.GeometryPass;
@@ -11,6 +17,12 @@ import Aegis.Graphics.FrameGraph.RenderPass;
 import Aegis.Graphics.RenderSystem;
 import Aegis.Graphics.Descriptors;
 import Aegis.Graphics.Frustum;
+import Aegis.Graphics.Buffer;
+import Aegis.Graphics.Texture;
+import Aegis.Graphics.Globals;
+import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Vulkan.ResourceTools;
+import Aegis.Scene.Components;
 
 export namespace Aegis::Graphics
 {
@@ -26,8 +38,8 @@ export namespace Aegis::Graphics
 	class GeometryPass : public FGRenderPass
 	{
 	public:
-		GeometryPass(FGResourcePool& pool)
-			: m_globalUbo{ Buffer::uniformBuffer(sizeof(GBufferUbo)) },
+		GeometryPass(FGResourcePool& pool) : 
+			m_globalUbo{ Buffer::uniformBuffer(sizeof(GBufferUbo)) },
 			m_globalSetLayout{ createDescriptorSetLayout() }
 		{
 			m_globalSets.reserve(MAX_FRAMES_IN_FLIGHT);
@@ -35,7 +47,7 @@ export namespace Aegis::Graphics
 			{
 				m_globalSets.emplace_back(m_globalSetLayout);
 				DescriptorWriter{ m_globalSetLayout }
-					.writeBuffer(0, m_globalUbo.buffer(), i)
+					.writeBuffer(0, m_globalUbo.buffer().descriptorBufferInfoFor(i))
 					.update(m_globalSets[i]);
 			}
 
@@ -82,9 +94,9 @@ export namespace Aegis::Graphics
 				});
 		}
 
-		virtual auto info() -> FGNode::Info override
+		virtual auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "Geometry",
 				.reads = {},
 				.writes = { m_position, m_normal, m_albedo, m_arm, m_emissive, m_depth }
@@ -166,12 +178,13 @@ export namespace Aegis::Graphics
 
 		void updateUBO(const FrameInfo& frameInfo)
 		{
+			auto& registry = frameInfo.scene.registry();
 			Scene::Entity mainCamera = frameInfo.scene.mainCamera();
 			if (!mainCamera)
 				return;
 
 			// TODO: Don't update this here (move to renderer or similar)
-			auto& camera = mainCamera.get<Camera>();
+			auto& camera = registry.get<Camera>(mainCamera);
 			camera.aspect = frameInfo.aspectRatio;
 
 			GBufferUbo ubo{
@@ -179,7 +192,7 @@ export namespace Aegis::Graphics
 				.view = glm::rowMajor4(camera.viewMatrix),
 				.inverseView = glm::rowMajor4(camera.inverseViewMatrix),
 				.frustum = Frustum::extractFrom(camera.projectionMatrix * camera.viewMatrix),
-				.cameraPosition = mainCamera.get<GlobalTransform>().location
+				.cameraPosition = registry.get<GlobalTransform>(mainCamera).location
 			};
 
 			m_globalUbo.buffer().writeToIndex(&ubo, frameInfo.frameIndex);
@@ -194,7 +207,7 @@ export namespace Aegis::Graphics
 
 		std::vector<std::unique_ptr<RenderSystem>> m_renderSystems;
 
-		BindlessFrameBuffer m_globalUbo;
+		Bindless::BindlessFrameBuffer m_globalUbo;
 		DescriptorSetLayout m_globalSetLayout;
 		std::vector<DescriptorSet> m_globalSets;
 	};

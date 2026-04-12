@@ -1,12 +1,22 @@
 module;
 
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
+#include <imgui/imgui.h>
+
 #include <vector>
+#include <array>
 
 export module Aegis.Graphics.RenderPasses.PostProcessingPass;
 
+import Aegis.Core.Globals;
 import Aegis.Graphics.Descriptors;
 import Aegis.Graphics.FrameGraph.RenderPass;
 import Aegis.Graphics.Pipeline;
+import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Globals;
+
 
 export namespace Aegis::Graphics
 {
@@ -51,23 +61,22 @@ export namespace Aegis::Graphics
 				});
 		}
 
-		virtual auto info() -> FGNode::Info override
+		virtual auto info() -> Info override
 		{
-			return FGNode::Info{
+			return Info{
 				.name = "Post Processing",
 				.reads = { m_sceneColor, m_bloom },
 				.writes = { m_final }
 			};
 		}
 
-		virtual void createResources(FGResourcePool& resources) override {}
-		virtual void execute(FGResourcePool& resources, const FrameInfo& frameInfo) override
+		virtual void execute(FGResourcePool& pool, const FrameInfo& frameInfo) override
 		{
 			// TODO: Dont update descriptors every frame
 			DescriptorWriter{ m_descriptorSetLayout }
-				.writeImage(0, pool.texture(m_final))
-				.writeImage(1, pool.texture(m_sceneColor))
-				.writeImage(2, pool.texture(m_bloom))
+				.writeImage(0, pool.texture(m_final).descriptorImageInfo())
+				.writeImage(1, pool.texture(m_sceneColor).descriptorImageInfo())
+				.writeImage(2, pool.texture(m_bloom).descriptorImageInfo())
 				.update(m_descriptorSets[frameInfo.frameIndex]);
 
 			VkCommandBuffer cmd = frameInfo.cmd;
@@ -108,7 +117,7 @@ export namespace Aegis::Graphics
 			return Pipeline::ComputeBuilder{}
 				.addDescriptorSetLayout(m_descriptorSetLayout)
 				.addPushConstantRange(VK_SHADER_STAGE_COMPUTE_BIT, sizeof(PostProcessingSettings))
-				.setShaderStage(SHADER_DIR "post_process.slang.spv")
+				.setShaderStage(Core::SHADER_DIR / "post_process.slang.spv")
 				.build();
 		}
 
