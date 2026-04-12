@@ -39,7 +39,9 @@ export namespace glm
 	using glm::mat4x4;
 
 	using glm::cross;
+	using glm::degrees;
 	using glm::dot;
+	using glm::eulerAngles;
 	using glm::inverse;
 	using glm::length;
 	using glm::make_mat4;

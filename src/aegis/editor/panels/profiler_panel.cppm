@@ -2,6 +2,8 @@ module;
 
 #include <imgui.h>
 
+#include <string>
+
 export module Aegis.Editor.Panels:ProfilerPanel;
 
 import Aegis.Core.Profiler;

@@ -24,7 +24,7 @@ export namespace Aegis::Scene
 		auto operator=(const Registry&) -> Registry & = delete;
 		auto operator=(Registry&&) -> Registry & = delete;
 
-		//[[nodiscard]] auto enttRegistry() -> entt::registry& { return m_registry; }
+		[[nodiscard]] auto entityCount() const -> size_t { return m_registry.storage<entt::entity>()->size(); }
 
 		/// @brief Creates an entity with a NameComponent and TransformComponent
 		/// @note Scene::Entity can be passed by value

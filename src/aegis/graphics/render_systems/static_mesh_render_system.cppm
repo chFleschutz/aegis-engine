@@ -1,3 +1,7 @@
+module;
+
+#include <entt/entt.hpp>
+
 export module Aegis.Graphics.RenderSystems.StaticMeshRenderSystem;
 
 import Aegis.Math;

@@ -30,6 +30,7 @@ PUBLIC
 	aegis-graphics
 	aegis-scene
 	aegis-ui
+	aegis-editor
 #	Aegis::GLTF
 #	Aegis::Log
 #	EnTT::EnTT

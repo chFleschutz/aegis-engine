@@ -1,9 +1,16 @@
 module;
 
+#include "core/assert.h"
+
 #include <imgui.h>
+#include <imgui_internal.h>
+#include <imgui_stdlib.h>
 
 #include <cstdint>
+#include <functional>
+#include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 export module Aegis.Editor.Panels:ScenePanel;
@@ -20,14 +27,14 @@ export namespace Aegis::Editor
 	public:
 		[[nodiscard]] auto selectedEntity() const -> Scene::Entity { return m_selectedEntity; }
 
-		void draw()
+		void draw(Scene::Scene& scene)
 		{
 			ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(400, 800));
 
-			drawHierachy();
-			drawAllEntities();
-			drawSceneSettings();
-			drawEntityProperties();
+			drawHierachy(scene);
+			drawAllEntities(scene.registry());
+			drawSceneSettings(scene);
+			drawEntityProperties(scene.registry());
 
 			ImGuiID dockSpaceID = ImGui::GetID("SceneLayer");
 			if (ImGui::DockBuilderGetNode(dockSpaceID) == NULL)
@@ -49,7 +56,7 @@ export namespace Aegis::Editor
 		}
 
 	private:
-		void drawHierachy()
+		void drawHierachy(Scene::Scene& scene)
 		{
 			if (!ImGui::Begin("Hierachy"))
 			{
@@ -61,14 +68,14 @@ export namespace Aegis::Editor
 			constexpr uint8_t VISITED = 1 << 1;
 			std::vector<std::pair<Scene::Entity, uint8_t>> stack;
 
-			auto& scene = Engine::instance().scene();
-			auto view = scene.registry().view<entt::entity>();
+			auto& registry = scene.registry();
+			auto view = registry.view<entt::entity>();
 			stack.reserve(view.size());
 
 			for (auto entt : view)
 			{
-				Scene::Entity entity{ entt, &scene };
-				if (entity.has<Parent>() && entity.get<Parent>().entity)
+				Scene::Entity entity{ entt };
+				if (registry.has<Parent>(entity) && registry.get<Parent>(entity).entity)
 					continue;
 
 				stack.emplace_back(entity, 0);
@@ -89,19 +96,21 @@ export namespace Aegis::Editor
 
 				flags |= VISITED;
 
-				auto& children = entity.get<Children>();
+				auto& children = registry.get<Children>(entity);
 				ImGuiTreeNodeFlags treeNodeflags = (children.count == 0) ? ImGuiTreeNodeFlags_Leaf : 0;
-				if (drawEntityTreeNode(entity, treeNodeflags))
+				if (drawEntityTreeNode(registry, entity, treeNodeflags))
 				{
 					flags |= NODE_OPENED;
-					for (auto it = children.rbegin(); it != children.rend(); ++it)
+					auto current = children.first;
+					while (current)
 					{
-						stack.emplace_back(*it, 0);
+						stack.emplace_back(current, 0);
+						current = registry.get<Siblings>(current).next;
 					}
 				}
 			}
 
-			drawEntityActions();
+			drawEntityActions(registry);
 
 			if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
 				m_selectedEntity = {};
@@ -109,7 +118,7 @@ export namespace Aegis::Editor
 			ImGui::End();
 		}
 
-		void drawAllEntities()
+		void drawAllEntities(Scene::Registry& registry)
 		{
 			if (!ImGui::Begin("All Entities"))
 			{
@@ -117,22 +126,21 @@ export namespace Aegis::Editor
 				return;
 			}
 
-			auto& scene = Engine::instance().scene();
-			auto view = scene.registry().view<entt::entity>();
+			auto view = registry.view<entt::entity>();
 			for (auto entt : view)
 			{
-				if (drawEntityTreeNode(Scene::Entity{ entt, &scene }, ImGuiTreeNodeFlags_Leaf))
+				if (drawEntityTreeNode(registry, Scene::Entity{ entt }, ImGuiTreeNodeFlags_Leaf))
 					ImGui::TreePop();
 			}
 
 			if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered())
 				m_selectedEntity = {};
 
-			drawEntityActions();
+			drawEntityActions(registry);
 			ImGui::End();
 		}
 
-		void drawSceneSettings()
+		void drawSceneSettings(Scene::Scene& scene)
 		{
 			if (!ImGui::Begin("Scene Settings"))
 			{
@@ -140,10 +148,10 @@ export namespace Aegis::Editor
 				return;
 			}
 
-			auto& scene = Engine::instance().scene();
-			drawSingleEntity(scene.mainCamera());
-			drawSingleEntity(scene.ambientLight());
-			drawSingleEntity(scene.directionalLight());
+			auto& registry = scene.registry();
+			drawSingleEntity(registry, scene.mainCamera());
+			drawSingleEntity(registry, scene.ambientLight());
+			drawSingleEntity(registry, scene.directionalLight());
 
 			if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered())
 				m_selectedEntity = {};
@@ -151,7 +159,7 @@ export namespace Aegis::Editor
 			ImGui::End();
 		}
 
-		void drawEntityProperties()
+		void drawEntityProperties(Scene::Registry& registry)
 		{
 			if (!ImGui::Begin("Properties") || !m_selectedEntity)
 			{
@@ -159,13 +167,13 @@ export namespace Aegis::Editor
 				return;
 			}
 
-			drawComponent<Name>("Name", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
+			drawComponent<Name>(registry, "Name", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
 				[](Name& nameComponent)
 				{
 					ImGui::InputText("Entity Name", &nameComponent.name);
 				});
 
-			drawComponent<Transform>("Transform", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
+			drawComponent<Transform>(registry, "Transform", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
 				[](Transform& transform)
 				{
 					ImGui::DragFloat3("Location", &transform.location.x, 0.1f);
@@ -177,34 +185,34 @@ export namespace Aegis::Editor
 					ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f);
 				});
 
-			drawComponent<Mesh>("Mesh", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
-				[](Mesh& mesh)
+			drawComponent<Graphics::Mesh>(registry, "Mesh", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
+				[](Graphics::Mesh& mesh)
 				{
 					drawAssetSlot("Mesh", "Mesh Asset", mesh.staticMesh != nullptr);
 				});
 
-			drawComponent<AmbientLight>("Ambient Light", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
+			drawComponent<AmbientLight>(registry, "Ambient Light", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
 				[](AmbientLight& ambientLight)
 				{
 					ImGui::ColorEdit3("Color", &ambientLight.color.r);
 					ImGui::DragFloat("Intensity", &ambientLight.intensity, 0.01f, 0.0f, 1.0f);
 				});
 
-			drawComponent<DirectionalLight>("Directional Light", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
+			drawComponent<DirectionalLight>(registry, "Directional Light", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
 				[](DirectionalLight& directionalLight)
 				{
 					ImGui::ColorEdit3("Color", &directionalLight.color.r);
 					ImGui::DragFloat("Intensity", &directionalLight.intensity, 0.1f, 0.0f, 10.0f);
 				});
 
-			drawComponent<PointLight>("Pointlight", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
+			drawComponent<PointLight>(registry, "Pointlight", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
 				[](PointLight& pointlight)
 				{
 					ImGui::ColorEdit3("Color", &pointlight.color.r);
 					ImGui::DragFloat("Intensity", &pointlight.intensity, 0.1f, 0.0f, 1000.0f);
 				});
 
-			drawComponent<Camera>("Camera", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
+			drawComponent<Camera>(registry, "Camera", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
 				[](Camera& camera)
 				{
 					float fovDeg = glm::degrees(camera.fov);
@@ -216,35 +224,34 @@ export namespace Aegis::Editor
 					ImGui::Text("Aspect Ratio: %.2f", camera.aspect);
 				});
 
-			drawComponent<Parent>("Parent", m_selectedEntity, 0,
-				[](Parent& parent)
+			drawComponent<Parent>(registry, "Parent", m_selectedEntity, 0,
+				[&](Parent& parent)
 				{
-					ImGui::Text("Parent: %s", parent.entity ? parent.entity.get<Name>().name.c_str() : "None");
+					ImGui::Text("Parent: %s", parent.entity ? registry.get<Name>(parent.entity).name.c_str() : "None");
 				});
 
-			drawComponent<Siblings>("Siblings", m_selectedEntity, 0,
-				[](Siblings& siblings)
+			drawComponent<Siblings>(registry, "Siblings", m_selectedEntity, 0,
+				[&](Siblings& siblings)
 				{
-					ImGui::Text("Next: %s", siblings.next ? siblings.next.get<Name>().name.c_str() : "None");
-					ImGui::Text("Prev: %s", siblings.prev ? siblings.prev.get<Name>().name.c_str() : "None");
+					ImGui::Text("Next: %s", siblings.next ? registry.get<Name>(siblings.next).name.c_str() : "None");
+					ImGui::Text("Prev: %s", siblings.prev ? registry.get<Name>(siblings.prev).name.c_str() : "None");
 				});
 
-			drawComponent<Children>("Children", m_selectedEntity, 0,
-				[](Children& children)
+			drawComponent<Children>(registry, "Children", m_selectedEntity, 0,
+				[&](Children& children)
 				{
 					ImGui::Text("Children: %d", children.count);
-					ImGui::Text("First: %s", children.first ? children.first.get<Name>().name.c_str() : "None");
-					ImGui::Text("Last: %s", children.last ? children.last.get<Name>().name.c_str() : "None");
+					ImGui::Text("First: %s", children.first ? registry.get<Name>(children.first).name.c_str() : "None");
+					ImGui::Text("Last: %s", children.last ? registry.get<Name>(children.last).name.c_str() : "None");
 				});
 
-			drawAddComponent();
-
+			drawAddComponent(registry);
 			ImGui::End();
 		}
 
-		void drawSingleEntity(Scene::Entity entity)
+		void drawSingleEntity(Scene::Registry& registry, Scene::Entity entity)
 		{
-			auto name = entity.has<Name>() ? entity.get<Name>().name.c_str() : "Entity";
+			auto name = registry.has<Name>(entity) ? registry.get<Name>(entity).name.c_str() : "Entity";
 			auto flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf;
 			flags |= (m_selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
@@ -255,11 +262,11 @@ export namespace Aegis::Editor
 				m_selectedEntity = entity;
 		}
 
-		auto drawEntityTreeNode(Scene::Entity entity, ImGuiTreeNodeFlags flags) -> bool
+		auto drawEntityTreeNode(Scene::Registry& registry, Scene::Entity entity, ImGuiTreeNodeFlags flags) -> bool
 		{
-			auto& children = entity.getOrAdd<Children>();
+			auto& children = registry.getOrAdd<Children>(entity);
 
-			auto name = entity.has<Name>() ? entity.get<Name>().name.c_str() : "Entity";
+			auto name = registry.has<Name>(entity) ? registry.get<Name>(entity).name.c_str() : "Entity";
 			flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
 			flags |= (m_selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
@@ -271,17 +278,17 @@ export namespace Aegis::Editor
 			return isOpen;
 		}
 
-		void drawEntityActions()
+		void drawEntityActions(Scene::Registry& registry)
 		{
 			// Right click on window to create entity
 			if (ImGui::BeginPopupContextWindow(0, ImGuiPopupFlags_MouseButtonRight))
 			{
 				if (ImGui::MenuItem("Create Entity"))
-					m_selectedEntity = Engine::instance().scene().createEntity("Empty Entity");
+					m_selectedEntity = registry.create("Empty Entity");
 
 				if (m_selectedEntity && ImGui::MenuItem("Destroy Selected Entity"))
 				{
-					Engine::instance().scene().destroyEntity(m_selectedEntity);
+					registry.destroy(m_selectedEntity);
 					m_selectedEntity = {};
 				}
 
@@ -289,7 +296,7 @@ export namespace Aegis::Editor
 			}
 		}
 
-		void drawAddComponent()
+		void drawAddComponent(Scene::Registry& registry)
 		{
 			ImGui::Spacing();
 
@@ -301,14 +308,14 @@ export namespace Aegis::Editor
 
 			if (ImGui::BeginPopup("AddComponent"))
 			{
-				drawAddComponentItem<Name>("Name");
-				drawAddComponentItem<Transform>("Transform");
-				drawAddComponentItem<AmbientLight>("Ambient Light");
-				drawAddComponentItem<DirectionalLight>("Directional Light");
-				drawAddComponentItem<PointLight>("Point Light");
-				drawAddComponentItem<Camera>("Camera");
-				drawAddComponentItem<Mesh>("Mesh");
-				drawAddComponentItem<Material>("Default Material");
+				drawAddComponentItem<Name>(registry, "Name");
+				drawAddComponentItem<Transform>(registry, "Transform");
+				drawAddComponentItem<AmbientLight>(registry, "Ambient Light");
+				drawAddComponentItem<DirectionalLight>(registry, "Directional Light");
+				drawAddComponentItem<PointLight>(registry, "Point Light");
+				drawAddComponentItem<Camera>(registry, "Camera");
+				drawAddComponentItem<Graphics::Mesh>(registry, "Mesh");
+				drawAddComponentItem<Graphics::Material>(registry, "Default Material");
 				ImGui::EndPopup();
 			}
 		}
@@ -320,7 +327,7 @@ export namespace Aegis::Editor
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
 
 			ImVec2 buttonSize = ImVec2(50, 50);
-			if (ImGui::Button(assetSet ? buttonLabel : "None", buttonSize))
+			if (ImGui::Button(assetSet ? assetName : "None", buttonSize))
 			{
 			}
 
@@ -335,18 +342,18 @@ export namespace Aegis::Editor
 
 		template<typename T>
 			requires IsOptionalComponent<T>
-		void drawComponent(const char* componentName, Scene::Entity entity, ImGuiTreeNodeFlags flags,
+		void drawComponent(Scene::Registry& registry, const char* componentName, Scene::Entity entity, ImGuiTreeNodeFlags flags,
 			std::function<void(T&)> drawFunc)
 		{
-			if (!entity.has<T>())
+			if (!registry.has<T>(entity))
 				return;
 
 			bool keepComponent = true;
 			if (ImGui::CollapsingHeader(componentName, &keepComponent, flags))
-				drawFunc(entity.get<T>());
+				drawFunc(registry.get<T>(entity));
 
 			if (!keepComponent)
-				entity.remove<T>();
+				registry.remove<T>(entity);
 
 			ImGui::Spacing();
 			ImGui::Spacing();
@@ -354,27 +361,27 @@ export namespace Aegis::Editor
 
 		template<typename T>
 			requires IsRequiredComponent<T>
-		void drawComponent(const char* componentName, Scene::Entity entity, ImGuiTreeNodeFlags flags,
+		void drawComponent(Scene::Registry& registry, const char* componentName, Scene::Entity entity, ImGuiTreeNodeFlags flags,
 			std::function<void(T&)> drawFunc)
 		{
-			AGX_ASSERT_X(entity.has<T>(), "Entity does not have the required component");
+			AGX_ASSERT_X(registry.has<T>(entity), "Entity does not have the required component");
 
 			if (ImGui::CollapsingHeader(componentName, nullptr, flags))
-				drawFunc(entity.get<T>());
+				drawFunc(registry.get<T>(entity));
 
 			ImGui::Spacing();
 			ImGui::Spacing();
 		}
 
 		template<typename T>
-		void drawAddComponentItem(const std::string& itemName)
+		void drawAddComponentItem(Scene::Registry& registry, const std::string& itemName)
 		{
-			if (m_selectedEntity.has<T>())
+			if (registry.has<T>(m_selectedEntity))
 				return;
 
 			if (ImGui::MenuItem(itemName.c_str()))
 			{
-				m_selectedEntity.add<T>();
+				registry.add<T>(m_selectedEntity);
 				ImGui::CloseCurrentPopup();
 			}
 		}

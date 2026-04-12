@@ -1,5 +1,6 @@
 module;
 
+#include <imgui.h>
 #include <ImGuizmo.h>
 
 export module Aegis.Editor;
@@ -8,13 +9,17 @@ import Aegis.Math;
 import Aegis.Core.Layer;
 import Aegis.Core.Input;
 import Aegis.Editor.Panels;
+import Aegis.Graphics.Renderer;
+import Aegis.Scene;
 
-namespace Aegis::Editor
+export namespace Aegis::Editor
 {
 	class EditorLayer : public Core::Layer
 	{
 	public:
-		EditorLayer() = default;
+		EditorLayer(Graphics::Renderer& renderer, Scene::Scene& scene)
+			: m_renderer(renderer), m_scene(scene)
+		{}
 
 		virtual void onUpdate(float deltaSeconds) override
 		{
@@ -38,13 +43,13 @@ namespace Aegis::Editor
 			m_menuBarPanel.draw();
 
 			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Renderer))
-				m_rendererPanel.draw();
+				m_rendererPanel.draw(m_renderer);
 
 			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Scene))
-				m_scenePanel.draw();
+				m_scenePanel.draw(m_scene);
 
 			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Statistics))
-				m_statisticsPanel.draw();
+				m_statisticsPanel.draw(m_scene.registry(), m_renderer.drawBatchRegistry());
 
 			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Profiler))
 				m_profilerPanel.draw();
@@ -53,11 +58,11 @@ namespace Aegis::Editor
 				m_demoPanel.draw();
 
 			if (m_gizmoType != -1)
-				drawGizmo();
+				drawGizmo(m_scene);
 		}
 
 	private:
-		void drawGizmo()
+		void drawGizmo(Scene::Scene& scene)
 		{
 			auto selected = m_scenePanel.selectedEntity();
 			if (!selected)
@@ -68,12 +73,12 @@ namespace Aegis::Editor
 			ImGuiIO& io = ImGui::GetIO();
 			ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
 
-			auto& scene = Engine::instance().scene();
-			auto& camera = scene.mainCamera().get<Camera>();
+			auto& registry = scene.registry();
+			auto& camera = registry.get<Camera>(scene.mainCamera());
 			glm::mat4 projectionMatrix = camera.projectionMatrix;
 			projectionMatrix[1][1] *= -1.0f; // Flip y-axis 
 
-			auto& transform = selected.get<Transform>();
+			auto& transform = registry.get<Transform>(selected);
 			glm::mat4 transformMatrix = transform.matrix();
 
 			float snapValue = 0.5f;
@@ -94,6 +99,8 @@ namespace Aegis::Editor
 			}
 		}
 
+		Graphics::Renderer& m_renderer;
+		Scene::Scene& m_scene;
 		Editor::MenuBarPanel m_menuBarPanel{};
 		Editor::RendererPanel m_rendererPanel{};
 		Editor::ScenePanel m_scenePanel{};

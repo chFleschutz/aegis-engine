@@ -1,6 +1,15 @@
 module;
 
+#include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
+
+#include <aegis-log/log.h>
+
 #include <glfw/glfw3.h>
+
+#include <chrono>
+#include <format>
+#include <memory>
 
 export module Aegis.Engine;
 
@@ -8,15 +17,20 @@ import Aegis.Core.Logging;
 import Aegis.Core.AssetManager;
 import Aegis.Core.LayerStack;
 import Aegis.Core.Window;
+import Aegis.Core.Profiler;
+import Aegis.Core.Input;
+import Aegis.Core.Globals;
 import Aegis.Graphics.Renderer;
-import Aegis.UI.UI;
+import Aegis.Graphics.Pipeline;
+import Aegis.UI;
 import Aegis.Math;
-import Aegis.Core.EditorLayer;
+import Aegis.Editor;
 import Aegis.Graphics.Texture;
 import Aegis.Editor;
 import Aegis.Core.Globals;
-import Aegis.Scene.Scene;
-import Aegis.Scene.Defaults;
+import Aegis.Scene;
+import Aegis.Scene.Description;
+import Aegis.Defaults;
 import Aegis.Scripting.ScriptManager;
 
 export namespace Aegis
@@ -30,7 +44,7 @@ export namespace Aegis
 			s_instance = this;
 
 			loadDefaultAssets();
-			m_layerStack.push<Core::EditorLayer>();
+			m_layerStack.push<Editor::EditorLayer>(m_renderer, m_scene);
 
 			ALOG::info("Engine Initialized!");
 			Logging::logo();
@@ -62,7 +76,7 @@ export namespace Aegis
 			auto lastFrameBegin = std::chrono::steady_clock::now();
 			while (!m_window.shouldClose())
 			{
-				AGX_PROFILE_SCOPE("Frame Time");
+				ScopeProfiler frameTime("Frame Time");
 
 				// Calculate time
 				auto currentFrameBegin = std::chrono::steady_clock::now();
@@ -91,7 +105,7 @@ export namespace Aegis
 		{
 			m_scene.reset();
 			m_renderer.sceneChanged(m_scene);
-			Scene::Defaults::createDefaultScene(m_scene);
+			createDefaultScene(m_scene);
 			T description{ std::forward<Args>(args)... };
 			description.initialize(m_scene);
 			m_scene.begin();
@@ -103,7 +117,7 @@ export namespace Aegis
 		{
 			using namespace std::chrono;
 
-			AGX_PROFILE_SCOPE("Wait for FPS limit");
+			ScopeProfiler frameBrake("Wait for FPS limit");
 
 			if constexpr (!Core::ENABLE_FPS_LIMIT)
 				return;
@@ -144,9 +158,9 @@ export namespace Aegis
 					{
 						return builder
 							.addShaderStages(VK_SHADER_STAGE_TASK_BIT_EXT,
-								SHADER_DIR "gpu-driven/task_meshlet_cull.slang.spv")
+								Core::SHADER_DIR / "gpu-driven/task_meshlet_cull.slang.spv")
 							.addShaderStages(VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT,
-								SHADER_DIR "gpu-driven/mesh_geometry_indirect.slang.spv")
+								Core::SHADER_DIR / "gpu-driven/mesh_geometry_indirect.slang.spv")
 							.addFlag(Pipeline::Flags::MeshShader)
 							.build();
 					}
@@ -155,7 +169,7 @@ export namespace Aegis
 						// Vertex shader
 						return builder
 							.addShaderStages(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-								SHADER_DIR "cpu-driven/vertex_geometry_bindless.slang.spv")
+								Core::SHADER_DIR / "cpu-driven/vertex_geometry_bindless.slang.spv")
 							.build();
 
 						// Mesh shader
@@ -180,11 +194,11 @@ export namespace Aegis
 				pbrMatTemplate->addParameter("metallic", 0.0f);
 				pbrMatTemplate->addParameter("roughness", 1.0f);
 				pbrMatTemplate->addParameter("ambientOcclusion", 1.0f);
-				pbrMatTemplate->addParameter("albedoMap", get<Texture>("default/texture_white"));
-				pbrMatTemplate->addParameter("normalMap", get<Texture>("default/texture_normal"));
-				pbrMatTemplate->addParameter("metalRoughnessMap", get<Texture>("default/texture_white"));
-				pbrMatTemplate->addParameter("ambientOcclusionMap", get<Texture>("default/texture_white"));
-				pbrMatTemplate->addParameter("emissiveMap", get<Texture>("default/texture_white"));
+				pbrMatTemplate->addParameter("albedoMap", m_assets.get<Texture>("default/texture_white"));
+				pbrMatTemplate->addParameter("normalMap", m_assets.get<Texture>("default/texture_normal"));
+				pbrMatTemplate->addParameter("metalRoughnessMap", m_assets.get<Texture>("default/texture_white"));
+				pbrMatTemplate->addParameter("ambientOcclusionMap", m_assets.get<Texture>("default/texture_white"));
+				pbrMatTemplate->addParameter("emissiveMap", m_assets.get<Texture>("default/texture_white"));
 				m_assets.add("default/PBR_template", pbrMatTemplate);
 
 				auto defaultPBRMaterial = Graphics::MaterialInstance::create(pbrMatTemplate);
@@ -201,7 +215,7 @@ export namespace Aegis
 		Core::LayerStack m_layerStack{};
 		Core::Window m_window{ Core::DEFAULT_WIDTH,Core::DEFAULT_HEIGHT, "Aegis" };
 		Graphics::Renderer m_renderer{ m_window };
-		UI::UI m_ui{ m_renderer, m_layerStack };
+		UI::UI m_ui{ m_layerStack };
 		Input m_input{ m_window };
 		Scene::Scene m_scene;
 		Scripting::ScriptManager m_scriptManager{ m_scene };

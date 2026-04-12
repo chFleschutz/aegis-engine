@@ -9,6 +9,7 @@ module;
 export module Aegis.Editor.Panels:RendererPanel;
 
 import Aegis.Graphics.FrameGraph.Resource;
+import Aegis.Graphics.Renderer;
 
 export namespace Aegis::Editor
 {
@@ -53,7 +54,7 @@ export namespace Aegis::Editor
 			}
 		}
 
-		void draw()
+		void draw(Graphics::Renderer& renderer)
 		{
 			ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 10, 30), ImGuiCond_FirstUseEver, ImVec2(1.0f, 0.0f));
 			if (!ImGui::Begin("Renderer"))
@@ -62,7 +63,6 @@ export namespace Aegis::Editor
 				return;
 			}
 
-			auto& renderer = Engine::instance().renderer();
 			auto& frameGraph = renderer.frameGraph();
 			auto& resourcePool = frameGraph.resourcePool();
 
@@ -81,7 +81,7 @@ export namespace Aegis::Editor
 			{
 				ImGui::PushID(i);
 
-				auto& node = resourcePool.node(nodeHandle);
+				auto& node = frameGraph.queryNode(nodeHandle);
 				if (ImGui::CollapsingHeader(node.info.name.c_str(), ImGuiTreeNodeFlags_None))
 				{
 					node.pass->drawUI();

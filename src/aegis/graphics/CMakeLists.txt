@@ -25,6 +25,7 @@ PUBLIC
 	meshoptimizer
 	fastgltf
 	tinyobjloader
+	EnTT::EnTT
 )
 
 target_sources(aegis-graphics
