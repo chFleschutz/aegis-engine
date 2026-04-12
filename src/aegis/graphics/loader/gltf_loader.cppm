@@ -1,8 +1,17 @@
 module;
 
 #include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #include <gltf.h>
+#include <gltf_utils.h>
+
+#include <filesystem>
+#include <memory>
+#include <optional>
+#include <string>
+#include <variant>
+#include <vector>
 
 export module Aegis.Graphics.Loader:GLTFLoader;
 
@@ -10,16 +19,18 @@ import Aegis.Math;
 import Aegis.Graphics.StaticMesh;
 import Aegis.Graphics.MeshPreprocessor;
 import Aegis.Graphics.Texture;
-import Aegis.Scene.Components;
-import Aegis.Scene.Entity;
-
+import Aegis.Graphics.Components;
+import Aegis.Graphics.MaterialInstance;
+import Aegis.Graphics.MaterialTemplate;
+import Aegis.Scene.Registry;
+import Aegis.Core.AssetManager;
 
 export namespace Aegis::Graphics
 {
 	class GLTFLoader
 	{
 	public:
-		GLTFLoader(Scene& scene, const std::filesystem::path& path)
+		GLTFLoader(Scene::Registry& scene, const std::filesystem::path& path)
 		{
 			m_gltf = GLTF::load(path);
 			AGX_ASSERT_X(m_gltf.has_value(), "Failed to load GLTF file");
@@ -32,30 +43,30 @@ export namespace Aegis::Graphics
 			m_textures.resize(m_gltf->textures.size());
 			m_entities.reserve(m_gltf->nodes.size() + m_gltf->materials.size()); // Rough estimate
 
-			m_pbrTemplate = Engine::assets().get<Graphics::MaterialTemplate>("default/PBR_template");
-			m_pbrDefaultMat = Engine::assets().get<Graphics::MaterialInstance>("default/PBR_instance");
+			m_pbrTemplate = Core::AssetManager::instance().get<Graphics::MaterialTemplate>("default/PBR_template");
+			m_pbrDefaultMat = Core::AssetManager::instance().get<Graphics::MaterialInstance>("default/PBR_instance");
 
 			size_t startScene = m_gltf->startScene.value_or(0);
 			std::string sceneName = m_gltf->scenes[startScene].name.value_or(path.stem().string());
-			m_rootEntity = scene.createEntity(sceneName);
+			m_rootEntity = scene.create(sceneName);
 
 			loadScene(scene, startScene);
 		}
 
-		[[nodiscard]] auto rootEntity() const -> Entity { return m_rootEntity; }
+		[[nodiscard]] auto rootEntity() const -> Scene::Entity { return m_rootEntity; }
 
 	private:
-		void loadScene(Scene& scene, size_t sceneIndex)
+		void loadScene(Scene::Registry& scene, size_t sceneIndex)
 		{
 			auto& sceneNode = m_gltf->scenes[sceneIndex];
 
 			// Correct coordinate system (GLTF uses Y-up, Z-forward)
-			m_rootEntity.get<Transform>().rotation = glm::radians(glm::vec3{ 90.0f, 0.0f, 0.0f });
+			scene.get<Transform>(m_rootEntity).rotation = glm::radians(glm::vec3{ 90.0f, 0.0f, 0.0f });
 
 			struct Node
 			{
 				size_t index;
-				Entity parent;
+				Scene::Entity parent;
 			};
 
 			std::vector<Node> nodeStack;
@@ -70,9 +81,9 @@ export namespace Aegis::Graphics
 				auto& node = m_gltf->nodes[nodeIndex];
 
 				// Create entity for node
-				auto nodeEntity = scene.createEntity(node.name.value_or("Node" + std::to_string(nodeCounter++)));
-				nodeEntity.get<Transform>() = toTransform(node.transform);
-				nodeEntity.setParent(parent);
+				auto nodeEntity = scene.create(node.name.value_or("Node" + std::to_string(nodeCounter++)));
+				scene.get<Transform>(nodeEntity) = toTransform(node.transform);
+				scene.setParent(nodeEntity, parent);
 
 				nodeStack.pop_back();
 
@@ -91,10 +102,10 @@ export namespace Aegis::Graphics
 					auto& primitive = mesh.primitives[i];
 					auto matInstance = primitive.material ? loadMaterial(*primitive.material) : m_pbrDefaultMat;
 
-					auto meshEntity = scene.createEntity(mesh.name.value_or("Mesh") + std::to_string(i));
-					meshEntity.add<Material>(matInstance);
-					meshEntity.add<Mesh>(loadMesh(meshIndex, i));
-					meshEntity.setParent(nodeEntity);
+					auto meshEntity = scene.create(mesh.name.value_or("Mesh") + std::to_string(i));
+					scene.add<Material>(meshEntity, matInstance);
+					scene.add<Mesh>(meshEntity, loadMesh(meshIndex, i));
+					scene.setParent(meshEntity, nodeEntity);
 				}
 			}
 		}
@@ -219,8 +230,8 @@ export namespace Aegis::Graphics
 		std::vector<std::shared_ptr<Graphics::Texture>> m_textures;
 		std::vector<std::shared_ptr<Graphics::MaterialInstance>> m_materials;
 		std::vector<std::vector<std::shared_ptr<Graphics::StaticMesh>>> m_meshes;
-		std::vector<Entity> m_entities;
-		Entity m_rootEntity;
+		std::vector<Scene::Entity> m_entities;
+		Scene::Entity m_rootEntity;
 
 		std::shared_ptr<Graphics::MaterialTemplate> m_pbrTemplate;
 		std::shared_ptr<Graphics::MaterialInstance> m_pbrDefaultMat;

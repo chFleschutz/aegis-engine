@@ -18,8 +18,18 @@ export namespace Aegis::Core
 	class AssetManager
 	{
 	public:
-		AssetManager() = default;
+		AssetManager()
+		{
+			AGX_ASSERT_X(!s_instance, "AssetManager instance already exists!");
+			s_instance = this;
+		}
 		~AssetManager() = default;
+
+		[[nodiscard]] static auto instance() -> AssetManager& 
+		{ 
+			AGX_ASSERT_X(s_instance, "AssetManager instance not initialized!"); 
+			return *s_instance; 
+		}
 
 		template<IsAsset T>
 		[[nodiscard]] auto get(const std::filesystem::path& path) -> std::shared_ptr<T>
@@ -58,6 +68,8 @@ export namespace Aegis::Core
 		}
 
 	private:
+		static AssetManager* s_instance;
+
 		// TODO: Use a weak_ptr for auto release of assets (needs asset file loading first to load on demand)
 		std::unordered_map<AssetID, std::shared_ptr<Asset>> m_assets;
 	};

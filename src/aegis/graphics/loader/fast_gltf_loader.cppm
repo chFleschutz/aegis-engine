@@ -1,6 +1,7 @@
 module;
 
 #include "core/assert.h"
+#include "graphics/vulkan/vulkan_include.h"
 
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
@@ -8,18 +9,22 @@ module;
 
 export module Aegis.Graphics.Loader:FastGLTFLoader;
 
-import Aegis.Scene;
+import Aegis.Math;
 import Aegis.Graphics.StaticMesh;
 import Aegis.Graphics.Texture;
 import Aegis.Graphics.MaterialTemplate;
 import Aegis.Graphics.MaterialInstance;
+import Aegis.Graphics.MeshPreprocessor;
+import Aegis.Graphics.Components;
+import Aegis.Scene.Registry;
+import Aegis.Core.AssetManager;
 
 export namespace Aegis::Graphics
 {
 	class FastGLTFLoader
 	{
 	public:
-		FastGLTFLoader(Scene::Scene& scene, const std::filesystem::path& path)
+		FastGLTFLoader(Scene::Registry& scene, const std::filesystem::path& path)
 		{
 			auto data = fastgltf::GltfDataBuffer::FromPath(path);
 			if (data.error() != fastgltf::Error::None)
@@ -38,8 +43,8 @@ export namespace Aegis::Graphics
 			}
 
 			// Get default assets
-			m_pbrTemplate = Engine::assets().get<Graphics::MaterialTemplate>("default/PBR_template");
-			m_pbrDefaultMat = Engine::assets().get<Graphics::MaterialInstance>("default/PBR_instance");
+			m_pbrTemplate = Core::AssetManager::instance().get<Graphics::MaterialTemplate>("default/PBR_template");
+			m_pbrDefaultMat = Core::AssetManager::instance().get<Graphics::MaterialInstance>("default/PBR_instance");
 
 			auto& gltf = asset.get();
 			loadMeshes(gltf);
@@ -47,17 +52,17 @@ export namespace Aegis::Graphics
 			loadMaterials(gltf);
 
 			size_t startScene = gltf.defaultScene.value_or(0);
-			m_rootEntity = scene.createEntity(gltf.scenes[startScene].name.empty()
+			m_rootEntity = scene.create(gltf.scenes[startScene].name.empty()
 				? path.stem().string()
 				: std::string(gltf.scenes[startScene].name));
 
 			// Correct coordinate system (GLTF uses Y-up, Z-forward)
-			m_rootEntity.get<Transform>().rotation = glm::radians(glm::vec3{ 90.0f, 0.0f, 0.0f });
+			scene.get<Transform>(m_rootEntity).rotation = glm::radians(glm::vec3{ 90.0f, 0.0f, 0.0f });
 
 			buildScene(scene, gltf, startScene);
 		}
 
-		[[nodiscard]] auto rootEntity() const -> Entity { return m_rootEntity; }
+		[[nodiscard]] auto rootEntity() const -> Scene::Entity { return m_rootEntity; }
 
 	private:
 		inline static fastgltf::Parser parser;
@@ -231,12 +236,12 @@ export namespace Aegis::Graphics
 			}
 		}
 
-		void buildScene(Scene& scene, const fastgltf::Asset& gltf, size_t sceneIndex)
+		void buildScene(Scene::Registry& scene, const fastgltf::Asset& gltf, size_t sceneIndex)
 		{
 			auto& gltfScene = gltf.scenes[sceneIndex];
 
 			// Create all entities first
-			std::vector<Entity> entityCache(gltf.nodes.size());
+			std::vector<Scene::Entity> entityCache(gltf.nodes.size());
 			for (size_t i = 0; i < gltf.nodes.size(); ++i)
 			{
 				auto& node = gltf.nodes[i];
@@ -247,7 +252,7 @@ export namespace Aegis::Graphics
 				auto rotation = glm::quat{ trs.rotation.w(), trs.rotation.x(), trs.rotation.y(), trs.rotation.z() };
 				auto scale = glm::vec3{ trs.scale.x(), trs.scale.y(), trs.scale.z() };
 
-				auto entity = scene.createEntity(entityName, location, rotation, scale);
+				auto entity = scene.create(entityName, location, rotation, scale);
 				entityCache[i] = entity;
 
 				// Add mesh if exists
@@ -257,8 +262,8 @@ export namespace Aegis::Graphics
 					const auto& gltfMesh = gltf.meshes[*node.meshIndex];
 					if (subMeshes.size() == 1) // Single mesh, add directly to entity
 					{
-						entity.add<Mesh>(subMeshes[0]);
-						entity.add<Material>(queryMaterial(gltfMesh, 0));
+						scene.add<Mesh>(entity, subMeshes[0]);
+						scene.add<Material>(entity, queryMaterial(gltfMesh, 0));
 					}
 					else // Multiple submeshes, create child entities
 					{
@@ -266,10 +271,10 @@ export namespace Aegis::Graphics
 						{
 							const auto& subMesh = subMeshes[subIdx];
 
-							auto childEntity = scene.createEntity(std::format("{}_Submesh_{}", entityName, subIdx));
-							childEntity.add<Mesh>(subMesh);
-							childEntity.add<Material>(queryMaterial(gltfMesh, subIdx));
-							entity.addChild(childEntity);
+							auto childEntity = scene.create(std::format("{}_Submesh_{}", entityName, subIdx));
+							scene.add<Mesh>(childEntity, subMesh);
+							scene.add<Material>(childEntity, queryMaterial(gltfMesh, subIdx));
+							scene.addChild(entity, childEntity);
 						}
 					}
 				}
@@ -279,18 +284,18 @@ export namespace Aegis::Graphics
 			for (size_t i = 0; i < gltf.nodes.size(); ++i)
 			{
 				const auto& node = gltf.nodes[i];
-				Entity parent = entityCache[i];
+				Scene::Entity parent = entityCache[i];
 				for (const auto& childIndex : node.children)
 				{
-					parent.addChild(entityCache[childIndex]);
+					scene.addChild(parent, entityCache[childIndex]);
 				}
 			}
 
 			// Add top level nodes to root 
 			for (auto& entity : entityCache)
 			{
-				if (!entity.get<Parent>().entity)
-					entity.setParent(m_rootEntity);
+				if (!scene.get<Parent>(entity).entity)
+					scene.setParent(entity, m_rootEntity);
 			}
 		}
 
@@ -302,7 +307,7 @@ export namespace Aegis::Graphics
 				: m_pbrDefaultMat;
 		}
 
-		Entity m_rootEntity;
+		Scene::Entity m_rootEntity;
 		std::shared_ptr<Graphics::MaterialTemplate> m_pbrTemplate;
 		std::shared_ptr<Graphics::MaterialInstance> m_pbrDefaultMat;
 		std::filesystem::path m_basePath;

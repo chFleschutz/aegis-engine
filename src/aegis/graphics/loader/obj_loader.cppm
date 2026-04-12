@@ -11,15 +11,19 @@ export module Aegis.Graphics.Loader:OBJLoader;
 
 import Aegis.Math;
 import Aegis.Graphics.MeshPreprocessor;
-import Aegis.Scene.Entity;
-import Aegis.Scene;
+import Aegis.Graphics.Components;
+import Aegis.Scene.Registry;
+import Aegis.Core.AssetManager;
+import Aegis.Graphics.StaticMesh;
+import Aegis.Graphics.MaterialTemplate;
+import Aegis.Graphics.MaterialInstance;
 
 export namespace Aegis::Graphics
 {
 	class OBJLoader
 	{
 	public:
-		OBJLoader(Scene& scene, const std::filesystem::path& path)
+		OBJLoader(Scene::Registry& scene, const std::filesystem::path& path)
 		{
 			tinyobj::attrib_t attrib;
 			std::vector<tinyobj::shape_t> shapes;
@@ -83,14 +87,14 @@ export namespace Aegis::Graphics
 			auto info = Graphics::MeshPreprocessor::process(raw);
 			auto mesh = std::make_shared<Graphics::StaticMesh>(info);
 
-			m_rootEntity = scene.createEntity(path.stem().string());
-			m_rootEntity.add<Mesh>(mesh);
-			m_rootEntity.add<Material>(Engine::assets().get<Graphics::MaterialInstance>("default/PBR_instance"));
+			m_rootEntity = scene.create(path.stem().string());
+			scene.add<Mesh>(m_rootEntity, mesh);
+			scene.add<Material>(m_rootEntity, Core::AssetManager::instance().get<Graphics::MaterialInstance>("default/PBR_instance"));
 		}
 
-		[[nodiscard]] auto rootEntity() const -> Entity { return m_rootEntity; }
+		[[nodiscard]] auto rootEntity() const -> Scene::Entity { return m_rootEntity; }
 
 	private:
-		Entity m_rootEntity;
+		Scene::Entity m_rootEntity;
 	};
 }

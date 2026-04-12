@@ -42,6 +42,8 @@ export namespace glm
 	using glm::dot;
 	using glm::inverse;
 	using glm::length;
+	using glm::make_mat4;
+	using glm::make_vec3;
 	using glm::normalize;
 	using glm::radians;
 	using glm::row;

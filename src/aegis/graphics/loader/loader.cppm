@@ -8,8 +8,8 @@ export module Aegis.Graphics.Loader;
 
 import :OBJLoader;
 import :GLTFLoader;
-import Aegis.Scene.Entity;
-import Aegis.Scene;
+import :FastGLTFLoader;
+import Aegis.Scene.Registry;
 
 export namespace Aegis::Graphics
 {
@@ -18,7 +18,7 @@ export namespace Aegis::Graphics
 	public:
 		Loader() = delete;
 
-		static auto load(Scene& scene, const std::filesystem::path& path) -> Scene::Entity
+		static auto load(Scene::Registry& scene, const std::filesystem::path& path) -> Scene::Entity
 		{
 			if (path.extension() == ".gltf" || path.extension() == ".glb")
 			{
