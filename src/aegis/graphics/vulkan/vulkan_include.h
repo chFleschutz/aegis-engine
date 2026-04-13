@@ -5,11 +5,8 @@
 #define VK_NO_PROTOTYPES
 #include <volk.h>
 
-#include <vk_mem_alloc.h>
-
-#include "core/assert.h"
-
 // TODO: Replace this macro
+#include "core/assert.h"
 #define VK_CHECK(f)													\
 {																	\
 	VkResult vkResult = (f);										\

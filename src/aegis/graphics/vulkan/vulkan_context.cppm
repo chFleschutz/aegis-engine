@@ -7,6 +7,7 @@ export module Aegis.Graphics.VulkanContext;
 
 import Aegis.Core.Window;
 import Aegis.Graphics.Vulkan.Device;
+import Aegis.Graphics.Vulkan.VulkanMemory;
 import Aegis.Graphics.DeletionQueue;
 import Aegis.Graphics.DescriptorPool;
 
@@ -65,26 +66,26 @@ export namespace Aegis::Graphics
 			context.m_descriptorPool.destroy(context.m_device);
 		}
 
-		static void destroy(VkBuffer buffer, VmaAllocation allocation)
+		static void destroy(VkBuffer buffer, vma::Allocation allocation)
 		{
 			if (buffer)
 			{
 				AGX_ASSERT_X(allocation, "Buffer and allocation must be valid");
 				VulkanContext::instance().m_deletionQueue.schedule([=]()
 					{
-						vmaDestroyBuffer(VulkanContext::instance().m_device.allocator(), buffer, allocation);
+						vma::vmaDestroyBuffer(VulkanContext::instance().m_device.allocator(), buffer, allocation);
 					});
 			}
 		}
 
-		static void destroy(VkImage image, VmaAllocation allocation)
+		static void destroy(VkImage image, vma::Allocation allocation)
 		{
 			if (image)
 			{
 				AGX_ASSERT_X(allocation, "Image and allocation must be valid");
 				VulkanContext::instance().m_deletionQueue.schedule([=]()
 					{
-						vmaDestroyImage(VulkanContext::instance().m_device.allocator(), image, allocation);
+						vma::vmaDestroyImage(VulkanContext::instance().m_device.allocator(), image, allocation);
 					});
 			}
 		}

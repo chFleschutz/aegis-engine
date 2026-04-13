@@ -285,7 +285,7 @@ export namespace Aegis
 			}
 		}
 
-		static Input* s_instance;
+		inline static Input* s_instance{ nullptr };
 
 		GLFWwindow* m_window = nullptr;
 		std::unordered_map<int, std::vector<Binding>> m_keyBindings;

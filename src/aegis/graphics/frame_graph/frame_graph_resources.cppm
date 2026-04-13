@@ -10,6 +10,7 @@ module;
 export module Aegis.Graphics.FrameGraph.Resource;
 
 import Aegis.Graphics.FrameGraph.ResourceHandle;
+import Aegis.Graphics.Vulkan.VulkanMemory;
 
 export namespace Aegis::Graphics
 {
@@ -39,7 +40,7 @@ export namespace Aegis::Graphics
 		VkDeviceSize size;
 		uint32_t instanceCount{ 1 };
 		VkBufferUsageFlags usage{ 0 };
-		VmaAllocationCreateFlags allocFlags{ 0 };
+		vma::AllocationCreateFlags allocFlags{ 0 };
 
 		FGBufferHandle handle;
 	};

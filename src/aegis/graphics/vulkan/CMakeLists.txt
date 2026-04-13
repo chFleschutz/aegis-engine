@@ -7,6 +7,8 @@ PUBLIC
 		vulkan_context.cppm
 		vulkan_tools.cppm
 		resource_tools.cppm
+		vulkan_memory.cppm
 PRIVATE
 	volk_impl.cpp
+	vulkan_memory.cpp
 )

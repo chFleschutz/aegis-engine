@@ -9,6 +9,7 @@ export module Aegis.Graphics.Image;
 import Aegis.Graphics.Buffer;
 import Aegis.Graphics.VulkanContext;
 import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Vulkan.VulkanMemory;
 //import Aegis.Graphics.Vulkan.ResourceTools;
 
 export namespace Aegis::Graphics
@@ -274,7 +275,7 @@ export namespace Aegis::Graphics
 				imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 			}
 
-			VmaAllocationCreateInfo allocInfo{
+			vma::AllocationCreateInfo allocInfo{
 				.usage = VMA_MEMORY_USAGE_AUTO,
 			};
 
@@ -289,7 +290,7 @@ export namespace Aegis::Graphics
 		}
 
 		VkImage m_image = VK_NULL_HANDLE;
-		VmaAllocation m_allocation = VK_NULL_HANDLE;
+		vma::Allocation m_allocation = VK_NULL_HANDLE;
 		VkExtent3D m_extent = { 1, 1, 1 };
 		VkFormat m_format = VK_FORMAT_UNDEFINED;
 		uint32_t m_mipLevels = 1;

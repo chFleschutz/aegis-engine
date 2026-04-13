@@ -68,7 +68,7 @@ export namespace Aegis::Core
 		}
 
 	private:
-		static AssetManager* s_instance;
+		inline static AssetManager* s_instance{ nullptr };
 
 		// TODO: Use a weak_ptr for auto release of assets (needs asset file loading first to load on demand)
 		std::unordered_map<AssetID, std::shared_ptr<Asset>> m_assets;

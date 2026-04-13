@@ -14,6 +14,7 @@ export module Aegis.Graphics.Vulkan.Device;
 
 import Aegis.Core.Window;
 import Aegis.Graphics.Vulkan.Tools;
+import Aegis.Graphics.Vulkan.VulkanMemory;
 import Aegis.Graphics.DebugUtils;
 import Aegis.Graphics.Globals;
 
@@ -56,7 +57,7 @@ export namespace Aegis::Graphics
 		~VulkanDevice()
 		{
 			vkDestroyCommandPool(m_device, m_commandPool, nullptr);
-			vmaDestroyAllocator(m_allocator);
+			vma::vmaDestroyAllocator(m_allocator);
 			vkDestroyDevice(m_device, nullptr);
 			m_debugMessenger.destroy(m_instance);
 			vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
@@ -71,7 +72,7 @@ export namespace Aegis::Graphics
 		[[nodiscard]] auto instance() const -> VkInstance { return m_instance; }
 		[[nodiscard]] auto physicalDevice() const -> VkPhysicalDevice { return m_physicalDevice; }
 		[[nodiscard]] auto device() const -> VkDevice { return m_device; }
-		[[nodiscard]] auto allocator() const -> VmaAllocator { return m_allocator; }
+		[[nodiscard]] auto allocator() const -> vma::Allocator { return m_allocator; }
 		[[nodiscard]] auto commandPool() const -> VkCommandPool { return m_commandPool; }
 		[[nodiscard]] auto surface() const -> VkSurfaceKHR { return m_surface; }
 		[[nodiscard]] auto graphicsQueue() const -> VkQueue { return m_graphicsQueue; }
@@ -124,7 +125,8 @@ export namespace Aegis::Graphics
 			vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
 		}
 
-		void createBuffer(VkBuffer& buffer, VmaAllocation& allocation, VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaAllocationCreateFlags allocFlags, VmaMemoryUsage memoryUsage) const
+		void createBuffer(VkBuffer& buffer, vma::Allocation& allocation, VkDeviceSize size, VkBufferUsageFlags bufferUsage, 
+			vma::AllocationCreateFlags allocFlags, vma::MemoryUsage memoryUsage) const
 		{
 			VkBufferCreateInfo bufferInfo{};
 			bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -132,16 +134,17 @@ export namespace Aegis::Graphics
 			bufferInfo.usage = bufferUsage;
 			bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-			VmaAllocationCreateInfo allocInfo{};
+			vma::AllocationCreateInfo allocInfo{};
 			allocInfo.usage = memoryUsage;
 			allocInfo.flags = allocFlags;
 
-			VK_CHECK(vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr));
+			VK_CHECK(vma::vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr));
 		}
 
-		void createImage(VkImage& image, VmaAllocation& allocation, const VkImageCreateInfo& imageInfo, const VmaAllocationCreateInfo& allocInfo) const
+		void createImage(VkImage& image, vma::Allocation& allocation, const VkImageCreateInfo& imageInfo, 
+			const vma::AllocationCreateInfo& allocInfo) const
 		{
-			VK_CHECK(vmaCreateImage(m_allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr));
+			VK_CHECK(vma::vmaCreateImage(m_allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr));
 		}
 
 		auto querySwapChainSupport() const -> SwapChainSupportDetails
@@ -504,18 +507,18 @@ export namespace Aegis::Graphics
 
 		void createAllocator()
 		{
-			VmaAllocatorCreateInfo allocatorInfo{
+			vma::AllocatorCreateInfo allocatorInfo{
 				.physicalDevice = m_physicalDevice,
 				.device = m_device,
 				.instance = m_instance,
 				.vulkanApiVersion = API_VERSION
 			};
 
-			VmaVulkanFunctions vulkanFunctions;
-			vmaImportVulkanFunctionsFromVolk(&allocatorInfo, &vulkanFunctions);
+			vma::VulkanFunctions vulkanFunctions;
+			vma::vmaImportVulkanFunctionsFromVolk(&allocatorInfo, &vulkanFunctions);
 			allocatorInfo.pVulkanFunctions = &vulkanFunctions;
 
-			VK_CHECK(vmaCreateAllocator(&allocatorInfo, &m_allocator));
+			VK_CHECK(vma::vmaCreateAllocator(&allocatorInfo, &m_allocator));
 		}
 
 		void createCommandPool()
@@ -755,7 +758,7 @@ export namespace Aegis::Graphics
 		VkInstance m_instance = VK_NULL_HANDLE;
 		VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 		VkDevice m_device = VK_NULL_HANDLE;
-		VmaAllocator m_allocator = VK_NULL_HANDLE;
+		vma::Allocator m_allocator = VK_NULL_HANDLE;
 		VkCommandPool m_commandPool = VK_NULL_HANDLE;
 
 		DebugUtilsMessenger m_debugMessenger;

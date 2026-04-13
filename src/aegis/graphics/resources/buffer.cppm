@@ -11,6 +11,7 @@ export module Aegis.Graphics.Buffer;
 
 import Aegis.Graphics.Globals;
 import Aegis.Graphics.VulkanContext;
+import Aegis.Graphics.Vulkan.VulkanMemory;
 
 export namespace Aegis::Graphics
 {
@@ -23,7 +24,7 @@ export namespace Aegis::Graphics
 			VkDeviceSize instanceSize{ 0 };
 			uint32_t instanceCount{ 1 };
 			VkBufferUsageFlags usage{ 0 };
-			VmaAllocationCreateFlags allocFlags{ 0 };
+			vma::AllocationCreateFlags allocFlags{ 0 };
 			VkDeviceSize minOffsetAlignment{ 0 };
 		};
 
@@ -100,8 +101,8 @@ export namespace Aegis::Graphics
 			m_bufferSize = m_alignmentSize * m_instanceCount;
 			VulkanContext::device().createBuffer(m_buffer, m_allocation, m_bufferSize, m_usage, info.allocFlags, VMA_MEMORY_USAGE_AUTO);
 
-			VmaAllocationInfo allocInfo;
-			vmaGetAllocationInfo(VulkanContext::device().allocator(), m_allocation, &allocInfo);
+			vma::AllocationInfo allocInfo;
+			vma::vmaGetAllocationInfo(VulkanContext::device().allocator(), m_allocation, &allocInfo);
 			m_mapped = allocInfo.pMappedData;
 		}
 
@@ -154,7 +155,7 @@ export namespace Aegis::Graphics
 		void map()
 		{
 			AGX_ASSERT_X(!m_mapped, "Buffer is already mapped");
-			VK_CHECK(vmaMapMemory(VulkanContext::device().allocator(), m_allocation, &m_mapped));
+			VK_CHECK(vma::vmaMapMemory(VulkanContext::device().allocator(), m_allocation, &m_mapped));
 		}
 
 		/// @brief Unmap the buffer memory
@@ -163,7 +164,7 @@ export namespace Aegis::Graphics
 		{
 			if (m_mapped)
 			{
-				vmaUnmapMemory(VulkanContext::device().allocator(), m_allocation);
+				vma::vmaUnmapMemory(VulkanContext::device().allocator(), m_allocation);
 				m_mapped = nullptr;
 			}
 		}
@@ -228,7 +229,7 @@ export namespace Aegis::Graphics
 			AGX_ASSERT_X(data, "Data pointer is null");
 			AGX_ASSERT_X((size == VK_WHOLE_SIZE && offset == 0) || (offset + size <= m_bufferSize),
 				"Single write exceeds buffer size");
-			VK_CHECK(vmaCopyMemoryToAllocation(VulkanContext::device().allocator(), data, m_allocation, offset, size));
+			VK_CHECK(vma::vmaCopyMemoryToAllocation(VulkanContext::device().allocator(), data, m_allocation, offset, size));
 		}
 
 
@@ -240,7 +241,7 @@ export namespace Aegis::Graphics
 			AGX_ASSERT_X(m_mapped, "Called flush on buffer before map");
 			AGX_ASSERT_X((size == VK_WHOLE_SIZE && offset == 0) || (offset + size <= m_bufferSize),
 				"Flush range exceeds buffer size");
-			VK_CHECK(vmaFlushAllocation(VulkanContext::device().allocator(), m_allocation, offset, size));
+			VK_CHECK(vma::vmaFlushAllocation(VulkanContext::device().allocator(), m_allocation, offset, size));
 		}
 
 		/// @brief Flush the memory range at 'index * alignmentSize'
@@ -266,7 +267,7 @@ export namespace Aegis::Graphics
 			AGX_ASSERT_X(m_mapped, "Called copy on buffer before map");
 			AGX_ASSERT_X(size <= m_bufferSize, "Copy size exceeds buffer size");
 			AGX_ASSERT_X(index < m_instanceCount, "Requested copy index exceeds instance count");
-			VK_CHECK(vmaCopyMemoryToAllocation(VulkanContext::device().allocator(), data, m_allocation,
+			VK_CHECK(vma::vmaCopyMemoryToAllocation(VulkanContext::device().allocator(), data, m_allocation,
 				index * m_alignmentSize, size));
 		}
 
@@ -347,7 +348,7 @@ export namespace Aegis::Graphics
 		}
 
 		VkBuffer m_buffer{ VK_NULL_HANDLE };
-		VmaAllocation m_allocation{ VK_NULL_HANDLE };
+		vma::Allocation m_allocation{ VK_NULL_HANDLE };
 		VkDeviceSize m_bufferSize{ 0 };
 		VkDeviceSize m_alignmentSize{ 0 };
 		VkDeviceSize m_instanceSize{ 0 };
