@@ -15,12 +15,12 @@ if(NOT Vulkan_FOUND)
     message(FATAL_ERROR "Vulkan was not found. Make sure the Vulkan SDK is installed")
 endif()
 
+set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
+set(BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
 add_subdirectory(external)
 add_subdirectory(modules)
 add_subdirectory(src)
-
-set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
-set(BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 target_compile_definitions(aegis-engine PUBLIC
     PROJECT_DIR="${CMAKE_SOURCE_DIR}"
