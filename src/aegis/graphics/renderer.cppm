@@ -69,6 +69,7 @@ export namespace Aegis::Graphics
 			m_swapChain{ VkExtent2D{ m_window.width(), m_window.height() } }
 		{
 			createFrameContext();
+			setupUI();
 
 			if (useGPUDrivenRendering())
 			{

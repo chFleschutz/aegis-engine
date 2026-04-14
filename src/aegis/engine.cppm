@@ -213,9 +213,9 @@ export namespace Aegis
 		Logging m_logging{};
 		Core::AssetManager m_assets{};
 		Core::LayerStack m_layerStack{};
+		UI::UI m_ui{ m_layerStack };
 		Core::Window m_window{ Core::DEFAULT_WIDTH,Core::DEFAULT_HEIGHT, "Aegis" };
 		Graphics::Renderer m_renderer{ m_window };
-		UI::UI m_ui{ m_layerStack };
 		Input m_input{ m_window };
 		Scene::Scene m_scene;
 		Scripting::ScriptManager m_scriptManager{ m_scene };
