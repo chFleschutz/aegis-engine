@@ -1,10 +1,10 @@
 export module Aegis.Defaults;
 
 import Aegis.Scene;
-//import Aegis.Scene.Components;
 import Aegis.Scene.Systems.CameraSystem;
 import Aegis.Scene.Systems.TransformSystem;
-//import Aegis.Graphics.Components;
+import Aegis.Graphics.Components;
+import Aegis.Core.AssetManager;
 //import Aegis.Scripting.KinematicMovementController;
 
 export namespace Aegis
@@ -35,12 +35,12 @@ export namespace Aegis
 		registry.get<Transform>(directionalLight).rotation = glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f });
 		scene.setDirectionalLight(directionalLight);
 
-		//auto skybox = registry.create("Skybox");
-		//auto& env = registry.add<Environment>(skybox);
-		//env.skybox = Engine::assets().get<Graphics::Texture>("default/cubemap_black");
-		//env.irradiance = env.skybox;
-		//env.prefiltered = env.skybox;
-		//env.brdfLUT = Graphics::Texture::BRDFLUT();
-		//scene.setEnvironment(skybox);
+		auto skybox = registry.create("Skybox");
+		auto& env = registry.add<Graphics::Environment>(skybox);
+		env.skybox = Core::AssetManager::instance().get<Graphics::Texture>("default/cubemap_black");
+		env.irradiance = env.skybox;
+		env.prefiltered = env.skybox;
+		env.brdfLUT = Graphics::Texture::BRDFLUT();
+		scene.setEnvironment(skybox);
 	}
 }

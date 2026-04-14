@@ -18,5 +18,5 @@ export namespace Aegis::Core
 
 	export const std::filesystem::path ENGINE_DIR{ PROJECT_DIR "/"};
 	export const std::filesystem::path SHADER_DIR{ BUILD_DIR "/shaders/" };
-	export const std::filesystem::path ASSETS_DIR{ PROJECT_DIR "modules/aegis-assets/" };
+	export const std::filesystem::path ASSETS_DIR{ PROJECT_DIR "/modules/aegis-assets/" };
 }
