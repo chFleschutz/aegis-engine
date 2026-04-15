@@ -87,6 +87,7 @@ export namespace Aegis
 
 				// Update 
 				m_scene.update(frameTimeSec);
+				m_scriptManager.update(frameTimeSec);
 				m_layerStack.update(frameTimeSec);
 
 				// Rendering
@@ -105,7 +106,7 @@ export namespace Aegis
 		{
 			m_scene.reset();
 			m_renderer.sceneChanged(m_scene);
-			createDefaultScene(m_scene);
+			createDefaultScene(m_scene, m_scriptManager);
 			T description{ std::forward<Args>(args)... };
 			description.initialize(m_scene);
 			m_scene.begin();

@@ -5,11 +5,12 @@ import Aegis.Scene.Systems.CameraSystem;
 import Aegis.Scene.Systems.TransformSystem;
 import Aegis.Graphics.Components;
 import Aegis.Core.AssetManager;
-//import Aegis.Scripting.KinematicMovementController;
+import Aegis.Scripting.ScriptManager;
+import Aegis.Scripting.Movement.KinematicMovementController;
 
 export namespace Aegis
 {
-	void createDefaultScene(Scene::Scene& scene)
+	void createDefaultScene(Scene::Scene& scene, Scripting::ScriptManager& scriptManager)
 	{
 		scene.addSystem<Scene::CameraSystem>();
 		scene.addSystem<Scene::TransformSystem>();
@@ -18,13 +19,13 @@ export namespace Aegis
 
 		auto mainCamera = registry.create("Main Camera");
 		registry.add<Camera>(mainCamera);
-		//registry.add<Scripting::KinematcMovementController>(mainCamera);
 		registry.add<DynamicTag>(mainCamera);
 		registry.get<Transform>(mainCamera) = Transform{
 			.location = { 0.0f, -15.0f, 10.0f },
 			.rotation = glm::radians(glm::vec3{ -30.0f, 0.0f, 0.0f })
 		};
 		scene.setMainCamera(mainCamera);
+		scriptManager.addScript<Scripting::KinematicMovementController>(mainCamera);
 
 		auto ambientLight = registry.create("Ambient Light");
 		registry.add<AmbientLight>(ambientLight);

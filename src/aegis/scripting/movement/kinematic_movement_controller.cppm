@@ -12,7 +12,7 @@ import Aegis.Core.Input;
 
 export namespace Aegis::Scripting
 {
-	class KinematcMovementController : public ScriptBase
+	class KinematicMovementController : public ScriptBase
 	{
 	public:
 		static constexpr float DEFAULT_MOVE_SPEED = 5.0f;
