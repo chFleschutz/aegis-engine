@@ -8,7 +8,7 @@ import Aegis.Scene.Components;
 import Aegis.Graphics.Components;
 import Aegis.Graphics.Texture;
 import Aegis.Graphics.Loader;
-import Aegis.Scene.Description;
+import Aegis.SceneDescription;
 import Aegis.Scene;
 
 class ColorChanger : public Aegis::Scripting::ScriptBase
@@ -35,10 +35,10 @@ private:
 
 
 /// @brief Scene with two helmets
-class HelmetScene : public Aegis::Scene::Description
+class HelmetScene : public Aegis::SceneDescription
 {
 public:
-	void initialize(Aegis::Scene::Scene& scene) override
+	void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
 	{
 		using namespace Aegis;
 
@@ -73,8 +73,8 @@ public:
 
 		auto plane = Graphics::Loader::load(registry, Core::ASSETS_DIR / "Misc/plane.obj");
 		registry.get<Transform>(plane).scale = { 2.0f, 2.0f, 2.0f };
-		registry.add<ColorChanger>(plane);
 		registry.add<DynamicTag>(plane);
+		scripts.addScript<ColorChanger>(plane);
 	}
 };
 

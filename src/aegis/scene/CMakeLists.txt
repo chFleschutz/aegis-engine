@@ -7,7 +7,6 @@ PUBLIC
 	FILES
 		components.cppm
 		component_traits.cppm
-		description.cppm
 		entity.cppm
 		registry.cppm
 		scene.cppm

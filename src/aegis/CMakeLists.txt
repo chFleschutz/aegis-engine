@@ -53,4 +53,5 @@ PUBLIC
 	FILES
 		engine.cppm
 		scene_defaults.cppm
+		scene_description.cppm
 )

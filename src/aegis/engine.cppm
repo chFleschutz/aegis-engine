@@ -29,9 +29,9 @@ import Aegis.Graphics.Texture;
 import Aegis.Editor;
 import Aegis.Core.Globals;
 import Aegis.Scene;
-import Aegis.Scene.Description;
 import Aegis.Defaults;
 import Aegis.Scripting.ScriptManager;
+import Aegis.SceneDescription;
 
 export namespace Aegis
 {
@@ -101,14 +101,14 @@ export namespace Aegis
 
 		/// @brief Creates a scene from a description
 		/// @tparam T Description of the scene (Derived from Scene::Description)
-		template<Scene::DescriptionDerived T, typename... Args>
+		template<SceneDescriptionDerived T, typename... Args>
 		void loadScene(Args&&... args)
 		{
 			m_scene.reset();
 			m_renderer.sceneChanged(m_scene);
 			createDefaultScene(m_scene, m_scriptManager);
 			T description{ std::forward<Args>(args)... };
-			description.initialize(m_scene);
+			description.initialize(m_scene, m_scriptManager);
 			m_scene.begin();
 			m_renderer.sceneInitialized(m_scene);
 		}
