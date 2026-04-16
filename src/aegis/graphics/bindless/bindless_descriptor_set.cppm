@@ -77,7 +77,11 @@ export namespace Aegis::Graphics::Bindless
 			s_instance = this;
 		}
 
-		~BindlessDescriptorSet() = default;
+		~BindlessDescriptorSet()
+		{
+			s_instance = nullptr;
+			m_bindlessPool.destroy(VulkanContext::device());
+		}
 
 		operator VkDescriptorSet() const { return m_bindlessDescriptorSet.descriptorSet(); }
 

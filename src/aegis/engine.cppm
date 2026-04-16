@@ -212,12 +212,12 @@ export namespace Aegis
 		inline static Engine* s_instance{ nullptr };
 
 		Logging m_logging{};
-		Core::AssetManager m_assets{};
-		Core::LayerStack m_layerStack{};
 		UI::UI m_ui{ m_layerStack };
+		Core::LayerStack m_layerStack{};
 		Core::Window m_window{ Core::DEFAULT_WIDTH,Core::DEFAULT_HEIGHT, "Aegis" };
 		Graphics::Renderer m_renderer{ m_window };
 		Input m_input{ m_window };
+		Core::AssetManager m_assets{};
 		Scene::Scene m_scene;
 		Scripting::ScriptManager m_scriptManager{ m_scene };
 	};

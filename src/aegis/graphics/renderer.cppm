@@ -95,6 +95,8 @@ export namespace Aegis::Graphics
 			ImGui_ImplVulkan_Shutdown();
 			ImGui_ImplGlfw_Shutdown();
 			ImGui::DestroyContext();
+
+			VulkanContext::destroy();
 		}
 
 		auto operator=(const Renderer&) -> Renderer & = delete;
