@@ -13,25 +13,31 @@ module;
 
 export module Aegis.Engine;
 
-import Aegis.Core.Logging;
-import Aegis.Core.AssetManager;
-import Aegis.Core.LayerStack;
-import Aegis.Core.Window;
-import Aegis.Core.Profiler;
-import Aegis.Core.Input;
-import Aegis.Core.Globals;
-import Aegis.Graphics.Renderer;
-import Aegis.Graphics.Pipeline;
-import Aegis.UI;
-import Aegis.Math;
-import Aegis.Editor;
-import Aegis.Graphics.Texture;
-import Aegis.Editor;
-import Aegis.Core.Globals;
-import Aegis.Scene;
-import Aegis.Defaults;
-import Aegis.Scripting.ScriptManager;
-import Aegis.SceneDescription;
+export import Aegis.Math;
+export import Aegis.UI;
+export import Aegis.Editor;
+export import Aegis.Defaults;
+export import Aegis.SceneDescription;
+export import Aegis.Core.AssetManager;
+export import Aegis.Core.Globals;
+export import Aegis.Core.Input;
+export import Aegis.Core.LayerStack;
+export import Aegis.Core.Logging;
+export import Aegis.Core.Profiler;
+export import Aegis.Core.Window;
+export import Aegis.Graphics.Components;
+export import Aegis.Graphics.Loader;
+export import Aegis.Graphics.MaterialInstance;
+export import Aegis.Graphics.MaterialTemplate;
+export import Aegis.Graphics.Pipeline;
+export import Aegis.Graphics.Renderer;
+export import Aegis.Graphics.StaticMesh;
+export import Aegis.Graphics.Texture;
+export import Aegis.Scene;
+export import Aegis.Scene.Components;
+export import Aegis.Scene.System;
+export import Aegis.Scripting.ScriptBase;
+export import Aegis.Scripting.ScriptManager;
 
 export namespace Aegis
 {

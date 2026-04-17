@@ -1,11 +1,10 @@
-#include "aegis/engine.h"
-#include "aegis/scene/description.h"
+import Aegis.Engine;
 
-class TemplateScene : public Aegis::Scene::Description
+class TemplateScene : public Aegis::SceneDescription
 {
 public:
 	/// @brief All objects in a scene are created here
-	void initialize(Aegis::Scene::Scene& scene) override
+	void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
 	{
 		using namespace Aegis;
 

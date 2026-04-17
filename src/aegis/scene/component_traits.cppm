@@ -12,12 +12,6 @@ export namespace Aegis
 		static constexpr bool is_required = false;
 	};
 
-	template<>
-	struct ComponentTraits<std::string>
-	{
-		static constexpr bool is_required = true;
-	};
-
 	template<typename T>
 	concept IsRequiredComponent = ComponentTraits<T>::is_required;
 

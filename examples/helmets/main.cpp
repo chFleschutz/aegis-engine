@@ -1,15 +1,6 @@
 #include <cmath>
 
 import Aegis.Engine;
-import Aegis.Math;
-import Aegis.Core.Globals;
-import Aegis.Scripting.ScriptBase;
-import Aegis.Scene.Components;
-import Aegis.Graphics.Components;
-import Aegis.Graphics.Texture;
-import Aegis.Graphics.Loader;
-import Aegis.SceneDescription;
-import Aegis.Scene;
 
 class ColorChanger : public Aegis::Scripting::ScriptBase
 {

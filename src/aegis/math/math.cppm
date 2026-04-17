@@ -38,6 +38,7 @@ export namespace glm
 	using glm::mat3x4;
 	using glm::mat4x4;
 
+	using glm::angleAxis;
 	using glm::clamp;
 	using glm::cross;
 	using glm::degrees;
