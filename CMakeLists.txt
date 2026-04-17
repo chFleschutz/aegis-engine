@@ -4,6 +4,7 @@ project(AegisEngine)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
 option(BUILD_EXAMPLES "Build example projects" ON)
 option(COMPILE_SHADERS "Compile GLSL shaders to SPIR-V" ON)
@@ -13,6 +14,9 @@ find_package(Vulkan REQUIRED)
 if(NOT Vulkan_FOUND)
     message(FATAL_ERROR "Vulkan was not found. Make sure the Vulkan SDK is installed")
 endif()
+
+set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
+set(BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_subdirectory(external)
 add_subdirectory(modules)

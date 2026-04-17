@@ -1,32 +1,32 @@
-#include <aegis/engine.h>
-#include <aegis/scene/description.h>
-#include <aegis/scene/components.h>
+import Aegis.Engine;
 
-class Sponza : public Aegis::Scene::Description
+class Sponza : public Aegis::SceneDescription
 {
 public:
-	void initialize(Aegis::Scene::Scene& scene) override
+	void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
 	{
 		using namespace Aegis;
 
+		auto& registry = scene.registry();
+
 		// CAMERA
-		scene.mainCamera().get<Transform>() = Transform{
+		registry.get<Transform>(scene.mainCamera()) = Transform{
 			.location = { -9.75f, 1.2f, 5.25f},
 			.rotation = glm::radians(glm::vec3{ -12.0f, 0.0f, 263.0f })
 		};
 
 		// SKYBOX
-		auto& env = scene.environment().get<Environment>();
-		env.skybox = Graphics::Texture::loadFromFile(ASSETS_DIR "Environments/KloppenheimSky.hdr");
+		auto& env = registry.get<Graphics::Environment>(scene.environment());
+		env.skybox = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 		env.irradiance = Graphics::Texture::irradianceMap(env.skybox);
 		env.prefiltered = Graphics::Texture::prefilteredMap(env.skybox);
 
 		// MODELS
-		scene.load(ASSETS_DIR "Sponza/Sponza.gltf");
+		Graphics::Loader::load(registry, Core::ASSETS_DIR / "Sponza/Sponza.gltf");
 
 		// LIGHTS
-		scene.ambientLight().get<AmbientLight>().intensity = 0.5f;
-		scene.directionalLight().get<DirectionalLight>().intensity = 1.0f;
+		registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.5f;
+		registry.get<DirectionalLight>(scene.directionalLight()).intensity = 1.0f;
 	}
 };
 
