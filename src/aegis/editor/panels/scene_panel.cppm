@@ -240,7 +240,7 @@ export namespace Aegis::Editor
 			drawComponent<Children>(registry, "Children", m_selectedEntity, 0,
 				[&](Children& children)
 				{
-					ImGui::Text("Children: %d", children.count);
+					ImGui::Text("Children: %d", static_cast<int>(children.count));
 					ImGui::Text("First: %s", children.first ? registry.get<Name>(children.first).name.c_str() : "None");
 					ImGui::Text("Last: %s", children.last ? registry.get<Name>(children.last).name.c_str() : "None");
 				});
@@ -255,7 +255,7 @@ export namespace Aegis::Editor
 			auto flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf;
 			flags |= (m_selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
-			if (ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, name))
+			if (ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, "%s", name))
 				ImGui::TreePop();
 
 			if (ImGui::IsItemClicked())
@@ -270,7 +270,7 @@ export namespace Aegis::Editor
 			flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
 			flags |= (m_selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
-			auto isOpen = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, name);
+			auto isOpen = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, "%s", name);
 
 			if (ImGui::IsItemClicked())
 				m_selectedEntity = entity;
@@ -336,7 +336,7 @@ export namespace Aegis::Editor
 
 			ImGui::SameLine();
 			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (buttonSize.y - ImGui::GetTextLineHeightWithSpacing()) * 0.5f);
-			ImGui::Text(description);
+			ImGui::Text("%s", description);
 			ImGui::PopStyleVar();
 		}
 

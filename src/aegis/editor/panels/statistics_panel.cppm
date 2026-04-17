@@ -16,14 +16,14 @@ export namespace Aegis::Editor
 		void draw(Scene::Registry& registry, Graphics::DrawBatchRegistry& drawBatcher)
 		{
 			ImGui::Begin("Scene Statistics");
-			ImGui::Text("Entities: %d", registry.entityCount());
-			ImGui::Text(" - Dynamic Entities: %d", registry.view<DynamicTag>().size());
+			ImGui::Text("Entities: %d", static_cast<int>(registry.entityCount()));
+			ImGui::Text(" - Dynamic Entities: %d", static_cast<int>(registry.view<DynamicTag>().size()));
 			ImGui::Separator();
 
-			ImGui::Text("Meshes: %d", registry.view<Graphics::Mesh>().size());
-			ImGui::Text("Materials: %d", registry.view<Graphics::Material>().size());
-			ImGui::Text("Point Lights: %d", registry.view<PointLight>().size());
-			ImGui::Text("Cameras: %d", registry.view<Camera>().size());
+			ImGui::Text("Meshes: %d", static_cast<int>(registry.view<Graphics::Mesh>().size()));
+			ImGui::Text("Materials: %d", static_cast<int>(registry.view<Graphics::Material>().size()));
+			ImGui::Text("Point Lights: %d", static_cast<int>(registry.view<PointLight>().size()));
+			ImGui::Text("Cameras: %d", static_cast<int>(registry.view<Camera>().size()));
 			ImGui::Separator();
 
 			ImGui::Text("Draw Batches: %d", drawBatcher.batchCount());
