@@ -1,7 +1,8 @@
 module;
 
-#include "core/logging.h"
 #include "graphics/vulkan/vulkan_include.h"
+
+#include <aegis-log/log.h>
 
 #include <string_view>
 
