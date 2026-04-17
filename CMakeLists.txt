@@ -4,7 +4,6 @@ project(AegisEngine)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
 option(BUILD_EXAMPLES "Build example projects" ON)
 option(COMPILE_SHADERS "Compile GLSL shaders to SPIR-V" ON)
@@ -18,7 +17,7 @@ endif()
 set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
 set(BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
-add_subdirectory(external)
+add_subdirectory(external SYSTEM)
 add_subdirectory(modules)
 add_subdirectory(src)
 

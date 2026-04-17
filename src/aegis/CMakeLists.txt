@@ -1,3 +1,4 @@
+set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 set(AEGIS_MODULE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_library(aegis-engine STATIC)
