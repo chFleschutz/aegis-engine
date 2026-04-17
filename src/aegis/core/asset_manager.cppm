@@ -9,7 +9,7 @@ module;
 
 export module Aegis.Core.AssetManager;
 
-import Aegis.Core.Asset;
+export import Aegis.Core.Asset;
 
 export namespace Aegis::Core
 {
@@ -25,10 +25,10 @@ export namespace Aegis::Core
 		}
 		~AssetManager() = default;
 
-		[[nodiscard]] static auto instance() -> AssetManager& 
-		{ 
-			AGX_ASSERT_X(s_instance, "AssetManager instance not initialized!"); 
-			return *s_instance; 
+		[[nodiscard]] static auto instance() -> AssetManager&
+		{
+			AGX_ASSERT_X(s_instance, "AssetManager instance not initialized!");
+			return *s_instance;
 		}
 
 		template<IsAsset T>
@@ -52,7 +52,7 @@ export namespace Aegis::Core
 		void add(const std::filesystem::path& path, const std::shared_ptr<T>& asset)
 		{
 			AssetID id = std::hash<std::filesystem::path>{}(path);
-			asset->m_path = path;
+			asset->setPath(path);
 			m_assets[id] = asset;
 		}
 

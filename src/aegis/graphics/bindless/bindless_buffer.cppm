@@ -52,7 +52,7 @@ export namespace Aegis::Graphics::Bindless
 
 
 	/// @brief Encapsulates a buffer with a single descriptor handle
-	export class BindlessBuffer
+	class BindlessBuffer
 	{
 	public:
 		BindlessBuffer() = default;
@@ -101,7 +101,7 @@ export namespace Aegis::Graphics::Bindless
 
 
 	/// @brief Encapsulates a buffer with multiple descriptor handles (one per buffer instance)
-	export class BindlessMultiBuffer
+	class BindlessMultiBuffer
 	{
 	public:
 		BindlessMultiBuffer() = default;
@@ -164,7 +164,7 @@ export namespace Aegis::Graphics::Bindless
 
 
 	/// @brief Encapsulates a buffer with multiple descriptor handles (one per frame in flight)
-	export class BindlessFrameBuffer
+	class BindlessFrameBuffer
 	{
 	public:
 		BindlessFrameBuffer() = default;

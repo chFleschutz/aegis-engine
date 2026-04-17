@@ -9,11 +9,10 @@ export namespace Aegis::Core
 	class Asset
 	{
 	public:
-		friend class AssetManager;
-
 		virtual ~Asset() = default;
 
 		[[nodiscard]] auto path() const -> const std::filesystem::path& { return m_path; }
+		void setPath(std::filesystem::path path) { m_path = path; }
 
 	protected:
 		std::filesystem::path m_path;

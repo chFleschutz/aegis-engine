@@ -1,3 +1,4 @@
+#include <aegis/graphics/vulkan/vulkan_include.h>
 #include <cmath>
 #include <string>
 
@@ -25,7 +26,7 @@ public:
 		// MATERIALS
 		auto paintingTexture = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Misc/painting.png", VK_FORMAT_R8G8B8A8_SRGB);
 		auto metalTexture = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Misc/brushed-metal.png", VK_FORMAT_R8G8B8A8_SRGB);
-		
+
 		auto pbrMatTemplate = Core::AssetManager::instance().get<Graphics::MaterialTemplate>("default/PBR_template");
 		auto paintingMat = Graphics::MaterialInstance::create(pbrMatTemplate);
 		paintingMat->setParameter("albedoMap", paintingTexture);
@@ -33,7 +34,7 @@ public:
 		auto metalMat = Graphics::MaterialInstance::create(pbrMatTemplate);
 		metalMat->setParameter("albedoMap", metalTexture);
 		metalMat->setParameter("metallic", 1.0f);
-		
+
 		// ENTITIES
 		auto& registry = scene.registry();
 

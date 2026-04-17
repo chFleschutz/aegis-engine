@@ -10,8 +10,6 @@ import Aegis.Graphics.Image;
 
 export namespace Aegis::Graphics
 {
-	class Image;
-
 	class ImageView
 	{
 	public:

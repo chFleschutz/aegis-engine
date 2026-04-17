@@ -14,6 +14,7 @@ import Aegis.Graphics.Descriptors;
 import Aegis.Graphics.MaterialTemplate;
 import Aegis.Graphics.Bindless;
 import Aegis.Graphics.Buffer;
+import Aegis.Graphics.Texture;
 import Aegis.Graphics.Globals;
 import Aegis.Core.Asset;
 

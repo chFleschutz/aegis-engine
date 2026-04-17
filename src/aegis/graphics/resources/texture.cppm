@@ -24,6 +24,7 @@ import Aegis.Graphics.VulkanContext;
 import Aegis.Graphics.Pipeline;
 import Aegis.Graphics.Bindless.DescriptorHandle;
 import Aegis.Graphics.Bindless.BindlessDescriptorSet;
+import Aegis.Graphics.Buffer;
 
 export namespace Aegis::Graphics
 {
@@ -109,7 +110,7 @@ export namespace Aegis::Graphics
 		static auto loadCubemap(const std::filesystem::path& file) -> std::shared_ptr<Texture>
 		{
 			// HDR environment maps are stored as equirectangular images (longitude/latitude 2D image)
-			// To convert it to a cubemap, the image is sampled in a compute shader and written to the cubemap 
+			// To convert it to a cubemap, the image is sampled in a compute shader and written to the cubemap
 
 			int stbWidth = 0;
 			int stbHeight = 0;

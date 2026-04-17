@@ -132,7 +132,7 @@ export namespace Aegis::Editor
 					const auto& res = resources[i];
 					ImGui::TableNextRow();
 					ImGui::TableSetColumnIndex(0);
-					ImGui::Text("%d", i);
+					ImGui::Text("%d", static_cast<int>(i));
 					ImGui::TableSetColumnIndex(1);
 					ImGui::Text("%s", res.name.c_str());
 					ImGui::TableSetColumnIndex(2);

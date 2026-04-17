@@ -7,6 +7,7 @@ import Aegis.Graphics.Components;
 import Aegis.Core.AssetManager;
 import Aegis.Scripting.ScriptManager;
 import Aegis.Scripting.Movement.KinematicMovementController;
+import Aegis.Graphics.Texture;
 
 export namespace Aegis
 {

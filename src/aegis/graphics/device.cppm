@@ -3,7 +3,7 @@ module;
 #include "graphics/vulkan/vulkan_include.h"
 
 #include <aegis-log/log.h>
-#include <glfw/glfw3.h>
+#include <GLFW/glfw3.h>
 
 #include <array>
 #include <optional>
@@ -45,13 +45,12 @@ export namespace Aegis::Graphics
 
 	class VulkanDevice
 	{
-		friend class VulkanContext;
-
 	public:
 		static constexpr uint32_t API_VERSION = VK_API_VERSION_1_3;
 		static constexpr auto VALIDATION_LAYERS = std::array{ "VK_LAYER_KHRONOS_validation" };
 		static constexpr auto DEVICE_EXTENSIONS = std::array{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
+		VulkanDevice() = default;
 		VulkanDevice(const VulkanDevice&) = delete;
 		VulkanDevice(VulkanDevice&&) = delete;
 		~VulkanDevice()
@@ -125,7 +124,7 @@ export namespace Aegis::Graphics
 			vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
 		}
 
-		void createBuffer(VkBuffer& buffer, vma::Allocation& allocation, VkDeviceSize size, VkBufferUsageFlags bufferUsage, 
+		void createBuffer(VkBuffer& buffer, vma::Allocation& allocation, VkDeviceSize size, VkBufferUsageFlags bufferUsage,
 			vma::AllocationCreateFlags allocFlags, vma::MemoryUsage memoryUsage) const
 		{
 			VkBufferCreateInfo bufferInfo{};
@@ -141,7 +140,7 @@ export namespace Aegis::Graphics
 			VK_CHECK(vma::vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr));
 		}
 
-		void createImage(VkImage& image, vma::Allocation& allocation, const VkImageCreateInfo& imageInfo, 
+		void createImage(VkImage& image, vma::Allocation& allocation, const VkImageCreateInfo& imageInfo,
 			const vma::AllocationCreateInfo& allocInfo) const
 		{
 			VK_CHECK(vma::vmaCreateImage(m_allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr));
@@ -283,8 +282,6 @@ export namespace Aegis::Graphics
 		}
 
 	private:
-		VulkanDevice() = default;
-
 		void createInstance()
 		{
 			VK_CHECK(volkInitialize());
@@ -313,7 +310,7 @@ export namespace Aegis::Graphics
 			{
 				createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
 				createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
-				
+
 				VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = DebugUtilsMessenger::populateCreateInfo();
 				createInfo.pNext = &debugCreateInfo;
 				ALOG::info("Vulkan Validation Layer enabled");
@@ -694,7 +691,7 @@ export namespace Aegis::Graphics
 				!vulkan12Features.runtimeDescriptorArray)
 				return false;
 
-			// Buffer layouts 
+			// Buffer layouts
 			if (!vulkan12Features.uniformBufferStandardLayout ||
 				!vulkan12Features.scalarBlockLayout)
 				return false;

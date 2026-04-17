@@ -7,13 +7,17 @@ export namespace Aegis::Scripting
 {
 	class ScriptBase
 	{
-		friend class ScriptManager;
-
 	public:
 		/// @brief Constructor
 		/// @note When overriding, dont't use member functions (m_entity is not initialized yet)
 		ScriptBase() = default;
 		virtual ~ScriptBase() = default;
+
+		void init(Scene::Registry* reg, Scene::Entity entity)
+		{
+		    m_registry = reg;
+			m_entity = entity;
+		}
 
 		/// @brief Called once at the first frame just before update
 		virtual void begin() {}

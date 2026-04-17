@@ -11,6 +11,7 @@ import Aegis.Graphics.MaterialTemplate;
 import Aegis.Graphics.MaterialInstance;
 import Aegis.Graphics.StaticMesh;
 import Aegis.Graphics.Components;
+import Aegis.Scene.Components;
 
 export namespace Aegis::Graphics
 {

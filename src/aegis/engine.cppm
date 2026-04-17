@@ -5,7 +5,7 @@ module;
 
 #include <aegis-log/log.h>
 
-#include <glfw/glfw3.h>
+#include <GLFW/glfw3.h>
 
 #include <chrono>
 #include <format>
@@ -91,7 +91,7 @@ export namespace Aegis
 
 				glfwPollEvents();
 
-				// Update 
+				// Update
 				m_scene.update(frameTimeSec);
 				m_scriptManager.update(frameTimeSec);
 				m_layerStack.update(frameTimeSec);
@@ -180,7 +180,7 @@ export namespace Aegis
 							.build();
 
 						// Mesh shader
-						//return builder	
+						//return builder
 						//	.addShaderStages(VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT,
 						//		SHADER_DIR "cpu-driven/mesh_geometry_bindless.slang.spv")
 						//	.addFlag(Pipeline::Flags::MeshShader)

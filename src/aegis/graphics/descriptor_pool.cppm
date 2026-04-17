@@ -12,8 +12,6 @@ export namespace Aegis::Graphics
 {
 	class DescriptorPool
 	{
-		friend class DescriptorWriter;
-
 	public:
 		class Builder
 		{

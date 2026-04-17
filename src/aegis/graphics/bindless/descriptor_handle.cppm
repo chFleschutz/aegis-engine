@@ -13,8 +13,6 @@ export namespace Aegis::Graphics::Bindless
 	/// @see shaders/modules/bindless.slang
 	class DescriptorHandle
 	{
-		friend class DescriptorHandleCache;
-
 	public:
 		enum class Type : uint8_t
 		{
@@ -35,6 +33,11 @@ export namespace Aegis::Graphics::Bindless
 		static constexpr uint32_t TYPE_MASK = (1 << TYPE_BITS) - 1;
 
 		DescriptorHandle() = default;
+		DescriptorHandle(uint32_t index, Type type) :
+			m_handle{ pack(index, 0, type) }
+		{
+			static_assert(sizeof(DescriptorHandle) == sizeof(uint32_t), "Shader expects DescriptorHandle to be 4 bytes");
+		}
 		~DescriptorHandle() = default;
 
 		[[nodiscard]] auto index() const -> uint32_t { return m_handle & INDEX_MASK; }
@@ -44,13 +47,15 @@ export namespace Aegis::Graphics::Bindless
 
 		void invalidate() { m_handle = INVALID_HANDLE; }
 
-	private:
-		DescriptorHandle(uint32_t index, Type type) :
-			m_handle{ pack(index, 0, type) }
+		void recycle(Type type)
 		{
-			static_assert(sizeof(DescriptorHandle) == sizeof(uint32_t), "Shader expects DescriptorHandle to be 4 bytes");
+			AGX_ASSERT_X(isValid(), "Cannot recycle an invalid DescriptorHandle");
+
+			constexpr uint32_t MAX_VERSION = (1 << VERSION_BITS);
+			m_handle = pack(index(), (version() + 1) % MAX_VERSION, type);
 		}
 
+	private:
 		auto pack(uint32_t index, uint32_t version, Type type) -> uint32_t
 		{
 			AGX_ASSERT_X(index <= INDEX_MASK, "Index out of bounds for DescriptorHandle");
@@ -59,14 +64,6 @@ export namespace Aegis::Graphics::Bindless
 			return (index & INDEX_MASK) |
 				((version & VERSION_MASK) << INDEX_BITS) |
 				((static_cast<uint32_t>(type) & TYPE_MASK) << (INDEX_BITS + VERSION_BITS));
-		}
-
-		void recycle(Type type)
-		{
-			AGX_ASSERT_X(isValid(), "Cannot recycle an invalid DescriptorHandle");
-
-			constexpr uint32_t MAX_VERSION = (1 << VERSION_BITS);
-			m_handle = pack(index(), (version() + 1) % MAX_VERSION, type);
 		}
 
 		// Packed as: | 2 bits type | 6 bits version | 24 bits index |

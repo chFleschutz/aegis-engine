@@ -149,11 +149,11 @@ export namespace Aegis::Graphics
 		{}
 
 		DescriptorWriter(const DescriptorWriter&) = delete;
-		DescriptorWriter(DescriptorWriter&&) = default;
+		DescriptorWriter(DescriptorWriter&&) = delete;
 		~DescriptorWriter() = default;
 
 		auto operator=(const DescriptorWriter&) -> DescriptorWriter & = delete;
-		auto operator=(DescriptorWriter&&) -> DescriptorWriter & = default;
+		auto operator=(DescriptorWriter&&) -> DescriptorWriter & = delete;
 
 		auto writeImage(uint32_t binding, VkDescriptorImageInfo textureInfo) -> DescriptorWriter&
 		{
