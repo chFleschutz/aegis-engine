@@ -32,25 +32,11 @@ PUBLIC
 	aegis-ui
 	aegis-editor
 	aegis-scripting
-#	Aegis::GLTF
-#	Aegis::Log
-#	EnTT::EnTT
-#	fastgltf::fastgltf
-#	glfw
-#	glm::glm
-#	imgui
-#	imguizmo
-#	meshoptimizer
-#	stb
-#	tinyobjloader
-#	GPUOpen::VulkanMemoryAllocator
-#	volk::volk_headers
 )
 
 target_sources(aegis-engine 
 PUBLIC 
 	FILE_SET CXX_MODULES 
-	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
 		engine.cppm
 		scene_defaults.cppm
