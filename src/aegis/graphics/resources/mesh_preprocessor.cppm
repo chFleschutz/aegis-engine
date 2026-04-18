@@ -26,8 +26,8 @@ export namespace Aegis::Graphics
 
 			float overdrawThreshold = 1.05f;
 
-			size_t maxVerticesPerMeshlet = 64;
-			size_t maxTrianglesPerMeshlet = 126;
+			std::size_t maxVerticesPerMeshlet = 64;
+			std::size_t maxTrianglesPerMeshlet = 126;
 			float coneWeight = 0;
 		};
 
@@ -35,14 +35,14 @@ export namespace Aegis::Graphics
 		{
 			std::vector<Vertex> vertices = interleave(input);
 			std::vector<uint32_t> indices = std::move(input.indices);
-			size_t initialVertexCount = vertices.size();
+			std::size_t initialVertexCount = vertices.size();
 			bool hasIndices = !indices.empty();
-			size_t indexCount = hasIndices ? indices.size() : initialVertexCount;
+			std::size_t indexCount = hasIndices ? indices.size() : initialVertexCount;
 
 			// Vertex and Index remapping
 
 			std::vector<uint32_t> remap(initialVertexCount);
-			size_t vertexCount = meshopt_generateVertexRemap(
+			std::size_t vertexCount = meshopt_generateVertexRemap(
 				remap.data(),
 				hasIndices ? indices.data() : nullptr,
 				hasIndices ? indices.size() : initialVertexCount,
@@ -105,7 +105,7 @@ export namespace Aegis::Graphics
 
 			// Meshlet generation
 
-			size_t maxMeshlets = meshopt_buildMeshletsBound(
+			std::size_t maxMeshlets = meshopt_buildMeshletsBound(
 				indices.size(),
 				input.maxVerticesPerMeshlet,
 				input.maxTrianglesPerMeshlet);
@@ -114,7 +114,7 @@ export namespace Aegis::Graphics
 			std::vector<uint32_t> meshletVertices(indexCount);
 			std::vector<uint8_t> meshletPrimitives(indexCount);
 
-			size_t meshletCount = meshopt_buildMeshlets(
+			std::size_t meshletCount = meshopt_buildMeshlets(
 				meshoptMeshlets.data(),
 				meshletVertices.data(),
 				meshletPrimitives.data(),
@@ -179,7 +179,7 @@ export namespace Aegis::Graphics
 			AGX_ASSERT_X(input.positions.size() == input.normals.size(), "Positions and normals size mismatch");
 
 			std::vector<Vertex> vertices(input.positions.size());
-			for (size_t i = 0; i < input.positions.size(); i++)
+			for (std::size_t i = 0; i < input.positions.size(); i++)
 			{
 				vertices[i].position = input.positions[i];
 				vertices[i].normal = input.normals[i];

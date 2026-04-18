@@ -191,7 +191,7 @@ export namespace Aegis::Graphics
 			return cubeMap;
 		}
 
-		static auto loadFromMemory(const std::byte* data, size_t size, VkFormat format) -> std::shared_ptr<Texture>
+		static auto loadFromMemory(const std::byte* data, std::size_t size, VkFormat format) -> std::shared_ptr<Texture>
 		{
 			int width, height, channels;
 			auto pixels = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(data), static_cast<int>(size),

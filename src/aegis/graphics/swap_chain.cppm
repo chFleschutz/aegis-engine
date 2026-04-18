@@ -58,7 +58,7 @@ export namespace Aegis::Graphics
 		[[nodiscard]] auto width() const -> uint32_t { return m_extent.width; }
 		[[nodiscard]] auto height() const -> uint32_t { return m_extent.height; }
 		[[nodiscard]] auto aspectRatio() const -> float { return static_cast<float>(m_extent.width) / static_cast<float>(m_extent.height); }
-		[[nodiscard]] auto imageCount() const -> size_t { return m_images.size(); }
+		[[nodiscard]] auto imageCount() const -> std::size_t { return m_images.size(); }
 		[[nodiscard]] auto currentImage() const -> VkImage { return m_images[m_imageIndex]; }
 		[[nodiscard]] auto presentReadySemaphore() const -> VkSemaphore { return m_imageSync[m_imageIndex].presentReady; }
 		[[nodiscard]] auto findDepthFormat() -> VkFormat
@@ -176,7 +176,7 @@ export namespace Aegis::Graphics
 		void createImageViews()
 		{
 			m_imageViews.resize(m_images.size());
-			for (size_t i = 0; i < m_images.size(); i++)
+			for (std::size_t i = 0; i < m_images.size(); i++)
 			{
 				VkImageViewCreateInfo viewInfo{};
 				viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

@@ -1,6 +1,7 @@
 module;
 
 #include <random>
+#include <algorithm>
 
 export module Aegis.Math:Random;
 

@@ -127,7 +127,7 @@ export namespace Aegis::Editor
 				ImGui::TableHeadersRow();
 
 				const auto& resources = resourcePool.resources();
-				for (size_t i = 0; i < resources.size(); i++)
+				for (std::size_t i = 0; i < resources.size(); i++)
 				{
 					const auto& res = resources[i];
 					ImGui::TableNextRow();

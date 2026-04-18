@@ -51,7 +51,7 @@ export namespace Aegis::Graphics
 			loadTextures(gltf);
 			loadMaterials(gltf);
 
-			size_t startScene = gltf.defaultScene.value_or(0);
+			std::size_t startScene = gltf.defaultScene.value_or(0);
 			m_rootEntity = scene.create(gltf.scenes[startScene].name.empty()
 				? path.stem().string()
 				: std::string(gltf.scenes[startScene].name));
@@ -71,7 +71,7 @@ export namespace Aegis::Graphics
 		{
 			m_meshCache.resize(gltf.meshes.size());
 
-			for (size_t i = 0; i < gltf.meshes.size(); ++i)
+			for (std::size_t i = 0; i < gltf.meshes.size(); ++i)
 			{
 				auto& mesh = gltf.meshes[i];
 				m_meshCache[i].reserve(mesh.primitives.size());
@@ -166,7 +166,7 @@ export namespace Aegis::Graphics
 
 			// Load textures
 			m_textureCache.reserve(gltf.textures.size());
-			for (size_t i = 0; i < gltf.textures.size(); ++i)
+			for (std::size_t i = 0; i < gltf.textures.size(); ++i)
 			{
 				const auto& texture = gltf.textures[i];
 				if (!texture.imageIndex.has_value())
@@ -196,7 +196,7 @@ export namespace Aegis::Graphics
 		void loadMaterials(const fastgltf::Asset& gltf)
 		{
 			m_materialCache.reserve(gltf.materials.size());
-			for (size_t i = 0; i < gltf.materials.size(); ++i)
+			for (std::size_t i = 0; i < gltf.materials.size(); ++i)
 			{
 				const auto& gltfMat = gltf.materials[i];
 
@@ -236,13 +236,13 @@ export namespace Aegis::Graphics
 			}
 		}
 
-		void buildScene(Scene::Registry& scene, const fastgltf::Asset& gltf, size_t sceneIndex)
+		void buildScene(Scene::Registry& scene, const fastgltf::Asset& gltf, std::size_t sceneIndex)
 		{
 			auto& gltfScene = gltf.scenes[sceneIndex];
 
 			// Create all entities first
 			std::vector<Scene::Entity> entityCache(gltf.nodes.size());
-			for (size_t i = 0; i < gltf.nodes.size(); ++i)
+			for (std::size_t i = 0; i < gltf.nodes.size(); ++i)
 			{
 				auto& node = gltf.nodes[i];
 				auto& trs = std::get<fastgltf::TRS>(node.transform);
@@ -267,7 +267,7 @@ export namespace Aegis::Graphics
 					}
 					else // Multiple submeshes, create child entities
 					{
-						for (size_t subIdx = 0; subIdx < subMeshes.size(); ++subIdx)
+						for (std::size_t subIdx = 0; subIdx < subMeshes.size(); ++subIdx)
 						{
 							const auto& subMesh = subMeshes[subIdx];
 
@@ -281,7 +281,7 @@ export namespace Aegis::Graphics
 			}
 
 			// Setup parent-child relationships 
-			for (size_t i = 0; i < gltf.nodes.size(); ++i)
+			for (std::size_t i = 0; i < gltf.nodes.size(); ++i)
 			{
 				const auto& node = gltf.nodes[i];
 				Scene::Entity parent = entityCache[i];
@@ -299,7 +299,7 @@ export namespace Aegis::Graphics
 			}
 		}
 
-		auto queryMaterial(const fastgltf::Mesh& mesh, size_t subIdx) -> std::shared_ptr<Graphics::MaterialInstance>
+		auto queryMaterial(const fastgltf::Mesh& mesh, std::size_t subIdx) -> std::shared_ptr<Graphics::MaterialInstance>
 		{
 			const auto& matIndex = mesh.primitives[subIdx].materialIndex;
 			return matIndex.has_value()

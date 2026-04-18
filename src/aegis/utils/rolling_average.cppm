@@ -8,7 +8,7 @@ export namespace Aegis::Utils
 {
 	/// @brief Rolling average over N values
 	/// @tparam N Number of values to average (must be greater than zero)
-	template<size_t N>
+	template<std::size_t N>
 		requires (N > 0)
 	class RollingAverage
 	{
@@ -42,13 +42,13 @@ export namespace Aegis::Utils
 
 		auto last() const -> double
 		{
-			size_t lastIndex = (m_index + N - 1) % N;
+			std::size_t lastIndex = (m_index + N - 1) % N;
 			return m_values[lastIndex];
 		}
 
 	private:
 		std::array<double, N> m_values{};
 		double m_sum = 0.0;
-		size_t m_index = 0;
+		std::size_t m_index = 0;
 	};
 }

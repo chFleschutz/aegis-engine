@@ -30,7 +30,7 @@ namespace std
 	template<>
 	struct hash<Aegis::Graphics::FGResourceHandle>
 	{
-		auto operator()(const Aegis::Graphics::FGResourceHandle& handle) const noexcept -> size_t
+		auto operator()(const Aegis::Graphics::FGResourceHandle& handle) const noexcept -> std::size_t
 		{
 			return std::hash<uint32_t>()(handle.handle);
 		}
@@ -94,7 +94,7 @@ export namespace Aegis::Graphics
 
 			// Print info
 			ALOG::info("FrameGraph compiled with {} passes", m_nodesSorted.size());
-			for (size_t i = 0; i < m_nodesSorted.size(); i++)
+			for (std::size_t i = 0; i < m_nodesSorted.size(); i++)
 			{
 				auto& node = queryNode(m_nodesSorted[i]);
 				ALOG::info("  [{}] {}", i, node.info.name);
@@ -141,7 +141,7 @@ export namespace Aegis::Graphics
 			{
 				AGX_ASSERT_X(node.imageBarriers.size() == node.accessedTextures.size(),
 					"Mismatched image barriers and accessed textures count in FGNode");
-				for (size_t i = 0; i < node.accessedTextures.size(); i++)
+				for (std::size_t i = 0; i < node.accessedTextures.size(); i++)
 				{
 					auto& tex = m_pool.texture(node.accessedTextures[i]);
 					auto& barrier = node.imageBarriers[i];
@@ -232,7 +232,7 @@ export namespace Aegis::Graphics
 		{
 			// Kahn's algorithm
 
-			std::vector<size_t> inDegree(m_nodesSorted.size(), 0);
+			std::vector<std::size_t> inDegree(m_nodesSorted.size(), 0);
 			for (const auto& edges : adjacency)
 			{
 				for (const auto& target : edges)
@@ -244,7 +244,7 @@ export namespace Aegis::Graphics
 			std::queue<FGNodeHandle> queue;
 
 			// Enqueue all nodes with no dependencies
-			for (size_t i = 0; i < inDegree.size(); ++i)
+			for (std::size_t i = 0; i < inDegree.size(); ++i)
 			{
 				if (inDegree[i] == 0)
 				{
@@ -423,7 +423,7 @@ export namespace Aegis::Graphics
 			// Images track their layout internally, so update it after the barrier
 			AGX_ASSERT_X(node.imageBarriers.size() == node.accessedTextures.size(),
 				"Mismatched image barriers and accessed textures count in FGNode");
-			for (size_t i = 0; i < node.accessedTextures.size(); i++)
+			for (std::size_t i = 0; i < node.accessedTextures.size(); i++)
 			{
 				auto& texture = m_pool.texture(node.accessedTextures[i]);
 				auto& barrier = node.imageBarriers[i];

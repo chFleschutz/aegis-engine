@@ -9,6 +9,7 @@ module;
 #include <optional>
 #include <set>
 #include <unordered_set>
+#include <string.h>
 
 export module Aegis.Graphics.Vulkan.Device;
 

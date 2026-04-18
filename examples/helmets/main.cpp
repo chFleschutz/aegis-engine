@@ -59,7 +59,7 @@ public:
 		auto damagedHelmet = Graphics::Loader::load(registry, Core::ASSETS_DIR / "DamagedHelmet/DamagedHelmet.gltf");
 		registry.get<Transform>(damagedHelmet).location = { -2.0f, 0.0f, 2.0f };
 
-		auto scifiHelmet = Graphics::Loader::load(registry, Core::ASSETS_DIR / "SciFiHelmet/ScifiHelmet.gltf");
+		auto scifiHelmet = Graphics::Loader::load(registry, Core::ASSETS_DIR / "SciFiHelmet/SciFiHelmet.gltf");
 		registry.get<Transform>(scifiHelmet).location = { 2.0f, 0.0f, 2.0f };
 
 		auto plane = Graphics::Loader::load(registry, Core::ASSETS_DIR / "Misc/plane.obj");

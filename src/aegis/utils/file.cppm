@@ -2,6 +2,7 @@ module;
 
 #include <filesystem>
 #include <fstream>
+#include <vector>
 
 export module Aegis.Utils.File;
 
@@ -16,7 +17,7 @@ export namespace Aegis::Utils::File
 		if (!file.is_open())
 			return {};
 
-		auto fileSize = static_cast<size_t>(file.tellg());
+		auto fileSize = static_cast<std::size_t>(file.tellg());
 		std::vector<char> buffer(fileSize);
 
 		file.seekg(0);
@@ -30,7 +31,7 @@ export namespace Aegis::Utils::File
 	/// @param size Number of bytes to read
 	/// @param offset Byte offset from the beginning of the file
 	/// @return A vector with the contents of the file or an empty vector if the file could not be read
-	auto readBinary(const std::filesystem::path& filePath, size_t size, size_t offset = 0) -> std::vector<char>
+	auto readBinary(const std::filesystem::path& filePath, std::size_t size, std::size_t offset = 0) -> std::vector<char>
 	{
 		std::ifstream file{ filePath, std::ios::binary };
 		if (!file.is_open())
