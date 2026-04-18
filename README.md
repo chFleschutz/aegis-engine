@@ -1,11 +1,22 @@
 # Aegis Engine
 
-A small render engine developed with Vulkan in modern C++. 
+<p>
+  <img alt="Language" src="https://img.shields.io/badge/Language-C%2B%2B23-blue?style=for-the-badge&logo=c%2B%2B">
+  <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows-blue?style=for-the-badge">
+  <a href="https://github.com/chFleschutz/aegis-engine/blob/main/LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge">
+  </a>
+</p>
+
+C++ render engine developed with Vulkan to explore low level graphics programming
+
+###
 
 ###
 ![Screenshot 2025-03-20 095757](https://github.com/user-attachments/assets/b5d7ec34-6f00-4b99-b569-0e58ed10c57a)
-###
-![Screenshot 2025-03-20 100442](https://github.com/user-attachments/assets/86098227-0346-4bbd-9b2c-d99a85a6dafb)
+
+> [!NOTE]
+> *My original Master's Thesis version is archived in the [thesis branch](https://github.com/chFleschutz/aegis-engine/tree/thesis) or at the [thesis tag](https://github.com/chFleschutz/aegis-engine/releases/tag/thesis).*
 
 # Features
 
@@ -63,3 +74,15 @@ The engine relies on the following external libraries:
 - [Vulkan](https://www.vulkan.org/) - Graphics API
 - [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) - Vulkan Memory Management
 - [Volk](https://github.com/zeux/volk) - Vulkan Function loader
+
+## Screenshots
+
+### Lumberyard Bistro Scene:
+<img width="1920" height="1079" alt="bistro" src="https://github.com/user-attachments/assets/17da8987-aafc-4950-a82c-b4365cc5bcab" />
+
+### Crytek Sponza Attrium Scene with Editor UI:
+![Screenshot 2025-03-20 100442](https://github.com/user-attachments/assets/86098227-0346-4bbd-9b2c-d99a85a6dafb)
+
+### Instancing Stress-Test of 1 Million Objects:
+<img width="1919" height="1080" alt="lpo" src="https://github.com/user-attachments/assets/60326ef3-bad8-420c-b13d-63f4c06479cd" />
+
