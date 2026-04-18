@@ -115,7 +115,7 @@ export namespace Aegis::Graphics
 
 				// Find the referenced resource by name
 				auto& info = std::get<FGReferenceInfo>(resource.info);
-				for (size_t i = 0; i < m_resources.size(); ++i)
+				for (std::size_t i = 0; i < m_resources.size(); ++i)
 				{
 					const auto& other = m_resources[i];
 					if (std::holds_alternative<FGReferenceInfo>(other.info))

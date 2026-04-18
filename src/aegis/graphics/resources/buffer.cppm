@@ -4,6 +4,7 @@ module;
 #include "graphics/vulkan/vulkan_include.h"
 
 #include <cstdint>
+#include <cstring>
 #include <utility>
 #include <vector>
 

@@ -42,3 +42,8 @@ PUBLIC
 		scene_defaults.cppm
 		scene_description.cppm
 )
+
+if (UNIX AND NOT APPLE)
+	find_package(X11 REQUIRED)
+	target_link_libraries(aegis-engine PRIVATE ${X11_LIBRARIES})
+endif()

@@ -2,6 +2,8 @@ module;
 
 #include "core/assert.h"
 
+#include <cmath>
+
 export module Aegis.Scene.Systems.CameraSystem;
 
 import Aegis.Math;
@@ -69,11 +71,11 @@ export namespace Aegis::Scene
 
 		void calcPerspectiveProjection(Camera& camera)
 		{
-			AGX_ASSERT(abs(camera.aspect - std::numeric_limits<float>::epsilon()) > 0.0f);
+			AGX_ASSERT(std::abs(camera.aspect - std::numeric_limits<float>::epsilon()) > 0.0f);
 
 			// Projection matrix for right handed system with depth range [0, 1]
 			// Note: Value [1][1] is negated because Vulkan uses a flipped y-axis
-			const float tanHalfFovy = tan(camera.fov / 2.0f);
+			const float tanHalfFovy = std::tan(camera.fov / 2.0f);
 			glm::mat4 perspective{ 0.0f };
 			perspective[0][0] = 1.0f / (camera.aspect * tanHalfFovy);
 			perspective[1][1] = -1.0f / (tanHalfFovy);

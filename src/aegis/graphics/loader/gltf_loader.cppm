@@ -46,7 +46,7 @@ export namespace Aegis::Graphics
 			m_pbrTemplate = Core::AssetManager::instance().get<Graphics::MaterialTemplate>("default/PBR_template");
 			m_pbrDefaultMat = Core::AssetManager::instance().get<Graphics::MaterialInstance>("default/PBR_instance");
 
-			size_t startScene = m_gltf->startScene.value_or(0);
+			std::size_t startScene = m_gltf->startScene.value_or(0);
 			std::string sceneName = m_gltf->scenes[startScene].name.value_or(path.stem().string());
 			m_rootEntity = scene.create(sceneName);
 
@@ -56,7 +56,7 @@ export namespace Aegis::Graphics
 		[[nodiscard]] auto rootEntity() const -> Scene::Entity { return m_rootEntity; }
 
 	private:
-		void loadScene(Scene::Registry& scene, size_t sceneIndex)
+		void loadScene(Scene::Registry& scene, std::size_t sceneIndex)
 		{
 			auto& sceneNode = m_gltf->scenes[sceneIndex];
 
@@ -65,7 +65,7 @@ export namespace Aegis::Graphics
 
 			struct Node
 			{
-				size_t index;
+				std::size_t index;
 				Scene::Entity parent;
 			};
 
@@ -94,10 +94,10 @@ export namespace Aegis::Graphics
 				if (!node.mesh.has_value())
 					continue;
 
-				size_t meshIndex = node.mesh.value();
+				std::size_t meshIndex = node.mesh.value();
 				auto& mesh = m_gltf->meshes[meshIndex];
 				m_meshes[meshIndex].resize(mesh.primitives.size());
-				for (size_t i = 0; i < mesh.primitives.size(); i++)
+				for (std::size_t i = 0; i < mesh.primitives.size(); i++)
 				{
 					auto& primitive = mesh.primitives[i];
 					auto matInstance = primitive.material ? loadMaterial(*primitive.material) : m_pbrDefaultMat;
@@ -131,7 +131,7 @@ export namespace Aegis::Graphics
 			return result;
 		}
 
-		auto loadMesh(size_t meshIndex, size_t primitiveIndex) -> std::shared_ptr<Graphics::StaticMesh>
+		auto loadMesh(std::size_t meshIndex, std::size_t primitiveIndex) -> std::shared_ptr<Graphics::StaticMesh>
 		{
 			AGX_ASSERT_X(meshIndex < m_meshes.size(), "Mesh index is out of range");
 			AGX_ASSERT_X(primitiveIndex < m_gltf->meshes[meshIndex].primitives.size(), "Primitive index is out of range");
@@ -156,7 +156,7 @@ export namespace Aegis::Graphics
 			return mesh;
 		}
 
-		auto loadMaterial(size_t materialIndex) -> std::shared_ptr<Graphics::MaterialInstance>
+		auto loadMaterial(std::size_t materialIndex) -> std::shared_ptr<Graphics::MaterialInstance>
 		{
 			AGX_ASSERT_X(materialIndex < m_gltf->materials.size(), "Material index is out of range");
 
@@ -195,7 +195,7 @@ export namespace Aegis::Graphics
 			return materialInstance;
 		}
 
-		auto loadTexture(size_t textureIndex, VkFormat format) -> std::shared_ptr<Graphics::Texture>
+		auto loadTexture(std::size_t textureIndex, VkFormat format) -> std::shared_ptr<Graphics::Texture>
 		{
 			AGX_ASSERT_X(textureIndex < m_gltf->textures.size(), "Texture index is out of range");
 

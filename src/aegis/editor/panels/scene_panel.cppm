@@ -12,6 +12,7 @@ module;
 #include <utility>
 #include <variant>
 #include <vector>
+#include <memory>
 
 export module Aegis.Editor.Panels:ScenePanel;
 

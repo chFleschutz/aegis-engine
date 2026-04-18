@@ -3,6 +3,7 @@ module;
 #include <array>
 #include <functional>
 #include <vector>
+#include <cstdint>
 
 export module Aegis.Graphics.DeletionQueue;
 

@@ -3,6 +3,8 @@ module;
 #include <imgui.h>
 #include <ImGuizmo.h>
 
+#include <vector>
+
 export module Aegis.UI;
 
 import Aegis.Core.LayerStack;

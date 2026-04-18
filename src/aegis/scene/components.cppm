@@ -80,7 +80,7 @@ export namespace Aegis
 		//	auto operator==(const ReverseIterator& other) const -> bool { return current == other.current; };
 		//};
 
-		size_t count = 0;
+		std::size_t count = 0;
 		Scene::Entity first{};
 		Scene::Entity last{};
 

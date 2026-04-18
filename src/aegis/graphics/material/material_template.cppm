@@ -42,8 +42,8 @@ export namespace Aegis::Graphics
 		>;
 
 		uint32_t binding = 0;
-		size_t offset = 0;
-		size_t size = 0;
+		std::size_t offset = 0;
+		std::size_t size = 0;
 		Value defaultValue;
 	};
 
@@ -54,14 +54,14 @@ export namespace Aegis::Graphics
 			: m_pipeline{ std::move(pipeline) }
 		{}
 
-		[[nodiscard]] static auto alignTo(size_t size, size_t alignment) -> size_t
+		[[nodiscard]] static auto alignTo(std::size_t size, std::size_t alignment) -> std::size_t
 		{
 			return (size + alignment - 1) & ~(alignment - 1);
 		}
 
-		[[nodiscard]] static auto std430Alignment(const MaterialParameter::Value& val) -> size_t
+		[[nodiscard]] static auto std430Alignment(const MaterialParameter::Value& val) -> std::size_t
 		{
-			return std::visit([&](auto&& arg) -> size_t {
+			return std::visit([&](auto&& arg) -> std::size_t {
 				using T = std::decay_t<decltype(arg)>;
 				if constexpr (std::is_same_v<T, int32_t>)        return 4;
 				else if constexpr (std::is_same_v<T, uint32_t>)  return 4;
@@ -78,9 +78,9 @@ export namespace Aegis::Graphics
 				}, val);
 		}
 
-		[[nodiscard]] static auto std430Size(const MaterialParameter::Value& val) -> size_t
+		[[nodiscard]] static auto std430Size(const MaterialParameter::Value& val) -> std::size_t
 		{
-			return std::visit([&](auto&& arg) -> size_t {
+			return std::visit([&](auto&& arg) -> std::size_t {
 				using T = std::decay_t<decltype(arg)>;
 				if constexpr (std::is_same_v<T, int32_t>)        return 4;
 				else if constexpr (std::is_same_v<T, uint32_t>)  return 4;
@@ -98,7 +98,7 @@ export namespace Aegis::Graphics
 		}
 
 		[[nodiscard]] auto pipeline() const -> const Pipeline& { return m_pipeline; }
-		[[nodiscard]] auto parameterSize() const -> size_t { return m_parameterSize; }
+		[[nodiscard]] auto parameterSize() const -> std::size_t { return m_parameterSize; }
 		[[nodiscard]] auto parameters() const -> const std::unordered_map<std::string, MaterialParameter>& { return m_parameters; }
 		[[nodiscard]] auto drawBatch() const -> uint32_t { return m_drawBatchId; }
 		[[nodiscard]] auto type() const -> MaterialType { return m_materialType; }
@@ -152,7 +152,7 @@ export namespace Aegis::Graphics
 			m_pipeline.bindDescriptorSet(cmd, 0, Bindless::BindlessDescriptorSet::instance().descriptorSet());
 		}
 
-		void pushConstants(VkCommandBuffer cmd, const void* data, size_t size, uint32_t offset = 0)
+		void pushConstants(VkCommandBuffer cmd, const void* data, std::size_t size, uint32_t offset = 0)
 		{
 			m_pipeline.pushConstants(cmd, VK_SHADER_STAGE_ALL, data, size, offset);
 		}
@@ -193,7 +193,7 @@ export namespace Aegis::Graphics
 		Pipeline m_pipeline;
 
 		std::unordered_map<std::string, MaterialParameter> m_parameters;
-		size_t m_parameterSize{ 0 };
+		std::size_t m_parameterSize{ 0 };
 		uint32_t m_textureCount{ 0 };
 		uint32_t m_drawBatchId{ 0 };
 		MaterialType m_materialType{ MaterialType::Opaque };

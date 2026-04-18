@@ -33,7 +33,7 @@ export namespace Aegis::Graphics
 			bool result = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.string().c_str());
 			AGX_ASSERT_X(result, "Failed to load OBJ file");
 
-			size_t totalIndexCount = 0;
+			std::size_t totalIndexCount = 0;
 			for (const auto& shape : shapes) {
 				totalIndexCount += shape.mesh.indices.size();
 			}

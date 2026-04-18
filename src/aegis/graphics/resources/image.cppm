@@ -2,6 +2,7 @@ module;
 
 #include "graphics/vulkan/vulkan_include.h"
 
+#include <cmath>
 #include <cstdint>
 
 export module Aegis.Graphics.Image;

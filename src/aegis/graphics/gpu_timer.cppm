@@ -85,11 +85,11 @@ export namespace Aegis::Graphics
 					sizeof(uint64_t) * timestamps.size(), timestamps.data(), sizeof(uint64_t),
 					VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 
-				size_t queryCount = m_queries[m_frameIndex].names.size();
+				std::size_t queryCount = m_queries[m_frameIndex].names.size();
 				AGX_ASSERT_X(queryCount * 2 == timestamps.size(), "Mismatch between query names and timestamps");
 
 				m_results.clear();
-				for (size_t i = 0; i < queryCount; ++i)
+				for (std::size_t i = 0; i < queryCount; ++i)
 				{
 					uint64_t start = timestamps[i * 2];
 					uint64_t end = timestamps[i * 2 + 1];

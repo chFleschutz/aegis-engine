@@ -151,7 +151,7 @@ export namespace Aegis::Graphics::Bindless
 
 		[[nodiscard]] auto buffer() -> Buffer& { return m_buffer; }
 		[[nodiscard]] auto buffer() const -> const Buffer& { return m_buffer; }
-		[[nodiscard]] auto handle(size_t index = 0) const -> DescriptorHandle
+		[[nodiscard]] auto handle(std::size_t index = 0) const -> DescriptorHandle
 		{
 			AGX_ASSERT_X(index < m_handles.size(), "BindlessMultiBuffer handle index out of bounds");
 			return m_handles[index];
@@ -194,13 +194,13 @@ export namespace Aegis::Graphics::Bindless
 
 		[[nodiscard]] auto buffer() -> Buffer& { return m_buffer; }
 		[[nodiscard]] auto buffer() const -> const Buffer& { return m_buffer; }
-		[[nodiscard]] auto handle(size_t index) const -> DescriptorHandle
+		[[nodiscard]] auto handle(std::size_t index) const -> DescriptorHandle
 		{
 			AGX_ASSERT_X(index < MAX_FRAMES_IN_FLIGHT, "Requested handle index exceeds MAX_FRAMES_IN_FLIGHT");
 			return m_handles[index];
 		}
 
-		void write(const void* data, VkDeviceSize size, VkDeviceSize offset, size_t index)
+		void write(const void* data, VkDeviceSize size, VkDeviceSize offset, std::size_t index)
 		{
 			AGX_ASSERT_X(index < MAX_FRAMES_IN_FLIGHT, "BindlessFrameBuffer write index out of bounds");
 			m_buffer.write(data, size, index * m_buffer.alignmentSize() + offset);
