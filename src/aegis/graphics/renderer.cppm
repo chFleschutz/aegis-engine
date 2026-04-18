@@ -9,7 +9,7 @@ module;
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
-#include <glfw/glfw3.h>
+#include <GLFW/glfw3.h>
 
 #include <array>
 #include <limits>
@@ -40,6 +40,8 @@ import Aegis.Graphics.Globals;
 import Aegis.Graphics.GPUTimer;
 import Aegis.Graphics.SwapChain;
 import Aegis.Graphics.VulkanContext;
+import Aegis.Graphics.FrameInfo;
+import Aegis.Graphics.MaterialTemplate;
 import Aegis.Scene;
 import Aegis.UI;
 
@@ -165,7 +167,7 @@ export namespace Aegis::Graphics
 			}
 		}
 
-		/// @brief Waits for the GPU to be idle 
+		/// @brief Waits for the GPU to be idle
 		void waitIdle()
 		{
 			vkDeviceWaitIdle(VulkanContext::device());
@@ -247,11 +249,11 @@ export namespace Aegis::Graphics
 
 		void createFrameGraph()
 		{
-			// CPU and GPU Driven Geometry Passes are mutually exclusive 
+			// CPU and GPU Driven Geometry Passes are mutually exclusive
 			// Note: They each need different shaders and pipelines (check asset_manager.cpp)
 			if (Renderer::useGPUDrivenRendering())
 			{
-				// GPU Driven Rendering Passes 
+				// GPU Driven Rendering Passes
 				m_frameGraph.add<CullingPass>(m_drawBatchRegistry);
 				m_frameGraph.add<SceneUpdatePass>();
 				m_frameGraph.add<GPUDrivenGeometry>();

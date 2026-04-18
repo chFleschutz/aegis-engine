@@ -26,8 +26,6 @@ export namespace Aegis::Graphics
 	/// @brief Holds all resources and nodes for a frame graph
 	class FGResourcePool
 	{
-		friend class FrameGraph;
-
 	public:
 		FGResourcePool() = default;
 		FGResourcePool(const FGResourcePool&) = delete;
@@ -108,7 +106,6 @@ export namespace Aegis::Graphics
 			return FGResourceHandle{ static_cast<uint32_t>(m_resources.size() - 1) };
 		}
 
-	private:
 		void resolveReferences()
 		{
 			for (auto& resource : m_resources)
@@ -238,6 +235,7 @@ export namespace Aegis::Graphics
 
 		}
 
+	private:
 		std::vector<FGResource> m_resources;
 		std::vector<Bindless::BindlessMultiBuffer> m_buffers;
 		std::vector<Texture> m_textures;

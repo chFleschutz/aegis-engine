@@ -16,6 +16,7 @@ import Aegis.Graphics.Frustum;
 import Aegis.Graphics.Components;
 import Aegis.Graphics.Globals;
 import Aegis.Graphics.DrawBatchRegistry;
+import Aegis.Graphics.Vulkan.VulkanMemory;
 import Aegis.Scene;
 
 export namespace Aegis::Graphics

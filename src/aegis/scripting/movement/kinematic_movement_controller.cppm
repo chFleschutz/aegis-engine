@@ -1,6 +1,6 @@
 module;
 
-#include <glfw/glfw3.h>
+#include <GLFW/glfw3.h>
 
 #include <algorithm>
 
@@ -9,6 +9,7 @@ export module Aegis.Scripting.Movement.KinematicMovementController;
 import Aegis.Scripting.ScriptBase;
 import Aegis.Math;
 import Aegis.Core.Input;
+import Aegis.Scene.Components;
 
 export namespace Aegis::Scripting
 {

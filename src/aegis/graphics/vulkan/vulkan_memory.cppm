@@ -18,21 +18,18 @@ export namespace vma
 
 	using AllocationCreateFlagBits = VmaAllocationCreateFlagBits;
 
-	export using ::vmaCreateAllocator;
-	export using ::vmaCreateBuffer;
-	export using ::vmaCreateImage;
-
-	export using ::vmaDestroyAllocator;
-	export using ::vmaDestroyBuffer;
-	export using ::vmaDestroyImage;
-
-	export using ::vmaGetAllocationInfo;
-	export using ::vmaMapMemory;
-	export using ::vmaUnmapMemory;
-	export using ::vmaCopyMemoryToAllocation;
-	export using ::vmaFlushAllocation;
-
-	export using ::vmaImportVulkanFunctionsFromVolk;
+	using ::vmaCreateAllocator;
+	using ::vmaCreateBuffer;
+	using ::vmaCreateImage;
+	using ::vmaDestroyAllocator;
+	using ::vmaDestroyBuffer;
+	using ::vmaDestroyImage;
+	using ::vmaGetAllocationInfo;
+	using ::vmaMapMemory;
+	using ::vmaUnmapMemory;
+	using ::vmaCopyMemoryToAllocation;
+	using ::vmaFlushAllocation;
+	using ::vmaImportVulkanFunctionsFromVolk;
 }
 
 export
@@ -54,4 +51,5 @@ export
 	using ::VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT;
 	using ::VMA_ALLOCATION_CREATE_STRATEGY_FIRST_FIT_BIT;
 	using ::VMA_ALLOCATION_CREATE_STRATEGY_MASK;
+	using ::VMA_MEMORY_USAGE_AUTO;
 }

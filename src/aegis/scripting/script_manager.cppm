@@ -36,8 +36,7 @@ export namespace Aegis::Scripting
 		{
 			T* script = new T(std::forward<Args>(args)...);
 			m_newScripts.emplace_back(script);
-			script->m_registry = &m_scene.registry();
-			script->m_entity = entity;
+			script->init(&m_scene.registry(), entity);
 		}
 
 		/// @brief Calls the update function of each script

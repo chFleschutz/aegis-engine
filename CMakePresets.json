@@ -1,56 +1,156 @@
 {
-  "version": 5,
-  "configurePresets": [
-    {
-      "name": "windows-base",
-      "description": "Target Windows with the Visual Studio development environment.",
-      "hidden": true,
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
-      "installDir": "${sourceDir}/install/${presetName}",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
-      },
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-    {
-      "name": "x64-debug",
-      "displayName": "x64 Debug",
-      "description": "Target Windows (64-bit) with the Visual Studio development environment. (Debug)",
-      "inherits": "windows-base",
-      "architecture": {
-        "value": "x64",
-        "strategy": "external"
-      },
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      }
-    },
-    {
-      "name": "x64-release",
-      "displayName": "x64 Release",
-      "description": "Target Windows (64-bit) with the Visual Studio development environment. (RelWithDebInfo)",
-      "inherits": "x64-debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "debug",
-      "displayName": "Debug Mode",
-      "configurePreset": "x64-debug"
-    },
-    {
-      "name": "release",
-      "displayName": "Release Mode",
-      "configurePreset": "x64-release"
-    }
-  ]
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_COMPILE_WARNING_AS_ERROR": "ON"
+            }
+        },
+        {
+            "name": "linux-base",
+            "inherits": "base",
+            "hidden": true,
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "linux-clang",
+            "inherits": "linux-base",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++"
+            }
+        },
+        {
+            "name": "windows-base",
+            "inherits": "base",
+            "hidden": true,
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "windows-clang",
+            "inherits": "windows-base",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++"
+            }
+        },
+        {
+            "name": "windows-msvc",
+            "inherits": "windows-base",
+            "hidden": true,
+            "condition": {
+                "type": "notEquals",
+                "lhs": "$env{VSCMD_VER}",
+                "rhs": ""
+            },
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "toolset": {
+                "value": "host=x64",
+                "strategy": "external"
+            },
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "cl",
+                "CMAKE_CXX_COMPILER": "cl",
+                "CMAKE_LINKER": "link"
+            }
+        },
+        {
+            "name": "linux-clang-debug",
+            "inherits": "linux-clang",
+            "displayName": "Linux Clang Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "linux-clang-release",
+            "inherits": "linux-clang",
+            "displayName": "Linux Clang Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "windows-clang-debug",
+            "inherits": "windows-clang",
+            "displayName": "Windows Clang Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "windows-clang-release",
+            "inherits": "windows-clang",
+            "displayName": "Windows Clang Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "windows-msvc-debug",
+            "inherits": "windows-msvc",
+            "displayName": "Windows MSVC Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "windows-msvc-release",
+            "inherits": "windows-msvc",
+            "displayName": "Windows MSVC Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "linux-clang-debug",
+            "displayName": "Linux Clang Debug",
+            "configurePreset": "linux-clang-debug"
+        },
+        {
+            "name": "linux-clang-release",
+            "displayName": "Linux Clang Release",
+            "configurePreset": "linux-clang-release"
+        },
+        {
+            "name": "windows-clang-debug",
+            "displayName": "Windows Clang Debug",
+            "configurePreset": "windows-clang-debug"
+        },
+        {
+            "name": "windows-clang-release",
+            "displayName": "Windows Clang Release",
+            "configurePreset": "windows-clang-release"
+        },
+        {
+            "name": "windows-msvc-debug",
+            "displayName": "Windows MSVC Debug",
+            "configurePreset": "windows-msvc-debug"
+        },
+        {
+            "name": "windows-msvc-release",
+            "displayName": "Windows MSVC Release",
+            "configurePreset": "windows-msvc-release"
+        }
+    ]
 }

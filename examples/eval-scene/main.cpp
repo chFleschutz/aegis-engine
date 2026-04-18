@@ -8,7 +8,7 @@
 
 import Aegis.Engine;
 
-// 1. Crytek Sponza 
+// 1. Crytek Sponza
 //	  - baseline standard small scene
 class Sponza : public Aegis::SceneDescription
 {
@@ -36,7 +36,7 @@ public:
 };
 
 
-// 2. Lumberyard Bistro 
+// 2. Lumberyard Bistro
 //    - larger scene with a lot of objects and details
 
 // NOTE: The Bistro scene is very large (~1.2 GB) and is not included in the repository.
@@ -61,7 +61,7 @@ public:
 		registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
 		std::filesystem::path bistroPath = Core::ENGINE_DIR / "temp/Bistro/bistro.gltf";
-		AGX_ASSERT_X(std::filesystem::exists(bistroPath), 
+		AGX_ASSERT_X(std::filesystem::exists(bistroPath),
 			"Bistro scene not found! Please download the scene from 'https://github.com/zeux/niagara_bistro' and place it in the 'temp/Bistro' folder.");
 
 		Graphics::Loader::load(registry, bistroPath);
@@ -292,7 +292,7 @@ public:
 		cubeMat->setParameter("metallic", 1.0f);
 		cubeMat->setParameter("roughness", 0.5f);
 
-		constexpr int cubeCount = 10'000; 
+		constexpr int cubeCount = 10'000;
 		constexpr float areaSize = 200.0f;
 		std::uniform_real_distribution<float> posDis(-areaSize / 2.0f, areaSize / 2.0f);
 		std::uniform_real_distribution<float> rotDis(0.0f, 360.0f);
@@ -357,7 +357,7 @@ public:
 auto main() -> int
 {
 	// Toggle between cpu/gpu driven by changing this constant:
-	Aegis::Graphics::Renderer::ENABLE_GPU_DRIVEN_RENDERING;
+	// Aegis::Graphics::Renderer::ENABLE_GPU_DRIVEN_RENDERING
 
 	Aegis::Engine engine;
 	engine.loadScene<Sponza>();

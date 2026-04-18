@@ -5,11 +5,11 @@ module;
 
 export module Aegis.Graphics.VulkanContext;
 
+export import Aegis.Graphics.Vulkan.Device;
+export import Aegis.Graphics.Vulkan.VulkanMemory;
+export import Aegis.Graphics.DeletionQueue;
+export import Aegis.Graphics.DescriptorPool;
 import Aegis.Core.Window;
-import Aegis.Graphics.Vulkan.Device;
-import Aegis.Graphics.Vulkan.VulkanMemory;
-import Aegis.Graphics.DeletionQueue;
-import Aegis.Graphics.DescriptorPool;
 
 export namespace Aegis::Graphics
 {

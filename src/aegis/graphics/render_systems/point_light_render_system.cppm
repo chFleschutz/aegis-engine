@@ -12,6 +12,7 @@ import Aegis.Graphics.RenderSystem;
 import Aegis.Graphics.Pipeline;
 import Aegis.Graphics.Descriptors;
 import Aegis.Core.Globals;
+import Aegis.Scene.Components;
 
 export namespace Aegis::Graphics
 {
