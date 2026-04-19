@@ -6,6 +6,7 @@ add_library(Aegis::Engine ALIAS aegis-engine)
 
 add_subdirectory(math)
 add_subdirectory(core)
+add_subdirectory(rhi)
 add_subdirectory(graphics)
 add_subdirectory(scene)
 add_subdirectory(scripting)
