@@ -1,0 +1,75 @@
+---
+# clang-format
+# See documentation at: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+# General
+TabWidth: 4
+IndentWidth: 4
+UseTab: Never
+ColumnLimit: 100
+
+# C++
+Language: Cpp
+Standard: Latest
+PointerAlignment: Left
+AccessModifierOffset: -4
+
+# Alignment
+AlignAfterOpenBracket: false
+AlignConsecutiveAssignments: false
+AlignEscapedNewlines: Left
+AlignOperands: false
+AlignTrailingComments: true
+
+# Line breaking
+BreakBeforeBraces: Allman
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: false
+BreakConstructorInitializers: BeforeColon
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: Yes
+InsertNewlineAtEOF: true
+
+# Single line statements
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+
+# Spaces
+SpaceAfterCStyleCast: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+SpacesInAngles: Never
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Parameters and arguments
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+BinPackArguments: false
+BinPackParameters: true
+
+# Namespaces
+NamespaceIndentation: None
+FixNamespaceComments: false
+ShortNamespaceLines: 3
+
+# Penalties
+PenaltyBreakBeforeFirstCallParameter: 100
+PenaltyBreakComment: 100
+PenaltyBreakFirstLessLess: 0
+PenaltyBreakString: 100
+PenaltyExcessCharacter: 1
+PenaltyReturnTypeOnItsOwnLine: 20
+
+CommentPragmas: ''
+PackConstructorInitializers: BinPack
+Cpp11BracedListStyle: false
+DerivePointerAlignment: false
+IndentCaseLabels: false
+MaxEmptyLinesToKeep: 2
+SortIncludes: true
