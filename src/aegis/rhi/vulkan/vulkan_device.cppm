@@ -1,12 +1,40 @@
+module;
+#include <memory>
+
 export module aegis.rhi.vulkan:device;
 
 import aegis.rhi;
 
 export namespace aegis::rhi::vulkan
 {
-class VulkanDevice : public Device
+class Device final : public rhi::Device
 {
 public:
-private:
+    explicit Device(const rhi::Device::Desc& desc) {}
+
+    auto createBuffer(const Buffer::Desc& desc) -> std::unique_ptr<Buffer> override
+    {
+        return nullptr;
+    }
+    auto createTexture(const Buffer::Desc& desc) -> std::unique_ptr<Texture> override
+    {
+        return nullptr;
+    }
+    auto createPipeline(const Buffer::Desc& desc) -> std::unique_ptr<Pipeline> override
+    {
+        return nullptr;
+    }
+    auto createCommandBuffer(const CommandBuffer::Desc& desc) -> std::unique_ptr<CommandBuffer> override
+    {
+        return nullptr;
+    }
+
+    void submit(const CommandBuffer& cmd) override {}
+
+    void beginFrame() override {}
+    void endFrame() override {}
+
+    void waitIdle() override {}
 };
+
 }

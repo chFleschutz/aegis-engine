@@ -9,8 +9,7 @@ PRIVATE
 )
 
 target_sources(aegis-rhi-vulkan
-PUBLIC
-	FILE_SET CXX_MODULES FILES
-        vulkan.cppm
-		vulkan_device.cppm
+PUBLIC FILE_SET CXX_MODULES FILES
+    vulkan.cppm
+    vulkan_device.cppm
 )

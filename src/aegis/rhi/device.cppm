@@ -12,6 +12,10 @@ export namespace aegis::rhi
 class Device
 {
 public:
+    struct Desc
+    {
+    };
+
     virtual ~Device() = default;
 
     virtual auto createBuffer(const Buffer::Desc& desc) -> std::unique_ptr<Buffer> = 0;

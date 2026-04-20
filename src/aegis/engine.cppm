@@ -38,6 +38,8 @@ export import Aegis.Scene.Components;
 export import Aegis.Scene.System;
 export import Aegis.Scripting.ScriptBase;
 export import Aegis.Scripting.ScriptManager;
+import aegis.rhi;
+import aegis.rhi.factory;
 
 export namespace Aegis
 {
@@ -218,8 +220,9 @@ export namespace Aegis
 		inline static Engine* s_instance{ nullptr };
 
 		Logging m_logging{};
-		UI::UI m_ui{ m_layerStack };
 		Core::LayerStack m_layerStack{};
+		UI::UI m_ui{ m_layerStack };
+	    std::unique_ptr<aegis::rhi::Device> m_rhi{ aegis::rhi::factory::create(aegis::rhi::Device::Desc{}) };
 		Core::Window m_window{ Core::DEFAULT_WIDTH,Core::DEFAULT_HEIGHT, "Aegis" };
 		Graphics::Renderer m_renderer{ m_window };
 		Input m_input{ m_window };
