@@ -29,6 +29,10 @@ AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
 InsertNewlineAtEOF: true
 
+# Empty Lines
+SeparateDefinitionBlocks: Always
+MaxEmptyLinesToKeep: 2
+
 # Single line statements
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: true
@@ -71,5 +75,4 @@ PackConstructorInitializers: BinPack
 Cpp11BracedListStyle: false
 DerivePointerAlignment: false
 IndentCaseLabels: false
-MaxEmptyLinesToKeep: 2
 SortIncludes: true
