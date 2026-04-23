@@ -13,3 +13,6 @@ PUBLIC FILE_SET CXX_MODULES FILES
 
 add_subdirectory(vulkan)
 add_subdirectory(factory)
+
+# TODO: remove later
+add_subdirectory(test)

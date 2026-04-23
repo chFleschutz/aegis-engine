@@ -28,8 +28,6 @@ PRIVATE
 target_link_libraries(aegis-engine 
 PUBLIC 
 	aegis-core
-    aegis-rhi
-    aegis-rhi-factory
 	aegis-graphics
 	aegis-scene
 	aegis-ui
