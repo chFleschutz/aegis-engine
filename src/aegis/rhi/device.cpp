@@ -1,53 +1,14 @@
 module;
-#include <memory>
 #include <vector>
 
-module aegis.rhi.vulkan;
+module aegis.rhi;
 import :device;
-import :core;
 
-namespace aegis::rhi::vulkan
+namespace aegis::rhi
 {
-Device::Device(const rhi::Device::Desc& desc)
+Device::Device(Desc desc)
 {
     createInstance();
-
-}
-
-auto Device::createBuffer(const Buffer::Desc& desc) -> std::unique_ptr<Buffer>
-{
-    return nullptr;
-}
-
-auto Device::createTexture(const Buffer::Desc& desc) -> std::unique_ptr<Texture>
-{
-    return nullptr;
-}
-
-auto Device::createPipeline(const Buffer::Desc& desc) -> std::unique_ptr<Pipeline>
-{
-    return nullptr;
-}
-
-auto Device::createCommandBuffer(const CommandBuffer::Desc& desc) -> std::unique_ptr<CommandBuffer>
-{
-    return nullptr;
-}
-
-void Device::submit(const CommandBuffer& cmd)
-{
-}
-
-void Device::beginFrame()
-{
-}
-
-void Device::endFrame()
-{
-}
-
-void Device::waitIdle()
-{
 }
 
 void Device::createInstance()

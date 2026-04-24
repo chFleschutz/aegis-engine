@@ -1,7 +1,8 @@
 
-import aegis.rhi.factory;
+import aegis.rhi;
 
 auto main() -> int
 {
-    auto device = aegis::rhi::factory::create(aegis::rhi::Device::Desc{});
+    aegis::rhi::Device::Desc desc{};
+    aegis::rhi::Device device{desc};
 }
