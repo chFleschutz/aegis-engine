@@ -1,5 +1,6 @@
 module;
 #include <memory>
+#include <string>
 
 export module aegis.rhi:device;
 import :buffer;
@@ -14,6 +15,7 @@ class Device
 public:
     struct Desc
     {
+        std::string appName;
     };
 
     virtual ~Device() = default;

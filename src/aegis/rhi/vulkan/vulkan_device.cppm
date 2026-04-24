@@ -25,6 +25,9 @@ public:
     void waitIdle() override;
 
 private:
-    vk::Instance instance;
+    void createInstance();
+
+    vk::raii::Context m_context;
+    vk::raii::Instance m_instance{ nullptr };
 };
 }
