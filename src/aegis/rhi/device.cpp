@@ -6,15 +6,16 @@ import :device;
 
 namespace aegis::rhi
 {
-Device::Device(Desc desc)
+Device::Device(const Desc& desc)
 {
-    createInstance();
+    createInstance(desc);
+    m_surface = vk::raii::SurfaceKHR{ m_instance, desc.createSurface(*m_instance) };
 }
 
-void Device::createInstance()
+void Device::createInstance(const Desc& desc)
 {
     vk::ApplicationInfo appInfo{
-        .pApplicationName = "aegis",
+        .pApplicationName = desc.appName.c_str(),
         .applicationVersion = vk::makeVersion(1, 0, 0),
         .pEngineName = "Aegis Engine",
         .engineVersion = vk::makeVersion(1, 0, 0),

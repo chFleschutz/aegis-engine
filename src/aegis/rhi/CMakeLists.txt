@@ -33,7 +33,6 @@ target_sources(aegis-rhi
     FILE_SET CXX_MODULES
     FILES
     buffer.cppm
-    context.cppm
     command_buffer.cppm
     device.cppm
     pipeline.cppm

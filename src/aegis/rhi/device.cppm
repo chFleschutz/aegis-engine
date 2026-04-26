@@ -1,5 +1,5 @@
 module;
-#include <memory>
+#include <functional>
 #include <string>
 
 export module aegis.rhi:device;
@@ -18,27 +18,17 @@ public:
     struct Desc
     {
         std::string appName;
+        std::function<vk::SurfaceKHR(vk::Instance)> createSurface;
     };
 
-    explicit Device(Desc desc);
+    explicit Device(const Desc& desc);
     ~Device() = default;
 
-    // auto createBuffer(const Buffer::Desc& desc) -> std::unique_ptr<Buffer>;
-    // auto createTexture(const Buffer::Desc& desc) -> std::unique_ptr<Texture>;
-    // auto createPipeline(const Buffer::Desc& desc) -> std::unique_ptr<Pipeline>;
-    // auto createCommandBuffer(const CommandBuffer::Desc& desc) -> std::unique_ptr<CommandBuffer>;
-    //
-    // void submit(const CommandBuffer& cmd);
-    //
-    // void beginFrame();
-    // void endFrame();
-    //
-    // void waitIdle();
-
 private:
-    void createInstance();
+    void createInstance(const Desc& desc);
 
     vk::raii::Context m_context;
     vk::raii::Instance m_instance{ nullptr };
+    vk::raii::SurfaceKHR m_surface{ nullptr };
 };
 }
