@@ -1,46 +1,46 @@
 ---
 # clang-format
 # See documentation at: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
-# General
-TabWidth: 4
-IndentWidth: 4
-UseTab: Never
-ColumnLimit: 100
 
-# C++
-Language: Cpp
-Standard: Latest
-PointerAlignment: Left
 AccessModifierOffset: -4
-
-# Alignment
 AlignAfterOpenBracket: false
 AlignConsecutiveAssignments: false
 AlignEscapedNewlines: Left
 AlignOperands: false
 AlignTrailingComments: true
-
-# Line breaking
-BreakBeforeBraces: Allman
-BreakBeforeBinaryOperators: None
-BreakBeforeTernaryOperators: false
-BreakConstructorInitializers: BeforeColon
 AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
-InsertNewlineAtEOF: true
-
-# Empty Lines
-SeparateDefinitionBlocks: Always
-MaxEmptyLinesToKeep: 2
-
-# Single line statements
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
-
-# Spaces
+BreakBeforeBraces: Allman
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeConceptDeclarations: Always
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: AfterColon
+BreakInheritanceList: AfterColon
+BinPackArguments: false
+BinPackParameters: true
+ColumnLimit: 100
+Cpp11BracedListStyle: false
+DerivePointerAlignment: false
+FixNamespaceComments: false
+IndentCaseLabels: false
+InsertNewlineAtEOF: true
+IndentWidth: 4
+Language: Cpp
+MaxEmptyLinesToKeep: 2
+NamespaceIndentation: None
+PackConstructorInitializers: BinPack
+PointerAlignment: Left
+Standard: Latest
+SeparateDefinitionBlocks: Always
+ShortNamespaceLines: 3
+SortIncludes: true
 SpaceAfterCStyleCast: false
 SpaceBeforeAssignmentOperators: true
 SpaceBeforeParens: ControlStatements
@@ -50,29 +50,5 @@ SpacesInAngles: Never
 SpacesInContainerLiterals: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
-
-# Parameters and arguments
-AllowAllArgumentsOnNextLine: false
-AllowAllParametersOfDeclarationOnNextLine: false
-BinPackArguments: false
-BinPackParameters: true
-
-# Namespaces
-NamespaceIndentation: None
-FixNamespaceComments: false
-ShortNamespaceLines: 3
-
-# Penalties
-PenaltyBreakBeforeFirstCallParameter: 100
-PenaltyBreakComment: 100
-PenaltyBreakFirstLessLess: 0
-PenaltyBreakString: 100
-PenaltyExcessCharacter: 1
-PenaltyReturnTypeOnItsOwnLine: 20
-
-CommentPragmas: ''
-PackConstructorInitializers: BinPack
-Cpp11BracedListStyle: false
-DerivePointerAlignment: false
-IndentCaseLabels: false
-SortIncludes: true
+TabWidth: 4
+UseTab: Never
