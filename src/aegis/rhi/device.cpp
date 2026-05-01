@@ -1,10 +1,7 @@
 module;
-#include "vulkan/vulkan_hpp_macros.hpp"
-
-
+#include <algorithm>
 #include <set>
 #include <vector>
-#include <algorithm>
 
 module aegis.rhi;
 import :device;
@@ -174,7 +171,7 @@ void Device::createDevice(const Desc& desc)
         .setQueueCreateInfos(queueCreateInfos)
         .setPEnabledExtensionNames(extensions);
 
-    m_device = vk::raii::Device(m_physicalDevice, deviceChain.get<vk::PhysicalDevice>());
+    auto [result, device] = m_physicalDevice.createDevice(deviceChain.get<vk::DeviceCreateInfo>());
     if (result != vk::Result::eSuccess)
     {
         // TODO: error
