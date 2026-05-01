@@ -13,7 +13,6 @@ target_sources(vulkan-module
 target_link_libraries(vulkan-module PUBLIC Vulkan::Headers)
 
 target_compile_definitions(vulkan-module PUBLIC
-    VULKAN_HPP_DISPATCH_LOADER_DYNAMIC
     VULKAN_HPP_NO_EXCEPTIONS
     VULKAN_HPP_NO_SMART_HANDLE
     VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
