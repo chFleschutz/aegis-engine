@@ -34,6 +34,14 @@ public:
         bool meshShaders = false;
     };
 
+#ifdef NDEBUG
+    static constexpr bool enableValidation = false;
+#else
+    static constexpr bool enableValidation = true;
+#endif
+
+    static constexpr auto validationLayers = std::array{ "VK_LAYER_KHRONOS_validation" };
+
     explicit Device(const Desc& desc);
     ~Device() = default;
 
@@ -54,13 +62,18 @@ private:
     };
 
     void createInstance(const Desc& desc);
+    void createDebugMessenger(const Desc& desc);
+    void createSurface(const Desc& desc);
     void createPhysicalDevice(const Desc& desc);
     void createDevice(const Desc& desc);
 
     auto findQueueFamilies(const vk::PhysicalDevice& physicalDevice) const -> QueueFamilyIndices;
+    auto findExtensions() const -> std::vector<const char*>;
+    auto findLayers() const -> std::vector<const char*>;
 
     vk::raii::Context m_context;
     vk::raii::Instance m_instance{ nullptr };
+    vk::raii::DebugUtilsMessengerEXT m_debugMessenger{ nullptr };
     vk::raii::SurfaceKHR m_surface{ nullptr };
     vk::raii::PhysicalDevice m_physicalDevice{ nullptr };
     Properties m_properties;

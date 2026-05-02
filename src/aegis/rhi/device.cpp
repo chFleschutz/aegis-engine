@@ -1,6 +1,12 @@
 module;
+#include "vulkan/vk_platform.h"
+
+
 #include <algorithm>
+#include <format>
+#include <iostream>
 #include <set>
+#include <string_view>
 #include <vector>
 
 module aegis.rhi;
@@ -8,12 +14,27 @@ import :device;
 
 namespace aegis::rhi
 {
+VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity,
+    vk::DebugUtilsMessageTypeFlagsEXT type,
+    const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void*)
+{
+    if (severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError
+        || severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
+    {
+        std::cerr << std::format("Vulkan Validation Error: {} \n{}\n",
+            to_string(type),
+            pCallbackData->pMessage);
+    }
+    return vk::False;
+}
+
 Device::Device(const Desc& desc)
 {
     createInstance(desc);
-    m_surface = vk::raii::SurfaceKHR{ m_instance, desc.createSurface(*m_instance) };
+    createDebugMessenger(desc);
+    createSurface(desc);
     createPhysicalDevice(desc);
-    // createDevice(desc);
+    createDevice(desc);
 }
 
 void Device::createInstance(const Desc& desc)
@@ -26,12 +47,13 @@ void Device::createInstance(const Desc& desc)
         .apiVersion = vk::makeApiVersion(1, 3, 0, 0),
     };
 
-    std::vector<char*> extensions;
+    std::vector<const char*> extensions = findExtensions();
+    std::vector<const char*> layers = findLayers();
 
-    vk::InstanceCreateInfo instanceInfo{
+    const vk::InstanceCreateInfo instanceInfo{
         .pApplicationInfo = &appInfo,
-        .enabledLayerCount = 0,
-        .ppEnabledLayerNames = nullptr,
+        .enabledLayerCount = static_cast<uint32_t>(layers.size()),
+        .ppEnabledLayerNames = layers.data(),
         .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
         .ppEnabledExtensionNames = extensions.data(),
     };
@@ -43,6 +65,38 @@ void Device::createInstance(const Desc& desc)
         return;
     }
     m_instance = std::move(instance);
+}
+
+void Device::createDebugMessenger(const Desc& desc)
+{
+    if constexpr (!enableValidation)
+        return;
+
+    vk::DebugUtilsMessageSeverityFlagsEXT severityFlags =
+        vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning
+        | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
+
+    vk::DebugUtilsMessageTypeFlagsEXT messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral
+        | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance
+        | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation;
+
+    vk::DebugUtilsMessengerCreateInfoEXT createInfo{ .messageSeverity = severityFlags,
+        .messageType = messageType,
+        .pfnUserCallback = &debugCallback };
+
+    auto [result, debugMessenger] = m_instance.createDebugUtilsMessengerEXT(createInfo);
+    if (result != vk::Result::eSuccess)
+    {
+        // TODO: Error
+        return;
+    }
+
+    m_debugMessenger = std::move(debugMessenger);
+}
+
+void Device::createSurface(const Desc& desc)
+{
+    m_surface = vk::raii::SurfaceKHR{ m_instance, desc.createSurface(*m_instance) };
 }
 
 void Device::createPhysicalDevice(const Desc& desc)
@@ -208,5 +262,43 @@ auto Device::findQueueFamilies(const vk::PhysicalDevice& physicalDevice) const -
     // }
 
     return indices;
+}
+
+auto Device::findExtensions() const -> std::vector<const char*>
+{
+    // TODO: Find glfw extensions
+    return {};
+}
+
+auto Device::findLayers() const -> std::vector<const char*>
+{
+    std::vector<const char*> layers;
+    if constexpr (enableValidation)
+    {
+        layers.assign_range(validationLayers);
+    }
+
+    auto [result, layerProps] = m_context.enumerateInstanceLayerProperties();
+    if (result != vk::Result::eSuccess)
+    {
+        // TODO: Error
+        return {};
+    }
+
+    const auto missingIt = std::ranges::find_if(layers,
+        [&layerProps](std::string_view required)
+        {
+            return std::ranges::none_of(layerProps,
+                [required](const auto& provided)
+                { return required == std::string_view{ provided.layerName }; });
+        });
+
+    if (missingIt != layers.end())
+    {
+        // TODO: Error
+        return {};
+    }
+
+    return layers;
 }
 }
