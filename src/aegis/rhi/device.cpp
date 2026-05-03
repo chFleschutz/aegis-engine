@@ -1,10 +1,11 @@
 module;
 #include "vulkan/vk_platform.h"
 
-
 #include <algorithm>
+#include <cassert>
 #include <format>
 #include <iostream>
+#include <print>
 #include <set>
 #include <string_view>
 #include <vector>
@@ -62,9 +63,11 @@ void Device::createInstance(const Desc& desc)
     if (result != vk::Result::eSuccess)
     {
         // TODO: log error
+        assert(false && "Vulkan Error: Failed to create instance");
         return;
     }
     m_instance = std::move(instance);
+    std::println("Instance created");
 }
 
 void Device::createDebugMessenger(const Desc& desc)
@@ -88,15 +91,18 @@ void Device::createDebugMessenger(const Desc& desc)
     if (result != vk::Result::eSuccess)
     {
         // TODO: Error
+        assert(false && "Vulkan Error: Failed to create debug messenger");
         return;
     }
 
     m_debugMessenger = std::move(debugMessenger);
+    std::println("Debug Messenger created");
 }
 
 void Device::createSurface(const Desc& desc)
 {
     m_surface = vk::raii::SurfaceKHR{ m_instance, desc.createSurface(*m_instance) };
+    std::println("Surface created");
 }
 
 void Device::createPhysicalDevice(const Desc& desc)
@@ -105,6 +111,7 @@ void Device::createPhysicalDevice(const Desc& desc)
     if (result != vk::Result::eSuccess || physicalDevices.empty())
     {
         // TODO: log error
+        assert(false && "Vulkan Error: Failed to enumerate physical devices");
         return;
     }
 
@@ -147,12 +154,13 @@ void Device::createPhysicalDevice(const Desc& desc)
     std::ranges::sort(candidates);
     if (candidates.empty() || candidates.front().first == 0)
     {
-        // TODO: Error
+        assert(false && "Vulkan Error: Failed to find suitable physical device");
         return;
     }
 
     auto [_, index] = candidates.front();
     m_physicalDevice = physicalDevices[index];
+    std::println("Physical device picked");
 }
 
 void Device::createDevice(const Desc& desc)
@@ -229,10 +237,12 @@ void Device::createDevice(const Desc& desc)
     if (result != vk::Result::eSuccess)
     {
         // TODO: error
+        assert(false && "Vulkan Error: Failed to create device");
         return;
     }
 
     m_device = std::move(device);
+    std::println("Device created");
 }
 
 auto Device::findQueueFamilies(const vk::PhysicalDevice& physicalDevice) const -> QueueFamilyIndices
