@@ -16,9 +16,29 @@ AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: false
+AllowShortLambdasOnASingleLine: All
 AllowShortLoopsOnASingleLine: false
-BreakBeforeBraces: Allman
-BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: false
+  BeforeWhile: true
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+BreakAfterAttributes: Leave
+BreakBeforeBinaryOperators: None
 BreakBeforeConceptDeclarations: Always
 BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: AfterColon
@@ -28,27 +48,45 @@ BinPackParameters: true
 ColumnLimit: 100
 Cpp11BracedListStyle: false
 DerivePointerAlignment: false
+EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: LogicalBlock
 FixNamespaceComments: false
+IndentAccessModifiers: false
 IndentCaseLabels: false
-InsertNewlineAtEOF: true
+IndentRequiresClause: true
 IndentWidth: 4
+InsertNewlineAtEOF: true
+LambdaBodyIndentation: Signature
 Language: Cpp
 MaxEmptyLinesToKeep: 2
 NamespaceIndentation: None
-PackConstructorInitializers: BinPack
+PackConstructorInitializers: CurrentLine
 PointerAlignment: Left
-Standard: Latest
-SeparateDefinitionBlocks: Always
+QualifierAlignment: Left
+ReferenceAlignment: Pointer
+ReflowComments: IndentOnly
+RequiresClausePosition: OwnLine
+RequiresExpressionIndentation: OuterScope
+SeparateDefinitionBlocks: Leave
 ShortNamespaceLines: 3
 SortIncludes: true
+SortUsingDeclarations: Lexicographic
 SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterOperatorKeyword: false
+SpaceAfterTemplateKeyword: false
 SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
 SpaceBeforeParens: ControlStatements
-SpaceInEmptyParentheses: false
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyBraces: Never
 SpacesBeforeTrailingComments: 1
 SpacesInAngles: Never
 SpacesInContainerLiterals: false
-SpacesInParentheses: false
 SpacesInSquareBrackets: false
+Standard: Latest
 TabWidth: 4
 UseTab: Never
