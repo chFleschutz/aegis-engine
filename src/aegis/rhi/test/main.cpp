@@ -1,4 +1,3 @@
-
 import aegis.rhi;
 import vulkan_hpp;
 

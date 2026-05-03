@@ -40,6 +40,7 @@ public:
     static constexpr bool enableValidation = true;
 #endif
 
+    static constexpr uint32_t vulkanVersion = vk::makeApiVersion(0, 1, 3, 0);
     static constexpr auto validationLayers = std::array{ "VK_LAYER_KHRONOS_validation" };
 
     explicit Device(const Desc& desc);

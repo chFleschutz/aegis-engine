@@ -45,7 +45,7 @@ void Device::createInstance(const Desc& desc)
         .applicationVersion = vk::makeVersion(1, 0, 0),
         .pEngineName = "Aegis Engine",
         .engineVersion = vk::makeVersion(1, 0, 0),
-        .apiVersion = vk::makeApiVersion(1, 3, 0, 0),
+        .apiVersion = vulkanVersion,
     };
 
     std::vector<const char*> extensions = findExtensions();
@@ -171,15 +171,15 @@ void Device::createDevice(const Desc& desc)
         vk::PhysicalDeviceVulkan12Features,
         vk::PhysicalDeviceVulkan13Features,
         vk::PhysicalDeviceMeshShaderFeaturesEXT>
-        deviceChain;
+        featureChain;
 
-    deviceChain.get<vk::PhysicalDeviceFeatures2>().features.setSamplerAnisotropy(true);
+    featureChain.get<vk::PhysicalDeviceFeatures2>().features.setSamplerAnisotropy(true);
 
-    deviceChain
+    featureChain
         .get<vk::PhysicalDeviceVulkan11Features>() //
         .setShaderDrawParameters(true);
 
-    deviceChain.get<vk::PhysicalDeviceVulkan12Features>()
+    featureChain.get<vk::PhysicalDeviceVulkan12Features>()
         .setStorageBuffer8BitAccess(true)
         .setUniformAndStorageBuffer8BitAccess(true)
         .setStoragePushConstant8(true)
@@ -200,12 +200,12 @@ void Device::createDevice(const Desc& desc)
         .setScalarBlockLayout(true)
         .setUniformBufferStandardLayout(true);
 
-    deviceChain.get<vk::PhysicalDeviceVulkan13Features>()
+    featureChain.get<vk::PhysicalDeviceVulkan13Features>()
         .setShaderDemoteToHelperInvocation(true)
         .setDynamicRendering(true)
         .setMaintenance4(true);
 
-    deviceChain
+    featureChain
         .get<vk::PhysicalDeviceMeshShaderFeaturesEXT>() //
         .setMeshShader(true)
         .setTaskShader(true);
@@ -229,11 +229,15 @@ void Device::createDevice(const Desc& desc)
         });
     }
 
-    deviceChain.get<vk::DeviceCreateInfo>()
-        .setQueueCreateInfos(queueCreateInfos)
-        .setPEnabledExtensionNames(extensions);
+    vk::DeviceCreateInfo deviceInfo{
+        .pNext = &featureChain.get<vk::PhysicalDeviceFeatures2>(),
+        .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
+        .pQueueCreateInfos = queueCreateInfos.data(),
+        .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+        .ppEnabledExtensionNames = extensions.data(),
+    };
 
-    auto [result, device] = m_physicalDevice.createDevice(deviceChain.get<vk::DeviceCreateInfo>());
+    auto [result, device] = m_physicalDevice.createDevice(deviceInfo);
     if (result != vk::Result::eSuccess)
     {
         // TODO: error
@@ -279,7 +283,13 @@ auto Device::findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) c
 auto Device::findExtensions() const -> std::vector<const char*>
 {
     // TODO: Find glfw extensions
-    return {};
+    std::vector<const char*> extensions;
+    if constexpr (enableValidation)
+    {
+        extensions.emplace_back(vk::EXTDebugUtilsExtensionName);
+    }
+
+    return extensions;
 }
 
 auto Device::findLayers() const -> std::vector<const char*>
