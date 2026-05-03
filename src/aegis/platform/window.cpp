@@ -1,0 +1,40 @@
+module aegis.platform.window;
+#include "GLFW/glfw3.h"
+
+
+#include <cassert>
+#include <string_view>
+
+namespace aegis::platform
+{
+Window::Window(const Desc& desc) : m_width{ desc.width }, m_height{ desc.height }
+{
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+    m_window = glfwCreateWindow(static_cast<int>(desc.width),
+        static_cast<int>(desc.height),
+        desc.title.data(),
+        nullptr,
+        nullptr);
+    assert(m_window && "Platform Error: Failed to create window");
+
+    glfwSetWindowUserPointer(m_window, this);
+    glfwSetWindowSizeCallback(m_window, onWindowResize);
+}
+
+Window::~Window()
+{
+    glfwDestroyWindow(m_window);
+    glfwTerminate();
+}
+
+void Window::onWindowResize(GLFWwindow* glfwWindow, int newWidth, int newHeight)
+{
+    const auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
+    window->m_width = static_cast<uint32_t>(newWidth);
+    window->m_height = static_cast<uint32_t>(newHeight);
+    window->m_wasResized = true;
+}
+}
