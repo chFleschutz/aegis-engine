@@ -245,31 +245,33 @@ void Device::createDevice(const Desc& desc)
     std::println("Device created");
 }
 
-auto Device::findQueueFamilies(const vk::PhysicalDevice& physicalDevice) const -> QueueFamilyIndices
+auto Device::findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) const
+    -> QueueFamilyIndices
 {
     QueueFamilyIndices indices;
 
-    // TODO:
-    // const auto queueFamilies = physicalDevice.getQueueFamilyProperties();
-    // for (uint32_t i = 0; i < queueFamilies.size(); ++i)
-    // {
-    //     const auto& props = queueFamilies[i];
-    //     const bool hasGraphics = static_cast<bool>(props.queueFlags &
-    //     vk::QueueFlagBits::eGraphics); const bool hasCompute = static_cast<bool>(props.queueFlags
-    //     & vk::QueueFlagBits::eCompute); const bool hasTransfer =
-    //     static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eTransfer);
-    //
-    //     auto [result, hasPresent] = physicalDevice.getSurfaceSupportKHR(i, *m_surface);
-    //     if (result != vk::Result::eSuccess)
-    //         continue;
-    //
-    //     if (hasGraphics && hasCompute && hasTransfer && indices.graphics ==
-    //     vk::QueueFamilyIgnored)
-    //         indices.graphics = i;
-    //
-    //     if (hasPresent && indices.present == vk::QueueFamilyIgnored)
-    //         indices.present = i;
-    // }
+    auto queueFamilies = physicalDevice.getQueueFamilyProperties();
+    for (uint32_t i = 0; i < queueFamilies.size(); ++i)
+    {
+        const auto& props = queueFamilies[i];
+        const bool hasGraphics = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eGraphics);
+        const bool hasCompute = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eCompute);
+        const bool hasTransfer = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eTransfer);
+
+        // TODO: Requires surface KHR extension to be loaded.
+        // TODO: Most likely glfw requires it, so query glfw for extensions first
+        // auto [result, hasPresent] = physicalDevice.getSurfaceSupportKHR(i, *m_surface);
+        // if (result != vk::Result::eSuccess)
+        //     continue;
+
+        if (hasGraphics && hasCompute && hasTransfer && indices.graphics == vk::QueueFamilyIgnored)
+            indices.graphics = i;
+
+        // TODO: Query and enable glfw extensions (see above) assume it works for now
+        // if (hasPresent && indices.present == vk::QueueFamilyIgnored)
+        //     indices.present = i;
+        indices.present = i;
+    }
 
     return indices;
 }

@@ -67,7 +67,8 @@ private:
     void createPhysicalDevice(const Desc& desc);
     void createDevice(const Desc& desc);
 
-    auto findQueueFamilies(const vk::PhysicalDevice& physicalDevice) const -> QueueFamilyIndices;
+    auto findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) const
+        -> QueueFamilyIndices;
     auto findExtensions() const -> std::vector<const char*>;
     auto findLayers() const -> std::vector<const char*>;
 
