@@ -1,6 +1,9 @@
 module;
 #include "vulkan/vk_platform.h"
 
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
 #include <algorithm>
 #include <cassert>
 #include <format>
@@ -19,8 +22,8 @@ VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(vk::DebugUtilsMessageSeverityFlag
     vk::DebugUtilsMessageTypeFlagsEXT type,
     const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void*)
 {
-    if (severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError
-        || severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
+    if (severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError ||
+        severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
     {
         std::cerr << std::format("Vulkan Validation Error: {} \n{}\n",
             to_string(type),
@@ -75,15 +78,16 @@ void Device::createDebugMessenger(const Desc& desc)
     if constexpr (!enableValidation)
         return;
 
-    vk::DebugUtilsMessageSeverityFlagsEXT severityFlags =
-        vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning
-        | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
+    constexpr vk::DebugUtilsMessageSeverityFlagsEXT severityFlags =
+        vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+        vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
 
-    vk::DebugUtilsMessageTypeFlagsEXT messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral
-        | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance
-        | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation;
+    constexpr vk::DebugUtilsMessageTypeFlagsEXT messageType =
+        vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
+        vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
+        vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation;
 
-    vk::DebugUtilsMessengerCreateInfoEXT createInfo{ .messageSeverity = severityFlags,
+    constexpr vk::DebugUtilsMessengerCreateInfoEXT createInfo{ .messageSeverity = severityFlags,
         .messageType = messageType,
         .pfnUserCallback = &debugCallback };
 
@@ -101,7 +105,14 @@ void Device::createDebugMessenger(const Desc& desc)
 
 void Device::createSurface(const Desc& desc)
 {
-    m_surface = vk::raii::SurfaceKHR{ m_instance, desc.createSurface(*m_instance) };
+    VkSurfaceKHR surface;
+    if (glfwCreateWindowSurface(*m_instance, desc.window.glfwWindow(), nullptr, &surface) != 0)
+    {
+        assert(false && "Vulkan Error: Failed to create surface");
+        return;
+    }
+    m_surface = vk::raii::SurfaceKHR{ m_instance, surface };
+
     std::println("Surface created");
 }
 
@@ -282,8 +293,13 @@ auto Device::findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) c
 
 auto Device::findExtensions() const -> std::vector<const char*>
 {
-    // TODO: Find glfw extensions
+    uint32_t glfwExtensionCount = 0;
+    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
     std::vector<const char*> extensions;
+    extensions.reserve(glfwExtensionCount);
+    extensions.insert(extensions.end(), glfwExtensions, glfwExtensions + glfwExtensionCount);
+
     if constexpr (enableValidation)
     {
         extensions.emplace_back(vk::EXTDebugUtilsExtensionName);
@@ -307,13 +323,11 @@ auto Device::findLayers() const -> std::vector<const char*>
         return {};
     }
 
-    const auto missingIt = std::ranges::find_if(layers,
-        [&layerProps](std::string_view required)
-        {
-            return std::ranges::none_of(layerProps,
-                [required](const auto& provided)
-                { return required == std::string_view{ provided.layerName }; });
+    const auto missingIt = std::ranges::find_if(layers, [&layerProps](std::string_view required) {
+        return std::ranges::none_of(layerProps, [required](const auto& provided) {
+            return required == std::string_view{ provided.layerName };
         });
+    });
 
     if (missingIt != layers.end())
     {

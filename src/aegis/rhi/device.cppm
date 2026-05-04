@@ -1,12 +1,17 @@
 module;
+#include <GLFW/glfw3.h>
+
 #include <functional>
 #include <string>
+#include <vector>
 
 export module aegis.rhi:device;
 import :buffer;
 import :texture;
 import :pipeline;
 import :command_buffer;
+
+import aegis.platform.window;
 
 import vulkan_hpp;
 
@@ -18,7 +23,7 @@ public:
     struct Desc
     {
         std::string appName;
-        std::function<vk::SurfaceKHR(vk::Instance)> createSurface;
+        platform::Window& window;
     };
 
     struct Properties
@@ -68,10 +73,10 @@ private:
     void createPhysicalDevice(const Desc& desc);
     void createDevice(const Desc& desc);
 
-    auto findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) const
+    [[nodiscard]] auto findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) const
         -> QueueFamilyIndices;
-    auto findExtensions() const -> std::vector<const char*>;
-    auto findLayers() const -> std::vector<const char*>;
+    [[nodiscard]] auto findExtensions() const -> std::vector<const char*>;
+    [[nodiscard]] auto findLayers() const -> std::vector<const char*>;
 
     vk::raii::Context m_context;
     vk::raii::Instance m_instance{ nullptr };

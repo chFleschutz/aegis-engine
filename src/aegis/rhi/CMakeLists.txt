@@ -22,9 +22,12 @@ target_compile_definitions(vulkan-module PUBLIC
 add_library(aegis-rhi STATIC)
 
 target_link_libraries(aegis-rhi
+    PUBLIC
+    aegis-platform
     PRIVATE
     vulkan-module
     GPUOpen::VulkanMemoryAllocator
+    glfw
 )
 
 target_sources(aegis-rhi

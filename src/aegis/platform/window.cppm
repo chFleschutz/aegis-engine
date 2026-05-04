@@ -24,7 +24,7 @@ public:
     [[nodiscard]] auto width() const -> uint32_t { return m_width; }
     [[nodiscard]] auto height() const -> uint32_t { return m_height; }
     [[nodiscard]] auto wasResized() const -> bool { return m_wasResized; }
-    [[nodiscard]] auto shouldClose() const -> bool { return glfwWindowShouldClose(m_window); }
+    [[nodiscard]] auto shouldClose() const -> bool;
 
 private:
     static void onWindowResize(GLFWwindow* glfwWindow, int newWidth, int newHeight);
