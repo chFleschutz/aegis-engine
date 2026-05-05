@@ -18,14 +18,17 @@ import :device;
 
 namespace aegis::rhi
 {
-VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity,
+VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(
+    vk::DebugUtilsMessageSeverityFlagBitsEXT severity,
     vk::DebugUtilsMessageTypeFlagsEXT type,
-    const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void*)
+    const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void*)
 {
     if (severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError ||
         severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
     {
-        std::cerr << std::format("Vulkan Validation Error: {} \n{}\n",
+        std::cerr << std::format(
+            "Vulkan Validation Error: {} \n{}\n",
             to_string(type),
             pCallbackData->pMessage);
     }
@@ -40,6 +43,7 @@ Device::Device(const Desc& desc)
     createSurface(desc);
     createPhysicalDevice(desc);
     createDevice(desc);
+    createQueues(desc);
 }
 
 void Device::createInstance(const Desc& desc)
@@ -89,8 +93,8 @@ void Device::createDebugMessenger(const Desc& desc)
         vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation;
 
     constexpr vk::DebugUtilsMessengerCreateInfoEXT createInfo{ .messageSeverity = severityFlags,
-        .messageType = messageType,
-        .pfnUserCallback = &debugCallback };
+                                                               .messageType = messageType,
+                                                               .pfnUserCallback = &debugCallback };
 
     auto [result, debugMessenger] = m_instance.createDebugUtilsMessengerEXT(createInfo);
     if (result != vk::Result::eSuccess)
@@ -176,7 +180,8 @@ void Device::createPhysicalDevice(const Desc& desc)
 
 void Device::createDevice(const Desc& desc)
 {
-    vk::StructureChain<vk::DeviceCreateInfo,
+    vk::StructureChain<
+        vk::DeviceCreateInfo,
         vk::PhysicalDeviceFeatures2,
         vk::PhysicalDeviceVulkan11Features,
         vk::PhysicalDeviceVulkan12Features,
@@ -226,18 +231,25 @@ void Device::createDevice(const Desc& desc)
         vk::EXTMeshShaderExtensionName,
     };
 
-    auto [graphics, present] = findQueueFamilies(m_physicalDevice);
+
+    m_queueFamilyIndices = findQueueFamilies(m_physicalDevice);
+    std::set<uint32_t> uniqueQueueFamilies{
+        m_queueFamilyIndices.graphics,
+        m_queueFamilyIndices.compute,
+        m_queueFamilyIndices.transfer,
+        m_queueFamilyIndices.present,
+    };
+
     float queuePriority = 1.0f;
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueFamilies{ graphics, present };
-    for (const uint32_t family : uniqueFamilies)
+    for (uint32_t family : uniqueQueueFamilies)
     {
-        queueCreateInfos.emplace_back(vk::DeviceQueueCreateInfo{
-            .flags = {},
-            .queueFamilyIndex = family,
-            .queueCount = 1,
-            .pQueuePriorities = &queuePriority,
-        });
+        queueCreateInfos.emplace_back(
+            vk::DeviceQueueCreateInfo{
+                .queueFamilyIndex = family,
+                .queueCount = 1,
+                .pQueuePriorities = &queuePriority,
+            });
     }
 
     vk::DeviceCreateInfo deviceInfo{
@@ -259,6 +271,13 @@ void Device::createDevice(const Desc& desc)
     m_device = std::move(device);
     std::println("Device created");
 }
+void Device::createQueues(const Desc& desc)
+{
+    m_graphicsQueue = m_device.getQueue(m_queueFamilyIndices.graphics, 0);
+    m_computeQueue = m_device.getQueue(m_queueFamilyIndices.compute, 0);
+    m_transferQueue = m_device.getQueue(m_queueFamilyIndices.transfer, 0);
+    m_presentQueue = m_device.getQueue(m_queueFamilyIndices.present, 0);
+}
 
 auto Device::findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) const
     -> QueueFamilyIndices
@@ -269,20 +288,37 @@ auto Device::findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) c
     for (uint32_t i = 0; i < queueFamilies.size(); ++i)
     {
         const auto& props = queueFamilies[i];
-        const bool hasGraphics = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eGraphics);
-        const bool hasCompute = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eCompute);
-        const bool hasTransfer = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eTransfer);
+        bool hasGraphics = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eGraphics);
+        bool hasCompute = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eCompute);
+        bool hasTransfer = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eTransfer);
+
+        if (hasGraphics)
+            indices.graphics = i;
+
+        // Dedicated Compute Queue
+        if (hasCompute && !hasGraphics && !hasTransfer)
+            indices.compute = i;
+
+        // Dedicated Transfer Queue
+        if (hasTransfer && !hasGraphics && !hasCompute)
+            indices.transfer = i;
 
         auto [result, hasPresent] = physicalDevice.getSurfaceSupportKHR(i, *m_surface);
         if (result != vk::Result::eSuccess)
             continue;
 
-        if (hasGraphics && hasCompute && hasTransfer && indices.graphics == vk::QueueFamilyIgnored)
-            indices.graphics = i;
-
-        if (hasPresent && indices.present == vk::QueueFamilyIgnored)
+        if (hasPresent)
             indices.present = i;
+
+        if (indices.isComplete())
+            break;
     }
+
+    // Fallback if no dedicated queues are present
+    if (indices.compute == vk::QueueFamilyIgnored)
+        indices.compute = indices.graphics;
+    if (indices.transfer == vk::QueueFamilyIgnored)
+        indices.transfer = indices.graphics;
 
     return indices;
 }

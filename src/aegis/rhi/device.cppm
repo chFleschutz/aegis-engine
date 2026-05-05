@@ -55,11 +55,14 @@ private:
     struct QueueFamilyIndices
     {
         uint32_t graphics{ vk::QueueFamilyIgnored };
+        uint32_t compute{ vk::QueueFamilyIgnored };
+        uint32_t transfer{ vk::QueueFamilyIgnored };
         uint32_t present{ vk::QueueFamilyIgnored };
 
         [[nodiscard]] auto isComplete() const -> bool
         {
-            return graphics != vk::QueueFamilyIgnored && present != vk::QueueFamilyIgnored;
+            return graphics != vk::QueueFamilyIgnored && present != vk::QueueFamilyIgnored &&
+                compute != vk::QueueFamilyIgnored && transfer != vk::QueueFamilyIgnored;
         }
     };
 
@@ -68,6 +71,7 @@ private:
     void createSurface(const Desc& desc);
     void createPhysicalDevice(const Desc& desc);
     void createDevice(const Desc& desc);
+    void createQueues(const Desc& desc);
 
     [[nodiscard]] auto findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) const
         -> QueueFamilyIndices;
@@ -80,7 +84,12 @@ private:
     vk::raii::SurfaceKHR m_surface{ nullptr };
     vk::raii::PhysicalDevice m_physicalDevice{ nullptr };
     vk::raii::Device m_device{ nullptr };
-    vk::raii::Queue m_queue{ nullptr };
+    vk::raii::Queue m_graphicsQueue{ nullptr };
+    vk::raii::Queue m_computeQueue{ nullptr };
+    vk::raii::Queue m_transferQueue{ nullptr };
+    vk::raii::Queue m_presentQueue{ nullptr };
+
+    QueueFamilyIndices m_queueFamilyIndices{};
     Properties m_properties;
     Capabilities m_capabilities;
 };
