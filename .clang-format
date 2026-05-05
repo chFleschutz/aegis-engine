@@ -3,7 +3,7 @@
 # See documentation at: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
 
 AccessModifierOffset: -4
-AlignAfterOpenBracket: false
+AlignAfterOpenBracket: AlwaysBreak
 AlignConsecutiveAssignments: false
 AlignEscapedNewlines: Left
 AlignOperands: false
@@ -44,7 +44,7 @@ BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: AfterColon
 BreakInheritanceList: AfterColon
 BinPackArguments: false
-BinPackParameters: true
+BinPackParameters: false
 ColumnLimit: 100
 Cpp11BracedListStyle: false
 DerivePointerAlignment: false
@@ -56,6 +56,7 @@ IndentCaseLabels: false
 IndentRequiresClause: true
 IndentWidth: 4
 InsertNewlineAtEOF: true
+InsertTrailingCommas: Wrapped
 LambdaBodyIndentation: Signature
 Language: Cpp
 MaxEmptyLinesToKeep: 2
