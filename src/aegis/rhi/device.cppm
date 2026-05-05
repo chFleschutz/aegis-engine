@@ -45,14 +45,10 @@ public:
     static constexpr bool enableValidation = true;
 #endif
 
-    static constexpr uint32_t vulkanVersion = vk::makeApiVersion(0, 1, 3, 0);
-    static constexpr auto validationLayers = std::array{ "VK_LAYER_KHRONOS_validation" };
-
     explicit Device(const Desc& desc);
     ~Device() = default;
 
     [[nodiscard]] auto properties() const -> const Properties& { return m_properties; }
-
     [[nodiscard]] auto capabilities() const -> const Capabilities& { return m_capabilities; }
 
 private:
@@ -75,7 +71,7 @@ private:
 
     [[nodiscard]] auto findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) const
         -> QueueFamilyIndices;
-    [[nodiscard]] auto findExtensions() const -> std::vector<const char*>;
+    [[nodiscard]] static auto findExtensions() -> std::vector<const char*>;
     [[nodiscard]] auto findLayers() const -> std::vector<const char*>;
 
     vk::raii::Context m_context;
@@ -83,8 +79,9 @@ private:
     vk::raii::DebugUtilsMessengerEXT m_debugMessenger{ nullptr };
     vk::raii::SurfaceKHR m_surface{ nullptr };
     vk::raii::PhysicalDevice m_physicalDevice{ nullptr };
+    vk::raii::Device m_device{ nullptr };
+    vk::raii::Queue m_queue{ nullptr };
     Properties m_properties;
     Capabilities m_capabilities;
-    vk::raii::Device m_device{ nullptr };
 };
 }

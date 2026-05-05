@@ -32,6 +32,7 @@ VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(vk::DebugUtilsMessageSeverityFlag
     return vk::False;
 }
 
+
 Device::Device(const Desc& desc)
 {
     createInstance(desc);
@@ -48,7 +49,7 @@ void Device::createInstance(const Desc& desc)
         .applicationVersion = vk::makeVersion(1, 0, 0),
         .pEngineName = "Aegis Engine",
         .engineVersion = vk::makeVersion(1, 0, 0),
-        .apiVersion = vulkanVersion,
+        .apiVersion = vk::makeApiVersion(0, 1, 3, 0),
     };
 
     std::vector<const char*> extensions = findExtensions();
@@ -112,7 +113,6 @@ void Device::createSurface(const Desc& desc)
         return;
     }
     m_surface = vk::raii::SurfaceKHR{ m_instance, surface };
-
     std::println("Surface created");
 }
 
@@ -273,32 +273,26 @@ auto Device::findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) c
         const bool hasCompute = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eCompute);
         const bool hasTransfer = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eTransfer);
 
-        // TODO: Requires surface KHR extension to be loaded.
-        // TODO: Most likely glfw requires it, so query glfw for extensions first
-        // auto [result, hasPresent] = physicalDevice.getSurfaceSupportKHR(i, *m_surface);
-        // if (result != vk::Result::eSuccess)
-        //     continue;
+        auto [result, hasPresent] = physicalDevice.getSurfaceSupportKHR(i, *m_surface);
+        if (result != vk::Result::eSuccess)
+            continue;
 
         if (hasGraphics && hasCompute && hasTransfer && indices.graphics == vk::QueueFamilyIgnored)
             indices.graphics = i;
 
-        // TODO: Query and enable glfw extensions (see above) assume it works for now
-        // if (hasPresent && indices.present == vk::QueueFamilyIgnored)
-        //     indices.present = i;
-        indices.present = i;
+        if (hasPresent && indices.present == vk::QueueFamilyIgnored)
+            indices.present = i;
     }
 
     return indices;
 }
 
-auto Device::findExtensions() const -> std::vector<const char*>
+auto Device::findExtensions() -> std::vector<const char*>
 {
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-    std::vector<const char*> extensions;
-    extensions.reserve(glfwExtensionCount);
-    extensions.insert(extensions.end(), glfwExtensions, glfwExtensions + glfwExtensionCount);
+    std::vector<const char*> extensions{ glfwExtensions, glfwExtensions + glfwExtensionCount };
 
     if constexpr (enableValidation)
     {
@@ -313,7 +307,7 @@ auto Device::findLayers() const -> std::vector<const char*>
     std::vector<const char*> layers;
     if constexpr (enableValidation)
     {
-        layers.assign_range(validationLayers);
+        layers.emplace_back("VK_LAYER_KHRONOS_validation");
     }
 
     auto [result, layerProps] = m_context.enumerateInstanceLayerProperties();
