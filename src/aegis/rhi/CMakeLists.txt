@@ -40,10 +40,12 @@ target_sources(aegis-rhi
     device.cppm
     pipeline.cppm
     rhi.cppm
+    swapchain.cppm
     texture.cppm
     PRIVATE
     context.cpp
     device.cpp
+    swapchain.cpp
 )
 
 # TODO: remove later

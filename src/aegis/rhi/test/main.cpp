@@ -21,4 +21,10 @@ auto main() -> int
         .context = context,
     };
     aegis::rhi::Device device{ deviceDesc };
+
+    aegis::rhi::Swapchain::Desc swapchainDesc{
+        .context = context,
+        .device = device,
+    };
+    aegis::rhi::Swapchain swapchain{ swapchainDesc };
 }

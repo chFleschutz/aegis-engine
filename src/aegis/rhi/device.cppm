@@ -45,6 +45,8 @@ public:
     explicit Device(const Desc& desc);
     ~Device() = default;
 
+    [[nodiscard]] auto physicalDevice() const -> const vk::raii::PhysicalDevice&;
+    [[nodiscard]] auto device() const -> const vk::raii::Device& { return m_device; }
     [[nodiscard]] auto properties() const -> const Properties& { return m_properties; }
     [[nodiscard]] auto capabilities() const -> const Capabilities& { return m_capabilities; }
 

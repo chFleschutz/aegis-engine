@@ -18,6 +18,11 @@ Device::Device(const Desc& desc)
     createQueues(desc);
 }
 
+auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
+{
+    return m_physicalDevice;
+}
+
 void Device::createPhysicalDevice(const Desc& desc)
 {
     auto [result, physicalDevices] = desc.context.instance().enumeratePhysicalDevices();
