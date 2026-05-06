@@ -11,9 +11,14 @@ auto main() -> int
     };
     aegis::platform::Window window{ windowDesc };
 
-    aegis::rhi::Device::Desc deviceDesc{
+    aegis::rhi::Context::Desc contextDesc{
         .appName = "Test",
         .window = window,
+    };
+    aegis::rhi::Context context{ contextDesc };
+
+    aegis::rhi::Device::Desc deviceDesc{
+        .context = context,
     };
     aegis::rhi::Device device{ deviceDesc };
 }

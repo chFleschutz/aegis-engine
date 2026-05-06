@@ -1,15 +1,13 @@
 module;
-#include <GLFW/glfw3.h>
-
 #include <functional>
 #include <string>
-#include <vector>
 
 export module aegis.rhi:device;
 import :buffer;
+import :command_buffer;
+import :context;
 import :texture;
 import :pipeline;
-import :command_buffer;
 
 import aegis.platform.window;
 
@@ -22,8 +20,7 @@ class Device
 public:
     struct Desc
     {
-        std::string appName;
-        platform::Window& window;
+        const Context& context;
     };
 
     struct Properties
@@ -66,22 +63,14 @@ private:
         }
     };
 
-    void createInstance(const Desc& desc);
-    void createDebugMessenger(const Desc& desc);
-    void createSurface(const Desc& desc);
     void createPhysicalDevice(const Desc& desc);
     void createDevice(const Desc& desc);
     void createQueues(const Desc& desc);
 
-    [[nodiscard]] auto findQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice) const
-        -> QueueFamilyIndices;
-    [[nodiscard]] static auto findExtensions() -> std::vector<const char*>;
-    [[nodiscard]] auto findLayers() const -> std::vector<const char*>;
+    [[nodiscard]] static auto findQueueFamilies(
+        const vk::raii::PhysicalDevice& physicalDevice,
+        const vk::raii::SurfaceKHR& surface) -> QueueFamilyIndices;
 
-    vk::raii::Context m_context;
-    vk::raii::Instance m_instance{ nullptr };
-    vk::raii::DebugUtilsMessengerEXT m_debugMessenger{ nullptr };
-    vk::raii::SurfaceKHR m_surface{ nullptr };
     vk::raii::PhysicalDevice m_physicalDevice{ nullptr };
     vk::raii::Device m_device{ nullptr };
     vk::raii::Queue m_graphicsQueue{ nullptr };

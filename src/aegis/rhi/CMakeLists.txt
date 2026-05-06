@@ -36,11 +36,13 @@ target_sources(aegis-rhi
     FILES
     buffer.cppm
     command_buffer.cppm
+    context.cppm
     device.cppm
     pipeline.cppm
     rhi.cppm
     texture.cppm
     PRIVATE
+    context.cpp
     device.cpp
 )
 
