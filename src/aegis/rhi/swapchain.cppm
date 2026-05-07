@@ -24,6 +24,7 @@ public:
 private:
     auto createSwapchain(const Desc& desc) -> void;
     auto createImages() -> void;
+    auto createImageViews(const Desc& desc) -> void;
 
     [[nodiscard]] static auto chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps)
         -> uint32_t;
@@ -36,6 +37,8 @@ private:
 
     vk::raii::SwapchainKHR m_swapchain{ nullptr };
     std::vector<vk::Image> m_images;
+    std::vector<vk::raii::ImageView> m_imageViews;
     vk::Extent2D m_extent;
+    vk::SurfaceFormatKHR m_surfaceFormat;
 };
 }

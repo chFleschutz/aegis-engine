@@ -15,6 +15,7 @@ Swapchain::Swapchain(const Desc& desc) : m_extent{ desc.extent }
 {
     createSwapchain(desc);
     createImages();
+    createImageViews(desc);
 }
 
 auto Swapchain::createSwapchain(const Desc& desc) -> void
@@ -46,13 +47,13 @@ auto Swapchain::createSwapchain(const Desc& desc) -> void
     auto minImageCount = chooseSwapImageCount(surfaceCaps);
     auto swapExtent = chooseSwapExtent(surfaceCaps);
     auto presentMode = choosePresentMode(presentModes);
-    auto [format, colorSpace] = chooseSwapSurfaceFormat(availableFormats);
+    m_surfaceFormat = chooseSwapSurfaceFormat(availableFormats);
 
     vk::SwapchainCreateInfoKHR createInfo{
         .surface = desc.context.surface(),
         .minImageCount = minImageCount,
-        .imageFormat = format,
-        .imageColorSpace = colorSpace,
+        .imageFormat = m_surfaceFormat.format,
+        .imageColorSpace = m_surfaceFormat.colorSpace,
         .imageExtent = swapExtent,
         .imageArrayLayers = 1,
         .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
@@ -84,6 +85,33 @@ auto Swapchain::createImages() -> void
 
     m_images = std::move(images);
     std::println("Acquired swapchain images");
+}
+
+auto Swapchain::createImageViews(const Desc& desc) -> void
+{
+    if (!m_imageViews.empty())
+    {
+        // TODO: Error
+        return;
+    }
+
+    vk::ImageViewCreateInfo createInfo{
+        .viewType =  vk::ImageViewType::e2D,
+        .format = m_surfaceFormat.format,
+        .subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1},
+    };
+
+    for (const auto& image : m_images)
+    {
+        createInfo.image = image;
+        auto [result, imageView] = desc.device.device().createImageView(createInfo);
+        if (result != vk::Result::eSuccess)
+        {
+            // TODO: Error
+            return;
+        }
+        m_imageViews.emplace_back(std::move(imageView));
+    }
 }
 
 auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> uint32_t
