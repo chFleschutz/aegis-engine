@@ -38,6 +38,7 @@ target_sources(aegis-rhi
     command_buffer.cppm
     context.cppm
     device.cppm
+    error.cppm
     pipeline.cppm
     rhi.cppm
     swapchain.cppm

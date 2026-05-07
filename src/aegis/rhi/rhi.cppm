@@ -3,6 +3,7 @@ export import :buffer;
 export import :command_buffer;
 export import :context;
 export import :device;
+export import :error;
 export import :pipeline;
 export import :swapchain;
 export import :texture;

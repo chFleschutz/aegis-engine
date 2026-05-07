@@ -2,6 +2,8 @@ import aegis.rhi;
 import aegis.platform.window;
 import vulkan_hpp;
 
+#include <print>
+
 auto main() -> int
 {
     aegis::platform::Window::Desc windowDesc{
@@ -15,15 +17,20 @@ auto main() -> int
         .appName = "Test",
         .window = window,
     };
-    aegis::rhi::Context context{ contextDesc };
+    auto context = aegis::rhi::Context::create(contextDesc);
+    if (!context)
+    {
+        std::println("Failed to create rhi context");
+        return 1;
+    }
 
     aegis::rhi::Device::Desc deviceDesc{
-        .context = context,
+        .context = *context,
     };
     aegis::rhi::Device device{ deviceDesc };
 
     aegis::rhi::Swapchain::Desc swapchainDesc{
-        .context = context,
+        .context = *context,
         .device = device,
     };
     aegis::rhi::Swapchain swapchain{ swapchainDesc };

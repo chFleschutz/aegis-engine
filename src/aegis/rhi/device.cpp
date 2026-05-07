@@ -237,4 +237,3 @@ auto Device::checkExtensionSupport(const vk::raii::PhysicalDevice& pd) -> bool
     });
 }
 }
-}

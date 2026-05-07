@@ -42,7 +42,7 @@ public:
     static constexpr bool enableValidation = true;
 #endif
 
-    constexpr auto requiredExtensions = std::array{
+    static constexpr auto requiredExtensions = std::array{
         vk::KHRSwapchainExtensionName,
         vk::EXTMeshShaderExtensionName,
     };
