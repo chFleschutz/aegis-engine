@@ -55,8 +55,8 @@ void Device::createPhysicalDevice(const Desc& desc)
         const auto& meshShaderFeatures = features.get<vk::PhysicalDeviceMeshShaderFeaturesEXT>();
         // TODO: Check features
 
-        auto availableExtensions = physicalDevice.enumerateDeviceExtensionProperties();
-        // TODO: Check extensions
+        if (!checkExtensionSupport(physicalDevice))
+            continue;
 
         const auto properties = physicalDevice.getProperties();
         if (properties.apiVersion < vk::ApiVersion13)
@@ -129,12 +129,6 @@ void Device::createDevice(const Desc& desc)
         .setMeshShader(true)
         .setTaskShader(true);
 
-    auto extensions = std::array{
-        vk::KHRSwapchainExtensionName,
-        vk::EXTMeshShaderExtensionName,
-    };
-
-
     m_queueFamilyIndices = findQueueFamilies(m_physicalDevice, desc.context.surface());
     std::set uniqueQueueFamilies{
         m_queueFamilyIndices.graphics,
@@ -159,8 +153,8 @@ void Device::createDevice(const Desc& desc)
         .pNext = &featureChain.get<vk::PhysicalDeviceFeatures2>(),
         .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
         .pQueueCreateInfos = queueCreateInfos.data(),
-        .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
-        .ppEnabledExtensionNames = extensions.data(),
+        .enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size()),
+        .ppEnabledExtensionNames = requiredExtensions.data(),
     };
 
     auto [result, device] = m_physicalDevice.createDevice(deviceInfo);
@@ -225,5 +219,22 @@ auto Device::findQueueFamilies(
         indices.transfer = indices.graphics;
 
     return indices;
+}
+
+auto Device::checkExtensionSupport(const vk::raii::PhysicalDevice& pd) -> bool
+{
+    auto [result, availableExtensions] = pd.enumerateDeviceExtensionProperties();
+    if (result != vk::Result::eSuccess)
+    {
+        // TODO: Error
+        return false;
+    }
+
+    return std::ranges::all_of(requiredExtensions, [&availableExtensions](const auto& required) {
+        return std::ranges::any_of(availableExtensions, [&required](const auto& available) {
+            return std::string_view{ available.extensionName } == std::string_view{ required };
+        });
+    });
+}
 }
 }

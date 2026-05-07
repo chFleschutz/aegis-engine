@@ -42,6 +42,11 @@ public:
     static constexpr bool enableValidation = true;
 #endif
 
+    constexpr auto requiredExtensions = std::array{
+        vk::KHRSwapchainExtensionName,
+        vk::EXTMeshShaderExtensionName,
+    };
+
     explicit Device(const Desc& desc);
     ~Device() = default;
 
@@ -72,6 +77,7 @@ private:
     [[nodiscard]] static auto findQueueFamilies(
         const vk::raii::PhysicalDevice& physicalDevice,
         const vk::raii::SurfaceKHR& surface) -> QueueFamilyIndices;
+    [[nodiscard]] static auto checkExtensionSupport(const vk::raii::PhysicalDevice& pd) -> bool;
 
     vk::raii::PhysicalDevice m_physicalDevice{ nullptr };
     vk::raii::Device m_device{ nullptr };
