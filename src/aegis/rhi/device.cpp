@@ -1,8 +1,8 @@
 module;
 #include <algorithm>
-#include <cassert>
+#include <expected>
 #include <format>
-#include <print>
+#include <ranges>
 #include <set>
 #include <vector>
 
@@ -11,11 +11,23 @@ import :device;
 
 namespace aegis::rhi
 {
-Device::Device(const Desc& desc)
+auto Device::create(const Desc& desc) -> std::expected<Device, Error>
 {
-    createPhysicalDevice(desc);
-    createDevice(desc);
-    createQueues(desc);
+    auto physicalDevice = createPhysicalDevice(desc);
+    if (!physicalDevice)
+        return std::unexpected{ physicalDevice.error() };
+
+    auto queueFamilyIndices = queryQueueFamilies(*physicalDevice, desc.context.surface());
+    auto capabilities = queryCapabilities(*physicalDevice);
+
+    auto device = createDevice(*physicalDevice, capabilities, queueFamilyIndices);
+    if (!device)
+        return std::unexpected{ device.error() };
+
+    return Device{ std::move(*physicalDevice),
+                   std::move(*device),
+                   queueFamilyIndices,
+                   capabilities };
 }
 
 auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
@@ -23,15 +35,31 @@ auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
     return m_physicalDevice;
 }
 
-void Device::createPhysicalDevice(const Desc& desc)
+Device::Device(
+    vk::raii::PhysicalDevice pd,
+    vk::raii::Device device,
+    QueueFamilyIndices queueFamilyIndices,
+    Capabilities capabilities) :
+    m_physicalDevice{ std::move(pd) },
+    m_device{ std::move(device) },
+    m_graphicsQueue{ m_device.getQueue(queueFamilyIndices.graphics, 0) },
+    m_computeQueue{ m_device.getQueue(queueFamilyIndices.compute, 0) },
+    m_transferQueue{ m_device.getQueue(queueFamilyIndices.transfer, 0) },
+    m_presentQueue{ m_device.getQueue(queueFamilyIndices.present, 0) },
+    m_queueFamilyIndices{ queueFamilyIndices },
+    m_capabilities{ capabilities }
+{
+}
+
+auto Device::createPhysicalDevice(const Desc& desc)
+    -> std::expected<vk::raii::PhysicalDevice, Error>
 {
     auto [result, physicalDevices] = desc.context.instance().enumeratePhysicalDevices();
-    if (result != vk::Result::eSuccess || physicalDevices.empty())
-    {
-        // TODO: log error
-        assert(false && "Vulkan Error: Failed to enumerate physical devices");
-        return;
-    }
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to enumerate physical devices");
+
+    if (physicalDevices.empty())
+        return vkError(vk::Result::eErrorUnknown, "Failed to find any physical device");
 
     std::vector<std::pair<uint32_t, uint32_t>> candidates;
     for (size_t i = 0; i < physicalDevices.size(); ++i)
@@ -39,23 +67,13 @@ void Device::createPhysicalDevice(const Desc& desc)
         const auto& physicalDevice = physicalDevices[i];
         uint32_t score{ 0 };
 
-        if (!findQueueFamilies(physicalDevice, desc.context.surface()).isComplete())
+        if (!queryQueueFamilies(physicalDevice, desc.context.surface()).isComplete())
             continue;
 
-        auto features = physicalDevice.getFeatures2< //
-            vk::PhysicalDeviceFeatures2,
-            vk::PhysicalDeviceVulkan11Features,
-            vk::PhysicalDeviceVulkan12Features,
-            vk::PhysicalDeviceVulkan13Features,
-            vk::PhysicalDeviceMeshShaderFeaturesEXT>();
-        const auto& vk10features = features.get<vk::PhysicalDeviceFeatures2>();
-        const auto& vk11features = features.get<vk::PhysicalDeviceVulkan11Features>();
-        const auto& vk12features = features.get<vk::PhysicalDeviceVulkan12Features>();
-        const auto& vk13features = features.get<vk::PhysicalDeviceVulkan13Features>();
-        const auto& meshShaderFeatures = features.get<vk::PhysicalDeviceMeshShaderFeaturesEXT>();
-        // TODO: Check features
+        // TODO: handle missing capabilities
+        // auto capabilities = queryCapabilities(physicalDevice);
 
-        if (!checkExtensionSupport(physicalDevice))
+        if (!supportsExtensions(physicalDevice))
             continue;
 
         const auto properties = physicalDevice.getProperties();
@@ -71,112 +89,13 @@ void Device::createPhysicalDevice(const Desc& desc)
 
     std::ranges::sort(candidates);
     if (candidates.empty() || candidates.front().first == 0)
-    {
-        assert(false && "Vulkan Error: Failed to find suitable physical device");
-        return;
-    }
+        return vkError(vk::Result::eErrorUnknown, "Failed to find suitable physical device");
 
-    auto [_, index] = candidates.front();
-    m_physicalDevice = physicalDevices[index];
-    std::println("Physical device picked");
+    const auto& [_, index] = candidates.front();
+    return physicalDevices[index];
 }
 
-void Device::createDevice(const Desc& desc)
-{
-    vk::StructureChain<
-        vk::DeviceCreateInfo,
-        vk::PhysicalDeviceFeatures2,
-        vk::PhysicalDeviceVulkan11Features,
-        vk::PhysicalDeviceVulkan12Features,
-        vk::PhysicalDeviceVulkan13Features,
-        vk::PhysicalDeviceMeshShaderFeaturesEXT>
-        featureChain;
-
-    featureChain.get<vk::PhysicalDeviceFeatures2>().features.setSamplerAnisotropy(true);
-
-    featureChain
-        .get<vk::PhysicalDeviceVulkan11Features>() //
-        .setShaderDrawParameters(true);
-
-    featureChain.get<vk::PhysicalDeviceVulkan12Features>()
-        .setStorageBuffer8BitAccess(true)
-        .setUniformAndStorageBuffer8BitAccess(true)
-        .setStoragePushConstant8(true)
-        .setShaderInt8(true)
-        .setDescriptorIndexing(true)
-        .setShaderUniformBufferArrayNonUniformIndexing(true)
-        .setShaderSampledImageArrayNonUniformIndexing(true)
-        .setShaderStorageBufferArrayNonUniformIndexing(true)
-        .setShaderStorageImageArrayNonUniformIndexing(true)
-        .setDescriptorBindingUniformBufferUpdateAfterBind(true)
-        .setDescriptorBindingSampledImageUpdateAfterBind(true)
-        .setDescriptorBindingStorageImageUpdateAfterBind(true)
-        .setDescriptorBindingStorageBufferUpdateAfterBind(true)
-        .setDescriptorBindingUpdateUnusedWhilePending(true)
-        .setDescriptorBindingPartiallyBound(true)
-        .setDescriptorBindingVariableDescriptorCount(true)
-        .setRuntimeDescriptorArray(true)
-        .setScalarBlockLayout(true)
-        .setUniformBufferStandardLayout(true);
-
-    featureChain.get<vk::PhysicalDeviceVulkan13Features>()
-        .setShaderDemoteToHelperInvocation(true)
-        .setDynamicRendering(true)
-        .setMaintenance4(true);
-
-    featureChain
-        .get<vk::PhysicalDeviceMeshShaderFeaturesEXT>() //
-        .setMeshShader(true)
-        .setTaskShader(true);
-
-    m_queueFamilyIndices = findQueueFamilies(m_physicalDevice, desc.context.surface());
-    std::set uniqueQueueFamilies{
-        m_queueFamilyIndices.graphics,
-        m_queueFamilyIndices.compute,
-        m_queueFamilyIndices.transfer,
-        m_queueFamilyIndices.present,
-    };
-
-    float queuePriority = 1.0f;
-    std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-    for (uint32_t family : uniqueQueueFamilies)
-    {
-        queueCreateInfos.emplace_back(
-            vk::DeviceQueueCreateInfo{
-                .queueFamilyIndex = family,
-                .queueCount = 1,
-                .pQueuePriorities = &queuePriority,
-            });
-    }
-
-    vk::DeviceCreateInfo deviceInfo{
-        .pNext = &featureChain.get<vk::PhysicalDeviceFeatures2>(),
-        .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
-        .pQueueCreateInfos = queueCreateInfos.data(),
-        .enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size()),
-        .ppEnabledExtensionNames = requiredExtensions.data(),
-    };
-
-    auto [result, device] = m_physicalDevice.createDevice(deviceInfo);
-    if (result != vk::Result::eSuccess)
-    {
-        // TODO: error
-        assert(false && "Vulkan Error: Failed to create device");
-        return;
-    }
-
-    m_device = std::move(device);
-    std::println("Device created");
-}
-void Device::createQueues(const Desc& desc)
-{
-    m_graphicsQueue = m_device.getQueue(m_queueFamilyIndices.graphics, 0);
-    m_computeQueue = m_device.getQueue(m_queueFamilyIndices.compute, 0);
-    m_transferQueue = m_device.getQueue(m_queueFamilyIndices.transfer, 0);
-    m_presentQueue = m_device.getQueue(m_queueFamilyIndices.present, 0);
-}
-
-auto Device::findQueueFamilies(
+auto Device::queryQueueFamilies(
     const vk::raii::PhysicalDevice& physicalDevice,
     const vk::raii::SurfaceKHR& surface) -> QueueFamilyIndices
 {
@@ -221,19 +140,147 @@ auto Device::findQueueFamilies(
     return indices;
 }
 
-auto Device::checkExtensionSupport(const vk::raii::PhysicalDevice& pd) -> bool
+auto Device::queryCapabilities(const vk::raii::PhysicalDevice& pd) -> Capabilities
+{
+    auto features = pd.getFeatures2< //
+        vk::PhysicalDeviceFeatures2,
+        vk::PhysicalDeviceVulkan11Features,
+        vk::PhysicalDeviceVulkan12Features,
+        vk::PhysicalDeviceVulkan13Features,
+        vk::PhysicalDeviceMeshShaderFeaturesEXT>();
+    // const auto& vk10features = features.get<vk::PhysicalDeviceFeatures2>();
+    // const auto& vk11features = features.get<vk::PhysicalDeviceVulkan11Features>();
+    // const auto& vk12features = features.get<vk::PhysicalDeviceVulkan12Features>();
+    // const auto& vk13features = features.get<vk::PhysicalDeviceVulkan13Features>();
+    const auto& meshShaderFeatures = features.get<vk::PhysicalDeviceMeshShaderFeaturesEXT>();
+
+    return Capabilities{
+        .meshShaders = meshShaderFeatures.meshShader && meshShaderFeatures.taskShader,
+    };
+}
+
+auto Device::createDevice(
+    const vk::raii::PhysicalDevice& pd,
+    const Capabilities& capabilities,
+    const QueueFamilyIndices& queueFamilyIndices) -> std::expected<vk::raii::Device, Error>
+{
+    auto features = createFeatureChain();
+
+    std::set uniqueQueueFamilies{
+        queueFamilyIndices.graphics,
+        queueFamilyIndices.compute,
+        queueFamilyIndices.transfer,
+        queueFamilyIndices.present,
+    };
+
+    float queuePriority = 1.0f;
+    std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+    for (uint32_t family : uniqueQueueFamilies)
+    {
+        queueCreateInfos.emplace_back(
+            vk::DeviceQueueCreateInfo{
+                .queueFamilyIndex = family,
+                .queueCount = 1,
+                .pQueuePriorities = &queuePriority,
+            });
+    }
+
+    auto extensions = queryExtensions(capabilities);
+
+    auto deviceInfo = vk::DeviceCreateInfo{}
+                          .setPNext(&features.get<vk::PhysicalDeviceFeatures2>())
+                          .setQueueCreateInfos(queueCreateInfos)
+                          .setPEnabledExtensionNames(extensions);
+
+    auto [result, device] = pd.createDevice(deviceInfo);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to create device");
+
+    return std::move(device);
+}
+
+auto Device::queryExtensions(const Capabilities& caps) -> std::vector<const char*>
+{
+    std::vector extensions(requiredExtensions.begin(), requiredExtensions.end());
+
+    if (caps.meshShaders)
+    {
+        extensions.emplace_back(vk::EXTMeshShaderExtensionName);
+    }
+
+    return extensions;
+}
+
+auto Device::supportsExtensions(const vk::raii::PhysicalDevice& pd) -> bool
 {
     auto [result, availableExtensions] = pd.enumerateDeviceExtensionProperties();
     if (result != vk::Result::eSuccess)
-    {
-        // TODO: Error
         return false;
-    }
 
     return std::ranges::all_of(requiredExtensions, [&availableExtensions](const auto& required) {
         return std::ranges::any_of(availableExtensions, [&required](const auto& available) {
             return std::string_view{ available.extensionName } == std::string_view{ required };
         });
     });
+}
+
+auto Device::createFeatureChain() -> FeatureChain
+{
+    FeatureChain featureChain;
+
+    featureChain.get<vk::PhysicalDeviceFeatures2>().features.setSamplerAnisotropy(true);
+
+    featureChain
+        .get<vk::PhysicalDeviceVulkan11Features>() //
+        .setShaderDrawParameters(true);
+
+    featureChain.get<vk::PhysicalDeviceVulkan12Features>()
+        .setStorageBuffer8BitAccess(true)
+        .setUniformAndStorageBuffer8BitAccess(true)
+        .setStoragePushConstant8(true)
+        .setShaderInt8(true)
+        .setDescriptorIndexing(true)
+        .setShaderUniformBufferArrayNonUniformIndexing(true)
+        .setShaderSampledImageArrayNonUniformIndexing(true)
+        .setShaderStorageBufferArrayNonUniformIndexing(true)
+        .setShaderStorageImageArrayNonUniformIndexing(true)
+        .setDescriptorBindingUniformBufferUpdateAfterBind(true)
+        .setDescriptorBindingSampledImageUpdateAfterBind(true)
+        .setDescriptorBindingStorageImageUpdateAfterBind(true)
+        .setDescriptorBindingStorageBufferUpdateAfterBind(true)
+        .setDescriptorBindingUpdateUnusedWhilePending(true)
+        .setDescriptorBindingPartiallyBound(true)
+        .setDescriptorBindingVariableDescriptorCount(true)
+        .setRuntimeDescriptorArray(true)
+        .setScalarBlockLayout(true)
+        .setUniformBufferStandardLayout(true);
+
+    featureChain.get<vk::PhysicalDeviceVulkan13Features>()
+        .setShaderDemoteToHelperInvocation(true)
+        .setDynamicRendering(true)
+        .setMaintenance4(true);
+
+    featureChain
+        .get<vk::PhysicalDeviceMeshShaderFeaturesEXT>() //
+        .setMeshShader(true)
+        .setTaskShader(true);
+
+    return featureChain;
+}
+
+auto Device::queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties
+{
+    auto props = pd.getProperties2<
+        vk::PhysicalDeviceProperties2,
+        vk::PhysicalDeviceVulkan11Properties,
+        vk::PhysicalDeviceVulkan12Properties,
+        vk::PhysicalDeviceVulkan13Properties>();
+
+    return Properties{
+        .core = props.get<vk::PhysicalDeviceProperties2>(),
+        .vk11 = props.get<vk::PhysicalDeviceVulkan11Properties>(),
+        .vk12 = props.get<vk::PhysicalDeviceVulkan12Properties>(),
+        .vk13 = props.get<vk::PhysicalDeviceVulkan13Properties>(),
+    };
 }
 }

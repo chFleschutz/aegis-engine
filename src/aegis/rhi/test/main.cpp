@@ -27,11 +27,16 @@ auto main() -> int
     aegis::rhi::Device::Desc deviceDesc{
         .context = *context,
     };
-    aegis::rhi::Device device{ deviceDesc };
+    auto device = aegis::rhi::Device::create(deviceDesc);
+    if (!device)
+    {
+        std::println("Failed to create rhi device");
+        return 1;
+    }
 
     aegis::rhi::Swapchain::Desc swapchainDesc{
         .context = *context,
-        .device = device,
+        .device = *device,
     };
     aegis::rhi::Swapchain swapchain{ swapchainDesc };
 }

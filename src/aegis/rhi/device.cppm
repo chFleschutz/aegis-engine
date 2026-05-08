@@ -1,13 +1,11 @@
 module;
+#include <expected>
 #include <functional>
 #include <string>
 
 export module aegis.rhi:device;
-import :buffer;
-import :command_buffer;
 import :context;
-import :texture;
-import :pipeline;
+import :error;
 
 import aegis.platform.window;
 
@@ -44,11 +42,9 @@ public:
 
     static constexpr auto requiredExtensions = std::array{
         vk::KHRSwapchainExtensionName,
-        vk::EXTMeshShaderExtensionName,
     };
 
-    explicit Device(const Desc& desc);
-    ~Device() = default;
+    static auto create(const Desc& desc) -> std::expected<Device, Error>;
 
     [[nodiscard]] auto physicalDevice() const -> const vk::raii::PhysicalDevice&;
     [[nodiscard]] auto device() const -> const vk::raii::Device& { return m_device; }
@@ -70,23 +66,43 @@ private:
         }
     };
 
-    void createPhysicalDevice(const Desc& desc);
-    void createDevice(const Desc& desc);
-    void createQueues(const Desc& desc);
+    using FeatureChain = vk::StructureChain<
+        vk::DeviceCreateInfo,
+        vk::PhysicalDeviceFeatures2,
+        vk::PhysicalDeviceVulkan11Features,
+        vk::PhysicalDeviceVulkan12Features,
+        vk::PhysicalDeviceVulkan13Features,
+        vk::PhysicalDeviceMeshShaderFeaturesEXT>;
 
-    [[nodiscard]] static auto findQueueFamilies(
+    Device(
+        vk::raii::PhysicalDevice pd,
+        vk::raii::Device device,
+        QueueFamilyIndices queueFamilyIndices,
+        Capabilities capabilities);
+
+    [[nodiscard]] static auto createPhysicalDevice(const Desc& desc)
+        -> std::expected<vk::raii::PhysicalDevice, Error>;
+    [[nodiscard]] static auto queryQueueFamilies(
         const vk::raii::PhysicalDevice& physicalDevice,
         const vk::raii::SurfaceKHR& surface) -> QueueFamilyIndices;
-    [[nodiscard]] static auto checkExtensionSupport(const vk::raii::PhysicalDevice& pd) -> bool;
+    [[nodiscard]] static auto queryCapabilities(const vk::raii::PhysicalDevice& pd) -> Capabilities;
+    [[nodiscard]] static auto createDevice(
+        const vk::raii::PhysicalDevice& pd,
+        const Capabilities& capabilities,
+        const QueueFamilyIndices& queueFamilyIndices) -> std::expected<vk::raii::Device, Error>;
 
-    vk::raii::PhysicalDevice m_physicalDevice{ nullptr };
-    vk::raii::Device m_device{ nullptr };
-    vk::raii::Queue m_graphicsQueue{ nullptr };
-    vk::raii::Queue m_computeQueue{ nullptr };
-    vk::raii::Queue m_transferQueue{ nullptr };
-    vk::raii::Queue m_presentQueue{ nullptr };
+    [[nodiscard]] static auto queryExtensions(const Capabilities& caps) -> std::vector<const char*>;
+    [[nodiscard]] static auto supportsExtensions(const vk::raii::PhysicalDevice& pd) -> bool;
+    [[nodiscard]] static auto createFeatureChain() -> FeatureChain;
+    [[nodiscard]] static auto queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties;
 
-    QueueFamilyIndices m_queueFamilyIndices{};
+    vk::raii::PhysicalDevice m_physicalDevice;
+    vk::raii::Device m_device;
+    vk::raii::Queue m_graphicsQueue;
+    vk::raii::Queue m_computeQueue;
+    vk::raii::Queue m_transferQueue;
+    vk::raii::Queue m_presentQueue;
+    QueueFamilyIndices m_queueFamilyIndices;
     Properties m_properties;
     Capabilities m_capabilities;
 };
