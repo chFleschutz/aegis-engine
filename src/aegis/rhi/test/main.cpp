@@ -38,5 +38,10 @@ auto main() -> int
         .context = *context,
         .device = *device,
     };
-    aegis::rhi::Swapchain swapchain{ swapchainDesc };
+    auto swapchain = aegis::rhi::Swapchain::create(swapchainDesc);
+    if (!swapchain)
+    {
+        std::println("Failed to create swapchain");
+        return 1;
+    }
 }

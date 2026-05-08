@@ -1,9 +1,9 @@
 module;
 #include "GLFW/glfw3.h"
 
-
 #include <algorithm>
 #include <cassert>
+#include <expected>
 #include <print>
 
 module aegis.rhi;
@@ -11,50 +11,140 @@ import :swapchain;
 
 namespace aegis::rhi
 {
-Swapchain::Swapchain(const Desc& desc) : m_extent{ desc.extent }
-{
-    createSwapchain(desc);
-    createImages();
-    createImageViews(desc);
-}
-
-auto Swapchain::createSwapchain(const Desc& desc) -> void
+auto Swapchain::create(const Desc& desc) -> std::expected<Swapchain, Error>
 {
     const auto& physicalDevice = desc.device.physicalDevice();
+    const auto& device = desc.device.device();
     const auto& surface = desc.context.surface();
 
-    auto [capsResult, surfaceCaps] = physicalDevice.getSurfaceCapabilitiesKHR(surface);
-    if (capsResult != vk::Result::eSuccess)
-    {
-        // TODO: Error
-        return;
-    }
+    auto surfaceCaps = querySurfaceCapabilities(physicalDevice, surface);
+    if (!surfaceCaps)
+        return std::unexpected{ surfaceCaps.error() };
 
-    auto [formatResult, availableFormats] = physicalDevice.getSurfaceFormatsKHR(surface);
-    if (formatResult != vk::Result::eSuccess)
-    {
-        // TODO: Error
-        return;
-    }
+    auto extent = querySwapchainExtent(desc.extent, *surfaceCaps);
 
-    auto [presentResult, presentModes] = physicalDevice.getSurfacePresentModesKHR(surface);
-    if (presentResult != vk::Result::eSuccess)
-    {
-        // TODO: Error
-        return;
-    }
+    auto format = querySwapchainFormat(desc.device.physicalDevice(), desc.context.surface());
+    if (!format)
+        return std::unexpected{ format.error() };
 
+    auto presentMode = queryPresentMode(physicalDevice, surface);
+    if (!presentMode)
+        return std::unexpected{ presentMode.error() };
+
+    auto swapchain = createSwapchain(desc, extent, *format, *presentMode, *surfaceCaps);
+    if (!swapchain)
+        return std::unexpected(swapchain.error());
+
+    auto images = createImages(*swapchain);
+    if (!images)
+        return std::unexpected(images.error());
+
+    auto imageViews = createImageViews(device, *images, format->format);
+    if (!imageViews)
+        return std::unexpected{ imageViews.error() };
+
+    return Swapchain{ std::move(*swapchain),
+                      std::move(*images),
+                      std::move(*imageViews),
+                      extent,
+                      *format };
+}
+
+Swapchain::Swapchain(
+    vk::raii::SwapchainKHR swapchain,
+    std::vector<vk::Image> images,
+    std::vector<vk::raii::ImageView> imageViews,
+    vk::Extent2D extent,
+    vk::SurfaceFormatKHR format) :
+    m_swapchain{ std::move(swapchain) },
+    m_images{ std::move(images) },
+    m_imageViews{ std::move(imageViews) },
+    m_extent{ extent },
+    m_surfaceFormat{ format }
+{
+}
+
+auto Swapchain::querySurfaceCapabilities(
+    const vk::raii::PhysicalDevice& physicalDevice,
+    const vk::raii::SurfaceKHR& surface) -> std::expected<vk::SurfaceCapabilitiesKHR, Error>
+{
+    auto [result, surfaceCaps] = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to get surface capabilities");
+    return surfaceCaps;
+}
+
+auto Swapchain::querySwapchainExtent(vk::Extent2D preferred, const vk::SurfaceCapabilitiesKHR& caps)
+    -> vk::Extent2D
+{
+    if (caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
+        return caps.currentExtent;
+
+    return vk::Extent2D{
+        std::clamp(preferred.width, caps.minImageExtent.width, caps.maxImageExtent.width),
+        std::clamp(preferred.height, caps.minImageExtent.height, caps.maxImageExtent.height)
+    };
+}
+
+auto Swapchain::queryPresentMode(
+    const vk::raii::PhysicalDevice& physicalDevice,
+    const vk::raii::SurfaceKHR& surface) -> std::expected<vk::PresentModeKHR, Error>
+{
+    auto [result, presentModes] = physicalDevice.getSurfacePresentModesKHR(surface);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to get surface present modes");
+
+    // Prefer mailbox
+    if (std::ranges::any_of(presentModes, [&](const auto& presentMode) {
+            return presentMode == vk::PresentModeKHR::eMailbox;
+        }))
+        return vk::PresentModeKHR::eMailbox;
+
+    // Fallback fifo
+    if (std::ranges::any_of(presentModes, [](const auto& presentMode) {
+            return presentMode == vk::PresentModeKHR::eFifo;
+        }))
+        return vk::PresentModeKHR::eFifo;
+
+    return vkError(vk::Result::eErrorUnknown, "Failed to find suitable present mode");
+}
+
+auto Swapchain::querySwapchainFormat(
+    const vk::raii::PhysicalDevice& physicalDevice,
+    const vk::SurfaceKHR& surface) -> std::expected<vk::SurfaceFormatKHR, Error>
+{
+    auto [result, availableFormats] = physicalDevice.getSurfaceFormatsKHR(surface);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to get surface formats");
+
+    if (availableFormats.empty())
+        return vkError(vk::Result::eErrorUnknown, "No valid surface format found");
+
+    const auto it = std::ranges::find_if(availableFormats, [](const auto& format) {
+        return format.format == vk::Format::eB8G8R8A8Srgb &&
+            format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear;
+    });
+
+    if (it == availableFormats.end())
+        return availableFormats.front();
+    return *it;
+}
+
+auto Swapchain::createSwapchain(
+    const Desc& desc,
+    vk::Extent2D extent,
+    vk::SurfaceFormatKHR surfaceFormat,
+    vk::PresentModeKHR presentMode,
+    const vk::SurfaceCapabilitiesKHR& surfaceCaps) -> std::expected<vk::raii::SwapchainKHR, Error>
+{
     auto minImageCount = chooseSwapImageCount(surfaceCaps);
-    auto swapExtent = chooseSwapExtent(surfaceCaps);
-    auto presentMode = choosePresentMode(presentModes);
-    m_surfaceFormat = chooseSwapSurfaceFormat(availableFormats);
 
     vk::SwapchainCreateInfoKHR createInfo{
         .surface = desc.context.surface(),
         .minImageCount = minImageCount,
-        .imageFormat = m_surfaceFormat.format,
-        .imageColorSpace = m_surfaceFormat.colorSpace,
-        .imageExtent = swapExtent,
+        .imageFormat = surfaceFormat.format,
+        .imageColorSpace = surfaceFormat.colorSpace,
+        .imageExtent = extent,
         .imageArrayLayers = 1,
         .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
         .imageSharingMode = vk::SharingMode::eExclusive,
@@ -66,52 +156,53 @@ auto Swapchain::createSwapchain(const Desc& desc) -> void
 
     auto [result, swapchain] = desc.device.device().createSwapchainKHR(createInfo);
     if (result != vk::Result::eSuccess)
-    {
-        // TODO: Error
-        return;
-    }
-    m_swapchain = std::move(swapchain);
-    std::println("Created swapchain");
+        return vkError(result, "Failed to create swapchain");
+
+    return std::move(swapchain);
 }
 
-auto Swapchain::createImages() -> void
+auto Swapchain::createImages(const vk::raii::SwapchainKHR& swapchain)
+    -> std::expected<std::vector<vk::Image>, Error>
 {
-    auto [result, images] = m_swapchain.getImages();
+    auto [result, images] = swapchain.getImages();
     if (result != vk::Result::eSuccess)
-    {
-        // TODO: Error
-        return;
-    }
+        return vkError(result, "Failed to get swapchain images");
 
-    m_images = std::move(images);
-    std::println("Acquired swapchain images");
+    return std::move(images);
 }
 
-auto Swapchain::createImageViews(const Desc& desc) -> void
+auto Swapchain::createImageViews(
+    const vk::raii::Device& device,
+    const std::vector<vk::Image>& images,
+    vk::Format imageFormat) -> std::expected<std::vector<vk::raii::ImageView>, Error>
 {
-    if (!m_imageViews.empty())
-    {
-        // TODO: Error
-        return;
-    }
+    if (images.empty())
+        return vkError(vk::Result::eErrorUnknown, "Swapchain contains no images");
 
+    std::vector<vk::raii::ImageView> imageViews;
     vk::ImageViewCreateInfo createInfo{
-        .viewType =  vk::ImageViewType::e2D,
-        .format = m_surfaceFormat.format,
-        .subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1},
+        .viewType = vk::ImageViewType::e2D,
+        .format = imageFormat,
+        .subresourceRange = {
+            .aspectMask = vk::ImageAspectFlagBits::eColor,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
     };
 
-    for (const auto& image : m_images)
+    for (const auto& image : images)
     {
         createInfo.image = image;
-        auto [result, imageView] = desc.device.device().createImageView(createInfo);
+        auto [result, imageView] = device.createImageView(createInfo);
         if (result != vk::Result::eSuccess)
-        {
-            // TODO: Error
-            return;
-        }
-        m_imageViews.emplace_back(std::move(imageView));
+            return vkError(result, "Failed to create swapchain image views");
+
+        imageViews.emplace_back(std::move(imageView));
     }
+
+    return imageViews;
 }
 
 auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> uint32_t
@@ -121,50 +212,5 @@ auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> 
     if (caps.maxImageCount > 0 && imageCount > caps.maxImageCount)
         imageCount = caps.maxImageCount;
     return imageCount;
-}
-
-auto Swapchain::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& fmts)
-    -> vk::SurfaceFormatKHR
-{
-    // TODO: Error
-    assert(!fmts.empty() && "No valid surface format provided");
-
-    const auto it = std::ranges::find_if(fmts, [](const auto& format) {
-        return format.format == vk::Format::eB8G8R8A8Srgb &&
-            format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear;
-    });
-
-    if (it == fmts.end())
-        return fmts.front();
-    return *it;
-}
-
-auto Swapchain::choosePresentMode(const std::vector<vk::PresentModeKHR>& presentModes)
-    -> vk::PresentModeKHR
-{
-    // TODO: Error
-    // Ensure FIFO present mode fallback is present
-    assert(std::ranges::any_of(presentModes, [](const auto& presentMode) {
-        return presentMode == vk::PresentModeKHR::eFifo;
-    }));
-
-    auto mailboxFound = std::ranges::any_of(presentModes, [&](const auto& presentMode) {
-        return presentMode == vk::PresentModeKHR::eMailbox;
-    });
-
-    if (mailboxFound)
-        return vk::PresentModeKHR::eMailbox;
-    return vk::PresentModeKHR::eFifo;
-}
-
-auto Swapchain::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& caps) const -> vk::Extent2D
-{
-    if (caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
-        return caps.currentExtent;
-
-    return vk::Extent2D{
-        std::clamp(m_extent.width, caps.minImageExtent.width, caps.maxImageExtent.width),
-        std::clamp(m_extent.height, caps.minImageExtent.height, caps.maxImageExtent.height)
-    };
 }
 }
