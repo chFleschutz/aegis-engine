@@ -33,19 +33,19 @@ VKAPI_ATTR auto VKAPI_CALL debugCallback(
 
 auto Context::create(const Desc& desc) -> std::expected<Context, Error>
 {
-    auto context = vk::raii::Context{};
+    vk::raii::Context context{};
 
     auto instance = createInstance(context, desc);
     if (!instance)
-        return std::unexpected{ std::move(instance.error()) };
+        return std::unexpected{ instance.error() };
 
     auto messenger = createDebugMessenger(*instance);
     if (!messenger)
-        return std::unexpected{ std::move(messenger.error()) };
+        return std::unexpected{ messenger.error() };
 
     auto surface = createSurface(*instance, desc);
     if (!surface)
-        return std::unexpected{ std::move(surface.error()) };
+        return std::unexpected{ surface.error() };
 
     return Context{ std::move(context),
                     std::move(*instance),
@@ -79,7 +79,7 @@ auto Context::createInstance(const vk::raii::Context& context, const Desc& desc)
     auto extensions = findExtensions();
     auto layers = findLayers(context);
     if (!layers)
-        return std::unexpected{ std::move(layers.error()) };
+        return std::unexpected{ layers.error() };
 
     const vk::InstanceCreateInfo instanceInfo{
         .pApplicationInfo = &appInfo,
@@ -93,7 +93,7 @@ auto Context::createInstance(const vk::raii::Context& context, const Desc& desc)
     if (result != vk::Result::eSuccess)
         return vkError(result, "Failed to create instance");
 
-    return { std::move(instance) };
+    return std::move(instance);
 }
 
 auto Context::createDebugMessenger(const vk::raii::Instance& instance)
@@ -111,15 +111,17 @@ auto Context::createDebugMessenger(const vk::raii::Instance& instance)
         vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
         vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation;
 
-    constexpr vk::DebugUtilsMessengerCreateInfoEXT createInfo{ .messageSeverity = severityFlags,
-                                                               .messageType = messageType,
-                                                               .pfnUserCallback = &debugCallback };
+    constexpr vk::DebugUtilsMessengerCreateInfoEXT createInfo{
+        .messageSeverity = severityFlags,
+        .messageType = messageType,
+        .pfnUserCallback = &debugCallback,
+    };
 
     auto [result, debugMessenger] = instance.createDebugUtilsMessengerEXT(createInfo);
     if (result != vk::Result::eSuccess)
         return vkError(result, "Failed to create debug messenger");
 
-    return { std::move(debugMessenger) };
+    return std::move(debugMessenger);
 }
 
 auto Context::createSurface(const vk::raii::Instance& instance, const Desc& desc)
