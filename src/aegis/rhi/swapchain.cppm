@@ -33,20 +33,16 @@ private:
 
     [[nodiscard]] static auto querySurfaceCapabilities(
         const vk::raii::PhysicalDevice& physicalDevice,
-        const vk::raii::SurfaceKHR& surface)
-        -> std::expected<vk::SurfaceCapabilitiesKHR, Error>;
+        const vk::raii::SurfaceKHR& surface) -> std::expected<vk::SurfaceCapabilitiesKHR, Error>;
     [[nodiscard]] static auto querySwapchainExtent(
         vk::Extent2D preferred,
-        const vk::SurfaceCapabilitiesKHR& caps)
-        -> vk::Extent2D;
+        const vk::SurfaceCapabilitiesKHR& caps) -> vk::Extent2D;
     [[nodiscard]] static auto queryPresentMode(
         const vk::raii::PhysicalDevice& physicalDevice,
-        const vk::raii::SurfaceKHR& surface)
-        -> std::expected<vk::PresentModeKHR, Error>;
+        const vk::raii::SurfaceKHR& surface) -> std::expected<vk::PresentModeKHR, Error>;
     [[nodiscard]] static auto querySwapchainFormat(
         const vk::raii::PhysicalDevice& physicalDevice,
-        const vk::SurfaceKHR& surface)
-        -> std::expected<vk::SurfaceFormatKHR, Error>;
+        const vk::SurfaceKHR& surface) -> std::expected<vk::SurfaceFormatKHR, Error>;
     [[nodiscard]] static auto createSwapchain(
         const Desc& desc,
         vk::Extent2D extent,
@@ -59,8 +55,7 @@ private:
     [[nodiscard]] static auto createImageViews(
         const vk::raii::Device& device,
         const std::vector<vk::Image>& images,
-        vk::Format imageFormat)
-        -> std::expected<std::vector<vk::raii::ImageView>, Error>;
+        vk::Format imageFormat) -> std::expected<std::vector<vk::raii::ImageView>, Error>;
 
     [[nodiscard]] static auto chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps)
         -> uint32_t;
