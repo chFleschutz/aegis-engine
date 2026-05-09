@@ -39,13 +39,16 @@ target_sources(aegis-rhi
     context.cppm
     device.cppm
     error.cppm
-    pipeline.cppm
     rhi.cppm
+    shader.cppm
+    shader_program.cppm
     swapchain.cppm
     texture.cppm
     PRIVATE
     context.cpp
     device.cpp
+    shader.cpp
+    shader_program.cpp
     swapchain.cpp
 )
 
