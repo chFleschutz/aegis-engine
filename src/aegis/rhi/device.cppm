@@ -42,6 +42,7 @@ public:
 
     static constexpr auto requiredExtensions = std::array{
         vk::KHRSwapchainExtensionName,
+        vk::EXTShaderObjectExtensionName
     };
 
     static auto create(const Desc& desc) -> std::expected<Device, Error>;
@@ -72,6 +73,7 @@ private:
         vk::PhysicalDeviceVulkan11Features,
         vk::PhysicalDeviceVulkan12Features,
         vk::PhysicalDeviceVulkan13Features,
+        vk::PhysicalDeviceShaderObjectFeaturesEXT,
         vk::PhysicalDeviceMeshShaderFeaturesEXT>;
 
     Device(

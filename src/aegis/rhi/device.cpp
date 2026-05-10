@@ -261,6 +261,10 @@ auto Device::createFeatureChain() -> FeatureChain
         .setMaintenance4(true);
 
     featureChain
+        .get<vk::PhysicalDeviceShaderObjectFeaturesEXT>() //
+        .setShaderObject(true);
+
+    featureChain
         .get<vk::PhysicalDeviceMeshShaderFeaturesEXT>() //
         .setMeshShader(true)
         .setTaskShader(true);

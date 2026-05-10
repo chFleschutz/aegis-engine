@@ -1,0 +1,288 @@
+module;
+#include <array>
+#include <cassert>
+
+module aegis.rhi;
+import :pipeline;
+
+namespace aegis::rhi
+{
+auto toVkType(Pipeline::StageType type) -> vk::ShaderStageFlagBits
+{
+    switch (type)
+    {
+    case Pipeline::StageType::Vertex: return vk::ShaderStageFlagBits::eVertex;
+    case Pipeline::StageType::TessellationControl:
+        return vk::ShaderStageFlagBits::eTessellationControl;
+    case Pipeline::StageType::TessellationEvaluation:
+        return vk::ShaderStageFlagBits::eTessellationEvaluation;
+    case Pipeline::StageType::Geometry: return vk::ShaderStageFlagBits::eGeometry;
+    case Pipeline::StageType::Fragment: return vk::ShaderStageFlagBits::eFragment;
+    case Pipeline::StageType::Compute: return vk::ShaderStageFlagBits::eCompute;
+    case Pipeline::StageType::Task: return vk::ShaderStageFlagBits::eTaskEXT;
+    case Pipeline::StageType::Mesh: return vk::ShaderStageFlagBits::eMeshEXT;
+    default: assert(false, "Unknown pipeline stage"); return vk::ShaderStageFlagBits::eAll;
+    }
+}
+
+auto Pipeline::create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>
+{
+    const auto& device = desc.device.device();
+
+    auto pipelineLayout = createPipelineLayout(device, desc.setLayouts, desc.pushConstantRanges);
+    if (!pipelineLayout)
+        return std::unexpected{ pipelineLayout.error() };
+
+    auto shaderModule = createShaderModule(device, desc.stage.code);
+    if (!shaderModule)
+        return std::unexpected{ shaderModule.error() };
+
+    auto pipeline =
+        createComputePipeline(device, *pipelineLayout, *shaderModule, desc.stage.entryPoint);
+    if (!pipeline)
+        return std::unexpected{ pipeline.error() };
+
+    return Pipeline{ std::move(*pipeline),
+                     std::move(*pipelineLayout),
+                     vk::PipelineBindPoint::eCompute };
+}
+
+auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error>
+{
+    const auto& device = desc.device.device();
+
+    auto pipelineLayout = createPipelineLayout(device, desc.setLayouts, desc.pushConstantRanges);
+    if (!pipelineLayout)
+        return std::unexpected{ pipelineLayout.error() };
+
+    std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
+    std::vector<vk::ShaderModule> modules;
+    for (const auto& [type, code, entryPoint] : desc.stages)
+    {
+        auto module = createShaderModule(device, code);
+        if (!module)
+            return std::unexpected{ module.error() };
+
+        vk::PipelineShaderStageCreateInfo s{
+            .stage = toVkType(type),
+            .module = *module,
+            .pName = entryPoint.data(),
+        };
+        shaderStages.emplace_back(s);
+    }
+
+    vk::VertexInputBindingDescription bindingDescription{
+        .binding = 0,
+        .stride = 44, // TODO: use sizeof of redesign this
+        .inputRate = vk::VertexInputRate::eVertex,
+    };
+
+    auto vertexAttributes = std::array{
+        vk::VertexInputAttributeDescription{
+            .location = 0,
+            .binding = 0,
+            .format = vk::Format::eR32G32B32Sfloat,
+            .offset = 0,
+        },
+        vk::VertexInputAttributeDescription{
+            .location = 1,
+            .binding = 0,
+            .format = vk::Format::eR32G32B32Sfloat,
+            .offset = 12,
+        },
+        vk::VertexInputAttributeDescription{
+            .location = 2,
+            .binding = 0,
+            .format = vk::Format::eR32G32Sfloat,
+            .offset = 24,
+        },
+        vk::VertexInputAttributeDescription{
+            .location = 3,
+            .binding = 0,
+            .format = vk::Format::eR32G32B32Sfloat,
+            .offset = 32,
+        },
+    };
+
+    vk::PipelineVertexInputStateCreateInfo vertexInputState{};
+    vertexInputState.setPVertexBindingDescriptions(&bindingDescription);
+    vertexInputState.setVertexAttributeDescriptions(vertexAttributes);
+
+    vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState{
+        .topology = vk::PrimitiveTopology::eTriangleList,
+        .primitiveRestartEnable = vk::False,
+    };
+
+    vk::PipelineViewportStateCreateInfo viewportState{
+        .viewportCount = 1,
+        .scissorCount = 1,
+    };
+
+    vk::PipelineRasterizationStateCreateInfo rasterizationState{
+        .depthClampEnable = vk::False,
+        .rasterizerDiscardEnable = vk::False,
+        .polygonMode = vk::PolygonMode::eFill,
+        .cullMode = vk::CullModeFlagBits::eBack,
+        .frontFace = vk::FrontFace::eCounterClockwise,
+        .depthBiasEnable = vk::False,
+        .depthBiasConstantFactor = 0.0f,
+        .depthBiasClamp = 0.0f,
+        .depthBiasSlopeFactor = 0.0f,
+        .lineWidth = 1.0f,
+    };
+
+    vk::PipelineMultisampleStateCreateInfo multisampleState{
+        .rasterizationSamples = vk::SampleCountFlagBits::e1,
+        .sampleShadingEnable = vk::False,
+        .minSampleShading = 1.0f,
+        .pSampleMask = nullptr,
+        .alphaToCoverageEnable = vk::False,
+        .alphaToOneEnable = vk::False,
+    };
+
+    vk::PipelineDepthStencilStateCreateInfo depthStencilState{
+        .depthTestEnable = vk::True,
+        .depthWriteEnable = vk::True,
+        .depthCompareOp = vk::CompareOp::eLess,
+        .depthBoundsTestEnable = vk::False,
+        .stencilTestEnable = vk::False,
+        .front = {},
+        .back = {},
+        .minDepthBounds = 0.0f,
+        .maxDepthBounds = 1.0f,
+    };
+
+    vk::PipelineColorBlendAttachmentState colorBlendAttachment{
+        .blendEnable = vk::False,
+        .srcColorBlendFactor = vk::BlendFactor::eOne,
+        .dstColorBlendFactor = vk::BlendFactor::eZero,
+        .colorBlendOp = vk::BlendOp::eAdd,
+        .srcAlphaBlendFactor = vk::BlendFactor::eOne,
+        .dstAlphaBlendFactor = vk::BlendFactor::eZero,
+        .alphaBlendOp = vk::BlendOp::eAdd,
+        .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+            vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
+    };
+
+    vk::PipelineColorBlendStateCreateInfo colorBlendState{
+        .logicOpEnable = vk::False,
+        .logicOp = vk::LogicOp::eCopy,
+        .attachmentCount =,
+        .pAttachments =,
+        .blendConstants = { 0.0f, 0.0f, 0.0f, 0.0f },
+    };
+
+    auto dynamicStates = std::array{ vk::DynamicState::eViewport, vk::DynamicState::eScissor };
+    vk::PipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.setDynamicStates(dynamicStates);
+
+    auto structureChain = vk::StructureChain{
+        vk::PipelineRenderingCreateInfo{
+            .viewMask = 0,
+            .colorAttachmentCount = ,
+            .pColorAttachmentFormats = ,
+            .depthAttachmentFormat = ,
+            .stencilAttachmentFormat = ,
+        },
+    };
+
+    vk::GraphicsPipelineCreateInfo createInfo{
+        .pNext = structureChain.get<vk::PipelineRenderingCreateInfo>(),
+        .pVertexInputState = &vertexInputState,
+        .pInputAssemblyState = inputAssemblyState,
+        .pTessellationState = nullptr,
+        .pViewportState = viewportState,
+        .pRasterizationState = rasterizationState,
+        .pMultisampleState = multisampleState,
+        .pDepthStencilState = depthStencilState,
+        .pColorBlendState = colorBlendState,
+        .pDynamicState = dynamicState,
+        .layout = nullptr,
+        .renderPass = nullptr,
+        .subpass = 0,
+        .basePipelineHandle = nullptr,
+        .basePipelineIndex = -1,
+    };
+    createInfo.setStages(shaderStages);
+
+    auto [result, pipeline] = device.createGraphicsPipeline(createInfo);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to create graphics pipeline");
+
+    return Pipeline{ std::move(*pipeline),
+                     std::move(*pipelineLayout),
+                     vk::PipelineBindPoint::eGraphics };
+}
+
+Pipeline::Pipeline(
+    vk::raii::Pipeline pipeline,
+    vk::raii::PipelineLayout layout,
+    vk::PipelineBindPoint bindPoint) :
+    m_pipeline{ std::move(pipeline) },
+    m_layout{ std::move(layout) },
+    m_bindPoint{ bindPoint }
+{
+}
+
+auto Pipeline::createPipelineLayout(
+    const vk::raii::Device& device,
+    std::span<vk::DescriptorSetLayout> setLayouts,
+    std::span<vk::PushConstantRange> pushConstantRanges)
+    -> std::expected<vk::raii::PipelineLayout, Error>
+{
+    vk::PipelineLayoutCreateInfo layoutCreateInfo{
+        .setLayoutCount = static_cast<uint32_t>(setLayouts.size()),
+        .pSetLayouts = setLayouts.data(),
+        .pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
+        .pPushConstantRanges = pushConstantRanges.data(),
+    };
+    auto [result, pipelineLayout] = device.createPipelineLayout(layoutCreateInfo);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to create pipeline layout");
+
+    return pipelineLayout;
+}
+
+auto Pipeline::createShaderModule(const vk::raii::Device& device, std::span<char> code)
+    -> std::expected<vk::raii::ShaderModule, Error>
+{
+    vk::ShaderModuleCreateInfo shaderModuleCreateInfo{
+        .codeSize = code.size() * sizeof(char),
+        .pCode = reinterpret_cast<const uint32_t*>(code.data()),
+    };
+
+    auto [result, module] = device.createShaderModule(shaderModuleCreateInfo);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to create shader module");
+
+    return module;
+}
+
+auto Pipeline::createComputePipeline(
+    const vk::raii::Device& device,
+    const vk::raii::PipelineLayout& layout,
+    const vk::raii::ShaderModule& module,
+    std::string_view entryPoint) -> std::expected<vk::raii::Pipeline, Error>
+{
+    vk::ComputePipelineCreateInfo createInfo{
+        .stage = {
+            .stage = vk::ShaderStageFlagBits::eCompute,
+            .module = *module,
+            .pName = entryPoint.data(),
+        },
+        .layout = *layout,
+        .basePipelineHandle = nullptr,
+        .basePipelineIndex = -1,
+    };
+
+    auto [result, pipeline] = device.createComputePipeline(nullptr, createInfo);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to create compute pipeline");
+
+    return pipeline;
+}
+
+auto Pipeline::createGraphicsPipeline() -> std::expected<vk::raii::Pipeline, Error>
+{
+}
+}
