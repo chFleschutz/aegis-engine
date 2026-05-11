@@ -1,30 +1,13 @@
 module;
 #include <array>
-#include <cassert>
+#include <ranges>
 
 module aegis.rhi;
 import :pipeline;
+import :vulkan_common;
 
 namespace aegis::rhi
 {
-auto toVkType(Pipeline::StageType type) -> vk::ShaderStageFlagBits
-{
-    switch (type)
-    {
-    case Pipeline::StageType::Vertex: return vk::ShaderStageFlagBits::eVertex;
-    case Pipeline::StageType::TessellationControl:
-        return vk::ShaderStageFlagBits::eTessellationControl;
-    case Pipeline::StageType::TessellationEvaluation:
-        return vk::ShaderStageFlagBits::eTessellationEvaluation;
-    case Pipeline::StageType::Geometry: return vk::ShaderStageFlagBits::eGeometry;
-    case Pipeline::StageType::Fragment: return vk::ShaderStageFlagBits::eFragment;
-    case Pipeline::StageType::Compute: return vk::ShaderStageFlagBits::eCompute;
-    case Pipeline::StageType::Task: return vk::ShaderStageFlagBits::eTaskEXT;
-    case Pipeline::StageType::Mesh: return vk::ShaderStageFlagBits::eMeshEXT;
-    default: assert(false, "Unknown pipeline stage"); return vk::ShaderStageFlagBits::eAll;
-    }
-}
-
 auto Pipeline::create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>
 {
     const auto& device = desc.device.device();
@@ -33,12 +16,12 @@ auto Pipeline::create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>
     if (!pipelineLayout)
         return std::unexpected{ pipelineLayout.error() };
 
-    auto shaderModule = createShaderModule(device, desc.stage.code);
+    auto shaderModule = createShaderModule(device, desc.shader.code);
     if (!shaderModule)
         return std::unexpected{ shaderModule.error() };
 
     auto pipeline =
-        createComputePipeline(device, *pipelineLayout, *shaderModule, desc.stage.entryPoint);
+        createComputePipeline(device, *pipelineLayout, *shaderModule, desc.shader.entryPoint);
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
@@ -57,7 +40,7 @@ auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error
 
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
     std::vector<vk::ShaderModule> modules;
-    for (const auto& [type, code, entryPoint] : desc.stages)
+    for (const auto& [type, code, entryPoint] : desc.shaders)
     {
         auto module = createShaderModule(device, code);
         if (!module)
@@ -152,51 +135,58 @@ auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error
         .maxDepthBounds = 1.0f,
     };
 
-    vk::PipelineColorBlendAttachmentState colorBlendAttachment{
-        .blendEnable = vk::False,
-        .srcColorBlendFactor = vk::BlendFactor::eOne,
-        .dstColorBlendFactor = vk::BlendFactor::eZero,
-        .colorBlendOp = vk::BlendOp::eAdd,
-        .srcAlphaBlendFactor = vk::BlendFactor::eOne,
-        .dstAlphaBlendFactor = vk::BlendFactor::eZero,
-        .alphaBlendOp = vk::BlendOp::eAdd,
-        .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-            vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
-    };
+    std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments{};
+    colorBlendAttachments.reserve(desc.colorAttachments.size());
+    for (Format _ : desc.colorAttachments)
+    {
+        vk::PipelineColorBlendAttachmentState colorBlend{
+            .blendEnable = vk::False,
+            .srcColorBlendFactor = vk::BlendFactor::eOne,
+            .dstColorBlendFactor = vk::BlendFactor::eZero,
+            .colorBlendOp = vk::BlendOp::eAdd,
+            .srcAlphaBlendFactor = vk::BlendFactor::eOne,
+            .dstAlphaBlendFactor = vk::BlendFactor::eZero,
+            .alphaBlendOp = vk::BlendOp::eAdd,
+            .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
+        };
+        colorBlendAttachments.emplace_back(colorBlend);
+    }
 
     vk::PipelineColorBlendStateCreateInfo colorBlendState{
         .logicOpEnable = vk::False,
         .logicOp = vk::LogicOp::eCopy,
-        .attachmentCount =,
-        .pAttachments =,
-        .blendConstants = { 0.0f, 0.0f, 0.0f, 0.0f },
+        .attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size()),
+        .pAttachments = colorBlendAttachments.data(),
+        .blendConstants = std::array{ 0.0f, 0.0f, 0.0f, 0.0f },
     };
 
     auto dynamicStates = std::array{ vk::DynamicState::eViewport, vk::DynamicState::eScissor };
     vk::PipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.setDynamicStates(dynamicStates);
 
+    auto formats = desc.colorAttachments | std::views::transform([](Format f) { return toVk(f); }) |
+        std::ranges::to<std::vector<vk::Format>>();
+
     auto structureChain = vk::StructureChain{
         vk::PipelineRenderingCreateInfo{
             .viewMask = 0,
-            .colorAttachmentCount = ,
-            .pColorAttachmentFormats = ,
-            .depthAttachmentFormat = ,
-            .stencilAttachmentFormat = ,
-        },
+            .depthAttachmentFormat = toVk(desc.depthAttachment),
+        }
+            .pColorAttachmentFormats(formats),
     };
 
     vk::GraphicsPipelineCreateInfo createInfo{
         .pNext = structureChain.get<vk::PipelineRenderingCreateInfo>(),
         .pVertexInputState = &vertexInputState,
-        .pInputAssemblyState = inputAssemblyState,
+        .pInputAssemblyState = &inputAssemblyState,
         .pTessellationState = nullptr,
-        .pViewportState = viewportState,
-        .pRasterizationState = rasterizationState,
-        .pMultisampleState = multisampleState,
-        .pDepthStencilState = depthStencilState,
-        .pColorBlendState = colorBlendState,
-        .pDynamicState = dynamicState,
+        .pViewportState = &viewportState,
+        .pRasterizationState = &rasterizationState,
+        .pMultisampleState = &multisampleState,
+        .pDepthStencilState = &depthStencilState,
+        .pColorBlendState = &colorBlendState,
+        .pDynamicState = &dynamicState,
         .layout = nullptr,
         .renderPass = nullptr,
         .subpass = 0,
@@ -205,11 +195,11 @@ auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error
     };
     createInfo.setStages(shaderStages);
 
-    auto [result, pipeline] = device.createGraphicsPipeline(createInfo);
+    auto [result, pipeline] = device.createGraphicsPipeline(nullptr, createInfo);
     if (result != vk::Result::eSuccess)
         return vkError(result, "Failed to create graphics pipeline");
 
-    return Pipeline{ std::move(*pipeline),
+    return Pipeline{ std::move(pipeline),
                      std::move(*pipelineLayout),
                      vk::PipelineBindPoint::eGraphics };
 }

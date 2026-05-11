@@ -5,6 +5,7 @@ module;
 export module aegis.rhi:pipeline;
 import :device;
 import :error;
+import :common;
 import vulkan_hpp;
 
 export namespace aegis::rhi
@@ -12,21 +13,9 @@ export namespace aegis::rhi
 class Pipeline
 {
 public:
-    enum class StageType
+    struct Shader
     {
-        Vertex,
-        TessellationControl,
-        TessellationEvaluation,
-        Geometry,
-        Fragment,
-        Compute,
-        Task,
-        Mesh,
-    };
-
-    struct ShaderStage
-    {
-        StageType type;
+        ShaderStage stage;
         std::span<char> code;
         std::string_view entryPoint{ "main" };
     };
@@ -36,7 +25,7 @@ public:
         const Device& device;
         std::span<vk::DescriptorSetLayout> setLayouts;
         std::span<vk::PushConstantRange> pushConstantRanges;
-        ShaderStage stage;
+        Shader shader;
     };
 
     struct GraphicsDesc
@@ -44,8 +33,9 @@ public:
         const Device& device;
         std::span<vk::DescriptorSetLayout> setLayouts;
         std::span<vk::PushConstantRange> pushConstantRanges;
-        std::span<ShaderStage> stages;
-
+        std::span<Shader> shaders;
+        std::span<Format> colorAttachments;
+        Format depthAttachment;
     };
 
     [[nodiscard]] static auto create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>;
