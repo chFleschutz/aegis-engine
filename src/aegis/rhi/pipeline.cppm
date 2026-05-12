@@ -1,6 +1,7 @@
 module;
 #include <expected>
 #include <span>
+#include <string_view>
 
 export module aegis.rhi:pipeline;
 import :device;
@@ -63,7 +64,11 @@ private:
         const vk::raii::ShaderModule& module,
         std::string_view entryPoint) -> std::expected<vk::raii::Pipeline, Error>;
 
-    [[nodiscard]] static auto createGraphicsPipeline() -> std::expected<vk::raii::Pipeline, Error>;
+    [[nodiscard]] static auto createGraphicsPipeline(
+        const vk::raii::Device& device,
+        std::span<Shader> shaders,
+        std::span<Format> colorAttachments,
+        Format depthAttachment) -> std::expected<vk::raii::Pipeline, Error>;
 
     vk::raii::Pipeline m_pipeline;
     vk::raii::PipelineLayout m_layout;

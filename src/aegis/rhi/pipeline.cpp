@@ -1,6 +1,8 @@
 module;
 #include <array>
+#include <expected>
 #include <ranges>
+#include <vector>
 
 module aegis.rhi;
 import :pipeline;
@@ -38,9 +40,93 @@ auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error
     if (!pipelineLayout)
         return std::unexpected{ pipelineLayout.error() };
 
+    auto pipeline =
+        createGraphicsPipeline(device, desc.shaders, desc.colorAttachments, desc.depthAttachment);
+    if (!pipeline)
+        return std::unexpected{ pipeline.error() };
+
+    return Pipeline{ std::move(*pipeline),
+                     std::move(*pipelineLayout),
+                     vk::PipelineBindPoint::eGraphics };
+}
+
+Pipeline::Pipeline(
+    vk::raii::Pipeline pipeline,
+    vk::raii::PipelineLayout layout,
+    vk::PipelineBindPoint bindPoint) :
+    m_pipeline{ std::move(pipeline) },
+    m_layout{ std::move(layout) },
+    m_bindPoint{ bindPoint }
+{
+}
+
+auto Pipeline::createPipelineLayout(
+    const vk::raii::Device& device,
+    std::span<vk::DescriptorSetLayout> setLayouts,
+    std::span<vk::PushConstantRange> pushConstantRanges)
+    -> std::expected<vk::raii::PipelineLayout, Error>
+{
+    vk::PipelineLayoutCreateInfo layoutCreateInfo{
+        .setLayoutCount = static_cast<uint32_t>(setLayouts.size()),
+        .pSetLayouts = setLayouts.data(),
+        .pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
+        .pPushConstantRanges = pushConstantRanges.data(),
+    };
+    auto [result, pipelineLayout] = device.createPipelineLayout(layoutCreateInfo);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to create pipeline layout");
+
+    return std::move(pipelineLayout);
+}
+
+auto Pipeline::createShaderModule(const vk::raii::Device& device, std::span<char> code)
+    -> std::expected<vk::raii::ShaderModule, Error>
+{
+    vk::ShaderModuleCreateInfo shaderModuleCreateInfo{
+        .codeSize = code.size() * sizeof(char),
+        .pCode = reinterpret_cast<const uint32_t*>(code.data()),
+    };
+
+    auto [result, module] = device.createShaderModule(shaderModuleCreateInfo);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to create shader module");
+
+    return std::move(module);
+}
+
+auto Pipeline::createComputePipeline(
+    const vk::raii::Device& device,
+    const vk::raii::PipelineLayout& layout,
+    const vk::raii::ShaderModule& module,
+    std::string_view entryPoint) -> std::expected<vk::raii::Pipeline, Error>
+{
+    vk::ComputePipelineCreateInfo createInfo{
+        .stage = {
+            .stage = vk::ShaderStageFlagBits::eCompute,
+            .module = *module,
+            .pName = entryPoint.data(),
+        },
+        .layout = *layout,
+        .basePipelineHandle = nullptr,
+        .basePipelineIndex = -1,
+    };
+
+    auto [result, pipeline] = device.createComputePipeline(nullptr, createInfo);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to create compute pipeline");
+
+    return std::move(pipeline);
+}
+
+auto Pipeline::createGraphicsPipeline(
+    const vk::raii::Device& device,
+    std::span<Shader> shaders,
+    std::span<Format> colorAttachments,
+    Format depthAttachment) -> std::expected<vk::raii::Pipeline, Error>
+{
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
     std::vector<vk::ShaderModule> modules;
-    for (const auto& [type, code, entryPoint] : desc.shaders)
+    for (const auto& [type, code, entryPoint] : shaders)
     {
         auto module = createShaderModule(device, code);
         if (!module)
@@ -136,8 +222,8 @@ auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error
     };
 
     std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments{};
-    colorBlendAttachments.reserve(desc.colorAttachments.size());
-    for (Format _ : desc.colorAttachments)
+    colorBlendAttachments.reserve(colorAttachments.size());
+    for (Format _ : colorAttachments)
     {
         vk::PipelineColorBlendAttachmentState colorBlend{
             .blendEnable = vk::False,
@@ -165,16 +251,16 @@ auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error
     vk::PipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.setDynamicStates(dynamicStates);
 
-    auto formats = desc.colorAttachments | std::views::transform([](Format f) { return toVk(f); }) |
+    auto formats = colorAttachments | std::views::transform([](Format f) { return toVk(f); }) |
         std::ranges::to<std::vector<vk::Format>>();
 
-    auto structureChain = vk::StructureChain{
-        vk::PipelineRenderingCreateInfo{
-            .viewMask = 0,
-            .depthAttachmentFormat = toVk(desc.depthAttachment),
-        }
-            .pColorAttachmentFormats(formats),
-    };
+    auto structureChain = vk::StructureChain{ vk::PipelineRenderingCreateInfo{
+        .viewMask = 0,
+        .colorAttachmentCount = static_cast<uint32_t>(formats.size()),
+        .pColorAttachmentFormats = formats.data(),
+        .depthAttachmentFormat = toVk(depthAttachment),
+        // .stencilAttachmentFormat =
+    } };
 
     vk::GraphicsPipelineCreateInfo createInfo{
         .pNext = structureChain.get<vk::PipelineRenderingCreateInfo>(),
@@ -199,80 +285,6 @@ auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error
     if (result != vk::Result::eSuccess)
         return vkError(result, "Failed to create graphics pipeline");
 
-    return Pipeline{ std::move(pipeline),
-                     std::move(*pipelineLayout),
-                     vk::PipelineBindPoint::eGraphics };
-}
-
-Pipeline::Pipeline(
-    vk::raii::Pipeline pipeline,
-    vk::raii::PipelineLayout layout,
-    vk::PipelineBindPoint bindPoint) :
-    m_pipeline{ std::move(pipeline) },
-    m_layout{ std::move(layout) },
-    m_bindPoint{ bindPoint }
-{
-}
-
-auto Pipeline::createPipelineLayout(
-    const vk::raii::Device& device,
-    std::span<vk::DescriptorSetLayout> setLayouts,
-    std::span<vk::PushConstantRange> pushConstantRanges)
-    -> std::expected<vk::raii::PipelineLayout, Error>
-{
-    vk::PipelineLayoutCreateInfo layoutCreateInfo{
-        .setLayoutCount = static_cast<uint32_t>(setLayouts.size()),
-        .pSetLayouts = setLayouts.data(),
-        .pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
-        .pPushConstantRanges = pushConstantRanges.data(),
-    };
-    auto [result, pipelineLayout] = device.createPipelineLayout(layoutCreateInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create pipeline layout");
-
-    return pipelineLayout;
-}
-
-auto Pipeline::createShaderModule(const vk::raii::Device& device, std::span<char> code)
-    -> std::expected<vk::raii::ShaderModule, Error>
-{
-    vk::ShaderModuleCreateInfo shaderModuleCreateInfo{
-        .codeSize = code.size() * sizeof(char),
-        .pCode = reinterpret_cast<const uint32_t*>(code.data()),
-    };
-
-    auto [result, module] = device.createShaderModule(shaderModuleCreateInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create shader module");
-
-    return module;
-}
-
-auto Pipeline::createComputePipeline(
-    const vk::raii::Device& device,
-    const vk::raii::PipelineLayout& layout,
-    const vk::raii::ShaderModule& module,
-    std::string_view entryPoint) -> std::expected<vk::raii::Pipeline, Error>
-{
-    vk::ComputePipelineCreateInfo createInfo{
-        .stage = {
-            .stage = vk::ShaderStageFlagBits::eCompute,
-            .module = *module,
-            .pName = entryPoint.data(),
-        },
-        .layout = *layout,
-        .basePipelineHandle = nullptr,
-        .basePipelineIndex = -1,
-    };
-
-    auto [result, pipeline] = device.createComputePipeline(nullptr, createInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create compute pipeline");
-
-    return pipeline;
-}
-
-auto Pipeline::createGraphicsPipeline() -> std::expected<vk::raii::Pipeline, Error>
-{
+    return std::move(pipeline);
 }
 }

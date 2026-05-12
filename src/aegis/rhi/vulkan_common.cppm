@@ -30,7 +30,7 @@ auto toVkType(ShaderStage stage) -> vk::ShaderStageFlagBits
     case ShaderStage::Mesh: return vk::ShaderStageFlagBits::eMeshEXT;
     default:
     {
-        assert(false, "Unknown pipeline stage");
+        assert(false && "Unknown pipeline stage");
         return vk::ShaderStageFlagBits::eAll;
     }
     }
