@@ -23,6 +23,7 @@ VKAPI_ATTR auto VKAPI_CALL debugCallback(
         severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
     {
         std::println(
+            stderr,
             "Vulkan Validation Error: {} \n{}\n",
             to_string(type),
             pCallbackData->pMessage);
