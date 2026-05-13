@@ -47,7 +47,7 @@ auto Swapchain::create(const Desc& desc) -> std::expected<Swapchain, Error>
                       std::move(*images),
                       std::move(*imageViews),
                       extent,
-                      *format };
+                      fromVk(format->format) };
 }
 
 Swapchain::Swapchain(
@@ -55,7 +55,7 @@ Swapchain::Swapchain(
     std::vector<vk::Image> images,
     std::vector<vk::raii::ImageView> imageViews,
     vk::Extent2D extent,
-    vk::SurfaceFormatKHR format) :
+    Format format) :
     m_swapchain{ std::move(swapchain) },
     m_images{ std::move(images) },
     m_imageViews{ std::move(imageViews) },

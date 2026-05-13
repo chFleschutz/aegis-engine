@@ -3,6 +3,7 @@ module;
 #include <vector>
 
 export module aegis.rhi:swapchain;
+import :common;
 import :context;
 import :device;
 import :error;
@@ -23,13 +24,15 @@ public:
 
     static auto create(const Desc& desc) -> std::expected<Swapchain, Error>;
 
+    [[nodiscard]] auto surfaceFormat() const -> Format { return m_surfaceFormat; }
+
 private:
     Swapchain(
         vk::raii::SwapchainKHR swapchain,
         std::vector<vk::Image> images,
         std::vector<vk::raii::ImageView> imageViews,
         vk::Extent2D extent,
-        vk::SurfaceFormatKHR format);
+        Format format);
 
     [[nodiscard]] static auto querySurfaceCapabilities(
         const vk::raii::PhysicalDevice& physicalDevice,
@@ -64,6 +67,6 @@ private:
     std::vector<vk::Image> m_images;
     std::vector<vk::raii::ImageView> m_imageViews;
     vk::Extent2D m_extent;
-    vk::SurfaceFormatKHR m_surfaceFormat;
+    Format m_surfaceFormat;
 };
 }

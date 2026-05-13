@@ -11,6 +11,7 @@ enum class Format
     RGBA8_UNORM,
     RGBA8_SRGB,
     BGRA8_UNORM,
+    BGRA8_SRGB,
     // 10/11-bit packed
     RGB10A2_UNORM,
     B10G11R11_UFLOAT,

@@ -17,6 +17,7 @@ auto toVk(Format format) -> vk::Format
     case Format::RGBA8_UNORM: return vk::Format::eR8G8B8A8Unorm;
     case Format::RGBA8_SRGB: return vk::Format::eR8G8B8A8Srgb;
     case Format::BGRA8_UNORM: return vk::Format::eB8G8R8A8Unorm;
+    case Format::BGRA8_SRGB: return vk::Format::eB8G8R8A8Srgb;
     case Format::RGB10A2_UNORM: return vk::Format::eA2R10G10B10UnormPack32;
     case Format::B10G11R11_UFLOAT: return vk::Format::eB10G11R11UfloatPack32;
     case Format::R16_UNORM: return vk::Format::eR16Unorm;
@@ -48,6 +49,7 @@ auto fromVk(vk::Format format) -> Format
     case vk::Format::eR8G8B8A8Unorm: return Format::RGBA8_UNORM;
     case vk::Format::eR8G8B8A8Srgb: return Format::RGBA8_SRGB;
     case vk::Format::eB8G8R8A8Unorm: return Format::BGRA8_UNORM;
+    case vk::Format::eB8G8R8A8Srgb: return Format::BGRA8_SRGB;
     case vk::Format::eA2R10G10B10UnormPack32: return Format::RGB10A2_UNORM;
     case vk::Format::eB10G11R11UfloatPack32: return Format::B10G11R11_UFLOAT;
     case vk::Format::eR16Unorm: return Format::R16_UNORM;

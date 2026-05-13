@@ -79,12 +79,12 @@ auto Pipeline::createPipelineLayout(
     return std::move(pipelineLayout);
 }
 
-auto Pipeline::createShaderModule(const vk::raii::Device& device, std::span<char> code)
+auto Pipeline::createShaderModule(const vk::raii::Device& device, std::span<std::uint32_t> code)
     -> std::expected<vk::raii::ShaderModule, Error>
 {
     vk::ShaderModuleCreateInfo shaderModuleCreateInfo{
-        .codeSize = code.size() * sizeof(char),
-        .pCode = reinterpret_cast<const uint32_t*>(code.data()),
+        .codeSize = code.size() * sizeof(std::uint32_t),
+        .pCode = code.data(),
     };
 
     auto [result, module] = device.createShaderModule(shaderModuleCreateInfo);
@@ -138,6 +138,7 @@ auto Pipeline::createGraphicsPipeline(
             .pName = entryPoint.data(),
         };
         shaderStages.emplace_back(s);
+        modules.emplace_back(std::move(*module));
     }
 
     vk::VertexInputBindingDescription bindingDescription{

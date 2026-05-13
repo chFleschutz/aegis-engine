@@ -17,7 +17,7 @@ public:
     struct Shader
     {
         ShaderStage stage;
-        std::span<char> code;
+        std::span<uint32_t> code;
         std::string_view entryPoint{ "main" };
     };
 
@@ -36,7 +36,7 @@ public:
         std::span<vk::PushConstantRange> pushConstantRanges;
         std::span<Shader> shaders;
         std::span<Format> colorAttachments;
-        Format depthAttachment;
+        Format depthAttachment{ Format::Unknown };
     };
 
     [[nodiscard]] static auto create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>;
@@ -56,7 +56,7 @@ private:
 
     [[nodiscard]] static auto createShaderModule(
         const vk::raii::Device& device,
-        std::span<char> code) -> std::expected<vk::raii::ShaderModule, Error>;
+        std::span<std::uint32_t> code) -> std::expected<vk::raii::ShaderModule, Error>;
 
     [[nodiscard]] static auto createComputePipeline(
         const vk::raii::Device& device,
