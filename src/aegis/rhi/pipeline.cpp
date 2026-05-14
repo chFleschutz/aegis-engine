@@ -40,8 +40,7 @@ auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error
     if (!pipelineLayout)
         return std::unexpected{ pipelineLayout.error() };
 
-    auto pipeline =
-        createGraphicsPipeline(device, desc.shaders, desc.colorAttachments, desc.depthAttachment);
+    auto pipeline = createGraphicsPipeline(*pipelineLayout, desc);
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
@@ -119,64 +118,55 @@ auto Pipeline::createComputePipeline(
 }
 
 auto Pipeline::createGraphicsPipeline(
-    const vk::raii::Device& device,
-    std::span<Shader> shaders,
-    std::span<Format> colorAttachments,
-    Format depthAttachment) -> std::expected<vk::raii::Pipeline, Error>
+    const vk::raii::PipelineLayout& pipelineLayout,
+    const GraphicsDesc& desc) -> std::expected<vk::raii::Pipeline, Error>
 {
-    std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
-    std::vector<vk::ShaderModule> modules;
-    for (const auto& [type, code, entryPoint] : shaders)
-    {
-        auto module = createShaderModule(device, code);
-        if (!module)
-            return std::unexpected{ module.error() };
+    std::vector<vk::raii::ShaderModule> shaderModules;
+    shaderModules.reserve(desc.shaders.size());
 
-        vk::PipelineShaderStageCreateInfo s{
-            .stage = toVkType(type),
-            .module = *module,
-            .pName = entryPoint.data(),
-        };
-        shaderStages.emplace_back(s);
-        modules.emplace_back(std::move(*module));
+    std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
+    shaderStages.reserve(desc.shaders.size());
+
+    for (const auto& [stage, code, entryPoint] : desc.shaders)
+    {
+        auto shaderModule = createShaderModule(desc.device.device(), code);
+        if (!shaderModule)
+            return std::unexpected{ shaderModule.error() };
+
+        const auto& module = shaderModules.emplace_back(std::move(*shaderModule));
+        shaderStages.emplace_back(
+            vk::PipelineShaderStageCreateInfo{
+                .stage = toVkType(stage),
+                .module = *module,
+                .pName = entryPoint.data(),
+            });
     }
 
-    vk::VertexInputBindingDescription bindingDescription{
-        .binding = 0,
-        .stride = 44, // TODO: use sizeof of redesign this
-        .inputRate = vk::VertexInputRate::eVertex,
-    };
+    auto vertexBindings = desc.vertexBindings | std::views::transform([](const auto& b) {
+                              return vk::VertexInputBindingDescription{
+                                  .binding = b.binding,
+                                  .stride = b.stride,
+                                  .inputRate = vk::VertexInputRate::eVertex,
+                              };
+                          }) |
+        std::ranges::to<std::vector>();
 
-    auto vertexAttributes = std::array{
-        vk::VertexInputAttributeDescription{
-            .location = 0,
-            .binding = 0,
-            .format = vk::Format::eR32G32B32Sfloat,
-            .offset = 0,
-        },
-        vk::VertexInputAttributeDescription{
-            .location = 1,
-            .binding = 0,
-            .format = vk::Format::eR32G32B32Sfloat,
-            .offset = 12,
-        },
-        vk::VertexInputAttributeDescription{
-            .location = 2,
-            .binding = 0,
-            .format = vk::Format::eR32G32Sfloat,
-            .offset = 24,
-        },
-        vk::VertexInputAttributeDescription{
-            .location = 3,
-            .binding = 0,
-            .format = vk::Format::eR32G32B32Sfloat,
-            .offset = 32,
-        },
-    };
+    auto vertexAttributes = desc.vertexAttributes | std::views::transform([](const auto& a) {
+                                return vk::VertexInputAttributeDescription{
+                                    .location = a.location,
+                                    .binding = a.binding,
+                                    .format = toVk(a.format),
+                                    .offset = a.offset,
+                                };
+                            }) |
+        std::ranges::to<std::vector>();
 
-    vk::PipelineVertexInputStateCreateInfo vertexInputState{};
-    vertexInputState.setPVertexBindingDescriptions(&bindingDescription);
-    vertexInputState.setVertexAttributeDescriptions(vertexAttributes);
+    vk::PipelineVertexInputStateCreateInfo vertexInputState{
+        .vertexBindingDescriptionCount = static_cast<std::uint32_t>(vertexBindings.size()),
+        .pVertexBindingDescriptions = vertexBindings.data(),
+        .vertexAttributeDescriptionCount = static_cast<std::uint32_t>(vertexAttributes.size()),
+        .pVertexAttributeDescriptions = vertexAttributes.data(),
+    };
 
     vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState{
         .topology = vk::PrimitiveTopology::eTriangleList,
@@ -223,8 +213,8 @@ auto Pipeline::createGraphicsPipeline(
     };
 
     std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments{};
-    colorBlendAttachments.reserve(colorAttachments.size());
-    for (Format _ : colorAttachments)
+    colorBlendAttachments.reserve(desc.colorAttachments.size());
+    for (Format _ : desc.colorAttachments)
     {
         vk::PipelineColorBlendAttachmentState colorBlend{
             .blendEnable = vk::False,
@@ -252,19 +242,21 @@ auto Pipeline::createGraphicsPipeline(
     vk::PipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.setDynamicStates(dynamicStates);
 
-    auto formats = colorAttachments | std::views::transform([](Format f) { return toVk(f); }) |
+    auto formats = desc.colorAttachments | std::views::transform([](Format f) { return toVk(f); }) |
         std::ranges::to<std::vector<vk::Format>>();
 
     auto structureChain = vk::StructureChain{ vk::PipelineRenderingCreateInfo{
         .viewMask = 0,
         .colorAttachmentCount = static_cast<uint32_t>(formats.size()),
         .pColorAttachmentFormats = formats.data(),
-        .depthAttachmentFormat = toVk(depthAttachment),
+        .depthAttachmentFormat = toVk(desc.depthAttachment),
         // .stencilAttachmentFormat =
     } };
 
     vk::GraphicsPipelineCreateInfo createInfo{
         .pNext = structureChain.get<vk::PipelineRenderingCreateInfo>(),
+        .stageCount = static_cast<std::uint32_t>(shaderStages.size()),
+        .pStages = shaderStages.data(),
         .pVertexInputState = &vertexInputState,
         .pInputAssemblyState = &inputAssemblyState,
         .pTessellationState = nullptr,
@@ -274,15 +266,14 @@ auto Pipeline::createGraphicsPipeline(
         .pDepthStencilState = &depthStencilState,
         .pColorBlendState = &colorBlendState,
         .pDynamicState = &dynamicState,
-        .layout = nullptr,
+        .layout = *pipelineLayout,
         .renderPass = nullptr,
         .subpass = 0,
         .basePipelineHandle = nullptr,
         .basePipelineIndex = -1,
     };
-    createInfo.setStages(shaderStages);
 
-    auto [result, pipeline] = device.createGraphicsPipeline(nullptr, createInfo);
+    auto [result, pipeline] = desc.device.device().createGraphicsPipeline(nullptr, createInfo);
     if (result != vk::Result::eSuccess)
         return vkError(result, "Failed to create graphics pipeline");
 

@@ -21,6 +21,20 @@ public:
         std::string_view entryPoint{ "main" };
     };
 
+    struct VertexAttribute
+    {
+        std::uint32_t binding;
+        std::uint32_t location;
+        Format format;
+        std::uint32_t offset;
+    };
+
+    struct VertexBinding
+    {
+        std::uint32_t binding;
+        std::uint32_t stride;
+    };
+
     struct ComputeDesc
     {
         const Device& device;
@@ -37,6 +51,8 @@ public:
         std::span<Shader> shaders;
         std::span<Format> colorAttachments;
         Format depthAttachment{ Format::Unknown };
+        std::span<VertexBinding> vertexBindings;
+        std::span<VertexAttribute> vertexAttributes;
     };
 
     [[nodiscard]] static auto create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>;
@@ -65,10 +81,8 @@ private:
         std::string_view entryPoint) -> std::expected<vk::raii::Pipeline, Error>;
 
     [[nodiscard]] static auto createGraphicsPipeline(
-        const vk::raii::Device& device,
-        std::span<Shader> shaders,
-        std::span<Format> colorAttachments,
-        Format depthAttachment) -> std::expected<vk::raii::Pipeline, Error>;
+        const vk::raii::PipelineLayout& pipelineLayout,
+        const GraphicsDesc& desc) -> std::expected<vk::raii::Pipeline, Error>;
 
     vk::raii::Pipeline m_pipeline;
     vk::raii::PipelineLayout m_layout;
