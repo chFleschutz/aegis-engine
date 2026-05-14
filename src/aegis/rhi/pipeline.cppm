@@ -70,19 +70,17 @@ private:
         std::span<vk::PushConstantRange> pushConstantRanges)
         -> std::expected<vk::raii::PipelineLayout, Error>;
 
+    [[nodiscard]] static auto createComputePipeline(
+        const ComputeDesc& desc,
+        const vk::raii::PipelineLayout& layout) -> std::expected<vk::raii::Pipeline, Error>;
+
+    [[nodiscard]] static auto createGraphicsPipeline(
+        const GraphicsDesc& desc,
+        const vk::raii::PipelineLayout& pipelineLayout) -> std::expected<vk::raii::Pipeline, Error>;
+
     [[nodiscard]] static auto createShaderModule(
         const vk::raii::Device& device,
         std::span<std::uint32_t> code) -> std::expected<vk::raii::ShaderModule, Error>;
-
-    [[nodiscard]] static auto createComputePipeline(
-        const vk::raii::Device& device,
-        const vk::raii::PipelineLayout& layout,
-        const vk::raii::ShaderModule& module,
-        std::string_view entryPoint) -> std::expected<vk::raii::Pipeline, Error>;
-
-    [[nodiscard]] static auto createGraphicsPipeline(
-        const vk::raii::PipelineLayout& pipelineLayout,
-        const GraphicsDesc& desc) -> std::expected<vk::raii::Pipeline, Error>;
 
     vk::raii::Pipeline m_pipeline;
     vk::raii::PipelineLayout m_layout;

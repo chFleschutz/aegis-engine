@@ -18,12 +18,7 @@ auto Pipeline::create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>
     if (!pipelineLayout)
         return std::unexpected{ pipelineLayout.error() };
 
-    auto shaderModule = createShaderModule(device, desc.shader.code);
-    if (!shaderModule)
-        return std::unexpected{ shaderModule.error() };
-
-    auto pipeline =
-        createComputePipeline(device, *pipelineLayout, *shaderModule, desc.shader.entryPoint);
+    auto pipeline = createComputePipeline(desc, *pipelineLayout);
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
@@ -40,7 +35,7 @@ auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error
     if (!pipelineLayout)
         return std::unexpected{ pipelineLayout.error() };
 
-    auto pipeline = createGraphicsPipeline(*pipelineLayout, desc);
+    auto pipeline = createGraphicsPipeline(desc, *pipelineLayout);
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
@@ -78,39 +73,27 @@ auto Pipeline::createPipelineLayout(
     return std::move(pipelineLayout);
 }
 
-auto Pipeline::createShaderModule(const vk::raii::Device& device, std::span<std::uint32_t> code)
-    -> std::expected<vk::raii::ShaderModule, Error>
-{
-    vk::ShaderModuleCreateInfo shaderModuleCreateInfo{
-        .codeSize = code.size() * sizeof(std::uint32_t),
-        .pCode = code.data(),
-    };
-
-    auto [result, module] = device.createShaderModule(shaderModuleCreateInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create shader module");
-
-    return std::move(module);
-}
-
 auto Pipeline::createComputePipeline(
-    const vk::raii::Device& device,
-    const vk::raii::PipelineLayout& layout,
-    const vk::raii::ShaderModule& module,
-    std::string_view entryPoint) -> std::expected<vk::raii::Pipeline, Error>
+    const ComputeDesc& desc,
+    const vk::raii::PipelineLayout& layout) -> std::expected<vk::raii::Pipeline, Error>
 {
+    auto shaderModule = createShaderModule(desc.device.device(), desc.shader.code);
+    if (!shaderModule)
+        return std::unexpected{ shaderModule.error() };
+
+
     vk::ComputePipelineCreateInfo createInfo{
         .stage = {
             .stage = vk::ShaderStageFlagBits::eCompute,
-            .module = *module,
-            .pName = entryPoint.data(),
+            .module = *shaderModule,
+            .pName = desc.shader.entryPoint.data(),
         },
         .layout = *layout,
         .basePipelineHandle = nullptr,
         .basePipelineIndex = -1,
     };
 
-    auto [result, pipeline] = device.createComputePipeline(nullptr, createInfo);
+    auto [result, pipeline] = desc.device.device().createComputePipeline(nullptr, createInfo);
     if (result != vk::Result::eSuccess)
         return vkError(result, "Failed to create compute pipeline");
 
@@ -118,8 +101,8 @@ auto Pipeline::createComputePipeline(
 }
 
 auto Pipeline::createGraphicsPipeline(
-    const vk::raii::PipelineLayout& pipelineLayout,
-    const GraphicsDesc& desc) -> std::expected<vk::raii::Pipeline, Error>
+    const GraphicsDesc& desc,
+    const vk::raii::PipelineLayout& pipelineLayout) -> std::expected<vk::raii::Pipeline, Error>
 {
     std::vector<vk::raii::ShaderModule> shaderModules;
     shaderModules.reserve(desc.shaders.size());
@@ -278,5 +261,20 @@ auto Pipeline::createGraphicsPipeline(
         return vkError(result, "Failed to create graphics pipeline");
 
     return std::move(pipeline);
+}
+
+auto Pipeline::createShaderModule(const vk::raii::Device& device, std::span<std::uint32_t> code)
+    -> std::expected<vk::raii::ShaderModule, Error>
+{
+    vk::ShaderModuleCreateInfo shaderModuleCreateInfo{
+        .codeSize = code.size() * sizeof(std::uint32_t),
+        .pCode = code.data(),
+    };
+
+    auto [result, module] = device.createShaderModule(shaderModuleCreateInfo);
+    if (result != vk::Result::eSuccess)
+        return vkError(result, "Failed to create shader module");
+
+    return std::move(module);
 }
 }
