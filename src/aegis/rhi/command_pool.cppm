@@ -1,0 +1,28 @@
+module;
+#include <expected>
+
+export module aegis.rhi:command_pool;
+import :error;
+import :device;
+import vulkan_hpp;
+
+export namespace aegis::rhi
+{
+class CommandPool
+{
+public:
+    struct Desc
+    {
+        const Device& device;
+        std::uint32_t queueFamily;
+    };
+
+    static auto create(const Desc& desc)
+        -> std::expected<CommandPool, Error>;
+
+private:
+    explicit CommandPool(vk::raii::CommandPool pool);
+
+    vk::raii::CommandPool m_commandPool;
+};
+}

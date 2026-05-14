@@ -37,6 +37,7 @@ target_sources(aegis-rhi
     FILES
     buffer.cppm
     command_buffer.cppm
+    command_pool.cppm
     common.cppm
     context.cppm
     device.cppm
@@ -47,8 +48,8 @@ target_sources(aegis-rhi
     texture.cppm
     vulkan_common.cppm
     PRIVATE
+    command_pool.cpp
     context.cpp
-    common.cppm
     device.cpp
     pipeline.cpp
     swapchain.cpp

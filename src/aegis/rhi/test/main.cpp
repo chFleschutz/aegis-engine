@@ -1,6 +1,5 @@
 import aegis.rhi;
 import aegis.platform.window;
-import vulkan_hpp;
 
 #include <array>
 #include <expected>
@@ -9,7 +8,9 @@ import vulkan_hpp;
 #include <print>
 
 using SpirvBuffer = std::vector<uint32_t>;
-auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, std::string>
+
+auto loadSPIRV(const std::filesystem::path& path)
+    -> std::expected<SpirvBuffer, std::string>
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
 
@@ -30,7 +31,8 @@ auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, 
     return buffer;
 }
 
-auto main() -> int
+auto main()
+    -> int
 {
     aegis::platform::Window::Desc windowDesc{
         .title = "Test Window",
@@ -103,6 +105,17 @@ auto main() -> int
     if (!pipeline)
     {
         std::println("Failed to create pipeline");
+        return 1;
+    }
+
+    aegis::rhi::CommandPool::Desc poolDesc{
+        .device = *device,
+        .queueFamily = device->queueFamilies().graphics,
+    };
+    auto commandPool = aegis::rhi::CommandPool::create(poolDesc);
+    if (!commandPool)
+    {
+        std::println("Failed to create command pool");
         return 1;
     }
 }

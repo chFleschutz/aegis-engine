@@ -11,6 +11,13 @@ import :device;
 
 namespace aegis::rhi
 {
+auto Device::QueueFamilyIndices::isComplete() const
+    -> bool
+{
+    return graphics != vk::QueueFamilyIgnored && present != vk::QueueFamilyIgnored &&
+           compute != vk::QueueFamilyIgnored && transfer != vk::QueueFamilyIgnored;
+}
+
 auto Device::create(const Desc& desc)
     -> std::expected<Device, Error>
 {

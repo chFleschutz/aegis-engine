@@ -21,6 +21,17 @@ public:
         const Context& context;
     };
 
+    struct QueueFamilyIndices
+    {
+        uint32_t graphics{ vk::QueueFamilyIgnored };
+        uint32_t compute{ vk::QueueFamilyIgnored };
+        uint32_t transfer{ vk::QueueFamilyIgnored };
+        uint32_t present{ vk::QueueFamilyIgnored };
+
+        [[nodiscard]] auto isComplete() const
+            -> bool;
+    };
+
     struct Properties
     {
         vk::PhysicalDeviceProperties2 core;
@@ -45,28 +56,25 @@ public:
         vk::EXTShaderObjectExtensionName
     };
 
-    static auto create(const Desc& desc) -> std::expected<Device, Error>;
+    static auto create(const Desc& desc)
+        -> std::expected<Device, Error>;
 
-    [[nodiscard]] auto physicalDevice() const -> const vk::raii::PhysicalDevice&;
-    [[nodiscard]] auto device() const -> const vk::raii::Device& { return m_device; }
-    [[nodiscard]] auto properties() const -> const Properties& { return m_properties; }
-    [[nodiscard]] auto capabilities() const -> const Capabilities& { return m_capabilities; }
+    [[nodiscard]] auto physicalDevice() const
+        -> const vk::raii::PhysicalDevice&;
+
+    [[nodiscard]] auto device() const
+        -> const vk::raii::Device& { return m_device; }
+
+    [[nodiscard]] auto queueFamilies() const
+        -> const QueueFamilyIndices& { return m_queueFamilyIndices; }
+
+    [[nodiscard]] auto properties() const
+        -> const Properties& { return m_properties; }
+
+    [[nodiscard]] auto capabilities() const
+        -> const Capabilities& { return m_capabilities; }
 
 private:
-    struct QueueFamilyIndices
-    {
-        uint32_t graphics{ vk::QueueFamilyIgnored };
-        uint32_t compute{ vk::QueueFamilyIgnored };
-        uint32_t transfer{ vk::QueueFamilyIgnored };
-        uint32_t present{ vk::QueueFamilyIgnored };
-
-        [[nodiscard]] auto isComplete() const -> bool
-        {
-            return graphics != vk::QueueFamilyIgnored && present != vk::QueueFamilyIgnored &&
-                compute != vk::QueueFamilyIgnored && transfer != vk::QueueFamilyIgnored;
-        }
-    };
-
     using FeatureChain = vk::StructureChain<
         vk::DeviceCreateInfo,
         vk::PhysicalDeviceFeatures2,
@@ -84,19 +92,32 @@ private:
 
     [[nodiscard]] static auto createPhysicalDevice(const Desc& desc)
         -> std::expected<vk::raii::PhysicalDevice, Error>;
+
     [[nodiscard]] static auto queryQueueFamilies(
         const vk::raii::PhysicalDevice& physicalDevice,
-        const vk::raii::SurfaceKHR& surface) -> QueueFamilyIndices;
-    [[nodiscard]] static auto queryCapabilities(const vk::raii::PhysicalDevice& pd) -> Capabilities;
+        const vk::raii::SurfaceKHR& surface)
+        -> QueueFamilyIndices;
+
+    [[nodiscard]] static auto queryCapabilities(const vk::raii::PhysicalDevice& pd)
+        -> Capabilities;
+
     [[nodiscard]] static auto createDevice(
         const vk::raii::PhysicalDevice& pd,
         const Capabilities& capabilities,
-        const QueueFamilyIndices& queueFamilyIndices) -> std::expected<vk::raii::Device, Error>;
+        const QueueFamilyIndices& queueFamilyIndices)
+        -> std::expected<vk::raii::Device, Error>;
 
-    [[nodiscard]] static auto queryExtensions(const Capabilities& caps) -> std::vector<const char*>;
-    [[nodiscard]] static auto supportsExtensions(const vk::raii::PhysicalDevice& pd) -> bool;
-    [[nodiscard]] static auto createFeatureChain() -> FeatureChain;
-    [[nodiscard]] static auto queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties;
+    [[nodiscard]] static auto queryExtensions(const Capabilities& caps)
+        -> std::vector<const char*>;
+
+    [[nodiscard]] static auto supportsExtensions(const vk::raii::PhysicalDevice& pd)
+        -> bool;
+
+    [[nodiscard]] static auto createFeatureChain()
+        -> FeatureChain;
+
+    [[nodiscard]] static auto queryProperties(const vk::raii::PhysicalDevice& pd)
+        -> Properties;
 
     vk::raii::PhysicalDevice m_physicalDevice;
     vk::raii::Device m_device;
