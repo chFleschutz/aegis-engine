@@ -37,7 +37,13 @@ namespace aegis::platform
 		return glfwWindowShouldClose(m_window);
 	}
 
-	void Window::onWindowResize(GLFWwindow* glfwWindow, int newWidth, int newHeight)
+    auto Window::pollEvents() const
+        -> void
+    {
+	    glfwPollEvents();
+    }
+
+    void Window::onWindowResize(GLFWwindow* glfwWindow, int newWidth, int newHeight)
 	{
 		const auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
 		window->m_width = static_cast<uint32_t>(newWidth);

@@ -26,6 +26,8 @@ public:
     [[nodiscard]] auto wasResized() const -> bool { return m_wasResized; }
     [[nodiscard]] auto shouldClose() const -> bool;
 
+    auto pollEvents() const -> void;
+
 private:
     static void onWindowResize(GLFWwindow* glfwWindow, int newWidth, int newHeight);
 

@@ -61,6 +61,12 @@ public:
     [[nodiscard]] static auto create(const GraphicsDesc& desc)
         -> std::expected<Pipeline, Error>;
 
+    [[nodiscard]] auto bindPoint() const
+        -> vk::PipelineBindPoint { return m_bindPoint; }
+
+    [[nodiscard]] auto pipeline() const
+        -> vk::Pipeline { return *m_pipeline; }
+
 private:
     Pipeline(
         vk::raii::Pipeline pipeline,

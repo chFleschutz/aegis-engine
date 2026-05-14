@@ -123,10 +123,18 @@ auto main()
         .device = *device,
         .pool = *commandPool,
     };
-    auto commandBuffer = aegis::rhi::CommandBuffer::create(cmdBufferDesc);
-    if (!commandBuffer)
+    auto cmd = aegis::rhi::CommandBuffer::create(cmdBufferDesc);
+    if (!cmd)
     {
         std::println("Failed to create command buffer");
         return 1;
+    }
+
+    while (!window.shouldClose())
+    {
+        window.pollEvents();
+
+        cmd->begin();
+        cmd->end();
     }
 }
