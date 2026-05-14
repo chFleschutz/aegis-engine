@@ -48,6 +48,7 @@ target_sources(aegis-rhi
     texture.cppm
     vulkan_common.cppm
     PRIVATE
+    command_buffer.cpp
     command_pool.cpp
     context.cpp
     device.cpp

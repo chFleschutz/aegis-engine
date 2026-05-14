@@ -118,4 +118,15 @@ auto main()
         std::println("Failed to create command pool");
         return 1;
     }
+
+    aegis::rhi::CommandBuffer::Desc cmdBufferDesc{
+        .device = *device,
+        .pool = *commandPool,
+    };
+    auto commandBuffer = aegis::rhi::CommandBuffer::create(cmdBufferDesc);
+    if (!commandBuffer)
+    {
+        std::println("Failed to create command buffer");
+        return 1;
+    }
 }
