@@ -11,7 +11,8 @@ import :swapchain;
 
 namespace aegis::rhi
 {
-auto Swapchain::create(const Desc& desc) -> std::expected<Swapchain, Error>
+auto Swapchain::create(const Desc& desc)
+    -> std::expected<Swapchain, Error>
 {
     const auto& physicalDevice = desc.device.physicalDevice();
     const auto& device = desc.device.device();
@@ -43,11 +44,13 @@ auto Swapchain::create(const Desc& desc) -> std::expected<Swapchain, Error>
     if (!imageViews)
         return std::unexpected{ imageViews.error() };
 
-    return Swapchain{ std::move(*swapchain),
-                      std::move(*images),
-                      std::move(*imageViews),
-                      extent,
-                      fromVk(format->format) };
+    return Swapchain{
+        std::move(*swapchain),
+        std::move(*images),
+        std::move(*imageViews),
+        extent,
+        fromVk(format->format)
+    };
 }
 
 Swapchain::Swapchain(
@@ -66,15 +69,17 @@ Swapchain::Swapchain(
 
 auto Swapchain::querySurfaceCapabilities(
     const vk::raii::PhysicalDevice& physicalDevice,
-    const vk::raii::SurfaceKHR& surface) -> std::expected<vk::SurfaceCapabilitiesKHR, Error>
+    const vk::raii::SurfaceKHR& surface)
+    -> std::expected<vk::SurfaceCapabilitiesKHR, Error>
 {
-    auto [result, surfaceCaps] = physicalDevice.getSurfaceCapabilitiesKHR(surface);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to get surface capabilities");
-    return surfaceCaps;
+    auto surfaceCaps = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+    if (!surfaceCaps.has_value())
+        return vkError(surfaceCaps.result, "Failed to get surface capabilities");
+    return surfaceCaps.value;
 }
 
-auto Swapchain::querySwapchainExtent(vk::Extent2D preferred, const vk::SurfaceCapabilitiesKHR& caps)
+auto Swapchain::querySwapchainExtent(vk::Extent2D preferred,
+    const vk::SurfaceCapabilitiesKHR& caps)
     -> vk::Extent2D
 {
     if (caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
@@ -88,20 +93,23 @@ auto Swapchain::querySwapchainExtent(vk::Extent2D preferred, const vk::SurfaceCa
 
 auto Swapchain::queryPresentMode(
     const vk::raii::PhysicalDevice& physicalDevice,
-    const vk::raii::SurfaceKHR& surface) -> std::expected<vk::PresentModeKHR, Error>
+    const vk::raii::SurfaceKHR& surface)
+    -> std::expected<vk::PresentModeKHR, Error>
 {
-    auto [result, presentModes] = physicalDevice.getSurfacePresentModesKHR(surface);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to get surface present modes");
+    auto presentModes = physicalDevice.getSurfacePresentModesKHR(surface);
+    if (!presentModes.has_value())
+        return vkError(presentModes.result, "Failed to get surface present modes");
 
     // Prefer mailbox
-    if (std::ranges::any_of(presentModes, [&](const auto& presentMode) {
+    if (std::ranges::any_of(*presentModes,
+        [&](const auto& presentMode) {
             return presentMode == vk::PresentModeKHR::eMailbox;
         }))
         return vk::PresentModeKHR::eMailbox;
 
     // Fallback fifo
-    if (std::ranges::any_of(presentModes, [](const auto& presentMode) {
+    if (std::ranges::any_of(*presentModes,
+        [](const auto& presentMode) {
             return presentMode == vk::PresentModeKHR::eFifo;
         }))
         return vk::PresentModeKHR::eFifo;
@@ -111,22 +119,24 @@ auto Swapchain::queryPresentMode(
 
 auto Swapchain::querySwapchainFormat(
     const vk::raii::PhysicalDevice& physicalDevice,
-    const vk::SurfaceKHR& surface) -> std::expected<vk::SurfaceFormatKHR, Error>
+    const vk::SurfaceKHR& surface)
+    -> std::expected<vk::SurfaceFormatKHR, Error>
 {
-    auto [result, availableFormats] = physicalDevice.getSurfaceFormatsKHR(surface);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to get surface formats");
+    auto availableFormats = physicalDevice.getSurfaceFormatsKHR(surface);
+    if (!availableFormats.has_value())
+        return vkError(availableFormats.result, "Failed to get surface formats");
 
-    if (availableFormats.empty())
+    if (availableFormats->empty())
         return vkError(vk::Result::eErrorUnknown, "No valid surface format found");
 
-    const auto it = std::ranges::find_if(availableFormats, [](const auto& format) {
-        return format.format == vk::Format::eB8G8R8A8Srgb &&
-            format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear;
-    });
+    const auto it = std::ranges::find_if(*availableFormats,
+        [](const auto& format) {
+            return format.format == vk::Format::eB8G8R8A8Srgb &&
+                   format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear;
+        });
 
-    if (it == availableFormats.end())
-        return availableFormats.front();
+    if (it == availableFormats->end())
+        return availableFormats->front();
     return *it;
 }
 
@@ -135,7 +145,8 @@ auto Swapchain::createSwapchain(
     vk::Extent2D extent,
     vk::SurfaceFormatKHR surfaceFormat,
     vk::PresentModeKHR presentMode,
-    const vk::SurfaceCapabilitiesKHR& surfaceCaps) -> std::expected<vk::raii::SwapchainKHR, Error>
+    const vk::SurfaceCapabilitiesKHR& surfaceCaps)
+    -> std::expected<vk::raii::SwapchainKHR, Error>
 {
     auto minImageCount = chooseSwapImageCount(surfaceCaps);
 
@@ -154,27 +165,28 @@ auto Swapchain::createSwapchain(
         .clipped = true,
     };
 
-    auto [result, swapchain] = desc.device.device().createSwapchainKHR(createInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create swapchain");
+    auto swapchain = desc.device.device().createSwapchainKHR(createInfo);
+    if (!swapchain.has_value())
+        return vkError(swapchain.result, "Failed to create swapchain");
 
-    return std::move(swapchain);
+    return std::move(*swapchain);
 }
 
 auto Swapchain::createImages(const vk::raii::SwapchainKHR& swapchain)
     -> std::expected<std::vector<vk::Image>, Error>
 {
-    auto [result, images] = swapchain.getImages();
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to get swapchain images");
+    auto images = swapchain.getImages();
+    if (!images.has_value())
+        return vkError(images.result, "Failed to get swapchain images");
 
-    return std::move(images);
+    return std::move(*images);
 }
 
 auto Swapchain::createImageViews(
     const vk::raii::Device& device,
     const std::vector<vk::Image>& images,
-    vk::Format imageFormat) -> std::expected<std::vector<vk::raii::ImageView>, Error>
+    vk::Format imageFormat)
+    -> std::expected<std::vector<vk::raii::ImageView>, Error>
 {
     if (images.empty())
         return vkError(vk::Result::eErrorUnknown, "Swapchain contains no images");
@@ -195,17 +207,18 @@ auto Swapchain::createImageViews(
     for (const auto& image : images)
     {
         createInfo.image = image;
-        auto [result, imageView] = device.createImageView(createInfo);
-        if (result != vk::Result::eSuccess)
-            return vkError(result, "Failed to create swapchain image views");
+        auto imageView = device.createImageView(createInfo);
+        if (!imageView.has_value())
+            return vkError(imageView.result, "Failed to create swapchain image views");
 
-        imageViews.emplace_back(std::move(imageView));
+        imageViews.emplace_back(std::move(*imageView));
     }
 
     return imageViews;
 }
 
-auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> uint32_t
+auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps)
+    -> uint32_t
 {
     constexpr uint32_t desiredImageCount{ 3 };
     uint32_t imageCount = std::max(desiredImageCount, caps.minImageCount);

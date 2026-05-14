@@ -11,7 +11,8 @@ import :device;
 
 namespace aegis::rhi
 {
-auto Device::create(const Desc& desc) -> std::expected<Device, Error>
+auto Device::create(const Desc& desc)
+    -> std::expected<Device, Error>
 {
     auto physicalDevice = createPhysicalDevice(desc);
     if (!physicalDevice)
@@ -24,13 +25,16 @@ auto Device::create(const Desc& desc) -> std::expected<Device, Error>
     if (!device)
         return std::unexpected{ device.error() };
 
-    return Device{ std::move(*physicalDevice),
-                   std::move(*device),
-                   queueFamilyIndices,
-                   capabilities };
+    return Device{
+        std::move(*physicalDevice),
+        std::move(*device),
+        queueFamilyIndices,
+        capabilities
+    };
 }
 
-auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
+auto Device::physicalDevice() const
+    -> const vk::raii::PhysicalDevice&
 {
     return m_physicalDevice;
 }
@@ -97,7 +101,8 @@ auto Device::createPhysicalDevice(const Desc& desc)
 
 auto Device::queryQueueFamilies(
     const vk::raii::PhysicalDevice& physicalDevice,
-    const vk::raii::SurfaceKHR& surface) -> QueueFamilyIndices
+    const vk::raii::SurfaceKHR& surface)
+    -> QueueFamilyIndices
 {
     QueueFamilyIndices indices;
 
@@ -105,9 +110,9 @@ auto Device::queryQueueFamilies(
     for (uint32_t i = 0; i < queueFamilies.size(); ++i)
     {
         const auto& props = queueFamilies[i];
-        bool hasGraphics = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eGraphics);
-        bool hasCompute = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eCompute);
-        bool hasTransfer = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eTransfer);
+        auto hasGraphics = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eGraphics);
+        auto hasCompute = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eCompute);
+        auto hasTransfer = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eTransfer);
 
         if (hasGraphics)
             indices.graphics = i;
@@ -140,7 +145,8 @@ auto Device::queryQueueFamilies(
     return indices;
 }
 
-auto Device::queryCapabilities(const vk::raii::PhysicalDevice& pd) -> Capabilities
+auto Device::queryCapabilities(const vk::raii::PhysicalDevice& pd)
+    -> Capabilities
 {
     auto features = pd.getFeatures2< //
         vk::PhysicalDeviceFeatures2,
@@ -162,7 +168,8 @@ auto Device::queryCapabilities(const vk::raii::PhysicalDevice& pd) -> Capabiliti
 auto Device::createDevice(
     const vk::raii::PhysicalDevice& pd,
     const Capabilities& capabilities,
-    const QueueFamilyIndices& queueFamilyIndices) -> std::expected<vk::raii::Device, Error>
+    const QueueFamilyIndices& queueFamilyIndices)
+    -> std::expected<vk::raii::Device, Error>
 {
     auto features = createFeatureChain();
 
@@ -173,7 +180,7 @@ auto Device::createDevice(
         queueFamilyIndices.present,
     };
 
-    float queuePriority = 1.0f;
+    auto queuePriority = 1.0f;
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
     for (uint32_t family : uniqueQueueFamilies)
     {
@@ -188,18 +195,19 @@ auto Device::createDevice(
     auto extensions = queryExtensions(capabilities);
 
     auto deviceInfo = vk::DeviceCreateInfo{}
-                          .setPNext(&features.get<vk::PhysicalDeviceFeatures2>())
-                          .setQueueCreateInfos(queueCreateInfos)
-                          .setPEnabledExtensionNames(extensions);
+        .setPNext(&features.get<vk::PhysicalDeviceFeatures2>())
+        .setQueueCreateInfos(queueCreateInfos)
+        .setPEnabledExtensionNames(extensions);
 
-    auto [result, device] = pd.createDevice(deviceInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create device");
+    auto device = pd.createDevice(deviceInfo);
+    if (!device.has_value())
+        return vkError(device.result, "Failed to create device");
 
-    return std::move(device);
+    return std::move(*device);
 }
 
-auto Device::queryExtensions(const Capabilities& caps) -> std::vector<const char*>
+auto Device::queryExtensions(const Capabilities& caps)
+    -> std::vector<const char*>
 {
     std::vector extensions(requiredExtensions.begin(), requiredExtensions.end());
 
@@ -211,20 +219,24 @@ auto Device::queryExtensions(const Capabilities& caps) -> std::vector<const char
     return extensions;
 }
 
-auto Device::supportsExtensions(const vk::raii::PhysicalDevice& pd) -> bool
+auto Device::supportsExtensions(const vk::raii::PhysicalDevice& pd)
+    -> bool
 {
-    auto [result, availableExtensions] = pd.enumerateDeviceExtensionProperties();
-    if (result != vk::Result::eSuccess)
+    auto availableExtensions = pd.enumerateDeviceExtensionProperties();
+    if (!availableExtensions.has_value())
         return false;
 
-    return std::ranges::all_of(requiredExtensions, [&availableExtensions](const auto& required) {
-        return std::ranges::any_of(availableExtensions, [&required](const auto& available) {
-            return std::string_view{ available.extensionName } == std::string_view{ required };
+    return std::ranges::all_of(requiredExtensions,
+        [&availableExtensions](const auto& required) {
+            return std::ranges::any_of(*availableExtensions,
+                [&required](const auto& available) {
+                    return std::string_view{ available.extensionName } == std::string_view{ required };
+                });
         });
-    });
 }
 
-auto Device::createFeatureChain() -> FeatureChain
+auto Device::createFeatureChain()
+    -> FeatureChain
 {
     FeatureChain featureChain;
 
@@ -272,7 +284,8 @@ auto Device::createFeatureChain() -> FeatureChain
     return featureChain;
 }
 
-auto Device::queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties
+auto Device::queryProperties(const vk::raii::PhysicalDevice& pd)
+    -> Properties
 {
     auto props = pd.getProperties2<
         vk::PhysicalDeviceProperties2,

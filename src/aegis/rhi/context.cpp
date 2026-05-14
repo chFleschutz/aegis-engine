@@ -17,7 +17,8 @@ VKAPI_ATTR auto VKAPI_CALL debugCallback(
     vk::DebugUtilsMessageSeverityFlagBitsEXT severity,
     vk::DebugUtilsMessageTypeFlagsEXT type,
     const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void*) -> vk::Bool32
+    void*)
+    -> vk::Bool32
 {
     if (severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError ||
         severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
@@ -31,8 +32,8 @@ VKAPI_ATTR auto VKAPI_CALL debugCallback(
     return vk::False;
 }
 
-
-auto Context::create(const Desc& desc) -> std::expected<Context, Error>
+auto Context::create(const Desc& desc)
+    -> std::expected<Context, Error>
 {
     vk::raii::Context context{};
 
@@ -48,10 +49,12 @@ auto Context::create(const Desc& desc) -> std::expected<Context, Error>
     if (!surface)
         return std::unexpected{ surface.error() };
 
-    return Context{ std::move(context),
-                    std::move(*instance),
-                    std::move(*messenger),
-                    std::move(*surface) };
+    return Context{
+        std::move(context),
+        std::move(*instance),
+        std::move(*messenger),
+        std::move(*surface)
+    };
 }
 
 Context::Context(
@@ -66,7 +69,8 @@ Context::Context(
 {
 }
 
-auto Context::createInstance(const vk::raii::Context& context, const Desc& desc)
+auto Context::createInstance(const vk::raii::Context& context,
+    const Desc& desc)
     -> std::expected<vk::raii::Instance, Error>
 {
     vk::ApplicationInfo appInfo{
@@ -90,11 +94,11 @@ auto Context::createInstance(const vk::raii::Context& context, const Desc& desc)
         .ppEnabledExtensionNames = extensions.data(),
     };
 
-    auto [result, instance] = context.createInstance(instanceInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create instance");
+    auto instance = context.createInstance(instanceInfo);
+    if (!instance.has_value())
+        return vkError(instance.result, "Failed to create instance");
 
-    return std::move(instance);
+    return std::move(*instance);
 }
 
 auto Context::createDebugMessenger(const vk::raii::Instance& instance)
@@ -118,14 +122,15 @@ auto Context::createDebugMessenger(const vk::raii::Instance& instance)
         .pfnUserCallback = &debugCallback,
     };
 
-    auto [result, debugMessenger] = instance.createDebugUtilsMessengerEXT(createInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create debug messenger");
+    auto debugMessenger = instance.createDebugUtilsMessengerEXT(createInfo);
+    if (!debugMessenger.has_value())
+        return vkError(debugMessenger.result, "Failed to create debug messenger");
 
-    return std::move(debugMessenger);
+    return std::move(*debugMessenger);
 }
 
-auto Context::createSurface(const vk::raii::Instance& instance, const Desc& desc)
+auto Context::createSurface(const vk::raii::Instance& instance,
+    const Desc& desc)
     -> std::expected<vk::raii::SurfaceKHR, Error>
 {
     VkSurfaceKHR surface;
@@ -137,7 +142,8 @@ auto Context::createSurface(const vk::raii::Instance& instance, const Desc& desc
     return vk::raii::SurfaceKHR{ instance, surface };
 }
 
-auto Context::findExtensions() -> std::vector<const char*>
+auto Context::findExtensions()
+    -> std::vector<const char*>
 {
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -151,6 +157,7 @@ auto Context::findExtensions() -> std::vector<const char*>
 
     return extensions;
 }
+
 auto Context::findLayers(const vk::raii::Context& context)
     -> std::expected<std::vector<const char*>, Error>
 {
@@ -160,15 +167,17 @@ auto Context::findLayers(const vk::raii::Context& context)
         layers.emplace_back("VK_LAYER_KHRONOS_validation");
     }
 
-    auto [result, layerProps] = context.enumerateInstanceLayerProperties();
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to enumerate instance layer properties");
+    auto layerProps = context.enumerateInstanceLayerProperties();
+    if (!layerProps.has_value())
+        return vkError(layerProps.result, "Failed to enumerate instance layer properties");
 
-    const auto missingIt = std::ranges::find_if(layers, [&layerProps](std::string_view required) {
-        return std::ranges::none_of(layerProps, [required](const auto& provided) {
-            return required == std::string_view{ provided.layerName };
+    const auto missingIt = std::ranges::find_if(layers,
+        [&layerProps](std::string_view required) {
+            return std::ranges::none_of(*layerProps,
+                [required](const auto& provided) {
+                    return required == std::string_view{ provided.layerName };
+                });
         });
-    });
 
     if (missingIt != layers.end())
         return vkError(vk::Result::eErrorUnknown, "Missing required instance layer");

@@ -72,11 +72,11 @@ auto Pipeline::createPipelineLayout(
         .pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
         .pPushConstantRanges = pushConstantRanges.data(),
     };
-    auto [result, pipelineLayout] = device.createPipelineLayout(layoutCreateInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create pipeline layout");
+    auto pipelineLayout = device.createPipelineLayout(layoutCreateInfo);
+    if (!pipelineLayout.has_value())
+        return vkError(pipelineLayout.result, "Failed to create pipeline layout");
 
-    return std::move(pipelineLayout);
+    return std::move(pipelineLayout.value);
 }
 
 auto Pipeline::createComputePipeline(
@@ -99,11 +99,11 @@ auto Pipeline::createComputePipeline(
         .basePipelineIndex = -1,
     };
 
-    auto [result, pipeline] = desc.device.device().createComputePipeline(nullptr, createInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create compute pipeline");
+    auto pipeline = desc.device.device().createComputePipeline(nullptr, createInfo);
+    if (!pipeline.has_value())
+        return vkError(pipeline.result, "Failed to create compute pipeline");
 
-    return std::move(pipeline);
+    return std::move(pipeline.value);
 }
 
 auto Pipeline::createGraphicsPipeline(
@@ -267,11 +267,11 @@ auto Pipeline::createGraphicsPipeline(
         .basePipelineIndex = -1,
     };
 
-    auto [result, pipeline] = desc.device.device().createGraphicsPipeline(nullptr, createInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create graphics pipeline");
+    auto pipeline = desc.device.device().createGraphicsPipeline(nullptr, createInfo);
+    if (!pipeline.has_value())
+        return vkError(pipeline.result, "Failed to create graphics pipeline");
 
-    return std::move(pipeline);
+    return std::move(pipeline.value);
 }
 
 auto Pipeline::createShaderModule(const vk::raii::Device& device,
@@ -283,10 +283,10 @@ auto Pipeline::createShaderModule(const vk::raii::Device& device,
         .pCode = code.data(),
     };
 
-    auto [result, module] = device.createShaderModule(shaderModuleCreateInfo);
-    if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create shader module");
+    auto shaderModule = device.createShaderModule(shaderModuleCreateInfo);
+    if (!shaderModule.has_value())
+        return vkError(shaderModule.result, "Failed to create shader module");
 
-    return std::move(module);
+    return std::move(shaderModule.value);
 }
 }
