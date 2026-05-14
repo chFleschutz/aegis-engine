@@ -10,7 +10,8 @@ import :vulkan_common;
 
 namespace aegis::rhi
 {
-auto Pipeline::create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>
+auto Pipeline::create(const ComputeDesc& desc)
+    -> std::expected<Pipeline, Error>
 {
     const auto& device = desc.device.device();
 
@@ -22,12 +23,15 @@ auto Pipeline::create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
-    return Pipeline{ std::move(*pipeline),
-                     std::move(*pipelineLayout),
-                     vk::PipelineBindPoint::eCompute };
+    return Pipeline{
+        std::move(*pipeline),
+        std::move(*pipelineLayout),
+        vk::PipelineBindPoint::eCompute
+    };
 }
 
-auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error>
+auto Pipeline::create(const GraphicsDesc& desc)
+    -> std::expected<Pipeline, Error>
 {
     const auto& device = desc.device.device();
 
@@ -39,9 +43,11 @@ auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
-    return Pipeline{ std::move(*pipeline),
-                     std::move(*pipelineLayout),
-                     vk::PipelineBindPoint::eGraphics };
+    return Pipeline{
+        std::move(*pipeline),
+        std::move(*pipelineLayout),
+        vk::PipelineBindPoint::eGraphics
+    };
 }
 
 Pipeline::Pipeline(
@@ -75,12 +81,12 @@ auto Pipeline::createPipelineLayout(
 
 auto Pipeline::createComputePipeline(
     const ComputeDesc& desc,
-    const vk::raii::PipelineLayout& layout) -> std::expected<vk::raii::Pipeline, Error>
+    const vk::raii::PipelineLayout& layout)
+    -> std::expected<vk::raii::Pipeline, Error>
 {
     auto shaderModule = createShaderModule(desc.device.device(), desc.shader.code);
     if (!shaderModule)
         return std::unexpected{ shaderModule.error() };
-
 
     vk::ComputePipelineCreateInfo createInfo{
         .stage = {
@@ -102,7 +108,8 @@ auto Pipeline::createComputePipeline(
 
 auto Pipeline::createGraphicsPipeline(
     const GraphicsDesc& desc,
-    const vk::raii::PipelineLayout& pipelineLayout) -> std::expected<vk::raii::Pipeline, Error>
+    const vk::raii::PipelineLayout& pipelineLayout)
+    -> std::expected<vk::raii::Pipeline, Error>
 {
     std::vector<vk::raii::ShaderModule> shaderModules;
     shaderModules.reserve(desc.shaders.size());
@@ -125,24 +132,26 @@ auto Pipeline::createGraphicsPipeline(
             });
     }
 
-    auto vertexBindings = desc.vertexBindings | std::views::transform([](const auto& b) {
+    auto vertexBindings = desc.vertexBindings
+                          | std::views::transform([](const auto& b) {
                               return vk::VertexInputBindingDescription{
                                   .binding = b.binding,
                                   .stride = b.stride,
                                   .inputRate = vk::VertexInputRate::eVertex,
                               };
-                          }) |
-        std::ranges::to<std::vector>();
+                          })
+                          | std::ranges::to<std::vector>();
 
-    auto vertexAttributes = desc.vertexAttributes | std::views::transform([](const auto& a) {
+    auto vertexAttributes = desc.vertexAttributes
+                            | std::views::transform([](const auto& a) {
                                 return vk::VertexInputAttributeDescription{
                                     .location = a.location,
                                     .binding = a.binding,
                                     .format = toVk(a.format),
                                     .offset = a.offset,
                                 };
-                            }) |
-        std::ranges::to<std::vector>();
+                            })
+                            | std::ranges::to<std::vector>();
 
     vk::PipelineVertexInputStateCreateInfo vertexInputState{
         .vertexBindingDescriptionCount = static_cast<std::uint32_t>(vertexBindings.size()),
@@ -208,7 +217,7 @@ auto Pipeline::createGraphicsPipeline(
             .dstAlphaBlendFactor = vk::BlendFactor::eZero,
             .alphaBlendOp = vk::BlendOp::eAdd,
             .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-                vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
+                              vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
         };
         colorBlendAttachments.emplace_back(colorBlend);
     }
@@ -226,15 +235,17 @@ auto Pipeline::createGraphicsPipeline(
     dynamicState.setDynamicStates(dynamicStates);
 
     auto formats = desc.colorAttachments | std::views::transform([](Format f) { return toVk(f); }) |
-        std::ranges::to<std::vector<vk::Format>>();
+                   std::ranges::to<std::vector<vk::Format>>();
 
-    auto structureChain = vk::StructureChain{ vk::PipelineRenderingCreateInfo{
-        .viewMask = 0,
-        .colorAttachmentCount = static_cast<uint32_t>(formats.size()),
-        .pColorAttachmentFormats = formats.data(),
-        .depthAttachmentFormat = toVk(desc.depthAttachment),
-        // .stencilAttachmentFormat =
-    } };
+    auto structureChain = vk::StructureChain{
+        vk::PipelineRenderingCreateInfo{
+            .viewMask = 0,
+            .colorAttachmentCount = static_cast<uint32_t>(formats.size()),
+            .pColorAttachmentFormats = formats.data(),
+            .depthAttachmentFormat = toVk(desc.depthAttachment),
+            // .stencilAttachmentFormat =
+        }
+    };
 
     vk::GraphicsPipelineCreateInfo createInfo{
         .pNext = structureChain.get<vk::PipelineRenderingCreateInfo>(),
@@ -263,7 +274,8 @@ auto Pipeline::createGraphicsPipeline(
     return std::move(pipeline);
 }
 
-auto Pipeline::createShaderModule(const vk::raii::Device& device, std::span<std::uint32_t> code)
+auto Pipeline::createShaderModule(const vk::raii::Device& device,
+    std::span<std::uint32_t> code)
     -> std::expected<vk::raii::ShaderModule, Error>
 {
     vk::ShaderModuleCreateInfo shaderModuleCreateInfo{

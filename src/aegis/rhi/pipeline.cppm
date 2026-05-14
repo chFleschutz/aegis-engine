@@ -55,8 +55,11 @@ public:
         std::span<VertexAttribute> vertexAttributes;
     };
 
-    [[nodiscard]] static auto create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>;
-    [[nodiscard]] static auto create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error>;
+    [[nodiscard]] static auto create(const ComputeDesc& desc)
+        -> std::expected<Pipeline, Error>;
+
+    [[nodiscard]] static auto create(const GraphicsDesc& desc)
+        -> std::expected<Pipeline, Error>;
 
 private:
     Pipeline(
@@ -72,15 +75,18 @@ private:
 
     [[nodiscard]] static auto createComputePipeline(
         const ComputeDesc& desc,
-        const vk::raii::PipelineLayout& layout) -> std::expected<vk::raii::Pipeline, Error>;
+        const vk::raii::PipelineLayout& layout)
+        -> std::expected<vk::raii::Pipeline, Error>;
 
     [[nodiscard]] static auto createGraphicsPipeline(
         const GraphicsDesc& desc,
-        const vk::raii::PipelineLayout& pipelineLayout) -> std::expected<vk::raii::Pipeline, Error>;
+        const vk::raii::PipelineLayout& pipelineLayout)
+        -> std::expected<vk::raii::Pipeline, Error>;
 
     [[nodiscard]] static auto createShaderModule(
         const vk::raii::Device& device,
-        std::span<std::uint32_t> code) -> std::expected<vk::raii::ShaderModule, Error>;
+        std::span<std::uint32_t> code)
+        -> std::expected<vk::raii::ShaderModule, Error>;
 
     vk::raii::Pipeline m_pipeline;
     vk::raii::PipelineLayout m_layout;
