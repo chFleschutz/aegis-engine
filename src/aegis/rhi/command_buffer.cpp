@@ -18,7 +18,7 @@ auto CommandBuffer::create(const Desc& desc)
         .commandBufferCount = 1,
     };
 
-    auto commandBuffer = desc.device.device().allocateCommandBuffers(info);
+    auto commandBuffer = desc.device->allocateCommandBuffers(info);
     if (!commandBuffer.has_value())
         return vkError(commandBuffer.result, "Failed to allocate command buffer");
 

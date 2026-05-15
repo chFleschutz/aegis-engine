@@ -99,7 +99,7 @@ auto Pipeline::createComputePipeline(
         .basePipelineIndex = -1,
     };
 
-    auto pipeline = desc.device.device().createComputePipeline(nullptr, createInfo);
+    auto pipeline = desc.device->createComputePipeline(nullptr, createInfo);
     if (!pipeline.has_value())
         return vkError(pipeline.result, "Failed to create compute pipeline");
 
@@ -267,7 +267,7 @@ auto Pipeline::createGraphicsPipeline(
         .basePipelineIndex = -1,
     };
 
-    auto pipeline = desc.device.device().createGraphicsPipeline(nullptr, createInfo);
+    auto pipeline = desc.device->createGraphicsPipeline(nullptr, createInfo);
     if (!pipeline.has_value())
         return vkError(pipeline.result, "Failed to create graphics pipeline");
 

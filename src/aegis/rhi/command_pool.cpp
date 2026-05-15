@@ -14,7 +14,7 @@ auto CommandPool::create(const Desc& desc)
         .queueFamilyIndex = desc.queueFamily,
     };
 
-    auto commandPool = desc.device.device().createCommandPool(poolInfo);
+    auto commandPool = desc.device->createCommandPool(poolInfo);
     if (!commandPool.has_value())
         return vkError(commandPool.result, "Failed to create command pool");
 

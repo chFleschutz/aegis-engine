@@ -165,7 +165,7 @@ auto Swapchain::createSwapchain(
         .clipped = true,
     };
 
-    auto swapchain = desc.device.device().createSwapchainKHR(createInfo);
+    auto swapchain = desc.device->createSwapchainKHR(createInfo);
     if (!swapchain.has_value())
         return vkError(swapchain.result, "Failed to create swapchain");
 

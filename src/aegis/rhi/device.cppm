@@ -59,6 +59,9 @@ public:
     static auto create(const Desc& desc)
         -> std::expected<Device, Error>;
 
+    [[nodiscard]] auto operator->() const
+        -> const vk::raii::Device* { return &m_device; }
+
     [[nodiscard]] auto physicalDevice() const
         -> const vk::raii::PhysicalDevice&;
 
