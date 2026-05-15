@@ -46,6 +46,7 @@ target_sources(aegis-rhi
     pipeline.cppm
     swapchain.cppm
     texture.cppm
+    sync.cppm
     vulkan_common.cppm
     PRIVATE
     command_buffer.cpp
@@ -54,6 +55,7 @@ target_sources(aegis-rhi
     device.cpp
     pipeline.cpp
     swapchain.cpp
+    sync.cpp
 )
 
 # TODO: remove later

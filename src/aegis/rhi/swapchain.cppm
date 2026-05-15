@@ -7,7 +7,7 @@ import :common;
 import :context;
 import :device;
 import :error;
-
+import :sync;
 import vulkan_hpp;
 
 export namespace aegis::rhi
@@ -22,30 +22,53 @@ public:
         vk::Extent2D extent;
     };
 
-    static auto create(const Desc& desc) -> std::expected<Swapchain, Error>;
+    struct AcquiredImage
+    {
+        // TODO: Don't use vulkan types
+        vk::Image image;
+        vk::ImageView view;
+        vk::Semaphore presentReady;
+        std::uint32_t imageIndex;
+    };
 
-    [[nodiscard]] auto surfaceFormat() const -> Format { return m_surfaceFormat; }
+    static auto create(const Desc& desc)
+        -> std::expected<Swapchain, Error>;
+
+    [[nodiscard]] auto surfaceFormat() const
+        -> Format { return m_surfaceFormat; }
+
+    [[nodiscard]] auto acquireNextImage(const Semaphore& imageAvailable) const
+        -> std::expected<AcquiredImage, Error>;
 
 private:
     Swapchain(
         vk::raii::SwapchainKHR swapchain,
         std::vector<vk::Image> images,
         std::vector<vk::raii::ImageView> imageViews,
+        std::vector<vk::raii::Semaphore> semaphores,
         vk::Extent2D extent,
         Format format);
 
     [[nodiscard]] static auto querySurfaceCapabilities(
         const vk::raii::PhysicalDevice& physicalDevice,
-        const vk::raii::SurfaceKHR& surface) -> std::expected<vk::SurfaceCapabilitiesKHR, Error>;
+        const vk::raii::SurfaceKHR& surface)
+        -> std::expected<vk::SurfaceCapabilitiesKHR, Error>;
+
     [[nodiscard]] static auto querySwapchainExtent(
         vk::Extent2D preferred,
-        const vk::SurfaceCapabilitiesKHR& caps) -> vk::Extent2D;
+        const vk::SurfaceCapabilitiesKHR& caps)
+        -> vk::Extent2D;
+
     [[nodiscard]] static auto queryPresentMode(
         const vk::raii::PhysicalDevice& physicalDevice,
-        const vk::raii::SurfaceKHR& surface) -> std::expected<vk::PresentModeKHR, Error>;
+        const vk::raii::SurfaceKHR& surface)
+        -> std::expected<vk::PresentModeKHR, Error>;
+
     [[nodiscard]] static auto querySwapchainFormat(
         const vk::raii::PhysicalDevice& physicalDevice,
-        const vk::SurfaceKHR& surface) -> std::expected<vk::SurfaceFormatKHR, Error>;
+        const vk::SurfaceKHR& surface)
+        -> std::expected<vk::SurfaceFormatKHR, Error>;
+
     [[nodiscard]] static auto createSwapchain(
         const Desc& desc,
         vk::Extent2D extent,
@@ -53,12 +76,19 @@ private:
         vk::PresentModeKHR presentMode,
         const vk::SurfaceCapabilitiesKHR& surfaceCaps)
         -> std::expected<vk::raii::SwapchainKHR, Error>;
+
     [[nodiscard]] static auto createImages(const vk::raii::SwapchainKHR& swapchain)
         -> std::expected<std::vector<vk::Image>, Error>;
+
     [[nodiscard]] static auto createImageViews(
         const vk::raii::Device& device,
         const std::vector<vk::Image>& images,
-        vk::Format imageFormat) -> std::expected<std::vector<vk::raii::ImageView>, Error>;
+        vk::Format imageFormat)
+        -> std::expected<std::vector<vk::raii::ImageView>, Error>;
+
+    [[nodiscard]] static auto createSemaphores(const vk::raii::Device& device,
+        std::size_t imageCount)
+        -> std::expected<std::vector<vk::raii::Semaphore>, Error>;
 
     [[nodiscard]] static auto chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps)
         -> uint32_t;
@@ -66,7 +96,9 @@ private:
     vk::raii::SwapchainKHR m_swapchain;
     std::vector<vk::Image> m_images;
     std::vector<vk::raii::ImageView> m_imageViews;
+    std::vector<vk::raii::Semaphore> m_semaphores;
     vk::Extent2D m_extent;
     Format m_surfaceFormat;
+    std::uint32_t m_currentImage{ 0 };
 };
 }

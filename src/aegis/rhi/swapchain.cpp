@@ -44,12 +44,32 @@ auto Swapchain::create(const Desc& desc)
     if (!imageViews)
         return std::unexpected{ imageViews.error() };
 
+    auto semaphores = createSemaphores(device, images->size());
+    if (!semaphores)
+        return std::unexpected{ semaphores.error() };
+
     return Swapchain{
         std::move(*swapchain),
         std::move(*images),
         std::move(*imageViews),
+        std::move(*semaphores),
         extent,
         fromVk(format->format)
+    };
+}
+
+auto Swapchain::acquireNextImage(const Semaphore& imageAvailable) const
+    -> std::expected<AcquiredImage, Error>
+{
+    auto index = m_swapchain.acquireNextImage(std::numeric_limits<uint64_t>::max(), *imageAvailable);
+    if (!index.has_value())
+        return vkError(index.result, "Failed to acquire surface image");
+
+    return AcquiredImage{
+        .image = m_images[*index],
+        .view = *m_imageViews[*index],
+        .presentReady = *m_semaphores[*index],
+        .imageIndex = *index,
     };
 }
 
@@ -57,11 +77,13 @@ Swapchain::Swapchain(
     vk::raii::SwapchainKHR swapchain,
     std::vector<vk::Image> images,
     std::vector<vk::raii::ImageView> imageViews,
+    std::vector<vk::raii::Semaphore> semaphores,
     vk::Extent2D extent,
     Format format) :
     m_swapchain{ std::move(swapchain) },
     m_images{ std::move(images) },
     m_imageViews{ std::move(imageViews) },
+    m_semaphores{ std::move(semaphores) },
     m_extent{ extent },
     m_surfaceFormat{ format }
 {
@@ -215,6 +237,25 @@ auto Swapchain::createImageViews(
     }
 
     return imageViews;
+}
+
+auto Swapchain::createSemaphores(const vk::raii::Device& device,
+    std::size_t imageCount)
+    -> std::expected<std::vector<vk::raii::Semaphore>, Error>
+{
+    std::vector<vk::raii::Semaphore> semaphores;
+    semaphores.reserve(imageCount);
+
+    for (std::size_t i = 0; i < imageCount; ++i)
+    {
+        vk::SemaphoreCreateInfo createInfo{};
+        auto semaphore = device.createSemaphore(createInfo);
+        if (!semaphore.has_value())
+            return vkError(semaphore.result, "Failed to create semaphore");
+        semaphores.emplace_back(std::move(*semaphore));
+    }
+
+    return semaphores;
 }
 
 auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps)

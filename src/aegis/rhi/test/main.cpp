@@ -31,6 +31,30 @@ auto loadSPIRV(const std::filesystem::path& path)
     return buffer;
 }
 
+struct FrameSync
+{
+    aegis::rhi::Fence inFlight;
+    aegis::rhi::Semaphore imageAvailable;
+};
+
+auto createFrameSync(const aegis::rhi::Device& device)
+    -> std::expected<std::array<FrameSync, 2>, std::string>
+{
+    auto f0 = aegis::rhi::Fence::create({ device });
+    auto s0 = aegis::rhi::Semaphore::create({ device });
+
+    auto f1 = aegis::rhi::Fence::create({ device });
+    auto s1 = aegis::rhi::Semaphore::create({ device });
+
+    if (!f0 || !s0 || !f1 || !s1)
+        return std::unexpected{ "Failed to create frame sync objects" };
+
+    return std::array{
+        FrameSync{ std::move(*f0), std::move(*s0) },
+        FrameSync{ std::move(*f1), std::move(*s1) },
+    };
+}
+
 auto main()
     -> int
 {
@@ -130,11 +154,44 @@ auto main()
         return 1;
     }
 
+    auto frameSync = createFrameSync(*device);
+    if (!frameSync)
+    {
+        std::println("Failed to create frameSync");
+        return 1;
+    }
+
+    std::uint32_t currentFrame = 0;
     while (!window.shouldClose())
     {
         window.pollEvents();
 
+        auto& [inFlight, imageAvailable] = (*frameSync)[currentFrame];
+        if (!inFlight.wait())
+        {
+            std::println("Failed to wait for frame sync fence");
+            return 1;
+        }
+
+        auto acquiredImage = swapchain->acquireNextImage(imageAvailable);
+        if (!acquiredImage)
+        {
+            std::println("Failed to acquire next swapchain image");
+            return 1;
+        }
+
+        if (!inFlight.reset())
+        {
+            std::println("Failed to reset frame sync fence");
+            return 1;
+        }
+
         cmd->begin();
+        // ...
         cmd->end();
+
+        // device->graphicsQueue().submit(cmd, sync.imageAvailable, swapchain->presentReadySemaphore());
+        // device->presentQueue().present(swapchain);
+        currentFrame = (currentFrame + 1) % 2;
     }
 }

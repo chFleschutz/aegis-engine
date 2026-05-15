@@ -8,5 +8,6 @@ export import :device;
 export import :error;
 export import :pipeline;
 export import :swapchain;
+export import :sync;
 export import :texture;
 import :vulkan_common;
