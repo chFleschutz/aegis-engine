@@ -40,7 +40,7 @@ struct FrameContext
 
 constexpr uint32_t framesInFlight = 2;
 
-auto createFrameSync(const aegis::rhi::Device& device,
+auto createFrameContext(const aegis::rhi::Device& device,
     const aegis::rhi::CommandPool& pool)
     -> std::expected<std::vector<FrameContext>, std::string>
 {
@@ -61,171 +61,213 @@ auto createFrameSync(const aegis::rhi::Device& device,
     return frameContext;
 }
 
+class Application
+{
+public:
+    static auto create()
+        -> std::expected<Application, std::string>
+    {
+        aegis::platform::Window::Desc windowDesc{
+            .title = "Test Window",
+            .width = 640,
+            .height = 480,
+        };
+        aegis::platform::Window window{ windowDesc };
+
+        aegis::rhi::Context::Desc contextDesc{
+            .appName = "Test",
+            .window = window,
+        };
+        auto context = aegis::rhi::Context::create(contextDesc);
+        if (!context)
+            return std::unexpected{
+                std::format("Failed to create rhi context: {}", context.error().operation)
+            };
+
+        aegis::rhi::Device::Desc deviceDesc{
+            .context = *context,
+        };
+        auto device = aegis::rhi::Device::create(deviceDesc);
+        if (!device)
+            return std::unexpected{
+                std::format("Failed to create rhi device: {}", device.error().operation)
+            };
+
+        aegis::rhi::Swapchain::Desc swapchainDesc{
+            .context = *context,
+            .device = *device,
+        };
+        auto swapchain = aegis::rhi::Swapchain::create(swapchainDesc);
+        if (!swapchain)
+            return std::unexpected{
+                std::format("Failed to create swapchain: {}", swapchain.error().operation)
+            };
+
+        aegis::rhi::CommandPool::Desc poolDesc{
+            .device = *device,
+            .queueFamily = device->graphicsQueue().family(),
+        };
+        auto commandPool = aegis::rhi::CommandPool::create(poolDesc);
+        if (!commandPool)
+            return std::unexpected{
+                std::format("Failed to create command pool: {}", commandPool.error().operation)
+            };
+
+        auto shader = loadSPIRV(SHADER_PATH);
+        if (!shader)
+            return std::unexpected{
+                std::format("Failed to load shader from {}", SHADER_PATH)
+            };
+
+        auto colorAttachments = std::array{ swapchain->surfaceFormat() };
+        auto shaders = std::array{
+            aegis::rhi::Pipeline::Shader{
+                .stage = aegis::rhi::ShaderStage::Vertex,
+                .code = *shader,
+                .entryPoint = "vertexMain",
+            },
+            aegis::rhi::Pipeline::Shader{
+                .stage = aegis::rhi::ShaderStage::Fragment,
+                .code = *shader,
+                .entryPoint = "fragmentMain",
+            },
+        };
+        aegis::rhi::Pipeline::GraphicsDesc pipelineDesc{
+            .device = *device,
+            .setLayouts = {},
+            .pushConstantRanges = {},
+            .shaders = shaders,
+            .colorAttachments = colorAttachments,
+            .depthAttachment = aegis::rhi::Format::D32_SFLOAT,
+        };
+        auto pipeline = aegis::rhi::Pipeline::create(pipelineDesc);
+        if (!pipeline)
+            return std::unexpected{
+                std::format("Failed to create pipeline: {}", pipeline.error().operation)
+            };
+
+        auto frameContext = createFrameContext(*device, *commandPool);
+        if (!frameContext)
+            return std::unexpected{
+                std::format("Failed to create frameSync: {}", frameContext.error())
+            };
+
+        return std::expected<Application, std::string>{
+            std::in_place,
+            std::move(window),
+            std::move(*context),
+            std::move(*device),
+            std::move(*swapchain),
+            std::move(*commandPool),
+            std::move(*pipeline),
+            std::move(*frameContext)
+        };
+    }
+
+    Application(aegis::platform::Window window,
+        aegis::rhi::Context context,
+        aegis::rhi::Device device,
+        aegis::rhi::Swapchain swapchain,
+        aegis::rhi::CommandPool pool,
+        aegis::rhi::Pipeline pipeline,
+        std::vector<FrameContext> frameContext) :
+        m_window{ std::move(window) },
+        m_context{ std::move(context) },
+        m_device{ std::move(device) },
+        m_swapchain{ std::move(swapchain) },
+        m_commandPool{ std::move(pool) },
+        m_pipeline{ std::move(pipeline) },
+        m_frameContext{ std::move(frameContext)}
+    {
+    }
+
+    auto run()
+        -> int
+    {
+        std::uint32_t currentFrame = 0;
+        while (!m_window.shouldClose())
+        {
+            m_window.pollEvents();
+
+            auto& [cmd, imageAvailable, timePoint] = m_frameContext[currentFrame];
+            if (!m_device.graphicsQueue().wait(timePoint))
+            {
+                std::println("Failed to wait for frame sync fence");
+                return 1;
+            }
+
+            auto acquiredImage = m_swapchain.acquireNextImage(imageAvailable);
+            if (!acquiredImage)
+            {
+                std::println("Failed to acquire next swapchain image");
+                return 1;
+            }
+
+            cmd.begin();
+            cmd.transitionImageLayout({
+                .image = acquiredImage->image,
+                .oldState = aegis::rhi::ResourceState::Unknown,
+                .newState = aegis::rhi::ResourceState::RenderTarget,
+            });
+
+            // ...
+
+            cmd.transitionImageLayout({
+                .image = acquiredImage->image,
+                .oldState = aegis::rhi::ResourceState::RenderTarget,
+                .newState = aegis::rhi::ResourceState::Present,
+            });
+            cmd.end();
+
+            aegis::rhi::Queue::SubmitInfo submitInfo{
+                .commandBuffer = cmd,
+                .waitSemaphore = imageAvailable,
+                .signalSemaphore = acquiredImage->presentReady,
+            };
+            auto newSubmitTime = m_device.graphicsQueue().submit(submitInfo);
+            if (!newSubmitTime)
+            {
+                std::println("Failed to submit to queue");
+                return 1;
+            }
+            timePoint = *newSubmitTime;
+
+            aegis::rhi::Queue::PresentInfo presentInfo{
+                .swapchain = m_swapchain,
+                .waitSemaphore = acquiredImage->presentReady,
+                .imageIndex = acquiredImage->imageIndex,
+            };
+            if (auto result = m_device.presentQueue().present(presentInfo); !result)
+            {
+                std::println("Failed to present to queue");
+                return 1;
+            }
+
+            currentFrame = (currentFrame + 1) % framesInFlight;
+        }
+
+        std::ignore = m_device->waitIdle();
+        return 0;
+    }
+
+private:
+    aegis::platform::Window m_window;
+    aegis::rhi::Context m_context;
+    aegis::rhi::Device m_device;
+    aegis::rhi::Swapchain m_swapchain;
+    aegis::rhi::CommandPool m_commandPool;
+    aegis::rhi::Pipeline m_pipeline;
+    std::vector<FrameContext> m_frameContext;
+};
+
 auto main()
     -> int
 {
-    aegis::platform::Window::Desc windowDesc{
-        .title = "Test Window",
-        .width = 640,
-        .height = 480,
-    };
-    aegis::platform::Window window{ windowDesc };
-
-    aegis::rhi::Context::Desc contextDesc{
-        .appName = "Test",
-        .window = window,
-    };
-    auto context = aegis::rhi::Context::create(contextDesc);
-    if (!context)
+    auto app = Application::create();
+    if (!app)
     {
-        std::println("Failed to create rhi context");
+        std::println("Failed to create application \n{}", app.error());
         return 1;
     }
-
-    aegis::rhi::Device::Desc deviceDesc{
-        .context = *context,
-    };
-    auto device = aegis::rhi::Device::create(deviceDesc);
-    if (!device)
-    {
-        std::println("Failed to create rhi device");
-        return 1;
-    }
-
-    aegis::rhi::Swapchain::Desc swapchainDesc{
-        .context = *context,
-        .device = *device,
-    };
-    auto swapchain = aegis::rhi::Swapchain::create(swapchainDesc);
-    if (!swapchain)
-    {
-        std::println("Failed to create swapchain");
-        return 1;
-    }
-
-    auto shader = loadSPIRV(SHADER_PATH);
-    if (!shader)
-    {
-        std::println("Failed to load shader from {}", SHADER_PATH);
-        return 1;
-    }
-
-    auto colorAttachments = std::array{ swapchain->surfaceFormat() };
-    auto shaders = std::array{
-        aegis::rhi::Pipeline::Shader{
-            .stage = aegis::rhi::ShaderStage::Vertex,
-            .code = *shader,
-            .entryPoint = "vertexMain",
-        },
-        aegis::rhi::Pipeline::Shader{
-            .stage = aegis::rhi::ShaderStage::Fragment,
-            .code = *shader,
-            .entryPoint = "fragmentMain",
-        },
-    };
-    aegis::rhi::Pipeline::GraphicsDesc pipelineDesc{
-        .device = *device,
-        .setLayouts = {},
-        .pushConstantRanges = {},
-        .shaders = shaders,
-        .colorAttachments = colorAttachments,
-        .depthAttachment = aegis::rhi::Format::D32_SFLOAT,
-    };
-    auto pipeline = aegis::rhi::Pipeline::create(pipelineDesc);
-    if (!pipeline)
-    {
-        std::println("Failed to create pipeline");
-        return 1;
-    }
-
-    aegis::rhi::CommandPool::Desc poolDesc{
-        .device = *device,
-        .queueFamily = device->graphicsQueue().family(),
-    };
-    auto commandPool = aegis::rhi::CommandPool::create(poolDesc);
-    if (!commandPool)
-    {
-        std::println("Failed to create command pool");
-        return 1;
-    }
-
-    aegis::rhi::CommandBuffer::Desc cmdBufferDesc{
-        .device = *device,
-        .pool = *commandPool,
-    };
-    auto cmd = aegis::rhi::CommandBuffer::create(cmdBufferDesc);
-    if (!cmd)
-    {
-        std::println("Failed to create command buffer");
-        return 1;
-    }
-
-    auto frameSync = createFrameSync(*device, *commandPool);
-    if (!frameSync)
-    {
-        std::println("Failed to create frameSync");
-        return 1;
-    }
-
-    std::uint32_t currentFrame = 0;
-    while (!window.shouldClose())
-    {
-        window.pollEvents();
-
-        auto& [cmd, imageAvailable, timePoint] = (*frameSync)[currentFrame];
-        if (!device->graphicsQueue().wait(timePoint))
-        {
-            std::println("Failed to wait for frame sync fence");
-            return 1;
-        }
-
-        auto acquiredImage = swapchain->acquireNextImage(imageAvailable);
-        if (!acquiredImage)
-        {
-            std::println("Failed to acquire next swapchain image");
-            return 1;
-        }
-
-        cmd.begin();
-        cmd.transitionImageLayout({
-            .image = acquiredImage->image,
-            .oldState = aegis::rhi::ResourceState::Unknown,
-            .newState = aegis::rhi::ResourceState::RenderTarget,
-        });
-
-        // ...
-
-        cmd.transitionImageLayout({
-            .image = acquiredImage->image,
-            .oldState = aegis::rhi::ResourceState::RenderTarget,
-            .newState = aegis::rhi::ResourceState::Present,
-        });
-        cmd.end();
-
-        aegis::rhi::Queue::SubmitInfo submitInfo{
-            .commandBuffer = cmd,
-            .waitSemaphore = imageAvailable,
-            .signalSemaphore = acquiredImage->presentReady,
-        };
-        auto newSubmitTime = device->graphicsQueue().submit(submitInfo);
-        if (!newSubmitTime)
-        {
-            std::println("Failed to submit to queue");
-            return 1;
-        }
-        timePoint = *newSubmitTime;
-
-        aegis::rhi::Queue::PresentInfo presentInfo{
-            .swapchain = *swapchain,
-            .waitSemaphore = acquiredImage->presentReady,
-            .imageIndex = acquiredImage->imageIndex,
-        };
-        if (auto result = device->presentQueue().present(presentInfo); !result)
-        {
-            std::println("Failed to present to queue");
-            return 1;
-        }
-
-        currentFrame = (currentFrame + 1) % 2;
-    }
+    return app->run();
 }
