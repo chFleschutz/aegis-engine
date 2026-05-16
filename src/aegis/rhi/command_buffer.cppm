@@ -36,6 +36,9 @@ public:
     [[nodiscard]] static auto create(const Desc& desc)
         -> std::expected<CommandBuffer, Error>;
 
+    auto operator*() const
+        -> vk::CommandBuffer { return *m_commandBuffer; }
+
     auto begin() const
         -> void;
 

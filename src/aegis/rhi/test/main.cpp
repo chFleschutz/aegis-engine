@@ -33,25 +33,22 @@ auto loadSPIRV(const std::filesystem::path& path)
 
 struct FrameSync
 {
-    aegis::rhi::Fence inFlight;
     aegis::rhi::Semaphore imageAvailable;
+    std::uint64_t timelineValue{ 0 };
 };
 
 auto createFrameSync(const aegis::rhi::Device& device)
     -> std::expected<std::array<FrameSync, 2>, std::string>
 {
-    auto f0 = aegis::rhi::Fence::create({ device });
     auto s0 = aegis::rhi::Semaphore::create({ device });
-
-    auto f1 = aegis::rhi::Fence::create({ device });
     auto s1 = aegis::rhi::Semaphore::create({ device });
 
-    if (!f0 || !s0 || !f1 || !s1)
+    if (!s0 || !s1)
         return std::unexpected{ "Failed to create frame sync objects" };
 
     return std::array{
-        FrameSync{ std::move(*f0), std::move(*s0) },
-        FrameSync{ std::move(*f1), std::move(*s1) },
+        FrameSync{ std::move(*s0) },
+        FrameSync{ std::move(*s1) },
     };
 }
 
@@ -166,8 +163,8 @@ auto main()
     {
         window.pollEvents();
 
-        auto& [inFlight, imageAvailable] = (*frameSync)[currentFrame];
-        if (!inFlight.wait())
+        auto& [imageAvailable, timePoint] = (*frameSync)[currentFrame];
+        if (!device->graphicsQueue().wait(timePoint))
         {
             std::println("Failed to wait for frame sync fence");
             return 1;
@@ -180,18 +177,35 @@ auto main()
             return 1;
         }
 
-        if (!inFlight.reset())
-        {
-            std::println("Failed to reset frame sync fence");
-            return 1;
-        }
-
         cmd->begin();
         // ...
         cmd->end();
 
-        // device->graphicsQueue().submit(cmd, sync.imageAvailable, swapchain->presentReadySemaphore());
-        // device->presentQueue().present(swapchain);
+        aegis::rhi::Queue::SubmitInfo submitInfo{
+            .commandBuffer = *cmd,
+            .waitSemaphore = imageAvailable,
+            .signalSemaphore = acquiredImage->presentReady,
+        };
+        auto newSubmitTime = device->graphicsQueue().submit(submitInfo);
+        if (!newSubmitTime)
+        {
+            std::println("Failed to submit to queue");
+            return 1;
+        }
+        timePoint = *newSubmitTime;
+
+        aegis::rhi::Queue::PresentInfo presentInfo{
+            .swapchain = *swapchain,
+            .waitSemaphore = acquiredImage->presentReady,
+            .imageIndex = acquiredImage->imageIndex,
+        };
+        if (auto result = device->presentQueue().present(presentInfo); !result)
+        {
+            std::println("Failed to present to queue");
+            return 1;
+        }
+
         currentFrame = (currentFrame + 1) % 2;
+
     }
 }

@@ -69,17 +69,17 @@ public:
     [[nodiscard]] auto device() const
         -> const vk::raii::Device& { return m_device; }
 
-    [[nodiscard]] auto graphicsQueue() const
-        -> const Queue& { return m_graphicsQueue; }
+    [[nodiscard]] auto graphicsQueue()
+        -> Queue& { return m_graphicsQueue; }
 
-    [[nodiscard]] auto computeQueue() const
-        -> const Queue& { return m_computeQueue; }
+    [[nodiscard]] auto computeQueue()
+        -> Queue& { return m_computeQueue; }
 
-    [[nodiscard]] auto transferQueue() const
-        -> const Queue& { return m_transferQueue; };
+    [[nodiscard]] auto transferQueue()
+        -> Queue& { return m_transferQueue; };
 
-    [[nodiscard]] auto presentQueue() const
-        -> const Queue& { return m_presentQueue; };
+    [[nodiscard]] auto presentQueue()
+        -> Queue& { return m_presentQueue; };
 
     [[nodiscard]] auto properties() const
         -> const Properties& { return m_properties; }

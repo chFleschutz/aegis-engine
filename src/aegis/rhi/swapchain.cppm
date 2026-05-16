@@ -26,12 +26,15 @@ public:
         // TODO: Don't use vulkan types
         vk::Image image;
         vk::ImageView view;
-        vk::Semaphore presentReady;
+        const Semaphore& presentReady;
         std::uint32_t imageIndex;
     };
 
     static auto create(const Desc& desc)
         -> std::expected<Swapchain, Error>;
+
+    [[nodiscard]] auto operator*() const
+        -> vk::SwapchainKHR { return *m_swapchain; }
 
     [[nodiscard]] auto surfaceFormat() const
         -> Format { return m_surfaceFormat; }
@@ -44,7 +47,7 @@ private:
         vk::raii::SwapchainKHR swapchain,
         std::vector<vk::Image> images,
         std::vector<vk::raii::ImageView> imageViews,
-        std::vector<vk::raii::Semaphore> semaphores,
+        std::vector<Semaphore> semaphores,
         vk::Extent2D extent,
         Format format);
 
@@ -85,9 +88,9 @@ private:
         vk::Format imageFormat)
         -> std::expected<std::vector<vk::raii::ImageView>, Error>;
 
-    [[nodiscard]] static auto createSemaphores(const vk::raii::Device& device,
+    [[nodiscard]] static auto createSemaphores(const Device& device,
         std::size_t imageCount)
-        -> std::expected<std::vector<vk::raii::Semaphore>, Error>;
+        -> std::expected<std::vector<Semaphore>, Error>;
 
     [[nodiscard]] static auto chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps)
         -> uint32_t;
@@ -95,7 +98,7 @@ private:
     vk::raii::SwapchainKHR m_swapchain;
     std::vector<vk::Image> m_images;
     std::vector<vk::raii::ImageView> m_imageViews;
-    std::vector<vk::raii::Semaphore> m_semaphores;
+    std::vector<Semaphore> m_semaphores;
     vk::Extent2D m_extent;
     Format m_surfaceFormat;
     std::uint32_t m_currentImage{ 0 };

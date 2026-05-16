@@ -46,7 +46,7 @@ auto Swapchain::create(const Desc& desc)
     if (!imageViews)
         return std::unexpected{ imageViews.error() };
 
-    auto semaphores = createSemaphores(device, images->size());
+    auto semaphores = createSemaphores(desc.device, images->size());
     if (!semaphores)
         return std::unexpected{ semaphores.error() };
 
@@ -70,7 +70,7 @@ auto Swapchain::acquireNextImage(const Semaphore& imageAvailable) const
     return AcquiredImage{
         .image = m_images[*index],
         .view = *m_imageViews[*index],
-        .presentReady = *m_semaphores[*index],
+        .presentReady = m_semaphores[*index],
         .imageIndex = *index,
     };
 }
@@ -79,7 +79,7 @@ Swapchain::Swapchain(
     vk::raii::SwapchainKHR swapchain,
     std::vector<vk::Image> images,
     std::vector<vk::raii::ImageView> imageViews,
-    std::vector<vk::raii::Semaphore> semaphores,
+    std::vector<Semaphore> semaphores,
     vk::Extent2D extent,
     Format format) :
     m_swapchain{ std::move(swapchain) },
@@ -241,19 +241,18 @@ auto Swapchain::createImageViews(
     return imageViews;
 }
 
-auto Swapchain::createSemaphores(const vk::raii::Device& device,
+auto Swapchain::createSemaphores(const Device& device,
     std::size_t imageCount)
-    -> std::expected<std::vector<vk::raii::Semaphore>, Error>
+    -> std::expected<std::vector<Semaphore>, Error>
 {
-    std::vector<vk::raii::Semaphore> semaphores;
+    std::vector<Semaphore> semaphores;
     semaphores.reserve(imageCount);
 
     for (std::size_t i = 0; i < imageCount; ++i)
     {
-        vk::SemaphoreCreateInfo createInfo{};
-        auto semaphore = device.createSemaphore(createInfo);
-        if (!semaphore.has_value())
-            return vkError(semaphore.result, "Failed to create semaphore");
+        auto semaphore = Semaphore::create({ device });
+        if (!semaphore)
+            return std::unexpected{ semaphore.error() };
         semaphores.emplace_back(std::move(*semaphore));
     }
 

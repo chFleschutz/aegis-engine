@@ -7,6 +7,7 @@ export import :context;
 export import :device;
 export import :error;
 export import :pipeline;
+export import :queue;
 export import :swapchain;
 export import :sync;
 export import :texture;
