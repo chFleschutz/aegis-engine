@@ -5,6 +5,7 @@ module;
 
 export module aegis.rhi:command_buffer;
 import :error;
+import :commands;
 import :fwd;
 
 export namespace aegis::rhi
@@ -63,6 +64,9 @@ public:
         -> void;
 
     auto draw(std::uint32_t vertexCount) const
+        -> void;
+
+    auto transitionImageLayout(const ImageLayoutTransition& cmd) const
         -> void;
 
 private:

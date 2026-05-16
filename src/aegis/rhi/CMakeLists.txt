@@ -38,6 +38,7 @@ target_sources(aegis-rhi
     buffer.cppm
     command_buffer.cppm
     command_pool.cppm
+    commands.cppm
     common.cppm
     context.cppm
     device.cppm

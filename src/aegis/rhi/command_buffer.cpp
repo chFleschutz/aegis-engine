@@ -116,6 +116,39 @@ auto CommandBuffer::draw(std::uint32_t vertexCount) const
     m_commandBuffer.draw(vertexCount, 1, 0, 0);
 }
 
+auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) const
+    -> void
+{
+    auto src = toVk(cmd.oldState);
+    auto dst = toVk(cmd.newState);
+
+    vk::ImageMemoryBarrier2 barrier{
+        .srcStageMask = src.stageMask,
+        .srcAccessMask = src.accessMask,
+        .dstStageMask = dst.stageMask,
+        .dstAccessMask = dst.accessMask,
+        .oldLayout = src.layout,
+        .newLayout = dst.layout,
+        .srcQueueFamilyIndex = vk::QueueFamilyIgnored,
+        .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
+        .image = cmd.image,
+        .subresourceRange = vk::ImageSubresourceRange{
+            .aspectMask = cmd.aspectFlags,
+            .baseMipLevel = cmd.baseMipLevel,
+            .levelCount = cmd.levelCount,
+            .baseArrayLayer = cmd.baseArrayLayer,
+            .layerCount = cmd.layerCount,
+        },
+    };
+
+    vk::DependencyInfo dependencyInfo{
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &barrier,
+    };
+
+    m_commandBuffer.pipelineBarrier2(dependencyInfo);
+}
+
 CommandBuffer::CommandBuffer(vk::raii::CommandBuffer cmdBuffer) :
     m_commandBuffer{ std::move(cmdBuffer) }
 {

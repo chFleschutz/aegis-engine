@@ -42,4 +42,31 @@ enum class ShaderStage
     Task,
     Mesh,
 };
+
+enum class ImageLayout
+{
+    Unknown,
+    General,
+    Attachment,
+    ReadOnly,
+    TransferSrc,
+    TransferDst,
+    Present,
+};
+
+enum class ResourceState
+{
+    Unknown,
+    RenderTarget,
+    DepthWrite,
+    DepthRead,
+    ShaderReadVertex,
+    ShaderReadFragment,
+    ShaderReadCompute,
+    ComputeStorage,
+    CopySrc,
+    CopyDst,
+    Present,
+};
+
 }

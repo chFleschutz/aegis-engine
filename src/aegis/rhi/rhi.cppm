@@ -2,6 +2,7 @@ export module aegis.rhi;
 export import :buffer;
 export import :command_buffer;
 export import :command_pool;
+export import :commands;
 export import :common;
 export import :context;
 export import :device;

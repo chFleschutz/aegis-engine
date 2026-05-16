@@ -178,7 +178,19 @@ auto main()
         }
 
         cmd->begin();
+        cmd->transitionImageLayout({
+            .image = acquiredImage->image,
+            .oldState = aegis::rhi::ResourceState::Unknown,
+            .newState = aegis::rhi::ResourceState::RenderTarget,
+        });
+
         // ...
+
+        cmd->transitionImageLayout({
+            .image = acquiredImage->image,
+            .oldState = aegis::rhi::ResourceState::RenderTarget,
+            .newState = aegis::rhi::ResourceState::Present,
+        });
         cmd->end();
 
         aegis::rhi::Queue::SubmitInfo submitInfo{
@@ -206,6 +218,5 @@ auto main()
         }
 
         currentFrame = (currentFrame + 1) % 2;
-
     }
 }
