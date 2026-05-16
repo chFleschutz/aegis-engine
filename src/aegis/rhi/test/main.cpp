@@ -31,25 +31,34 @@ auto loadSPIRV(const std::filesystem::path& path)
     return buffer;
 }
 
-struct FrameSync
+struct FrameContext
 {
+    aegis::rhi::CommandBuffer commandBuffer;
     aegis::rhi::Semaphore imageAvailable;
     std::uint64_t timelineValue{ 0 };
 };
 
-auto createFrameSync(const aegis::rhi::Device& device)
-    -> std::expected<std::array<FrameSync, 2>, std::string>
+constexpr uint32_t framesInFlight = 2;
+
+auto createFrameSync(const aegis::rhi::Device& device,
+    const aegis::rhi::CommandPool& pool)
+    -> std::expected<std::vector<FrameContext>, std::string>
 {
-    auto s0 = aegis::rhi::Semaphore::create({ device });
-    auto s1 = aegis::rhi::Semaphore::create({ device });
+    std::vector<FrameContext> frameContext;
+    frameContext.reserve(framesInFlight);
+    for (uint32_t i = 0; i < framesInFlight; ++i)
+    {
+        auto cmd = aegis::rhi::CommandBuffer::create({ device, pool });
+        if (!cmd)
+            return std::unexpected{ "Failed to create frame command buffer" };
 
-    if (!s0 || !s1)
-        return std::unexpected{ "Failed to create frame sync objects" };
+        auto semaphore = aegis::rhi::Semaphore::create({ device });
+        if (!semaphore)
+            return std::unexpected{ "Failed to create frame semaphore" };
 
-    return std::array{
-        FrameSync{ std::move(*s0) },
-        FrameSync{ std::move(*s1) },
-    };
+        frameContext.emplace_back(FrameContext{ std::move(*cmd), std::move(*semaphore) });
+    }
+    return frameContext;
 }
 
 auto main()
@@ -151,7 +160,7 @@ auto main()
         return 1;
     }
 
-    auto frameSync = createFrameSync(*device);
+    auto frameSync = createFrameSync(*device, *commandPool);
     if (!frameSync)
     {
         std::println("Failed to create frameSync");
@@ -163,7 +172,7 @@ auto main()
     {
         window.pollEvents();
 
-        auto& [imageAvailable, timePoint] = (*frameSync)[currentFrame];
+        auto& [cmd, imageAvailable, timePoint] = (*frameSync)[currentFrame];
         if (!device->graphicsQueue().wait(timePoint))
         {
             std::println("Failed to wait for frame sync fence");
@@ -177,8 +186,8 @@ auto main()
             return 1;
         }
 
-        cmd->begin();
-        cmd->transitionImageLayout({
+        cmd.begin();
+        cmd.transitionImageLayout({
             .image = acquiredImage->image,
             .oldState = aegis::rhi::ResourceState::Unknown,
             .newState = aegis::rhi::ResourceState::RenderTarget,
@@ -186,15 +195,15 @@ auto main()
 
         // ...
 
-        cmd->transitionImageLayout({
+        cmd.transitionImageLayout({
             .image = acquiredImage->image,
             .oldState = aegis::rhi::ResourceState::RenderTarget,
             .newState = aegis::rhi::ResourceState::Present,
         });
-        cmd->end();
+        cmd.end();
 
         aegis::rhi::Queue::SubmitInfo submitInfo{
-            .commandBuffer = *cmd,
+            .commandBuffer = cmd,
             .waitSemaphore = imageAvailable,
             .signalSemaphore = acquiredImage->presentReady,
         };
