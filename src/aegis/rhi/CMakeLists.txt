@@ -42,6 +42,7 @@ target_sources(aegis-rhi
     context.cppm
     device.cppm
     error.cppm
+    queue.cppm
     rhi.cppm
     pipeline.cppm
     swapchain.cppm
@@ -53,6 +54,7 @@ target_sources(aegis-rhi
     command_pool.cpp
     context.cpp
     device.cpp
+    queue.cpp
     pipeline.cpp
     swapchain.cpp
     sync.cpp

@@ -25,17 +25,36 @@ auto Device::create(const Desc& desc)
     if (!physicalDevice)
         return std::unexpected{ physicalDevice.error() };
 
-    auto queueFamilyIndices = queryQueueFamilies(*physicalDevice, desc.context.surface());
+    auto queueFamilies = queryQueueFamilies(*physicalDevice, desc.context.surface());
     auto capabilities = queryCapabilities(*physicalDevice);
 
-    auto device = createDevice(*physicalDevice, capabilities, queueFamilyIndices);
+    auto device = createDevice(*physicalDevice, capabilities, queueFamilies);
     if (!device)
         return std::unexpected{ device.error() };
+
+    auto graphicsQueue = createQueue(*device, queueFamilies.graphics);
+    if (!graphicsQueue)
+        return std::unexpected{ graphicsQueue.error() };
+
+    auto computeQueue = createQueue(*device, queueFamilies.compute);
+    if (!computeQueue)
+        return std::unexpected{ computeQueue.error() };
+
+    auto transferQueue = createQueue(*device, queueFamilies.transfer);
+    if (!transferQueue)
+        return std::unexpected{ transferQueue.error() };
+
+    auto presentQueue = createQueue(*device, queueFamilies.present);
+    if (!presentQueue)
+        return std::unexpected{ presentQueue.error() };
 
     return Device{
         std::move(*physicalDevice),
         std::move(*device),
-        queueFamilyIndices,
+        std::move(*graphicsQueue),
+        std::move(*computeQueue),
+        std::move(*transferQueue),
+        std::move(*presentQueue),
         capabilities
     };
 }
@@ -49,15 +68,17 @@ auto Device::physicalDevice() const
 Device::Device(
     vk::raii::PhysicalDevice pd,
     vk::raii::Device device,
-    QueueFamilyIndices queueFamilyIndices,
+    Queue graphicsQueue,
+    Queue computeQueue,
+    Queue transferQueue,
+    Queue presentQueue,
     Capabilities capabilities) :
     m_physicalDevice{ std::move(pd) },
     m_device{ std::move(device) },
-    m_graphicsQueue{ m_device.getQueue(queueFamilyIndices.graphics, 0) },
-    m_computeQueue{ m_device.getQueue(queueFamilyIndices.compute, 0) },
-    m_transferQueue{ m_device.getQueue(queueFamilyIndices.transfer, 0) },
-    m_presentQueue{ m_device.getQueue(queueFamilyIndices.present, 0) },
-    m_queueFamilyIndices{ queueFamilyIndices },
+    m_graphicsQueue{ std::move(graphicsQueue) },
+    m_computeQueue{ std::move(computeQueue) },
+    m_transferQueue{ std::move(transferQueue) },
+    m_presentQueue{ std::move(presentQueue) },
     m_capabilities{ capabilities }
 {
 }
@@ -150,6 +171,25 @@ auto Device::queryQueueFamilies(
         indices.transfer = indices.graphics;
 
     return indices;
+}
+
+auto Device::createQueue(const vk::raii::Device& device,
+    std::uint32_t queueFamily)
+    -> std::expected<Queue, Error>
+{
+    auto queue = device.getQueue(queueFamily, 0);
+
+    auto semaphoreTypeInfo = vk::SemaphoreTypeCreateInfo{
+        .semaphoreType = vk::SemaphoreType::eTimeline,
+    };
+    auto semaphoreInfo = vk::SemaphoreCreateInfo{
+        .pNext = &semaphoreTypeInfo,
+    };
+    auto semaphore = device.createSemaphore(semaphoreInfo);
+    if (!semaphore.has_value())
+        return vkError(semaphore.result, "Failed to create queue tracking semaphore");
+
+    return Queue{ std::move(queue), std::move(*semaphore), queueFamily };
 }
 
 auto Device::queryCapabilities(const vk::raii::PhysicalDevice& pd)
@@ -272,10 +312,12 @@ auto Device::createFeatureChain()
         .setDescriptorBindingVariableDescriptorCount(true)
         .setRuntimeDescriptorArray(true)
         .setScalarBlockLayout(true)
-        .setUniformBufferStandardLayout(true);
+        .setUniformBufferStandardLayout(true)
+        .setTimelineSemaphore(true);
 
     featureChain.get<vk::PhysicalDeviceVulkan13Features>()
         .setShaderDemoteToHelperInvocation(true)
+        .setSynchronization2(true)
         .setDynamicRendering(true)
         .setMaintenance4(true);
 

@@ -6,6 +6,7 @@ module;
 export module aegis.rhi:device;
 import :context;
 import :error;
+import :queue;
 
 import aegis.platform.window;
 
@@ -68,8 +69,17 @@ public:
     [[nodiscard]] auto device() const
         -> const vk::raii::Device& { return m_device; }
 
-    [[nodiscard]] auto queueFamilies() const
-        -> const QueueFamilyIndices& { return m_queueFamilyIndices; }
+    [[nodiscard]] auto graphicsQueue() const
+        -> const Queue& { return m_graphicsQueue; }
+
+    [[nodiscard]] auto computeQueue() const
+        -> const Queue& { return m_computeQueue; }
+
+    [[nodiscard]] auto transferQueue() const
+        -> const Queue& { return m_transferQueue; };
+
+    [[nodiscard]] auto presentQueue() const
+        -> const Queue& { return m_presentQueue; };
 
     [[nodiscard]] auto properties() const
         -> const Properties& { return m_properties; }
@@ -90,7 +100,10 @@ private:
     Device(
         vk::raii::PhysicalDevice pd,
         vk::raii::Device device,
-        QueueFamilyIndices queueFamilyIndices,
+        Queue graphicsQueue,
+        Queue computeQueue,
+        Queue transferQueue,
+        Queue presentQueue,
         Capabilities capabilities);
 
     [[nodiscard]] static auto createPhysicalDevice(const Desc& desc)
@@ -100,6 +113,10 @@ private:
         const vk::raii::PhysicalDevice& physicalDevice,
         const vk::raii::SurfaceKHR& surface)
         -> QueueFamilyIndices;
+
+    [[nodiscard]] static auto createQueue(const vk::raii::Device& device,
+        std::uint32_t queueFamily)
+        -> std::expected<Queue, Error>;
 
     [[nodiscard]] static auto queryCapabilities(const vk::raii::PhysicalDevice& pd)
         -> Capabilities;
@@ -124,11 +141,10 @@ private:
 
     vk::raii::PhysicalDevice m_physicalDevice;
     vk::raii::Device m_device;
-    vk::raii::Queue m_graphicsQueue;
-    vk::raii::Queue m_computeQueue;
-    vk::raii::Queue m_transferQueue;
-    vk::raii::Queue m_presentQueue;
-    QueueFamilyIndices m_queueFamilyIndices;
+    Queue m_graphicsQueue;
+    Queue m_computeQueue;
+    Queue m_transferQueue;
+    Queue m_presentQueue;
     Properties m_properties;
     Capabilities m_capabilities;
 };

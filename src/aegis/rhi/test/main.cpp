@@ -134,7 +134,7 @@ auto main()
 
     aegis::rhi::CommandPool::Desc poolDesc{
         .device = *device,
-        .queueFamily = device->queueFamilies().graphics,
+        .queueFamily = device->graphicsQueue().family(),
     };
     auto commandPool = aegis::rhi::CommandPool::create(poolDesc);
     if (!commandPool)
