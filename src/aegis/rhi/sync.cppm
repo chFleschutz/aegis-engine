@@ -2,8 +2,8 @@ module;
 #include <expected>
 
 export module aegis.rhi:sync;
-import :device;
 import :error;
+import :fwd;
 import vulkan_hpp;
 
 export namespace aegis::rhi

@@ -3,7 +3,7 @@ module;
 
 export module aegis.rhi:command_pool;
 import :error;
-import :device;
+import :fwd;
 import vulkan_hpp;
 
 export namespace aegis::rhi
@@ -13,7 +13,7 @@ class CommandPool
 public:
     struct Desc
     {
-        const Device& device;
+        const class Device& device;
         std::uint32_t queueFamily;
     };
 

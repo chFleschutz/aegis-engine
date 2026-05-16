@@ -3,6 +3,7 @@ module;
 
 module aegis.rhi;
 import :command_pool;
+import :device;
 
 namespace aegis::rhi
 {

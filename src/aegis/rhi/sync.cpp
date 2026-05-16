@@ -4,6 +4,7 @@ module;
 
 module aegis.rhi;
 import :sync;
+import :device;
 
 namespace aegis::rhi
 {

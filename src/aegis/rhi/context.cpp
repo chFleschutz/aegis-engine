@@ -10,6 +10,7 @@ module;
 
 module aegis.rhi;
 import :context;
+import aegis.platform.window;
 
 namespace aegis::rhi
 {

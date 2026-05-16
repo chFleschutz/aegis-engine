@@ -4,8 +4,8 @@ module;
 #include <string>
 
 export module aegis.rhi:device;
-import :context;
 import :error;
+import :fwd;
 import :queue;
 
 import aegis.platform.window;

@@ -4,9 +4,9 @@ module;
 #include <string_view>
 
 export module aegis.rhi:pipeline;
-import :device;
 import :error;
 import :common;
+import :fwd;
 import vulkan_hpp;
 
 export namespace aegis::rhi

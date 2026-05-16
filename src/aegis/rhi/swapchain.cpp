@@ -8,6 +8,8 @@ module;
 
 module aegis.rhi;
 import :swapchain;
+import :context;
+import :device;
 
 namespace aegis::rhi
 {

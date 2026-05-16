@@ -1,8 +1,10 @@
 module;
 #include <cstdint>
 #include <expected>
+#include <span>
 
 export module aegis.rhi:queue;
+import :fwd;
 import vulkan_hpp;
 
 namespace aegis::rhi

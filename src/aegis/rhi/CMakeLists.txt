@@ -42,6 +42,7 @@ target_sources(aegis-rhi
     context.cppm
     device.cppm
     error.cppm
+    fwd.cppm
     queue.cppm
     rhi.cppm
     pipeline.cppm

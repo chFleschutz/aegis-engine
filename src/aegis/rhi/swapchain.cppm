@@ -4,8 +4,7 @@ module;
 
 export module aegis.rhi:swapchain;
 import :common;
-import :context;
-import :device;
+import :fwd;
 import :error;
 import :sync;
 import vulkan_hpp;

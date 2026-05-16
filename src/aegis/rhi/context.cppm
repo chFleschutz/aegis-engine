@@ -17,7 +17,7 @@ public:
     struct Desc
     {
         std::string appName;
-        platform::Window& window;
+        const platform::Window& window;
     };
 
 #ifdef NDEBUG

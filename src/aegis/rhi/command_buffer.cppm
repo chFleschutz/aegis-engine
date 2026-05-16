@@ -4,9 +4,8 @@ module;
 #include <span>
 
 export module aegis.rhi:command_buffer;
-import :command_pool;
 import :error;
-import :pipeline;
+import :fwd;
 
 export namespace aegis::rhi
 {

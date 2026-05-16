@@ -8,6 +8,7 @@ module;
 
 module aegis.rhi;
 import :device;
+import :context;
 
 namespace aegis::rhi
 {
