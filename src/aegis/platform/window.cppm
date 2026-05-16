@@ -18,7 +18,12 @@ public:
     };
 
     explicit Window(const Desc& desc);
+    Window(const Window&) = delete;
+    Window(Window&& other) noexcept;
     ~Window();
+
+    auto operator=(const Window&) -> Window& = delete;
+    auto operator=(Window&& other) noexcept -> Window&;
 
     [[nodiscard]] auto glfwWindow() const -> GLFWwindow* { return m_window; }
     [[nodiscard]] auto width() const -> uint32_t { return m_width; }
@@ -29,7 +34,7 @@ public:
     auto pollEvents() const -> void;
 
 private:
-    static void onWindowResize(GLFWwindow* glfwWindow, int newWidth, int newHeight);
+    static auto onWindowResize(GLFWwindow* glfwWindow, int newWidth, int newHeight) -> void;
 
     GLFWwindow* m_window{ nullptr };
     uint32_t m_width{ 0 };
