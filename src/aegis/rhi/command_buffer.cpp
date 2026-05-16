@@ -59,7 +59,7 @@ auto CommandBuffer::beginRendering(const RenderingDesc& desc) const
     vk::RenderingInfo renderingInfo{
         .renderArea = vk::Rect2D{
             .offset = { 0, 0 },
-            .extent = { desc.extent.first, desc.extent.second },
+            .extent = { desc.extent.x, desc.extent.y },
         },
         .layerCount = 1,
         .viewMask = 0,

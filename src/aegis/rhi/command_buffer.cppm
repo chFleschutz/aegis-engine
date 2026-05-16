@@ -23,13 +23,13 @@ public:
     {
         // TODO: Dont use vulkan types
         vk::ImageView imageView;
-        vk::ImageLayout imageLayout;
-        vk::ClearValue clearValue;
+        vk::ImageLayout imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        vk::ClearValue clearValue = vk::ClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f };
     };
 
     struct RenderingDesc
     {
-        std::pair<std::uint32_t, std::uint32_t> extent;
+        Extent2D extent;
         std::span<AttachmentDesc> attachments;
         // TODO: Add depth attachment
     };

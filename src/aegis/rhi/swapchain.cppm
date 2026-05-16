@@ -30,17 +30,12 @@ public:
         std::uint32_t imageIndex;
     };
 
-    static auto create(const Desc& desc)
-        -> std::expected<Swapchain, Error>;
-
-    [[nodiscard]] auto operator*() const
-        -> vk::SwapchainKHR { return *m_swapchain; }
-
-    [[nodiscard]] auto surfaceFormat() const
-        -> Format { return m_surfaceFormat; }
-
-    [[nodiscard]] auto acquireNextImage(const Semaphore& imageAvailable) const
-        -> std::expected<AcquiredImage, Error>;
+    static auto create(const Desc& desc) -> std::expected<Swapchain, Error>;
+    [[nodiscard]] auto operator*() const -> vk::SwapchainKHR { return *m_swapchain; }
+    [[nodiscard]] auto surfaceFormat() const -> Format { return m_surfaceFormat; }
+    [[nodiscard]] auto extent() const -> Extent2D { return m_extent; }
+    [[nodiscard]] auto acquireNextImage(
+        const Semaphore& imageAvailable) const -> std::expected<AcquiredImage, Error>;
 
 private:
     Swapchain(
@@ -99,7 +94,7 @@ private:
     std::vector<vk::Image> m_images;
     std::vector<vk::raii::ImageView> m_imageViews;
     std::vector<Semaphore> m_semaphores;
-    vk::Extent2D m_extent;
+    Extent2D m_extent;
     Format m_surfaceFormat;
     std::uint32_t m_currentImage{ 0 };
 };

@@ -177,7 +177,7 @@ public:
         m_swapchain{ std::move(swapchain) },
         m_commandPool{ std::move(pool) },
         m_pipeline{ std::move(pipeline) },
-        m_frameContext{ std::move(frameContext)}
+        m_frameContext{ std::move(frameContext) }
     {
     }
 
@@ -204,13 +204,23 @@ public:
             }
 
             cmd.begin();
+
             cmd.transitionImageLayout({
                 .image = acquiredImage->image,
                 .oldState = aegis::rhi::ResourceState::Unknown,
                 .newState = aegis::rhi::ResourceState::RenderTarget,
             });
-
-            // ...
+            auto attachmentDesc = std::array{
+                aegis::rhi::CommandBuffer::AttachmentDesc{
+                    .imageView = acquiredImage->view,
+                }
+            };
+            cmd.beginRendering({ m_swapchain.extent(), attachmentDesc });
+            cmd.bindPipeline(m_pipeline);
+            cmd.setViewport(m_swapchain.extent().x, m_swapchain.extent().y);
+            cmd.setScissor(m_swapchain.extent().x, m_swapchain.extent().y);
+            cmd.draw(3);
+            cmd.endRendering();
 
             cmd.transitionImageLayout({
                 .image = acquiredImage->image,

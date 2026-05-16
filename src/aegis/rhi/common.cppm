@@ -1,7 +1,16 @@
+module;
+#include <cstdint>
+
 export module aegis.rhi:common;
 
 export namespace aegis::rhi
 {
+struct Extent2D
+{
+    uint32_t x;
+    uint32_t y;
+};
+
 enum class Format
 {
     Unknown,

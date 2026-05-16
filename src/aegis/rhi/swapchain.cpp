@@ -86,7 +86,7 @@ Swapchain::Swapchain(
     m_images{ std::move(images) },
     m_imageViews{ std::move(imageViews) },
     m_semaphores{ std::move(semaphores) },
-    m_extent{ extent },
+    m_extent{ extent.width, extent.height },
     m_surfaceFormat{ format }
 {
 }
