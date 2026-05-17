@@ -50,7 +50,7 @@ target_sources(aegis-rhi
     swapchain.cppm
     texture.cppm
     sync.cppm
-    vulkan_common.cppm
+    vulkan.cppm
     PRIVATE
     command_buffer.cpp
     command_pool.cpp

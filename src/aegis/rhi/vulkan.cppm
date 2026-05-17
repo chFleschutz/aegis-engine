@@ -3,9 +3,10 @@ module;
 
 export module aegis.rhi:vulkan_common;
 import :common;
+import :error;
 import vulkan_hpp;
 
-export namespace aegis::rhi
+export namespace aegis::rhi::vulkan
 {
 auto toVk(Format format)
     -> vk::Format

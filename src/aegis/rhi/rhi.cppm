@@ -13,4 +13,3 @@ export import :swapchain;
 export import :sync;
 export import :texture;
 import :fwd;
-import :vulkan_common;
