@@ -11,6 +11,17 @@ struct Extent2D
     uint32_t y;
 };
 
+enum class ErrorCode
+{
+    Unknown,
+    DeviceLost,
+    SurfaceLost,
+    OutOfDate,
+    OutOfHostMemory,
+    OutOfDeviceMemory,
+    InitializationFailed,
+};
+
 enum class Format
 {
     Unknown,

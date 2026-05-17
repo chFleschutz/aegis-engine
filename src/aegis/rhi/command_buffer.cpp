@@ -8,6 +8,7 @@ module aegis.rhi;
 import :command_buffer;
 import :command_pool;
 import :device;
+import :vulkan;
 
 namespace aegis::rhi
 {
@@ -119,8 +120,8 @@ auto CommandBuffer::draw(std::uint32_t vertexCount) const
 auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) const
     -> void
 {
-    auto src = toVk(cmd.oldState);
-    auto dst = toVk(cmd.newState);
+    auto src = toVulkan(cmd.oldState);
+    auto dst = toVulkan(cmd.newState);
 
     vk::ImageMemoryBarrier2 barrier{
         .srcStageMask = src.stageMask,

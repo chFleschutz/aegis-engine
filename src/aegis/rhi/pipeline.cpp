@@ -6,7 +6,7 @@ module;
 
 module aegis.rhi;
 import :pipeline;
-import :vulkan_common;
+import :vulkan;
 
 namespace aegis::rhi
 {
@@ -126,7 +126,7 @@ auto Pipeline::createGraphicsPipeline(
         const auto& module = shaderModules.emplace_back(std::move(*shaderModule));
         shaderStages.emplace_back(
             vk::PipelineShaderStageCreateInfo{
-                .stage = toVkType(stage),
+                .stage = toVulkan(stage),
                 .module = *module,
                 .pName = entryPoint.data(),
             });
@@ -147,7 +147,7 @@ auto Pipeline::createGraphicsPipeline(
                                 return vk::VertexInputAttributeDescription{
                                     .location = a.location,
                                     .binding = a.binding,
-                                    .format = toVk(a.format),
+                                    .format = toVulkan(a.format),
                                     .offset = a.offset,
                                 };
                             })
@@ -234,7 +234,7 @@ auto Pipeline::createGraphicsPipeline(
     vk::PipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.setDynamicStates(dynamicStates);
 
-    auto formats = desc.colorAttachments | std::views::transform([](Format f) { return toVk(f); }) |
+    auto formats = desc.colorAttachments | std::views::transform([](Format f) { return toVulkan(f); }) |
                    std::ranges::to<std::vector<vk::Format>>();
 
     auto structureChain = vk::StructureChain{
@@ -242,7 +242,7 @@ auto Pipeline::createGraphicsPipeline(
             .viewMask = 0,
             .colorAttachmentCount = static_cast<uint32_t>(formats.size()),
             .pColorAttachmentFormats = formats.data(),
-            .depthAttachmentFormat = toVk(desc.depthAttachment),
+            .depthAttachmentFormat = toVulkan(desc.depthAttachment),
             // .stencilAttachmentFormat =
         }
     };

@@ -81,7 +81,7 @@ public:
         auto context = aegis::rhi::Context::create(contextDesc);
         if (!context)
             return std::unexpected{
-                std::format("Failed to create rhi context: {}", context.error().operation)
+                std::format("Failed to create rhi context")
             };
 
         aegis::rhi::Device::Desc deviceDesc{
@@ -90,7 +90,7 @@ public:
         auto device = aegis::rhi::Device::create(deviceDesc);
         if (!device)
             return std::unexpected{
-                std::format("Failed to create rhi device: {}", device.error().operation)
+                std::format("Failed to create rhi device")
             };
 
         aegis::rhi::Swapchain::Desc swapchainDesc{
@@ -100,7 +100,7 @@ public:
         auto swapchain = aegis::rhi::Swapchain::create(swapchainDesc);
         if (!swapchain)
             return std::unexpected{
-                std::format("Failed to create swapchain: {}", swapchain.error().operation)
+                std::format("Failed to create swapchain")
             };
 
         aegis::rhi::CommandPool::Desc poolDesc{
@@ -110,7 +110,7 @@ public:
         auto commandPool = aegis::rhi::CommandPool::create(poolDesc);
         if (!commandPool)
             return std::unexpected{
-                std::format("Failed to create command pool: {}", commandPool.error().operation)
+                std::format("Failed to create command pool")
             };
 
         auto shader = loadSPIRV(SHADER_PATH);
@@ -143,7 +143,7 @@ public:
         auto pipeline = aegis::rhi::Pipeline::create(pipelineDesc);
         if (!pipeline)
             return std::unexpected{
-                std::format("Failed to create pipeline: {}", pipeline.error().operation)
+                std::format("Failed to create pipeline")
             };
 
         auto frameContext = createFrameContext(*device, *commandPool);
@@ -181,8 +181,7 @@ public:
     {
     }
 
-    auto run()
-        -> int
+    auto run() -> int
     {
         std::uint32_t currentFrame = 0;
         while (!m_window.shouldClose())

@@ -10,6 +10,7 @@ module aegis.rhi;
 import :swapchain;
 import :context;
 import :device;
+import :vulkan;
 
 namespace aegis::rhi
 {
@@ -56,7 +57,7 @@ auto Swapchain::create(const Desc& desc)
         std::move(*imageViews),
         std::move(*semaphores),
         extent,
-        fromVk(format->format)
+        toRHI(format->format)
     };
 }
 
