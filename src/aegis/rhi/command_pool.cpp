@@ -4,6 +4,8 @@ module;
 module aegis.rhi;
 import :command_pool;
 import :device;
+import :error;
+import :vulkan;
 
 namespace aegis::rhi
 {
@@ -17,7 +19,7 @@ auto CommandPool::create(const Desc& desc)
 
     auto commandPool = desc.device->createCommandPool(poolInfo);
     if (!commandPool.has_value())
-        return vkError(commandPool.result, "Failed to create command pool");
+        return makeError(toRHI(commandPool.result));
 
     return CommandPool{ std::move(*commandPool) };
 }

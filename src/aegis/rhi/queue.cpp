@@ -4,6 +4,8 @@ module;
 
 module aegis.rhi;
 import :queue;
+import :error;
+import :vulkan;
 import vulkan_hpp;
 
 namespace aegis::rhi
@@ -53,7 +55,7 @@ auto Queue::submit(const SubmitInfo& info)
     };
 
     if (auto result = m_queue.submit2(submitInfo); result != vk::Result::eSuccess)
-        return vkError(result, "Failed to submit command buffer to queue");
+        return makeError(toRHI(result));
 
     return m_submitCounter;
 }

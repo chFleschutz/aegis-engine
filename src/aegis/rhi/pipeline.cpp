@@ -74,7 +74,7 @@ auto Pipeline::createPipelineLayout(
     };
     auto pipelineLayout = device.createPipelineLayout(layoutCreateInfo);
     if (!pipelineLayout.has_value())
-        return vkError(pipelineLayout.result, "Failed to create pipeline layout");
+        return makeError(toRHI(pipelineLayout.result));
 
     return std::move(pipelineLayout.value);
 }
@@ -101,7 +101,7 @@ auto Pipeline::createComputePipeline(
 
     auto pipeline = desc.device->createComputePipeline(nullptr, createInfo);
     if (!pipeline.has_value())
-        return vkError(pipeline.result, "Failed to create compute pipeline");
+        return makeError(toRHI(pipeline.result));
 
     return std::move(pipeline.value);
 }
@@ -269,7 +269,7 @@ auto Pipeline::createGraphicsPipeline(
 
     auto pipeline = desc.device->createGraphicsPipeline(nullptr, createInfo);
     if (!pipeline.has_value())
-        return vkError(pipeline.result, "Failed to create graphics pipeline");
+        return makeError(toRHI(pipeline.result));
 
     return std::move(pipeline.value);
 }
@@ -285,7 +285,7 @@ auto Pipeline::createShaderModule(const vk::raii::Device& device,
 
     auto shaderModule = device.createShaderModule(shaderModuleCreateInfo);
     if (!shaderModule.has_value())
-        return vkError(shaderModule.result, "Failed to create shader module");
+        return makeError(toRHI(shaderModule.result));
 
     return std::move(shaderModule.value);
 }

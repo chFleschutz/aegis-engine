@@ -8,6 +8,7 @@ module aegis.rhi;
 import :command_buffer;
 import :command_pool;
 import :device;
+import :error;
 import :vulkan;
 
 namespace aegis::rhi
@@ -23,7 +24,7 @@ auto CommandBuffer::create(const Desc& desc)
 
     auto commandBuffer = desc.device->allocateCommandBuffers(info);
     if (!commandBuffer.has_value())
-        return vkError(commandBuffer.result, "Failed to allocate command buffer");
+        return makeError(toRHI(commandBuffer.result));
 
     return CommandBuffer{ std::move(commandBuffer->front()) };
 }

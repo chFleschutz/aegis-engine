@@ -5,6 +5,8 @@ module;
 module aegis.rhi;
 import :sync;
 import :device;
+import :error;
+import :vulkan;
 
 namespace aegis::rhi
 {
@@ -16,7 +18,7 @@ auto Fence::create(const Desc& desc)
     };
     auto fence = desc.device->createFence(fenceInfo);
     if (!fence.has_value())
-        return vkError(fence.result, "Failed to create fence");
+        return makeError(toRHI(fence.result));
 
     return Fence{ std::move(*fence) };
 }
@@ -50,7 +52,7 @@ auto Semaphore::create(const Desc& desc)
     vk::SemaphoreCreateInfo semaphoreInfo{};
     auto semaphore = desc.device->createSemaphore(semaphoreInfo);
     if (!semaphore.has_value())
-        return vkError(semaphore.result, "Failed to create semaphore");
+        return makeError(toRHI(semaphore.result));
 
     return Semaphore{ std::move(*semaphore) };
 }

@@ -9,6 +9,8 @@ module;
 module aegis.rhi;
 import :device;
 import :context;
+import :error;
+import :vulkan;
 
 namespace aegis::rhi
 {
@@ -89,10 +91,10 @@ auto Device::createPhysicalDevice(const Desc& desc)
 {
     auto [result, physicalDevices] = desc.context.instance().enumeratePhysicalDevices();
     if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to enumerate physical devices");
+        return makeError(toRHI(result));
 
     if (physicalDevices.empty())
-        return vkError(vk::Result::eErrorUnknown, "Failed to find any physical device");
+        return makeError(ErrorCode::Unknown);
 
     std::vector<std::pair<uint32_t, uint32_t>> candidates;
     for (size_t i = 0; i < physicalDevices.size(); ++i)
@@ -122,7 +124,7 @@ auto Device::createPhysicalDevice(const Desc& desc)
 
     std::ranges::sort(candidates);
     if (candidates.empty() || candidates.front().first == 0)
-        return vkError(vk::Result::eErrorUnknown, "Failed to find suitable physical device");
+        return makeError(ErrorCode::Unknown);
 
     const auto& [_, index] = candidates.front();
     return physicalDevices[index];
@@ -188,7 +190,7 @@ auto Device::createQueue(const vk::raii::Device& device,
     };
     auto semaphore = device.createSemaphore(semaphoreInfo);
     if (!semaphore.has_value())
-        return vkError(semaphore.result, "Failed to create queue tracking semaphore");
+        return makeError(toRHI(semaphore.result));
 
     return Queue{ std::move(queue), std::move(*semaphore), queueFamily };
 }
@@ -249,7 +251,7 @@ auto Device::createDevice(
 
     auto device = pd.createDevice(deviceInfo);
     if (!device.has_value())
-        return vkError(device.result, "Failed to create device");
+        return makeError(toRHI(device.result));
 
     return std::move(*device);
 }

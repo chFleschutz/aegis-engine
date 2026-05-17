@@ -66,7 +66,7 @@ auto Swapchain::acquireNextImage(const Semaphore& imageAvailable) const
 {
     auto index = m_swapchain.acquireNextImage(std::numeric_limits<uint64_t>::max(), *imageAvailable);
     if (!index.has_value())
-        return vkError(index.result, "Failed to acquire surface image");
+        return makeError(toRHI(index.result));
 
     return AcquiredImage{
         .image = m_images[*index],
@@ -99,7 +99,7 @@ auto Swapchain::querySurfaceCapabilities(
 {
     auto surfaceCaps = physicalDevice.getSurfaceCapabilitiesKHR(surface);
     if (!surfaceCaps.has_value())
-        return vkError(surfaceCaps.result, "Failed to get surface capabilities");
+        return makeError(toRHI(surfaceCaps.result));
     return surfaceCaps.value;
 }
 
@@ -123,7 +123,7 @@ auto Swapchain::queryPresentMode(
 {
     auto presentModes = physicalDevice.getSurfacePresentModesKHR(surface);
     if (!presentModes.has_value())
-        return vkError(presentModes.result, "Failed to get surface present modes");
+        return makeError(toRHI(presentModes.result));
 
     // Prefer mailbox
     if (std::ranges::any_of(*presentModes,
@@ -139,7 +139,7 @@ auto Swapchain::queryPresentMode(
         }))
         return vk::PresentModeKHR::eFifo;
 
-    return vkError(vk::Result::eErrorUnknown, "Failed to find suitable present mode");
+    return makeError(ErrorCode::Unknown);
 }
 
 auto Swapchain::querySwapchainFormat(
@@ -149,10 +149,10 @@ auto Swapchain::querySwapchainFormat(
 {
     auto availableFormats = physicalDevice.getSurfaceFormatsKHR(surface);
     if (!availableFormats.has_value())
-        return vkError(availableFormats.result, "Failed to get surface formats");
+        return makeError(toRHI(availableFormats.result));
 
     if (availableFormats->empty())
-        return vkError(vk::Result::eErrorUnknown, "No valid surface format found");
+        return makeError(ErrorCode::Unknown);
 
     const auto it = std::ranges::find_if(*availableFormats,
         [](const auto& format) {
@@ -192,7 +192,7 @@ auto Swapchain::createSwapchain(
 
     auto swapchain = desc.device->createSwapchainKHR(createInfo);
     if (!swapchain.has_value())
-        return vkError(swapchain.result, "Failed to create swapchain");
+        return makeError(toRHI(swapchain.result));
 
     return std::move(*swapchain);
 }
@@ -202,7 +202,7 @@ auto Swapchain::createImages(const vk::raii::SwapchainKHR& swapchain)
 {
     auto images = swapchain.getImages();
     if (!images.has_value())
-        return vkError(images.result, "Failed to get swapchain images");
+        return makeError(toRHI(images.result));
 
     return std::move(*images);
 }
@@ -214,7 +214,7 @@ auto Swapchain::createImageViews(
     -> std::expected<std::vector<vk::raii::ImageView>, Error>
 {
     if (images.empty())
-        return vkError(vk::Result::eErrorUnknown, "Swapchain contains no images");
+        return makeError(ErrorCode::Unknown);
 
     std::vector<vk::raii::ImageView> imageViews;
     vk::ImageViewCreateInfo createInfo{
@@ -234,7 +234,7 @@ auto Swapchain::createImageViews(
         createInfo.image = image;
         auto imageView = device.createImageView(createInfo);
         if (!imageView.has_value())
-            return vkError(imageView.result, "Failed to create swapchain image views");
+            return makeError(toRHI(imageView.result));
 
         imageViews.emplace_back(std::move(*imageView));
     }

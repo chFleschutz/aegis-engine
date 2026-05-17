@@ -10,6 +10,8 @@ module;
 
 module aegis.rhi;
 import :context;
+import :error;
+import :vulkan;
 import aegis.platform.window;
 
 namespace aegis::rhi
@@ -97,7 +99,7 @@ auto Context::createInstance(const vk::raii::Context& context,
 
     auto instance = context.createInstance(instanceInfo);
     if (!instance.has_value())
-        return vkError(instance.result, "Failed to create instance");
+        return makeError(toRHI(instance.result));
 
     return std::move(*instance);
 }
@@ -125,7 +127,7 @@ auto Context::createDebugMessenger(const vk::raii::Instance& instance)
 
     auto debugMessenger = instance.createDebugUtilsMessengerEXT(createInfo);
     if (!debugMessenger.has_value())
-        return vkError(debugMessenger.result, "Failed to create debug messenger");
+        return makeError(toRHI(debugMessenger.result));
 
     return std::move(*debugMessenger);
 }
@@ -138,7 +140,7 @@ auto Context::createSurface(const vk::raii::Instance& instance,
     auto result = static_cast<vk::Result>(
         glfwCreateWindowSurface(*instance, desc.window.glfwWindow(), nullptr, &surface));
     if (result != vk::Result::eSuccess)
-        return vkError(result, "Failed to create Surface");
+        return makeError(toRHI(result));
 
     return vk::raii::SurfaceKHR{ instance, surface };
 }
@@ -170,7 +172,7 @@ auto Context::findLayers(const vk::raii::Context& context)
 
     auto layerProps = context.enumerateInstanceLayerProperties();
     if (!layerProps.has_value())
-        return vkError(layerProps.result, "Failed to enumerate instance layer properties");
+        return makeError(toRHI(layerProps.result));
 
     const auto missingIt = std::ranges::find_if(layers,
         [&layerProps](std::string_view required) {
@@ -181,7 +183,7 @@ auto Context::findLayers(const vk::raii::Context& context)
         });
 
     if (missingIt != layers.end())
-        return vkError(vk::Result::eErrorUnknown, "Missing required instance layer");
+        return makeError(ErrorCode::Unknown);
 
     return layers;
 }
