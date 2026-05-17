@@ -183,80 +183,93 @@ public:
 
     auto run() -> int
     {
-        std::uint32_t currentFrame = 0;
         while (!m_window.shouldClose())
         {
             m_window.pollEvents();
 
-            auto& [cmd, imageAvailable, timePoint] = m_frameContext[currentFrame];
-            if (!m_device.graphicsQueue().wait(timePoint))
+            if (m_swapchain.needsRecreation())
             {
-                std::println("Failed to wait for frame sync fence");
-                return 1;
+                resize();
             }
 
-            auto acquiredImage = m_swapchain.acquireNextImage(imageAvailable);
-            if (!acquiredImage)
-            {
-                std::println("Failed to acquire next swapchain image");
-                return 1;
-            }
-
-            cmd.begin();
-
-            cmd.transitionImageLayout({
-                .image = acquiredImage->image,
-                .oldState = aegis::rhi::ResourceState::Unknown,
-                .newState = aegis::rhi::ResourceState::RenderTarget,
-            });
-            auto attachmentDesc = std::array{
-                aegis::rhi::CommandBuffer::AttachmentDesc{
-                    .imageView = acquiredImage->view,
-                }
-            };
-            cmd.beginRendering({ m_swapchain.extent(), attachmentDesc });
-            cmd.bindPipeline(m_pipeline);
-            cmd.setViewport(m_swapchain.extent().x, m_swapchain.extent().y);
-            cmd.setScissor(m_swapchain.extent().x, m_swapchain.extent().y);
-            cmd.draw(3);
-            cmd.endRendering();
-
-            cmd.transitionImageLayout({
-                .image = acquiredImage->image,
-                .oldState = aegis::rhi::ResourceState::RenderTarget,
-                .newState = aegis::rhi::ResourceState::Present,
-            });
-            cmd.end();
-
-            aegis::rhi::Queue::SubmitInfo submitInfo{
-                .commandBuffer = cmd,
-                .waitSemaphore = imageAvailable,
-                .signalSemaphore = acquiredImage->presentReady,
-            };
-            auto newSubmitTime = m_device.graphicsQueue().submit(submitInfo);
-            if (!newSubmitTime)
-            {
-                std::println("Failed to submit to queue");
-                return 1;
-            }
-            timePoint = *newSubmitTime;
-
-            aegis::rhi::Queue::PresentInfo presentInfo{
-                .swapchain = m_swapchain,
-                .waitSemaphore = acquiredImage->presentReady,
-                .imageIndex = acquiredImage->imageIndex,
-            };
-            if (auto result = m_device.presentQueue().present(presentInfo); !result)
-            {
-                std::println("Failed to present to queue");
-                return 1;
-            }
-
-            currentFrame = (currentFrame + 1) % framesInFlight;
+            drawFrame();
         }
 
         std::ignore = m_device->waitIdle();
         return 0;
+    }
+
+    auto drawFrame() -> void
+    {
+        auto& [cmd, imageAvailable, timePoint] = m_frameContext[m_currentFrame];
+        if (!m_device.graphicsQueue().wait(timePoint))
+        {
+            std::println("Failed to wait for frame sync fence");
+            return;
+        }
+
+        auto acquiredImage = m_swapchain.acquireNextImage(imageAvailable);
+        if (!acquiredImage && acquiredImage.error().code == aegis::rhi::ErrorCode::OutOfDate)
+            return;
+        if (!acquiredImage)
+        {
+            std::println("Failed to acquire next swapchain image");
+            return;
+        }
+
+        cmd.begin();
+
+        cmd.transitionImageLayout({
+            .image = acquiredImage->image,
+            .oldState = aegis::rhi::ResourceState::Unknown,
+            .newState = aegis::rhi::ResourceState::RenderTarget,
+        });
+        auto attachmentDesc = std::array{
+            aegis::rhi::CommandBuffer::AttachmentDesc{
+                .imageView = acquiredImage->view,
+            }
+        };
+        cmd.beginRendering({ m_swapchain.extent(), attachmentDesc });
+        cmd.bindPipeline(m_pipeline);
+        cmd.setViewport(m_swapchain.extent().x, m_swapchain.extent().y);
+        cmd.setScissor(m_swapchain.extent().x, m_swapchain.extent().y);
+        cmd.draw(3);
+        cmd.endRendering();
+
+        cmd.transitionImageLayout({
+            .image = acquiredImage->image,
+            .oldState = aegis::rhi::ResourceState::RenderTarget,
+            .newState = aegis::rhi::ResourceState::Present,
+        });
+        cmd.end();
+
+        aegis::rhi::Queue::SubmitInfo submitInfo{
+            .commandBuffer = cmd,
+            .waitSemaphore = imageAvailable,
+            .signalSemaphore = acquiredImage->presentReady,
+        };
+        auto newSubmitTime = m_device.graphicsQueue().submit(submitInfo);
+        if (!newSubmitTime)
+        {
+            std::println("Failed to submit to queue");
+            return;
+        }
+        timePoint = *newSubmitTime;
+
+
+        auto result = m_swapchain.present(m_device.presentQueue(), *acquiredImage);
+        if (!result)
+        {
+            std::println("Failed to present to queue");
+            return;
+        }
+
+        m_currentFrame = (m_currentFrame + 1) % framesInFlight;
+    }
+
+    auto resize() -> void
+    {
+
     }
 
 private:
@@ -267,10 +280,10 @@ private:
     aegis::rhi::CommandPool m_commandPool;
     aegis::rhi::Pipeline m_pipeline;
     std::vector<FrameContext> m_frameContext;
+    std::uint32_t m_currentFrame = 0;
 };
 
-auto main()
-    -> int
+auto main() -> int
 {
     auto app = Application::create();
     if (!app)

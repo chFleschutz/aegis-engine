@@ -60,23 +60,6 @@ auto Queue::submit(const SubmitInfo& info)
     return m_submitCounter;
 }
 
-auto Queue::present(const PresentInfo& info) const
-    -> bool
-{
-    auto waitSemaphore = *info.waitSemaphore;
-    auto swapchain = *info.swapchain;
-    auto presentInfo = vk::PresentInfoKHR{
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &waitSemaphore,
-        .swapchainCount = 1,
-        .pSwapchains = &swapchain,
-        .pImageIndices = &info.imageIndex,
-    };
-
-    auto result = m_queue.presentKHR(presentInfo);
-    return result == vk::Result::eSuccess; // TODO: Handle result eSuboptimalKHR
-}
-
 auto Queue::wait(std::uint64_t timePoint) const
     -> bool
 {

@@ -61,12 +61,25 @@ auto Swapchain::create(const Desc& desc)
     };
 }
 
-auto Swapchain::acquireNextImage(const Semaphore& imageAvailable) const
+auto Swapchain::acquireNextImage(const Semaphore& imageAvailable)
     -> std::expected<AcquiredImage, Error>
 {
     auto index = m_swapchain.acquireNextImage(std::numeric_limits<uint64_t>::max(), *imageAvailable);
-    if (!index.has_value())
+    if (index.result == vk::Result::eSuboptimalKHR)
+    {
+        // Swapchain needs to be recreated but ok to continue
+        m_needsRecreation = true;
+    }
+    else if (index.result == vk::Result::eErrorOutOfDateKHR)
+    {
+        // Swapchain needs to be recreated and cannot continue
+        m_needsRecreation = true;
+        return makeError(ErrorCode::OutOfDate);
+    }
+    else if (index.result != vk::Result::eSuccess)
+    {
         return makeError(toRHI(index.result));
+    }
 
     return AcquiredImage{
         .image = m_images[*index],
@@ -74,6 +87,31 @@ auto Swapchain::acquireNextImage(const Semaphore& imageAvailable) const
         .presentReady = m_semaphores[*index],
         .imageIndex = *index,
     };
+}
+
+auto Swapchain::present(const Queue& queue, const AcquiredImage& image) -> std::expected<void, Error>
+{
+    auto waitSemaphore = *image.presentReady;
+    auto swapchain = *m_swapchain;
+    vk::PresentInfoKHR presentInfo{
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &waitSemaphore,
+        .swapchainCount = 1,
+        .pSwapchains = &swapchain,
+        .pImageIndices = &image.imageIndex,
+    };
+
+    auto result = queue->presentKHR(presentInfo);
+    if (result == vk::Result::eErrorOutOfDateKHR)
+    {
+        m_needsRecreation = true;
+    }
+    else if (result != vk::Result::eSuccess)
+    {
+        return makeError(toRHI(result));
+    }
+
+    return {};
 }
 
 Swapchain::Swapchain(
@@ -188,6 +226,7 @@ auto Swapchain::createSwapchain(
         .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
         .presentMode = presentMode,
         .clipped = true,
+        .oldSwapchain = desc.oldSwapchain ? desc.oldSwapchain->handle() : nullptr,
     };
 
     auto swapchain = desc.device->createSwapchainKHR(createInfo);

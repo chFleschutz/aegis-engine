@@ -19,6 +19,7 @@ public:
         const Context& context;
         const Device& device;
         vk::Extent2D extent;
+        Swapchain* oldSwapchain = nullptr;
     };
 
     struct AcquiredImage
@@ -31,11 +32,17 @@ public:
     };
 
     static auto create(const Desc& desc) -> std::expected<Swapchain, Error>;
+
     [[nodiscard]] auto operator*() const -> vk::SwapchainKHR { return *m_swapchain; }
+    [[nodiscard]] auto handle() const -> vk::SwapchainKHR { return *m_swapchain; }
     [[nodiscard]] auto surfaceFormat() const -> Format { return m_surfaceFormat; }
     [[nodiscard]] auto extent() const -> Extent2D { return m_extent; }
+    [[nodiscard]] auto needsRecreation() const -> bool { return m_needsRecreation; }
+
     [[nodiscard]] auto acquireNextImage(
-        const Semaphore& imageAvailable) const -> std::expected<AcquiredImage, Error>;
+        const Semaphore& imageAvailable) -> std::expected<AcquiredImage, Error>;
+
+    [[nodiscard]] auto present(const Queue& queue, const AcquiredImage& image) -> std::expected<void, Error>;
 
 private:
     Swapchain(
@@ -97,5 +104,6 @@ private:
     Extent2D m_extent;
     Format m_surfaceFormat;
     std::uint32_t m_currentImage{ 0 };
+    bool m_needsRecreation{ false };
 };
 }
