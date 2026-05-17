@@ -33,6 +33,10 @@ public:
 
     auto pollEvents() const -> void;
 
+    /// @brief Queries the extent of the windows framebuffer
+    /// @note Caches the result internally (cached available with width() and height())
+    [[nodiscard]] auto queryExtent() -> std::pair<uint32_t, uint32_t>;
+
 private:
     static auto onWindowResize(GLFWwindow* glfwWindow, int newWidth, int newHeight) -> void;
 

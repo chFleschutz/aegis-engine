@@ -1,5 +1,6 @@
 module;
 #include <cstdint>
+#include <utility>
 
 export module aegis.rhi:common;
 
@@ -9,6 +10,18 @@ struct Extent2D
 {
     uint32_t x;
     uint32_t y;
+
+    Extent2D(uint32_t x, uint32_t y) :
+        x{ x },
+        y{ y }
+    {
+    }
+
+    explicit Extent2D(std::pair<uint32_t, uint32_t> pair) :
+        x{ pair.first },
+        y{ pair.second }
+    {
+    }
 };
 
 enum class ErrorCode
@@ -88,5 +101,4 @@ enum class ResourceState
     CopyDst,
     Present,
 };
-
 }

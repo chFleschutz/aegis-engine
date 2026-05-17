@@ -61,6 +61,15 @@ auto Window::pollEvents() const -> void
     glfwPollEvents();
 }
 
+auto Window::queryExtent() -> std::pair<uint32_t, uint32_t>
+{
+    int width, height;
+    glfwGetFramebufferSize(m_window, &width, &height);
+    m_width = static_cast<uint32_t>(width);
+    m_height = static_cast<uint32_t>(height);
+    return { m_width, m_height };
+}
+
 auto Window::onWindowResize(GLFWwindow* glfwWindow, int newWidth, int newHeight) -> void
 {
     const auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));

@@ -96,6 +96,7 @@ public:
         aegis::rhi::Swapchain::Desc swapchainDesc{
             .context = *context,
             .device = *device,
+            .extent = aegis::rhi::Extent2D{ window.queryExtent() },
         };
         auto swapchain = aegis::rhi::Swapchain::create(swapchainDesc);
         if (!swapchain)
@@ -187,7 +188,7 @@ public:
         {
             m_window.pollEvents();
 
-            if (m_swapchain.needsRecreation())
+            if (m_window.wasResized() || m_swapchain.needsRecreation())
             {
                 resize();
             }
@@ -256,7 +257,6 @@ public:
         }
         timePoint = *newSubmitTime;
 
-
         auto result = m_swapchain.present(m_device.presentQueue(), *acquiredImage);
         if (!result)
         {
@@ -269,7 +269,21 @@ public:
 
     auto resize() -> void
     {
+        std::ignore = m_device->waitIdle();
 
+        aegis::rhi::Swapchain::Desc swapchainDesc{
+            .context = m_context,
+            .device = m_device,
+            .extent = aegis::rhi::Extent2D{ m_window.queryExtent() },
+            .oldSwapchain = &m_swapchain,
+        };
+        auto swapchain = aegis::rhi::Swapchain::create(swapchainDesc);
+        if (!swapchain)
+        {
+            std::println("Failed to recreate swapchain");
+            return;
+        }
+        m_swapchain = std::move(*swapchain);
     }
 
 private:

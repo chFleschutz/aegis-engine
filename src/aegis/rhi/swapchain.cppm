@@ -18,7 +18,7 @@ public:
     {
         const Context& context;
         const Device& device;
-        vk::Extent2D extent;
+        Extent2D extent;
         Swapchain* oldSwapchain = nullptr;
     };
 
@@ -33,6 +33,20 @@ public:
 
     static auto create(const Desc& desc) -> std::expected<Swapchain, Error>;
 
+    Swapchain(
+        vk::raii::SwapchainKHR swapchain,
+        std::vector<vk::Image> images,
+        std::vector<vk::raii::ImageView> imageViews,
+        std::vector<Semaphore> semaphores,
+        vk::Extent2D extent,
+        Format format);
+    Swapchain(const Swapchain&) = delete;
+    Swapchain(Swapchain&& other) noexcept = default;
+    ~Swapchain() = default;
+
+    auto operator=(const Swapchain&) -> Swapchain& = delete;
+    auto operator=(Swapchain&& other) noexcept -> Swapchain& =default;
+
     [[nodiscard]] auto operator*() const -> vk::SwapchainKHR { return *m_swapchain; }
     [[nodiscard]] auto handle() const -> vk::SwapchainKHR { return *m_swapchain; }
     [[nodiscard]] auto surfaceFormat() const -> Format { return m_surfaceFormat; }
@@ -45,21 +59,13 @@ public:
     [[nodiscard]] auto present(const Queue& queue, const AcquiredImage& image) -> std::expected<void, Error>;
 
 private:
-    Swapchain(
-        vk::raii::SwapchainKHR swapchain,
-        std::vector<vk::Image> images,
-        std::vector<vk::raii::ImageView> imageViews,
-        std::vector<Semaphore> semaphores,
-        vk::Extent2D extent,
-        Format format);
-
     [[nodiscard]] static auto querySurfaceCapabilities(
         const vk::raii::PhysicalDevice& physicalDevice,
         const vk::raii::SurfaceKHR& surface)
         -> std::expected<vk::SurfaceCapabilitiesKHR, Error>;
 
     [[nodiscard]] static auto querySwapchainExtent(
-        vk::Extent2D preferred,
+        Extent2D preferred,
         const vk::SurfaceCapabilitiesKHR& caps)
         -> vk::Extent2D;
 
@@ -101,8 +107,8 @@ private:
     std::vector<vk::Image> m_images;
     std::vector<vk::raii::ImageView> m_imageViews;
     std::vector<Semaphore> m_semaphores;
-    Extent2D m_extent;
-    Format m_surfaceFormat;
+    Extent2D m_extent{ 0, 0 };
+    Format m_surfaceFormat{ Format::Unknown };
     std::uint32_t m_currentImage{ 0 };
     bool m_needsRecreation{ false };
 };

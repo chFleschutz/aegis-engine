@@ -5,6 +5,7 @@ module;
 #include <cassert>
 #include <expected>
 #include <print>
+#include <syncstream>
 
 module aegis.rhi;
 import :swapchain;
@@ -51,7 +52,8 @@ auto Swapchain::create(const Desc& desc)
     if (!semaphores)
         return std::unexpected{ semaphores.error() };
 
-    return Swapchain{
+    return std::expected<Swapchain, Error>{
+        std::in_place,
         std::move(*swapchain),
         std::move(*images),
         std::move(*imageViews),
@@ -141,7 +143,7 @@ auto Swapchain::querySurfaceCapabilities(
     return surfaceCaps.value;
 }
 
-auto Swapchain::querySwapchainExtent(vk::Extent2D preferred,
+auto Swapchain::querySwapchainExtent(Extent2D preferred,
     const vk::SurfaceCapabilitiesKHR& caps)
     -> vk::Extent2D
 {
@@ -149,8 +151,8 @@ auto Swapchain::querySwapchainExtent(vk::Extent2D preferred,
         return caps.currentExtent;
 
     return vk::Extent2D{
-        std::clamp(preferred.width, caps.minImageExtent.width, caps.maxImageExtent.width),
-        std::clamp(preferred.height, caps.minImageExtent.height, caps.maxImageExtent.height)
+        std::clamp(preferred.x, caps.minImageExtent.width, caps.maxImageExtent.width),
+        std::clamp(preferred.y, caps.minImageExtent.height, caps.maxImageExtent.height)
     };
 }
 
