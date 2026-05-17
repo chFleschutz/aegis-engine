@@ -56,18 +56,19 @@ auto Window::shouldClose() const -> bool
     return glfwWindowShouldClose(m_window);
 }
 
-auto Window::pollEvents() const -> void
+auto Window::update() -> void
 {
     glfwPollEvents();
-}
 
-auto Window::queryExtent() -> std::pair<uint32_t, uint32_t>
-{
     int width, height;
     glfwGetFramebufferSize(m_window, &width, &height);
     m_width = static_cast<uint32_t>(width);
     m_height = static_cast<uint32_t>(height);
-    return { m_width, m_height };
+}
+
+auto Window::waitEvents() -> void
+{
+    glfwWaitEvents();
 }
 
 auto Window::onWindowResize(GLFWwindow* glfwWindow, int newWidth, int newHeight) -> void

@@ -96,7 +96,7 @@ public:
         aegis::rhi::Swapchain::Desc swapchainDesc{
             .context = *context,
             .device = *device,
-            .extent = aegis::rhi::Extent2D{ window.queryExtent() },
+            .extent = aegis::rhi::Extent2D{ window.extent() },
         };
         auto swapchain = aegis::rhi::Swapchain::create(swapchainDesc);
         if (!swapchain)
@@ -186,12 +186,15 @@ public:
     {
         while (!m_window.shouldClose())
         {
-            m_window.pollEvents();
+            m_window.update();
+            if (m_window.isMinimized())
+            {
+                m_window.waitEvents();
+                continue;
+            }
 
             if (m_window.wasResized() || m_swapchain.needsRecreation())
-            {
                 resize();
-            }
 
             drawFrame();
         }
@@ -274,7 +277,7 @@ public:
         aegis::rhi::Swapchain::Desc swapchainDesc{
             .context = m_context,
             .device = m_device,
-            .extent = aegis::rhi::Extent2D{ m_window.queryExtent() },
+            .extent = aegis::rhi::Extent2D{ m_window.extent() },
             .oldSwapchain = &m_swapchain,
         };
         auto swapchain = aegis::rhi::Swapchain::create(swapchainDesc);
@@ -284,6 +287,7 @@ public:
             return;
         }
         m_swapchain = std::move(*swapchain);
+        m_window.resetResized();
     }
 
 private:

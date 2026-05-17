@@ -28,14 +28,16 @@ public:
     [[nodiscard]] auto glfwWindow() const -> GLFWwindow* { return m_window; }
     [[nodiscard]] auto width() const -> uint32_t { return m_width; }
     [[nodiscard]] auto height() const -> uint32_t { return m_height; }
+    [[nodiscard]] auto extent() const -> std::pair<uint32_t, uint32_t> { return { m_width, m_height }; }
+    [[nodiscard]] auto isMinimized() const -> bool { return m_width == 0 || m_height == 0; }
     [[nodiscard]] auto wasResized() const -> bool { return m_wasResized; }
     [[nodiscard]] auto shouldClose() const -> bool;
 
-    auto pollEvents() const -> void;
+    auto update() -> void;
 
-    /// @brief Queries the extent of the windows framebuffer
-    /// @note Caches the result internally (cached available with width() and height())
-    [[nodiscard]] auto queryExtent() -> std::pair<uint32_t, uint32_t>;
+    auto waitEvents() -> void;
+
+    auto resetResized() -> void { m_wasResized = false; }
 
 private:
     static auto onWindowResize(GLFWwindow* glfwWindow, int newWidth, int newHeight) -> void;
