@@ -14,15 +14,13 @@ import :vulkan;
 
 namespace aegis::rhi
 {
-auto Device::QueueFamilyIndices::isComplete() const
-    -> bool
+auto Device::QueueFamilyIndices::isComplete() const -> bool
 {
     return graphics != vk::QueueFamilyIgnored && present != vk::QueueFamilyIgnored &&
            compute != vk::QueueFamilyIgnored && transfer != vk::QueueFamilyIgnored;
 }
 
-auto Device::create(const Desc& desc)
-    -> std::expected<Device, Error>
+auto Device::create(const Desc& desc) -> std::expected<Device, Error>
 {
     auto physicalDevice = createPhysicalDevice(desc);
     if (!physicalDevice)
@@ -62,8 +60,7 @@ auto Device::create(const Desc& desc)
     };
 }
 
-auto Device::physicalDevice() const
-    -> const vk::raii::PhysicalDevice&
+auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
 {
     return m_physicalDevice;
 }
@@ -176,7 +173,8 @@ auto Device::queryQueueFamilies(
     return indices;
 }
 
-auto Device::createQueue(const vk::raii::Device& device,
+auto Device::createQueue(
+    const vk::raii::Device& device,
     std::uint32_t queueFamily)
     -> std::expected<Queue, Error>
 {
@@ -193,26 +191,6 @@ auto Device::createQueue(const vk::raii::Device& device,
         return makeError(toRHI(semaphore.result));
 
     return Queue{ std::move(queue), std::move(*semaphore), queueFamily };
-}
-
-auto Device::queryCapabilities(const vk::raii::PhysicalDevice& pd)
-    -> Capabilities
-{
-    auto features = pd.getFeatures2< //
-        vk::PhysicalDeviceFeatures2,
-        vk::PhysicalDeviceVulkan11Features,
-        vk::PhysicalDeviceVulkan12Features,
-        vk::PhysicalDeviceVulkan13Features,
-        vk::PhysicalDeviceMeshShaderFeaturesEXT>();
-    // const auto& vk10features = features.get<vk::PhysicalDeviceFeatures2>();
-    // const auto& vk11features = features.get<vk::PhysicalDeviceVulkan11Features>();
-    // const auto& vk12features = features.get<vk::PhysicalDeviceVulkan12Features>();
-    // const auto& vk13features = features.get<vk::PhysicalDeviceVulkan13Features>();
-    const auto& meshShaderFeatures = features.get<vk::PhysicalDeviceMeshShaderFeaturesEXT>();
-
-    return Capabilities{
-        .meshShaders = meshShaderFeatures.meshShader && meshShaderFeatures.taskShader,
-    };
 }
 
 auto Device::createDevice(
@@ -256,8 +234,26 @@ auto Device::createDevice(
     return std::move(*device);
 }
 
-auto Device::queryExtensions(const Capabilities& caps)
-    -> std::vector<const char*>
+auto Device::queryCapabilities(const vk::raii::PhysicalDevice& pd) -> Capabilities
+{
+    auto features = pd.getFeatures2< //
+        vk::PhysicalDeviceFeatures2,
+        vk::PhysicalDeviceVulkan11Features,
+        vk::PhysicalDeviceVulkan12Features,
+        vk::PhysicalDeviceVulkan13Features,
+        vk::PhysicalDeviceMeshShaderFeaturesEXT>();
+    // const auto& vk10features = features.get<vk::PhysicalDeviceFeatures2>();
+    // const auto& vk11features = features.get<vk::PhysicalDeviceVulkan11Features>();
+    // const auto& vk12features = features.get<vk::PhysicalDeviceVulkan12Features>();
+    // const auto& vk13features = features.get<vk::PhysicalDeviceVulkan13Features>();
+    const auto& meshShaderFeatures = features.get<vk::PhysicalDeviceMeshShaderFeaturesEXT>();
+
+    return Capabilities{
+        .meshShaders = meshShaderFeatures.meshShader && meshShaderFeatures.taskShader,
+    };
+}
+
+auto Device::queryExtensions(const Capabilities& caps) -> std::vector<const char*>
 {
     std::vector extensions(requiredExtensions.begin(), requiredExtensions.end());
 
@@ -269,8 +265,7 @@ auto Device::queryExtensions(const Capabilities& caps)
     return extensions;
 }
 
-auto Device::supportsExtensions(const vk::raii::PhysicalDevice& pd)
-    -> bool
+auto Device::supportsExtensions(const vk::raii::PhysicalDevice& pd) -> bool
 {
     auto availableExtensions = pd.enumerateDeviceExtensionProperties();
     if (!availableExtensions.has_value())
@@ -285,8 +280,7 @@ auto Device::supportsExtensions(const vk::raii::PhysicalDevice& pd)
         });
 }
 
-auto Device::createFeatureChain()
-    -> FeatureChain
+auto Device::createFeatureChain() -> FeatureChain
 {
     FeatureChain featureChain;
 
@@ -336,8 +330,7 @@ auto Device::createFeatureChain()
     return featureChain;
 }
 
-auto Device::queryProperties(const vk::raii::PhysicalDevice& pd)
-    -> Properties
+auto Device::queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties
 {
     auto props = pd.getProperties2<
         vk::PhysicalDeviceProperties2,

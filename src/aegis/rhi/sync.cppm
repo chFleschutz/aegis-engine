@@ -16,20 +16,17 @@ public:
         const Device& device;
     };
 
-    [[nodiscard]] static auto create(const Desc& desc)
-        -> std::expected<Fence, Error>;
+    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Fence, Error>;
 
-    [[nodiscard]] auto operator*() const noexcept
-        -> vk::Fence { return *m_fence; }
 
-    [[nodiscard]] auto wait() const noexcept
-        -> bool;
+    [[nodiscard]] auto operator*() const noexcept -> vk::Fence { return *m_fence; }
 
+    [[nodiscard]] auto wait() const noexcept -> bool;
     [[nodiscard]] auto reset() const noexcept -> bool;
 
 private:
     explicit Fence(vk::raii::Fence fence);
-
+    
     vk::raii::Fence m_fence;
 };
 
@@ -41,11 +38,9 @@ public:
         const Device& device;
     };
 
-    [[nodiscard]] static auto create(const Desc& desc)
-        -> std::expected<Semaphore, Error>;
+    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Semaphore, Error>;
 
-    [[nodiscard]] auto operator*() const noexcept
-        -> vk::Semaphore { return *m_semaphore; }
+    [[nodiscard]] auto operator*() const noexcept -> vk::Semaphore { return *m_semaphore; }
 
 private:
     explicit Semaphore(vk::raii::Semaphore semaphore);

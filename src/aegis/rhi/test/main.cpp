@@ -9,8 +9,7 @@ import aegis.platform.window;
 
 using SpirvBuffer = std::vector<uint32_t>;
 
-auto loadSPIRV(const std::filesystem::path& path)
-    -> std::expected<SpirvBuffer, std::string>
+auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, std::string>
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
 
@@ -40,7 +39,8 @@ struct FrameContext
 
 constexpr uint32_t framesInFlight = 2;
 
-auto createFrameContext(const aegis::rhi::Device& device,
+auto createFrameContext(
+    const aegis::rhi::Device& device,
     const aegis::rhi::CommandPool& pool)
     -> std::expected<std::vector<FrameContext>, std::string>
 {

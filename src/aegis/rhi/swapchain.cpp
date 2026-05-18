@@ -283,7 +283,8 @@ auto Swapchain::createImageViews(
     return imageViews;
 }
 
-auto Swapchain::createSemaphores(const Device& device,
+auto Swapchain::createSemaphores(
+    const Device& device,
     std::size_t imageCount)
     -> std::expected<std::vector<Semaphore>, Error>
 {
@@ -301,8 +302,7 @@ auto Swapchain::createSemaphores(const Device& device,
     return semaphores;
 }
 
-auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps)
-    -> uint32_t
+auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> uint32_t
 {
     constexpr uint32_t desiredImageCount{ 3 };
     uint32_t imageCount = std::max(desiredImageCount, caps.minImageCount);

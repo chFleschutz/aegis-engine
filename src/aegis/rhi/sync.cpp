@@ -10,8 +10,7 @@ import :vulkan;
 
 namespace aegis::rhi
 {
-auto Fence::create(const Desc& desc)
-    -> std::expected<Fence, Error>
+auto Fence::create(const Desc& desc) -> std::expected<Fence, Error>
 {
     vk::FenceCreateInfo fenceInfo{
         .flags = vk::FenceCreateFlagBits::eSignaled,
@@ -23,8 +22,7 @@ auto Fence::create(const Desc& desc)
     return Fence{ std::move(*fence) };
 }
 
-auto Fence::wait() const noexcept
-    -> bool
+auto Fence::wait() const noexcept -> bool
 {
     auto result = m_fence.getDevice().waitForFences(*m_fence,
         vk::True,
@@ -34,8 +32,7 @@ auto Fence::wait() const noexcept
     return result == vk::Result::eSuccess;
 }
 
-auto Fence::reset() const noexcept
-    -> bool
+auto Fence::reset() const noexcept -> bool
 {
     auto result = m_fence.getDevice().resetFences(*m_fence, *m_fence.getDispatcher());
     return result == vk::Result::eSuccess;
@@ -46,8 +43,7 @@ Fence::Fence(vk::raii::Fence fence) :
 {
 }
 
-auto Semaphore::create(const Desc& desc)
-    -> std::expected<Semaphore, Error>
+auto Semaphore::create(const Desc& desc) -> std::expected<Semaphore, Error>
 {
     vk::SemaphoreCreateInfo semaphoreInfo{};
     auto semaphore = desc.device->createSemaphore(semaphoreInfo);

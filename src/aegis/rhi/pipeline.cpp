@@ -10,8 +10,7 @@ import :vulkan;
 
 namespace aegis::rhi
 {
-auto Pipeline::create(const ComputeDesc& desc)
-    -> std::expected<Pipeline, Error>
+auto Pipeline::create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>
 {
     const auto& device = desc.device.device();
 
@@ -30,8 +29,7 @@ auto Pipeline::create(const ComputeDesc& desc)
     };
 }
 
-auto Pipeline::create(const GraphicsDesc& desc)
-    -> std::expected<Pipeline, Error>
+auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error>
 {
     const auto& device = desc.device.device();
 
@@ -274,7 +272,8 @@ auto Pipeline::createGraphicsPipeline(
     return std::move(pipeline.value);
 }
 
-auto Pipeline::createShaderModule(const vk::raii::Device& device,
+auto Pipeline::createShaderModule(
+    const vk::raii::Device& device,
     std::span<std::uint32_t> code)
     -> std::expected<vk::raii::ShaderModule, Error>
 {

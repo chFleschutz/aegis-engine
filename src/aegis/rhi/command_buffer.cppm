@@ -34,40 +34,22 @@ public:
         // TODO: Add depth attachment
     };
 
-    [[nodiscard]] static auto create(const Desc& desc)
-        -> std::expected<CommandBuffer, Error>;
+    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<CommandBuffer, Error>;
 
-    auto operator*() const
-        -> vk::CommandBuffer { return *m_commandBuffer; }
+    auto operator*() const -> vk::CommandBuffer { return *m_commandBuffer; }
 
-    auto begin() const
-        -> void;
+    auto begin() const -> void;
+    auto end() const -> void;
 
-    auto end() const
-        -> void;
+    auto beginRendering(const RenderingDesc& desc) const -> void;
+    auto endRendering() const -> void;
 
-    auto beginRendering(const RenderingDesc& desc) const
-        -> void;
+    auto bindPipeline(const Pipeline& pipeline) const -> void;
+    auto setViewport(std::uint32_t width, std::uint32_t height) const -> void;
+    auto setScissor(std::uint32_t width, std::uint32_t height) const -> void;
+    auto draw(std::uint32_t vertexCount) const -> void;
 
-    auto endRendering() const
-        -> void;
-
-    auto bindPipeline(const Pipeline& pipeline) const
-        -> void;
-
-    auto setViewport(std::uint32_t width,
-        std::uint32_t height) const
-        -> void;
-
-    auto setScissor(std::uint32_t width,
-        std::uint32_t height) const
-        -> void;
-
-    auto draw(std::uint32_t vertexCount) const
-        -> void;
-
-    auto transitionImageLayout(const ImageLayoutTransition& cmd) const
-        -> void;
+    auto transitionImageLayout(const ImageLayoutTransition& cmd) const -> void;
 
 private:
     explicit CommandBuffer(vk::raii::CommandBuffer cmdBuffer);

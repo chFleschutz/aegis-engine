@@ -9,8 +9,7 @@ import :vulkan;
 
 namespace aegis::rhi
 {
-auto CommandPool::create(const Desc& desc)
-    -> std::expected<CommandPool, Error>
+auto CommandPool::create(const Desc& desc) -> std::expected<CommandPool, Error>
 {
     vk::CommandPoolCreateInfo poolInfo{
         .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,

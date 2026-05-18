@@ -55,17 +55,11 @@ public:
         std::span<VertexAttribute> vertexAttributes;
     };
 
-    [[nodiscard]] static auto create(const ComputeDesc& desc)
-        -> std::expected<Pipeline, Error>;
+    [[nodiscard]] static auto create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>;
+    [[nodiscard]] static auto create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error>;
 
-    [[nodiscard]] static auto create(const GraphicsDesc& desc)
-        -> std::expected<Pipeline, Error>;
-
-    [[nodiscard]] auto bindPoint() const
-        -> vk::PipelineBindPoint { return m_bindPoint; }
-
-    [[nodiscard]] auto pipeline() const
-        -> vk::Pipeline { return *m_pipeline; }
+    [[nodiscard]] auto bindPoint() const -> vk::PipelineBindPoint { return m_bindPoint; }
+    [[nodiscard]] auto pipeline() const -> vk::Pipeline { return *m_pipeline; }
 
 private:
     Pipeline(

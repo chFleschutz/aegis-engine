@@ -38,11 +38,11 @@ private:
         vk::raii::DebugUtilsMessengerEXT messenger,
         vk::raii::SurfaceKHR surface);
 
-    static auto createInstance(const vk::raii::Context& context, const Desc& desc)
+    [[nodiscard]] static auto createInstance(const vk::raii::Context& context, const Desc& desc)
         -> std::expected<vk::raii::Instance, Error>;
-    static auto createDebugMessenger(const vk::raii::Instance& instance)
+    [[nodiscard]] static auto createDebugMessenger(const vk::raii::Instance& instance)
         -> std::expected<vk::raii::DebugUtilsMessengerEXT, Error>;
-    static auto createSurface(const vk::raii::Instance& instance, const Desc& desc)
+    [[nodiscard]] static auto createSurface(const vk::raii::Instance& instance, const Desc& desc)
         -> std::expected<vk::raii::SurfaceKHR, Error>;
 
     [[nodiscard]] static auto findExtensions() -> std::vector<const char*>;

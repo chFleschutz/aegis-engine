@@ -45,7 +45,7 @@ public:
     ~Swapchain() = default;
 
     auto operator=(const Swapchain&) -> Swapchain& = delete;
-    auto operator=(Swapchain&& other) noexcept -> Swapchain& =default;
+    auto operator=(Swapchain&& other) noexcept -> Swapchain& = default;
 
     [[nodiscard]] auto operator*() const -> vk::SwapchainKHR { return *m_swapchain; }
     [[nodiscard]] auto handle() const -> vk::SwapchainKHR { return *m_swapchain; }
@@ -96,7 +96,8 @@ private:
         vk::Format imageFormat)
         -> std::expected<std::vector<vk::raii::ImageView>, Error>;
 
-    [[nodiscard]] static auto createSemaphores(const Device& device,
+    [[nodiscard]] static auto createSemaphores(
+        const Device& device,
         std::size_t imageCount)
         -> std::expected<std::vector<Semaphore>, Error>;
 

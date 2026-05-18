@@ -35,8 +35,7 @@ VKAPI_ATTR auto VKAPI_CALL debugCallback(
     return vk::False;
 }
 
-auto Context::create(const Desc& desc)
-    -> std::expected<Context, Error>
+auto Context::create(const Desc& desc) -> std::expected<Context, Error>
 {
     vk::raii::Context context{};
 
@@ -72,7 +71,8 @@ Context::Context(
 {
 }
 
-auto Context::createInstance(const vk::raii::Context& context,
+auto Context::createInstance(
+    const vk::raii::Context& context,
     const Desc& desc)
     -> std::expected<vk::raii::Instance, Error>
 {
@@ -132,7 +132,8 @@ auto Context::createDebugMessenger(const vk::raii::Instance& instance)
     return std::move(*debugMessenger);
 }
 
-auto Context::createSurface(const vk::raii::Instance& instance,
+auto Context::createSurface(
+    const vk::raii::Instance& instance,
     const Desc& desc)
     -> std::expected<vk::raii::SurfaceKHR, Error>
 {
@@ -145,8 +146,7 @@ auto Context::createSurface(const vk::raii::Instance& instance,
     return vk::raii::SurfaceKHR{ instance, surface };
 }
 
-auto Context::findExtensions()
-    -> std::vector<const char*>
+auto Context::findExtensions() -> std::vector<const char*>
 {
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -161,8 +161,7 @@ auto Context::findExtensions()
     return extensions;
 }
 
-auto Context::findLayers(const vk::raii::Context& context)
-    -> std::expected<std::vector<const char*>, Error>
+auto Context::findLayers(const vk::raii::Context& context) -> std::expected<std::vector<const char*>, Error>
 {
     std::vector<const char*> layers;
     if constexpr (enableValidation)

@@ -13,8 +13,7 @@ import :vulkan;
 
 namespace aegis::rhi
 {
-auto CommandBuffer::create(const Desc& desc)
-    -> std::expected<CommandBuffer, Error>
+auto CommandBuffer::create(const Desc& desc) -> std::expected<CommandBuffer, Error>
 {
     vk::CommandBufferAllocateInfo info{
         .commandPool = desc.pool.commandPool(),
@@ -29,22 +28,19 @@ auto CommandBuffer::create(const Desc& desc)
     return CommandBuffer{ std::move(commandBuffer->front()) };
 }
 
-auto CommandBuffer::begin() const
-    -> void
+auto CommandBuffer::begin() const -> void
 {
     auto result = m_commandBuffer.begin({});
     assert(result == vk::Result::eSuccess && "Failed to begin command buffer");
 }
 
-auto CommandBuffer::end() const
-    -> void
+auto CommandBuffer::end() const -> void
 {
     auto result = m_commandBuffer.end();
     assert(result == vk::Result::eSuccess && "Failed to end command buffer");
 }
 
-auto CommandBuffer::beginRendering(const RenderingDesc& desc) const
-    -> void
+auto CommandBuffer::beginRendering(const RenderingDesc& desc) const -> void
 {
     auto colorAttachments = desc.attachments
                             | std::views::transform([](const auto& a) {
@@ -74,21 +70,17 @@ auto CommandBuffer::beginRendering(const RenderingDesc& desc) const
     m_commandBuffer.beginRendering(renderingInfo);
 }
 
-auto CommandBuffer::endRendering() const
-    -> void
+auto CommandBuffer::endRendering() const -> void
 {
     m_commandBuffer.endRendering();
 }
 
-auto CommandBuffer::bindPipeline(const Pipeline& pipeline) const
-    -> void
+auto CommandBuffer::bindPipeline(const Pipeline& pipeline) const -> void
 {
     m_commandBuffer.bindPipeline(pipeline.bindPoint(), pipeline.pipeline());
 }
 
-auto CommandBuffer::setViewport(std::uint32_t width,
-    std::uint32_t height) const
-    -> void
+auto CommandBuffer::setViewport(std::uint32_t width, std::uint32_t height) const -> void
 {
     vk::Viewport viewport{
         .x = 0.0f,
@@ -101,9 +93,7 @@ auto CommandBuffer::setViewport(std::uint32_t width,
     m_commandBuffer.setViewport(0, viewport);
 }
 
-auto CommandBuffer::setScissor(std::uint32_t width,
-    std::uint32_t height) const
-    -> void
+auto CommandBuffer::setScissor(std::uint32_t width, std::uint32_t height) const -> void
 {
     vk::Rect2D scissor{
         .offset = { 0, 0 },
@@ -112,14 +102,12 @@ auto CommandBuffer::setScissor(std::uint32_t width,
     m_commandBuffer.setScissor(0, scissor);
 }
 
-auto CommandBuffer::draw(std::uint32_t vertexCount) const
-    -> void
+auto CommandBuffer::draw(std::uint32_t vertexCount) const -> void
 {
     m_commandBuffer.draw(vertexCount, 1, 0, 0);
 }
 
-auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) const
-    -> void
+auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) const -> void
 {
     auto src = toVulkan(cmd.oldState);
     auto dst = toVulkan(cmd.newState);

@@ -17,11 +17,9 @@ public:
         std::uint32_t queueFamily;
     };
 
-    static auto create(const Desc& desc)
-        -> std::expected<CommandPool, Error>;
+    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<CommandPool, Error>;
 
-    [[nodiscard]] auto commandPool() const
-        -> const vk::raii::CommandPool& { return m_commandPool; }
+    [[nodiscard]] auto commandPool() const -> const vk::raii::CommandPool& { return m_commandPool; }
 
 private:
     explicit CommandPool(vk::raii::CommandPool pool);

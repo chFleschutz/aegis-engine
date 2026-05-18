@@ -17,8 +17,7 @@ Queue::Queue(vk::raii::Queue queue, vk::raii::Semaphore semaphore, std::uint32_t
 {
 }
 
-auto Queue::submit(const SubmitInfo& info)
-    -> std::expected<std::uint64_t, Error>
+auto Queue::submit(const SubmitInfo& info) -> std::expected<std::uint64_t, Error>
 {
     m_submitCounter += 1;
 
@@ -60,8 +59,7 @@ auto Queue::submit(const SubmitInfo& info)
     return m_submitCounter;
 }
 
-auto Queue::wait(std::uint64_t timePoint) const
-    -> bool
+auto Queue::wait(std::uint64_t timePoint) const -> bool
 {
     auto waitInfo = vk::SemaphoreWaitInfo{}
         .setSemaphores(*m_timeline)
@@ -73,8 +71,7 @@ auto Queue::wait(std::uint64_t timePoint) const
     return result == vk::Result::eSuccess;
 }
 
-auto Queue::waitIdle() const
-    -> bool
+auto Queue::waitIdle() const -> bool
 {
     auto result = m_queue.waitIdle();
     return result == vk::Result::eSuccess;
