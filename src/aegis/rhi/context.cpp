@@ -51,7 +51,8 @@ auto Context::create(const Desc& desc) -> std::expected<Context, Error>
     if (!surface)
         return std::unexpected{ surface.error() };
 
-    return Context{
+    return std::expected<Context, Error>{
+        std::in_place,
         std::move(context),
         std::move(*instance),
         std::move(*messenger),

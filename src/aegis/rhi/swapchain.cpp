@@ -63,6 +63,22 @@ auto Swapchain::create(const Desc& desc)
     };
 }
 
+Swapchain::Swapchain(
+    vk::raii::SwapchainKHR swapchain,
+    std::vector<vk::Image> images,
+    std::vector<vk::raii::ImageView> imageViews,
+    std::vector<Semaphore> semaphores,
+    vk::Extent2D extent,
+    Format format) :
+    m_swapchain{ std::move(swapchain) },
+    m_images{ std::move(images) },
+    m_imageViews{ std::move(imageViews) },
+    m_semaphores{ std::move(semaphores) },
+    m_extent{ extent.width, extent.height },
+    m_surfaceFormat{ format }
+{
+}
+
 auto Swapchain::acquireNextImage(const Semaphore& imageAvailable)
     -> std::expected<AcquiredImage, Error>
 {
@@ -83,11 +99,12 @@ auto Swapchain::acquireNextImage(const Semaphore& imageAvailable)
         return makeError(toRHI(index.result));
     }
 
-    return AcquiredImage{
-        .image = m_images[*index],
-        .view = *m_imageViews[*index],
-        .presentReady = m_semaphores[*index],
-        .imageIndex = *index,
+    return std::expected<AcquiredImage, Error>{
+        std::in_place,
+        m_images[*index],
+        *m_imageViews[*index],
+        m_semaphores[*index],
+        *index,
     };
 }
 
@@ -114,22 +131,6 @@ auto Swapchain::present(const Queue& queue, const AcquiredImage& image) -> std::
     }
 
     return {};
-}
-
-Swapchain::Swapchain(
-    vk::raii::SwapchainKHR swapchain,
-    std::vector<vk::Image> images,
-    std::vector<vk::raii::ImageView> imageViews,
-    std::vector<Semaphore> semaphores,
-    vk::Extent2D extent,
-    Format format) :
-    m_swapchain{ std::move(swapchain) },
-    m_images{ std::move(images) },
-    m_imageViews{ std::move(imageViews) },
-    m_semaphores{ std::move(semaphores) },
-    m_extent{ extent.width, extent.height },
-    m_surfaceFormat{ format }
-{
 }
 
 auto Swapchain::querySurfaceCapabilities(

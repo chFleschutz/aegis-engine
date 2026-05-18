@@ -20,7 +20,7 @@ auto CommandPool::create(const Desc& desc) -> std::expected<CommandPool, Error>
     if (!commandPool.has_value())
         return makeError(toRHI(commandPool.result));
 
-    return CommandPool{ std::move(*commandPool) };
+    return std::expected<CommandPool, Error>{ std::in_place, std::move(*commandPool) };
 }
 
 CommandPool::CommandPool(vk::raii::CommandPool pool) :

@@ -22,7 +22,8 @@ auto Pipeline::create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
-    return Pipeline{
+    return std::expected<Pipeline, Error>{
+        std::in_place,
         std::move(*pipeline),
         std::move(*pipelineLayout),
         vk::PipelineBindPoint::eCompute
@@ -41,7 +42,8 @@ auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
-    return Pipeline{
+    return std::expected<Pipeline, Error>{
+        std::in_place,
         std::move(*pipeline),
         std::move(*pipelineLayout),
         vk::PipelineBindPoint::eGraphics

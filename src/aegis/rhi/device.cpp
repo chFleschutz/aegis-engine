@@ -49,7 +49,8 @@ auto Device::create(const Desc& desc) -> std::expected<Device, Error>
     if (!presentQueue)
         return std::unexpected{ presentQueue.error() };
 
-    return Device{
+    return std::expected<Device, Error>{
+        std::in_place,
         std::move(*physicalDevice),
         std::move(*device),
         std::move(*graphicsQueue),
@@ -58,11 +59,6 @@ auto Device::create(const Desc& desc) -> std::expected<Device, Error>
         std::move(*presentQueue),
         capabilities
     };
-}
-
-auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
-{
-    return m_physicalDevice;
 }
 
 Device::Device(
@@ -81,6 +77,11 @@ Device::Device(
     m_presentQueue{ std::move(presentQueue) },
     m_capabilities{ capabilities }
 {
+}
+
+auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
+{
+    return m_physicalDevice;
 }
 
 auto Device::createPhysicalDevice(const Desc& desc)

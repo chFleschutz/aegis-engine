@@ -36,6 +36,8 @@ public:
 
     [[nodiscard]] static auto create(const Desc& desc) -> std::expected<CommandBuffer, Error>;
 
+    explicit CommandBuffer(vk::raii::CommandBuffer cmdBuffer);
+
     auto operator*() const -> vk::CommandBuffer { return *m_commandBuffer; }
 
     auto begin() const -> void;
@@ -52,8 +54,6 @@ public:
     auto transitionImageLayout(const ImageLayoutTransition& cmd) const -> void;
 
 private:
-    explicit CommandBuffer(vk::raii::CommandBuffer cmdBuffer);
-
     vk::raii::CommandBuffer m_commandBuffer;
 };
 }

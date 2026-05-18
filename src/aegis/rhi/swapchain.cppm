@@ -31,7 +31,7 @@ public:
         std::uint32_t imageIndex;
     };
 
-    static auto create(const Desc& desc) -> std::expected<Swapchain, Error>;
+    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Swapchain, Error>;
 
     Swapchain(
         vk::raii::SwapchainKHR swapchain,

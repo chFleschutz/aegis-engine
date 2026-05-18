@@ -54,7 +54,16 @@ public:
         vk::EXTShaderObjectExtensionName
     };
 
-    static auto create(const Desc& desc) -> std::expected<Device, Error>;
+    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Device, Error>;
+
+    Device(
+        vk::raii::PhysicalDevice pd,
+        vk::raii::Device device,
+        Queue graphicsQueue,
+        Queue computeQueue,
+        Queue transferQueue,
+        Queue presentQueue,
+        Capabilities capabilities);
 
     [[nodiscard]] auto operator->() const -> const vk::raii::Device* { return &m_device; }
 
@@ -76,15 +85,6 @@ private:
         vk::PhysicalDeviceVulkan13Features,
         vk::PhysicalDeviceShaderObjectFeaturesEXT,
         vk::PhysicalDeviceMeshShaderFeaturesEXT>;
-
-    Device(
-        vk::raii::PhysicalDevice pd,
-        vk::raii::Device device,
-        Queue graphicsQueue,
-        Queue computeQueue,
-        Queue transferQueue,
-        Queue presentQueue,
-        Capabilities capabilities);
 
     [[nodiscard]] static auto createPhysicalDevice(const Desc& desc)
         -> std::expected<vk::raii::PhysicalDevice, Error>;

@@ -18,6 +18,7 @@ public:
 
     [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Fence, Error>;
 
+    explicit Fence(vk::raii::Fence fence);
 
     [[nodiscard]] auto operator*() const noexcept -> vk::Fence { return *m_fence; }
 
@@ -25,8 +26,6 @@ public:
     [[nodiscard]] auto reset() const noexcept -> bool;
 
 private:
-    explicit Fence(vk::raii::Fence fence);
-    
     vk::raii::Fence m_fence;
 };
 
@@ -40,11 +39,11 @@ public:
 
     [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Semaphore, Error>;
 
+    explicit Semaphore(vk::raii::Semaphore semaphore);
+
     [[nodiscard]] auto operator*() const noexcept -> vk::Semaphore { return *m_semaphore; }
 
 private:
-    explicit Semaphore(vk::raii::Semaphore semaphore);
-
     vk::raii::Semaphore m_semaphore;
 };
 }

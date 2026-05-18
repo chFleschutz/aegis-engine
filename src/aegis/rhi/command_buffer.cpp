@@ -25,7 +25,12 @@ auto CommandBuffer::create(const Desc& desc) -> std::expected<CommandBuffer, Err
     if (!commandBuffer.has_value())
         return makeError(toRHI(commandBuffer.result));
 
-    return CommandBuffer{ std::move(commandBuffer->front()) };
+    return std::expected<CommandBuffer, Error>{ std::in_place, std::move(commandBuffer->front()) };
+}
+
+CommandBuffer::CommandBuffer(vk::raii::CommandBuffer cmdBuffer) :
+    m_commandBuffer{ std::move(cmdBuffer) }
+{
 }
 
 auto CommandBuffer::begin() const -> void
@@ -137,10 +142,5 @@ auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) cons
     };
 
     m_commandBuffer.pipelineBarrier2(dependencyInfo);
-}
-
-CommandBuffer::CommandBuffer(vk::raii::CommandBuffer cmdBuffer) :
-    m_commandBuffer{ std::move(cmdBuffer) }
-{
 }
 }

@@ -19,7 +19,12 @@ auto Fence::create(const Desc& desc) -> std::expected<Fence, Error>
     if (!fence.has_value())
         return makeError(toRHI(fence.result));
 
-    return Fence{ std::move(*fence) };
+    return std::expected<Fence, Error>{ std::in_place, std::move(*fence) };
+}
+
+Fence::Fence(vk::raii::Fence fence) :
+    m_fence{ std::move(fence) }
+{
 }
 
 auto Fence::wait() const noexcept -> bool
@@ -38,11 +43,6 @@ auto Fence::reset() const noexcept -> bool
     return result == vk::Result::eSuccess;
 }
 
-Fence::Fence(vk::raii::Fence fence) :
-    m_fence{ std::move(fence) }
-{
-}
-
 auto Semaphore::create(const Desc& desc) -> std::expected<Semaphore, Error>
 {
     vk::SemaphoreCreateInfo semaphoreInfo{};
@@ -50,7 +50,7 @@ auto Semaphore::create(const Desc& desc) -> std::expected<Semaphore, Error>
     if (!semaphore.has_value())
         return makeError(toRHI(semaphore.result));
 
-    return Semaphore{ std::move(*semaphore) };
+    return std::expected<Semaphore, Error>{ std::in_place, std::move(*semaphore) };
 }
 
 Semaphore::Semaphore(vk::raii::Semaphore semaphore) :

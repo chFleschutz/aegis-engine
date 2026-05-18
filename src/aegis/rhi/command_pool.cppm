@@ -19,11 +19,11 @@ public:
 
     [[nodiscard]] static auto create(const Desc& desc) -> std::expected<CommandPool, Error>;
 
+    explicit CommandPool(vk::raii::CommandPool pool);
+
     [[nodiscard]] auto commandPool() const -> const vk::raii::CommandPool& { return m_commandPool; }
 
 private:
-    explicit CommandPool(vk::raii::CommandPool pool);
-
     vk::raii::CommandPool m_commandPool;
 };
 }
