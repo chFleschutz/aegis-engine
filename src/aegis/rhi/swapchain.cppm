@@ -53,8 +53,8 @@ public:
     [[nodiscard]] auto extent() const -> Extent2D { return m_extent; }
     [[nodiscard]] auto needsRecreation() const -> bool { return m_needsRecreation; }
 
-    [[nodiscard]] auto acquireNextImage(
-        const Semaphore& imageAvailable) -> std::expected<AcquiredImage, Error>;
+    [[nodiscard]] auto acquireNextImage(const Semaphore& signalSemaphore)
+        -> std::expected<AcquiredImage, Error>;
 
     [[nodiscard]] auto present(const Queue& queue, const AcquiredImage& image) -> std::expected<void, Error>;
 

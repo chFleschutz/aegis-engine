@@ -33,6 +33,6 @@ private:
     vk::raii::Queue m_queue;
     vk::raii::Semaphore m_timeline;
     std::uint32_t m_queueFamily;
-    std::uint64_t m_submitCounter{ 0 };
+    std::uint64_t m_timelineValue{ 0 };
 };
 }

@@ -35,13 +35,13 @@ CommandBuffer::CommandBuffer(vk::raii::CommandBuffer cmdBuffer) :
 
 auto CommandBuffer::begin() const -> void
 {
-    auto result = m_commandBuffer.begin({});
+    [[maybe_unused]] auto result = m_commandBuffer.begin({});
     assert(result == vk::Result::eSuccess && "Failed to begin command buffer");
 }
 
 auto CommandBuffer::end() const -> void
 {
-    auto result = m_commandBuffer.end();
+    [[maybe_unused]] auto result = m_commandBuffer.end();
     assert(result == vk::Result::eSuccess && "Failed to end command buffer");
 }
 

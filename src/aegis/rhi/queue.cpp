@@ -19,7 +19,7 @@ Queue::Queue(vk::raii::Queue queue, vk::raii::Semaphore semaphore, std::uint32_t
 
 auto Queue::submit(const SubmitInfo& info) -> std::expected<std::uint64_t, Error>
 {
-    m_submitCounter += 1;
+    m_timelineValue += 1;
 
     vk::SemaphoreSubmitInfo waitInfo{
         .semaphore = *info.waitSemaphore,
@@ -34,7 +34,7 @@ auto Queue::submit(const SubmitInfo& info) -> std::expected<std::uint64_t, Error
     auto signalInfos = std::array{
         vk::SemaphoreSubmitInfo{
             .semaphore = *m_timeline,
-            .value = m_submitCounter,
+            .value = m_timelineValue,
             .stageMask = vk::PipelineStageFlagBits2::eAllGraphics,
         },
         vk::SemaphoreSubmitInfo{
@@ -56,7 +56,7 @@ auto Queue::submit(const SubmitInfo& info) -> std::expected<std::uint64_t, Error
     if (auto result = m_queue.submit2(submitInfo); result != vk::Result::eSuccess)
         return makeError(toRHI(result));
 
-    return m_submitCounter;
+    return std::expected<std::uint64_t, Error>{ m_timelineValue };
 }
 
 auto Queue::wait(std::uint64_t timePoint) const -> bool

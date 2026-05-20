@@ -79,10 +79,10 @@ Swapchain::Swapchain(
 {
 }
 
-auto Swapchain::acquireNextImage(const Semaphore& imageAvailable)
+auto Swapchain::acquireNextImage(const Semaphore& signalSemaphore)
     -> std::expected<AcquiredImage, Error>
 {
-    auto index = m_swapchain.acquireNextImage(std::numeric_limits<uint64_t>::max(), *imageAvailable);
+    auto index = m_swapchain.acquireNextImage(std::numeric_limits<uint64_t>::max(), *signalSemaphore);
     if (index.result == vk::Result::eSuboptimalKHR)
     {
         // Swapchain needs to be recreated but ok to continue

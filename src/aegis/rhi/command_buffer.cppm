@@ -1,12 +1,12 @@
 module;
 #include <expected>
-#include <optional>
 #include <span>
 
 export module aegis.rhi:command_buffer;
 import :error;
 import :commands;
 import :fwd;
+import vulkan_hpp;
 
 export namespace aegis::rhi
 {

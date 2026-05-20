@@ -23,15 +23,23 @@ VKAPI_ATTR auto VKAPI_CALL debugCallback(
     void*)
     -> vk::Bool32
 {
-    if (severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError ||
-        severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
+    if (severity != vk::DebugUtilsMessageSeverityFlagBitsEXT::eError &&
+        severity != vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
+        return vk::False;
+
+    auto typeStr = vk::to_string(type);
+    std::string_view trimmedType = typeStr;
+    if (trimmedType.size() >= 4)
     {
-        std::println(
-            stderr,
-            "Vulkan Validation Error: {} \n{}\n",
-            to_string(type),
-            pCallbackData->pMessage);
+        trimmedType.remove_prefix(2);
+        trimmedType.remove_suffix(2);
     }
+
+    std::println(
+        stderr,
+        "Vulkan {} Error: \n{}\n",
+        trimmedType,
+        pCallbackData->pMessage);
     return vk::False;
 }
 

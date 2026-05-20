@@ -64,8 +64,7 @@ auto createFrameContext(
 class Application
 {
 public:
-    static auto create()
-        -> std::expected<Application, std::string>
+    static auto create() -> std::expected<Application, std::string>
     {
         aegis::platform::Window::Desc windowDesc{
             .title = "Test Window",
@@ -80,18 +79,14 @@ public:
         };
         auto context = aegis::rhi::Context::create(contextDesc);
         if (!context)
-            return std::unexpected{
-                std::format("Failed to create rhi context")
-            };
+            return std::unexpected{ "Failed to create rhi context" };
 
         aegis::rhi::Device::Desc deviceDesc{
             .context = *context,
         };
         auto device = aegis::rhi::Device::create(deviceDesc);
         if (!device)
-            return std::unexpected{
-                std::format("Failed to create rhi device")
-            };
+            return std::unexpected{ "Failed to create rhi device" };
 
         aegis::rhi::Swapchain::Desc swapchainDesc{
             .context = *context,
@@ -100,9 +95,7 @@ public:
         };
         auto swapchain = aegis::rhi::Swapchain::create(swapchainDesc);
         if (!swapchain)
-            return std::unexpected{
-                std::format("Failed to create swapchain")
-            };
+            return std::unexpected{ "Failed to create swapchain" };
 
         aegis::rhi::CommandPool::Desc poolDesc{
             .device = *device,
@@ -110,15 +103,11 @@ public:
         };
         auto commandPool = aegis::rhi::CommandPool::create(poolDesc);
         if (!commandPool)
-            return std::unexpected{
-                std::format("Failed to create command pool")
-            };
+            return std::unexpected{ "Failed to create command pool" };
 
         auto shader = loadSPIRV(SHADER_PATH);
         if (!shader)
-            return std::unexpected{
-                std::format("Failed to load shader from {}", SHADER_PATH)
-            };
+            return std::unexpected{ std::format("Failed to load shader from {}", SHADER_PATH) };
 
         auto colorAttachments = std::array{ swapchain->surfaceFormat() };
         auto shaders = std::array{
@@ -143,15 +132,11 @@ public:
         };
         auto pipeline = aegis::rhi::Pipeline::create(pipelineDesc);
         if (!pipeline)
-            return std::unexpected{
-                std::format("Failed to create pipeline")
-            };
+            return std::unexpected{ "Failed to create pipeline" };
 
         auto frameContext = createFrameContext(*device, *commandPool);
         if (!frameContext)
-            return std::unexpected{
-                std::format("Failed to create frameSync: {}", frameContext.error())
-            };
+            return std::unexpected{ "Failed to create frameSync" };
 
         return std::expected<Application, std::string>{
             std::in_place,
@@ -298,7 +283,7 @@ private:
     aegis::rhi::CommandPool m_commandPool;
     aegis::rhi::Pipeline m_pipeline;
     std::vector<FrameContext> m_frameContext;
-    std::uint32_t m_currentFrame = 0;
+    std::uint32_t m_currentFrame{ 0 };
 };
 
 auto main() -> int

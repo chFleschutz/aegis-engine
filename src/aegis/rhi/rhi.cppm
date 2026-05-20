@@ -12,4 +12,3 @@ export import :queue;
 export import :swapchain;
 export import :sync;
 export import :texture;
-import :fwd;

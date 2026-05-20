@@ -76,17 +76,6 @@ enum class ShaderStage
     Mesh,
 };
 
-enum class ImageLayout
-{
-    Unknown,
-    General,
-    Attachment,
-    ReadOnly,
-    TransferSrc,
-    TransferDst,
-    Present,
-};
-
 enum class ResourceState
 {
     Unknown,

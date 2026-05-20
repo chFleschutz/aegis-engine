@@ -6,7 +6,6 @@ module;
 export module aegis.rhi:context;
 import :error;
 import aegis.platform.window;
-
 import vulkan_hpp;
 
 export namespace aegis::rhi

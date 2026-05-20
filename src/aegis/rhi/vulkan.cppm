@@ -19,7 +19,6 @@ struct VulkanState
 
 constexpr auto toVulkan(Format format) noexcept -> vk::Format;
 constexpr auto toVulkan(ShaderStage stage) noexcept -> vk::ShaderStageFlagBits;
-constexpr auto toVulkan(ImageLayout layout) noexcept -> vk::ImageLayout;
 constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState;
 
 // Vulkan -> RHI conversion
@@ -72,21 +71,6 @@ constexpr auto toVulkan(ShaderStage stage) noexcept -> vk::ShaderStageFlagBits
     case ShaderStage::Compute: return vk::ShaderStageFlagBits::eCompute;
     case ShaderStage::Task: return vk::ShaderStageFlagBits::eTaskEXT;
     case ShaderStage::Mesh: return vk::ShaderStageFlagBits::eMeshEXT;
-    }
-    std::unreachable();
-}
-
-constexpr auto toVulkan(ImageLayout layout) noexcept -> vk::ImageLayout
-{
-    switch (layout)
-    {
-    case ImageLayout::Unknown: return vk::ImageLayout::eUndefined;
-    case ImageLayout::General: return vk::ImageLayout::eGeneral;
-    case ImageLayout::Attachment: return vk::ImageLayout::eAttachmentOptimal;
-    case ImageLayout::ReadOnly: return vk::ImageLayout::eReadOnlyOptimal;
-    case ImageLayout::TransferSrc: return vk::ImageLayout::eTransferSrcOptimal;
-    case ImageLayout::TransferDst: return vk::ImageLayout::eTransferDstOptimal;
-    case ImageLayout::Present: return vk::ImageLayout::ePresentSrcKHR;
     }
     std::unreachable();
 }
