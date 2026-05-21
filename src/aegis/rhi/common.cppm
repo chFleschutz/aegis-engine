@@ -6,24 +6,6 @@ export module aegis.rhi:common;
 
 export namespace aegis::rhi
 {
-struct Extent2D
-{
-    uint32_t x;
-    uint32_t y;
-
-    Extent2D(uint32_t x, uint32_t y) :
-        x{ x },
-        y{ y }
-    {
-    }
-
-    explicit Extent2D(std::pair<uint32_t, uint32_t> pair) :
-        x{ pair.first },
-        y{ pair.second }
-    {
-    }
-};
-
 enum class ErrorCode
 {
     Unknown,
@@ -89,5 +71,44 @@ enum class ResourceState
     CopySrc,
     CopyDst,
     Present,
+};
+
+struct Extent2D
+{
+    std::uint32_t x;
+    std::uint32_t y;
+
+    Extent2D(std::uint32_t x, std::uint32_t y) :
+        x{ x },
+        y{ y }
+    {
+    }
+
+    explicit Extent2D(std::pair<std::uint32_t, std::uint32_t> pair) :
+        x{ pair.first },
+        y{ pair.second }
+    {
+    }
+};
+
+struct Extent3D
+{
+    std::uint32_t x;
+    std::uint32_t y;
+    std::uint32_t z;
+
+    Extent3D(std::uint32_t x, std::uint32_t y, std::uint32_t z) :
+        x{ x },
+        y{ y },
+        z{ z }
+    {
+    }
+
+    explicit Extent3D(Extent2D extent) :
+        x{ extent.x },
+        y{ extent.y },
+        z{ 1 }
+    {
+    }
 };
 }

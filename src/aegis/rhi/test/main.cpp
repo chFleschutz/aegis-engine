@@ -209,7 +209,7 @@ public:
         cmd.begin();
 
         cmd.transitionImageLayout({
-            .image = acquiredImage->imageRef,
+            .imageRef = acquiredImage->imageRef,
             .oldState = aegis::rhi::ResourceState::Unknown,
             .newState = aegis::rhi::ResourceState::RenderTarget,
         });
@@ -226,7 +226,7 @@ public:
         cmd.endRendering();
 
         cmd.transitionImageLayout({
-            .image = acquiredImage->imageRef,
+            .imageRef = acquiredImage->imageRef,
             .oldState = aegis::rhi::ResourceState::RenderTarget,
             .newState = aegis::rhi::ResourceState::Present,
         });

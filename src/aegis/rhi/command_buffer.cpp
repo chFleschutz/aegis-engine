@@ -126,13 +126,13 @@ auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) cons
         .newLayout = dstLayout,
         .srcQueueFamilyIndex = vk::QueueFamilyIgnored,
         .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
-        .image = cmd.image.image(),
+        .image = cmd.imageRef.image(),
         .subresourceRange = vk::ImageSubresourceRange{
             .aspectMask = cmd.aspectFlags,
-            .baseMipLevel = cmd.baseMipLevel,
-            .levelCount = cmd.levelCount,
-            .baseArrayLayer = cmd.baseArrayLayer,
-            .layerCount = cmd.layerCount,
+            .baseMipLevel = cmd.imageRef.baseMipLevel(),
+            .levelCount = cmd.imageRef.levelCount(),
+            .baseArrayLayer = cmd.imageRef.baseArrayLayer(),
+            .layerCount = cmd.imageRef.layerCount(),
         },
     };
 

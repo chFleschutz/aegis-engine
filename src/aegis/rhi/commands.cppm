@@ -11,14 +11,10 @@ export namespace aegis::rhi
 {
 struct ImageLayoutTransition
 {
-    ImageRef image;
+    ImageRef imageRef;
     ResourceState oldState;
     ResourceState newState;
     // TODO: Hide aspect flags in rhi image or derive from image format
     vk::ImageAspectFlags aspectFlags = vk::ImageAspectFlagBits::eColor;
-    std::uint32_t baseMipLevel = 0;
-    std::uint32_t levelCount = 1;
-    std::uint32_t baseArrayLayer = 0;
-    std::uint32_t layerCount = 1;
 };
 }
