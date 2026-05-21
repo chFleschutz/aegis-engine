@@ -209,13 +209,13 @@ public:
         cmd.begin();
 
         cmd.transitionImageLayout({
-            .image = acquiredImage->image,
+            .image = acquiredImage->imageRef,
             .oldState = aegis::rhi::ResourceState::Unknown,
             .newState = aegis::rhi::ResourceState::RenderTarget,
         });
         auto attachmentDesc = std::array{
             aegis::rhi::CommandBuffer::AttachmentDesc{
-                .imageView = acquiredImage->view,
+                .imageView = acquiredImage->imageRef.view(),
             }
         };
         cmd.beginRendering({ m_swapchain.extent(), attachmentDesc });
@@ -226,7 +226,7 @@ public:
         cmd.endRendering();
 
         cmd.transitionImageLayout({
-            .image = acquiredImage->image,
+            .image = acquiredImage->imageRef,
             .oldState = aegis::rhi::ResourceState::RenderTarget,
             .newState = aegis::rhi::ResourceState::Present,
         });

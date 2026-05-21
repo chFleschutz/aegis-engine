@@ -114,19 +114,19 @@ auto CommandBuffer::draw(std::uint32_t vertexCount) const -> void
 
 auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) const -> void
 {
-    auto src = toVulkan(cmd.oldState);
-    auto dst = toVulkan(cmd.newState);
+    auto [srcLayout, srcStage, srcAccess] = toVulkan(cmd.oldState);
+    auto [dstLayout, dstStage, dstAccess] = toVulkan(cmd.newState);
 
     vk::ImageMemoryBarrier2 barrier{
-        .srcStageMask = src.stageMask,
-        .srcAccessMask = src.accessMask,
-        .dstStageMask = dst.stageMask,
-        .dstAccessMask = dst.accessMask,
-        .oldLayout = src.layout,
-        .newLayout = dst.layout,
+        .srcStageMask = srcStage,
+        .srcAccessMask = srcAccess,
+        .dstStageMask = dstStage,
+        .dstAccessMask = dstAccess,
+        .oldLayout = srcLayout,
+        .newLayout = dstLayout,
         .srcQueueFamilyIndex = vk::QueueFamilyIgnored,
         .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
-        .image = cmd.image,
+        .image = cmd.image.image(),
         .subresourceRange = vk::ImageSubresourceRange{
             .aspectMask = cmd.aspectFlags,
             .baseMipLevel = cmd.baseMipLevel,

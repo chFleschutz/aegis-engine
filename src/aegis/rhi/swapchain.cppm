@@ -6,6 +6,7 @@ export module aegis.rhi:swapchain;
 import :common;
 import :fwd;
 import :error;
+import :image_ref;
 import :sync;
 import vulkan_hpp;
 
@@ -24,9 +25,7 @@ public:
 
     struct AcquiredImage
     {
-        // TODO: Don't use vulkan types
-        vk::Image image;
-        vk::ImageView view;
+        ImageRef imageRef;
         const Semaphore& presentReady;
         std::uint32_t imageIndex;
     };

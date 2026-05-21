@@ -11,6 +11,7 @@ module aegis.rhi;
 import :swapchain;
 import :context;
 import :device;
+import :image_ref;
 import :vulkan;
 
 namespace aegis::rhi
@@ -101,8 +102,7 @@ auto Swapchain::acquireNextImage(const Semaphore& signalSemaphore)
 
     return std::expected<AcquiredImage, Error>{
         std::in_place,
-        m_images[*index],
-        *m_imageViews[*index],
+        ImageRef{ m_images[*index], *m_imageViews[*index] },
         m_semaphores[*index],
         *index,
     };

@@ -3,6 +3,7 @@ module;
 
 export module aegis.rhi:commands;
 import :common;
+import :image_ref;
 
 import vulkan_hpp; //< TODO: Remove
 
@@ -10,8 +11,7 @@ export namespace aegis::rhi
 {
 struct ImageLayoutTransition
 {
-    // TODO: Replace image with rhi type
-    vk::Image image;
+    ImageRef image;
     ResourceState oldState;
     ResourceState newState;
     // TODO: Hide aspect flags in rhi image or derive from image format

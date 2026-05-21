@@ -23,18 +23,18 @@ target_compile_definitions(vulkan-module PUBLIC
 add_library(aegis-rhi STATIC)
 
 target_link_libraries(aegis-rhi
-    PUBLIC
+PUBLIC
     aegis-platform
-    PRIVATE
+PRIVATE
     vulkan-module
     GPUOpen::VulkanMemoryAllocator
     glfw
 )
 
 target_sources(aegis-rhi
-    PUBLIC
-    FILE_SET CXX_MODULES
-    FILES
+PUBLIC
+FILE_SET CXX_MODULES
+FILES
     buffer.cppm
     command_buffer.cppm
     command_pool.cppm
@@ -44,6 +44,7 @@ target_sources(aegis-rhi
     device.cppm
     error.cppm
     fwd.cppm
+    image_ref.cppm
     queue.cppm
     rhi.cppm
     pipeline.cppm
@@ -51,11 +52,12 @@ target_sources(aegis-rhi
     texture.cppm
     sync.cppm
     vulkan.cppm
-    PRIVATE
+PRIVATE
     command_buffer.cpp
     command_pool.cpp
     context.cpp
     device.cpp
+    image_ref.cpp
     queue.cpp
     pipeline.cpp
     swapchain.cpp
