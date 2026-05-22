@@ -215,7 +215,7 @@ public:
         });
         auto attachmentDesc = std::array{
             aegis::rhi::CommandBuffer::AttachmentDesc{
-                .imageView = acquiredImage->imageRef.view(),
+                .imageView = acquiredImage->imageRef.view,
             }
         };
         cmd.beginRendering({ m_swapchain.extent(), attachmentDesc });

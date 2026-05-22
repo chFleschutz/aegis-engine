@@ -102,7 +102,12 @@ auto Swapchain::acquireNextImage(const Semaphore& signalSemaphore)
 
     return std::expected<AcquiredImage, Error>{
         std::in_place,
-        ImageRef{ m_images[*index], *m_imageViews[*index], m_surfaceFormat, Extent3D{ m_extent } },
+        ImageRef{
+            .image = m_images[*index],
+            .view = *m_imageViews[*index],
+            .extent = Extent3D{ m_extent },
+            .format = m_surfaceFormat,
+        },
         m_semaphores[*index],
         *index,
     };
