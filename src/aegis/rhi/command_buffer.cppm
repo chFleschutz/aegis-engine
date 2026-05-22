@@ -1,6 +1,6 @@
 module;
 #include <expected>
-#include <span>
+#include <optional>
 
 export module aegis.rhi:command_buffer;
 import :error;
@@ -19,20 +19,7 @@ public:
         const CommandPool& pool;
     };
 
-    struct AttachmentDesc
-    {
-        // TODO: Dont use vulkan types
-        vk::ImageView imageView;
-        vk::ImageLayout imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
-        vk::ClearValue clearValue = vk::ClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f };
-    };
-
-    struct RenderingDesc
-    {
-        Extent2D extent;
-        std::span<AttachmentDesc> attachments;
-        // TODO: Add depth attachment
-    };
+    static constexpr std::uint32_t maxColorAttachments = 8;
 
     [[nodiscard]] static auto create(const Desc& desc) -> std::expected<CommandBuffer, Error>;
 
@@ -43,17 +30,19 @@ public:
     auto begin() const -> void;
     auto end() const -> void;
 
-    auto beginRendering(const RenderingDesc& desc) const -> void;
+    auto beginRendering(const RenderingCmd& desc) const -> void;
     auto endRendering() const -> void;
 
     auto bindPipeline(const Pipeline& pipeline) const -> void;
-    auto setViewport(std::uint32_t width, std::uint32_t height) const -> void;
-    auto setScissor(std::uint32_t width, std::uint32_t height) const -> void;
+    auto setViewport(Extent2D extent) const -> void;
+    auto setScissor(Extent2D extent) const -> void;
     auto draw(std::uint32_t vertexCount) const -> void;
 
     auto transitionImageLayout(const ImageLayoutTransition& cmd) const -> void;
 
 private:
+    static auto deriveExtent(const RenderingCmd& cmd) -> vk::Extent2D;
+
     vk::raii::CommandBuffer m_commandBuffer;
 };
 }

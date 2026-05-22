@@ -1,9 +1,11 @@
 module;
 #include <cassert>
 #include <utility>
+#include <variant>
 
 export module aegis.rhi:vulkan;
 import :common;
+import :commands;
 import vulkan_hpp;
 
 export namespace aegis::rhi
@@ -20,7 +22,13 @@ struct VulkanState
 constexpr auto toVulkan(Format format) noexcept -> vk::Format;
 constexpr auto toVulkan(ShaderStage stage) noexcept -> vk::ShaderStageFlagBits;
 constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState;
-constexpr auto toVulkanAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
+constexpr auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue;
+constexpr auto toVulkan(AttachmentLoadOp op) noexcept -> vk::AttachmentLoadOp;
+constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp;
+constexpr auto toVulkan(const Attachment& a) -> vk::RenderingAttachmentInfo;
+
+constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
+constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout;
 
 // Vulkan -> RHI conversion
 
@@ -86,7 +94,7 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState
             .stageMask = vk::PipelineStageFlagBits2::eNone,
             .accessMask = vk::AccessFlagBits2::eNone,
         };
-    case ResourceState::RenderTarget:
+    case ResourceState::Attachment:
         return VulkanState{
             .layout = vk::ImageLayout::eAttachmentOptimal,
             .stageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
@@ -153,7 +161,69 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState
     std::unreachable();
 }
 
-constexpr auto toVulkanAspectFlags(Format format) noexcept -> vk::ImageAspectFlags
+// TODO: Put this in some core module
+// TODO: Also look at utility match(val, [](){}, ...) function
+template<class... Ts>
+struct overloads : Ts...
+{
+    using Ts::operator()...;
+};
+
+constexpr auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue
+{
+    return std::visit(overloads{
+            [](const ClearColor& value) -> vk::ClearValue {
+                return vk::ClearColorValue{ value.r, value.g, value.b, value.a };
+            },
+            [](const ClearDepthStencil& value)-> vk::ClearValue {
+                return vk::ClearDepthStencilValue{ value.depth, value.stencil };
+            }
+        },
+        clearValue);
+}
+
+constexpr auto toVulkan(AttachmentLoadOp op) noexcept -> vk::AttachmentLoadOp
+{
+    switch (op)
+    {
+    case AttachmentLoadOp::Load:
+        return vk::AttachmentLoadOp::eLoad;
+    case AttachmentLoadOp::Clear:
+        return vk::AttachmentLoadOp::eClear;
+    case AttachmentLoadOp::DontCare:
+        return vk::AttachmentLoadOp::eDontCare;
+    }
+    std::unreachable();
+}
+
+constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp
+{
+    switch (op)
+    {
+    case AttachmentStoreOp::Store:
+        return vk::AttachmentStoreOp::eStore;
+    case AttachmentStoreOp::DontCare:
+        return vk::AttachmentStoreOp::eDontCare;
+    case AttachmentStoreOp::None:
+        return vk::AttachmentStoreOp::eNone;
+    }
+    std::unreachable();
+}
+
+constexpr auto toVulkan(const Attachment& a) -> vk::RenderingAttachmentInfo
+{
+    return vk::RenderingAttachmentInfo{
+        .imageView = a.image.view,
+        .imageLayout = deriveAttachmentImageLayout(a.storeOp),
+        .loadOp = toVulkan(a.loadOp),
+        .storeOp = toVulkan(a.storeOp),
+        .clearValue = (a.loadOp == AttachmentLoadOp::Clear && a.clearValue)
+                          ? toVulkan(*a.clearValue)
+                          : vk::ClearValue{},
+    };
+}
+
+constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags
 {
     switch (format)
     {
@@ -183,6 +253,13 @@ constexpr auto toVulkanAspectFlags(Format format) noexcept -> vk::ImageAspectFla
         return vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
     }
     std::unreachable();
+}
+
+constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout
+{
+    if (op == AttachmentStoreOp::None)
+        return vk::ImageLayout::eReadOnlyOptimal;
+    return vk::ImageLayout::eAttachmentOptimal;
 }
 
 constexpr auto toRHI(vk::Result result) noexcept -> ErrorCode

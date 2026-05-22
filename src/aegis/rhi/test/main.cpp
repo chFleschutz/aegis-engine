@@ -128,7 +128,6 @@ public:
             .pushConstantRanges = {},
             .shaders = shaders,
             .colorAttachments = colorAttachments,
-            .depthAttachment = aegis::rhi::Format::D32_SFLOAT,
         };
         auto pipeline = aegis::rhi::Pipeline::create(pipelineDesc);
         if (!pipeline)
@@ -211,23 +210,27 @@ public:
         cmd.transitionImageLayout({
             .imageRef = acquiredImage->imageRef,
             .oldState = aegis::rhi::ResourceState::Unknown,
-            .newState = aegis::rhi::ResourceState::RenderTarget,
+            .newState = aegis::rhi::ResourceState::Attachment,
         });
-        auto attachmentDesc = std::array{
-            aegis::rhi::CommandBuffer::AttachmentDesc{
-                .imageView = acquiredImage->imageRef.view,
-            }
+        std::array colorAttachments{
+            aegis::rhi::Attachment::color(
+                acquiredImage->imageRef,
+                aegis::rhi::ClearColor{ 1.0, 1.0, 1.0, 1.0 }
+            )
         };
-        cmd.beginRendering({ m_swapchain.extent(), attachmentDesc });
+        cmd.beginRendering(aegis::rhi::RenderingCmd{
+            .colorAttachments = colorAttachments,
+            .depthAttachment = std::nullopt,
+        });
         cmd.bindPipeline(m_pipeline);
-        cmd.setViewport(m_swapchain.extent().x, m_swapchain.extent().y);
-        cmd.setScissor(m_swapchain.extent().x, m_swapchain.extent().y);
+        cmd.setViewport(m_swapchain.extent());
+        cmd.setScissor(m_swapchain.extent());
         cmd.draw(3);
         cmd.endRendering();
 
         cmd.transitionImageLayout({
             .imageRef = acquiredImage->imageRef,
-            .oldState = aegis::rhi::ResourceState::RenderTarget,
+            .oldState = aegis::rhi::ResourceState::Attachment,
             .newState = aegis::rhi::ResourceState::Present,
         });
         cmd.end();

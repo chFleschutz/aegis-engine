@@ -1,6 +1,7 @@
 module;
 #include <cstdint>
 #include <utility>
+#include <variant>
 
 export module aegis.rhi:common;
 
@@ -61,7 +62,7 @@ enum class ShaderStage
 enum class ResourceState
 {
     Unknown,
-    RenderTarget,
+    Attachment,
     DepthWrite,
     DepthRead,
     ShaderReadVertex,
@@ -73,10 +74,24 @@ enum class ResourceState
     Present,
 };
 
+enum class AttachmentLoadOp
+{
+    Load,
+    Clear,
+    DontCare,
+};
+
+enum class AttachmentStoreOp
+{
+    Store,
+    DontCare,
+    None,
+};
+
 struct Extent2D
 {
-    std::uint32_t x{0};
-    std::uint32_t y{0};
+    std::uint32_t x{ 0 };
+    std::uint32_t y{ 0 };
 
     Extent2D(std::uint32_t x, std::uint32_t y) :
         x{ x },
@@ -111,4 +126,20 @@ struct Extent3D
     {
     }
 };
+
+struct ClearColor
+{
+    float r{ 0.0f };
+    float g{ 0.0f };
+    float b{ 0.0f };
+    float a{ 0.0f };
+};
+
+struct ClearDepthStencil
+{
+    float depth{ 1.0f };
+    std::uint32_t stencil{ 0 };
+};
+
+using ClearValue = std::variant<ClearColor, ClearDepthStencil>;
 }

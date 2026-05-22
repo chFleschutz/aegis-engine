@@ -1,6 +1,8 @@
 module;
+#include <algorithm>
 #include <cassert>
 #include <expected>
+#include <optional>
 #include <ranges>
 #include <vector>
 
@@ -13,6 +15,44 @@ import :vulkan;
 
 namespace aegis::rhi
 {
+auto Attachment::color(const ImageRef& image, ClearColor clear) -> Attachment
+{
+    return Attachment{
+        .image = image,
+        .loadOp = AttachmentLoadOp::Clear,
+        .storeOp = AttachmentStoreOp::Store,
+        .clearValue = clear,
+    };
+}
+
+auto Attachment::colorLoad(const ImageRef& image) -> Attachment
+{
+    return Attachment{
+        .image = image,
+        .loadOp = AttachmentLoadOp::Load,
+        .storeOp = AttachmentStoreOp::Store,
+    };
+}
+
+auto Attachment::depth(const ImageRef& image, ClearDepthStencil clear) -> Attachment
+{
+    return Attachment{
+        .image = image,
+        .loadOp = AttachmentLoadOp::Clear,
+        .storeOp = AttachmentStoreOp::Store,
+        .clearValue = clear,
+    };
+}
+
+auto Attachment::depthReadOnly(const ImageRef& image) -> Attachment
+{
+    return Attachment{
+        .image = image,
+        .loadOp = AttachmentLoadOp::Load,
+        .storeOp = AttachmentStoreOp::None,
+    };
+}
+
 auto CommandBuffer::create(const Desc& desc) -> std::expected<CommandBuffer, Error>
 {
     vk::CommandBufferAllocateInfo info{
@@ -45,30 +85,28 @@ auto CommandBuffer::end() const -> void
     assert(result == vk::Result::eSuccess && "Failed to end command buffer");
 }
 
-auto CommandBuffer::beginRendering(const RenderingDesc& desc) const -> void
+auto CommandBuffer::beginRendering(const RenderingCmd& desc) const -> void
 {
-    auto colorAttachments = desc.attachments
-                            | std::views::transform([](const auto& a) {
-                                return vk::RenderingAttachmentInfo{
-                                    .imageView = a.imageView,
-                                    .imageLayout = a.imageLayout,
-                                    .loadOp = vk::AttachmentLoadOp::eClear,
-                                    .storeOp = vk::AttachmentStoreOp::eStore,
-                                    .clearValue = a.clearValue,
-                                };
-                            })
-                            | std::ranges::to<std::vector>();
+    assert(desc.colorAttachments.size() < maxColorAttachments);
+
+    std::array<vk::RenderingAttachmentInfo, maxColorAttachments> colorAttachments;
+    std::ranges::transform(desc.colorAttachments,
+        colorAttachments.begin(),
+        [](const auto& attachment) -> vk::RenderingAttachmentInfo {
+            return toVulkan(attachment);
+        });
+
+    auto depthAttachment = desc.depthAttachment
+                               ? std::optional(toVulkan(*desc.depthAttachment))
+                               : vk::RenderingAttachmentInfo{};
 
     vk::RenderingInfo renderingInfo{
-        .renderArea = vk::Rect2D{
-            .offset = { 0, 0 },
-            .extent = { desc.extent.x, desc.extent.y },
-        },
+        .renderArea = vk::Rect2D{ vk::Offset2D{ 0, 0 }, deriveExtent(desc) },
         .layerCount = 1,
         .viewMask = 0,
-        .colorAttachmentCount = static_cast<std::uint32_t>(colorAttachments.size()),
+        .colorAttachmentCount = static_cast<std::uint32_t>(desc.colorAttachments.size()),
         .pColorAttachments = colorAttachments.data(),
-        .pDepthAttachment = nullptr,
+        .pDepthAttachment = depthAttachment ? &depthAttachment.value() : nullptr,
         .pStencilAttachment = nullptr,
     };
 
@@ -85,24 +123,24 @@ auto CommandBuffer::bindPipeline(const Pipeline& pipeline) const -> void
     m_commandBuffer.bindPipeline(pipeline.bindPoint(), pipeline.pipeline());
 }
 
-auto CommandBuffer::setViewport(std::uint32_t width, std::uint32_t height) const -> void
+auto CommandBuffer::setViewport(Extent2D extent) const -> void
 {
     vk::Viewport viewport{
         .x = 0.0f,
         .y = 0.0f,
-        .width = static_cast<float>(width),
-        .height = static_cast<float>(height),
+        .width = static_cast<float>(extent.x),
+        .height = static_cast<float>(extent.y),
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
     };
     m_commandBuffer.setViewport(0, viewport);
 }
 
-auto CommandBuffer::setScissor(std::uint32_t width, std::uint32_t height) const -> void
+auto CommandBuffer::setScissor(Extent2D extent) const -> void
 {
     vk::Rect2D scissor{
         .offset = { 0, 0 },
-        .extent = { width, height },
+        .extent = { extent.x, extent.y },
     };
     m_commandBuffer.setScissor(0, scissor);
 }
@@ -128,7 +166,7 @@ auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) cons
         .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
         .image = cmd.imageRef.image,
         .subresourceRange = vk::ImageSubresourceRange{
-            .aspectMask = toVulkanAspectFlags(cmd.imageRef.format),
+            .aspectMask = deriveImageAspectFlags(cmd.imageRef.format),
             .baseMipLevel = cmd.imageRef.baseMipLevel,
             .levelCount = cmd.imageRef.levelCount,
             .baseArrayLayer = cmd.imageRef.baseArrayLayer,
@@ -142,5 +180,21 @@ auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) cons
     };
 
     m_commandBuffer.pipelineBarrier2(dependencyInfo);
+}
+
+auto CommandBuffer::deriveExtent(const RenderingCmd& cmd) -> vk::Extent2D
+{
+    if (!cmd.colorAttachments.empty())
+        return vk::Extent2D{
+            cmd.colorAttachments[0].image.extent.x,
+            cmd.colorAttachments[0].image.extent.y
+        };
+    if (cmd.depthAttachment)
+        return vk::Extent2D{
+            cmd.depthAttachment->image.extent.x,
+            cmd.depthAttachment->image.extent.y
+        };
+    assert(false && "RenderingCmd has no attachments");
+    return {};
 }
 }
