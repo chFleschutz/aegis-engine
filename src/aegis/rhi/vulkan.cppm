@@ -20,6 +20,7 @@ struct VulkanState
 constexpr auto toVulkan(Format format) noexcept -> vk::Format;
 constexpr auto toVulkan(ShaderStage stage) noexcept -> vk::ShaderStageFlagBits;
 constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState;
+constexpr auto toVulkanAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
 
 // Vulkan -> RHI conversion
 
@@ -148,6 +149,38 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState
             .stageMask = vk::PipelineStageFlagBits2::eNone,
             .accessMask = vk::AccessFlagBits2::eNone
         };
+    }
+    std::unreachable();
+}
+
+constexpr auto toVulkanAspectFlags(Format format) noexcept -> vk::ImageAspectFlags
+{
+    switch (format)
+    {
+    case Format::Unknown:
+        return vk::ImageAspectFlagBits::eNone;
+    case Format::R8_UNORM:
+    case Format::RG8_UNORM:
+    case Format::RGBA8_UNORM:
+    case Format::RGBA8_SRGB:
+    case Format::BGRA8_UNORM:
+    case Format::BGRA8_SRGB:
+    case Format::RGB10A2_UNORM:
+    case Format::B10G11R11_UFLOAT:
+    case Format::R16_UNORM:
+    case Format::RG16_UNORM:
+    case Format::RGBA16_UNORM:
+    case Format::RGBA16_SFLOAT:
+    case Format::R32_SFLOAT:
+    case Format::RG32_SFLOAT:
+    case Format::RGB32_SFLOAT:
+    case Format::RGBA32_SFLOAT:
+        return vk::ImageAspectFlagBits::eColor;
+    case Format::D32_SFLOAT:
+        return vk::ImageAspectFlagBits::eDepth;
+    case Format::D24_UNORM_S8_UINT:
+    case Format::D32_SFLOAT_S8_UINT:
+        return vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
     }
     std::unreachable();
 }

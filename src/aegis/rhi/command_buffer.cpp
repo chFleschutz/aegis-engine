@@ -128,7 +128,7 @@ auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) cons
         .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
         .image = cmd.imageRef.image(),
         .subresourceRange = vk::ImageSubresourceRange{
-            .aspectMask = cmd.aspectFlags,
+            .aspectMask = toVulkanAspectFlags(cmd.imageRef.format()),
             .baseMipLevel = cmd.imageRef.baseMipLevel(),
             .levelCount = cmd.imageRef.levelCount(),
             .baseArrayLayer = cmd.imageRef.baseArrayLayer(),
