@@ -2,6 +2,7 @@ module;
 #include <cstdint>
 #include <utility>
 #include <variant>
+#include <limits>
 
 export module aegis.rhi:common;
 
@@ -86,6 +87,27 @@ enum class AttachmentStoreOp
     Store,
     DontCare,
     None,
+};
+
+struct DeviceCapabilities
+{
+    bool meshShaders = false;
+};
+
+struct QueueFamilyIndices
+{
+    static constexpr std::uint32_t familyIgnored{ std::numeric_limits<std::uint32_t>::max() };
+
+    uint32_t graphics{ familyIgnored };
+    uint32_t compute{ familyIgnored };
+    uint32_t transfer{ familyIgnored };
+    uint32_t present{ familyIgnored };
+
+    [[nodiscard]] auto isComplete() const -> bool
+    {
+        return graphics != familyIgnored && compute != familyIgnored &&
+               transfer != familyIgnored && present != familyIgnored;
+    }
 };
 
 struct Extent2D

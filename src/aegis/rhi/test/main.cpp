@@ -84,7 +84,7 @@ public:
         aegis::rhi::Device::Desc deviceDesc{
             .context = *context,
         };
-        auto device = aegis::rhi::Device::create(deviceDesc);
+        auto device = context->createDevice(deviceDesc);
         if (!device)
             return std::unexpected{ "Failed to create rhi device" };
 

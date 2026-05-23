@@ -51,6 +51,7 @@ FILES
     swapchain.cppm
     texture.cppm
     sync.cppm
+    vk_factory.cppm
     vulkan.cppm
 PRIVATE
     command_buffer.cpp
@@ -62,6 +63,7 @@ PRIVATE
     pipeline.cpp
     swapchain.cpp
     sync.cpp
+    vk_factory.cpp
 )
 
 # TODO: remove later
