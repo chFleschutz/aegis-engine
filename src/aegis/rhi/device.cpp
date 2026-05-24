@@ -20,6 +20,11 @@ auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
     return m_physicalDevice;
 }
 
+auto Device::createSwapchain(const Swapchain::Desc& desc) const -> std::expected<Swapchain, Error>
+{
+    return Swapchain::create(*this, desc);
+}
+
 auto Device::QueueFamilyIndices::isComplete() const -> bool
 {
     return graphics != vk::QueueFamilyIgnored && present != vk::QueueFamilyIgnored &&

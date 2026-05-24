@@ -14,11 +14,12 @@ export namespace aegis::rhi
 {
 class Swapchain
 {
+    friend class Device;
+    
 public:
     struct Desc
     {
         const Context& context;
-        const Device& device;
         Extent2D extent;
         Swapchain* oldSwapchain = nullptr;
     };
@@ -30,15 +31,6 @@ public:
         std::uint32_t imageIndex;
     };
 
-    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Swapchain, Error>;
-
-    Swapchain(
-        vk::raii::SwapchainKHR swapchain,
-        std::vector<vk::Image> images,
-        std::vector<vk::raii::ImageView> imageViews,
-        std::vector<Semaphore> semaphores,
-        vk::Extent2D extent,
-        Format format);
     Swapchain(const Swapchain&) = delete;
     Swapchain(Swapchain&& other) noexcept = default;
     ~Swapchain() = default;
@@ -58,6 +50,11 @@ public:
     [[nodiscard]] auto present(const Queue& queue, const AcquiredImage& image) -> std::expected<void, Error>;
 
 private:
+    [[nodiscard]] static auto create(
+        const Device& device,
+        const Desc& desc)
+        -> std::expected<Swapchain, Error>;
+
     [[nodiscard]] static auto querySurfaceCapabilities(
         const vk::raii::PhysicalDevice& physicalDevice,
         const vk::raii::SurfaceKHR& surface)
@@ -79,11 +76,12 @@ private:
         -> std::expected<vk::SurfaceFormatKHR, Error>;
 
     [[nodiscard]] static auto createSwapchain(
-        const Desc& desc,
+        const vk::raii::Device& device,
         vk::Extent2D extent,
         vk::SurfaceFormatKHR surfaceFormat,
         vk::PresentModeKHR presentMode,
-        const vk::SurfaceCapabilitiesKHR& surfaceCaps)
+        const vk::SurfaceCapabilitiesKHR& surfaceCaps,
+        const Desc& desc)
         -> std::expected<vk::raii::SwapchainKHR, Error>;
 
     [[nodiscard]] static auto createImages(const vk::raii::SwapchainKHR& swapchain)
@@ -103,12 +101,20 @@ private:
     [[nodiscard]] static auto chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps)
         -> uint32_t;
 
+    Swapchain(
+        vk::raii::SwapchainKHR swapchain,
+        std::vector<vk::Image> images,
+        std::vector<vk::raii::ImageView> imageViews,
+        std::vector<Semaphore> semaphores,
+        vk::Extent2D extent,
+        Format format);
+
     vk::raii::SwapchainKHR m_swapchain;
     std::vector<vk::Image> m_images;
     std::vector<vk::raii::ImageView> m_imageViews;
     std::vector<Semaphore> m_semaphores;
-    Extent2D m_extent{ 0, 0 };
-    Format m_surfaceFormat{ Format::Unknown };
+    Extent2D m_extent;
+    Format m_surfaceFormat;
     std::uint32_t m_currentImage{ 0 };
     bool m_needsRecreation{ false };
 };

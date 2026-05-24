@@ -4,7 +4,6 @@ module;
 #include <algorithm>
 #include <cassert>
 #include <expected>
-#include <print>
 #include <syncstream>
 
 module aegis.rhi;
@@ -16,70 +15,6 @@ import :vulkan;
 
 namespace aegis::rhi
 {
-auto Swapchain::create(const Desc& desc)
-    -> std::expected<Swapchain, Error>
-{
-    const auto& physicalDevice = desc.device.physicalDevice();
-    const auto& device = desc.device.device();
-    const auto& surface = desc.context.surface();
-
-    auto surfaceCaps = querySurfaceCapabilities(physicalDevice, surface);
-    if (!surfaceCaps)
-        return std::unexpected{ surfaceCaps.error() };
-
-    auto extent = querySwapchainExtent(desc.extent, *surfaceCaps);
-
-    auto format = querySwapchainFormat(desc.device.physicalDevice(), desc.context.surface());
-    if (!format)
-        return std::unexpected{ format.error() };
-
-    auto presentMode = queryPresentMode(physicalDevice, surface);
-    if (!presentMode)
-        return std::unexpected{ presentMode.error() };
-
-    auto swapchain = createSwapchain(desc, extent, *format, *presentMode, *surfaceCaps);
-    if (!swapchain)
-        return std::unexpected(swapchain.error());
-
-    auto images = createImages(*swapchain);
-    if (!images)
-        return std::unexpected(images.error());
-
-    auto imageViews = createImageViews(device, *images, format->format);
-    if (!imageViews)
-        return std::unexpected{ imageViews.error() };
-
-    auto semaphores = createSemaphores(desc.device, images->size());
-    if (!semaphores)
-        return std::unexpected{ semaphores.error() };
-
-    return std::expected<Swapchain, Error>{
-        std::in_place,
-        std::move(*swapchain),
-        std::move(*images),
-        std::move(*imageViews),
-        std::move(*semaphores),
-        extent,
-        toRHI(format->format)
-    };
-}
-
-Swapchain::Swapchain(
-    vk::raii::SwapchainKHR swapchain,
-    std::vector<vk::Image> images,
-    std::vector<vk::raii::ImageView> imageViews,
-    std::vector<Semaphore> semaphores,
-    vk::Extent2D extent,
-    Format format) :
-    m_swapchain{ std::move(swapchain) },
-    m_images{ std::move(images) },
-    m_imageViews{ std::move(imageViews) },
-    m_semaphores{ std::move(semaphores) },
-    m_extent{ extent.width, extent.height },
-    m_surfaceFormat{ format }
-{
-}
-
 auto Swapchain::acquireNextImage(const Semaphore& signalSemaphore)
     -> std::expected<AcquiredImage, Error>
 {
@@ -136,6 +71,53 @@ auto Swapchain::present(const Queue& queue, const AcquiredImage& image) -> std::
     }
 
     return {};
+}
+
+auto Swapchain::create(
+    const Device& device,
+    const Desc& desc)
+    -> std::expected<Swapchain, Error>
+{
+    const auto& surface = desc.context.surface();
+
+    auto surfaceCaps = querySurfaceCapabilities(device.physicalDevice(), surface);
+    if (!surfaceCaps)
+        return std::unexpected{ surfaceCaps.error() };
+
+    auto extent = querySwapchainExtent(desc.extent, *surfaceCaps);
+
+    auto format = querySwapchainFormat(device.physicalDevice(), desc.context.surface());
+    if (!format)
+        return std::unexpected{ format.error() };
+
+    auto presentMode = queryPresentMode(device.physicalDevice(), surface);
+    if (!presentMode)
+        return std::unexpected{ presentMode.error() };
+
+    auto swapchain = createSwapchain(device.device(), extent, *format, *presentMode, *surfaceCaps, desc);
+    if (!swapchain)
+        return std::unexpected(swapchain.error());
+
+    auto images = createImages(*swapchain);
+    if (!images)
+        return std::unexpected(images.error());
+
+    auto imageViews = createImageViews(device.device(), *images, format->format);
+    if (!imageViews)
+        return std::unexpected{ imageViews.error() };
+
+    auto semaphores = createSemaphores(device, images->size());
+    if (!semaphores)
+        return std::unexpected{ semaphores.error() };
+
+    return Swapchain{
+        std::move(*swapchain),
+        std::move(*images),
+        std::move(*imageViews),
+        std::move(*semaphores),
+        extent,
+        toRHI(format->format)
+    };
 }
 
 auto Swapchain::querySurfaceCapabilities(
@@ -212,11 +194,12 @@ auto Swapchain::querySwapchainFormat(
 }
 
 auto Swapchain::createSwapchain(
-    const Desc& desc,
+    const vk::raii::Device& device,
     vk::Extent2D extent,
     vk::SurfaceFormatKHR surfaceFormat,
     vk::PresentModeKHR presentMode,
-    const vk::SurfaceCapabilitiesKHR& surfaceCaps)
+    const vk::SurfaceCapabilitiesKHR& surfaceCaps,
+    const Desc& desc)
     -> std::expected<vk::raii::SwapchainKHR, Error>
 {
     auto minImageCount = chooseSwapImageCount(surfaceCaps);
@@ -237,7 +220,7 @@ auto Swapchain::createSwapchain(
         .oldSwapchain = desc.oldSwapchain ? desc.oldSwapchain->handle() : nullptr,
     };
 
-    auto swapchain = desc.device->createSwapchainKHR(createInfo);
+    auto swapchain = device.createSwapchainKHR(createInfo);
     if (!swapchain.has_value())
         return makeError(toRHI(swapchain.result));
 
@@ -315,5 +298,21 @@ auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> 
     if (caps.maxImageCount > 0 && imageCount > caps.maxImageCount)
         imageCount = caps.maxImageCount;
     return imageCount;
+}
+
+Swapchain::Swapchain(
+    vk::raii::SwapchainKHR swapchain,
+    std::vector<vk::Image> images,
+    std::vector<vk::raii::ImageView> imageViews,
+    std::vector<Semaphore> semaphores,
+    vk::Extent2D extent,
+    Format format) :
+    m_swapchain{ std::move(swapchain) },
+    m_images{ std::move(images) },
+    m_imageViews{ std::move(imageViews) },
+    m_semaphores{ std::move(semaphores) },
+    m_extent{ extent.width, extent.height },
+    m_surfaceFormat{ format }
+{
 }
 }

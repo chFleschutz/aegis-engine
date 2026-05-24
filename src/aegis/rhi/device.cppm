@@ -6,6 +6,7 @@ module;
 export module aegis.rhi:device;
 import :error;
 import :queue;
+import :swapchain;
 import aegis.platform.window;
 import vulkan_hpp;
 
@@ -54,6 +55,8 @@ public:
     [[nodiscard]] auto presentQueue() -> Queue& { return m_presentQueue; };
     [[nodiscard]] auto properties() const -> const Properties& { return m_properties; }
     [[nodiscard]] auto capabilities() const -> const Capabilities& { return m_capabilities; }
+
+    [[nodiscard]] auto createSwapchain(const Swapchain::Desc& desc) const -> std::expected<Swapchain, Error>;
 
 private:
     using FeatureChain = vk::StructureChain<

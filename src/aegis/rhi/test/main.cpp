@@ -88,10 +88,9 @@ public:
 
         aegis::rhi::Swapchain::Desc swapchainDesc{
             .context = *context,
-            .device = *device,
             .extent = aegis::rhi::Extent2D{ window.extent() },
         };
-        auto swapchain = aegis::rhi::Swapchain::create(swapchainDesc);
+        auto swapchain = device->createSwapchain(swapchainDesc);
         if (!swapchain)
             return std::unexpected{ "Failed to create swapchain" };
 
@@ -262,11 +261,10 @@ public:
 
         aegis::rhi::Swapchain::Desc swapchainDesc{
             .context = m_context,
-            .device = m_device,
             .extent = aegis::rhi::Extent2D{ m_window.extent() },
             .oldSwapchain = &m_swapchain,
         };
-        auto swapchain = aegis::rhi::Swapchain::create(swapchainDesc);
+        auto swapchain = m_device.createSwapchain(swapchainDesc);
         if (!swapchain)
         {
             std::println("Failed to recreate swapchain");
