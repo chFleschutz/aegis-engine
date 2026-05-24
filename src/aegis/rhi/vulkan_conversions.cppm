@@ -3,7 +3,7 @@ module;
 #include <utility>
 #include <variant>
 
-export module aegis.rhi:vulkan;
+export module aegis.rhi:vulkan_conversions;
 import :common;
 import :commands;
 import vulkan_hpp;

@@ -49,9 +49,8 @@ FILES
     rhi.cppm
     pipeline.cppm
     swapchain.cppm
-    texture.cppm
     sync.cppm
-    vulkan.cppm
+    vulkan_conversions.cppm
 PRIVATE
     command_buffer.cpp
     command_pool.cpp

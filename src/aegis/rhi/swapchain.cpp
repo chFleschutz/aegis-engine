@@ -11,7 +11,7 @@ import :swapchain;
 import :context;
 import :device;
 import :image_ref;
-import :vulkan;
+import :vulkan_conversions;
 
 namespace aegis::rhi
 {

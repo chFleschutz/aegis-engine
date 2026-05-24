@@ -6,7 +6,7 @@ module;
 
 module aegis.rhi;
 import :pipeline;
-import :vulkan;
+import :vulkan_conversions;
 import vulkan_hpp;
 
 namespace aegis::rhi

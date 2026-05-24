@@ -5,7 +5,7 @@ module;
 module aegis.rhi;
 import :queue;
 import :error;
-import :vulkan;
+import :vulkan_conversions;
 import vulkan_hpp;
 
 namespace aegis::rhi

@@ -5,7 +5,7 @@ module aegis.rhi;
 import :command_pool;
 import :device;
 import :error;
-import :vulkan;
+import :vulkan_conversions;
 import vulkan_hpp;
 
 namespace aegis::rhi
