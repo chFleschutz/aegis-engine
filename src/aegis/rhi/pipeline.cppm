@@ -13,6 +13,8 @@ export namespace aegis::rhi
 {
 class Pipeline
 {
+    friend class Device;
+
 public:
     struct Shader
     {
@@ -37,7 +39,6 @@ public:
 
     struct ComputeDesc
     {
-        const Device& device;
         std::span<vk::DescriptorSetLayout> setLayouts;
         std::span<vk::PushConstantRange> pushConstantRanges;
         Shader shader;
@@ -45,7 +46,6 @@ public:
 
     struct GraphicsDesc
     {
-        const Device& device;
         std::span<vk::DescriptorSetLayout> setLayouts;
         std::span<vk::PushConstantRange> pushConstantRanges;
         std::span<Shader> shaders;
@@ -55,18 +55,20 @@ public:
         std::span<VertexAttribute> vertexAttributes;
     };
 
-    [[nodiscard]] static auto create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>;
-    [[nodiscard]] static auto create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error>;
-
-    Pipeline(
-        vk::raii::Pipeline pipeline,
-        vk::raii::PipelineLayout layout,
-        vk::PipelineBindPoint bindPoint);
-
     [[nodiscard]] auto bindPoint() const -> vk::PipelineBindPoint { return m_bindPoint; }
     [[nodiscard]] auto pipeline() const -> vk::Pipeline { return *m_pipeline; }
 
 private:
+    [[nodiscard]] static auto create(
+        const Device& device,
+        const ComputeDesc& desc)
+        -> std::expected<Pipeline, Error>;
+
+    [[nodiscard]] static auto create(
+        const Device& device,
+        const GraphicsDesc& desc)
+        -> std::expected<Pipeline, Error>;
+
     [[nodiscard]] static auto createPipelineLayout(
         const vk::raii::Device& device,
         std::span<vk::DescriptorSetLayout> setLayouts,
@@ -74,19 +76,26 @@ private:
         -> std::expected<vk::raii::PipelineLayout, Error>;
 
     [[nodiscard]] static auto createComputePipeline(
-        const ComputeDesc& desc,
-        const vk::raii::PipelineLayout& layout)
+        const vk::raii::Device& device,
+        const vk::raii::PipelineLayout& layout,
+        const Shader& shader)
         -> std::expected<vk::raii::Pipeline, Error>;
 
     [[nodiscard]] static auto createGraphicsPipeline(
-        const GraphicsDesc& desc,
-        const vk::raii::PipelineLayout& pipelineLayout)
+        const vk::raii::Device& device,
+        const vk::raii::PipelineLayout& pipelineLayout,
+        const GraphicsDesc& desc)
         -> std::expected<vk::raii::Pipeline, Error>;
 
     [[nodiscard]] static auto createShaderModule(
         const vk::raii::Device& device,
         std::span<std::uint32_t> code)
         -> std::expected<vk::raii::ShaderModule, Error>;
+
+    Pipeline(
+        vk::raii::Pipeline pipeline,
+        vk::raii::PipelineLayout layout,
+        vk::PipelineBindPoint bindPoint);
 
     vk::raii::Pipeline m_pipeline;
     vk::raii::PipelineLayout m_layout;

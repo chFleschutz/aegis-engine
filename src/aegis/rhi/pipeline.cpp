@@ -7,57 +7,42 @@ module;
 module aegis.rhi;
 import :pipeline;
 import :vulkan;
+import vulkan_hpp;
 
 namespace aegis::rhi
 {
-auto Pipeline::create(const ComputeDesc& desc) -> std::expected<Pipeline, Error>
+auto Pipeline::create(const Device& device, const ComputeDesc& desc) -> std::expected<Pipeline, Error>
 {
-    const auto& device = desc.device.device();
-
-    auto pipelineLayout = createPipelineLayout(device, desc.setLayouts, desc.pushConstantRanges);
+    auto pipelineLayout = createPipelineLayout(device.device(), desc.setLayouts, desc.pushConstantRanges);
     if (!pipelineLayout)
         return std::unexpected{ pipelineLayout.error() };
 
-    auto pipeline = createComputePipeline(desc, *pipelineLayout);
+    auto pipeline = createComputePipeline(device.device(), *pipelineLayout, desc.shader);
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
-    return std::expected<Pipeline, Error>{
-        std::in_place,
+    return Pipeline{
         std::move(*pipeline),
         std::move(*pipelineLayout),
         vk::PipelineBindPoint::eCompute
     };
 }
 
-auto Pipeline::create(const GraphicsDesc& desc) -> std::expected<Pipeline, Error>
+auto Pipeline::create(const Device& device, const GraphicsDesc& desc) -> std::expected<Pipeline, Error>
 {
-    const auto& device = desc.device.device();
-
-    auto pipelineLayout = createPipelineLayout(device, desc.setLayouts, desc.pushConstantRanges);
+    auto pipelineLayout = createPipelineLayout(device.device(), desc.setLayouts, desc.pushConstantRanges);
     if (!pipelineLayout)
         return std::unexpected{ pipelineLayout.error() };
 
-    auto pipeline = createGraphicsPipeline(desc, *pipelineLayout);
+    auto pipeline = createGraphicsPipeline(device.device(), *pipelineLayout, desc);
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
-    return std::expected<Pipeline, Error>{
-        std::in_place,
+    return Pipeline{
         std::move(*pipeline),
         std::move(*pipelineLayout),
         vk::PipelineBindPoint::eGraphics
     };
-}
-
-Pipeline::Pipeline(
-    vk::raii::Pipeline pipeline,
-    vk::raii::PipelineLayout layout,
-    vk::PipelineBindPoint bindPoint) :
-    m_pipeline{ std::move(pipeline) },
-    m_layout{ std::move(layout) },
-    m_bindPoint{ bindPoint }
-{
 }
 
 auto Pipeline::createPipelineLayout(
@@ -80,11 +65,12 @@ auto Pipeline::createPipelineLayout(
 }
 
 auto Pipeline::createComputePipeline(
-    const ComputeDesc& desc,
-    const vk::raii::PipelineLayout& layout)
+    const vk::raii::Device& device,
+    const vk::raii::PipelineLayout& layout,
+    const Shader& shader)
     -> std::expected<vk::raii::Pipeline, Error>
 {
-    auto shaderModule = createShaderModule(desc.device.device(), desc.shader.code);
+    auto shaderModule = createShaderModule(device, shader.code);
     if (!shaderModule)
         return std::unexpected{ shaderModule.error() };
 
@@ -92,14 +78,14 @@ auto Pipeline::createComputePipeline(
         .stage = {
             .stage = vk::ShaderStageFlagBits::eCompute,
             .module = *shaderModule,
-            .pName = desc.shader.entryPoint.data(),
+            .pName = shader.entryPoint.data(),
         },
         .layout = *layout,
         .basePipelineHandle = nullptr,
         .basePipelineIndex = -1,
     };
 
-    auto pipeline = desc.device->createComputePipeline(nullptr, createInfo);
+    auto pipeline = device.createComputePipeline(nullptr, createInfo);
     if (!pipeline.has_value())
         return makeError(toRHI(pipeline.result));
 
@@ -107,8 +93,9 @@ auto Pipeline::createComputePipeline(
 }
 
 auto Pipeline::createGraphicsPipeline(
-    const GraphicsDesc& desc,
-    const vk::raii::PipelineLayout& pipelineLayout)
+    const vk::raii::Device& device,
+    const vk::raii::PipelineLayout& pipelineLayout,
+    const GraphicsDesc& desc)
     -> std::expected<vk::raii::Pipeline, Error>
 {
     std::vector<vk::raii::ShaderModule> shaderModules;
@@ -119,7 +106,7 @@ auto Pipeline::createGraphicsPipeline(
 
     for (const auto& [stage, code, entryPoint] : desc.shaders)
     {
-        auto shaderModule = createShaderModule(desc.device.device(), code);
+        auto shaderModule = createShaderModule(device, code);
         if (!shaderModule)
             return std::unexpected{ shaderModule.error() };
 
@@ -267,7 +254,7 @@ auto Pipeline::createGraphicsPipeline(
         .basePipelineIndex = -1,
     };
 
-    auto pipeline = desc.device->createGraphicsPipeline(nullptr, createInfo);
+    auto pipeline = device.createGraphicsPipeline(nullptr, createInfo);
     if (!pipeline.has_value())
         return makeError(toRHI(pipeline.result));
 
@@ -289,5 +276,15 @@ auto Pipeline::createShaderModule(
         return makeError(toRHI(shaderModule.result));
 
     return std::move(shaderModule.value);
+}
+
+Pipeline::Pipeline(
+    vk::raii::Pipeline pipeline,
+    vk::raii::PipelineLayout layout,
+    vk::PipelineBindPoint bindPoint) :
+    m_pipeline{ std::move(pipeline) },
+    m_layout{ std::move(layout) },
+    m_bindPoint{ bindPoint }
+{
 }
 }

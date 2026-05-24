@@ -25,6 +25,16 @@ auto Device::createCommandPool(const CommandPool::Desc& desc) const -> std::expe
     return CommandPool::create(*this, desc);
 }
 
+auto Device::createPipeline(const Pipeline::GraphicsDesc& desc) const -> std::expected<Pipeline, Error>
+{
+    return Pipeline::create(*this, desc);
+}
+
+auto Device::createPipeline(const Pipeline::ComputeDesc& desc) const -> std::expected<Pipeline, Error>
+{
+    return Pipeline::create(*this, desc);
+}
+
 auto Device::createSwapchain(const Swapchain::Desc& desc) const -> std::expected<Swapchain, Error>
 {
     return Swapchain::create(*this, desc);

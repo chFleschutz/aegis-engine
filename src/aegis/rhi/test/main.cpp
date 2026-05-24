@@ -119,13 +119,12 @@ public:
             },
         };
         aegis::rhi::Pipeline::GraphicsDesc pipelineDesc{
-            .device = *device,
             .setLayouts = {},
             .pushConstantRanges = {},
             .shaders = shaders,
             .colorAttachments = colorAttachments,
         };
-        auto pipeline = aegis::rhi::Pipeline::create(pipelineDesc);
+        auto pipeline = device->createPipeline(pipelineDesc);
         if (!pipeline)
             return std::unexpected{ "Failed to create pipeline" };
 

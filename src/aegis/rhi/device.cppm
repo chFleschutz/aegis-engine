@@ -6,6 +6,7 @@ module;
 export module aegis.rhi:device;
 import :command_pool;
 import :error;
+import :pipeline;
 import :queue;
 import :swapchain;
 import aegis.platform.window;
@@ -59,6 +60,10 @@ public:
 
     [[nodiscard]] auto createCommandPool(const CommandPool::Desc& desc) const
         -> std::expected<CommandPool, Error>;
+    [[nodiscard]] auto createPipeline(const Pipeline::GraphicsDesc& desc) const
+        -> std::expected<Pipeline, Error>;
+    [[nodiscard]] auto createPipeline(const Pipeline::ComputeDesc& desc) const
+        -> std::expected<Pipeline, Error>;
     [[nodiscard]] auto createSwapchain(const Swapchain::Desc& desc) const
         -> std::expected<Swapchain, Error>;
 
