@@ -81,10 +81,8 @@ public:
         if (!context)
             return std::unexpected{ "Failed to create rhi context" };
 
-        aegis::rhi::Device::Desc deviceDesc{
-            .context = *context,
-        };
-        auto device = context->createDevice(deviceDesc);
+        aegis::rhi::Device::Desc deviceDesc{};
+        auto device = context->createDevice( deviceDesc);
         if (!device)
             return std::unexpected{ "Failed to create rhi device" };
 

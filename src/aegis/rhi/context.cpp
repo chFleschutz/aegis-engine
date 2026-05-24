@@ -11,7 +11,6 @@ module;
 module aegis.rhi;
 import :context;
 import :error;
-import :vk_factory;
 import :vulkan;
 import aegis.platform.window;
 
@@ -70,42 +69,7 @@ auto Context::create(const Desc& desc) -> std::expected<Context, Error>
 
 auto Context::createDevice(const Device::Desc& desc) const -> std::expected<Device, Error>
 {
-    auto pd = vk_factory::createPhysicalDevice(m_instance, m_surface, Device::requiredExtensions);
-    if (!pd)
-        return std::unexpected{ pd.error() };
-
-    auto queueFamilies = vk_factory::queryQueueFamilies(*pd, m_surface);
-    auto capabilities = vk_factory::queryCapabilities(*pd);
-
-    auto device = vk_factory::createDevice(*pd, capabilities, queueFamilies, Device::requiredExtensions);
-    if (!device)
-        return std::unexpected{ device.error() };
-
-    auto graphicsQueue = vk_factory::createQueue(*device, queueFamilies.graphics);
-    if (!graphicsQueue)
-        return std::unexpected{ graphicsQueue.error() };
-
-    auto computeQueue = vk_factory::createQueue(*device, queueFamilies.compute);
-    if (!computeQueue)
-        return std::unexpected{ computeQueue.error() };
-
-    auto transferQueue = vk_factory::createQueue(*device, queueFamilies.transfer);
-    if (!transferQueue)
-        return std::unexpected{ transferQueue.error() };
-
-    auto presentQueue = vk_factory::createQueue(*device, queueFamilies.present);
-    if (!presentQueue)
-        return std::unexpected{ presentQueue.error() };
-
-    return Device{
-        std::move(*pd),
-        std::move(*device),
-        std::move(*graphicsQueue),
-        std::move(*computeQueue),
-        std::move(*transferQueue),
-        std::move(*presentQueue),
-        capabilities
-    };
+    return Device::create(m_instance, m_surface, desc);
 }
 
 Context::Context(
