@@ -30,6 +30,11 @@ auto Device::createCommandPool(const CommandPool::Desc& desc) const -> std::expe
     return CommandPool::create(*this, desc);
 }
 
+auto Device::createFence(const Fence::Desc& desc) const -> std::expected<Fence, Error>
+{
+    return Fence::create(*this, desc);
+}
+
 auto Device::createPipeline(const Pipeline::GraphicsDesc& desc) const -> std::expected<Pipeline, Error>
 {
     return Pipeline::create(*this, desc);
@@ -38,6 +43,11 @@ auto Device::createPipeline(const Pipeline::GraphicsDesc& desc) const -> std::ex
 auto Device::createPipeline(const Pipeline::ComputeDesc& desc) const -> std::expected<Pipeline, Error>
 {
     return Pipeline::create(*this, desc);
+}
+
+auto Device::createSemaphore(const Semaphore::Desc& desc) const -> std::expected<Semaphore, Error>
+{
+    return Semaphore::create(*this, desc);
 }
 
 auto Device::createSwapchain(const Swapchain::Desc& desc) const -> std::expected<Swapchain, Error>

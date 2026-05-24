@@ -63,10 +63,14 @@ public:
         -> std::expected<CommandBuffer, Error>;
     [[nodiscard]] auto createCommandPool(const CommandPool::Desc& desc) const
         -> std::expected<CommandPool, Error>;
+    [[nodiscard]] auto createFence(const Fence::Desc& desc) const
+        -> std::expected<Fence, Error>;
     [[nodiscard]] auto createPipeline(const Pipeline::GraphicsDesc& desc) const
         -> std::expected<Pipeline, Error>;
     [[nodiscard]] auto createPipeline(const Pipeline::ComputeDesc& desc) const
         -> std::expected<Pipeline, Error>;
+    [[nodiscard]] auto createSemaphore(const Semaphore::Desc& desc) const
+        -> std::expected<Semaphore, Error>;
     [[nodiscard]] auto createSwapchain(const Swapchain::Desc& desc) const
         -> std::expected<Swapchain, Error>;
 

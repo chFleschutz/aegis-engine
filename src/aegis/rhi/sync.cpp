@@ -7,26 +7,10 @@ import :sync;
 import :device;
 import :error;
 import :vulkan;
+import vulkan_hpp;
 
 namespace aegis::rhi
 {
-auto Fence::create(const Desc& desc) -> std::expected<Fence, Error>
-{
-    vk::FenceCreateInfo fenceInfo{
-        .flags = vk::FenceCreateFlagBits::eSignaled,
-    };
-    auto fence = desc.device->createFence(fenceInfo);
-    if (!fence.has_value())
-        return makeError(toRHI(fence.result));
-
-    return std::expected<Fence, Error>{ std::in_place, std::move(*fence) };
-}
-
-Fence::Fence(vk::raii::Fence fence) :
-    m_fence{ std::move(fence) }
-{
-}
-
 auto Fence::wait() const noexcept -> bool
 {
     auto result = m_fence.getDevice().waitForFences(*m_fence,
@@ -43,14 +27,31 @@ auto Fence::reset() const noexcept -> bool
     return result == vk::Result::eSuccess;
 }
 
-auto Semaphore::create(const Desc& desc) -> std::expected<Semaphore, Error>
+auto Fence::create(const Device& device, const Desc& desc) -> std::expected<Fence, Error>
+{
+    vk::FenceCreateInfo fenceInfo{
+        .flags = desc.signaled ? vk::FenceCreateFlagBits::eSignaled : vk::FenceCreateFlagBits{},
+    };
+    auto fence = device->createFence(fenceInfo);
+    if (!fence.has_value())
+        return makeError(toRHI(fence.result));
+
+    return Fence{ std::move(*fence) };
+}
+
+Fence::Fence(vk::raii::Fence fence) :
+    m_fence{ std::move(fence) }
+{
+}
+
+auto Semaphore::create(const Device& device, const Desc& desc) -> std::expected<Semaphore, Error>
 {
     vk::SemaphoreCreateInfo semaphoreInfo{};
-    auto semaphore = desc.device->createSemaphore(semaphoreInfo);
+    auto semaphore = device->createSemaphore(semaphoreInfo);
     if (!semaphore.has_value())
         return makeError(toRHI(semaphore.result));
 
-    return std::expected<Semaphore, Error>{ std::in_place, std::move(*semaphore) };
+    return Semaphore{ std::move(*semaphore) };
 }
 
 Semaphore::Semaphore(vk::raii::Semaphore semaphore) :

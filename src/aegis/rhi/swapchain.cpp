@@ -282,7 +282,7 @@ auto Swapchain::createSemaphores(
 
     for (std::size_t i = 0; i < imageCount; ++i)
     {
-        auto semaphore = Semaphore::create({ device });
+        auto semaphore = device.createSemaphore({});
         if (!semaphore)
             return std::unexpected{ semaphore.error() };
         semaphores.emplace_back(std::move(*semaphore));

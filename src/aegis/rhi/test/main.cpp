@@ -52,7 +52,7 @@ auto createFrameContext(
         if (!cmd)
             return std::unexpected{ "Failed to create frame command buffer" };
 
-        auto semaphore = aegis::rhi::Semaphore::create({ device });
+        auto semaphore = device.createSemaphore({});
         if (!semaphore)
             return std::unexpected{ "Failed to create frame semaphore" };
 
