@@ -12,24 +12,20 @@ export namespace aegis::rhi
 {
 class CommandBuffer
 {
+    friend class Device;
+
 public:
     struct Desc
     {
-        const Device& device;
         const CommandPool& pool;
     };
 
     static constexpr std::uint32_t maxColorAttachments = 8;
 
-    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<CommandBuffer, Error>;
-
-    explicit CommandBuffer(vk::raii::CommandBuffer cmdBuffer);
-
     auto operator*() const -> vk::CommandBuffer { return *m_commandBuffer; }
 
     auto begin() const -> void;
     auto end() const -> void;
-
     auto beginRendering(const RenderingCmd& desc) const -> void;
     auto endRendering() const -> void;
 
@@ -41,7 +37,14 @@ public:
     auto transitionImageLayout(const ImageLayoutTransition& cmd) const -> void;
 
 private:
+    [[nodiscard]] static auto create(
+        const Device& device,
+        const Desc& desc)
+        -> std::expected<CommandBuffer, Error>;
+
     static auto deriveExtent(const RenderingCmd& cmd) -> vk::Extent2D;
+
+    explicit CommandBuffer(vk::raii::CommandBuffer cmdBuffer);
 
     vk::raii::CommandBuffer m_commandBuffer;
 };

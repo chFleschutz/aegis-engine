@@ -53,26 +53,6 @@ auto Attachment::depthReadOnly(const ImageRef& image) -> Attachment
     };
 }
 
-auto CommandBuffer::create(const Desc& desc) -> std::expected<CommandBuffer, Error>
-{
-    vk::CommandBufferAllocateInfo info{
-        .commandPool = desc.pool.pool(),
-        .level = vk::CommandBufferLevel::ePrimary,
-        .commandBufferCount = 1,
-    };
-
-    auto commandBuffer = desc.device->allocateCommandBuffers(info);
-    if (!commandBuffer.has_value())
-        return makeError(toRHI(commandBuffer.result));
-
-    return std::expected<CommandBuffer, Error>{ std::in_place, std::move(commandBuffer->front()) };
-}
-
-CommandBuffer::CommandBuffer(vk::raii::CommandBuffer cmdBuffer) :
-    m_commandBuffer{ std::move(cmdBuffer) }
-{
-}
-
 auto CommandBuffer::begin() const -> void
 {
     [[maybe_unused]] auto result = m_commandBuffer.begin({});
@@ -182,6 +162,24 @@ auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) cons
     m_commandBuffer.pipelineBarrier2(dependencyInfo);
 }
 
+auto CommandBuffer::create(
+    const Device& device,
+    const Desc& desc)
+    -> std::expected<CommandBuffer, Error>
+{
+    vk::CommandBufferAllocateInfo info{
+        .commandPool = desc.pool.pool(),
+        .level = vk::CommandBufferLevel::ePrimary,
+        .commandBufferCount = 1,
+    };
+
+    auto commandBuffer = device.device().allocateCommandBuffers(info);
+    if (!commandBuffer.has_value())
+        return makeError(toRHI(commandBuffer.result));
+
+    return CommandBuffer{ std::move(commandBuffer->front()) };
+}
+
 auto CommandBuffer::deriveExtent(const RenderingCmd& cmd) -> vk::Extent2D
 {
     if (!cmd.colorAttachments.empty())
@@ -196,5 +194,10 @@ auto CommandBuffer::deriveExtent(const RenderingCmd& cmd) -> vk::Extent2D
         };
     assert(false && "RenderingCmd has no attachments");
     return {};
+}
+
+CommandBuffer::CommandBuffer(vk::raii::CommandBuffer cmdBuffer) :
+    m_commandBuffer{ std::move(cmdBuffer) }
+{
 }
 }

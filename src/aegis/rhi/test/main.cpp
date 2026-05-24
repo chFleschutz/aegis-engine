@@ -48,7 +48,7 @@ auto createFrameContext(
     frameContext.reserve(framesInFlight);
     for (uint32_t i = 0; i < framesInFlight; ++i)
     {
-        auto cmd = aegis::rhi::CommandBuffer::create({ device, pool });
+        auto cmd = device.createCommandBuffer({ .pool = pool });
         if (!cmd)
             return std::unexpected{ "Failed to create frame command buffer" };
 
@@ -82,7 +82,7 @@ public:
             return std::unexpected{ "Failed to create rhi context" };
 
         aegis::rhi::Device::Desc deviceDesc{};
-        auto device = context->createDevice( deviceDesc);
+        auto device = context->createDevice(deviceDesc);
         if (!device)
             return std::unexpected{ "Failed to create rhi device" };
 

@@ -20,6 +20,11 @@ auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
     return m_physicalDevice;
 }
 
+auto Device::createCommandBuffer(const CommandBuffer::Desc& desc) const -> std::expected<CommandBuffer, Error>
+{
+    return CommandBuffer::create(*this, desc);
+}
+
 auto Device::createCommandPool(const CommandPool::Desc& desc) const -> std::expected<CommandPool, Error>
 {
     return CommandPool::create(*this, desc);
