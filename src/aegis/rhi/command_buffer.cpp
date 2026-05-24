@@ -56,7 +56,7 @@ auto Attachment::depthReadOnly(const ImageRef& image) -> Attachment
 auto CommandBuffer::create(const Desc& desc) -> std::expected<CommandBuffer, Error>
 {
     vk::CommandBufferAllocateInfo info{
-        .commandPool = desc.pool.commandPool(),
+        .commandPool = desc.pool.pool(),
         .level = vk::CommandBufferLevel::ePrimary,
         .commandBufferCount = 1,
     };

@@ -4,6 +4,7 @@ module;
 #include <string>
 
 export module aegis.rhi:device;
+import :command_pool;
 import :error;
 import :queue;
 import :swapchain;
@@ -56,7 +57,10 @@ public:
     [[nodiscard]] auto properties() const -> const Properties& { return m_properties; }
     [[nodiscard]] auto capabilities() const -> const Capabilities& { return m_capabilities; }
 
-    [[nodiscard]] auto createSwapchain(const Swapchain::Desc& desc) const -> std::expected<Swapchain, Error>;
+    [[nodiscard]] auto createCommandPool(const CommandPool::Desc& desc) const
+        -> std::expected<CommandPool, Error>;
+    [[nodiscard]] auto createSwapchain(const Swapchain::Desc& desc) const
+        -> std::expected<Swapchain, Error>;
 
 private:
     using FeatureChain = vk::StructureChain<

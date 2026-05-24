@@ -20,6 +20,11 @@ auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
     return m_physicalDevice;
 }
 
+auto Device::createCommandPool(const CommandPool::Desc& desc) const -> std::expected<CommandPool, Error>
+{
+    return CommandPool::create(*this, desc);
+}
+
 auto Device::createSwapchain(const Swapchain::Desc& desc) const -> std::expected<Swapchain, Error>
 {
     return Swapchain::create(*this, desc);

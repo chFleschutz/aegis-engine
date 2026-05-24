@@ -6,21 +6,22 @@ import :command_pool;
 import :device;
 import :error;
 import :vulkan;
+import vulkan_hpp;
 
 namespace aegis::rhi
 {
-auto CommandPool::create(const Desc& desc) -> std::expected<CommandPool, Error>
+auto CommandPool::create(const Device& device, const Desc& desc) -> std::expected<CommandPool, Error>
 {
     vk::CommandPoolCreateInfo poolInfo{
         .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
         .queueFamilyIndex = desc.queueFamily,
     };
 
-    auto commandPool = desc.device->createCommandPool(poolInfo);
+    auto commandPool = device.device().createCommandPool(poolInfo);
     if (!commandPool.has_value())
         return makeError(toRHI(commandPool.result));
 
-    return std::expected<CommandPool, Error>{ std::in_place, std::move(*commandPool) };
+    return CommandPool{ std::move(*commandPool) };
 }
 
 CommandPool::CommandPool(vk::raii::CommandPool pool) :

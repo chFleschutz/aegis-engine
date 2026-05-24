@@ -95,10 +95,9 @@ public:
             return std::unexpected{ "Failed to create swapchain" };
 
         aegis::rhi::CommandPool::Desc poolDesc{
-            .device = *device,
             .queueFamily = device->graphicsQueue().family(),
         };
-        auto commandPool = aegis::rhi::CommandPool::create(poolDesc);
+        auto commandPool = device->createCommandPool(poolDesc);
         if (!commandPool)
             return std::unexpected{ "Failed to create command pool" };
 
