@@ -47,7 +47,7 @@ auto Device::createPipeline(const Pipeline::ComputeDesc& desc) const -> std::exp
 
 auto Device::createSemaphore(const Semaphore::Desc& desc) const -> std::expected<Semaphore, Error>
 {
-    return Semaphore::create(*this, desc);
+    return Semaphore::create(m_device, desc);
 }
 
 auto Device::createSwapchain(const Swapchain::Desc& desc) const -> std::expected<Swapchain, Error>
@@ -203,15 +203,12 @@ auto Device::createQueue(
 {
     auto queue = device.getQueue(queueFamily, 0);
 
-    auto semaphoreTypeInfo = vk::SemaphoreTypeCreateInfo{
-        .semaphoreType = vk::SemaphoreType::eTimeline,
+    Semaphore::Desc semaphoreDesc{
+        .type = Semaphore::Type::Timeline,
     };
-    auto semaphoreInfo = vk::SemaphoreCreateInfo{
-        .pNext = &semaphoreTypeInfo,
-    };
-    auto semaphore = device.createSemaphore(semaphoreInfo);
+    auto semaphore = Semaphore::create(device, semaphoreDesc);
     if (!semaphore.has_value())
-        return makeError(toRHI(semaphore.result));
+        return std::unexpected{ semaphore.error() };
 
     return Queue{ std::move(queue), std::move(*semaphore), queueFamily };
 }

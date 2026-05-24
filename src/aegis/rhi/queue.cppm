@@ -4,6 +4,7 @@ module;
 
 export module aegis.rhi:queue;
 import :fwd;
+import :sync;
 import vulkan_hpp;
 
 export namespace aegis::rhi
@@ -18,7 +19,7 @@ public:
         const Semaphore& signalSemaphore;
     };
 
-    Queue(vk::raii::Queue queue, vk::raii::Semaphore semaphore, std::uint32_t queueFamily);
+    Queue(vk::raii::Queue queue, Semaphore semaphore, std::uint32_t queueFamily);
 
     [[nodiscard]] auto operator*() const -> vk::Queue { return *m_queue; }
     [[nodiscard]] auto operator->() const -> const vk::raii::Queue* { return &m_queue; }
@@ -31,7 +32,7 @@ public:
 
 private:
     vk::raii::Queue m_queue;
-    vk::raii::Semaphore m_timeline;
+    Semaphore m_timeline;
     std::uint32_t m_queueFamily;
     std::uint64_t m_timelineValue{ 0 };
 };

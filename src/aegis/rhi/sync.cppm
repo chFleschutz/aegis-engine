@@ -39,15 +39,23 @@ class Semaphore
     friend class Device;
 
 public:
+    enum class Type
+    {
+        Binary,
+        Timeline
+    };
+
     struct Desc
     {
+        Type type{ Type::Binary };
     };
 
     [[nodiscard]] auto operator*() const noexcept -> vk::Semaphore { return *m_semaphore; }
+    [[nodiscard]] auto operator->() const noexcept -> const vk::raii::Semaphore* { return &m_semaphore; }
 
 private:
     [[nodiscard]] static auto create(
-        const Device& device,
+        const vk::raii::Device& device,
         const Desc& desc)
         -> std::expected<Semaphore, Error>;
 

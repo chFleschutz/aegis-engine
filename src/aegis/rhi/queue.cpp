@@ -10,7 +10,7 @@ import vulkan_hpp;
 
 namespace aegis::rhi
 {
-Queue::Queue(vk::raii::Queue queue, vk::raii::Semaphore semaphore, std::uint32_t queueFamily) :
+Queue::Queue(vk::raii::Queue queue, Semaphore semaphore, std::uint32_t queueFamily) :
     m_queue{ std::move(queue) },
     m_timeline{ std::move(semaphore) },
     m_queueFamily{ queueFamily }
@@ -61,13 +61,14 @@ auto Queue::submit(const SubmitInfo& info) -> std::expected<std::uint64_t, Error
 
 auto Queue::wait(std::uint64_t timePoint) const -> bool
 {
+    vk::Semaphore waitSem = *m_timeline;
     auto waitInfo = vk::SemaphoreWaitInfo{}
-        .setSemaphores(*m_timeline)
+        .setSemaphores(waitSem)
         .setValues(timePoint);
 
-    auto result = m_timeline.getDevice().waitSemaphores(waitInfo,
+    auto result = m_timeline->getDevice().waitSemaphores(waitInfo,
         std::numeric_limits<std::uint64_t>::max(),
-        *m_timeline.getDispatcher());
+        *m_timeline->getDispatcher());
     return result == vk::Result::eSuccess;
 }
 

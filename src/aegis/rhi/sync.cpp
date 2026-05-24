@@ -44,10 +44,17 @@ Fence::Fence(vk::raii::Fence fence) :
 {
 }
 
-auto Semaphore::create(const Device& device, const Desc& desc) -> std::expected<Semaphore, Error>
+auto Semaphore::create(const vk::raii::Device& device, const Desc& desc) -> std::expected<Semaphore, Error>
 {
-    vk::SemaphoreCreateInfo semaphoreInfo{};
-    auto semaphore = device->createSemaphore(semaphoreInfo);
+    auto semaphoreTypeInfo = vk::SemaphoreTypeCreateInfo{
+        .semaphoreType = vk::SemaphoreType::eTimeline,
+    };
+
+    auto semaphoreInfo = vk::SemaphoreCreateInfo{
+        .pNext = desc.type == Type::Timeline ? &semaphoreTypeInfo : nullptr,
+    };
+
+    auto semaphore = device.createSemaphore(semaphoreInfo);
     if (!semaphore.has_value())
         return makeError(toRHI(semaphore.result));
 
