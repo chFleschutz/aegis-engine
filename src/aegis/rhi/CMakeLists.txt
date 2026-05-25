@@ -53,6 +53,7 @@ FILES
     sync.cppm
     vulkan_conversions.cppm
 PRIVATE
+    buffer.cpp
     command_buffer.cpp
     command_pool.cpp
     context.cpp

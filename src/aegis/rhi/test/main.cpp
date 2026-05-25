@@ -132,6 +132,13 @@ public:
         if (!frameContext)
             return std::unexpected{ "Failed to create frameSync" };
 
+        aegis::rhi::Buffer::Desc bufferDesc{
+            .size = sizeof(float),
+        };
+        auto buffer = device->createBuffer(bufferDesc);
+        if (!buffer)
+            return std::unexpected{ "Failed to create buffer" };
+
         return std::expected<Application, std::string>{
             std::in_place,
             std::move(window),

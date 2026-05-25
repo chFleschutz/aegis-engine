@@ -4,6 +4,7 @@ module;
 #include <string>
 
 export module aegis.rhi:device;
+import :buffer;
 import :command_buffer;
 import :command_pool;
 import :error;
@@ -60,6 +61,8 @@ public:
     [[nodiscard]] auto properties() const -> const Properties& { return m_properties; }
     [[nodiscard]] auto capabilities() const -> const Capabilities& { return m_capabilities; }
 
+    [[nodiscard]] auto createBuffer(const Buffer::Desc& desc) const
+        -> std::expected<Buffer, Error>;
     [[nodiscard]] auto createCommandBuffer(const CommandBuffer::Desc& desc) const
         -> std::expected<CommandBuffer, Error>;
     [[nodiscard]] auto createCommandPool(const CommandPool::Desc& desc) const

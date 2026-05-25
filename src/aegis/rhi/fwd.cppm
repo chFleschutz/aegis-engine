@@ -2,6 +2,8 @@ export module aegis.rhi:fwd;
 
 export namespace aegis::rhi
 {
+class Allocator;
+class Allocation;
 class CommandBuffer;
 class CommandPool;
 class Context;

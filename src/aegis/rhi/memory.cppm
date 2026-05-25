@@ -21,6 +21,8 @@ public:
     auto operator=(const Allocator&) -> Allocator& = delete;
     auto operator=(Allocator&& other) noexcept -> Allocator&;
 
+    auto operator*() const noexcept -> VmaAllocator { return m_allocator; }
+
 private:
     [[nodiscard]] static auto create(
         const vk::raii::Instance& instance,
@@ -31,32 +33,5 @@ private:
     explicit Allocator(VmaAllocator allocator);
 
     VmaAllocator m_allocator;
-};
-
-
-class Allocation
-{
-public:
-    struct Desc
-    {
-    };
-
-    Allocation(const Allocation&) = delete;
-    Allocation(Allocation&& other) noexcept;
-    ~Allocation();
-
-    auto operator=(const Allocation&) -> Allocation& = delete;
-    auto operator=(Allocation&& other) noexcept -> Allocation&;
-
-    auto map() const -> std::expected<void*, Error>;
-    auto unmap() const -> void;
-
-private:
-    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Allocation, Error>;
-
-    Allocation(VmaAllocator allocator, VmaAllocation allocation);
-
-    VmaAllocator m_allocator;
-    VmaAllocation m_allocation;
 };
 }

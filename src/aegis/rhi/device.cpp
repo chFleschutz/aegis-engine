@@ -20,6 +20,11 @@ auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
     return m_physicalDevice;
 }
 
+auto Device::createBuffer(const Buffer::Desc& desc) const -> std::expected<Buffer, Error>
+{
+    return Buffer::create(m_allocator, desc);
+}
+
 auto Device::createCommandBuffer(const CommandBuffer::Desc& desc) const -> std::expected<CommandBuffer, Error>
 {
     return CommandBuffer::create(*this, desc);
