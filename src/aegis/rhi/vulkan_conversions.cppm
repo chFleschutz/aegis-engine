@@ -3,6 +3,8 @@ module;
 #include <utility>
 #include <variant>
 
+#include "vk_mem_alloc.h"
+
 export module aegis.rhi:vulkan_conversions;
 import :common;
 import :commands;
@@ -17,6 +19,15 @@ struct VulkanState
     vk::AccessFlags2 accessMask;
 };
 
+struct VulkanBufferFlags
+{
+    vk::BufferUsageFlags bufferUsage;
+    VmaMemoryUsage memoryUsage;
+    VmaAllocationCreateFlags allocFlags;
+    vk::MemoryPropertyFlags requiredFlags;
+    vk::MemoryPropertyFlags preferredFlags;
+};
+
 // RHI -> Vulkan conversion
 
 constexpr auto toVulkan(Format format) noexcept -> vk::Format;
@@ -27,6 +38,7 @@ constexpr auto toVulkan(AttachmentLoadOp op) noexcept -> vk::AttachmentLoadOp;
 constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp;
 constexpr auto toVulkan(const Attachment& a) -> vk::RenderingAttachmentInfo;
 
+constexpr auto deriveBufferFlags(BufferUsage usage) noexcept -> VulkanBufferFlags;
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
 constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout;
 
@@ -221,6 +233,92 @@ constexpr auto toVulkan(const Attachment& a) -> vk::RenderingAttachmentInfo
                           ? toVulkan(*a.clearValue)
                           : vk::ClearValue{},
     };
+}
+
+constexpr auto deriveBufferFlags(BufferUsage usage) noexcept -> VulkanBufferFlags
+{
+    switch (usage)
+    {
+    case BufferUsage::Vertex:
+        return VulkanBufferFlags{
+            .bufferUsage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+            .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+            .allocFlags = 0,
+            .requiredFlags = {},
+            .preferredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal,
+        };
+    case BufferUsage::Index:
+        return VulkanBufferFlags{
+            .bufferUsage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+            .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+            .allocFlags = 0,
+            .requiredFlags = {},
+            .preferredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal,
+        };
+    case BufferUsage::Uniform:
+        return VulkanBufferFlags{
+            .bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst,
+            .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+            .allocFlags = 0,
+            .requiredFlags = {},
+            .preferredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal,
+        };
+    case BufferUsage::UniformDynamic:
+        return VulkanBufferFlags{
+            .bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer,
+            .memoryUsage = VMA_MEMORY_USAGE_AUTO,
+            .allocFlags = VMA_ALLOCATION_CREATE_MAPPED_BIT |
+                          VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible,
+            .preferredFlags = vk::MemoryPropertyFlagBits::eHostCoherent,
+        };
+    case BufferUsage::Storage:
+        return VulkanBufferFlags{
+            .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+            .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+            .allocFlags = 0,
+            .requiredFlags = {},
+            .preferredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal,
+        };
+    case BufferUsage::StorageDynamic:
+        return VulkanBufferFlags{
+            .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer,
+            .memoryUsage = VMA_MEMORY_USAGE_AUTO,
+            .allocFlags = VMA_ALLOCATION_CREATE_MAPPED_BIT |
+                          VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible,
+            .preferredFlags = vk::MemoryPropertyFlagBits::eHostCoherent,
+        };
+    case BufferUsage::Indirect:
+        return VulkanBufferFlags{
+            .bufferUsage = vk::BufferUsageFlagBits::eIndirectBuffer |
+                     vk::BufferUsageFlagBits::eStorageBuffer |
+                     vk::BufferUsageFlagBits::eTransferDst,
+            .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+            .allocFlags = 0,
+            .requiredFlags = {},
+            .preferredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal,
+        };
+    case BufferUsage::Staging:
+        return VulkanBufferFlags{
+            .bufferUsage = vk::BufferUsageFlagBits::eTransferSrc,
+            .memoryUsage = VMA_MEMORY_USAGE_AUTO,
+            .allocFlags = VMA_ALLOCATION_CREATE_MAPPED_BIT |
+                          VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible,
+            .preferredFlags = vk::MemoryPropertyFlagBits::eHostCoherent,
+        };
+    case BufferUsage::Readback:
+        return VulkanBufferFlags{
+            .bufferUsage = vk::BufferUsageFlagBits::eTransferDst,
+            .memoryUsage = VMA_MEMORY_USAGE_AUTO,
+            .allocFlags = VMA_ALLOCATION_CREATE_MAPPED_BIT |
+                          VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+            .requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible,
+            .preferredFlags = vk::MemoryPropertyFlagBits::eHostCoherent,
+        };
+    }
+    std::unreachable();
 }
 
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags

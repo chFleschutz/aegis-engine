@@ -88,6 +88,19 @@ enum class AttachmentStoreOp
     None,
 };
 
+enum class BufferUsage
+{
+    Vertex,
+    Index,
+    Uniform,
+    UniformDynamic,
+    Storage,
+    StorageDynamic,
+    Indirect,
+    Staging,
+    Readback,
+};
+
 struct Extent2D
 {
     std::uint32_t x{ 0 };

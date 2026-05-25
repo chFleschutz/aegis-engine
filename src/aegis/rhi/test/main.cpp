@@ -134,6 +134,7 @@ public:
 
         aegis::rhi::Buffer::Desc bufferDesc{
             .size = sizeof(float),
+            .usage = aegis::rhi::BufferUsage::UniformDynamic,
         };
         auto buffer = device->createBuffer(bufferDesc);
         if (!buffer)
