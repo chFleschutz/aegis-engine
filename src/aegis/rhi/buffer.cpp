@@ -1,5 +1,5 @@
 module;
-#include "vma/vma.h"
+#include <vk_mem_alloc.h>
 
 #include <utility>
 #include <expected>

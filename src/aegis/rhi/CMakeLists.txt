@@ -64,7 +64,7 @@ PRIVATE
     pipeline.cpp
     swapchain.cpp
     sync.cpp
-    vma/vma.cpp
+    vma_impl.cpp
 )
 
 # TODO: remove later
