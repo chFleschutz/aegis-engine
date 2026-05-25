@@ -78,6 +78,10 @@ auto Device::create(
     if (!device)
         return std::unexpected{ device.error() };
 
+    auto allocator = Allocator::create(instance, *device, *physicalDevice);
+    if (!allocator)
+        return std::unexpected{ allocator.error() };
+
     auto graphicsQueue = createQueue(*device, queueFamilies.graphics);
     if (!graphicsQueue)
         return std::unexpected{ graphicsQueue.error() };
@@ -97,6 +101,7 @@ auto Device::create(
     return Device{
         std::move(*physicalDevice),
         std::move(*device),
+        std::move(*allocator),
         std::move(*graphicsQueue),
         std::move(*computeQueue),
         std::move(*transferQueue),
@@ -369,6 +374,7 @@ auto Device::queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties
 Device::Device(
     vk::raii::PhysicalDevice pd,
     vk::raii::Device device,
+    Allocator allocator,
     Queue graphicsQueue,
     Queue computeQueue,
     Queue transferQueue,
@@ -376,6 +382,7 @@ Device::Device(
     Capabilities capabilities) :
     m_physicalDevice{ std::move(pd) },
     m_device{ std::move(device) },
+    m_allocator{ std::move(allocator) },
     m_graphicsQueue{ std::move(graphicsQueue) },
     m_computeQueue{ std::move(computeQueue) },
     m_transferQueue{ std::move(transferQueue) },

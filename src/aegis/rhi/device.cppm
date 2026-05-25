@@ -7,6 +7,7 @@ export module aegis.rhi:device;
 import :command_buffer;
 import :command_pool;
 import :error;
+import :memory;
 import :pipeline;
 import :queue;
 import :swapchain;
@@ -130,6 +131,7 @@ private:
     Device(
         vk::raii::PhysicalDevice pd,
         vk::raii::Device device,
+        Allocator allocator,
         Queue graphicsQueue,
         Queue computeQueue,
         Queue transferQueue,
@@ -138,6 +140,7 @@ private:
 
     vk::raii::PhysicalDevice m_physicalDevice;
     vk::raii::Device m_device;
+    Allocator m_allocator;
     Queue m_graphicsQueue;
     Queue m_computeQueue;
     Queue m_transferQueue;

@@ -45,6 +45,7 @@ FILES
     error.cppm
     fwd.cppm
     image_ref.cppm
+    memory.cppm
     queue.cppm
     rhi.cppm
     pipeline.cppm
@@ -57,6 +58,7 @@ PRIVATE
     context.cpp
     device.cpp
     image_ref.cpp
+    memory.cpp
     queue.cpp
     pipeline.cpp
     swapchain.cpp

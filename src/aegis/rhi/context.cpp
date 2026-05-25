@@ -94,7 +94,7 @@ auto Context::createInstance(
         .applicationVersion = vk::makeVersion(1, 0, 0),
         .pEngineName = "Aegis Engine",
         .engineVersion = vk::makeVersion(1, 0, 0),
-        .apiVersion = vk::makeApiVersion(0, 1, 3, 0),
+        .apiVersion = vulkanVersion,
     };
 
     auto extensions = findExtensions();

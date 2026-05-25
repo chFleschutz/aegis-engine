@@ -22,6 +22,7 @@ public:
         const platform::Window& window;
     };
 
+    static constexpr std::uint32_t vulkanVersion{ vk::makeApiVersion(0, 1, 3, 0) };
 #ifdef NDEBUG
     static constexpr bool enableValidation{ false };
 #else
