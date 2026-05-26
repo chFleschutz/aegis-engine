@@ -44,6 +44,7 @@ FILES
     device.cppm
     error.cppm
     fwd.cppm
+    image.cppm
     image_ref.cppm
     memory.cppm
     queue.cppm
@@ -58,6 +59,7 @@ PRIVATE
     command_pool.cpp
     context.cpp
     device.cpp
+    image.cpp
     image_ref.cpp
     memory.cpp
     queue.cpp
