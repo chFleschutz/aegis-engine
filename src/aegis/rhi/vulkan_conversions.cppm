@@ -30,6 +30,8 @@ struct VulkanBufferFlags
 
 // RHI -> Vulkan conversion
 
+constexpr auto toVulkan(Extent2D extent) noexcept -> vk::Extent2D;
+constexpr auto toVulkan(Extent3D extent) noexcept -> vk::Extent3D;
 constexpr auto toVulkan(Format format) noexcept -> vk::Format;
 constexpr auto toVulkan(ShaderStage stage) noexcept -> vk::ShaderStageFlagBits;
 constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState;
@@ -37,10 +39,16 @@ constexpr auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue;
 constexpr auto toVulkan(AttachmentLoadOp op) noexcept -> vk::AttachmentLoadOp;
 constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp;
 constexpr auto toVulkan(const Attachment& a) -> vk::RenderingAttachmentInfo;
+constexpr auto toVulkan(ImageUsage usage) noexcept -> vk::ImageUsageFlags;
 
 constexpr auto deriveBufferFlags(BufferUsage usage) noexcept -> VulkanBufferFlags;
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
 constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout;
+constexpr auto deriveImageType(Extent3D extent) noexcept -> vk::ImageType;
+constexpr auto deriveImageCreateFlags(
+    Extent3D extent,
+    std::uint32_t arrayLayers) noexcept
+    -> vk::ImageCreateFlags;
 
 // Vulkan -> RHI conversion
 
@@ -50,6 +58,16 @@ constexpr auto toRHI(vk::Format format) noexcept -> Format;
 /////////////////////
 // Implementations //
 /////////////////////
+
+constexpr auto toVulkan(Extent2D extent) noexcept -> vk::Extent2D
+{
+    return vk::Extent3D{ extent.x, extent.y };
+}
+
+constexpr auto toVulkan(Extent3D extent) noexcept -> vk::Extent3D
+{
+    return vk::Extent3D{ extent.x, extent.y, extent.z };
+}
 
 constexpr auto toVulkan(Format format) noexcept -> vk::Format
 {
@@ -235,6 +253,24 @@ constexpr auto toVulkan(const Attachment& a) -> vk::RenderingAttachmentInfo
     };
 }
 
+constexpr auto toVulkan(ImageUsage usage) noexcept -> vk::ImageUsageFlags
+{
+    vk::ImageUsageFlags result{};
+    if (hasFlag(usage, ImageUsage::Sampled))
+        result |= vk::ImageUsageFlagBits::eSampled;
+    if (hasFlag(usage, ImageUsage::Storage))
+        result |= vk::ImageUsageFlagBits::eStorage;
+    if (hasFlag(usage, ImageUsage::ColorAttachment))
+        result |= vk::ImageUsageFlagBits::eColorAttachment;
+    if (hasFlag(usage, ImageUsage::DepthStencilAttachment))
+        result |= vk::ImageUsageFlagBits::eDepthStencilAttachment;
+    if (hasFlag(usage, ImageUsage::TransferSrc))
+        result |= vk::ImageUsageFlagBits::eTransferSrc;
+    if (hasFlag(usage, ImageUsage::TransferDst))
+        result |= vk::ImageUsageFlagBits::eTransferDst;
+    return result;
+}
+
 constexpr auto deriveBufferFlags(BufferUsage usage) noexcept -> VulkanBufferFlags
 {
     switch (usage)
@@ -292,8 +328,8 @@ constexpr auto deriveBufferFlags(BufferUsage usage) noexcept -> VulkanBufferFlag
     case BufferUsage::Indirect:
         return VulkanBufferFlags{
             .bufferUsage = vk::BufferUsageFlagBits::eIndirectBuffer |
-                     vk::BufferUsageFlagBits::eStorageBuffer |
-                     vk::BufferUsageFlagBits::eTransferDst,
+                           vk::BufferUsageFlagBits::eStorageBuffer |
+                           vk::BufferUsageFlagBits::eTransferDst,
             .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
             .allocFlags = 0,
             .requiredFlags = {},
@@ -358,6 +394,29 @@ constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk:
     if (op == AttachmentStoreOp::None)
         return vk::ImageLayout::eReadOnlyOptimal;
     return vk::ImageLayout::eAttachmentOptimal;
+}
+
+constexpr auto deriveImageType(Extent3D extent) noexcept -> vk::ImageType
+{
+    if (extent.z > 1)
+        return vk::ImageType::e3D;
+    if (extent.y > 1)
+        return vk::ImageType::e2D;
+    return vk::ImageType::e1D;
+}
+
+constexpr auto deriveImageCreateFlags(
+    Extent3D extent,
+    std::uint32_t arrayLayers) noexcept
+    -> vk::ImageCreateFlags
+{
+    vk::ImageCreateFlags flags{};
+
+    // Cubemap: 6 array layers on 2D image
+    if (arrayLayers == 6 and deriveImageType(extent) == vk::ImageType::e2D)
+        flags |= vk::ImageCreateFlagBits::eCubeCompatible;
+
+    return flags;
 }
 
 constexpr auto toRHI(vk::Result result) noexcept -> ErrorCode
