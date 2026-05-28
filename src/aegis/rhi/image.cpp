@@ -60,16 +60,7 @@ auto Image::create(VmaAllocator allocator, const Desc& desc) -> std::expected<Im
         .initialLayout = vk::ImageLayout::eUndefined,
     };
 
-    VmaAllocationCreateInfo allocationInfo{
-        .flags = ,
-        .usage = ,
-        .requiredFlags = ,
-        .preferredFlags = ,
-        .memoryTypeBits = ,
-        .pool = ,
-        .pUserData = ,
-        .priority =
-    };
+    VmaAllocationCreateInfo allocationInfo{ deriveAllocationInfo(desc.memoryType) };
 
     VkImage image;
     VmaAllocation allocation;

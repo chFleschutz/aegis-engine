@@ -49,6 +49,7 @@ constexpr auto deriveImageCreateFlags(
     Extent3D extent,
     std::uint32_t arrayLayers) noexcept
     -> vk::ImageCreateFlags;
+constexpr auto deriveAllocationInfo(MemoryType type) noexcept -> VmaAllocationCreateInfo;
 
 // Vulkan -> RHI conversion
 
@@ -417,6 +418,37 @@ constexpr auto deriveImageCreateFlags(
         flags |= vk::ImageCreateFlagBits::eCubeCompatible;
 
     return flags;
+}
+
+constexpr auto deriveAllocationInfo(MemoryType type) noexcept -> VmaAllocationCreateInfo
+{
+    switch (type)
+    {
+    case MemoryType::GPUOnly:
+        return VmaAllocationCreateInfo{
+            .flags = 0,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+            .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            .preferredFlags = 0,
+        };
+    case MemoryType::CPUToGPU:
+        return VmaAllocationCreateInfo{
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                     VMA_ALLOCATION_CREATE_MAPPED_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+            .requiredFlags = 0,
+            .preferredFlags = 0,
+        };
+    case MemoryType::GPUToCPU:
+        return VmaAllocationCreateInfo{
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
+                     VMA_ALLOCATION_CREATE_MAPPED_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+            .requiredFlags = 0,
+            .preferredFlags = 0,
+        };
+    }
+    std::unreachable();
 }
 
 constexpr auto toRHI(vk::Result result) noexcept -> ErrorCode

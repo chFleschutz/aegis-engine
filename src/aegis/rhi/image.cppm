@@ -22,8 +22,9 @@ public:
         Extent3D extent;
         Format format;
         ImageUsage usage;
-        std::uint32_t mipLevels;
-        std::uint32_t arrayLayers;
+        std::uint32_t mipLevels{ 1 };
+        std::uint32_t arrayLayers{ 1 };
+        MemoryType memoryType{ MemoryType::GPUOnly };
     };
 
     static constexpr std::uint32_t fullMipChain{ std::numeric_limits<std::uint32_t>::max() };

@@ -160,6 +160,13 @@ enum class ImageUsage : std::uint32_t
 template<>
 constexpr auto isFlagEnum<ImageUsage>{ true };
 
+enum class MemoryType
+{
+    GPUOnly,  // GPU only (no CPU access)
+    CPUToGPU, // CPU write, GPU read (staging upload)
+    GPUToCPU, // GPU write, CPU read (readback)
+};
+
 struct Extent2D
 {
     std::uint32_t x{ 0 };
