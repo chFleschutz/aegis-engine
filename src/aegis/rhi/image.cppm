@@ -37,15 +37,30 @@ public:
     auto operator=(Image&& other) noexcept -> Image&;
 
 private:
-    [[nodiscard]] static auto create(VmaAllocator allocator, const Desc& desc) -> std::expected<Image, Error>;
+    [[nodiscard]] static auto create(
+        const vk::raii::Device& device,
+        VmaAllocator allocator,
+        const Desc& desc)
+        -> std::expected<Image, Error>;
 
     [[nodiscard]] static auto calcMipLevels(Extent3D extent) -> std::uint32_t;
 
-    Image(VmaAllocator allocator, VmaAllocation allocation, vk::Image image);
+    Image(VmaAllocator allocator,
+        VmaAllocation allocation,
+        vk::Image image,
+        vk::raii::ImageView view,
+        Extent3D extent,
+        Format format,
+        std::uint32_t mipLevels,
+        std::uint32_t arrayLayers);
 
     VmaAllocator m_allocator;
     VmaAllocation m_allocation;
     vk::Image m_image;
-    // vk::raii::ImageView m_view;
+    vk::raii::ImageView m_view;
+    Extent3D m_extent;
+    Format m_format;
+    std::uint32_t m_mipLevels;
+    std::uint32_t m_arrayLayers;
 };
 }

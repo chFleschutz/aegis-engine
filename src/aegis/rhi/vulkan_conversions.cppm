@@ -1,5 +1,6 @@
 module;
 #include <cassert>
+#include <memory>
 #include <utility>
 #include <variant>
 
@@ -45,6 +46,7 @@ constexpr auto deriveBufferFlags(BufferUsage usage) noexcept -> VulkanBufferFlag
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
 constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout;
 constexpr auto deriveImageType(Extent3D extent) noexcept -> vk::ImageType;
+constexpr auto deriveImageViewType(Extent3D extent, std::uint32_t arrayLayers) noexcept -> vk::ImageViewType;
 constexpr auto deriveImageCreateFlags(
     Extent3D extent,
     std::uint32_t arrayLayers) noexcept
@@ -404,6 +406,24 @@ constexpr auto deriveImageType(Extent3D extent) noexcept -> vk::ImageType
     if (extent.y > 1)
         return vk::ImageType::e2D;
     return vk::ImageType::e1D;
+}
+
+constexpr auto deriveImageViewType(Extent3D extent, std::uint32_t arrayLayers) noexcept -> vk::ImageViewType
+{
+    auto imageType = deriveImageType(extent);
+    if (arrayLayers == 6 and imageType == vk::ImageType::e2D)
+        return vk::ImageViewType::eCube;
+
+    switch (imageType)
+    {
+    case vk::ImageType::e1D:
+        return arrayLayers > 1 ? vk::ImageViewType::e1DArray : vk::ImageViewType::e1D;
+    case vk::ImageType::e2D:
+        return arrayLayers > 1 ? vk::ImageViewType::e2DArray : vk::ImageViewType::e2D;
+    case vk::ImageType::e3D:
+        return vk::ImageViewType::e3D;
+    }
+    std::unreachable();
 }
 
 constexpr auto deriveImageCreateFlags(
