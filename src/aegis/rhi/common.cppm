@@ -4,53 +4,10 @@ module;
 #include <variant>
 
 export module aegis.rhi:common;
+import :utility;
 
 export namespace aegis::rhi
 {
-// TODO: move the flag enum concept stuff to core in its own module
-template<typename T>
-constexpr auto isFlagEnum{ false };
-
-template<typename T>
-concept FlagEnum = std::is_enum_v<T> && isFlagEnum<T>;
-
-template<FlagEnum T>
-constexpr auto operator|(T a, T b) -> T
-{
-    return static_cast<T>(std::to_underlying(a) | std::to_underlying(b));
-}
-
-template<FlagEnum T>
-constexpr auto operator&(T a, T b) -> T
-{
-    return static_cast<T>(std::to_underlying(a) & std::to_underlying(b));
-}
-
-template<FlagEnum T>
-constexpr auto operator~(T a) -> T
-{
-    return static_cast<T>(~std::to_underlying(a));
-}
-
-template<FlagEnum T>
-constexpr auto operator|=(T& a, T b) -> T&
-{
-    return a = a | b;
-}
-
-template<FlagEnum T>
-constexpr auto operator&=(T& a, T b) -> T&
-{
-    return a = a & b;
-}
-
-template<FlagEnum T>
-constexpr auto hasFlag(T value, T flag) -> bool
-{
-    return (value & flag) == flag;
-}
-
-
 enum class ErrorCode
 {
     Unknown,
@@ -144,6 +101,9 @@ enum class BufferUsage : std::uint32_t
     TransferDst = 1 << 6,
     CpuVisible  = 1 << 7,
 };
+
+template<>
+constexpr auto utility::isFlagEnum<BufferUsage>{ true };
 
 enum class ImageUsage : std::uint32_t
 {

@@ -9,6 +9,7 @@ module;
 export module aegis.rhi:vulkan_conversions;
 import :common;
 import :commands;
+import :utility;
 import vulkan_hpp;
 
 export namespace aegis::rhi
@@ -186,25 +187,16 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState
     std::unreachable();
 }
 
-// TODO: Put this in some core module
-// TODO: Also look at utility match(val, [](){}, ...) function
-template<class... Ts>
-struct overloads : Ts...
-{
-    using Ts::operator()...;
-};
-
 constexpr auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue
 {
-    return std::visit(overloads{
-            [](const ClearColor& value) -> vk::ClearValue {
-                return vk::ClearColorValue{ value.r, value.g, value.b, value.a };
-            },
-            [](const ClearDepthStencil& value)-> vk::ClearValue {
-                return vk::ClearDepthStencilValue{ value.depth, value.stencil };
-            }
+    return utility::match(clearValue,
+        [](const ClearColor& value) -> vk::ClearValue {
+            return vk::ClearColorValue{ value.r, value.g, value.b, value.a };
         },
-        clearValue);
+        [](const ClearDepthStencil& value)-> vk::ClearValue {
+            return vk::ClearDepthStencilValue{ value.depth, value.stencil };
+        }
+    );
 }
 
 constexpr auto toVulkan(AttachmentLoadOp op) noexcept -> vk::AttachmentLoadOp
@@ -248,108 +240,42 @@ constexpr auto toVulkan(const Attachment& a) -> vk::RenderingAttachmentInfo
     };
 }
 
-constexpr auto toVulkan(ImageUsage usage) noexcept -> vk::ImageUsageFlags
+constexpr auto toVulkan(BufferUsage usage) noexcept -> vk::BufferUsageFlags
 {
-    vk::ImageUsageFlags result{};
-    if (hasFlag(usage, ImageUsage::Sampled))
-        result |= vk::ImageUsageFlagBits::eSampled;
-    if (hasFlag(usage, ImageUsage::Storage))
-        result |= vk::ImageUsageFlagBits::eStorage;
-    if (hasFlag(usage, ImageUsage::ColorAttachment))
-        result |= vk::ImageUsageFlagBits::eColorAttachment;
-    if (hasFlag(usage, ImageUsage::DepthStencilAttachment))
-        result |= vk::ImageUsageFlagBits::eDepthStencilAttachment;
-    if (hasFlag(usage, ImageUsage::TransferSrc))
-        result |= vk::ImageUsageFlagBits::eTransferSrc;
-    if (hasFlag(usage, ImageUsage::TransferDst))
-        result |= vk::ImageUsageFlagBits::eTransferDst;
-    return result;
+    vk::BufferUsageFlags flags{};
+    if (utility::hasFlag(usage, BufferUsage::Vertex))
+        flags |= vk::BufferUsageFlagBits::eVertexBuffer;
+    if (utility::hasFlag(usage, BufferUsage::Index))
+        flags |= vk::BufferUsageFlagBits::eIndexBuffer;
+    if (utility::hasFlag(usage, BufferUsage::Uniform))
+        flags |= vk::BufferUsageFlagBits::eUniformBuffer;
+    if (utility::hasFlag(usage, BufferUsage::Storage))
+        flags |= vk::BufferUsageFlagBits::eStorageBuffer;
+    if (utility::hasFlag(usage, BufferUsage::Indirect))
+        flags |= vk::BufferUsageFlagBits::eIndirectBuffer;
+    if (utility::hasFlag(usage, BufferUsage::TransferSrc))
+        flags |= vk::BufferUsageFlagBits::eTransferSrc;
+    if (utility::hasFlag(usage, BufferUsage::TransferDst))
+        flags |= vk::BufferUsageFlagBits::eTransferDst;
+    return flags;
 }
 
-constexpr auto deriveBufferFlags(BufferUsage usage) noexcept -> VulkanBufferFlags
+constexpr auto toVulkan(ImageUsage usage) noexcept -> vk::ImageUsageFlags
 {
-    switch (usage)
-    {
-    case BufferUsage::Vertex:
-        return VulkanBufferFlags{
-            .bufferUsage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-            .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-            .allocFlags = 0,
-            .requiredFlags = {},
-            .preferredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal,
-        };
-    case BufferUsage::Index:
-        return VulkanBufferFlags{
-            .bufferUsage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-            .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-            .allocFlags = 0,
-            .requiredFlags = {},
-            .preferredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal,
-        };
-    case BufferUsage::Uniform:
-        return VulkanBufferFlags{
-            .bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst,
-            .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-            .allocFlags = 0,
-            .requiredFlags = {},
-            .preferredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal,
-        };
-    case BufferUsage::UniformDynamic:
-        return VulkanBufferFlags{
-            .bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer,
-            .memoryUsage = VMA_MEMORY_USAGE_AUTO,
-            .allocFlags = VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                          VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-            .requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible,
-            .preferredFlags = vk::MemoryPropertyFlagBits::eHostCoherent,
-        };
-    case BufferUsage::Storage:
-        return VulkanBufferFlags{
-            .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-            .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-            .allocFlags = 0,
-            .requiredFlags = {},
-            .preferredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal,
-        };
-    case BufferUsage::StorageDynamic:
-        return VulkanBufferFlags{
-            .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer,
-            .memoryUsage = VMA_MEMORY_USAGE_AUTO,
-            .allocFlags = VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                          VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-            .requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible,
-            .preferredFlags = vk::MemoryPropertyFlagBits::eHostCoherent,
-        };
-    case BufferUsage::Indirect:
-        return VulkanBufferFlags{
-            .bufferUsage = vk::BufferUsageFlagBits::eIndirectBuffer |
-                           vk::BufferUsageFlagBits::eStorageBuffer |
-                           vk::BufferUsageFlagBits::eTransferDst,
-            .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-            .allocFlags = 0,
-            .requiredFlags = {},
-            .preferredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal,
-        };
-    case BufferUsage::Staging:
-        return VulkanBufferFlags{
-            .bufferUsage = vk::BufferUsageFlagBits::eTransferSrc,
-            .memoryUsage = VMA_MEMORY_USAGE_AUTO,
-            .allocFlags = VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                          VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-            .requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible,
-            .preferredFlags = vk::MemoryPropertyFlagBits::eHostCoherent,
-        };
-    case BufferUsage::Readback:
-        return VulkanBufferFlags{
-            .bufferUsage = vk::BufferUsageFlagBits::eTransferDst,
-            .memoryUsage = VMA_MEMORY_USAGE_AUTO,
-            .allocFlags = VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                          VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
-            .requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible,
-            .preferredFlags = vk::MemoryPropertyFlagBits::eHostCoherent,
-        };
-    }
-    std::unreachable();
+    vk::ImageUsageFlags flags{};
+    if (utility::hasFlag(usage, ImageUsage::Sampled))
+        flags |= vk::ImageUsageFlagBits::eSampled;
+    if (utility::hasFlag(usage, ImageUsage::Storage))
+        flags |= vk::ImageUsageFlagBits::eStorage;
+    if (utility::hasFlag(usage, ImageUsage::ColorAttachment))
+        flags |= vk::ImageUsageFlagBits::eColorAttachment;
+    if (utility::hasFlag(usage, ImageUsage::DepthStencilAttachment))
+        flags |= vk::ImageUsageFlagBits::eDepthStencilAttachment;
+    if (utility::hasFlag(usage, ImageUsage::TransferSrc))
+        flags |= vk::ImageUsageFlagBits::eTransferSrc;
+    if (utility::hasFlag(usage, ImageUsage::TransferDst))
+        flags |= vk::ImageUsageFlagBits::eTransferDst;
+    return flags;
 }
 
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags

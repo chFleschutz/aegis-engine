@@ -53,6 +53,7 @@ FILES
     pipeline.cppm
     swapchain.cppm
     sync.cppm
+    utility.cppm
     vulkan_conversions.cppm
 PRIVATE
     buffer.cpp
