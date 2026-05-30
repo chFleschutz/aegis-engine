@@ -22,13 +22,6 @@ public:
         BufferUsage usage;
     };
 
-    Buffer(const Buffer&) = delete;
-    Buffer(Buffer&& other) noexcept;
-    ~Buffer();
-
-    auto operator=(const Buffer&) -> Buffer& = delete;
-    auto operator=(Buffer&& other) noexcept -> Buffer&;
-
     /// @brief Writes 'size' bytes from 'src' to the internal buffer starting at 'offset'.
     /// @note This function needs access to the internal Buffer.
     /// @warning Only valid for buffer usages of UniformDynamic, StorageDynamic, Staging and Readback.
@@ -45,15 +38,12 @@ private:
         const Desc& desc)
         -> std::expected<Buffer, Error>;
 
-    Buffer(VmaAllocator allocator,
-        VmaAllocation allocation,
-        vk::Buffer buffer,
+    Buffer(
+        BufferAllocation,
         vk::DeviceSize size,
         void* mappedData);
 
-    VmaAllocator m_allocator;
-    VmaAllocation m_allocation;
-    vk::Buffer m_buffer;
+    BufferAllocation m_allocation;
     vk::DeviceSize m_size;
     void* m_mappedData;
     bool m_isCoherent{ false };

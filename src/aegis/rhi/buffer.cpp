@@ -1,9 +1,9 @@
 module;
 #include <vk_mem_alloc.h>
 
-#include <utility>
-#include <expected>
 #include <cassert>
+#include <expected>
+#include <utility>
 
 module aegis.rhi;
 import :buffer;
@@ -13,32 +13,6 @@ import :vulkan_conversions;
 
 namespace aegis::rhi
 {
-Buffer::Buffer(Buffer&& other) noexcept :
-    m_allocator{ other.m_allocator },
-    m_allocation{ std::exchange(other.m_allocation, nullptr) },
-    m_buffer{ std::exchange(other.m_buffer, nullptr) }
-{
-}
-
-Buffer::~Buffer()
-{
-    if (m_buffer)
-    {
-        vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
-    }
-}
-
-auto Buffer::operator=(Buffer&& other) noexcept -> Buffer&
-{
-    if (this != &other)
-    {
-        std::swap(m_allocator, other.m_allocator);
-        std::swap(m_allocation, other.m_allocation);
-        std::swap(m_buffer, other.m_buffer);
-    }
-    return *this;
-}
-
 auto Buffer::write(const void* src, std::size_t size, std::size_t offset) const -> void
 {
     assert(m_mappedData != nullptr && "Cannot write to unmapped buffer");
@@ -47,7 +21,7 @@ auto Buffer::write(const void* src, std::size_t size, std::size_t offset) const 
     std::memcpy(static_cast<std::byte*>(m_mappedData) + offset, src, size);
 
     if (!m_isCoherent)
-        vmaFlushAllocation(m_allocator, m_allocation, offset, size);
+        m_allocation.flush(offset, size);
 }
 
 auto Buffer::read(void* dst, std::size_t size, std::size_t offset) const -> void
@@ -56,7 +30,7 @@ auto Buffer::read(void* dst, std::size_t size, std::size_t offset) const -> void
     assert(dst != nullptr && "Cannot copy to nullptr");
 
     if (!m_isCoherent)
-        vmaInvalidateAllocation(m_allocator, m_allocation, offset, size);
+        m_allocation.invalidate(offset, size);
 
     std::memcpy(dst, static_cast<std::byte*>(m_mappedData) + offset, size);
 }
@@ -77,43 +51,26 @@ auto Buffer::create(const Allocator& allocator, const Desc& desc) -> std::expect
         .preferredFlags = static_cast<VkMemoryPropertyFlags>(usage.preferredFlags),
     };
 
-    VkBuffer buffer{ nullptr };
-    VmaAllocation allocation{ nullptr };
-    VmaAllocationInfo allocInfo{};
-    auto result = vk::Result{
-        vmaCreateBuffer(*allocator,
-            &static_cast<const VkBufferCreateInfo&>(bufferInfo),
-            &allocationInfo,
-            &buffer,
-            &allocation,
-            &allocInfo)
-    };
-
-    if (result != vk::Result::eSuccess)
-        return makeError(toRHI(result));
+    auto bufferAlloc = allocator.allocateBuffer(bufferInfo, allocationInfo);
+    if (!bufferAlloc)
+        return std::unexpected{ bufferAlloc.error() };
 
     return Buffer{
-        *allocator,
-        allocation,
-        vk::Buffer{ buffer },
-        vk::DeviceSize{ allocInfo.size },
-        allocInfo.pMappedData
+        std::move(bufferAlloc->first),
+        vk::DeviceSize{ bufferAlloc->second.size },
+        bufferAlloc->second.pMappedData
     };
 }
 
-Buffer::Buffer(VmaAllocator allocator,
-    VmaAllocation allocation,
-    vk::Buffer buffer,
+Buffer::Buffer(
+    BufferAllocation allocation,
     vk::DeviceSize size,
     void* mappedData) :
-    m_allocator{ allocator },
-    m_allocation{ allocation },
-    m_buffer{ buffer },
+    m_allocation{ std::move(allocation) },
     m_size{ size },
     m_mappedData{ mappedData }
 {
-    VkMemoryPropertyFlags memoryFlags;
-    vmaGetAllocationMemoryProperties(m_allocator, m_allocation, &memoryFlags);
-    m_isCoherent = (memoryFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+    auto memoryFlags = m_allocation.queryMemoryProperties();
+    m_isCoherent = static_cast<bool>(memoryFlags & vk::MemoryPropertyFlagBits::eHostCoherent);
 }
 }

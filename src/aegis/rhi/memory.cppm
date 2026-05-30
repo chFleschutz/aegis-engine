@@ -23,6 +23,11 @@ public:
 
     auto operator*() const noexcept -> VmaAllocator { return m_allocator; }
 
+    [[nodiscard]] auto allocateBuffer(
+        const vk::BufferCreateInfo& bufferInfo,
+        const VmaAllocationCreateInfo& allocCreateInfo) const
+        -> std::expected<std::pair<BufferAllocation, VmaAllocationInfo>, Error>;
+
     [[nodiscard]] auto allocateImage(
         const vk::ImageCreateInfo& imageInfo,
         const VmaAllocationCreateInfo& allocCreateInfo) const
@@ -45,12 +50,24 @@ class BufferAllocation
     friend Allocator;
 
 public:
-    struct Desc
-    {
-    };
+    BufferAllocation(const BufferAllocation&) = delete;
+    BufferAllocation(BufferAllocation&& other) noexcept;
+    ~BufferAllocation();
+
+    auto operator=(const BufferAllocation&) -> BufferAllocation& = delete;
+    auto operator=(BufferAllocation&& other) noexcept -> BufferAllocation&;
+
+    [[nodiscard]] auto queryMemoryProperties() const noexcept -> vk::MemoryPropertyFlags;
+
+    auto flush(std::size_t offset, std::size_t size) const -> void;
+    auto invalidate(std::size_t offset, std::size_t size) const -> void;
 
 private:
-    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<BufferAllocation, Error>;
+    [[nodiscard]] static auto create(
+        VmaAllocator allocator,
+        const vk::BufferCreateInfo& bufferInfo,
+        const VmaAllocationCreateInfo& allocCreateInfo)
+        -> std::expected<std::pair<BufferAllocation, VmaAllocationInfo>, Error>;
 
     BufferAllocation(VmaAllocator allocator, VmaAllocation allocation, vk::Buffer buffer);
 

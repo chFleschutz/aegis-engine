@@ -32,6 +32,14 @@ auto Allocator::operator=(Allocator&& other) noexcept -> Allocator&
     return *this;
 }
 
+auto Allocator::allocateBuffer(
+    const vk::BufferCreateInfo& bufferInfo,
+    const VmaAllocationCreateInfo& allocCreateInfo) const
+    -> std::expected<std::pair<BufferAllocation, VmaAllocationInfo>, Error>
+{
+    return BufferAllocation::create(m_allocator, bufferInfo, allocCreateInfo);
+}
+
 auto Allocator::allocateImage(
     const vk::ImageCreateInfo& imageInfo,
     const VmaAllocationCreateInfo& allocCreateInfo) const
@@ -74,6 +82,90 @@ Allocator::Allocator(VmaAllocator allocator) :
 {
 }
 
+BufferAllocation::BufferAllocation(BufferAllocation&& other) noexcept :
+    m_allocator{ std::exchange(other.m_allocator, nullptr) },
+    m_allocation{ std::exchange(other.m_allocation, nullptr) },
+    m_buffer{ std::exchange(other.m_buffer, nullptr) }
+
+{
+}
+
+BufferAllocation::~BufferAllocation()
+{
+    if (m_buffer)
+    {
+        vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
+    }
+}
+
+auto BufferAllocation::operator=(BufferAllocation&& other) noexcept -> BufferAllocation&
+{
+    if (this != &other)
+    {
+        std::swap(m_allocator, other.m_allocator);
+        std::swap(m_allocation, other.m_allocation);
+        std::swap(m_buffer, other.m_buffer);
+    }
+    return *this;
+}
+
+auto BufferAllocation::queryMemoryProperties() const noexcept -> vk::MemoryPropertyFlags
+{
+    VkMemoryPropertyFlags memoryFlags;
+    vmaGetAllocationMemoryProperties(m_allocator, m_allocation, &memoryFlags);
+    return static_cast<vk::MemoryPropertyFlags>(memoryFlags);
+}
+
+auto BufferAllocation::flush(std::size_t offset, std::size_t size) const -> void
+{
+    vmaFlushAllocation(m_allocator,
+        m_allocation,
+        static_cast<VkDeviceSize>(offset),
+        static_cast<VkDeviceSize>(size));
+}
+
+auto BufferAllocation::invalidate(std::size_t offset, std::size_t size) const -> void
+{
+    vmaInvalidateAllocation(m_allocator,
+        m_allocation,
+        static_cast<VkDeviceSize>(offset),
+        static_cast<VkDeviceSize>(size));
+}
+
+auto BufferAllocation::create(VmaAllocator allocator,
+    const vk::BufferCreateInfo& bufferInfo,
+    const VmaAllocationCreateInfo& allocCreateInfo)
+    -> std::expected<std::pair<BufferAllocation, VmaAllocationInfo>, Error>
+{
+    VkBuffer buffer{ nullptr };
+    VmaAllocation allocation{ nullptr };
+    VmaAllocationInfo allocInfo{};
+    auto result = vk::Result{
+        vmaCreateBuffer(allocator,
+            &static_cast<const VkBufferCreateInfo&>(bufferInfo),
+            &allocCreateInfo,
+            &buffer,
+            &allocation,
+            &allocInfo)
+    };
+
+    if (result != vk::Result::eSuccess)
+        return makeError(toRHI(result));
+
+    return std::expected<std::pair<BufferAllocation, VmaAllocationInfo>, Error>{
+        std::in_place,
+        BufferAllocation{ allocator, allocation, vk::Buffer{ buffer } },
+        allocInfo
+    };
+}
+
+BufferAllocation::BufferAllocation(VmaAllocator allocator, VmaAllocation allocation, vk::Buffer buffer) :
+    m_allocator{ allocator },
+    m_allocation{ allocation },
+    m_buffer{ buffer }
+{
+}
+
 ImageAllocation::ImageAllocation(ImageAllocation&& other) noexcept :
     m_allocator{ std::exchange(other.m_allocator, nullptr) },
     m_allocation{ std::exchange(other.m_allocation, nullptr) },
@@ -105,9 +197,9 @@ auto ImageAllocation::create(VmaAllocator allocator,
     const VmaAllocationCreateInfo& allocCreateInfo)
     -> std::expected<ImageAllocation, Error>
 {
-    VkImage image;
-    VmaAllocation allocation;
-    VmaAllocationInfo allocInfo;
+    VkImage image{ nullptr };
+    VmaAllocation allocation{ nullptr };
+    VmaAllocationInfo allocInfo{};
     auto result = vk::Result{
         vmaCreateImage(allocator,
             &static_cast<const VkImageCreateInfo&>(imageInfo),
