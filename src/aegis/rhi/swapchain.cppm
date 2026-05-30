@@ -6,6 +6,7 @@ export module aegis.rhi:swapchain;
 import :common;
 import :fwd;
 import :error;
+import :image_view;
 import :image_ref;
 import :sync;
 import vulkan_hpp;
@@ -15,7 +16,7 @@ export namespace aegis::rhi
 class Swapchain
 {
     friend class Device;
-    
+
 public:
     struct Desc
     {
@@ -32,13 +33,14 @@ public:
     };
 
     Swapchain(const Swapchain&) = delete;
-    Swapchain(Swapchain&& other) noexcept = default;
+    Swapchain(Swapchain&&) noexcept = default;
     ~Swapchain() = default;
 
     auto operator=(const Swapchain&) -> Swapchain& = delete;
-    auto operator=(Swapchain&& other) noexcept -> Swapchain& = default;
+    auto operator=(Swapchain&&) noexcept -> Swapchain& = default;
 
     [[nodiscard]] auto operator*() const -> vk::SwapchainKHR { return *m_swapchain; }
+
     [[nodiscard]] auto handle() const -> vk::SwapchainKHR { return *m_swapchain; }
     [[nodiscard]] auto surfaceFormat() const -> Format { return m_surfaceFormat; }
     [[nodiscard]] auto extent() const -> Extent2D { return m_extent; }
@@ -63,7 +65,7 @@ private:
     [[nodiscard]] static auto querySwapchainExtent(
         Extent2D preferred,
         const vk::SurfaceCapabilitiesKHR& caps)
-        -> vk::Extent2D;
+        -> Extent2D;
 
     [[nodiscard]] static auto queryPresentMode(
         const vk::raii::PhysicalDevice& physicalDevice,
@@ -77,7 +79,7 @@ private:
 
     [[nodiscard]] static auto createSwapchain(
         const vk::raii::Device& device,
-        vk::Extent2D extent,
+        Extent2D extent,
         vk::SurfaceFormatKHR surfaceFormat,
         vk::PresentModeKHR presentMode,
         const vk::SurfaceCapabilitiesKHR& surfaceCaps,
@@ -90,8 +92,9 @@ private:
     [[nodiscard]] static auto createImageViews(
         const vk::raii::Device& device,
         const std::vector<vk::Image>& images,
-        vk::Format imageFormat)
-        -> std::expected<std::vector<vk::raii::ImageView>, Error>;
+        Extent2D extent,
+        Format format)
+        -> std::expected<std::vector<ImageView>, Error>;
 
     [[nodiscard]] static auto createSemaphores(
         const Device& device,
@@ -103,15 +106,13 @@ private:
 
     Swapchain(
         vk::raii::SwapchainKHR swapchain,
-        std::vector<vk::Image> images,
-        std::vector<vk::raii::ImageView> imageViews,
+        std::vector<ImageView> imageViews,
         std::vector<Semaphore> semaphores,
-        vk::Extent2D extent,
+        Extent2D extent,
         Format format);
 
     vk::raii::SwapchainKHR m_swapchain;
-    std::vector<vk::Image> m_images;
-    std::vector<vk::raii::ImageView> m_imageViews;
+    std::vector<ImageView> m_imageViews;
     std::vector<Semaphore> m_semaphores;
     Extent2D m_extent;
     Format m_surfaceFormat;

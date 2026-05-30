@@ -57,6 +57,7 @@ constexpr auto deriveAllocationInfo(MemoryType type) noexcept -> VmaAllocationCr
 
 constexpr auto toRHI(vk::Result result) noexcept -> ErrorCode;
 constexpr auto toRHI(vk::Format format) noexcept -> Format;
+constexpr auto toRHI(vk::Extent2D extent) noexcept -> Extent2D;
 
 /////////////////////
 // Implementations //
@@ -528,5 +529,10 @@ constexpr auto toRHI(vk::Format format) noexcept -> Format
         return Format::Unknown;
     }
     }
+}
+
+constexpr auto toRHI(vk::Extent2D extent) noexcept -> Extent2D
+{
+    return Extent2D{ extent.width, extent.height };
 }
 }

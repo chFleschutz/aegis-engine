@@ -13,6 +13,7 @@ class ImageView
 {
     friend Device;
     friend Image;
+    friend Swapchain;
 
 public:
     struct Range

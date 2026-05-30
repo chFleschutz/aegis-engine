@@ -37,12 +37,7 @@ auto Swapchain::acquireNextImage(const Semaphore& signalSemaphore)
 
     return std::expected<AcquiredImage, Error>{
         std::in_place,
-        ImageRef{
-            .image = m_images[*index],
-            .view = *m_imageViews[*index],
-            .extent = Extent3D{ m_extent },
-            .format = m_surfaceFormat,
-        },
+        m_imageViews[*index].ref(),
         m_semaphores[*index],
         *index,
     };
@@ -102,7 +97,7 @@ auto Swapchain::create(
     if (!images)
         return std::unexpected(images.error());
 
-    auto imageViews = createImageViews(device.device(), *images, format->format);
+    auto imageViews = createImageViews(device.device(), *images, extent, toRHI(format->format));
     if (!imageViews)
         return std::unexpected{ imageViews.error() };
 
@@ -112,7 +107,6 @@ auto Swapchain::create(
 
     return Swapchain{
         std::move(*swapchain),
-        std::move(*images),
         std::move(*imageViews),
         std::move(*semaphores),
         extent,
@@ -133,12 +127,12 @@ auto Swapchain::querySurfaceCapabilities(
 
 auto Swapchain::querySwapchainExtent(Extent2D preferred,
     const vk::SurfaceCapabilitiesKHR& caps)
-    -> vk::Extent2D
+    -> Extent2D
 {
     if (caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
-        return caps.currentExtent;
+        return toRHI(caps.currentExtent);
 
-    return vk::Extent2D{
+    return Extent2D{
         std::clamp(preferred.x, caps.minImageExtent.width, caps.maxImageExtent.width),
         std::clamp(preferred.y, caps.minImageExtent.height, caps.maxImageExtent.height)
     };
@@ -195,7 +189,7 @@ auto Swapchain::querySwapchainFormat(
 
 auto Swapchain::createSwapchain(
     const vk::raii::Device& device,
-    vk::Extent2D extent,
+    Extent2D extent,
     vk::SurfaceFormatKHR surfaceFormat,
     vk::PresentModeKHR presentMode,
     const vk::SurfaceCapabilitiesKHR& surfaceCaps,
@@ -209,7 +203,7 @@ auto Swapchain::createSwapchain(
         .minImageCount = minImageCount,
         .imageFormat = surfaceFormat.format,
         .imageColorSpace = surfaceFormat.colorSpace,
-        .imageExtent = extent,
+        .imageExtent = toVulkan(extent),
         .imageArrayLayers = 1,
         .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
         .imageSharingMode = vk::SharingMode::eExclusive,
@@ -240,31 +234,21 @@ auto Swapchain::createImages(const vk::raii::SwapchainKHR& swapchain)
 auto Swapchain::createImageViews(
     const vk::raii::Device& device,
     const std::vector<vk::Image>& images,
-    vk::Format imageFormat)
-    -> std::expected<std::vector<vk::raii::ImageView>, Error>
+    Extent2D extent,
+    Format format)
+    -> std::expected<std::vector<ImageView>, Error>
 {
     if (images.empty())
         return makeError(ErrorCode::Unknown);
 
-    std::vector<vk::raii::ImageView> imageViews;
-    vk::ImageViewCreateInfo createInfo{
-        .viewType = vk::ImageViewType::e2D,
-        .format = imageFormat,
-        .subresourceRange = {
-            .aspectMask = vk::ImageAspectFlagBits::eColor,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        },
-    };
+    std::vector<ImageView> imageViews;
+    imageViews.reserve(images.size());
 
     for (const auto& image : images)
     {
-        createInfo.image = image;
-        auto imageView = device.createImageView(createInfo);
-        if (!imageView.has_value())
-            return makeError(toRHI(imageView.result));
+        auto imageView = ImageView::create(device, image, Extent3D{ extent }, format, {});
+        if (!imageView)
+            return std::unexpected{ imageView.error() };
 
         imageViews.emplace_back(std::move(*imageView));
     }
@@ -302,16 +286,14 @@ auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> 
 
 Swapchain::Swapchain(
     vk::raii::SwapchainKHR swapchain,
-    std::vector<vk::Image> images,
-    std::vector<vk::raii::ImageView> imageViews,
+    std::vector<ImageView> imageViews,
     std::vector<Semaphore> semaphores,
-    vk::Extent2D extent,
+    Extent2D extent,
     Format format) :
     m_swapchain{ std::move(swapchain) },
-    m_images{ std::move(images) },
     m_imageViews{ std::move(imageViews) },
     m_semaphores{ std::move(semaphores) },
-    m_extent{ extent.width, extent.height },
+    m_extent{ extent },
     m_surfaceFormat{ format }
 {
 }
