@@ -36,6 +36,10 @@ public:
     auto operator=(const Image&) -> Image& = delete;
     auto operator=(Image&& other) noexcept -> Image&;
 
+    [[nodiscard]] auto image() const noexcept -> vk::Image { return m_image; }
+    [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_extent; }
+    [[nodiscard]] auto format() const noexcept -> Format { return m_format; }
+
 private:
     [[nodiscard]] static auto create(
         const vk::raii::Device& device,

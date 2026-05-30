@@ -40,6 +40,19 @@ auto Device::createFence(const Fence::Desc& desc) const -> std::expected<Fence, 
     return Fence::create(*this, desc);
 }
 
+auto Device::createImage(const Image::Desc& desc) const -> std::expected<Image, Error>
+{
+    return Image::create(m_device, *m_allocator, desc);
+}
+
+auto Device::createImageView(
+    const Image& image,
+    const ImageView::Desc& desc) const
+    -> std::expected<ImageView, Error>
+{
+    return ImageView::create(m_device, image, desc);
+}
+
 auto Device::createPipeline(const Pipeline::GraphicsDesc& desc) const -> std::expected<Pipeline, Error>
 {
     return Pipeline::create(*this, desc);

@@ -8,6 +8,8 @@ import :buffer;
 import :command_buffer;
 import :command_pool;
 import :error;
+import :image;
+import :image_view;
 import :memory;
 import :pipeline;
 import :queue;
@@ -69,6 +71,12 @@ public:
         -> std::expected<CommandPool, Error>;
     [[nodiscard]] auto createFence(const Fence::Desc& desc) const
         -> std::expected<Fence, Error>;
+    [[nodiscard]] auto createImage(const Image::Desc& desc) const
+        -> std::expected<Image, Error>;
+    [[nodiscard]] auto createImageView(
+        const Image& image,
+        const ImageView::Desc& desc) const
+        -> std::expected<ImageView, Error>;
     [[nodiscard]] auto createPipeline(const Pipeline::GraphicsDesc& desc) const
         -> std::expected<Pipeline, Error>;
     [[nodiscard]] auto createPipeline(const Pipeline::ComputeDesc& desc) const

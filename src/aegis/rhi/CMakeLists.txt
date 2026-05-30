@@ -46,6 +46,7 @@ FILES
     fwd.cppm
     image.cppm
     image_ref.cppm
+    image_view.cppm
     memory.cppm
     queue.cppm
     rhi.cppm
@@ -61,6 +62,7 @@ PRIVATE
     device.cpp
     image.cpp
     image_ref.cpp
+    image_view.cpp
     memory.cpp
     queue.cpp
     pipeline.cpp
