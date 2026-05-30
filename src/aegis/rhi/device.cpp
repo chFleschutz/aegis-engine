@@ -42,7 +42,7 @@ auto Device::createFence(const Fence::Desc& desc) const -> std::expected<Fence, 
 
 auto Device::createImage(const Image::Desc& desc) const -> std::expected<Image, Error>
 {
-    return Image::create(m_device, *m_allocator, desc);
+    return Image::create(m_device, m_allocator, desc);
 }
 
 auto Device::createImageView(

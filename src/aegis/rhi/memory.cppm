@@ -23,6 +23,11 @@ public:
 
     auto operator*() const noexcept -> VmaAllocator { return m_allocator; }
 
+    [[nodiscard]] auto allocateImage(
+        const vk::ImageCreateInfo& imageInfo,
+        const VmaAllocationCreateInfo& allocCreateInfo) const
+        -> std::expected<ImageAllocation, Error>;
+
 private:
     [[nodiscard]] static auto create(
         const vk::raii::Instance& instance,
@@ -33,5 +38,52 @@ private:
     explicit Allocator(VmaAllocator allocator);
 
     VmaAllocator m_allocator;
+};
+
+class BufferAllocation
+{
+    friend Allocator;
+
+public:
+    struct Desc
+    {
+    };
+
+private:
+    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<BufferAllocation, Error>;
+
+    BufferAllocation(VmaAllocator allocator, VmaAllocation allocation, vk::Buffer buffer);
+
+    VmaAllocator m_allocator;
+    VmaAllocation m_allocation;
+    vk::Buffer m_buffer;
+};
+
+class ImageAllocation
+{
+    friend Allocator;
+
+public:
+    ImageAllocation(const ImageAllocation&) = delete;
+    ImageAllocation(ImageAllocation&& other) noexcept;
+    ~ImageAllocation();
+
+    auto operator=(const ImageAllocation&) -> ImageAllocation& = delete;
+    auto operator=(ImageAllocation&& other) noexcept -> ImageAllocation&;
+
+    [[nodiscard]] auto image() const noexcept -> vk::Image { return m_image; }
+
+private:
+    [[nodiscard]] static auto create(
+        VmaAllocator allocator,
+        const vk::ImageCreateInfo& imageInfo,
+        const VmaAllocationCreateInfo& allocCreateInfo)
+        -> std::expected<ImageAllocation, Error>;
+
+    ImageAllocation(VmaAllocator allocator, VmaAllocation allocation, vk::Image image);
+
+    VmaAllocator m_allocator;
+    VmaAllocation m_allocation;
+    vk::Image m_image;
 };
 }
