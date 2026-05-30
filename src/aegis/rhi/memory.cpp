@@ -34,18 +34,18 @@ auto Allocator::operator=(Allocator&& other) noexcept -> Allocator&
 
 auto Allocator::allocateBuffer(
     const vk::BufferCreateInfo& bufferInfo,
-    const VmaAllocationCreateInfo& allocCreateInfo) const
+    MemoryUsage usage) const
     -> std::expected<std::pair<BufferAllocation, VmaAllocationInfo>, Error>
 {
-    return BufferAllocation::create(m_allocator, bufferInfo, allocCreateInfo);
+    return BufferAllocation::create(m_allocator, bufferInfo, usage);
 }
 
 auto Allocator::allocateImage(
     const vk::ImageCreateInfo& imageInfo,
-    const VmaAllocationCreateInfo& allocCreateInfo) const
+    MemoryUsage usage) const
     -> std::expected<ImageAllocation, Error>
 {
-    return ImageAllocation::create(m_allocator, imageInfo, allocCreateInfo);
+    return ImageAllocation::create(m_allocator, imageInfo, usage);
 }
 
 auto Allocator::create(
@@ -134,9 +134,11 @@ auto BufferAllocation::invalidate(std::size_t offset, std::size_t size) const ->
 
 auto BufferAllocation::create(VmaAllocator allocator,
     const vk::BufferCreateInfo& bufferInfo,
-    const VmaAllocationCreateInfo& allocCreateInfo)
+    MemoryUsage usage)
     -> std::expected<std::pair<BufferAllocation, VmaAllocationInfo>, Error>
 {
+    auto allocCreateInfo = deriveVmaInfo(usage);
+
     VkBuffer buffer{ nullptr };
     VmaAllocation allocation{ nullptr };
     VmaAllocationInfo allocInfo{};
@@ -192,11 +194,14 @@ auto ImageAllocation::operator=(ImageAllocation&& other) noexcept -> ImageAlloca
     return *this;
 }
 
-auto ImageAllocation::create(VmaAllocator allocator,
+auto ImageAllocation::create(
+    VmaAllocator allocator,
     const vk::ImageCreateInfo& imageInfo,
-    const VmaAllocationCreateInfo& allocCreateInfo)
+    MemoryUsage usage)
     -> std::expected<ImageAllocation, Error>
 {
+    auto allocCreateInfo = deriveVmaInfo(usage);
+
     VkImage image{ nullptr };
     VmaAllocation allocation{ nullptr };
     VmaAllocationInfo allocInfo{};

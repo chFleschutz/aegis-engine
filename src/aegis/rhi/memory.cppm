@@ -4,6 +4,7 @@ module;
 #include <expected>
 
 export module aegis.rhi:memory;
+import :common;
 import :fwd;
 import vulkan_hpp;
 
@@ -25,12 +26,12 @@ public:
 
     [[nodiscard]] auto allocateBuffer(
         const vk::BufferCreateInfo& bufferInfo,
-        const VmaAllocationCreateInfo& allocCreateInfo) const
+        MemoryUsage usage) const
         -> std::expected<std::pair<BufferAllocation, VmaAllocationInfo>, Error>;
 
     [[nodiscard]] auto allocateImage(
         const vk::ImageCreateInfo& imageInfo,
-        const VmaAllocationCreateInfo& allocCreateInfo) const
+        MemoryUsage usage) const
         -> std::expected<ImageAllocation, Error>;
 
 private:
@@ -66,7 +67,7 @@ private:
     [[nodiscard]] static auto create(
         VmaAllocator allocator,
         const vk::BufferCreateInfo& bufferInfo,
-        const VmaAllocationCreateInfo& allocCreateInfo)
+        MemoryUsage usage)
         -> std::expected<std::pair<BufferAllocation, VmaAllocationInfo>, Error>;
 
     BufferAllocation(VmaAllocator allocator, VmaAllocation allocation, vk::Buffer buffer);
@@ -94,7 +95,7 @@ private:
     [[nodiscard]] static auto create(
         VmaAllocator allocator,
         const vk::ImageCreateInfo& imageInfo,
-        const VmaAllocationCreateInfo& allocCreateInfo)
+        MemoryUsage usage)
         -> std::expected<ImageAllocation, Error>;
 
     ImageAllocation(VmaAllocator allocator, VmaAllocation allocation, vk::Image image);

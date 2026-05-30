@@ -1,8 +1,6 @@
 module;
 #include <expected>
 
-#include <vk_mem_alloc.h>
-
 export module aegis.rhi:buffer;
 import :common;
 import :fwd;
@@ -20,6 +18,7 @@ public:
     {
         std::size_t size;
         BufferUsage usage;
+        MemoryUsage memory;
     };
 
     /// @brief Writes 'size' bytes from 'src' to the internal buffer starting at 'offset'.

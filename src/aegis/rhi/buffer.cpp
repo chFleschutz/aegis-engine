@@ -37,21 +37,13 @@ auto Buffer::read(void* dst, std::size_t size, std::size_t offset) const -> void
 
 auto Buffer::create(const Allocator& allocator, const Desc& desc) -> std::expected<Buffer, Error>
 {
-    auto usage = deriveBufferFlags(desc.usage);
-
     vk::BufferCreateInfo bufferInfo{
         .size = static_cast<vk::DeviceSize>(desc.size),
-        .usage = usage.bufferUsage,
+        .usage = toVulkan(desc.usage),
         .sharingMode = vk::SharingMode::eExclusive,
     };
 
-    VmaAllocationCreateInfo allocationInfo{
-        .usage = usage.memoryUsage,
-        .requiredFlags = static_cast<VkMemoryPropertyFlags>(usage.requiredFlags),
-        .preferredFlags = static_cast<VkMemoryPropertyFlags>(usage.preferredFlags),
-    };
-
-    auto bufferAlloc = allocator.allocateBuffer(bufferInfo, allocationInfo);
+    auto bufferAlloc = allocator.allocateBuffer(bufferInfo, desc.memory);
     if (!bufferAlloc)
         return std::unexpected{ bufferAlloc.error() };
 

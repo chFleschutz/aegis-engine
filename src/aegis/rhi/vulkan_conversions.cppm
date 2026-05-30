@@ -20,15 +20,6 @@ struct VulkanState
     vk::AccessFlags2 accessMask;
 };
 
-struct VulkanBufferFlags
-{
-    vk::BufferUsageFlags bufferUsage;
-    VmaMemoryUsage memoryUsage;
-    VmaAllocationCreateFlags allocFlags;
-    vk::MemoryPropertyFlags requiredFlags;
-    vk::MemoryPropertyFlags preferredFlags;
-};
-
 // RHI -> Vulkan conversion
 
 constexpr auto toVulkan(Extent2D extent) noexcept -> vk::Extent2D;
@@ -40,9 +31,9 @@ constexpr auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue;
 constexpr auto toVulkan(AttachmentLoadOp op) noexcept -> vk::AttachmentLoadOp;
 constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp;
 constexpr auto toVulkan(const Attachment& a) -> vk::RenderingAttachmentInfo;
+constexpr auto toVulkan(BufferUsage usage) noexcept -> vk::BufferUsageFlags;
 constexpr auto toVulkan(ImageUsage usage) noexcept -> vk::ImageUsageFlags;
 
-constexpr auto deriveBufferFlags(BufferUsage usage) noexcept -> VulkanBufferFlags;
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
 constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout;
 constexpr auto deriveImageType(Extent3D extent) noexcept -> vk::ImageType;
@@ -51,7 +42,7 @@ constexpr auto deriveImageCreateFlags(
     Extent3D extent,
     std::uint32_t arrayLayers) noexcept
     -> vk::ImageCreateFlags;
-constexpr auto deriveAllocationInfo(MemoryType type) noexcept -> VmaAllocationCreateInfo;
+constexpr auto deriveVmaInfo(MemoryUsage usage) noexcept -> VmaAllocationCreateInfo;
 
 // Vulkan -> RHI conversion
 
@@ -441,32 +432,25 @@ constexpr auto deriveImageCreateFlags(
     return flags;
 }
 
-constexpr auto deriveAllocationInfo(MemoryType type) noexcept -> VmaAllocationCreateInfo
+constexpr auto deriveVmaInfo(MemoryUsage usage) noexcept -> VmaAllocationCreateInfo
 {
-    switch (type)
+    switch (usage)
     {
-    case MemoryType::GPUOnly:
+    case MemoryUsage::GpuOnly:
         return VmaAllocationCreateInfo{
-            .flags = 0,
             .usage = VMA_MEMORY_USAGE_AUTO,
-            .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            .preferredFlags = 0,
         };
-    case MemoryType::CPUToGPU:
+    case MemoryUsage::CpuWrite:
         return VmaAllocationCreateInfo{
             .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
                      VMA_ALLOCATION_CREATE_MAPPED_BIT,
             .usage = VMA_MEMORY_USAGE_AUTO,
-            .requiredFlags = 0,
-            .preferredFlags = 0,
         };
-    case MemoryType::GPUToCPU:
+    case MemoryUsage::CpuRead:
         return VmaAllocationCreateInfo{
-            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
-                     VMA_ALLOCATION_CREATE_MAPPED_BIT,
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
             .usage = VMA_MEMORY_USAGE_AUTO,
-            .requiredFlags = 0,
-            .preferredFlags = 0,
+            .preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
         };
     }
     std::unreachable();

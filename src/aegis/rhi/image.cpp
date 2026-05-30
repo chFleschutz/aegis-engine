@@ -37,9 +37,7 @@ auto Image::create(
         .initialLayout = vk::ImageLayout::eUndefined,
     };
 
-    VmaAllocationCreateInfo allocationInfo{ deriveAllocationInfo(desc.memoryType) };
-
-    auto imageAlloc = allocator.allocateImage(imageInfo, allocationInfo);
+    auto imageAlloc = allocator.allocateImage(imageInfo, MemoryUsage::GpuOnly);
     if (!imageAlloc)
         return std::unexpected{ imageAlloc.error() };
 

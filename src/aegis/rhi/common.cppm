@@ -132,18 +132,17 @@ enum class AttachmentStoreOp
     None,
 };
 
-// TODO: convert to enum flag
-enum class BufferUsage
+enum class BufferUsage : std::uint32_t
 {
-    Vertex,
-    Index,
-    Uniform,
-    UniformDynamic,
-    Storage,
-    StorageDynamic,
-    Indirect,
-    Staging,
-    Readback,
+    None        = 0,
+    Vertex      = 1 << 0,
+    Index       = 1 << 1,
+    Uniform     = 1 << 2,
+    Storage     = 1 << 3,
+    Indirect    = 1 << 4,
+    TransferSrc = 1 << 5,
+    TransferDst = 1 << 6,
+    CpuVisible  = 1 << 7,
 };
 
 enum class ImageUsage : std::uint32_t
@@ -158,13 +157,13 @@ enum class ImageUsage : std::uint32_t
 };
 
 template<>
-constexpr auto isFlagEnum<ImageUsage>{ true };
+constexpr auto utility::isFlagEnum<ImageUsage>{ true };
 
-enum class MemoryType
+enum class MemoryUsage
 {
-    GPUOnly,  // GPU only (no CPU access)
-    CPUToGPU, // CPU write, GPU read (staging upload)
-    GPUToCPU, // GPU write, CPU read (readback)
+    GpuOnly,  // Device local, no CPU access
+    CpuWrite, // Persistent map, sequential write (staging, uniforms)
+    CpuRead,  // Persistent map, random read + cached (readback)
 };
 
 struct Extent2D
