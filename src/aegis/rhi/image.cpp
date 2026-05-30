@@ -16,11 +16,7 @@ Image::Image(Image&& other) noexcept :
     m_allocator{ std::exchange(other.m_allocator, nullptr) },
     m_allocation{ std::exchange(other.m_allocation, nullptr) },
     m_image{ std::exchange(other.m_image, nullptr) },
-    m_view{ std::exchange(other.m_view, nullptr) },
-    m_extent{ other.m_extent },
-    m_format{ other.m_format },
-    m_mipLevels{ other.m_mipLevels },
-    m_arrayLayers{ other.m_arrayLayers }
+    m_fullView{ std::move(other.m_fullView) }
 {
 }
 
@@ -39,11 +35,7 @@ auto Image::operator=(Image&& other) noexcept -> Image&
         std::swap(m_allocator, other.m_allocator);
         std::swap(m_allocation, other.m_allocation);
         std::swap(m_image, other.m_image);
-        std::swap(m_view, other.m_view);
-        std::swap(m_extent, other.m_extent);
-        std::swap(m_format, other.m_format);
-        std::swap(m_mipLevels, other.m_mipLevels);
-        std::swap(m_arrayLayers, other.m_arrayLayers);
+        std::swap(m_fullView, other.m_fullView);
     }
     return *this;
 }
@@ -88,32 +80,22 @@ auto Image::create(const vk::raii::Device& device,
     if (result != vk::Result::eSuccess)
         return makeError(toRHI(result));
 
-    vk::ImageViewCreateInfo viewInfo{
-        .image = vk::Image{ image },
-        .viewType = deriveImageViewType(desc.extent, desc.arrayLayers),
-        .format = toVulkan(desc.format),
-        .subresourceRange = vk::ImageSubresourceRange{
-            .aspectMask = deriveImageAspectFlags(desc.format),
-            .baseMipLevel = 0,
-            .levelCount = imageInfo.mipLevels,
-            .baseArrayLayer = 0,
-            .layerCount = imageInfo.arrayLayers,
-        }
+    ImageView::Range imageViewDesc{
+        .baseMipLevel = 0,
+        .mipLevelCount = imageInfo.mipLevels,
+        .baseArrayLayer = 0,
+        .arrayLayerCount = imageInfo.arrayLayers,
     };
 
-    auto view = device.createImageView(viewInfo);
-    if (!view.has_value())
-        return makeError(toRHI(view.result));
+    auto imageView = ImageView::create(device, vk::Image{ image }, desc.extent, desc.format, imageViewDesc);
+    if (!imageView)
+        return std::unexpected{ imageView.error() };
 
     return Image{
         allocator,
         allocation,
         vk::Image{ image },
-        std::move(*view),
-        desc.extent,
-        desc.format,
-        imageInfo.mipLevels,
-        imageInfo.arrayLayers,
+        std::move(*imageView),
     };
 }
 
@@ -127,19 +109,11 @@ Image::Image(
     VmaAllocator allocator,
     VmaAllocation allocation,
     vk::Image image,
-    vk::raii::ImageView view,
-    Extent3D extent,
-    Format format,
-    std::uint32_t mipLevels,
-    std::uint32_t arrayLayers) :
+    ImageView view) :
     m_allocator{ allocator },
     m_allocation{ allocation },
     m_image{ image },
-    m_view{ std::move(view) },
-    m_extent{ extent },
-    m_format{ format },
-    m_mipLevels{ mipLevels },
-    m_arrayLayers{ arrayLayers }
+    m_fullView{ std::move(view) }
 {
 }
 }

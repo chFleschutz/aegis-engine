@@ -47,10 +47,10 @@ auto Device::createImage(const Image::Desc& desc) const -> std::expected<Image, 
 
 auto Device::createImageView(
     const Image& image,
-    const ImageView::Desc& desc) const
+    const ImageView::Range& range) const
     -> std::expected<ImageView, Error>
 {
-    return ImageView::create(m_device, image, desc);
+    return ImageView::create(m_device, image.image(), image.extent(), image.format(), range);
 }
 
 auto Device::createPipeline(const Pipeline::GraphicsDesc& desc) const -> std::expected<Pipeline, Error>

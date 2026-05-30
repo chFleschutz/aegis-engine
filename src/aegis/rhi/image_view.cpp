@@ -1,4 +1,5 @@
 module;
+#include <expected>
 
 module aegis.rhi;
 import :image_view;
@@ -14,29 +15,31 @@ auto ImageView::ref() const noexcept -> ImageRef
         .view = *m_view,
         .extent = m_extent,
         .format = m_format,
-        .baseMipLevel = m_baseMipLevel,
-        .levelCount = m_mipLevelCount,
-        .baseArrayLayer = m_baseArrayLayer,
-        .layerCount = m_arrayLayerCount,
+        .baseMipLevel = m_range.baseMipLevel,
+        .levelCount = m_range.mipLevelCount,
+        .baseArrayLayer = m_range.baseArrayLayer,
+        .layerCount = m_range.arrayLayerCount,
     };
 }
 
 auto ImageView::create(
     const vk::raii::Device& device,
-    const Image& image,
-    const Desc& desc)
+    vk::Image image,
+    Extent3D extent,
+    Format format,
+    const Range& range)
     -> std::expected<ImageView, Error>
 {
     vk::ImageViewCreateInfo viewInfo{
-        .image = image.image(),
-        .viewType = deriveImageViewType(image.extent(), desc.arrayLayerCount),
-        .format = toVulkan(image.format()),
+        .image = image,
+        .viewType = deriveImageViewType(extent, range.arrayLayerCount),
+        .format = toVulkan(format),
         .subresourceRange = vk::ImageSubresourceRange{
-            .aspectMask = deriveImageAspectFlags(image.format()),
-            .baseMipLevel = desc.baseMipLevel,
-            .levelCount = desc.mipLevelCount,
-            .baseArrayLayer = desc.baseArrayLayer,
-            .layerCount = desc.arrayLayerCount,
+            .aspectMask = deriveImageAspectFlags(format),
+            .baseMipLevel = range.baseMipLevel,
+            .levelCount = range.mipLevelCount,
+            .baseArrayLayer = range.baseArrayLayer,
+            .layerCount = range.arrayLayerCount,
         }
     };
 
@@ -46,26 +49,24 @@ auto ImageView::create(
 
     return ImageView{
         std::move(*view),
-        image.image(),
-        image.extent(),
-        image.format(),
-        desc
+        image,
+        extent,
+        format,
+        range
     };
 }
 
-ImageView::ImageView(vk::raii::ImageView view,
+ImageView::ImageView(
+    vk::raii::ImageView view,
     vk::Image image,
     Extent3D extent,
     Format format,
-    const Desc& desc) :
+    Range range) :
     m_view{ std::move(view) },
     m_image{ image },
     m_extent{ extent },
     m_format{ format },
-    m_baseMipLevel{ desc.baseMipLevel },
-    m_mipLevelCount{ desc.mipLevelCount },
-    m_baseArrayLayer{ desc.baseArrayLayer },
-    m_arrayLayerCount{ desc.arrayLayerCount }
+    m_range{ range }
 {
 }
 }

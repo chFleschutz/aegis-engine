@@ -75,7 +75,7 @@ public:
         -> std::expected<Image, Error>;
     [[nodiscard]] auto createImageView(
         const Image& image,
-        const ImageView::Desc& desc) const
+        const ImageView::Range& range) const
         -> std::expected<ImageView, Error>;
     [[nodiscard]] auto createPipeline(const Pipeline::GraphicsDesc& desc) const
         -> std::expected<Pipeline, Error>;

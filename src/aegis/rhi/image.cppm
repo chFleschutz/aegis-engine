@@ -8,6 +8,8 @@ export module aegis.rhi:image;
 import :common;
 import :error;
 import :fwd;
+import :image_view;
+import :image_ref;
 import vulkan_hpp;
 
 export namespace aegis::rhi
@@ -37,8 +39,9 @@ public:
     auto operator=(Image&& other) noexcept -> Image&;
 
     [[nodiscard]] auto image() const noexcept -> vk::Image { return m_image; }
-    [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_extent; }
-    [[nodiscard]] auto format() const noexcept -> Format { return m_format; }
+    [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_fullView.extent(); }
+    [[nodiscard]] auto format() const noexcept -> Format { return m_fullView.format(); }
+    [[nodiscard]] auto ref() const noexcept -> ImageRef { return m_fullView.ref(); }
 
 private:
     [[nodiscard]] static auto create(
@@ -49,22 +52,15 @@ private:
 
     [[nodiscard]] static auto calcMipLevels(Extent3D extent) -> std::uint32_t;
 
-    Image(VmaAllocator allocator,
+    Image(
+        VmaAllocator allocator,
         VmaAllocation allocation,
         vk::Image image,
-        vk::raii::ImageView view,
-        Extent3D extent,
-        Format format,
-        std::uint32_t mipLevels,
-        std::uint32_t arrayLayers);
+        ImageView view);
 
     VmaAllocator m_allocator;
     VmaAllocation m_allocation;
     vk::Image m_image;
-    vk::raii::ImageView m_view;
-    Extent3D m_extent;
-    Format m_format;
-    std::uint32_t m_mipLevels;
-    std::uint32_t m_arrayLayers;
+    ImageView m_fullView;
 };
 }

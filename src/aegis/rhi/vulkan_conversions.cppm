@@ -64,7 +64,7 @@ constexpr auto toRHI(vk::Format format) noexcept -> Format;
 
 constexpr auto toVulkan(Extent2D extent) noexcept -> vk::Extent2D
 {
-    return vk::Extent3D{ extent.x, extent.y };
+    return vk::Extent2D{ extent.x, extent.y };
 }
 
 constexpr auto toVulkan(Extent3D extent) noexcept -> vk::Extent3D
