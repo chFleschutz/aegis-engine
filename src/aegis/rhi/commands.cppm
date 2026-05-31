@@ -1,6 +1,7 @@
 module;
 #include <optional>
 #include <span>
+#include <string_view>
 
 export module aegis.rhi:commands;
 import :common;
@@ -30,6 +31,7 @@ struct Attachment
 
 struct RenderingCmd
 {
+    std::string_view name;
     std::span<Attachment> colorAttachments;
     std::optional<Attachment> depthAttachment;
 };

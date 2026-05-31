@@ -9,6 +9,7 @@ module;
 module aegis.rhi;
 import :command_buffer;
 import :command_pool;
+import :context;
 import :debug;
 import :device;
 import :error;
@@ -97,6 +98,38 @@ auto CommandBuffer::beginRendering(const RenderingCmd& desc) const -> void
 auto CommandBuffer::endRendering() const -> void
 {
     m_commandBuffer.endRendering();
+}
+
+auto CommandBuffer::insertLabel(std::string_view name, std::array<float, 4> color) const -> void
+{
+    if constexpr (Context::enableValidation)
+    {
+        vk::DebugUtilsLabelEXT label{
+            .pLabelName = name.data(),
+            .color = color,
+        };
+        m_commandBuffer.insertDebugUtilsLabelEXT(label);
+    }
+}
+
+auto CommandBuffer::beginLabel(std::string_view name, std::array<float, 4> color) const -> void
+{
+    if constexpr (Context::enableValidation)
+    {
+        vk::DebugUtilsLabelEXT label{
+            .pLabelName = name.data(),
+            .color = color,
+        };
+        m_commandBuffer.beginDebugUtilsLabelEXT(label);
+    }
+}
+
+auto CommandBuffer::endLabel() const -> void
+{
+    if constexpr (Context::enableValidation)
+    {
+        m_commandBuffer.endDebugUtilsLabelEXT();
+    }
 }
 
 auto CommandBuffer::bindPipeline(const Pipeline& pipeline) const -> void

@@ -228,6 +228,7 @@ public:
         }
 
         cmd.begin();
+        cmd.beginLabel("Frame");
 
         cmd.transitionImageLayout({
             .imageRef = acquiredImage->imageRef,
@@ -239,6 +240,8 @@ public:
             .oldState = aegis::rhi::ResourceState::Unknown,
             .newState = aegis::rhi::ResourceState::Attachment,
         });
+
+        cmd.beginLabel("Rendering");
 
         std::array colorAttachments{
             aegis::rhi::Attachment::color(
@@ -259,11 +262,15 @@ public:
         cmd.draw(3);
         cmd.endRendering();
 
+        cmd.endLabel();
+
         cmd.transitionImageLayout({
             .imageRef = acquiredImage->imageRef,
             .oldState = aegis::rhi::ResourceState::Attachment,
             .newState = aegis::rhi::ResourceState::Present,
         });
+
+        cmd.endLabel();
         cmd.end();
 
         aegis::rhi::Queue::SubmitInfo submitInfo{

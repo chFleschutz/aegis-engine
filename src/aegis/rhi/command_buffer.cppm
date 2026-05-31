@@ -31,6 +31,9 @@ public:
     auto end() const -> void;
     auto beginRendering(const RenderingCmd& desc) const -> void;
     auto endRendering() const -> void;
+    auto beginLabel(std::string_view name, std::array<float, 4> color = {}) const -> void;
+    auto endLabel() const -> void;
+    auto insertLabel(std::string_view name, std::array<float, 4> color = {}) const -> void;
 
     auto bindPipeline(const Pipeline& pipeline) const -> void;
     auto setViewport(Extent2D extent) const -> void;

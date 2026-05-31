@@ -41,15 +41,8 @@ public:
         bool meshShaders{ false };
     };
 
-#ifdef NDEBUG
-    static constexpr bool enableValidation{ false };
-#else
-    static constexpr bool enableValidation{ true };
-#endif
-
     static constexpr std::array requiredExtensions{
         vk::KHRSwapchainExtensionName,
-        vk::EXTShaderObjectExtensionName
     };
 
     [[nodiscard]] auto operator->() const noexcept -> const vk::raii::Device* { return &m_device; }
