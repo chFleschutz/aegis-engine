@@ -20,7 +20,7 @@ auto Buffer::write(const void* src, std::size_t size, std::size_t offset) const 
 
     std::memcpy(static_cast<std::byte*>(m_mappedData) + offset, src, size);
 
-    if (!m_isCoherent)
+    if (!(m_memoryFlags & vk::MemoryPropertyFlagBits::eHostCoherent))
         m_allocation.flush(offset, size);
 }
 
@@ -29,7 +29,7 @@ auto Buffer::read(void* dst, std::size_t size, std::size_t offset) const -> void
     assert(m_mappedData != nullptr && "Cannot read from unmapped buffer");
     assert(dst != nullptr && "Cannot copy to nullptr");
 
-    if (!m_isCoherent)
+    if (!(m_memoryFlags & vk::MemoryPropertyFlagBits::eHostCoherent))
         m_allocation.invalidate(offset, size);
 
     std::memcpy(dst, static_cast<std::byte*>(m_mappedData) + offset, size);
@@ -60,9 +60,8 @@ Buffer::Buffer(
     void* mappedData) :
     m_allocation{ std::move(allocation) },
     m_size{ size },
-    m_mappedData{ mappedData }
+    m_mappedData{ mappedData },
+    m_memoryFlags{ m_allocation.queryMemoryProperties() }
 {
-    auto memoryFlags = m_allocation.queryMemoryProperties();
-    m_isCoherent = static_cast<bool>(memoryFlags & vk::MemoryPropertyFlagBits::eHostCoherent);
 }
 }
