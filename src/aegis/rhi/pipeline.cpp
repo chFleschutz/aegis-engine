@@ -80,7 +80,7 @@ auto Pipeline::createComputePipeline(
     const Shader& shader)
     -> std::expected<vk::raii::Pipeline, Error>
 {
-    auto shaderModule = createShaderModule(device, shader.code);
+    auto shaderModule = createShaderModule(device, shader.name, shader.code);
     if (!shaderModule)
         return std::unexpected{ shaderModule.error() };
 
@@ -114,9 +114,9 @@ auto Pipeline::createGraphicsPipeline(
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
     shaderStages.reserve(desc.shaders.size());
 
-    for (const auto& [stage, code, entryPoint] : desc.shaders)
+    for (const auto& [name, stage, code, entryPoint] : desc.shaders)
     {
-        auto shaderModule = createShaderModule(device, code);
+        auto shaderModule = createShaderModule(device, name, code);
         if (!shaderModule)
             return std::unexpected{ shaderModule.error() };
 
@@ -273,6 +273,7 @@ auto Pipeline::createGraphicsPipeline(
 
 auto Pipeline::createShaderModule(
     const vk::raii::Device& device,
+    std::string_view name,
     std::span<std::uint32_t> code)
     -> std::expected<vk::raii::ShaderModule, Error>
 {
@@ -284,6 +285,8 @@ auto Pipeline::createShaderModule(
     auto shaderModule = device.createShaderModule(shaderModuleCreateInfo);
     if (!shaderModule.has_value())
         return makeError(toRHI(shaderModule.result));
+
+    debug::setName(device, **shaderModule, name);
 
     return std::move(shaderModule.value);
 }

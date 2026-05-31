@@ -18,6 +18,7 @@ class Pipeline
 public:
     struct Shader
     {
+        std::string_view name;
         ShaderStage stage;
         std::span<uint32_t> code;
         std::string_view entryPoint{ "main" };
@@ -92,6 +93,7 @@ private:
 
     [[nodiscard]] static auto createShaderModule(
         const vk::raii::Device& device,
+        std::string_view name,
         std::span<std::uint32_t> code)
         -> std::expected<vk::raii::ShaderModule, Error>;
 

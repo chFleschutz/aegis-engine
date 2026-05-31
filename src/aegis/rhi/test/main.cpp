@@ -109,11 +109,13 @@ public:
         auto colorAttachments = std::array{ swapchain->surfaceFormat() };
         auto shaders = std::array{
             aegis::rhi::Pipeline::Shader{
+                .name = "TriangleVertexShader",
                 .stage = aegis::rhi::ShaderStage::Vertex,
                 .code = *shader,
                 .entryPoint = "vertexMain",
             },
             aegis::rhi::Pipeline::Shader{
+                .name = "TriangleFragmentShader",
                 .stage = aegis::rhi::ShaderStage::Fragment,
                 .code = *shader,
                 .entryPoint = "fragmentMain",
