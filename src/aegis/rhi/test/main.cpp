@@ -123,10 +123,20 @@ public:
             .pushConstantRanges = {},
             .shaders = shaders,
             .colorAttachments = colorAttachments,
+            .depthAttachment = aegis::rhi::Format::D32_SFLOAT,
         };
         auto pipeline = device->createPipeline(pipelineDesc);
         if (!pipeline)
             return std::unexpected{ "Failed to create pipeline" };
+
+        aegis::rhi::Image::Desc depthImageDesc{
+            .extent = aegis::rhi::Extent3D{ swapchain->extent() },
+            .format = aegis::rhi::Format::D32_SFLOAT,
+            .usage = aegis::rhi::ImageUsage::DepthStencilAttachment,
+        };
+        auto depthImage = device->createImage(depthImageDesc);
+        if (!depthImage)
+            return std::unexpected{ "Failed to create depth image" };
 
         auto frameContext = createFrameContext(*device, *commandPool);
         if (!frameContext)
@@ -148,6 +158,7 @@ public:
             std::move(*swapchain),
             std::move(*commandPool),
             std::move(*pipeline),
+            std::move(*depthImage),
             std::move(*frameContext)
         };
     }
@@ -158,6 +169,7 @@ public:
         aegis::rhi::Swapchain swapchain,
         aegis::rhi::CommandPool pool,
         aegis::rhi::Pipeline pipeline,
+        aegis::rhi::Image depthImage,
         std::vector<FrameContext> frameContext) :
         m_window{ std::move(window) },
         m_context{ std::move(context) },
@@ -165,6 +177,7 @@ public:
         m_swapchain{ std::move(swapchain) },
         m_commandPool{ std::move(pool) },
         m_pipeline{ std::move(pipeline) },
+        m_depthImage{ std::move(depthImage) },
         m_frameContext{ std::move(frameContext) }
     {
     }
@@ -215,6 +228,12 @@ public:
             .oldState = aegis::rhi::ResourceState::Unknown,
             .newState = aegis::rhi::ResourceState::Attachment,
         });
+        cmd.transitionImageLayout({
+            .imageRef = m_depthImage.ref(),
+            .oldState = aegis::rhi::ResourceState::Unknown,
+            .newState = aegis::rhi::ResourceState::Attachment,
+        });
+        
         std::array colorAttachments{
             aegis::rhi::Attachment::color(
                 acquiredImage->imageRef,
@@ -223,7 +242,10 @@ public:
         };
         cmd.beginRendering(aegis::rhi::RenderingCmd{
             .colorAttachments = colorAttachments,
-            .depthAttachment = std::nullopt,
+            .depthAttachment = aegis::rhi::Attachment::depth(
+                m_depthImage.ref(),
+                aegis::rhi::ClearDepthStencil{ 1.0f, 0 }
+            ),
         });
         cmd.bindPipeline(m_pipeline);
         cmd.setViewport(m_swapchain.extent());
@@ -287,6 +309,7 @@ private:
     aegis::rhi::Swapchain m_swapchain;
     aegis::rhi::CommandPool m_commandPool;
     aegis::rhi::Pipeline m_pipeline;
+    aegis::rhi::Image m_depthImage;
     std::vector<FrameContext> m_frameContext;
     std::uint32_t m_currentFrame{ 0 };
 };
