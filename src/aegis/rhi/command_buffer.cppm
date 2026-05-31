@@ -1,6 +1,7 @@
 module;
 #include <expected>
 #include <optional>
+#include <string_view>
 
 export module aegis.rhi:command_buffer;
 import :error;
@@ -17,12 +18,14 @@ class CommandBuffer
 public:
     struct Desc
     {
+        std::string_view name;
         const CommandPool& pool;
     };
 
     static constexpr std::uint32_t maxColorAttachments = 8;
 
-    auto operator*() const -> vk::CommandBuffer { return *m_commandBuffer; }
+    [[nodiscard]] auto operator*() const noexcept -> vk::CommandBuffer { return *m_commandBuffer; }
+    [[nodiscard]] auto handle() const noexcept -> vk::CommandBuffer { return *m_commandBuffer; }
 
     auto begin() const -> void;
     auto end() const -> void;
@@ -37,9 +40,7 @@ public:
     auto transitionImageLayout(const ImageLayoutTransition& cmd) const -> void;
 
 private:
-    [[nodiscard]] static auto create(
-        const Device& device,
-        const Desc& desc)
+    [[nodiscard]] static auto create(const Device& device, const Desc& desc)
         -> std::expected<CommandBuffer, Error>;
 
     static auto deriveExtent(const RenderingCmd& cmd) -> vk::Extent2D;

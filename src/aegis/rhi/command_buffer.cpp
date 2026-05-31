@@ -9,6 +9,7 @@ module;
 module aegis.rhi;
 import :command_buffer;
 import :command_pool;
+import :debug;
 import :device;
 import :error;
 import :vulkan_conversions;
@@ -100,7 +101,7 @@ auto CommandBuffer::endRendering() const -> void
 
 auto CommandBuffer::bindPipeline(const Pipeline& pipeline) const -> void
 {
-    m_commandBuffer.bindPipeline(pipeline.bindPoint(), pipeline.pipeline());
+    m_commandBuffer.bindPipeline(pipeline.bindPoint(), *pipeline);
 }
 
 auto CommandBuffer::setViewport(Extent2D extent) const -> void
@@ -162,13 +163,10 @@ auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) cons
     m_commandBuffer.pipelineBarrier2(dependencyInfo);
 }
 
-auto CommandBuffer::create(
-    const Device& device,
-    const Desc& desc)
-    -> std::expected<CommandBuffer, Error>
+auto CommandBuffer::create(const Device& device, const Desc& desc) -> std::expected<CommandBuffer, Error>
 {
     vk::CommandBufferAllocateInfo info{
-        .commandPool = desc.pool.pool(),
+        .commandPool = *desc.pool,
         .level = vk::CommandBufferLevel::ePrimary,
         .commandBufferCount = 1,
     };
@@ -176,6 +174,8 @@ auto CommandBuffer::create(
     auto commandBuffer = device.device().allocateCommandBuffers(info);
     if (!commandBuffer.has_value())
         return makeError(toRHI(commandBuffer.result));
+
+    debug::setName(*device, *commandBuffer->front(), desc.name);
 
     return CommandBuffer{ std::move(commandBuffer->front()) };
 }

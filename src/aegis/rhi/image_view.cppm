@@ -1,5 +1,6 @@
 module;
 #include <expected>
+#include <string_view>
 
 export module aegis.rhi:image_view;
 import :common;
@@ -24,18 +25,23 @@ public:
         std::uint32_t arrayLayerCount{ 1 };
     };
 
-    [[nodiscard]] auto extent() const -> Extent3D { return m_extent; }
-    [[nodiscard]] auto format() const -> Format { return m_format; }
-    [[nodiscard]] auto range() const -> Range { return m_range; }
+    struct Desc
+    {
+        std::string_view name;
+        Extent3D extent;
+        Format format;
+        Range range;
+    };
+
+    [[nodiscard]] auto operator*() const noexcept -> vk::ImageView { return *m_view; }
+    [[nodiscard]] auto handle() const noexcept -> vk::ImageView { return *m_view; }
+    [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_extent; }
+    [[nodiscard]] auto format() const noexcept -> Format { return m_format; }
+    [[nodiscard]] auto range() const noexcept -> Range { return m_range; }
     [[nodiscard]] auto ref() const noexcept -> ImageRef;
 
 private:
-    [[nodiscard]] static auto create(
-        const vk::raii::Device& device,
-        vk::Image image,
-        Extent3D extent,
-        Format format,
-        const Range& range)
+    [[nodiscard]] static auto create(const Device& device, vk::Image image, const Desc& desc)
         -> std::expected<ImageView, Error>;
 
     ImageView(vk::raii::ImageView view, vk::Image image, Extent3D extent, Format format, Range range);

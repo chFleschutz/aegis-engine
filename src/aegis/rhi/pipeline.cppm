@@ -39,6 +39,7 @@ public:
 
     struct ComputeDesc
     {
+        std::string_view name;
         std::span<vk::DescriptorSetLayout> setLayouts;
         std::span<vk::PushConstantRange> pushConstantRanges;
         Shader shader;
@@ -46,6 +47,7 @@ public:
 
     struct GraphicsDesc
     {
+        std::string_view name;
         std::span<vk::DescriptorSetLayout> setLayouts;
         std::span<vk::PushConstantRange> pushConstantRanges;
         std::span<Shader> shaders;
@@ -55,8 +57,9 @@ public:
         std::span<VertexAttribute> vertexAttributes;
     };
 
-    [[nodiscard]] auto bindPoint() const -> vk::PipelineBindPoint { return m_bindPoint; }
-    [[nodiscard]] auto pipeline() const -> vk::Pipeline { return *m_pipeline; }
+    [[nodiscard]] auto operator*() const noexcept -> vk::Pipeline { return *m_pipeline; }
+    [[nodiscard]] auto handle() const noexcept -> vk::Pipeline { return *m_pipeline; }
+    [[nodiscard]] auto bindPoint() const noexcept -> vk::PipelineBindPoint { return m_bindPoint; }
 
 private:
     [[nodiscard]] static auto create(

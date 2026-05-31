@@ -52,37 +52,46 @@ public:
         vk::EXTShaderObjectExtensionName
     };
 
-    [[nodiscard]] auto operator->() const -> const vk::raii::Device* { return &m_device; }
+    [[nodiscard]] auto operator->() const noexcept -> const vk::raii::Device* { return &m_device; }
+    [[nodiscard]] auto operator*() const noexcept -> const vk::raii::Device& { return m_device; }
 
-    [[nodiscard]] auto physicalDevice() const -> const vk::raii::PhysicalDevice&;
-    [[nodiscard]] auto device() const -> const vk::raii::Device& { return m_device; }
-    [[nodiscard]] auto graphicsQueue() -> Queue& { return m_graphicsQueue; }
-    [[nodiscard]] auto computeQueue() -> Queue& { return m_computeQueue; }
-    [[nodiscard]] auto transferQueue() -> Queue& { return m_transferQueue; };
-    [[nodiscard]] auto presentQueue() -> Queue& { return m_presentQueue; };
-    [[nodiscard]] auto properties() const -> const Properties& { return m_properties; }
-    [[nodiscard]] auto capabilities() const -> const Capabilities& { return m_capabilities; }
+    [[nodiscard]] auto physicalDevice() const noexcept -> const vk::raii::PhysicalDevice&;
+    [[nodiscard]] auto device() const noexcept -> const vk::raii::Device& { return m_device; }
+    [[nodiscard]] auto allocator() const noexcept -> const Allocator& { return m_allocator; }
+    [[nodiscard]] auto graphicsQueue() noexcept -> Queue& { return m_graphicsQueue; }
+    [[nodiscard]] auto computeQueue() noexcept -> Queue& { return m_computeQueue; }
+    [[nodiscard]] auto transferQueue() noexcept -> Queue& { return m_transferQueue; };
+    [[nodiscard]] auto presentQueue() noexcept -> Queue& { return m_presentQueue; };
+    [[nodiscard]] auto properties() const noexcept -> const Properties& { return m_properties; }
+    [[nodiscard]] auto capabilities() const noexcept -> const Capabilities& { return m_capabilities; }
 
-    [[nodiscard]] auto createBuffer(const Buffer::Desc& desc) const
-        -> std::expected<Buffer, Error>;
+    [[nodiscard]] auto createBuffer(const Buffer::Desc& desc) const -> std::expected<Buffer, Error>;
+
     [[nodiscard]] auto createCommandBuffer(const CommandBuffer::Desc& desc) const
         -> std::expected<CommandBuffer, Error>;
+
     [[nodiscard]] auto createCommandPool(const CommandPool::Desc& desc) const
         -> std::expected<CommandPool, Error>;
+
     [[nodiscard]] auto createFence(const Fence::Desc& desc) const
         -> std::expected<Fence, Error>;
+
     [[nodiscard]] auto createImage(const Image::Desc& desc) const
         -> std::expected<Image, Error>;
-    [[nodiscard]] auto createImageView(
-        const Image& image,
-        const ImageView::Range& range) const
+
+    [[nodiscard]] auto createImageView(const Image& image, const ImageView::Range& range,
+        std::string_view name = {}) const
         -> std::expected<ImageView, Error>;
+
     [[nodiscard]] auto createPipeline(const Pipeline::GraphicsDesc& desc) const
         -> std::expected<Pipeline, Error>;
+
     [[nodiscard]] auto createPipeline(const Pipeline::ComputeDesc& desc) const
         -> std::expected<Pipeline, Error>;
+
     [[nodiscard]] auto createSemaphore(const Semaphore::Desc& desc) const
         -> std::expected<Semaphore, Error>;
+
     [[nodiscard]] auto createSwapchain(const Swapchain::Desc& desc) const
         -> std::expected<Swapchain, Error>;
 
@@ -106,31 +115,24 @@ private:
         [[nodiscard]] auto isComplete() const -> bool;
     };
 
-    [[nodiscard]] static auto create(
-        const vk::raii::Instance& instance,
-        const vk::raii::SurfaceKHR& surface,
+    [[nodiscard]] static auto create(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface,
         const Desc& desc)
         -> std::expected<Device, Error>;
 
-    [[nodiscard]] static auto createPhysicalDevice(
-        const vk::raii::Instance& instance,
+    [[nodiscard]] static auto createPhysicalDevice(const vk::raii::Instance& instance,
         const vk::raii::SurfaceKHR& surface)
         -> std::expected<vk::raii::PhysicalDevice, Error>;
 
-    [[nodiscard]] static auto queryQueueFamilies(
-        const vk::raii::PhysicalDevice& physicalDevice,
+    [[nodiscard]] static auto queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,
         const vk::raii::SurfaceKHR& surface)
         -> QueueFamilyIndices;
 
-    [[nodiscard]] static auto createQueue(
-        const vk::raii::Device& device,
+    [[nodiscard]] static auto createQueue(const vk::raii::Device& device, std::string_view name,
         std::uint32_t queueFamily)
         -> std::expected<Queue, Error>;
 
-    [[nodiscard]] static auto createDevice(
-        const vk::raii::PhysicalDevice& pd,
-        const Capabilities& capabilities,
-        const QueueFamilyIndices& queueFamilyIndices)
+    [[nodiscard]] static auto createDevice(const vk::raii::PhysicalDevice& pd,
+        const Capabilities& capabilities, const QueueFamilyIndices& queueFamilyIndices)
         -> std::expected<vk::raii::Device, Error>;
 
     [[nodiscard]] static auto queryCapabilities(const vk::raii::PhysicalDevice& pd) -> Capabilities;

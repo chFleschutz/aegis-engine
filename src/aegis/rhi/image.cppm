@@ -1,6 +1,7 @@
 module;
 #include <expected>
 #include <limits>
+#include <string_view>
 
 export module aegis.rhi:image;
 import :common;
@@ -20,6 +21,7 @@ class Image
 public:
     struct Desc
     {
+        std::string_view name;
         Extent3D extent;
         Format format;
         ImageUsage usage;
@@ -29,16 +31,14 @@ public:
 
     static constexpr std::uint32_t fullMipChain{ std::numeric_limits<std::uint32_t>::max() };
 
-    [[nodiscard]] auto image() const noexcept -> vk::Image { return m_allocation.image(); }
-    [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_fullView.extent(); }
-    [[nodiscard]] auto format() const noexcept -> Format { return m_fullView.format(); }
-    [[nodiscard]] auto ref() const noexcept -> ImageRef { return m_fullView.ref(); }
+    [[nodiscard]] auto operator*() const noexcept -> vk::Image { return m_allocation.image(); }
+    [[nodiscard]] auto handle() const noexcept -> vk::Image { return m_allocation.image(); }
+    [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_defaultView.extent(); }
+    [[nodiscard]] auto format() const noexcept -> Format { return m_defaultView.format(); }
+    [[nodiscard]] auto ref() const noexcept -> ImageRef { return m_defaultView.ref(); }
 
 private:
-    [[nodiscard]] static auto create(
-        const vk::raii::Device& device,
-        const Allocator& allocator,
-        const Desc& desc)
+    [[nodiscard]] static auto create(const Device& device, const Desc& desc)
         -> std::expected<Image, Error>;
 
     [[nodiscard]] static auto calcMipLevels(Extent3D extent) -> std::uint32_t;
@@ -46,6 +46,6 @@ private:
     Image(ImageAllocation allocation, ImageView view);
 
     ImageAllocation m_allocation;
-    ImageView m_fullView;
+    ImageView m_defaultView;
 };
 }

@@ -1,21 +1,20 @@
 module;
 #include <cmath>
 #include <expected>
+#include <format>
 
 #include "vk_mem_alloc.h"
 
 module aegis.rhi;
 import :image;
+import :debug;
 import :error;
 import :vulkan_conversions;
 import vulkan_hpp;
 
 namespace aegis::rhi
 {
-auto Image::create(
-    const vk::raii::Device& device,
-    const Allocator& allocator,
-    const Desc& desc) -> std::expected<Image, Error>
+auto Image::create(const Device& device, const Desc& desc) -> std::expected<Image, Error>
 {
     std::uint32_t mipLevels = desc.mipLevels == Image::fullMipChain
                                   ? calcMipLevels(desc.extent)
@@ -37,18 +36,25 @@ auto Image::create(
         .initialLayout = vk::ImageLayout::eUndefined,
     };
 
-    auto imageAlloc = allocator.allocateImage(imageInfo, MemoryUsage::GpuOnly);
+    auto imageAlloc = device.allocator().allocateImage(imageInfo, MemoryUsage::GpuOnly);
     if (!imageAlloc)
         return std::unexpected{ imageAlloc.error() };
 
-    ImageView::Range imageViewDesc{
-        .baseMipLevel = 0,
-        .mipLevelCount = imageInfo.mipLevels,
-        .baseArrayLayer = 0,
-        .arrayLayerCount = imageInfo.arrayLayers,
-    };
+    debug::setName(*device, imageAlloc->image(), desc.name);
 
-    auto imageView = ImageView::create(device, imageAlloc->image(), desc.extent, desc.format, imageViewDesc);
+    auto imageView = ImageView::create(device,
+        imageAlloc->image(),
+        ImageView::Desc{
+            .name = std::format("{}DefaultView", desc.name),
+            .extent = desc.extent,
+            .format = desc.format,
+            .range = ImageView::Range{
+                .baseMipLevel = 0,
+                .mipLevelCount = imageInfo.mipLevels,
+                .baseArrayLayer = 0,
+                .arrayLayerCount = imageInfo.arrayLayers,
+            }
+        });
     if (!imageView)
         return std::unexpected{ imageView.error() };
 
@@ -66,7 +72,7 @@ auto Image::calcMipLevels(Extent3D extent) -> std::uint32_t
 
 Image::Image(ImageAllocation allocation, ImageView view) :
     m_allocation{ std::move(allocation) },
-    m_fullView{ std::move(view) }
+    m_defaultView{ std::move(view) }
 {
 }
 }

@@ -86,11 +86,11 @@ private:
         const Desc& desc)
         -> std::expected<vk::raii::SwapchainKHR, Error>;
 
-    [[nodiscard]] static auto createImages(const vk::raii::SwapchainKHR& swapchain)
+    [[nodiscard]] static auto createImages(const Device& device, const vk::raii::SwapchainKHR& swapchain)
         -> std::expected<std::vector<vk::Image>, Error>;
 
     [[nodiscard]] static auto createImageViews(
-        const vk::raii::Device& device,
+        const Device& device,
         const std::vector<vk::Image>& images,
         Extent2D extent,
         Format format)

@@ -3,6 +3,7 @@ module;
 
 module aegis.rhi;
 import :image_view;
+import :debug;
 import :vulkan_conversions;
 import vulkan_hpp;
 
@@ -22,37 +23,34 @@ auto ImageView::ref() const noexcept -> ImageRef
     };
 }
 
-auto ImageView::create(
-    const vk::raii::Device& device,
-    vk::Image image,
-    Extent3D extent,
-    Format format,
-    const Range& range)
+auto ImageView::create(const Device& device, vk::Image image, const Desc& desc)
     -> std::expected<ImageView, Error>
 {
     vk::ImageViewCreateInfo viewInfo{
         .image = image,
-        .viewType = deriveImageViewType(extent, range.arrayLayerCount),
-        .format = toVulkan(format),
+        .viewType = deriveImageViewType(desc.extent, desc.range.arrayLayerCount),
+        .format = toVulkan(desc.format),
         .subresourceRange = vk::ImageSubresourceRange{
-            .aspectMask = deriveImageAspectFlags(format),
-            .baseMipLevel = range.baseMipLevel,
-            .levelCount = range.mipLevelCount,
-            .baseArrayLayer = range.baseArrayLayer,
-            .layerCount = range.arrayLayerCount,
+            .aspectMask = deriveImageAspectFlags(desc.format),
+            .baseMipLevel = desc.range.baseMipLevel,
+            .levelCount = desc.range.mipLevelCount,
+            .baseArrayLayer = desc.range.baseArrayLayer,
+            .layerCount = desc.range.arrayLayerCount,
         }
     };
 
-    auto view = device.createImageView(viewInfo);
+    auto view = device->createImageView(viewInfo);
     if (!view.has_value())
         return makeError(toRHI(view.result));
+
+    debug::setName(*device, **view, desc.name);
 
     return ImageView{
         std::move(*view),
         image,
-        extent,
-        format,
-        range
+        desc.extent,
+        desc.format,
+        desc.range
     };
 }
 

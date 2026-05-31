@@ -1,11 +1,13 @@
 module;
 #include <array>
 #include <expected>
+#include <format>
 #include <ranges>
 #include <vector>
 
 module aegis.rhi;
 import :pipeline;
+import :debug;
 import :vulkan_conversions;
 import vulkan_hpp;
 
@@ -17,9 +19,13 @@ auto Pipeline::create(const Device& device, const ComputeDesc& desc) -> std::exp
     if (!pipelineLayout)
         return std::unexpected{ pipelineLayout.error() };
 
+    debug::setName(*device, **pipelineLayout, std::format("{}Layout", desc.name));
+
     auto pipeline = createComputePipeline(device.device(), *pipelineLayout, desc.shader);
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
+
+    debug::setName(*device, **pipeline, desc.name);
 
     return Pipeline{
         std::move(*pipeline),
@@ -34,9 +40,13 @@ auto Pipeline::create(const Device& device, const GraphicsDesc& desc) -> std::ex
     if (!pipelineLayout)
         return std::unexpected{ pipelineLayout.error() };
 
+    debug::setName(*device, **pipelineLayout, std::format("{}Layout", desc.name));
+
     auto pipeline = createGraphicsPipeline(device.device(), *pipelineLayout, desc);
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
+
+    debug::setName(*device, **pipeline, desc.name);
 
     return Pipeline{
         std::move(*pipeline),

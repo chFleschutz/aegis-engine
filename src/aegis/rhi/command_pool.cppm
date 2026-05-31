@@ -1,5 +1,6 @@
 module;
 #include <expected>
+#include <string_view>
 
 export module aegis.rhi:command_pool;
 import :error;
@@ -15,15 +16,16 @@ class CommandPool
 public:
     struct Desc
     {
+        std::string_view name;
         std::uint32_t queueFamily;
     };
 
-    [[nodiscard]] auto pool() const -> const vk::raii::CommandPool& { return m_commandPool; }
+    [[nodiscard]] auto operator->() const noexcept -> const vk::raii::CommandPool& { return m_commandPool; };
+    [[nodiscard]] auto operator*() const noexcept -> vk::CommandPool { return *m_commandPool; }
+    [[nodiscard]] auto handle() const noexcept -> vk::CommandPool { return *m_commandPool; }
 
 private:
-    [[nodiscard]] static auto create(
-        const Device& device,
-        const Desc& desc)
+    [[nodiscard]] static auto create(const Device& device, const Desc& desc)
         -> std::expected<CommandPool, Error>;
 
     explicit CommandPool(vk::raii::CommandPool pool);

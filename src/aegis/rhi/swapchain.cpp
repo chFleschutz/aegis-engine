@@ -10,6 +10,7 @@ module aegis.rhi;
 import :swapchain;
 import :context;
 import :device;
+import :debug;
 import :image_ref;
 import :vulkan_conversions;
 
@@ -93,11 +94,11 @@ auto Swapchain::create(
     if (!swapchain)
         return std::unexpected(swapchain.error());
 
-    auto images = createImages(*swapchain);
+    auto images = createImages(device, *swapchain);
     if (!images)
         return std::unexpected(images.error());
 
-    auto imageViews = createImageViews(device.device(), *images, extent, toRHI(format->format));
+    auto imageViews = createImageViews(device, *images, extent, toRHI(format->format));
     if (!imageViews)
         return std::unexpected{ imageViews.error() };
 
@@ -221,18 +222,23 @@ auto Swapchain::createSwapchain(
     return std::move(*swapchain);
 }
 
-auto Swapchain::createImages(const vk::raii::SwapchainKHR& swapchain)
+auto Swapchain::createImages(const Device& device, const vk::raii::SwapchainKHR& swapchain)
     -> std::expected<std::vector<vk::Image>, Error>
 {
     auto images = swapchain.getImages();
     if (!images.has_value())
         return makeError(toRHI(images.result));
 
+    for (size_t i = 0; i < images->size(); ++i)
+    {
+        debug::setName(*device, images->at(i), std::format("SwapchainImage{}", i));
+    }
+
     return std::move(*images);
 }
 
 auto Swapchain::createImageViews(
-    const vk::raii::Device& device,
+    const Device& device,
     const std::vector<vk::Image>& images,
     Extent2D extent,
     Format format)
@@ -244,9 +250,16 @@ auto Swapchain::createImageViews(
     std::vector<ImageView> imageViews;
     imageViews.reserve(images.size());
 
-    for (const auto& image : images)
+    for (size_t i = 0; i < images.size(); ++i)
     {
-        auto imageView = ImageView::create(device, image, Extent3D{ extent }, format, {});
+        auto imageView = ImageView::create(device,
+            images[i],
+            ImageView::Desc{
+                .name = std::format("SwapchainImageView{}", i),
+                .extent = Extent3D{ extent },
+                .format = format,
+                .range = {},
+            });
         if (!imageView)
             return std::unexpected{ imageView.error() };
 
@@ -266,7 +279,7 @@ auto Swapchain::createSemaphores(
 
     for (std::size_t i = 0; i < imageCount; ++i)
     {
-        auto semaphore = device.createSemaphore({});
+        auto semaphore = device.createSemaphore({ std::format("SwapchainPresentReadySemaphore{}", i) });
         if (!semaphore)
             return std::unexpected{ semaphore.error() };
         semaphores.emplace_back(std::move(*semaphore));

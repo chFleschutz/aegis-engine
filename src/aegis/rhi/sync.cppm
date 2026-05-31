@@ -1,5 +1,6 @@
 module;
 #include <expected>
+#include <string_view>
 
 export module aegis.rhi:sync;
 import :error;
@@ -15,18 +16,18 @@ class Fence
 public:
     struct Desc
     {
+        std::string_view name;
         bool signaled{ true };
     };
 
     [[nodiscard]] auto operator*() const noexcept -> vk::Fence { return *m_fence; }
+    [[nodiscard]] auto handle() const noexcept -> vk::Fence { return *m_fence; }
 
     [[nodiscard]] auto wait() const noexcept -> bool;
     [[nodiscard]] auto reset() const noexcept -> bool;
 
 private:
-    [[nodiscard]] static auto create(
-        const Device& device,
-        const Desc& desc)
+    [[nodiscard]] static auto create(const Device& device, const Desc& desc)
         -> std::expected<Fence, Error>;
 
     explicit Fence(vk::raii::Fence fence);
@@ -47,16 +48,16 @@ public:
 
     struct Desc
     {
+        std::string_view name;
         Type type{ Type::Binary };
     };
 
-    [[nodiscard]] auto operator*() const noexcept -> vk::Semaphore { return *m_semaphore; }
     [[nodiscard]] auto operator->() const noexcept -> const vk::raii::Semaphore* { return &m_semaphore; }
+    [[nodiscard]] auto operator*() const noexcept -> vk::Semaphore { return *m_semaphore; }
+    [[nodiscard]] auto handle() const noexcept -> vk::Semaphore { return *m_semaphore; }
 
 private:
-    [[nodiscard]] static auto create(
-        const vk::raii::Device& device,
-        const Desc& desc)
+    [[nodiscard]] static auto create(const vk::raii::Device& device, const Desc& desc)
         -> std::expected<Semaphore, Error>;
 
     explicit Semaphore(vk::raii::Semaphore semaphore);

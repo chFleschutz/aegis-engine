@@ -48,11 +48,11 @@ auto createFrameContext(
     frameContext.reserve(framesInFlight);
     for (uint32_t i = 0; i < framesInFlight; ++i)
     {
-        auto cmd = device.createCommandBuffer({ .pool = pool });
+        auto cmd = device.createCommandBuffer({ .name = std::format("CmdBufferFrame{}", i), .pool = pool });
         if (!cmd)
             return std::unexpected{ "Failed to create frame command buffer" };
 
-        auto semaphore = device.createSemaphore({});
+        auto semaphore = device.createSemaphore({ .name = std::format("ImageAvailableSemaphoreFrame{}", i) });
         if (!semaphore)
             return std::unexpected{ "Failed to create frame semaphore" };
 
@@ -95,6 +95,7 @@ public:
             return std::unexpected{ "Failed to create swapchain" };
 
         aegis::rhi::CommandPool::Desc poolDesc{
+            .name = "FrameCmdPool",
             .queueFamily = device->graphicsQueue().family(),
         };
         auto commandPool = device->createCommandPool(poolDesc);
@@ -119,6 +120,7 @@ public:
             },
         };
         aegis::rhi::Pipeline::GraphicsDesc pipelineDesc{
+            .name = "TrianglePipeline",
             .setLayouts = {},
             .pushConstantRanges = {},
             .shaders = shaders,
@@ -130,6 +132,7 @@ public:
             return std::unexpected{ "Failed to create pipeline" };
 
         aegis::rhi::Image::Desc depthImageDesc{
+            .name = "SceneDepth",
             .extent = aegis::rhi::Extent3D{ swapchain->extent() },
             .format = aegis::rhi::Format::D32_SFLOAT,
             .usage = aegis::rhi::ImageUsage::DepthStencilAttachment,
@@ -143,6 +146,7 @@ public:
             return std::unexpected{ "Failed to create frameSync" };
 
         aegis::rhi::Buffer::Desc bufferDesc{
+            .name = "TestUniformBuffer",
             .size = sizeof(float),
             .usage = aegis::rhi::BufferUsage::Uniform,
         };
@@ -233,7 +237,7 @@ public:
             .oldState = aegis::rhi::ResourceState::Unknown,
             .newState = aegis::rhi::ResourceState::Attachment,
         });
-        
+
         std::array colorAttachments{
             aegis::rhi::Attachment::color(
                 acquiredImage->imageRef,

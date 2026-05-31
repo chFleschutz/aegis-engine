@@ -1,5 +1,6 @@
 module;
 #include <expected>
+#include <string_view>
 
 export module aegis.rhi:buffer;
 import :common;
@@ -16,6 +17,7 @@ class Buffer
 public:
     struct Desc
     {
+        std::string_view name;
         std::size_t size;
         BufferUsage usage;
         MemoryUsage memory;
@@ -34,9 +36,7 @@ public:
     auto read(void* dst, std::size_t size, std::size_t offset = 0) const -> void;
 
 private:
-    [[nodiscard]] static auto create(
-        const Allocator& allocator,
-        const Desc& desc)
+    [[nodiscard]] static auto create(const Device& device, const Desc& desc)
         -> std::expected<Buffer, Error>;
 
     Buffer(

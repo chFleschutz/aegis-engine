@@ -7,6 +7,7 @@ module;
 
 module aegis.rhi;
 import :buffer;
+import :debug;
 import :error;
 import :memory;
 import :vulkan_conversions;
@@ -35,7 +36,7 @@ auto Buffer::read(void* dst, std::size_t size, std::size_t offset) const -> void
     std::memcpy(dst, static_cast<std::byte*>(m_mappedData) + offset, size);
 }
 
-auto Buffer::create(const Allocator& allocator, const Desc& desc) -> std::expected<Buffer, Error>
+auto Buffer::create(const Device& device, const Desc& desc) -> std::expected<Buffer, Error>
 {
     vk::BufferCreateInfo bufferInfo{
         .size = static_cast<vk::DeviceSize>(desc.size),
@@ -43,9 +44,11 @@ auto Buffer::create(const Allocator& allocator, const Desc& desc) -> std::expect
         .sharingMode = vk::SharingMode::eExclusive,
     };
 
-    auto bufferAlloc = allocator.allocateBuffer(bufferInfo, desc.memory);
+    auto bufferAlloc = device.allocator().allocateBuffer(bufferInfo, desc.memory);
     if (!bufferAlloc)
         return std::unexpected{ bufferAlloc.error() };
+
+    debug::setName(*device, *bufferAlloc->first, desc.name);
 
     return Buffer{
         std::move(bufferAlloc->first),

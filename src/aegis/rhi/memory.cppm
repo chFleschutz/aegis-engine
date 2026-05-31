@@ -58,6 +58,8 @@ public:
     auto operator=(const BufferAllocation&) -> BufferAllocation& = delete;
     auto operator=(BufferAllocation&& other) noexcept -> BufferAllocation&;
 
+    [[nodiscard]] auto operator*() const noexcept -> vk::Buffer { return m_buffer; }
+
     [[nodiscard]] auto queryMemoryProperties() const noexcept -> vk::MemoryPropertyFlags;
 
     auto flush(std::size_t offset, std::size_t size) const -> void;

@@ -9,20 +9,21 @@ module;
 module aegis.rhi;
 import :device;
 import :context;
+import :debug;
 import :error;
 import :vulkan_conversions;
 import vulkan_hpp;
 
 namespace aegis::rhi
 {
-auto Device::physicalDevice() const -> const vk::raii::PhysicalDevice&
+auto Device::physicalDevice() const noexcept -> const vk::raii::PhysicalDevice&
 {
     return m_physicalDevice;
 }
 
 auto Device::createBuffer(const Buffer::Desc& desc) const -> std::expected<Buffer, Error>
 {
-    return Buffer::create(m_allocator, desc);
+    return Buffer::create(*this, desc);
 }
 
 auto Device::createCommandBuffer(const CommandBuffer::Desc& desc) const -> std::expected<CommandBuffer, Error>
@@ -42,15 +43,19 @@ auto Device::createFence(const Fence::Desc& desc) const -> std::expected<Fence, 
 
 auto Device::createImage(const Image::Desc& desc) const -> std::expected<Image, Error>
 {
-    return Image::create(m_device, m_allocator, desc);
+    return Image::create(*this, desc);
 }
 
-auto Device::createImageView(
-    const Image& image,
-    const ImageView::Range& range) const
+auto Device::createImageView(const Image& image, const ImageView::Range& range, std::string_view name) const
     -> std::expected<ImageView, Error>
 {
-    return ImageView::create(m_device, image.image(), image.extent(), image.format(), range);
+    ImageView::Desc viewDesc{
+        .name = name,
+        .extent = image.extent(),
+        .format = image.format(),
+        .range = range,
+    };
+    return ImageView::create(*this, image.handle(), viewDesc);
 }
 
 auto Device::createPipeline(const Pipeline::GraphicsDesc& desc) const -> std::expected<Pipeline, Error>
@@ -79,10 +84,7 @@ auto Device::QueueFamilyIndices::isComplete() const -> bool
            compute != vk::QueueFamilyIgnored && transfer != vk::QueueFamilyIgnored;
 }
 
-auto Device::create(
-    const vk::raii::Instance& instance,
-    const vk::raii::SurfaceKHR& surface,
-    const Desc& desc)
+auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface, const Desc& desc)
     -> std::expected<Device, Error>
 {
     auto physicalDevice = createPhysicalDevice(instance, surface);
@@ -100,21 +102,22 @@ auto Device::create(
     if (!allocator)
         return std::unexpected{ allocator.error() };
 
-    auto graphicsQueue = createQueue(*device, queueFamilies.graphics);
-    if (!graphicsQueue)
-        return std::unexpected{ graphicsQueue.error() };
+    auto presentQueue = createQueue(*device, "PresentQueue", queueFamilies.present);
+    if (!presentQueue)
+        return std::unexpected{ presentQueue.error() };
 
-    auto computeQueue = createQueue(*device, queueFamilies.compute);
-    if (!computeQueue)
-        return std::unexpected{ computeQueue.error() };
-
-    auto transferQueue = createQueue(*device, queueFamilies.transfer);
+    auto transferQueue = createQueue(*device, "TransferQueue", queueFamilies.transfer);
     if (!transferQueue)
         return std::unexpected{ transferQueue.error() };
 
-    auto presentQueue = createQueue(*device, queueFamilies.present);
-    if (!presentQueue)
-        return std::unexpected{ presentQueue.error() };
+    auto computeQueue = createQueue(*device, "ComputeQueue", queueFamilies.compute);
+    if (!computeQueue)
+        return std::unexpected{ computeQueue.error() };
+
+    auto graphicsQueue = createQueue(*device, "GraphicsQueue", queueFamilies.graphics);
+    if (!graphicsQueue)
+        return std::unexpected{ graphicsQueue.error() };
+
 
     return Device{
         std::move(*physicalDevice),
@@ -128,8 +131,7 @@ auto Device::create(
     };
 }
 
-auto Device::createPhysicalDevice(const vk::raii::Instance& instance,
-    const vk::raii::SurfaceKHR& surface)
+auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface)
     -> std::expected<vk::raii::PhysicalDevice, Error>
 {
     auto [result, physicalDevices] = instance.enumeratePhysicalDevices();
@@ -173,8 +175,7 @@ auto Device::createPhysicalDevice(const vk::raii::Instance& instance,
     return physicalDevices[index];
 }
 
-auto Device::queryQueueFamilies(
-    const vk::raii::PhysicalDevice& physicalDevice,
+auto Device::queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,
     const vk::raii::SurfaceKHR& surface)
     -> QueueFamilyIndices
 {
@@ -219,26 +220,24 @@ auto Device::queryQueueFamilies(
     return indices;
 }
 
-auto Device::createQueue(
-    const vk::raii::Device& device,
-    std::uint32_t queueFamily)
+auto Device::createQueue(const vk::raii::Device& device, std::string_view name, std::uint32_t queueFamily)
     -> std::expected<Queue, Error>
 {
     auto queue = device.getQueue(queueFamily, 0);
+    debug::setName(device, *queue, name);
 
-    Semaphore::Desc semaphoreDesc{
-        .type = Semaphore::Type::Timeline,
-    };
-    auto semaphore = Semaphore::create(device, semaphoreDesc);
+    auto semaphore = Semaphore::create(device,
+        Semaphore::Desc{
+            .name = std::format("{}TimelineSemaphore", name),
+            .type = Semaphore::Type::Timeline,
+        });
     if (!semaphore.has_value())
         return std::unexpected{ semaphore.error() };
 
     return Queue{ std::move(queue), std::move(*semaphore), queueFamily };
 }
 
-auto Device::createDevice(
-    const vk::raii::PhysicalDevice& pd,
-    const Capabilities& capabilities,
+auto Device::createDevice(const vk::raii::PhysicalDevice& pd, const Capabilities& capabilities,
     const QueueFamilyIndices& queueFamilyIndices)
     -> std::expected<vk::raii::Device, Error>
 {

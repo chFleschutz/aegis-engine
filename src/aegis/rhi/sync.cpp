@@ -5,6 +5,7 @@ module;
 module aegis.rhi;
 import :sync;
 import :device;
+import :debug;
 import :error;
 import :vulkan_conversions;
 import vulkan_hpp;
@@ -36,6 +37,8 @@ auto Fence::create(const Device& device, const Desc& desc) -> std::expected<Fenc
     if (!fence.has_value())
         return makeError(toRHI(fence.result));
 
+    debug::setName(*device, **fence, desc.name);
+
     return Fence{ std::move(*fence) };
 }
 
@@ -57,6 +60,8 @@ auto Semaphore::create(const vk::raii::Device& device, const Desc& desc) -> std:
     auto semaphore = device.createSemaphore(semaphoreInfo);
     if (!semaphore.has_value())
         return makeError(toRHI(semaphore.result));
+
+    debug::setName(device, **semaphore, desc.name);
 
     return Semaphore{ std::move(*semaphore) };
 }

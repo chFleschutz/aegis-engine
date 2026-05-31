@@ -41,6 +41,7 @@ FILES
     commands.cppm
     common.cppm
     context.cppm
+    debug.cppm
     device.cppm
     error.cppm
     fwd.cppm
