@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <cassert>
 #include <expected>
 #include <format>
 #include <ranges>
@@ -118,7 +119,6 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
     if (!graphicsQueue)
         return std::unexpected{ graphicsQueue.error() };
 
-
     return Device{
         std::move(*physicalDevice),
         std::move(*device),
@@ -189,34 +189,38 @@ auto Device::queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,
         auto hasCompute = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eCompute);
         auto hasTransfer = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eTransfer);
 
-        if (hasGraphics)
+        // Graphics queue (required)
+        if (hasGraphics && indices.graphics == vk::QueueFamilyIgnored)
             indices.graphics = i;
 
         // Dedicated Compute Queue
-        if (hasCompute && !hasGraphics && !hasTransfer)
+        if (hasCompute && !hasGraphics && indices.compute == vk::QueueFamilyIgnored)
             indices.compute = i;
 
         // Dedicated Transfer Queue
-        if (hasTransfer && !hasGraphics && !hasCompute)
+        if (hasTransfer && !hasGraphics && !hasCompute && indices.transfer == vk::QueueFamilyIgnored)
             indices.transfer = i;
 
+        // Present queue - prefer one that matches graphics
         auto [result, hasPresent] = physicalDevice.getSurfaceSupportKHR(i, *surface);
-        if (result != vk::Result::eSuccess)
-            continue;
-
-        if (hasPresent)
-            indices.present = i;
-
-        if (indices.isComplete())
-            break;
+        if (result == vk::Result::eSuccess && hasPresent)
+        {
+            if (indices.present == vk::QueueFamilyIgnored || i == indices.graphics)
+                indices.present = i;
+        }
     }
 
-    // Fallback if no dedicated queues are present
+    // Fallback: use graphics queue for compute/transfer if no dedicated queues found
     if (indices.compute == vk::QueueFamilyIgnored)
         indices.compute = indices.graphics;
     if (indices.transfer == vk::QueueFamilyIgnored)
         indices.transfer = indices.graphics;
 
+    // Fallback: if no presentation queue matches graphics, use graphics queue
+    if (indices.present == vk::QueueFamilyIgnored)
+        indices.present = indices.graphics;
+
+    assert(indices.isComplete() && "Queue family indices must be complete");
     return indices;
 }
 
