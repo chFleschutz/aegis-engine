@@ -3,8 +3,6 @@ module;
 #include <string>
 #include <vector>
 
-#include "vulkan/vulkan_raii.hpp"
-
 export module aegis.rhi:context;
 import :error;
 import :device;

@@ -26,7 +26,7 @@ struct Error
         Error{
             .code = code,
 #ifndef NDEBUG
-            .location = loc
+            .location = std::move(loc)
 #endif
         }
     };

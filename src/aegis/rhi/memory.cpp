@@ -7,6 +7,7 @@ module aegis.rhi;
 import :memory;
 import :context;
 import :vulkan_conversions;
+import vulkan_hpp;
 
 namespace aegis::rhi
 {

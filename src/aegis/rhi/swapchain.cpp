@@ -13,6 +13,7 @@ import :device;
 import :debug;
 import :image_ref;
 import :vulkan_conversions;
+import vulkan_hpp;
 
 namespace aegis::rhi
 {

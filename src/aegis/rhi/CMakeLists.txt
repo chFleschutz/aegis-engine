@@ -63,7 +63,6 @@ PRIVATE
     context.cpp
     device.cpp
     image.cpp
-    image_ref.cpp
     image_view.cpp
     memory.cpp
     queue.cpp
