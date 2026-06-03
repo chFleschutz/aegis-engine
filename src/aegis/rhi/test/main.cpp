@@ -312,6 +312,21 @@ public:
             return;
         }
         m_swapchain = std::move(*swapchain);
+
+        aegis::rhi::Image::Desc depthImageDesc{
+            .name = "depthImage",
+            .extent = aegis::rhi::Extent3D{ swapchainDesc.extent },
+            .format = aegis::rhi::Format::D32_SFLOAT,
+            .usage = aegis::rhi::ImageUsage::DepthStencilAttachment,
+        };
+        auto depthImage = m_device.createImage(depthImageDesc);
+        if (!depthImage)
+        {
+            std::println("Failed to recreate depth image");
+            return;
+        }
+        m_depthImage = std::move(*depthImage);
+
         m_window.resetResized();
     }
 
