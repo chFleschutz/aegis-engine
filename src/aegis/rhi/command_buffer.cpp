@@ -55,9 +55,13 @@ auto Attachment::depthReadOnly(const ImageRef& image) -> Attachment
     };
 }
 
-auto CommandBuffer::begin() const -> void
+auto CommandBuffer::begin(bool oneTimeSubmit) const -> void
 {
-    [[maybe_unused]] auto result = m_commandBuffer.begin({});
+    [[maybe_unused]] auto result = m_commandBuffer.begin({
+        .flags = oneTimeSubmit
+                     ? vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+                     : vk::CommandBufferUsageFlags{},
+    });
     assert(result == vk::Result::eSuccess && "Failed to begin command buffer");
 }
 

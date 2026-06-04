@@ -61,6 +61,7 @@ auto createFrameContext(
     return frameContext;
 }
 
+
 class Application
 {
 public:
@@ -156,6 +157,20 @@ public:
         if (!buffer)
             return std::unexpected{ "Failed to create buffer" };
 
+        auto uploadPool = device->createCommandPool({
+            .name = "Upload Command Pool",
+            .queueFamily = device->graphicsQueue().family(),
+        });
+        if (!uploadPool)
+            return std::unexpected{ "Failed to create upload command pool" };
+
+        auto uploadCmd = device->createCommandBuffer({
+            .name = "Upload Command Buffer",
+            .pool = *uploadPool,
+        });
+        if (!uploadCmd)
+            return std::unexpected{ "Failed to create upload command buffer" };
+
         return std::expected<Application, std::string>{
             std::in_place,
             std::move(window),
@@ -165,7 +180,9 @@ public:
             std::move(*commandPool),
             std::move(*pipeline),
             std::move(*depthImage),
-            std::move(*frameContext)
+            std::move(*frameContext),
+            std::move(*uploadPool),
+            std::move(*uploadCmd),
         };
     }
 
@@ -176,7 +193,9 @@ public:
         aegis::rhi::CommandPool pool,
         aegis::rhi::Pipeline pipeline,
         aegis::rhi::Image depthImage,
-        std::vector<FrameContext> frameContext) :
+        std::vector<FrameContext> frameContext,
+        aegis::rhi::CommandPool uploadPool,
+        aegis::rhi::CommandBuffer uploadCmd) :
         m_window{ std::move(window) },
         m_context{ std::move(context) },
         m_device{ std::move(device) },
@@ -184,12 +203,16 @@ public:
         m_commandPool{ std::move(pool) },
         m_pipeline{ std::move(pipeline) },
         m_depthImage{ std::move(depthImage) },
-        m_frameContext{ std::move(frameContext) }
+        m_frameContext{ std::move(frameContext) },
+        m_uploadPool{ std::move(uploadPool) },
+        m_uploadCmd{ std::move(uploadCmd) }
     {
     }
 
     auto run() -> int
     {
+        upload();
+
         while (!m_window.shouldClose())
         {
             m_window.update();
@@ -330,6 +353,20 @@ public:
         m_window.resetResized();
     }
 
+    void upload()
+    {
+        m_uploadCmd.begin(true);
+        m_uploadCmd.beginLabel("UploadCmdBuffer");
+
+        m_uploadCmd.endLabel();
+        m_uploadCmd.end();
+
+        auto value = m_device.graphicsQueue().submit(m_uploadCmd);
+        if (!value)
+            return;
+        m_device.graphicsQueue().wait(*value);
+    }
+
 private:
     aegis::platform::Window m_window;
     aegis::rhi::Context m_context;
@@ -340,6 +377,9 @@ private:
     aegis::rhi::Image m_depthImage;
     std::vector<FrameContext> m_frameContext;
     std::uint32_t m_currentFrame{ 0 };
+
+    aegis::rhi::CommandPool m_uploadPool;
+    aegis::rhi::CommandBuffer m_uploadCmd;
 };
 
 auto main() -> int

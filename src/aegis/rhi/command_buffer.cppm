@@ -27,7 +27,7 @@ public:
     [[nodiscard]] auto operator*() const noexcept -> vk::CommandBuffer { return *m_commandBuffer; }
     [[nodiscard]] auto handle() const noexcept -> vk::CommandBuffer { return *m_commandBuffer; }
 
-    auto begin() const -> void;
+    auto begin(bool oneTimeSubmit = false) const -> void;
     auto end() const -> void;
     auto beginRendering(const RenderingCmd& desc) const -> void;
     auto endRendering() const -> void;

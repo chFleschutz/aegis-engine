@@ -1,6 +1,7 @@
 module;
 #include <cstdint>
 #include <expected>
+#include <optional>
 
 export module aegis.rhi:queue;
 import :fwd;
@@ -26,6 +27,7 @@ public:
     [[nodiscard]] auto family() const -> std::uint32_t { return m_queueFamily; }
 
     [[nodiscard]] auto submit(const SubmitInfo& info) -> std::expected<std::uint64_t, Error>;
+    [[nodiscard]] auto submit(const CommandBuffer& cmd) -> std::expected<std::uint64_t, Error>;
 
     auto wait(std::uint64_t timePoint) const -> bool;
     auto waitIdle() const -> bool;
