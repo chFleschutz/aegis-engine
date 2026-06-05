@@ -31,7 +31,7 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState;
 constexpr auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue;
 constexpr auto toVulkan(AttachmentLoadOp op) noexcept -> vk::AttachmentLoadOp;
 constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp;
-constexpr auto toVulkan(const Attachment& a) -> vk::RenderingAttachmentInfo;
+constexpr auto toVulkan(const Attachment& a) noexcept -> vk::RenderingAttachmentInfo;
 constexpr auto toVulkan(BufferUsage usage) noexcept -> vk::BufferUsageFlags;
 constexpr auto toVulkan(ImageUsage usage) noexcept -> vk::ImageUsageFlags;
 
@@ -39,10 +39,7 @@ constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspect
 constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout;
 constexpr auto deriveImageType(Extent3D extent) noexcept -> vk::ImageType;
 constexpr auto deriveImageViewType(Extent3D extent, std::uint32_t arrayLayers) noexcept -> vk::ImageViewType;
-constexpr auto deriveImageCreateFlags(
-    Extent3D extent,
-    std::uint32_t arrayLayers) noexcept
-    -> vk::ImageCreateFlags;
+constexpr auto deriveImageCreateFlags(Extent3D extent, std::uint32_t layers) noexcept -> vk::ImageCreateFlags;
 constexpr auto deriveVmaInfo(MemoryUsage usage) noexcept -> VmaAllocationCreateInfo;
 
 // Vulkan -> RHI conversion
@@ -227,7 +224,7 @@ constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp
     std::unreachable();
 }
 
-constexpr auto toVulkan(const Attachment& a) -> vk::RenderingAttachmentInfo
+constexpr auto toVulkan(const Attachment& a) noexcept -> vk::RenderingAttachmentInfo
 {
     return vk::RenderingAttachmentInfo{
         .imageView = a.image.view,
@@ -344,15 +341,12 @@ constexpr auto deriveImageViewType(Extent3D extent, std::uint32_t arrayLayers) n
     std::unreachable();
 }
 
-constexpr auto deriveImageCreateFlags(
-    Extent3D extent,
-    std::uint32_t arrayLayers) noexcept
-    -> vk::ImageCreateFlags
+constexpr auto deriveImageCreateFlags(Extent3D extent, std::uint32_t layers) noexcept -> vk::ImageCreateFlags
 {
     vk::ImageCreateFlags flags{};
 
     // Cubemap: 6 array layers on 2D image
-    if (arrayLayers == 6 and deriveImageType(extent) == vk::ImageType::e2D)
+    if (layers == 6 and deriveImageType(extent) == vk::ImageType::e2D)
         flags |= vk::ImageCreateFlagBits::eCubeCompatible;
 
     return flags;
