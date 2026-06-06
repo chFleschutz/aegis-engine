@@ -29,8 +29,10 @@ public:
 
     auto begin(bool oneTimeSubmit = false) const -> void;
     auto end() const -> void;
+
     auto beginRendering(const RenderingCmd& desc) const -> void;
     auto endRendering() const -> void;
+
     auto beginLabel(std::string_view name, std::array<float, 4> color = {}) const -> void;
     auto endLabel() const -> void;
     auto insertLabel(std::string_view name, std::array<float, 4> color = {}) const -> void;
@@ -41,6 +43,7 @@ public:
     auto draw(std::uint32_t vertexCount) const -> void;
 
     auto transitionImageLayout(const ImageLayoutTransition& cmd) const -> void;
+    auto generateMipmaps(const ImageRef& image, ResourceState currentState) const -> void;
 
 private:
     [[nodiscard]] static auto create(const Device& device, const Desc& desc)

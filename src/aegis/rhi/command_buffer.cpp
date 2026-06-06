@@ -200,6 +200,99 @@ auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) cons
     m_commandBuffer.pipelineBarrier2(dependencyInfo);
 }
 
+auto CommandBuffer::generateMipmaps(const ImageRef& image, ResourceState currentState) const -> void
+{
+    if (currentState != ResourceState::CopyDst)
+    {
+        transitionImageLayout({
+            .imageRef = image.image,
+            .oldState = currentState,
+            .newState = ResourceState::CopyDst,
+        });
+    }
+
+    auto aspectMask = deriveImageAspectFlags(image.format);
+    auto [srcLayout, srcStage, srcAccess] = toVulkan(ResourceState::CopyDst);
+    auto [dstLayout, dstStage, dstAccess] = toVulkan(ResourceState::CopySrc);
+    vk::ImageMemoryBarrier2 mipToTransferSrcBarrier{
+        .srcStageMask = srcStage,
+        .dstStageMask = dstStage,
+        .srcAccessMask = srcAccess,
+        .dstAccessMask = dstAccess,
+        .oldLayout = srcLayout,
+        .newLayout = dstLayout,
+        .srcQueueFamilyIndex = vk::QueueFamilyIgnored,
+        .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
+        .image = image.image,
+        .subresourceRange = vk::ImageSubresourceRange{
+            .aspectMask = aspectMask,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = image.layerCount,
+        }
+    };
+
+    vk::ImageBlit2 blit{
+        .srcSubresource = vk::ImageSubresourceLayers{
+            .aspectMask = aspectMask,
+            .baseArrayLayer = 0,
+            .layerCount = image.layerCount,
+        },
+        .dstSubresource = vk::ImageSubresourceLayers{
+            .aspectMask = aspectMask,
+            .baseArrayLayer = 0,
+            .layerCount = image.layerCount,
+        },
+    };
+
+    for (uint32_t i = 1; i < image.levelCount; ++i)
+    {
+        mipToTransferSrcBarrier.subresourceRange.baseMipLevel = i - 1;
+        m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
+            .imageMemoryBarrierCount = 1,
+            .pImageMemoryBarriers = &mipToTransferSrcBarrier,
+        });
+
+        blit.srcSubresource.mipLevel = i - 1;
+        blit.srcOffsets = std::array{
+            vk::Offset3D{ 0, 0, 0 },
+            vk::Offset3D{
+                .x = std::max(1, static_cast<std::int32_t>(image.extent.x >> (i - 1))),
+                .y = std::max(1, static_cast<std::int32_t>(image.extent.y >> (i - 1))),
+                .z = std::max(1, static_cast<std::int32_t>(image.extent.z >> (i - 1))),
+            }
+        };
+        blit.dstSubresource.mipLevel = i;
+        blit.dstOffsets = std::array{
+            vk::Offset3D{ 0, 0, 0 },
+            vk::Offset3D{
+                .x = std::max(1, static_cast<std::int32_t>(image.extent.x >> i)),
+                .y = std::max(1, static_cast<std::int32_t>(image.extent.y >> i)),
+                .z = std::max(1, static_cast<std::int32_t>(image.extent.z >> i)),
+            }
+        };
+
+        m_commandBuffer.blitImage2(vk::BlitImageInfo2{
+            .srcImage = image.image,
+            .srcImageLayout = vk::ImageLayout::eTransferSrcOptimal,
+            .dstImage = image.image,
+            .dstImageLayout = vk::ImageLayout::eTransferDstOptimal,
+            .regionCount = 1,
+            .pRegions = &blit,
+            .filter = vk::Filter::eLinear,
+        });
+    }
+
+    // Transition last level so the image is fully in transfer src optimal layout
+    mipToTransferSrcBarrier.subresourceRange.baseMipLevel = image.levelCount - 1;
+    mipToTransferSrcBarrier.dstStageMask = vk::PipelineStageFlagBits2::eNone;
+    mipToTransferSrcBarrier.dstAccessMask = vk::AccessFlagBits2::eNone;
+    m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &mipToTransferSrcBarrier,
+    });
+}
+
 auto CommandBuffer::create(const Device& device, const Desc& desc) -> std::expected<CommandBuffer, Error>
 {
     vk::CommandBufferAllocateInfo info{
