@@ -1,8 +1,9 @@
-add_executable(rhi-test main.cpp)
-target_link_libraries(rhi-test
+add_executable(aegis-test main.cpp)
+
+target_link_libraries(aegis-test
     PRIVATE
-    aegis-rhi
-    aegis-platform
+        aegis-platform
+        aegis-rhi
 )
 
 set(SHADER_SPIRV "${CMAKE_CURRENT_BINARY_DIR}/shader.spv")
@@ -19,5 +20,5 @@ add_custom_command(
 )
 
 add_custom_target(test-shaders DEPENDS ${SHADER_SPIRV})
-add_dependencies(rhi-test test-shaders)
-target_compile_definitions(rhi-test PUBLIC SHADER_PATH="${SHADER_SPIRV}")
+add_dependencies(aegis-test test-shaders)
+target_compile_definitions(aegis-test PUBLIC SHADER_PATH="${SHADER_SPIRV}")

@@ -62,10 +62,10 @@ auto createFrameContext(
 }
 
 
-class Application
+class Engine
 {
 public:
-    static auto create() -> std::expected<Application, std::string>
+    static auto create() -> std::expected<Engine, std::string>
     {
         aegis::platform::Window::Desc windowDesc{
             .title = "Test Window",
@@ -171,7 +171,7 @@ public:
         if (!uploadCmd)
             return std::unexpected{ "Failed to create upload command buffer" };
 
-        return std::expected<Application, std::string>{
+        return std::expected<Engine, std::string>{
             std::in_place,
             std::move(window),
             std::move(*context),
@@ -186,7 +186,7 @@ public:
         };
     }
 
-    Application(aegis::platform::Window window,
+    Engine(aegis::platform::Window window,
         aegis::rhi::Context context,
         aegis::rhi::Device device,
         aegis::rhi::Swapchain swapchain,
@@ -384,11 +384,11 @@ private:
 
 auto main() -> int
 {
-    auto app = Application::create();
-    if (!app)
+    auto engine = Engine::create();
+    if (!engine)
     {
-        std::println("Failed to create application \n{}", app.error());
+        std::println("Failed to create engine \n{}", engine.error());
         return 1;
     }
-    return app->run();
+    return engine->run();
 }
