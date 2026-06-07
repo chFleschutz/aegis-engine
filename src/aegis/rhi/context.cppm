@@ -16,7 +16,7 @@ class Context
 public:
     struct Desc
     {
-        std::string appName;
+        std::string_view appName;
         const platform::Window& window;
     };
 

@@ -45,16 +45,16 @@ auto Swapchain::acquireNextImage(const Semaphore& signalSemaphore)
     };
 }
 
-auto Swapchain::present(const Queue& queue, const AcquiredImage& image) -> std::expected<void, Error>
+auto Swapchain::present(const Queue& queue) -> std::expected<void, Error>
 {
-    auto waitSemaphore = *image.presentReady;
+    auto waitSemaphore = m_semaphores[m_currentImage].handle();
     auto swapchain = *m_swapchain;
     vk::PresentInfoKHR presentInfo{
         .waitSemaphoreCount = 1,
         .pWaitSemaphores = &waitSemaphore,
         .swapchainCount = 1,
         .pSwapchains = &swapchain,
-        .pImageIndices = &image.imageIndex,
+        .pImageIndices = &m_currentImage,
     };
 
     auto result = queue->presentKHR(presentInfo);

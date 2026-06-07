@@ -163,6 +163,8 @@ struct Extent3D
         z{ 1 }
     {
     }
+
+    [[nodiscard]] auto toExtent2D() const noexcept -> Extent2D { return { x, y }; }
 };
 
 struct ClearColor

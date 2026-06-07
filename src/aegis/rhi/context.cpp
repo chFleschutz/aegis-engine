@@ -90,7 +90,7 @@ auto Context::createInstance(
     -> std::expected<vk::raii::Instance, Error>
 {
     vk::ApplicationInfo appInfo{
-        .pApplicationName = desc.appName.c_str(),
+        .pApplicationName = desc.appName.data(),
         .applicationVersion = vk::makeVersion(1, 0, 0),
         .pEngineName = "Aegis Engine",
         .engineVersion = vk::makeVersion(1, 0, 0),

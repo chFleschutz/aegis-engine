@@ -44,12 +44,14 @@ public:
     [[nodiscard]] auto handle() const -> vk::SwapchainKHR { return *m_swapchain; }
     [[nodiscard]] auto surfaceFormat() const -> Format { return m_surfaceFormat; }
     [[nodiscard]] auto extent() const -> Extent2D { return m_extent; }
+    [[nodiscard]] auto currentImageIndex() const -> std::uint32_t { return m_currentImage; }
+    [[nodiscard]] auto currentPresentReady() const -> const Semaphore& { return m_semaphores[m_currentImage]; }
     [[nodiscard]] auto needsRecreation() const -> bool { return m_needsRecreation; }
 
     [[nodiscard]] auto acquireNextImage(const Semaphore& signalSemaphore)
         -> std::expected<AcquiredImage, Error>;
 
-    [[nodiscard]] auto present(const Queue& queue, const AcquiredImage& image) -> std::expected<void, Error>;
+    [[nodiscard]] auto present(const Queue& queue) -> std::expected<void, Error>;
 
 private:
     [[nodiscard]] static auto create(
