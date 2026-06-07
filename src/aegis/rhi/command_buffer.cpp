@@ -205,7 +205,7 @@ auto CommandBuffer::generateMipmaps(const ImageRef& image, ResourceState current
     if (currentState != ResourceState::CopyDst)
     {
         transitionImageLayout({
-            .imageRef = image.image,
+            .imageRef = image,
             .oldState = currentState,
             .newState = ResourceState::CopyDst,
         });
@@ -216,8 +216,8 @@ auto CommandBuffer::generateMipmaps(const ImageRef& image, ResourceState current
     auto [dstLayout, dstStage, dstAccess] = toVulkan(ResourceState::CopySrc);
     vk::ImageMemoryBarrier2 mipToTransferSrcBarrier{
         .srcStageMask = srcStage,
-        .dstStageMask = dstStage,
         .srcAccessMask = srcAccess,
+        .dstStageMask = dstStage,
         .dstAccessMask = dstAccess,
         .oldLayout = srcLayout,
         .newLayout = dstLayout,
