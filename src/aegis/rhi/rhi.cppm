@@ -45,6 +45,13 @@ public:
         std::string_view appName;
     };
 
+    struct FrameContext
+    {
+        CommandBuffer commandBuffer;
+        Semaphore imageAvailable;
+        std::uint64_t timelineValue{ 0 };
+    };
+
     struct FrameInfo
     {
         CommandBuffer& commandBuffer;
@@ -52,25 +59,26 @@ public:
         std::uint32_t frameIndex;
     };
 
+    static constexpr std::uint32_t maxFramesInFlight{ 2 };
+
     [[nodiscard]] static auto create(const Desc& desc) noexcept -> std::expected<RHI, RHIError>;
 
     RHI(RHIConstructorToken,
         Context&& context,
         Device&& device,
         Swapchain&& swapchain,
-        CommandPool&& commandPool);
+        CommandPool&& commandPool,
+        std::vector<FrameContext>&& frameContext);
 
     auto beginFrame() -> std::optional<FrameInfo>;
     auto submit(CommandBuffer& cmd) -> void;
     auto endFrame() -> void;
 
 private:
-    struct FrameContext
-    {
-        CommandBuffer commandBuffer;
-        Semaphore imageAvailable;
-        std::uint64_t timelineValue{ 0 };
-    };
+    [[nodiscard]] static auto createFrameContext(
+        const Device& device,
+        const CommandPool& pool) noexcept
+        -> std::expected<std::vector<FrameContext>, Error>;
 
     Context m_context;
     Device m_device;

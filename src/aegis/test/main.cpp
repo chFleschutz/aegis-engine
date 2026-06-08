@@ -30,38 +30,6 @@ auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, 
     return buffer;
 }
 
-struct FrameContext
-{
-    aegis::rhi::CommandBuffer commandBuffer;
-    aegis::rhi::Semaphore imageAvailable;
-    std::uint64_t timelineValue{ 0 };
-};
-
-constexpr uint32_t framesInFlight = 2;
-
-auto createFrameContext(
-    const aegis::rhi::Device& device,
-    const aegis::rhi::CommandPool& pool)
-    -> std::expected<std::vector<FrameContext>, std::string>
-{
-    std::vector<FrameContext> frameContext;
-    frameContext.reserve(framesInFlight);
-    for (uint32_t i = 0; i < framesInFlight; ++i)
-    {
-        auto cmd = device.createCommandBuffer({ .name = std::format("CmdBufferFrame{}", i), .pool = pool });
-        if (!cmd)
-            return std::unexpected{ "Failed to create frame command buffer" };
-
-        auto semaphore = device.createSemaphore({ .name = std::format("ImageAvailableSemaphoreFrame{}", i) });
-        if (!semaphore)
-            return std::unexpected{ "Failed to create frame semaphore" };
-
-        frameContext.emplace_back(FrameContext{ std::move(*cmd), std::move(*semaphore) });
-    }
-    return frameContext;
-}
-
-
 class Engine
 {
 public:

@@ -34,13 +34,18 @@ auto RHI::create(const Desc& desc) noexcept -> std::expected<RHI, RHIError>
     if (!commandPool)
         return std::unexpected{ RHIError{ RHIError::Code::InitializationFailed } };
 
+    auto frameContext = createFrameContext(*device, *commandPool);
+    if (!frameContext)
+        return std::unexpected{ RHIError{ RHIError::Code::InitializationFailed } };
+
     return std::expected<RHI, RHIError>{
         std::in_place,
         RHIConstructorToken{},
         std::move(*context),
         std::move(*device),
         std::move(*swapchain),
-        std::move(*commandPool)
+        std::move(*commandPool),
+        std::move(*frameContext)
     };
 }
 
@@ -48,11 +53,13 @@ RHI::RHI(RHIConstructorToken,
     Context&& context,
     Device&& device,
     Swapchain&& swapchain,
-    CommandPool&& commandPool) :
-    m_context(std::move(context)),
-    m_device(std::move(device)),
-    m_swapchain(std::move(swapchain)),
-    m_commandPool(std::move(commandPool))
+    CommandPool&& commandPool,
+    std::vector<FrameContext>&& frameContext) :
+    m_context{ std::move(context) },
+    m_device{ std::move(device) },
+    m_swapchain{ std::move(swapchain) },
+    m_commandPool{ std::move(commandPool) },
+    m_frameContext{ std::move(frameContext) }
 {
 }
 
@@ -113,5 +120,33 @@ auto RHI::endFrame() -> void
     }
 
     m_currentFrame = (m_currentFrame + 1) % m_frameContext.size();
+}
+
+auto RHI::createFrameContext(
+    const Device& device,
+    const CommandPool& pool) noexcept
+    -> std::expected<std::vector<FrameContext>, Error>
+{
+    std::expected<std::vector<FrameContext>, Error> frameContext;
+    frameContext.emplace();
+    frameContext->reserve(maxFramesInFlight);
+    for (uint32_t i = 0; i < maxFramesInFlight; ++i)
+    {
+        auto cmd = device.createCommandBuffer({
+            .name = std::format("CmdBufferFrame{}", i),
+            .pool = pool
+        });
+        if (!cmd)
+            return std::unexpected{ cmd.error() };
+
+        auto semaphore = device.createSemaphore({
+            .name = std::format("ImageAvailableSemaphoreFrame{}", i)
+        });
+        if (!semaphore)
+            return std::unexpected{ semaphore.error() };
+
+        frameContext->emplace_back(FrameContext{ std::move(*cmd), std::move(*semaphore) });
+    }
+    return frameContext;
 }
 }
