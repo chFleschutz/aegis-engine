@@ -3,7 +3,7 @@ module;
 #include <optional>
 
 export module aegis.rhi;
-import :buffer;
+export import :buffer;
 export import :command_buffer;
 import :command_pool;
 export import :commands;
@@ -11,10 +11,10 @@ export import :common;
 import :context;
 import :device;
 import :error;
-import :image;
-import :image_ref;
-import :image_view;
-import :pipeline;
+export import :image;
+export import :image_ref;
+export import :image_view;
+export import :pipeline;
 import :queue;
 import :swapchain;
 import :sync;

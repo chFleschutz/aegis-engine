@@ -90,10 +90,6 @@ public:
         if (!depthImage)
             return std::unexpected{ "Failed to create depth image" };
 
-        auto frameContext = createFrameContext(*device, *commandPool);
-        if (!frameContext)
-            return std::unexpected{ "Failed to create frameSync" };
-
         aegis::rhi::Buffer::Desc bufferDesc{
             .name = "TestUniformBuffer",
             .size = sizeof(float),
@@ -123,7 +119,6 @@ public:
             std::move(*rhi),
             std::move(*pipeline),
             std::move(*depthImage),
-            std::move(*frameContext),
             std::move(*uploadPool),
             std::move(*uploadCmd),
         };
@@ -133,14 +128,12 @@ public:
         aegis::rhi::RHI&& rhi,
         aegis::rhi::Pipeline pipeline,
         aegis::rhi::Image depthImage,
-        std::vector<FrameContext> frameContext,
         aegis::rhi::CommandPool uploadPool,
         aegis::rhi::CommandBuffer uploadCmd) :
         m_window{ std::move(window) },
         m_rhi{ std::move(rhi) },
         m_pipeline{ std::move(pipeline) },
         m_depthImage{ std::move(depthImage) },
-        m_frameContext{ std::move(frameContext) },
         m_uploadPool{ std::move(uploadPool) },
         m_uploadCmd{ std::move(uploadCmd) }
     {
@@ -279,8 +272,6 @@ private:
 
     aegis::rhi::Pipeline m_pipeline;
     aegis::rhi::Image m_depthImage;
-    std::vector<FrameContext> m_frameContext;
-    std::uint32_t m_currentFrame{ 0 };
 
     aegis::rhi::CommandPool m_uploadPool;
     aegis::rhi::CommandBuffer m_uploadCmd;
