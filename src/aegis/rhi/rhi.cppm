@@ -16,7 +16,7 @@ export import :image_ref;
 export import :image_view;
 export import :pipeline;
 import :queue;
-import :swapchain;
+export import :swapchain;
 import :sync;
 
 struct RHIError
@@ -69,6 +69,8 @@ public:
         Swapchain&& swapchain,
         CommandPool&& commandPool,
         std::vector<FrameContext>&& frameContext);
+
+    [[nodiscard]] auto swapchain() const noexcept -> const Swapchain& { return m_swapchain; }
 
     auto beginFrame() -> std::optional<FrameInfo>;
     auto submit(CommandBuffer& cmd) -> void;

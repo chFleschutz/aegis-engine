@@ -53,7 +53,7 @@ public:
         if (!shader)
             return std::unexpected{ std::format("Failed to load shader from {}", SHADER_PATH) };
 
-        auto colorAttachments = std::array{ swapchain->surfaceFormat() };
+        auto colorAttachments = std::array{ rhi->swapchain().surfaceFormat() };
         auto shaders = std::array{
             aegis::rhi::Pipeline::Shader{
                 .name = "TriangleVertexShader",
