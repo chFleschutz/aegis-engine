@@ -1,11 +1,12 @@
-import aegis.rhi;
-import aegis.platform.window;
-
 #include <array>
 #include <expected>
 #include <filesystem>
 #include <fstream>
 #include <print>
+
+import aegis.platform.window;
+import aegis.renderer;
+import aegis.rhi;
 
 using SpirvBuffer = std::vector<uint32_t>;
 
@@ -42,12 +43,24 @@ public:
         };
         aegis::platform::Window window{ windowDesc };
 
-        auto rhi = aegis::rhi::RHI::create({
+        auto context = aegis::rhi::Context::create({
+            .appName = "TestApp",
             .window = window,
-            .appName = "Test",
         });
-        if (!rhi)
-            return std::unexpected{ "Failed to create RHI" };
+        if (!context)
+            return std::unexpected{ "Failed to create rhi context" };
+
+        auto device = context->createDevice({});
+        if (!device)
+            return std::unexpected{ "Failed to create rhi device" };
+
+        auto renderer = aegis::renderer::Renderer::create({
+            .window = window,
+            .context = *context,
+            .device = *device,
+        });
+        if (!renderer)
+            return std::unexpected{ "Failed to create renderer" };
 
         auto shader = loadSPIRV(SHADER_PATH);
         if (!shader)
@@ -268,7 +281,9 @@ public:
 
 private:
     aegis::platform::Window m_window;
-    aegis::rhi::RHI m_rhi;
+    aegis::rhi::Context m_context;
+    aegis::rhi::Device m_device;
+    aegis::renderer::Renderer m_renderer;
 
     aegis::rhi::Pipeline m_pipeline;
     aegis::rhi::Image m_depthImage;
