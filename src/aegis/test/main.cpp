@@ -129,7 +129,6 @@ public:
         return std::expected<Engine, std::string>{
             std::in_place,
             std::move(window),
-            std::move(*rhi),
             std::move(*pipeline),
             std::move(*depthImage),
             std::move(*uploadPool),
@@ -138,13 +137,17 @@ public:
     }
 
     Engine(aegis::platform::Window&& window,
-        aegis::rhi::RHI&& rhi,
+        aegis::rhi::Context context,
+        aegis::rhi::Device device,
+        aegis::renderer::Renderer renderer,
         aegis::rhi::Pipeline pipeline,
         aegis::rhi::Image depthImage,
         aegis::rhi::CommandPool uploadPool,
         aegis::rhi::CommandBuffer uploadCmd) :
         m_window{ std::move(window) },
-        m_rhi{ std::move(rhi) },
+        m_context{ std::move(context) },
+        m_device{ std::move(device) },
+        m_renderer{ std::move(renderer) },
         m_pipeline{ std::move(pipeline) },
         m_depthImage{ std::move(depthImage) },
         m_uploadPool{ std::move(uploadPool) },
@@ -168,7 +171,7 @@ public:
             if (m_window.wasResized() || m_swapchain.needsRecreation())
                 resize();
 
-            drawFrame();
+            m_renderer.renderFrame();
         }
 
         std::ignore = m_device->waitIdle();
@@ -177,6 +180,8 @@ public:
 
     auto drawFrame() -> void
     {
+        // TODO: move this into renderer
+
         auto frameInfo = m_rhi.beginFrame();
         if (!frameInfo)
             return;

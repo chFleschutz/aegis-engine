@@ -12,6 +12,9 @@ export namespace aegis::renderer
 enum class Error
 {
     RHIInitializationFailed,
+    FrameBeginFailed,
+    QueueSubmitFailed,
+    SwapcahinPresentFailed,
 };
 
 class Renderer
@@ -36,13 +39,25 @@ public:
     [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Renderer, Error>;
 
     Renderer(rhi::Device& device, rhi::Swapchain&& swapchain,
-        rhi::CommandPool && commandPool, std::vector<FrameContext>&& frameContext);
+        rhi::CommandPool&& commandPool, std::vector<FrameContext>&& frameContext);
+
+    auto renderFrame() noexcept -> void;
 
 private:
+    struct FrameInfo
+    {
+        rhi::CommandBuffer& cmd;
+        rhi::ImageRef swapchainImage;
+        std::uint32_t frameIndex;
+    };
+
     [[nodiscard]] static auto createFrameContext(
         const rhi::Device& device,
         const rhi::CommandPool& pool) noexcept
         -> std::expected<std::vector<FrameContext>, Error>;
+
+    auto beginFrame() noexcept -> std::expected<FrameInfo, Error>;
+    auto endFrame() noexcept -> void;
 
     rhi::Device& m_device;
     rhi::Swapchain m_swapchain;

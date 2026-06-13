@@ -5,7 +5,7 @@ export module aegis.rhi:image_ref;
 import :error;
 import vulkan_hpp;
 
-namespace aegis::rhi
+export namespace aegis::rhi
 {
 struct ImageRef
 {

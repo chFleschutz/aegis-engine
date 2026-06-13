@@ -1,5 +1,8 @@
 module;
 #include <format>
+#include <optional>
+#include <ostream>
+#include <print>
 
 module aegis.renderer;
 
@@ -43,6 +46,16 @@ Renderer::Renderer(rhi::Device& device, rhi::Swapchain&& swapchain,
 {
 }
 
+auto Renderer::renderFrame() noexcept -> void
+{
+    auto frameInfo = beginFrame();
+    if (!frameInfo)
+        return;
+
+    // TODO: render stuff
+
+    endFrame();
+}
 
 auto Renderer::createFrameContext(
     const rhi::Device& device,
@@ -71,4 +84,52 @@ auto Renderer::createFrameContext(
     }
     return frameContext;
 }
+
+auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
+{
+    auto& [cmd, imageAvailable, timePoint] = m_frameContext[m_currentFrame];
+    if (!m_device.graphicsQueue().wait(timePoint))
+        return std::unexpected{ Error::FrameBeginFailed };
+
+    auto acquiredImage = m_swapchain.acquireNextImage(imageAvailable);
+    if (!acquiredImage && acquiredImage.error().code == rhi::ErrorCode::OutOfDate)
+        return std::unexpected{ Error::FrameBeginFailed }; // TODO: handle out of date
+
+    if (!acquiredImage)
+        return std::unexpected{ Error::FrameBeginFailed };
+
+    return std::expected<FrameInfo, Error>{
+        std::in_place,
+        cmd,
+        acquiredImage->imageRef,
+        m_currentFrame,
+    };
+}
+
+auto Renderer::endFrame() noexcept -> void
+{
+    auto& [cmd, imageAvailable, timePoint] = m_frameContext[m_currentFrame];
+
+    auto newSubmitTime = m_device.graphicsQueue().submit({
+        .commandBuffer = cmd,
+        .waitSemaphore = imageAvailable,
+        .signalSemaphore = m_swapchain.currentPresentReady(),
+    });
+    if (!newSubmitTime)
+    {
+        std::println("Failed to submit to queue");
+        return;
+    }
+    timePoint = *newSubmitTime;
+
+    auto result = m_swapchain.present(m_device.presentQueue());
+    if (!result)
+    {
+        std::println("Failed to present to queue");
+        return;
+    }
+
+    m_currentFrame = (m_currentFrame + 1) % m_frameContext.size();
+}
+
 }

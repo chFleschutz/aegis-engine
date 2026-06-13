@@ -71,7 +71,6 @@ target_sources(aegis-rhi
         memory.cpp
         queue.cpp
         pipeline.cpp
-        rhi.cpp
         swapchain.cpp
         sync.cpp
         vma_impl.cpp
