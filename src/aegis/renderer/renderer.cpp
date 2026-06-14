@@ -1,5 +1,6 @@
 module;
 #include <format>
+#include <functional>
 #include <optional>
 #include <ostream>
 #include <print>
@@ -57,7 +58,7 @@ auto Renderer::requestResize(rhi::Extent2D newSize)
     m_pendingResize = true;
 }
 
-auto Renderer::renderFrame() noexcept -> void
+auto Renderer::renderFrame(std::function<void(const FrameInfo&)> drawFunc) noexcept -> void
 {
     if (m_pendingResize)
         resize();
@@ -66,7 +67,7 @@ auto Renderer::renderFrame() noexcept -> void
     if (!frameInfo)
         return;
 
-    // TODO: render stuff
+    drawFunc(*frameInfo);
 
     endFrame();
 }

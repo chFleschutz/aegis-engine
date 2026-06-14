@@ -1,5 +1,6 @@
 module;
 #include <expected>
+#include <functional>
 #include <vector>
 #include <string_view>
 
@@ -35,6 +36,13 @@ public:
         std::uint64_t timelineValue{ 0 };
     };
 
+    struct FrameInfo
+    {
+        rhi::CommandBuffer& cmd;
+        rhi::ImageRef swapchainImage;
+        std::uint32_t frameIndex;
+    };
+
     static constexpr std::uint32_t maxFramesInFlight{ 2 };
 
     [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Renderer, Error>;
@@ -45,17 +53,13 @@ public:
         rhi::CommandPool&& commandPool,
         std::vector<FrameContext>&& frameContext);
 
+    [[nodiscard]] auto swapchain() const noexcept -> const rhi::Swapchain& { return m_swapchain; }
+
     auto requestResize(rhi::Extent2D newSize) -> void;
 
-    auto renderFrame() noexcept -> void;
+    auto renderFrame(std::function<void(const FrameInfo&)> drawFunc) noexcept -> void;
 
 private:
-    struct FrameInfo
-    {
-        rhi::CommandBuffer& cmd;
-        rhi::ImageRef swapchainImage;
-        std::uint32_t frameIndex;
-    };
 
     [[nodiscard]] static auto createFrameContext(
         const rhi::Device& device,

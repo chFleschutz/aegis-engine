@@ -66,7 +66,7 @@ public:
         if (!shader)
             return std::unexpected{ std::format("Failed to load shader from {}", SHADER_PATH) };
 
-        auto colorAttachments = std::array{ rhi->swapchain().surfaceFormat() };
+        auto colorAttachments = std::array{ renderer->swapchain().surfaceFormat() };
         auto shaders = std::array{
             aegis::rhi::Pipeline::Shader{
                 .name = "TriangleVertexShader",
@@ -95,7 +95,7 @@ public:
 
         aegis::rhi::Image::Desc depthImageDesc{
             .name = "SceneDepth",
-            .extent = aegis::rhi::Extent3D{ swapchain->extent() },
+            .extent = aegis::rhi::Extent3D{ renderer->swapchain().extent() },
             .format = aegis::rhi::Format::D32_SFLOAT,
             .usage = aegis::rhi::ImageUsage::DepthStencilAttachment,
         };
@@ -129,6 +129,9 @@ public:
         return std::expected<Engine, std::string>{
             std::in_place,
             std::move(window),
+            std::move(*context),
+            std::move(*device),
+            std::move(*renderer),
             std::move(*pipeline),
             std::move(*depthImage),
             std::move(*uploadPool),
@@ -171,22 +174,16 @@ public:
             if (m_window.wasResized())
                 m_renderer.requestResize(aegis::rhi::Extent2D{ m_window.extent() });
 
-            m_renderer.renderFrame();
+            m_renderer.renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); });
         }
 
         std::ignore = m_device->waitIdle();
         return 0;
     }
 
-    auto drawFrame() -> void
+    auto drawFrame(const aegis::renderer::Renderer::FrameInfo& frameInfo) -> void
     {
-        // TODO: move this into renderer
-
-        auto frameInfo = m_rhi.beginFrame();
-        if (!frameInfo)
-            return;
-
-        auto& [cmd, swapchainImage, frameIndex] = *frameInfo;
+        const auto& [cmd, swapchainImage, frameIndex] = frameInfo;
 
         cmd.begin();
         cmd.beginLabel("Frame");
@@ -232,8 +229,6 @@ public:
 
         cmd.endLabel();
         cmd.end();
-
-        m_rhi.endFrame();
     }
 
     auto resize() -> void
