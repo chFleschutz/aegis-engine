@@ -54,10 +54,11 @@ public:
         std::vector<FrameContext>&& frameContext);
 
     [[nodiscard]] auto swapchain() const noexcept -> const rhi::Swapchain& { return m_swapchain; }
-
-    auto requestResize(rhi::Extent2D newSize) -> void;
+    [[nodiscard]] auto needsResize() const noexcept -> bool { return m_needsResize; }
 
     auto renderFrame(std::function<void(const FrameInfo&)> drawFunc) noexcept -> void;
+
+    auto resize(rhi::Extent2D newSize) -> void;
 
     auto registerResolutionDependentResource(rhi::Image::Desc desc,
         float scaleFactor = 1.0f) noexcept -> std::expected<rhi::ImageRef, rhi::Error>;
@@ -78,7 +79,6 @@ private:
 
     auto beginFrame() noexcept -> std::expected<FrameInfo, Error>;
     auto endFrame() noexcept -> void;
-    auto resize() -> void;
 
     rhi::Context& m_context;
     rhi::Device& m_device;
@@ -87,7 +87,6 @@ private:
     std::vector<FrameContext> m_frameContext;
     std::vector<ResolutionDependentResource> m_resDependent;
     std::uint32_t m_currentFrame{ 0 };
-    rhi::Extent2D m_pendingSize{ 0, 0 };
-    bool m_pendingResize{ false };
+    bool m_needsResize{ false };
 };
 }

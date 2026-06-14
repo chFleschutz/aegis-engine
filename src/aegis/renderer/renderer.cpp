@@ -52,17 +52,8 @@ Renderer::Renderer(rhi::Context& context,
 {
 }
 
-auto Renderer::requestResize(rhi::Extent2D newSize)
-{
-    m_pendingSize = newSize;
-    m_pendingResize = true;
-}
-
 auto Renderer::renderFrame(std::function<void(const FrameInfo&)> drawFunc) noexcept -> void
 {
-    if (m_pendingResize)
-        resize();
-
     auto frameInfo = beginFrame();
     if (!frameInfo)
         return;
@@ -70,6 +61,48 @@ auto Renderer::renderFrame(std::function<void(const FrameInfo&)> drawFunc) noexc
     drawFunc(*frameInfo);
 
     endFrame();
+}
+
+auto Renderer::resize(rhi::Extent2D newSize)
+{
+    std::ignore = m_device->waitIdle();
+
+    auto swapchain = m_device.createSwapchain(rhi::Swapchain::RecreateDesc{
+        .preferredExtent = newSize,
+        .oldSwapchain = m_swapchain,
+    });
+
+    if (!swapchain)
+    {
+        std::println("Failed to recreate swapchain");
+        return;
+    }
+    m_swapchain = std::move(*swapchain);
+
+    for (auto& [image, name, usage, scaleFactor] : m_resDependent)
+    {
+        auto width = static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor);
+        auto height = static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor);
+        auto depth = image.ref().extent.z;
+
+        auto newImage = m_device.createImage({
+            .name = name,
+            .extent = rhi::Extent3D{ width, height, depth },
+            .format = image.format(),
+            .usage = usage,
+            .mipLevels = image.ref().levelCount,
+            .arrayLayers = image.ref().layerCount,
+        });
+
+        if (!newImage)
+        {
+            std::println("Failed to recreate resolution dependent image '{}'", name);
+            continue;
+        }
+        image = std::move(*newImage);
+    }
+
+    m_needsResize = false;
 }
 
 auto Renderer::registerResolutionDependentResource(rhi::Image::Desc desc,
@@ -158,47 +191,5 @@ auto Renderer::endFrame() noexcept -> void
     }
 
     m_currentFrame = (m_currentFrame + 1) % m_frameContext.size();
-}
-
-auto Renderer::resize() -> void
-{
-    std::ignore = m_device->waitIdle();
-
-    auto swapchain = m_device.createSwapchain(rhi::Swapchain::RecreateDesc{
-        .preferredExtent = m_pendingSize,
-        .oldSwapchain = m_swapchain,
-    });
-
-    if (!swapchain)
-    {
-        std::println("Failed to recreate swapchain");
-        return;
-    }
-    m_swapchain = std::move(*swapchain);
-
-    for (auto& [image, name, usage, scaleFactor] : m_resDependent)
-    {
-        auto width = static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor);
-        auto height = static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor);
-        auto depth = image.ref().extent.z;
-
-        auto newImage = m_device.createImage({
-            .name = name,
-            .extent = rhi::Extent3D{ width, height, depth },
-            .format = image.format(),
-            .usage = usage,
-            .mipLevels = image.ref().levelCount,
-            .arrayLayers = image.ref().layerCount,
-        });
-
-        if (!newImage)
-        {
-            std::println("Failed to recreate resolution dependent image '{}'", name);
-            continue;
-        }
-        image = std::move(*newImage);
-    }
-
-    m_pendingResize = false;
 }
 }

@@ -170,8 +170,11 @@ public:
                 continue;
             }
 
-            if (m_window.wasResized())
-                m_renderer.requestResize(aegis::rhi::Extent2D{ m_window.extent() });
+            if (m_window.wasResized() || m_renderer.needsResize())
+            {
+                m_renderer.resize(aegis::rhi::Extent2D{ m_window.extent() });
+                m_window.resetResized();
+            }
 
             m_renderer.renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); });
         }
