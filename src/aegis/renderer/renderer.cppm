@@ -59,7 +59,17 @@ public:
 
     auto renderFrame(std::function<void(const FrameInfo&)> drawFunc) noexcept -> void;
 
+    auto registerResolutionDependentResource(rhi::Image::Desc desc,
+        float scaleFactor = 1.0f) noexcept -> std::expected<rhi::ImageRef, rhi::Error>;
+
 private:
+    struct ResolutionDependentResource
+    {
+        rhi::Image image; // TODO use handles instead
+        std::string_view name;
+        rhi::ImageUsage usage;
+        float scaleFactor;
+    };
 
     [[nodiscard]] static auto createFrameContext(
         const rhi::Device& device,
@@ -75,6 +85,7 @@ private:
     rhi::Swapchain m_swapchain;
     rhi::CommandPool m_commandPool;
     std::vector<FrameContext> m_frameContext;
+    std::vector<ResolutionDependentResource> m_resDependent;
     std::uint32_t m_currentFrame{ 0 };
     rhi::Extent2D m_pendingSize{ 0, 0 };
     bool m_pendingResize{ false };

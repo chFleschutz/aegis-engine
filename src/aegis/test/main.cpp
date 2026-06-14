@@ -93,13 +93,12 @@ public:
         if (!pipeline)
             return std::unexpected{ "Failed to create pipeline" };
 
-        aegis::rhi::Image::Desc depthImageDesc{
+        auto depthImage = renderer->registerResolutionDependentResource({
             .name = "SceneDepth",
             .extent = aegis::rhi::Extent3D{ renderer->swapchain().extent() },
             .format = aegis::rhi::Format::D32_SFLOAT,
             .usage = aegis::rhi::ImageUsage::DepthStencilAttachment,
-        };
-        auto depthImage = device->createImage(depthImageDesc);
+        });
         if (!depthImage)
             return std::unexpected{ "Failed to create depth image" };
 
@@ -144,7 +143,7 @@ public:
         aegis::rhi::Device device,
         aegis::renderer::Renderer renderer,
         aegis::rhi::Pipeline pipeline,
-        aegis::rhi::Image depthImage,
+        aegis::rhi::ImageRef depthImage,
         aegis::rhi::CommandPool uploadPool,
         aegis::rhi::CommandBuffer uploadCmd) :
         m_window{ std::move(window) },
@@ -193,7 +192,7 @@ public:
             .newState = aegis::rhi::ResourceState::Attachment,
         });
         cmd.transitionImageLayout({
-            .imageRef = m_depthImage.ref(),
+            .imageRef = m_depthImage,
             .oldState = aegis::rhi::ResourceState::Unknown,
             .newState = aegis::rhi::ResourceState::Attachment,
         });
@@ -209,7 +208,7 @@ public:
         cmd.beginRendering(aegis::rhi::RenderingCmd{
             .colorAttachments = colorAttachments,
             .depthAttachment = aegis::rhi::Attachment::depth(
-                m_depthImage.ref(),
+                m_depthImage,
                 aegis::rhi::ClearDepthStencil{ 1.0f, 0 }
             ),
         });
@@ -229,27 +228,6 @@ public:
 
         cmd.endLabel();
         cmd.end();
-    }
-
-    auto resize() -> void
-    {
-        std::ignore = m_device->waitIdle();
-
-        aegis::rhi::Image::Desc depthImageDesc{
-            .name = "depthImage",
-            .extent = aegis::rhi::Extent3D{ swapchainDesc.extent },
-            .format = aegis::rhi::Format::D32_SFLOAT,
-            .usage = aegis::rhi::ImageUsage::DepthStencilAttachment,
-        };
-        auto depthImage = m_device.createImage(depthImageDesc);
-        if (!depthImage)
-        {
-            std::println("Failed to recreate depth image");
-            return;
-        }
-        m_depthImage = std::move(*depthImage);
-
-        m_window.resetResized();
     }
 
     void upload()
@@ -273,7 +251,7 @@ private:
     aegis::renderer::Renderer m_renderer;
 
     aegis::rhi::Pipeline m_pipeline;
-    aegis::rhi::Image m_depthImage;
+    aegis::rhi::ImageRef m_depthImage;
 
     aegis::rhi::CommandPool m_uploadPool;
     aegis::rhi::CommandBuffer m_uploadCmd;

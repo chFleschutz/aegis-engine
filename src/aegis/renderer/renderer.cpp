@@ -72,6 +72,17 @@ auto Renderer::renderFrame(std::function<void(const FrameInfo&)> drawFunc) noexc
     endFrame();
 }
 
+auto Renderer::registerResolutionDependentResource(rhi::Image::Desc desc,
+    float scaleFactor) noexcept -> std::expected<rhi::ImageRef, rhi::Error>
+{
+    auto image = m_device.createImage(desc);
+    if (!image)
+        return std::unexpected{ image.error() };
+
+    m_resDependent.emplace_back(*image, desc.name, desc.usage, scaleFactor);
+    return std::expected<rhi::ImageRef, rhi::Error>(std::move(image->ref()));
+}
+
 auto Renderer::createFrameContext(
     const rhi::Device& device,
     const rhi::CommandPool& pool) noexcept
@@ -163,8 +174,31 @@ auto Renderer::resize() -> void
         std::println("Failed to recreate swapchain");
         return;
     }
-
     m_swapchain = std::move(*swapchain);
+
+    for (auto& [image, name, usage, scaleFactor] : m_resDependent)
+    {
+        auto width = static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor);
+        auto height = static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor);
+        auto depth = image.ref().extent.z;
+
+        auto newImage = m_device.createImage({
+            .name = name,
+            .extent = rhi::Extent3D{ width, height, depth },
+            .format = image.format(),
+            .usage = usage,
+            .mipLevels = image.ref().levelCount,
+            .arrayLayers = image.ref().layerCount,
+        });
+
+        if (!newImage)
+        {
+            std::println("Failed to recreate resolution dependent image '{}'", name);
+            continue;
+        }
+        image = std::move(*newImage);
+    }
+
     m_pendingResize = false;
 }
 }
