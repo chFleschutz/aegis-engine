@@ -70,28 +70,43 @@ auto Swapchain::present(const Queue& queue) -> std::expected<void, Error>
     return {};
 }
 
-auto Swapchain::create(
-    const Device& device,
-    const Desc& desc)
+auto Swapchain::create(const Device& device, const Desc& desc)
     -> std::expected<Swapchain, Error>
 {
-    const auto& surface = desc.context.surface();
+    return create(device, desc.context.surface(), desc.preferredExtent, vk::SwapchainKHR{});
+}
 
+auto Swapchain::create(const Device& device, const RecreateDesc& desc)
+    -> std::expected<Swapchain, Error>
+{
+    return create(device, desc.oldSwapchain.surface(), desc.preferredExtent, desc.oldSwapchain.handle());
+}
+
+auto Swapchain::create(const Device& device, vk::SurfaceKHR surface,
+    Extent2D preferredExtent, vk::SwapchainKHR oldSwapchain)
+    -> std::expected<Swapchain, Error>
+{
     auto surfaceCaps = querySurfaceCapabilities(device.physicalDevice(), surface);
     if (!surfaceCaps)
         return std::unexpected{ surfaceCaps.error() };
 
-    auto extent = querySwapchainExtent(desc.extent, *surfaceCaps);
+    auto extent = querySwapchainExtent(preferredExtent, *surfaceCaps);
 
-    auto format = querySwapchainFormat(device.physicalDevice(), desc.context.surface());
+    auto format = querySwapchainFormat(device.physicalDevice(), surface);
     if (!format)
         return std::unexpected{ format.error() };
 
-    auto presentMode = queryPresentMode(device.physicalDevice(), surface);
+    auto presentMode = queryPresentMode(*device.physicalDevice(), surface);
     if (!presentMode)
         return std::unexpected{ presentMode.error() };
 
-    auto swapchain = createSwapchain(device.device(), extent, *format, *presentMode, *surfaceCaps, desc);
+    auto swapchain = createSwapchain(*device,
+        extent,
+        *format,
+        *presentMode,
+        *surfaceCaps,
+        surface,
+        oldSwapchain);
     if (!swapchain)
         return std::unexpected(swapchain.error());
 
@@ -118,13 +133,13 @@ auto Swapchain::create(
 
 auto Swapchain::querySurfaceCapabilities(
     const vk::raii::PhysicalDevice& physicalDevice,
-    const vk::raii::SurfaceKHR& surface)
+    vk::SurfaceKHR surface)
     -> std::expected<vk::SurfaceCapabilitiesKHR, Error>
 {
     auto surfaceCaps = physicalDevice.getSurfaceCapabilitiesKHR(surface);
     if (!surfaceCaps.has_value())
         return makeError(toRHI(surfaceCaps.result));
-    return surfaceCaps.value;
+    return std::expected<vk::SurfaceCapabilitiesKHR, Error>{ surfaceCaps.value };
 }
 
 auto Swapchain::querySwapchainExtent(Extent2D preferred,
@@ -141,8 +156,8 @@ auto Swapchain::querySwapchainExtent(Extent2D preferred,
 }
 
 auto Swapchain::queryPresentMode(
-    const vk::raii::PhysicalDevice& physicalDevice,
-    const vk::raii::SurfaceKHR& surface)
+    vk::PhysicalDevice physicalDevice,
+    vk::SurfaceKHR surface)
     -> std::expected<vk::PresentModeKHR, Error>
 {
     auto presentModes = physicalDevice.getSurfacePresentModesKHR(surface);
@@ -195,13 +210,15 @@ auto Swapchain::createSwapchain(
     vk::SurfaceFormatKHR surfaceFormat,
     vk::PresentModeKHR presentMode,
     const vk::SurfaceCapabilitiesKHR& surfaceCaps,
-    const Desc& desc)
+    vk::SurfaceKHR surface,
+    vk::SwapchainKHR oldSwapchain
+)
     -> std::expected<vk::raii::SwapchainKHR, Error>
 {
     auto minImageCount = chooseSwapImageCount(surfaceCaps);
 
     vk::SwapchainCreateInfoKHR createInfo{
-        .surface = desc.context.surface(),
+        .surface = surface,
         .minImageCount = minImageCount,
         .imageFormat = surfaceFormat.format,
         .imageColorSpace = surfaceFormat.colorSpace,
@@ -213,7 +230,7 @@ auto Swapchain::createSwapchain(
         .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
         .presentMode = presentMode,
         .clipped = true,
-        .oldSwapchain = desc.oldSwapchain ? desc.oldSwapchain->handle() : nullptr,
+        .oldSwapchain = oldSwapchain,
     };
 
     auto swapchain = device.createSwapchainKHR(createInfo);

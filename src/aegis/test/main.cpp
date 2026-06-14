@@ -168,8 +168,8 @@ public:
                 continue;
             }
 
-            if (m_window.wasResized() || m_swapchain.needsRecreation())
-                resize();
+            if (m_window.wasResized())
+                m_renderer.requestResize(aegis::rhi::Extent2D{ m_window.extent() });
 
             m_renderer.renderFrame();
         }
@@ -239,19 +239,6 @@ public:
     auto resize() -> void
     {
         std::ignore = m_device->waitIdle();
-
-        aegis::rhi::Swapchain::Desc swapchainDesc{
-            .context = m_context,
-            .extent = aegis::rhi::Extent2D{ m_window.extent() },
-            .oldSwapchain = &m_swapchain,
-        };
-        auto swapchain = m_device.createSwapchain(swapchainDesc);
-        if (!swapchain)
-        {
-            std::println("Failed to recreate swapchain");
-            return;
-        }
-        m_swapchain = std::move(*swapchain);
 
         aegis::rhi::Image::Desc depthImageDesc{
             .name = "depthImage",

@@ -88,6 +88,9 @@ public:
     [[nodiscard]] auto createSwapchain(const Swapchain::Desc& desc) const
         -> std::expected<Swapchain, Error>;
 
+    [[nodiscard]] auto createSwapchain(const Swapchain::RecreateDesc& desc) const
+        -> std::expected<Swapchain, Error>;
+
 private:
     using FeatureChain = vk::StructureChain<
         vk::DeviceCreateInfo,

@@ -21,8 +21,13 @@ public:
     struct Desc
     {
         const Context& context;
-        Extent2D extent;
-        Swapchain* oldSwapchain = nullptr;
+        Extent2D preferredExtent;
+    };
+
+    struct RecreateDesc
+    {
+        Extent2D preferredExtent;
+        const Swapchain& oldSwapchain;
     };
 
     struct AcquiredImage
@@ -42,10 +47,16 @@ public:
     [[nodiscard]] auto operator*() const -> vk::SwapchainKHR { return *m_swapchain; }
 
     [[nodiscard]] auto handle() const -> vk::SwapchainKHR { return *m_swapchain; }
+    [[nodiscard]] auto surface() const -> vk::SurfaceKHR { return m_surface; }
     [[nodiscard]] auto surfaceFormat() const -> Format { return m_surfaceFormat; }
     [[nodiscard]] auto extent() const -> Extent2D { return m_extent; }
     [[nodiscard]] auto currentImageIndex() const -> std::uint32_t { return m_currentImage; }
-    [[nodiscard]] auto currentPresentReady() const -> const Semaphore& { return m_semaphores[m_currentImage]; }
+
+    [[nodiscard]] auto currentPresentReady() const -> const Semaphore&
+    {
+        return m_semaphores[m_currentImage];
+    }
+
     [[nodiscard]] auto needsRecreation() const -> bool { return m_needsRecreation; }
 
     [[nodiscard]] auto acquireNextImage(const Semaphore& signalSemaphore)
@@ -54,14 +65,19 @@ public:
     [[nodiscard]] auto present(const Queue& queue) -> std::expected<void, Error>;
 
 private:
-    [[nodiscard]] static auto create(
-        const Device& device,
-        const Desc& desc)
+    [[nodiscard]] static auto create(const Device& device, const Desc& desc)
+        -> std::expected<Swapchain, Error>;
+
+    [[nodiscard]] static auto create(const Device& device, const RecreateDesc& desc)
+        -> std::expected<Swapchain, Error>;
+
+    [[nodiscard]] static auto create(const Device& device, vk::SurfaceKHR surface,
+        Extent2D preferredExtent, vk::SwapchainKHR oldSwapchain)
         -> std::expected<Swapchain, Error>;
 
     [[nodiscard]] static auto querySurfaceCapabilities(
         const vk::raii::PhysicalDevice& physicalDevice,
-        const vk::raii::SurfaceKHR& surface)
+        vk::SurfaceKHR surface)
         -> std::expected<vk::SurfaceCapabilitiesKHR, Error>;
 
     [[nodiscard]] static auto querySwapchainExtent(
@@ -70,8 +86,8 @@ private:
         -> Extent2D;
 
     [[nodiscard]] static auto queryPresentMode(
-        const vk::raii::PhysicalDevice& physicalDevice,
-        const vk::raii::SurfaceKHR& surface)
+        vk::PhysicalDevice physicalDevice,
+        vk::SurfaceKHR surface)
         -> std::expected<vk::PresentModeKHR, Error>;
 
     [[nodiscard]] static auto querySwapchainFormat(
@@ -85,7 +101,8 @@ private:
         vk::SurfaceFormatKHR surfaceFormat,
         vk::PresentModeKHR presentMode,
         const vk::SurfaceCapabilitiesKHR& surfaceCaps,
-        const Desc& desc)
+        vk::SurfaceKHR surface,
+        vk::SwapchainKHR oldSwapchain)
         -> std::expected<vk::raii::SwapchainKHR, Error>;
 
     [[nodiscard]] static auto createImages(const Device& device, const vk::raii::SwapchainKHR& swapchain)
@@ -116,6 +133,7 @@ private:
     vk::raii::SwapchainKHR m_swapchain;
     std::vector<ImageView> m_imageViews;
     std::vector<Semaphore> m_semaphores;
+    vk::SurfaceKHR m_surface;
     Extent2D m_extent;
     Format m_surfaceFormat;
     std::uint32_t m_currentImage{ 0 };

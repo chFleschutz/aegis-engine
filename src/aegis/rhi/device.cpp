@@ -79,6 +79,11 @@ auto Device::createSwapchain(const Swapchain::Desc& desc) const -> std::expected
     return Swapchain::create(*this, desc);
 }
 
+auto Device::createSwapchain(const Swapchain::RecreateDesc& desc) const -> std::expected<Swapchain, Error>
+{
+    return Swapchain::create(*this, desc);
+}
+
 auto Device::QueueFamilyIndices::isComplete() const -> bool
 {
     return graphics != vk::QueueFamilyIgnored && present != vk::QueueFamilyIgnored &&

@@ -10,9 +10,9 @@ namespace aegis::renderer
 {
 auto Renderer::create(const Desc& desc) -> std::expected<Renderer, Error>
 {
-    auto swapchain = desc.device.createSwapchain({
+    auto swapchain = desc.device.createSwapchain(rhi::Swapchain::Desc{
         .context = desc.context,
-        .extent = rhi::Extent2D{ desc.window.extent() },
+        .preferredExtent = rhi::Extent2D{ desc.window.extent() },
     });
     if (!swapchain)
         return std::unexpected{ Error::RHIInitializationFailed };
@@ -30,6 +30,7 @@ auto Renderer::create(const Desc& desc) -> std::expected<Renderer, Error>
 
     return std::expected<Renderer, Error>{
         std::in_place,
+        desc.context,
         desc.device,
         std::move(*swapchain),
         std::move(*commandPool),
@@ -37,8 +38,12 @@ auto Renderer::create(const Desc& desc) -> std::expected<Renderer, Error>
     };
 }
 
-Renderer::Renderer(rhi::Device& device, rhi::Swapchain&& swapchain,
-    rhi::CommandPool&& commandPool, std::vector<FrameContext>&& frameContext) :
+Renderer::Renderer(rhi::Context& context,
+    rhi::Device& device,
+    rhi::Swapchain&& swapchain,
+    rhi::CommandPool&& commandPool,
+    std::vector<FrameContext>&& frameContext) :
+    m_context{ context },
     m_device{ device },
     m_swapchain{ std::move(swapchain) },
     m_commandPool{ std::move(commandPool) },
@@ -46,8 +51,17 @@ Renderer::Renderer(rhi::Device& device, rhi::Swapchain&& swapchain,
 {
 }
 
+auto Renderer::requestResize(rhi::Extent2D newSize)
+{
+    m_pendingSize = newSize;
+    m_pendingResize = true;
+}
+
 auto Renderer::renderFrame() noexcept -> void
 {
+    if (m_pendingResize)
+        resize();
+
     auto frameInfo = beginFrame();
     if (!frameInfo)
         return;
@@ -93,8 +107,10 @@ auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
 
     auto acquiredImage = m_swapchain.acquireNextImage(imageAvailable);
     if (!acquiredImage && acquiredImage.error().code == rhi::ErrorCode::OutOfDate)
-        return std::unexpected{ Error::FrameBeginFailed }; // TODO: handle out of date
-
+    {
+        m_pendingResize = true;
+        return std::unexpected{ Error::SwapchainOutOfDate };
+    }
     if (!acquiredImage)
         return std::unexpected{ Error::FrameBeginFailed };
 
@@ -132,4 +148,22 @@ auto Renderer::endFrame() noexcept -> void
     m_currentFrame = (m_currentFrame + 1) % m_frameContext.size();
 }
 
+auto Renderer::resize() -> void
+{
+    std::ignore = m_device->waitIdle();
+
+    auto swapchain = m_device.createSwapchain(rhi::Swapchain::RecreateDesc{
+        .preferredExtent = m_pendingSize,
+        .oldSwapchain = m_swapchain,
+    });
+
+    if (!swapchain)
+    {
+        std::println("Failed to recreate swapchain");
+        return;
+    }
+
+    m_swapchain = std::move(*swapchain);
+    m_pendingResize = false;
+}
 }
