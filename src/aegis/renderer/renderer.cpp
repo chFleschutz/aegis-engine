@@ -1,4 +1,5 @@
 module;
+#include <expected>
 #include <format>
 #include <functional>
 #include <optional>
@@ -52,7 +53,7 @@ Renderer::Renderer(rhi::Context& context,
 {
 }
 
-auto Renderer::renderFrame(std::function<void(const FrameInfo&)> drawFunc) noexcept -> void
+auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept -> void
 {
     auto frameInfo = beginFrame();
     if (!frameInfo)
@@ -63,7 +64,7 @@ auto Renderer::renderFrame(std::function<void(const FrameInfo&)> drawFunc) noexc
     endFrame();
 }
 
-auto Renderer::resize(rhi::Extent2D newSize)
+auto Renderer::resize(rhi::Extent2D newSize) -> void
 {
     std::ignore = m_device->waitIdle();
 
@@ -112,7 +113,7 @@ auto Renderer::registerResolutionDependentResource(rhi::Image::Desc desc,
     if (!image)
         return std::unexpected{ image.error() };
 
-    m_resDependent.emplace_back(*image, desc.name, desc.usage, scaleFactor);
+    m_resDependent.emplace_back(std::move(*image), desc.name, desc.usage, scaleFactor);
     return std::expected<rhi::ImageRef, rhi::Error>(std::move(image->ref()));
 }
 
@@ -153,7 +154,7 @@ auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
     auto acquiredImage = m_swapchain.acquireNextImage(imageAvailable);
     if (!acquiredImage && acquiredImage.error().code == rhi::ErrorCode::OutOfDate)
     {
-        m_pendingResize = true;
+        m_needsResize = true;
         return std::unexpected{ Error::SwapchainOutOfDate };
     }
     if (!acquiredImage)

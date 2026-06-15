@@ -86,7 +86,7 @@ private:
         -> Extent2D;
 
     [[nodiscard]] static auto queryPresentMode(
-        vk::PhysicalDevice physicalDevice,
+        const vk::raii::PhysicalDevice& physicalDevice,
         vk::SurfaceKHR surface)
         -> std::expected<vk::PresentModeKHR, Error>;
 

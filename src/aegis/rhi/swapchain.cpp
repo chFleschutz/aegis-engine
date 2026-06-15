@@ -96,7 +96,7 @@ auto Swapchain::create(const Device& device, vk::SurfaceKHR surface,
     if (!format)
         return std::unexpected{ format.error() };
 
-    auto presentMode = queryPresentMode(*device.physicalDevice(), surface);
+    auto presentMode = queryPresentMode(device.physicalDevice(), surface);
     if (!presentMode)
         return std::unexpected{ presentMode.error() };
 
@@ -156,7 +156,7 @@ auto Swapchain::querySwapchainExtent(Extent2D preferred,
 }
 
 auto Swapchain::queryPresentMode(
-    vk::PhysicalDevice physicalDevice,
+    const vk::raii::PhysicalDevice& physicalDevice,
     vk::SurfaceKHR surface)
     -> std::expected<vk::PresentModeKHR, Error>
 {

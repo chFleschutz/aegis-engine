@@ -1,4 +1,5 @@
 module;
+#include <cassert>
 #include <expected>
 #include <ranges>
 
@@ -82,6 +83,8 @@ auto Queue::submit(const CommandBuffer& cmd) -> std::expected<std::uint64_t, Err
 
 auto Queue::wait(std::uint64_t timePoint) const -> bool
 {
+    assert(*m_timeline);
+
     vk::Semaphore waitSem = *m_timeline;
     auto waitInfo = vk::SemaphoreWaitInfo{}
         .setSemaphores(waitSem)

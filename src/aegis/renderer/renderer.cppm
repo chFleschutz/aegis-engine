@@ -1,8 +1,8 @@
 module;
 #include <expected>
 #include <functional>
-#include <vector>
 #include <string_view>
+#include <vector>
 
 export module aegis.renderer;
 import aegis.rhi;
@@ -56,7 +56,7 @@ public:
     [[nodiscard]] auto swapchain() const noexcept -> const rhi::Swapchain& { return m_swapchain; }
     [[nodiscard]] auto needsResize() const noexcept -> bool { return m_needsResize; }
 
-    auto renderFrame(std::function<void(const FrameInfo&)> drawFunc) noexcept -> void;
+    auto renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept -> void;
 
     auto resize(rhi::Extent2D newSize) -> void;
 

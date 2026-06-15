@@ -240,7 +240,7 @@ auto Device::createQueue(const vk::raii::Device& device, std::string_view name, 
             .name = std::format("{}TimelineSemaphore", name),
             .type = Semaphore::Type::Timeline,
         });
-    if (!semaphore.has_value())
+    if (!semaphore)
         return std::unexpected{ semaphore.error() };
 
     return Queue{ std::move(queue), std::move(*semaphore), queueFamily };

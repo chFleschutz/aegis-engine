@@ -159,7 +159,7 @@ public:
 
     auto run() -> int
     {
-        upload();
+        // upload();
 
         while (!m_window.shouldClose())
         {
