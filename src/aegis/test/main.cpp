@@ -31,159 +31,140 @@ auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, 
     return buffer;
 }
 
+
+namespace aegis
+{
 class Engine
 {
 public:
     static auto create() -> std::expected<Engine, std::string>
     {
-        aegis::platform::Window::Desc windowDesc{
+        Engine engine{};
+
+        platform::Window::Desc windowDesc{
             .title = "Test Window",
             .width = 640,
             .height = 480,
         };
-        aegis::platform::Window window{ windowDesc };
+        engine.m_window = std::make_unique<platform::Window>(windowDesc);
 
-        auto context = aegis::rhi::Context::create({
+        auto context = rhi::Context::create({
             .appName = "TestApp",
-            .window = window,
+            .window = *engine.m_window,
         });
         if (!context)
             return std::unexpected{ "Failed to create rhi context" };
+        engine.m_context = std::move(*context);
 
-        auto device = context->createDevice({});
+        auto device = engine.m_context->createDevice({});
         if (!device)
             return std::unexpected{ "Failed to create rhi device" };
+        engine.m_device = std::move(*device);
 
-        auto renderer = aegis::renderer::Renderer::create({
-            .window = window,
-            .context = *context,
-            .device = *device,
+        auto renderer = renderer::Renderer::create({
+            .window = *engine.m_window,
+            .context = *engine.m_context,
+            .device = *engine.m_device,
         });
         if (!renderer)
             return std::unexpected{ "Failed to create renderer" };
+        engine.m_renderer = std::move(*renderer);
 
         auto shader = loadSPIRV(SHADER_PATH);
         if (!shader)
             return std::unexpected{ std::format("Failed to load shader from {}", SHADER_PATH) };
 
-        auto colorAttachments = std::array{ renderer->swapchain().surfaceFormat() };
+        auto colorAttachments = std::array{ engine.m_renderer->swapchain().surfaceFormat() };
         auto shaders = std::array{
-            aegis::rhi::Pipeline::Shader{
+            rhi::Pipeline::Shader{
                 .name = "TriangleVertexShader",
-                .stage = aegis::rhi::ShaderStage::Vertex,
+                .stage = rhi::ShaderStage::Vertex,
                 .code = *shader,
                 .entryPoint = "vertexMain",
             },
-            aegis::rhi::Pipeline::Shader{
+            rhi::Pipeline::Shader{
                 .name = "TriangleFragmentShader",
-                .stage = aegis::rhi::ShaderStage::Fragment,
+                .stage = rhi::ShaderStage::Fragment,
                 .code = *shader,
                 .entryPoint = "fragmentMain",
             },
         };
-        aegis::rhi::Pipeline::GraphicsDesc pipelineDesc{
+        rhi::Pipeline::GraphicsDesc pipelineDesc{
             .name = "TrianglePipeline",
             .setLayouts = {},
             .pushConstantRanges = {},
             .shaders = shaders,
             .colorAttachments = colorAttachments,
-            .depthAttachment = aegis::rhi::Format::D32_SFLOAT,
+            .depthAttachment = rhi::Format::D32_SFLOAT,
         };
-        auto pipeline = device->createPipeline(pipelineDesc);
+        auto pipeline = engine.m_device->createPipeline(pipelineDesc);
         if (!pipeline)
             return std::unexpected{ "Failed to create pipeline" };
+        engine.m_pipeline = std::move(*pipeline);
 
-        auto depthImage = renderer->registerResolutionDependentResource({
+        auto depthImage = engine.m_renderer->registerResolutionDependentResource({
             .name = "SceneDepth",
-            .extent = aegis::rhi::Extent3D{ renderer->swapchain().extent() },
-            .format = aegis::rhi::Format::D32_SFLOAT,
-            .usage = aegis::rhi::ImageUsage::DepthStencilAttachment,
+            .extent = rhi::Extent3D{ engine.m_renderer->swapchain().extent() },
+            .format = rhi::Format::D32_SFLOAT,
+            .usage = rhi::ImageUsage::DepthStencilAttachment,
         });
         if (!depthImage)
             return std::unexpected{ "Failed to create depth image" };
+        engine.m_depthImage = std::move(*depthImage);
 
-        aegis::rhi::Buffer::Desc bufferDesc{
-            .name = "TestUniformBuffer",
-            .size = sizeof(float),
-            .usage = aegis::rhi::BufferUsage::Uniform,
-        };
-        auto buffer = device->createBuffer(bufferDesc);
-        if (!buffer)
-            return std::unexpected{ "Failed to create buffer" };
+        // rhi::Buffer::Desc bufferDesc{
+        //     .name = "TestUniformBuffer",
+        //     .size = sizeof(float),
+        //     .usage = rhi::BufferUsage::Uniform,
+        // };
+        // auto buffer = engine.m_device->createBuffer(bufferDesc);
+        // if (!buffer)
+        //     return std::unexpected{ "Failed to create buffer" };
+        //
+        // auto uploadPool = engine.m_device->createCommandPool({
+        //     .name = "Upload Command Pool",
+        //     .queueFamily = engine.m_device->graphicsQueue().family(),
+        // });
+        // if (!uploadPool)
+        //     return std::unexpected{ "Failed to create upload command pool" };
+        //
+        // auto uploadCmd = engine.m_device->createCommandBuffer({
+        //     .name = "Upload Command Buffer",
+        //     .pool = *uploadPool,
+        // });
+        // if (!uploadCmd)
+        //     return std::unexpected{ "Failed to create upload command buffer" };
 
-        auto uploadPool = device->createCommandPool({
-            .name = "Upload Command Pool",
-            .queueFamily = device->graphicsQueue().family(),
-        });
-        if (!uploadPool)
-            return std::unexpected{ "Failed to create upload command pool" };
-
-        auto uploadCmd = device->createCommandBuffer({
-            .name = "Upload Command Buffer",
-            .pool = *uploadPool,
-        });
-        if (!uploadCmd)
-            return std::unexpected{ "Failed to create upload command buffer" };
-
-        return std::expected<Engine, std::string>{
-            std::in_place,
-            std::move(window),
-            std::move(*context),
-            std::move(*device),
-            std::move(*renderer),
-            std::move(*pipeline),
-            std::move(*depthImage),
-            std::move(*uploadPool),
-            std::move(*uploadCmd),
-        };
-    }
-
-    Engine(aegis::platform::Window&& window,
-        aegis::rhi::Context context,
-        aegis::rhi::Device device,
-        aegis::renderer::Renderer renderer,
-        aegis::rhi::Pipeline pipeline,
-        aegis::rhi::ImageRef depthImage,
-        aegis::rhi::CommandPool uploadPool,
-        aegis::rhi::CommandBuffer uploadCmd) :
-        m_window{ std::move(window) },
-        m_context{ std::move(context) },
-        m_device{ std::move(device) },
-        m_renderer{ std::move(renderer) },
-        m_pipeline{ std::move(pipeline) },
-        m_depthImage{ std::move(depthImage) },
-        m_uploadPool{ std::move(uploadPool) },
-        m_uploadCmd{ std::move(uploadCmd) }
-    {
+        return engine;
     }
 
     auto run() -> int
     {
         // upload();
 
-        while (!m_window.shouldClose())
+        while (!m_window->shouldClose())
         {
-            m_window.update();
-            if (m_window.isMinimized())
+            m_window->update();
+            if (m_window->isMinimized())
             {
-                m_window.waitEvents();
+                m_window->waitEvents();
                 continue;
             }
 
-            if (m_window.wasResized() || m_renderer.needsResize())
+            if (m_window->wasResized() || m_renderer->needsResize())
             {
-                m_renderer.resize(aegis::rhi::Extent2D{ m_window.extent() });
-                m_window.resetResized();
+                m_renderer->resize(rhi::Extent2D{ m_window->extent() });
+                m_window->resetResized();
             }
 
-            m_renderer.renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); });
+            m_renderer->renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); });
         }
 
-        std::ignore = m_device->waitIdle();
+        m_device->waitIdle();
         return 0;
     }
 
-    auto drawFrame(const aegis::renderer::Renderer::FrameInfo& frameInfo) -> void
+    auto drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
     {
         const auto& [cmd, swapchainImage, frameIndex] = frameInfo;
 
@@ -191,31 +172,31 @@ public:
         cmd.beginLabel("Frame");
         cmd.transitionImageLayout({
             .imageRef = swapchainImage,
-            .oldState = aegis::rhi::ResourceState::Unknown,
-            .newState = aegis::rhi::ResourceState::Attachment,
+            .oldState = rhi::ResourceState::Unknown,
+            .newState = rhi::ResourceState::Attachment,
         });
         cmd.transitionImageLayout({
-            .imageRef = m_depthImage,
-            .oldState = aegis::rhi::ResourceState::Unknown,
-            .newState = aegis::rhi::ResourceState::Attachment,
+            .imageRef = *m_depthImage,
+            .oldState = rhi::ResourceState::Unknown,
+            .newState = rhi::ResourceState::Attachment,
         });
 
         cmd.beginLabel("Rendering");
 
         std::array colorAttachments{
-            aegis::rhi::Attachment::color(
+            rhi::Attachment::color(
                 swapchainImage,
-                aegis::rhi::ClearColor{ 1.0, 1.0, 1.0, 1.0 }
+                rhi::ClearColor{ 1.0, 1.0, 1.0, 1.0 }
             )
         };
-        cmd.beginRendering(aegis::rhi::RenderingCmd{
+        cmd.beginRendering(rhi::RenderingCmd{
             .colorAttachments = colorAttachments,
-            .depthAttachment = aegis::rhi::Attachment::depth(
-                m_depthImage,
-                aegis::rhi::ClearDepthStencil{ 1.0f, 0 }
+            .depthAttachment = rhi::Attachment::depth(
+                *m_depthImage,
+                rhi::ClearDepthStencil{ 1.0f, 0 }
             ),
         });
-        cmd.bindPipeline(m_pipeline);
+        cmd.bindPipeline(*m_pipeline);
         cmd.setViewport(swapchainImage.extent.toExtent2D());
         cmd.setScissor(swapchainImage.extent.toExtent2D());
         cmd.draw(3);
@@ -225,44 +206,47 @@ public:
 
         cmd.transitionImageLayout({
             .imageRef = swapchainImage,
-            .oldState = aegis::rhi::ResourceState::Attachment,
-            .newState = aegis::rhi::ResourceState::Present,
+            .oldState = rhi::ResourceState::Attachment,
+            .newState = rhi::ResourceState::Present,
         });
 
         cmd.endLabel();
         cmd.end();
     }
 
-    void upload()
-    {
-        m_uploadCmd.begin(true);
-        m_uploadCmd.beginLabel("UploadCmdBuffer");
-
-        m_uploadCmd.endLabel();
-        m_uploadCmd.end();
-
-        auto value = m_device.graphicsQueue().submit(m_uploadCmd);
-        if (!value)
-            return;
-        m_device.graphicsQueue().wait(*value);
-    }
+    // void upload()
+    // {
+    //     m_uploadCmd.begin(true);
+    //     m_uploadCmd.beginLabel("UploadCmdBuffer");
+    //
+    //     m_uploadCmd.endLabel();
+    //     m_uploadCmd.end();
+    //
+    //     auto value = m_device.graphicsQueue().submit(m_uploadCmd);
+    //     if (!value)
+    //         return;
+    //     m_device.graphicsQueue().wait(*value);
+    // }
 
 private:
-    aegis::platform::Window m_window;
-    aegis::rhi::Context m_context;
-    aegis::rhi::Device m_device;
-    aegis::renderer::Renderer m_renderer;
+    Engine() = default;
 
-    aegis::rhi::Pipeline m_pipeline;
-    aegis::rhi::ImageRef m_depthImage;
+    std::unique_ptr<platform::Window> m_window;
+    std::unique_ptr<rhi::Context> m_context;
+    std::unique_ptr<rhi::Device> m_device;
+    std::unique_ptr<renderer::Renderer> m_renderer;
 
-    aegis::rhi::CommandPool m_uploadPool;
-    aegis::rhi::CommandBuffer m_uploadCmd;
+    std::optional<rhi::Pipeline> m_pipeline;
+    std::optional<rhi::ImageRef> m_depthImage;
+
+    // rhi::CommandPool m_uploadPool;
+    // rhi::CommandBuffer m_uploadCmd;
 };
+}
 
 auto main() -> int
 {
-    auto engine = Engine::create();
+    auto engine = aegis::Engine::create();
     if (!engine)
     {
         std::println("Failed to create engine \n{}", engine.error());

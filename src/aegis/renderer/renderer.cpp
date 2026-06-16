@@ -10,7 +10,7 @@ module aegis.renderer;
 
 namespace aegis::renderer
 {
-auto Renderer::create(const Desc& desc) -> std::expected<Renderer, Error>
+auto Renderer::create(const Desc& desc) -> std::expected<std::unique_ptr<Renderer>, Error>
 {
     auto swapchain = desc.device.createSwapchain(rhi::Swapchain::Desc{
         .context = desc.context,
@@ -30,14 +30,12 @@ auto Renderer::create(const Desc& desc) -> std::expected<Renderer, Error>
     if (!frameContext)
         return std::unexpected{ Error::RHIInitializationFailed };
 
-    return std::expected<Renderer, Error>{
-        std::in_place,
+    return std::make_unique<Renderer>(
         desc.context,
         desc.device,
         std::move(*swapchain),
         std::move(*commandPool),
-        std::move(*frameContext)
-    };
+        std::move(*frameContext));
 }
 
 Renderer::Renderer(rhi::Context& context,

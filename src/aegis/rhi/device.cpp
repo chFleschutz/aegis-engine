@@ -17,6 +17,26 @@ import vulkan_hpp;
 
 namespace aegis::rhi
 {
+Device::Device(
+    vk::raii::PhysicalDevice pd,
+    vk::raii::Device device,
+    Allocator allocator,
+    Queue graphicsQueue,
+    Queue computeQueue,
+    Queue transferQueue,
+    Queue presentQueue,
+    Capabilities capabilities) :
+    m_physicalDevice{ std::move(pd) },
+    m_device{ std::move(device) },
+    m_allocator{ std::move(allocator) },
+    m_graphicsQueue{ std::move(graphicsQueue) },
+    m_computeQueue{ std::move(computeQueue) },
+    m_transferQueue{ std::move(transferQueue) },
+    m_presentQueue{ std::move(presentQueue) },
+    m_capabilities{ capabilities }
+{
+}
+
 auto Device::physicalDevice() const noexcept -> const vk::raii::PhysicalDevice&
 {
     return m_physicalDevice;
@@ -84,6 +104,11 @@ auto Device::createSwapchain(const Swapchain::RecreateDesc& desc) const -> std::
     return Swapchain::create(*this, desc);
 }
 
+auto Device::waitIdle() const noexcept -> void
+{
+    std::ignore = m_device.waitIdle();
+}
+
 auto Device::QueueFamilyIndices::isComplete() const -> bool
 {
     return graphics != vk::QueueFamilyIgnored && present != vk::QueueFamilyIgnored &&
@@ -91,7 +116,7 @@ auto Device::QueueFamilyIndices::isComplete() const -> bool
 }
 
 auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface, const Desc& desc)
-    -> std::expected<Device, Error>
+    -> std::expected<std::unique_ptr<Device>, Error>
 {
     auto physicalDevice = createPhysicalDevice(instance, surface);
     if (!physicalDevice)
@@ -124,7 +149,7 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
     if (!graphicsQueue)
         return std::unexpected{ graphicsQueue.error() };
 
-    return Device{
+    return std::make_unique<Device>(
         std::move(*physicalDevice),
         std::move(*device),
         std::move(*allocator),
@@ -132,8 +157,7 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
         std::move(*computeQueue),
         std::move(*transferQueue),
         std::move(*presentQueue),
-        capabilities
-    };
+        capabilities);
 }
 
 auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface)
@@ -395,25 +419,5 @@ auto Device::queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties
         .vk12 = props.get<vk::PhysicalDeviceVulkan12Properties>(),
         .vk13 = props.get<vk::PhysicalDeviceVulkan13Properties>(),
     };
-}
-
-Device::Device(
-    vk::raii::PhysicalDevice pd,
-    vk::raii::Device device,
-    Allocator allocator,
-    Queue graphicsQueue,
-    Queue computeQueue,
-    Queue transferQueue,
-    Queue presentQueue,
-    Capabilities capabilities) :
-    m_physicalDevice{ std::move(pd) },
-    m_device{ std::move(device) },
-    m_allocator{ std::move(allocator) },
-    m_graphicsQueue{ std::move(graphicsQueue) },
-    m_computeQueue{ std::move(computeQueue) },
-    m_transferQueue{ std::move(transferQueue) },
-    m_presentQueue{ std::move(presentQueue) },
-    m_capabilities{ capabilities }
-{
 }
 }

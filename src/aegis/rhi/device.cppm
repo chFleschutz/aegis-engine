@@ -1,6 +1,7 @@
 module;
 #include <expected>
 #include <functional>
+#include <memory>
 #include <string>
 
 export module aegis.rhi:device;
@@ -44,6 +45,16 @@ public:
     static constexpr std::array requiredExtensions{
         vk::KHRSwapchainExtensionName,
     };
+
+    Device(
+        vk::raii::PhysicalDevice pd,
+        vk::raii::Device device,
+        Allocator allocator,
+        Queue graphicsQueue,
+        Queue computeQueue,
+        Queue transferQueue,
+        Queue presentQueue,
+        Capabilities capabilities);
 
     [[nodiscard]] auto operator->() const noexcept -> const vk::raii::Device* { return &m_device; }
     [[nodiscard]] auto operator*() const noexcept -> const vk::raii::Device& { return m_device; }
@@ -91,6 +102,8 @@ public:
     [[nodiscard]] auto createSwapchain(const Swapchain::RecreateDesc& desc) const
         -> std::expected<Swapchain, Error>;
 
+    auto waitIdle() const noexcept -> void;
+
 private:
     using FeatureChain = vk::StructureChain<
         vk::DeviceCreateInfo,
@@ -113,7 +126,7 @@ private:
 
     [[nodiscard]] static auto create(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface,
         const Desc& desc)
-        -> std::expected<Device, Error>;
+        -> std::expected<std::unique_ptr<Device>, Error>;
 
     [[nodiscard]] static auto createPhysicalDevice(const vk::raii::Instance& instance,
         const vk::raii::SurfaceKHR& surface)
@@ -136,16 +149,6 @@ private:
     [[nodiscard]] static auto supportsExtensions(const vk::raii::PhysicalDevice& pd) -> bool;
     [[nodiscard]] static auto createFeatureChain() -> FeatureChain;
     [[nodiscard]] static auto queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties;
-
-    Device(
-        vk::raii::PhysicalDevice pd,
-        vk::raii::Device device,
-        Allocator allocator,
-        Queue graphicsQueue,
-        Queue computeQueue,
-        Queue transferQueue,
-        Queue presentQueue,
-        Capabilities capabilities);
 
     vk::raii::PhysicalDevice m_physicalDevice;
     vk::raii::Device m_device;

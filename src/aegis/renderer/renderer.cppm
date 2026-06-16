@@ -1,6 +1,7 @@
 module;
 #include <expected>
 #include <functional>
+#include <memory>
 #include <string_view>
 #include <vector>
 
@@ -45,7 +46,7 @@ public:
 
     static constexpr std::uint32_t maxFramesInFlight{ 2 };
 
-    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Renderer, Error>;
+    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<std::unique_ptr<Renderer>, Error>;
 
     Renderer(rhi::Context& context,
         rhi::Device& device,

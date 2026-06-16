@@ -43,7 +43,7 @@ VKAPI_ATTR auto VKAPI_CALL debugCallback(
     return vk::False;
 }
 
-auto Context::create(const Desc& desc) -> std::expected<Context, Error>
+auto Context::create(const Desc& desc) -> std::expected<std::unique_ptr<Context>, Error>
 {
     vk::raii::Context context{};
 
@@ -59,17 +59,11 @@ auto Context::create(const Desc& desc) -> std::expected<Context, Error>
     if (!surface)
         return std::unexpected{ surface.error() };
 
-    return Context{
+    return std::make_unique<Context>(
         std::move(context),
         std::move(*instance),
         std::move(*messenger),
-        std::move(*surface)
-    };
-}
-
-auto Context::createDevice(const Device::Desc& desc) const -> std::expected<Device, Error>
-{
-    return Device::create(m_instance, m_surface, desc);
+        std::move(*surface));
 }
 
 Context::Context(
@@ -82,6 +76,11 @@ Context::Context(
     m_debugMessenger{ std::move(messenger) },
     m_surface{ std::move(surface) }
 {
+}
+
+auto Context::createDevice(const Device::Desc& desc) const -> std::expected<std::unique_ptr<Device>, Error>
+{
+    return Device::create(m_instance, m_surface, desc);
 }
 
 auto Context::createInstance(

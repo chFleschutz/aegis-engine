@@ -1,5 +1,6 @@
 module;
 #include <expected>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -27,20 +28,21 @@ public:
     static constexpr bool enableValidation{ true };
 #endif
 
-    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Context, Error>;
+    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<std::unique_ptr<Context>, Error>;
 
-    [[nodiscard]] auto instance() const -> const vk::raii::Instance& { return m_instance; }
-    [[nodiscard]] auto surface() const -> const vk::raii::SurfaceKHR& { return m_surface; }
-
-    [[nodiscard]] auto createDevice(const Device::Desc& desc) const -> std::expected<Device, Error>;
-
-private:
     Context(
         vk::raii::Context context,
         vk::raii::Instance instance,
         vk::raii::DebugUtilsMessengerEXT messenger,
         vk::raii::SurfaceKHR surface);
 
+    [[nodiscard]] auto instance() const -> const vk::raii::Instance& { return m_instance; }
+    [[nodiscard]] auto surface() const -> const vk::raii::SurfaceKHR& { return m_surface; }
+
+    [[nodiscard]] auto createDevice(const Device::Desc& desc) const
+        -> std::expected<std::unique_ptr<Device>, Error>;
+
+private:
     [[nodiscard]] static auto createInstance(
         const vk::raii::Context& context,
         const Desc& desc)
