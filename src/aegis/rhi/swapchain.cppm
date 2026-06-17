@@ -127,6 +127,7 @@ private:
         vk::raii::SwapchainKHR swapchain,
         std::vector<ImageView> imageViews,
         std::vector<Semaphore> semaphores,
+        vk::SurfaceKHR surface,
         Extent2D extent,
         Format format);
 

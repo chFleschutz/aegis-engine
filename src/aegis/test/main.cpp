@@ -155,6 +155,8 @@ public:
             {
                 m_renderer->resize(rhi::Extent2D{ m_window->extent() });
                 m_window->resetResized();
+                // TODO: temp fix only
+                m_depthImage = m_renderer->resolutionDependentResources()[0].image.ref();
             }
 
             m_renderer->renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); });

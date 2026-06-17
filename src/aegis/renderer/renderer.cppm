@@ -44,6 +44,14 @@ public:
         std::uint32_t frameIndex;
     };
 
+    struct ResolutionDependentResource
+    {
+        rhi::Image image; // TODO use handles instead
+        std::string_view name;
+        rhi::ImageUsage usage;
+        float scaleFactor;
+    };
+
     static constexpr std::uint32_t maxFramesInFlight{ 2 };
 
     [[nodiscard]] static auto create(const Desc& desc) -> std::expected<std::unique_ptr<Renderer>, Error>;
@@ -57,6 +65,11 @@ public:
     [[nodiscard]] auto swapchain() const noexcept -> const rhi::Swapchain& { return m_swapchain; }
     [[nodiscard]] auto needsResize() const noexcept -> bool { return m_needsResize; }
 
+    [[nodiscard]] auto resolutionDependentResources() const -> const std::vector<ResolutionDependentResource>&
+    {
+        return m_resDependent;
+    }
+
     auto renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept -> void;
 
     auto resize(rhi::Extent2D newSize) -> void;
@@ -65,14 +78,6 @@ public:
         float scaleFactor = 1.0f) noexcept -> std::expected<rhi::ImageRef, rhi::Error>;
 
 private:
-    struct ResolutionDependentResource
-    {
-        rhi::Image image; // TODO use handles instead
-        std::string_view name;
-        rhi::ImageUsage usage;
-        float scaleFactor;
-    };
-
     [[nodiscard]] static auto createFrameContext(
         const rhi::Device& device,
         const rhi::CommandPool& pool) noexcept

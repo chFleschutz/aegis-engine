@@ -127,6 +127,7 @@ auto Swapchain::create(const Device& device, vk::SurfaceKHR surface,
         std::move(*swapchain),
         std::move(*imageViews),
         std::move(*semaphores),
+        surface,
         extent,
         toRHI(format->format)
     };
@@ -320,11 +321,13 @@ Swapchain::Swapchain(
     vk::raii::SwapchainKHR swapchain,
     std::vector<ImageView> imageViews,
     std::vector<Semaphore> semaphores,
+    vk::SurfaceKHR surface,
     Extent2D extent,
     Format format) :
     m_swapchain{ std::move(swapchain) },
     m_imageViews{ std::move(imageViews) },
     m_semaphores{ std::move(semaphores) },
+    m_surface{ surface },
     m_extent{ extent },
     m_surfaceFormat{ format }
 {
