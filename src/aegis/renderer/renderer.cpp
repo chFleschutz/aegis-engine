@@ -112,7 +112,7 @@ auto Renderer::registerResolutionDependentResource(rhi::Image::Desc desc,
         return std::unexpected{ image.error() };
 
     m_resDependent.emplace_back(std::move(*image), desc.name, desc.usage, scaleFactor);
-    return std::expected<rhi::ImageRef, rhi::Error>(std::move(image->ref()));
+    return std::expected<rhi::ImageRef, rhi::Error>(m_resDependent.back().image.ref());
 }
 
 auto Renderer::createFrameContext(

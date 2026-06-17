@@ -36,6 +36,7 @@ auto Swapchain::acquireNextImage(const Semaphore& signalSemaphore)
     {
         return makeError(toRHI(index.result));
     }
+    m_currentImage = *index;
 
     return std::expected<AcquiredImage, Error>{
         std::in_place,
