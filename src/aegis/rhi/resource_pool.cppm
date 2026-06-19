@@ -13,8 +13,31 @@ export namespace aegis::rhi
 template<typename T>
 struct Handle
 {
-    std::uint32_t index: 20;
-    std::uint32_t generation: 12;
+    static constexpr std::uint32_t InvalidValue{ std::numeric_limits<std::uint32_t>::max() };
+    static constexpr std::uint32_t IndexBits{ 20 };
+    static constexpr std::uint32_t GenerationBits{ 12 };
+    static constexpr std::uint32_t IndexMask{ (1u << IndexBits) - 1 };
+    static constexpr std::uint32_t GenerationMask{ (1u << GenerationBits) - 1 };
+
+    static_assert(IndexBits + GenerationBits == 32);
+
+    // Packed as | 12-bit generation | 20-bit index |
+    std::uint32_t value{ InvalidValue };
+
+    Handle() = default;
+
+    Handle(std::uint32_t index, std::uint32_t generation) :
+        value{ (generation << IndexBits) | index }
+    {
+        assert(index <= IndexMask);
+        assert(generation <= GenerationMask);
+    }
+
+    auto operator<=>(const Handle&) const = default;
+
+    [[nodiscard]] auto isValid() const -> bool { return value != InvalidValue; }
+    [[nodiscard]] auto index() const -> std::uint32_t { return value & IndexMask; }
+    [[nodiscard]] auto generation() const -> std::uint32_t { return (value >> IndexBits) & GenerationMask; }
 };
 
 template<typename T, std::size_t ChunkSize>
@@ -29,8 +52,8 @@ public:
 
     [[nodiscard]] auto get(Handle<T> handle) -> T&
     {
-        assert(handle.generation == slot(handle.index).generation);
-        return slot(handle.index).resource;
+        assert(handle.generation() == slot(handle.index()).generation);
+        return slot(handle.index()).resource;
     }
 
     auto allocate(T resource) -> Handle<T>
@@ -43,14 +66,14 @@ public:
 
     auto free(Handle<T> handle) -> void
     {
-        auto& slot = slot(handle.index);
-        if (slot.generation != handle.generation)
+        auto& slot = slot(handle.index());
+        if (slot.generation != handle.generation())
             return;
 
         slot.resource = {};
         slot.generation += 1;
 
-        m_freeSlots.emplace_back(handle.index);
+        m_freeSlots.emplace_back(handle.index());
     }
 
 private:
