@@ -3,6 +3,7 @@ module;
 #include <cassert>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <ranges>
 #include <vector>
 
@@ -41,7 +42,6 @@ struct Handle
 };
 
 template<typename T, std::size_t ChunkSize>
-    requires std::is_default_constructible_v<T>
 class ResourcePool
 {
 public:
@@ -53,7 +53,8 @@ public:
     [[nodiscard]] auto get(Handle<T> handle) -> T&
     {
         assert(handle.generation() == slot(handle.index()).generation);
-        return slot(handle.index()).resource;
+        assert(slot(handle.index()).resource.has_value());
+        return slot(handle.index()).resource.value();
     }
 
     auto allocate(T resource) -> Handle<T>
@@ -70,7 +71,7 @@ public:
         if (slot.generation != handle.generation())
             return;
 
-        slot.resource = {};
+        slot.resource = std::nullopt;
         slot.generation += 1;
 
         m_freeSlots.emplace_back(handle.index());
@@ -79,7 +80,7 @@ public:
 private:
     struct Slot
     {
-        T resource;
+        std::optional<T> resource;
         std::uint32_t generation{ 0 };
     };
 
