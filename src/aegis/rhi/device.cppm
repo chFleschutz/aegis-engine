@@ -1,4 +1,5 @@
 module;
+#include <array>
 #include <expected>
 #include <functional>
 #include <memory>
@@ -14,12 +15,16 @@ import :image_view;
 import :memory;
 import :pipeline;
 import :queue;
+import :resource_pool;
 import :swapchain;
 import aegis.platform.window;
 import vulkan_hpp;
 
 export namespace aegis::rhi
 {
+using BufferHandle = Handle<Buffer>;
+using ImageHandle = Handle<Image>;
+
 class Device
 {
     friend class Context;
@@ -69,7 +74,14 @@ public:
     [[nodiscard]] auto properties() const noexcept -> const Properties& { return m_properties; }
     [[nodiscard]] auto capabilities() const noexcept -> const Capabilities& { return m_capabilities; }
 
-    [[nodiscard]] auto createBuffer(const Buffer::Desc& desc) const -> std::expected<Buffer, Error>;
+    [[nodiscard]] auto get(BufferHandle handle) -> Buffer& { return m_buffers.get(handle); }
+    [[nodiscard]] auto get(ImageHandle handle) -> Image& { return m_images.get(handle); }
+
+    [[nodiscard]] auto createBuffer(const Buffer::Desc& desc) -> std::expected<BufferHandle, Error>;
+    [[nodiscard]] auto createImage(const Image::Desc& desc) -> std::expected<ImageHandle, Error>;
+
+    auto free(BufferHandle handle) -> void { m_buffers.free(handle); }
+    auto free(ImageHandle handle) -> void { m_images.free(handle); }
 
     [[nodiscard]] auto createCommandBuffer(const CommandBuffer::Desc& desc) const
         -> std::expected<CommandBuffer, Error>;
@@ -79,9 +91,6 @@ public:
 
     [[nodiscard]] auto createFence(const Fence::Desc& desc) const
         -> std::expected<Fence, Error>;
-
-    [[nodiscard]] auto createImage(const Image::Desc& desc) const
-        -> std::expected<Image, Error>;
 
     [[nodiscard]] auto createImageView(const Image& image, const ImageView::Range& range,
         std::string_view name = {}) const
@@ -159,5 +168,7 @@ private:
     Queue m_presentQueue;
     Properties m_properties;
     Capabilities m_capabilities;
+    ResourcePool<Buffer> m_buffers;
+    ResourcePool<Image> m_images;
 };
 }

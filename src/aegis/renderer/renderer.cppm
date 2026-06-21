@@ -46,7 +46,7 @@ public:
 
     struct ResolutionDependentResource
     {
-        rhi::Image image; // TODO use handles instead
+        rhi::ImageHandle image;
         std::string_view name;
         rhi::ImageUsage usage;
         float scaleFactor;
@@ -75,7 +75,7 @@ public:
     auto resize(rhi::Extent2D newSize) -> void;
 
     auto registerResolutionDependentResource(rhi::Image::Desc desc,
-        float scaleFactor = 1.0f) noexcept -> std::expected<rhi::ImageRef, rhi::Error>;
+        float scaleFactor = 1.0f) noexcept -> std::expected<rhi::ImageHandle, rhi::Error>;
 
 private:
     [[nodiscard]] static auto createFrameContext(

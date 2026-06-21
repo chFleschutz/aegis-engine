@@ -155,8 +155,9 @@ public:
             {
                 m_renderer->resize(rhi::Extent2D{ m_window->extent() });
                 m_window->resetResized();
+
                 // TODO: temp fix only
-                m_depthImage = m_renderer->resolutionDependentResources()[0].image.ref();
+                m_depthImage = m_renderer->resolutionDependentResources()[0].image;
             }
 
             m_renderer->renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); });
@@ -178,7 +179,7 @@ public:
             .newState = rhi::ResourceState::Attachment,
         });
         cmd.transitionImageLayout({
-            .imageRef = *m_depthImage,
+            .imageRef = m_device->get(m_depthImage).ref(),
             .oldState = rhi::ResourceState::Unknown,
             .newState = rhi::ResourceState::Attachment,
         });
@@ -194,7 +195,7 @@ public:
         cmd.beginRendering(rhi::RenderingCmd{
             .colorAttachments = colorAttachments,
             .depthAttachment = rhi::Attachment::depth(
-                *m_depthImage,
+                m_device->get(m_depthImage).ref(),
                 rhi::ClearDepthStencil{ 1.0f, 0 }
             ),
         });
@@ -239,7 +240,7 @@ private:
     std::unique_ptr<renderer::Renderer> m_renderer;
 
     std::optional<rhi::Pipeline> m_pipeline;
-    std::optional<rhi::ImageRef> m_depthImage;
+    rhi::ImageHandle m_depthImage;
 
     // rhi::CommandPool m_uploadPool;
     // rhi::CommandBuffer m_uploadCmd;

@@ -42,9 +42,20 @@ auto Device::physicalDevice() const noexcept -> const vk::raii::PhysicalDevice&
     return m_physicalDevice;
 }
 
-auto Device::createBuffer(const Buffer::Desc& desc) const -> std::expected<Buffer, Error>
+auto Device::createBuffer(const Buffer::Desc& desc) -> std::expected<BufferHandle, Error>
 {
-    return Buffer::create(*this, desc);
+    return Buffer::create(*this, desc)
+        .transform([&](auto&& buffer) -> BufferHandle {
+            return m_buffers.allocate(std::move(buffer));
+        });
+}
+
+auto Device::createImage(const Image::Desc& desc) -> std::expected<ImageHandle, Error>
+{
+    return Image::create(*this, desc)
+        .transform([&](auto&& image) -> ImageHandle {
+            return m_images.allocate(std::move(image));
+        });
 }
 
 auto Device::createCommandBuffer(const CommandBuffer::Desc& desc) const -> std::expected<CommandBuffer, Error>
@@ -60,11 +71,6 @@ auto Device::createCommandPool(const CommandPool::Desc& desc) const -> std::expe
 auto Device::createFence(const Fence::Desc& desc) const -> std::expected<Fence, Error>
 {
     return Fence::create(*this, desc);
-}
-
-auto Device::createImage(const Image::Desc& desc) const -> std::expected<Image, Error>
-{
-    return Image::create(*this, desc);
 }
 
 auto Device::createImageView(const Image& image, const ImageView::Range& range, std::string_view name) const

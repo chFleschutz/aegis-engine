@@ -78,41 +78,41 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
     }
     m_swapchain = std::move(*swapchain);
 
-    for (auto& [image, name, usage, scaleFactor] : m_resDependent)
+    for (auto& [imageHandle, name, usage, scaleFactor] : m_resDependent)
     {
+        auto& image = m_device.get(imageHandle);
         auto width = static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor);
         auto height = static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor);
         auto depth = image.ref().extent.z;
 
-        auto newImage = m_device.createImage({
-            .name = name,
-            .extent = rhi::Extent3D{ width, height, depth },
-            .format = image.format(),
-            .usage = usage,
-            .mipLevels = image.ref().levelCount,
-            .arrayLayers = image.ref().layerCount,
-        });
+        auto result = m_device.createImage(rhi::Image::Desc{
+                .name = name,
+                .extent = rhi::Extent3D{ width, height, depth },
+                .format = image.format(),
+                .usage = usage,
+                .mipLevels = image.ref().levelCount,
+                .arrayLayers = image.ref().layerCount,
+            })
+            .transform([&](auto newImage) {
+                m_device.free(imageHandle);
+                imageHandle = newImage;
+            });
 
-        if (!newImage)
-        {
+        if (!result)
             std::println("Failed to recreate resolution dependent image '{}'", name);
-            continue;
-        }
-        image = std::move(*newImage);
     }
 
     m_needsResize = false;
 }
 
 auto Renderer::registerResolutionDependentResource(rhi::Image::Desc desc,
-    float scaleFactor) noexcept -> std::expected<rhi::ImageRef, rhi::Error>
+    float scaleFactor) noexcept -> std::expected<rhi::ImageHandle, rhi::Error>
 {
-    auto image = m_device.createImage(desc);
-    if (!image)
-        return std::unexpected{ image.error() };
-
-    m_resDependent.emplace_back(std::move(*image), desc.name, desc.usage, scaleFactor);
-    return std::expected<rhi::ImageRef, rhi::Error>(m_resDependent.back().image.ref());
+    return m_device.createImage(desc)
+        .transform([&](auto handle) {
+            m_resDependent.emplace_back(std::move(handle), desc.name, desc.usage, scaleFactor);
+            return handle;
+        });
 }
 
 auto Renderer::createFrameContext(
