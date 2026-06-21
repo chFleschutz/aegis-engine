@@ -41,38 +41,45 @@ struct Handle
     [[nodiscard]] auto generation() const -> std::uint32_t { return (value >> IndexBits) & GenerationMask; }
 };
 
-template<typename T, std::size_t ChunkSize>
+template<typename T>
 class ResourcePool
 {
 public:
-    [[nodiscard]] auto totalSlotCount() const -> std::uint32_t
+    static constexpr std::size_t DefaultCapacity{ 256 };
+
+    ResourcePool()
     {
-        return static_cast<std::uint32_t>(m_chunks.size() * ChunkSize);
+        m_slots.resize(DefaultCapacity);
+        m_freeSlots.reserve(DefaultCapacity);
     }
 
     [[nodiscard]] auto get(Handle<T> handle) -> T&
     {
-        assert(handle.generation() == slot(handle.index()).generation);
-        assert(slot(handle.index()).resource.has_value());
-        return slot(handle.index()).resource.value();
+        auto& slot = getSlot(handle);
+        assert(slot.resource.has_value());
+        assert(slot.generation == handle.generation());
+
+        return slot.resource.value();
     }
 
-    auto allocate(T resource) -> Handle<T>
+    [[nodiscard]] auto allocate(T resource) -> Handle<T>
     {
-        auto index = fetchNextFreeSlot();
-        auto& slot = slot(index);
+        auto [index, slot] = fetchNextSlot();
+        assert(index <= Handle<T>::IndexMask);
+        assert(!slot.resource.has_value());
+
         slot.resource = std::move(resource);
         return Handle<T>{ index, slot.generation };
     }
 
     auto free(Handle<T> handle) -> void
     {
-        auto& slot = slot(handle.index());
+        auto& slot = getSlot(handle);
         if (slot.generation != handle.generation())
             return;
 
         slot.resource = std::nullopt;
-        slot.generation += 1;
+        slot.generation = (slot.generation + 1) % Handle<T>::GenerationMask;
 
         m_freeSlots.emplace_back(handle.index());
     }
@@ -84,41 +91,29 @@ private:
         std::uint32_t generation{ 0 };
     };
 
-    struct Chunk
+    auto getSlot(Handle<T> handle) -> Slot&
     {
-        std::array<Slot, ChunkSize> slots;
-    };
+        assert(handle.isValid());
+        assert(handle.index() < static_cast<std::uint32_t>(m_slots.size()));
 
-    auto slot(std::uint32_t index) -> Slot&
-    {
-        assert(index < totalSlotCount());
-        std::uint32_t chunkIndex = index / ChunkSize;
-        std::uint32_t slotIndex = index % ChunkSize;
-        return m_chunks[chunkIndex].slots[slotIndex];
+        return m_slots[handle.index()];
     }
 
-    auto fetchNextFreeSlot() -> std::uint32_t
+    auto fetchNextSlot() -> std::pair<std::uint32_t, Slot&>
     {
         if (m_freeSlots.empty())
-            growPool();
+        {
+            auto index = static_cast<std::uint32_t>(m_slots.size());
+            auto& slot = m_slots.emplace_back();
+            return { index, slot };
+        }
 
         auto index = m_freeSlots.back();
         m_freeSlots.pop_back();
-        return index;
+        return { index, m_slots[index] };
     }
 
-    auto growPool() -> void
-    {
-        std::uint32_t startIndex = static_cast<std::uint32_t>(m_chunks.size()) * ChunkSize;
-        m_chunks.emplace_back();
-
-        m_freeSlots.reserve(m_freeSlots.size() + ChunkSize);
-
-        auto indexRange = std::views::iota(startIndex, startIndex + ChunkSize);
-        std::ranges::copy(indexRange | std::views::reverse, std::back_inserter(m_freeSlots));
-    }
-
-    std::vector<Chunk> m_chunks;
+    std::vector<Slot> m_slots;
     std::vector<std::uint32_t> m_freeSlots;
 };
 }
