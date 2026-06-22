@@ -85,17 +85,18 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
         auto height = static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor);
         auto depth = image.ref().extent.z;
 
-        auto result = m_device.createImage(rhi::Image::Desc{
-                .name = name,
-                .extent = rhi::Extent3D{ width, height, depth },
-                .format = image.format(),
-                .usage = usage,
-                .mipLevels = image.ref().levelCount,
-                .arrayLayers = image.ref().layerCount,
-            })
-            .transform([&](auto newImage) {
-                m_device.free(imageHandle);
-                imageHandle = newImage;
+        auto result = m_device.replace(imageHandle,
+                m_currentFrame,
+                rhi::Image::Desc{
+                    .name = name,
+                    .extent = rhi::Extent3D{ width, height, depth },
+                    .format = image.format(),
+                    .usage = usage,
+                    .mipLevels = image.ref().levelCount,
+                    .arrayLayers = image.ref().layerCount,
+                })
+            .transform([&](auto newHandle) {
+                imageHandle = newHandle;
             });
 
         if (!result)
@@ -148,6 +149,8 @@ auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
     auto& [cmd, imageAvailable, timePoint] = m_frameContext[m_currentFrame];
     if (!m_device.graphicsQueue().wait(timePoint))
         return std::unexpected{ Error::FrameBeginFailed };
+
+    m_device.setFrameCompleted(timePoint);
 
     auto acquiredImage = m_swapchain.acquireNextImage(imageAvailable);
     if (!acquiredImage && acquiredImage.error().code == rhi::ErrorCode::OutOfDate)

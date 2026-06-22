@@ -9,6 +9,7 @@ export module aegis.rhi:device;
 import :buffer;
 import :command_buffer;
 import :command_pool;
+import :deletion_queue;
 import :error;
 import :image;
 import :image_view;
@@ -80,8 +81,15 @@ public:
     [[nodiscard]] auto createBuffer(const Buffer::Desc& desc) -> std::expected<BufferHandle, Error>;
     [[nodiscard]] auto createImage(const Image::Desc& desc) -> std::expected<ImageHandle, Error>;
 
-    auto free(BufferHandle handle) -> void { m_buffers.free(handle); }
-    auto free(ImageHandle handle) -> void { m_images.free(handle); }
+    auto replace(BufferHandle handle, TimelineValue curren, const Buffer::Desc& desc)
+        -> std::expected<BufferHandle, Error>;
+    auto replace(ImageHandle handle, TimelineValue current, const Image::Desc& desc)
+        -> std::expected<ImageHandle, Error>;
+
+    auto free(BufferHandle handle, TimelineValue current) -> void;
+    auto free(ImageHandle handle, TimelineValue current) -> void;
+
+    auto setFrameCompleted(TimelineValue frame) -> void;
 
     [[nodiscard]] auto createCommandBuffer(const CommandBuffer::Desc& desc) const
         -> std::expected<CommandBuffer, Error>;
@@ -170,5 +178,7 @@ private:
     Capabilities m_capabilities;
     ResourcePool<Buffer> m_buffers;
     ResourcePool<Image> m_images;
+    DeletionQueue m_deletionQueue;
+    TimelineValue m_frameComplete{ 0 };
 };
 }

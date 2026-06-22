@@ -10,6 +10,8 @@ import vulkan_hpp;
 
 export namespace aegis::rhi
 {
+using TimelineValue = std::uint64_t;
+
 class Queue
 {
 public:
@@ -26,16 +28,15 @@ public:
     [[nodiscard]] auto operator->() const -> const vk::raii::Queue* { return &m_queue; }
     [[nodiscard]] auto family() const -> std::uint32_t { return m_queueFamily; }
 
-    [[nodiscard]] auto submit(const SubmitInfo& info) -> std::expected<std::uint64_t, Error>;
-    [[nodiscard]] auto submit(const CommandBuffer& cmd) -> std::expected<std::uint64_t, Error>;
+    [[nodiscard]] auto submit(const SubmitInfo& info) -> std::expected<TimelineValue, Error>;
+    [[nodiscard]] auto submit(const CommandBuffer& cmd) -> std::expected<TimelineValue, Error>;
 
-    auto wait(std::uint64_t timePoint) const -> bool;
-    auto waitIdle() const -> bool;
+    auto wait(TimelineValue timePoint) const -> bool;
 
 private:
     vk::raii::Queue m_queue;
     Semaphore m_timeline;
     std::uint32_t m_queueFamily;
-    std::uint64_t m_timelineValue{ 0 };
+    TimelineValue m_currentValue{ 0 };
 };
 }

@@ -26,7 +26,7 @@ target_compile_definitions(vulkan-module
 #############
 # RHI library
 
-add_library(aegis-rhi STATIC)
+add_library(aegis-rhi)
 
 target_link_libraries(aegis-rhi
     PUBLIC
@@ -46,6 +46,7 @@ target_sources(aegis-rhi
         common.cppm
         context.cppm
         debug.cppm
+        deletion_queue.cppm
         device.cppm
         error.cppm
         fwd.cppm

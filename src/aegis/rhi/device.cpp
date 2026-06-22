@@ -58,6 +58,44 @@ auto Device::createImage(const Image::Desc& desc) -> std::expected<ImageHandle, 
         });
 }
 
+auto Device::replace(BufferHandle handle, TimelineValue current, const Buffer::Desc& desc)
+    -> std::expected<BufferHandle, Error>
+{
+    return Buffer::create(*this, desc)
+        .transform([&](auto&& buffer) {
+            auto old = m_buffers.replace(handle, std::move(buffer));
+            m_deletionQueue.push(current, std::move(old));
+            return handle;
+        });
+}
+
+auto Device::replace(ImageHandle handle, TimelineValue current, const Image::Desc& desc)
+    -> std::expected<ImageHandle, Error>
+{
+    return Image::create(*this, desc)
+        .transform([&](auto&& image) {
+            auto old = m_images.replace(handle, std::move(image));
+            m_deletionQueue.push(current, std::move(old));
+            return handle;
+        });
+}
+
+auto Device::free(BufferHandle handle, TimelineValue current) -> void
+{
+    assert(false && "Not implemented");
+}
+
+auto Device::free(ImageHandle handle, TimelineValue current) -> void
+{
+    assert(false && "Not implemented");
+}
+
+auto Device::setFrameCompleted(TimelineValue frame) -> void
+{
+    m_frameComplete = frame;
+    m_deletionQueue.process(frame);
+}
+
 auto Device::createCommandBuffer(const CommandBuffer::Desc& desc) const -> std::expected<CommandBuffer, Error>
 {
     return CommandBuffer::create(*this, desc);

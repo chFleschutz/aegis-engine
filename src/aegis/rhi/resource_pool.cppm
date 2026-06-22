@@ -84,6 +84,20 @@ public:
         m_freeSlots.emplace_back(handle.index());
     }
 
+    auto replace(Handle<T> handle, T newResource) -> T
+    {
+        auto& slot = getSlot(handle);
+        assert(slot.generation == handle.generation());
+        assert(slot.resource.has_value());
+
+        T oldResource = std::move(slot.resource.value());
+
+        slot.resource = std::move(newResource);
+        slot.generation = (slot.generation + 1) % Handle<T>::GenerationMask;
+
+        return oldResource;
+    }
+
 private:
     struct Slot
     {

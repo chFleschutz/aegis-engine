@@ -18,9 +18,9 @@ Queue::Queue(vk::raii::Queue queue, Semaphore semaphore, std::uint32_t queueFami
 {
 }
 
-auto Queue::submit(const SubmitInfo& info) -> std::expected<std::uint64_t, Error>
+auto Queue::submit(const SubmitInfo& info) -> std::expected<TimelineValue, Error>
 {
-    m_timelineValue += 1;
+    m_currentValue += 1;
 
     vk::SemaphoreSubmitInfo waitInfo{
         .semaphore = *info.waitSemaphore,
@@ -35,7 +35,7 @@ auto Queue::submit(const SubmitInfo& info) -> std::expected<std::uint64_t, Error
     auto signalInfos = std::array{
         vk::SemaphoreSubmitInfo{
             .semaphore = *m_timeline,
-            .value = m_timelineValue,
+            .value = m_currentValue,
             .stageMask = vk::PipelineStageFlagBits2::eAllGraphics,
         },
         vk::SemaphoreSubmitInfo{
@@ -57,10 +57,10 @@ auto Queue::submit(const SubmitInfo& info) -> std::expected<std::uint64_t, Error
     if (auto result = m_queue.submit2(submitInfo); result != vk::Result::eSuccess)
         return makeError(toRHI(result));
 
-    return std::expected<std::uint64_t, Error>{ m_timelineValue };
+    return std::expected<std::uint64_t, Error>{ m_currentValue };
 }
 
-auto Queue::submit(const CommandBuffer& cmd) -> std::expected<std::uint64_t, Error>
+auto Queue::submit(const CommandBuffer& cmd) -> std::expected<TimelineValue, Error>
 {
     vk::CommandBufferSubmitInfo cmdInfo{
         .commandBuffer = *cmd,
@@ -78,10 +78,10 @@ auto Queue::submit(const CommandBuffer& cmd) -> std::expected<std::uint64_t, Err
     if (auto result = m_queue.submit2(submitInfo); result != vk::Result::eSuccess)
         return makeError(toRHI(result));
 
-    return std::expected<std::uint64_t, Error>{ m_timelineValue };
+    return std::expected<TimelineValue, Error>{ m_currentValue };
 }
 
-auto Queue::wait(std::uint64_t timePoint) const -> bool
+auto Queue::wait(TimelineValue timePoint) const -> bool
 {
     assert(*m_timeline);
 
@@ -93,12 +93,6 @@ auto Queue::wait(std::uint64_t timePoint) const -> bool
     auto result = m_timeline->getDevice().waitSemaphores(waitInfo,
         std::numeric_limits<std::uint64_t>::max(),
         *m_timeline->getDispatcher());
-    return result == vk::Result::eSuccess;
-}
-
-auto Queue::waitIdle() const -> bool
-{
-    auto result = m_queue.waitIdle();
     return result == vk::Result::eSuccess;
 }
 }
