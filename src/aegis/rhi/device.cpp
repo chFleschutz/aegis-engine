@@ -63,8 +63,8 @@ auto Device::replace(BufferHandle handle, TimelineValue current, const Buffer::D
 {
     return Buffer::create(*this, desc)
         .transform([&](auto&& buffer) {
-            auto old = m_buffers.replace(handle, std::move(buffer));
-            m_deletionQueue.push(current, std::move(old));
+            auto oldBuffer = m_buffers.replace(handle, std::move(buffer));
+            m_deletionQueue.push(current, std::move(oldBuffer));
             return handle;
         });
 }
@@ -74,8 +74,8 @@ auto Device::replace(ImageHandle handle, TimelineValue current, const Image::Des
 {
     return Image::create(*this, desc)
         .transform([&](auto&& image) {
-            auto old = m_images.replace(handle, std::move(image));
-            m_deletionQueue.push(current, std::move(old));
+            auto oldImage = m_images.replace(handle, std::move(image));
+            m_deletionQueue.push(current, std::move(oldImage));
             return handle;
         });
 }

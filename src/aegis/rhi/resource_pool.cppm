@@ -56,8 +56,8 @@ public:
     [[nodiscard]] auto get(Handle<T> handle) -> T&
     {
         auto& slot = getSlot(handle);
-        assert(slot.resource.has_value());
-        assert(slot.generation == handle.generation());
+        assert(slot.resource.has_value() && "Resource has been invalidated");
+        assert(slot.generation == handle.generation() && "Handle is out of date");
 
         return slot.resource.value();
     }
@@ -84,18 +84,15 @@ public:
         m_freeSlots.emplace_back(handle.index());
     }
 
+    /// @brief Replaces the resource at the handle with the newResource and returns the old resource
+    /// @note This function does not invalidate the handle (no generation bump)
     auto replace(Handle<T> handle, T newResource) -> T
     {
         auto& slot = getSlot(handle);
         assert(slot.generation == handle.generation());
         assert(slot.resource.has_value());
 
-        T oldResource = std::move(slot.resource.value());
-
-        slot.resource = std::move(newResource);
-        slot.generation = (slot.generation + 1) % Handle<T>::GenerationMask;
-
-        return oldResource;
+        return std::move(std::exchange(slot.resource, std::move(newResource)).value());
     }
 
 private:

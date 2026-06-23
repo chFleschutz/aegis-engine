@@ -81,7 +81,7 @@ public:
     [[nodiscard]] auto createBuffer(const Buffer::Desc& desc) -> std::expected<BufferHandle, Error>;
     [[nodiscard]] auto createImage(const Image::Desc& desc) -> std::expected<ImageHandle, Error>;
 
-    auto replace(BufferHandle handle, TimelineValue curren, const Buffer::Desc& desc)
+    auto replace(BufferHandle handle, TimelineValue current, const Buffer::Desc& desc)
         -> std::expected<BufferHandle, Error>;
     auto replace(ImageHandle handle, TimelineValue current, const Image::Desc& desc)
         -> std::expected<ImageHandle, Error>;

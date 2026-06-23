@@ -86,17 +86,14 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
         auto depth = image.ref().extent.z;
 
         auto result = m_device.replace(imageHandle,
-                m_currentFrame,
-                rhi::Image::Desc{
-                    .name = name,
-                    .extent = rhi::Extent3D{ width, height, depth },
-                    .format = image.format(),
-                    .usage = usage,
-                    .mipLevels = image.ref().levelCount,
-                    .arrayLayers = image.ref().layerCount,
-                })
-            .transform([&](auto newHandle) {
-                imageHandle = newHandle;
+            m_currentFrame,
+            rhi::Image::Desc{
+                .name = name,
+                .extent = rhi::Extent3D{ width, height, depth },
+                .format = image.format(),
+                .usage = usage,
+                .mipLevels = image.ref().levelCount,
+                .arrayLayers = image.ref().layerCount,
             });
 
         if (!result)
