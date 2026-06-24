@@ -26,7 +26,7 @@ public:
             });
     }
 
-    void process(TimelineValue currentFrame)
+    void collect(TimelineValue currentFrame)
     {
         std::erase_if(m_pending,
             [&](const auto& entry) {

@@ -64,6 +64,12 @@ auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc
 
 auto Renderer::resize(rhi::Extent2D newSize) -> void
 {
+    // Note: Resources need to be replaced immediately as the swapchain size changed.
+    // The full sync point is required to ensure GPU is not using any resources anymore.
+    // The resize happens before the frame-begin where resources are deleted, by enqueuing the resource
+    // with the current frames timeline value before the actual frame-begins; the deletion happens this frame.
+    // This is the intended behavior but worth noting anyway.
+
     std::ignore = m_device->waitIdle();
 
     auto swapchain = m_device.createSwapchain(rhi::Swapchain::RecreateDesc{
@@ -78,18 +84,19 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
     }
     m_swapchain = std::move(*swapchain);
 
-    for (auto& [imageHandle, name, usage, scaleFactor] : m_resDependent)
+    for (auto& [name, imageHandle, usage, scaleFactor] : m_resDependent)
     {
         auto& image = m_device.get(imageHandle);
-        auto width = static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor);
-        auto height = static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor);
-        auto depth = image.ref().extent.z;
 
         auto result = m_device.replace(imageHandle,
-            m_currentFrame,
+            m_frameContext[m_currentFrame].timelineValue,
             rhi::Image::Desc{
                 .name = name,
-                .extent = rhi::Extent3D{ width, height, depth },
+                .extent = rhi::Extent3D{
+                    static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor),
+                    static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor),
+                    image.ref().extent.z
+                },
                 .format = image.format(),
                 .usage = usage,
                 .mipLevels = image.ref().levelCount,
@@ -104,7 +111,7 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
 }
 
 auto Renderer::registerResolutionDependentResource(rhi::Image::Desc desc,
-    float scaleFactor) noexcept -> std::expected<rhi::ImageHandle, rhi::Error>
+    double scaleFactor) noexcept -> std::expected<rhi::ImageHandle, rhi::Error>
 {
     return m_device.createImage(desc)
         .transform([&](auto handle) {

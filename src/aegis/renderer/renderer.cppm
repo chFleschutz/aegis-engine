@@ -46,10 +46,10 @@ public:
 
     struct ResolutionDependentResource
     {
-        rhi::ImageHandle image;
         std::string_view name;
+        rhi::ImageHandle image;
         rhi::ImageUsage usage;
-        float scaleFactor;
+        double scaleFactor;
     };
 
     static constexpr std::uint32_t maxFramesInFlight{ 2 };
@@ -75,7 +75,7 @@ public:
     auto resize(rhi::Extent2D newSize) -> void;
 
     auto registerResolutionDependentResource(rhi::Image::Desc desc,
-        float scaleFactor = 1.0f) noexcept -> std::expected<rhi::ImageHandle, rhi::Error>;
+        double scaleFactor = 1.0) noexcept -> std::expected<rhi::ImageHandle, rhi::Error>;
 
 private:
     [[nodiscard]] static auto createFrameContext(

@@ -93,7 +93,7 @@ auto Device::free(ImageHandle handle, TimelineValue current) -> void
 auto Device::setFrameCompleted(TimelineValue frame) -> void
 {
     m_frameComplete = frame;
-    m_deletionQueue.process(frame);
+    m_deletionQueue.collect(frame);
 }
 
 auto Device::createCommandBuffer(const CommandBuffer::Desc& desc) const -> std::expected<CommandBuffer, Error>

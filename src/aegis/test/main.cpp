@@ -186,7 +186,7 @@ public:
         std::array colorAttachments{
             rhi::Attachment::color(
                 swapchainImage,
-                rhi::ClearColor{ 1.0, 1.0, 1.0, 1.0 }
+                rhi::ClearColor{ 0.0, 0.0, 0.0, 0.0 }
             )
         };
         cmd.beginRendering(rhi::RenderingCmd{
