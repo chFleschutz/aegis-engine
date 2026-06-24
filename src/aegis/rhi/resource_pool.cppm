@@ -62,7 +62,7 @@ public:
         return slot.resource.value();
     }
 
-    [[nodiscard]] auto allocate(T resource) -> Handle<T>
+    [[nodiscard]] auto push(T resource) -> Handle<T>
     {
         auto [index, slot] = fetchNextSlot();
         assert(index <= Handle<T>::IndexMask);
@@ -72,16 +72,17 @@ public:
         return Handle<T>{ index, slot.generation };
     }
 
-    auto free(Handle<T> handle) -> void
+    auto pop(Handle<T> handle) -> T
     {
         auto& slot = getSlot(handle);
-        if (slot.generation != handle.generation())
-            return;
-
-        slot.resource = std::nullopt;
-        slot.generation = (slot.generation + 1) % Handle<T>::GenerationMask;
+        assert(slot.resource.has_value());
+        assert(slot.generation == handle.generation());
 
         m_freeSlots.emplace_back(handle.index());
+        T resource = std::move(*slot.resource);
+        slot.resource = std::nullopt;
+        slot.generation = (slot.generation + 1) % Handle<T>::GenerationMask;
+        return resource;
     }
 
     /// @brief Replaces the resource at the handle with the newResource and returns the old resource
