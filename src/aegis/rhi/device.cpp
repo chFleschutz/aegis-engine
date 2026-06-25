@@ -429,7 +429,8 @@ auto Device::createFeatureChain() -> FeatureChain
         .setRuntimeDescriptorArray(true)
         .setScalarBlockLayout(true)
         .setUniformBufferStandardLayout(true)
-        .setTimelineSemaphore(true);
+        .setTimelineSemaphore(true)
+        .setBufferDeviceAddress(true);
 
     featureChain.get<vk::PhysicalDeviceVulkan13Features>()
         .setShaderDemoteToHelperInvocation(true)

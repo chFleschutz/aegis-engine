@@ -115,7 +115,7 @@ auto Renderer::registerResolutionDependentResource(rhi::Image::Desc desc,
 {
     return m_device.createImage(desc)
         .transform([&](auto handle) {
-            m_resDependent.emplace_back(std::move(handle), desc.name, desc.usage, scaleFactor);
+            m_resDependent.emplace_back(desc.name, std::move(handle), desc.usage, scaleFactor);
             return handle;
         });
 }
