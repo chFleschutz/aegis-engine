@@ -39,6 +39,7 @@ target_link_libraries(aegis-rhi
 
 target_sources(aegis-rhi
     PUBLIC FILE_SET CXX_MODULES FILES
+        bindless_heap.cppm
         buffer.cppm
         command_buffer.cppm
         command_pool.cppm
@@ -63,6 +64,7 @@ target_sources(aegis-rhi
         utility.cppm
         vulkan_conversions.cppm
     PRIVATE
+        bindless_heap.cpp
         buffer.cpp
         command_buffer.cpp
         command_pool.cpp
