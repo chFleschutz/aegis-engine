@@ -1,7 +1,10 @@
 module;
+#include <cstdint>
+#include <expected>
 
 module aegis.rhi;
 import :bindless_heap;
+import :device;
 import :vulkan_conversions;
 
 namespace aegis::rhi
@@ -26,6 +29,65 @@ auto BindlessHeap::create(const Device& device, const Desc& desc) -> std::expect
         std::move(*layout),
         std::move(*set),
     };
+}
+
+auto BindlessHeap::binding(DescriptorType type) -> std::uint32_t
+{
+    switch (type)
+    {
+    case DescriptorType::SampledImage:
+        return SampledImagesBinding;
+    case DescriptorType::StorageImage:
+        return StorageImagesBinding;
+    case DescriptorType::Sampler:
+        return SamplersBinding;
+    }
+    std::unreachable();
+}
+
+auto BindlessHeap::updateSampledImage(const Device& device, vk::ImageView view,
+    vk::ImageLayout layout) -> std::expected<SampledImageHandle, BindlessError>
+{
+    auto index = m_freeSampledImages.pop();
+    if (!index)
+        return std::unexpected{ BindlessError::OutOfMemory };
+
+    updateDescriptorSet(device,
+        DescriptorType::SampledImage,
+        *index,
+        vk::DescriptorImageInfo{ .imageView = view, .imageLayout = layout });
+
+    return SampledImageHandle{ *index };
+}
+
+auto BindlessHeap::updateStorageImage(const Device& device, vk::ImageView view,
+    vk::ImageLayout layout) -> std::expected<StorageImageHandle, BindlessError>
+{
+    auto index = m_freeStorageImages.pop();
+    if (!index)
+        return std::unexpected{ BindlessError::OutOfMemory };
+
+    updateDescriptorSet(device,
+        DescriptorType::StorageImage,
+        *index,
+        vk::DescriptorImageInfo{ .imageView = view, .imageLayout = layout });
+
+    return StorageImageHandle{ *index };
+}
+
+auto BindlessHeap::updateSampler(const Device& device,
+    vk::Sampler sampler) -> std::expected<SamplerHandle, BindlessError>
+{
+    auto index = m_freeSamplers.pop();
+    if (!index)
+        return std::unexpected{ BindlessError::OutOfMemory };
+
+    updateDescriptorSet(device,
+        DescriptorType::Sampler,
+        *index,
+        vk::DescriptorImageInfo{ .sampler = sampler });
+
+    return SamplerHandle{ *index };
 }
 
 BindlessHeap::BindlessHeap(const Desc& desc, vk::raii::DescriptorPool&& pool,
@@ -132,5 +194,19 @@ auto BindlessHeap::createSet(const Device& device, vk::DescriptorPool pool,
         return makeError(toRHI(set.result));
 
     return std::move(set->front());
+}
+
+auto BindlessHeap::updateDescriptorSet(const Device& device, DescriptorType type, std::uint32_t index,
+    const vk::DescriptorImageInfo& info) const -> void
+{
+    vk::WriteDescriptorSet write{
+        .dstSet = *m_set,
+        .dstBinding = binding(type),
+        .dstArrayElement = index,
+        .descriptorCount = 1,
+        .descriptorType = toVulkan(type),
+        .pImageInfo = &info,
+    };
+    device->updateDescriptorSets(write, {});
 }
 }

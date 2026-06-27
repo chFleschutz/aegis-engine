@@ -126,6 +126,15 @@ enum class MemoryUsage
     CpuRead,  // Persistent map, random read + cached (readback)
 };
 
+/// @brief Describes all descriptor types.
+/// @note Buffers are not accessed via descriptors and use buffer device address instead.
+enum class DescriptorType
+{
+    SampledImage,
+    StorageImage,
+    Sampler
+};
+
 struct Extent2D
 {
     std::uint32_t x{ 0 };
@@ -182,4 +191,5 @@ struct ClearDepthStencil
 };
 
 using ClearValue = std::variant<ClearColor, ClearDepthStencil>;
+
 }

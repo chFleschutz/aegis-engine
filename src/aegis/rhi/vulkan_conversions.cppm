@@ -34,6 +34,7 @@ constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp;
 constexpr auto toVulkan(const Attachment& a) noexcept -> vk::RenderingAttachmentInfo;
 constexpr auto toVulkan(BufferUsage usage) noexcept -> vk::BufferUsageFlags;
 constexpr auto toVulkan(ImageUsage usage) noexcept -> vk::ImageUsageFlags;
+constexpr auto toVulkan(DescriptorType type) noexcept -> vk::DescriptorType;
 
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
 constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout;
@@ -273,6 +274,20 @@ constexpr auto toVulkan(ImageUsage usage) noexcept -> vk::ImageUsageFlags
     if (utility::hasFlag(usage, ImageUsage::TransferDst))
         flags |= vk::ImageUsageFlagBits::eTransferDst;
     return flags;
+}
+
+constexpr auto toVulkan(DescriptorType type) noexcept -> vk::DescriptorType
+{
+    switch (type)
+    {
+    case DescriptorType::SampledImage:
+        return vk::DescriptorType::eSampledImage;
+    case DescriptorType::StorageImage:
+        return vk::DescriptorType::eStorageImage;
+    case DescriptorType::Sampler:
+        return vk::DescriptorType::eSampler;
+    }
+    std::unreachable();
 }
 
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags

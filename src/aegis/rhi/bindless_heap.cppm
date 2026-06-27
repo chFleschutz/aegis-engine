@@ -1,16 +1,27 @@
 module;
-#include <cassert>
 #include <cstdint>
 #include <expected>
+#include <optional>
 #include <vector>
 
 export module aegis.rhi:bindless_heap;
+import :common;
 import :error;
 import :fwd;
 import vulkan_hpp;
 
 export namespace aegis::rhi
 {
+template<DescriptorType T>
+struct DescriptorHandle
+{
+    std::uint32_t index;
+};
+
+using SampledImageHandle = DescriptorHandle<DescriptorType::SampledImage>;
+using StorageImageHandle = DescriptorHandle<DescriptorType::StorageImage>;
+using SamplerHandle = DescriptorHandle<DescriptorType::Sampler>;
+
 class FreeList
 {
 public:
@@ -24,7 +35,7 @@ public:
         m_free.emplace_back(index);
     }
 
-    auto pop() -> std::uint32_t
+    auto pop() -> std::optional<std::uint32_t>
     {
         if (!m_free.empty())
         {
@@ -33,7 +44,9 @@ public:
             return index;
         }
 
-        assert(m_head < m_capacity && "Free list exceeds max capacity");
+        if (m_head < m_capacity)
+            return std::nullopt;
+
         return m_head++;
     }
 
@@ -43,6 +56,11 @@ private:
     std::uint32_t m_capacity;
 };
 
+
+enum class BindlessError : std::uint32_t
+{
+    OutOfMemory = 0,
+};
 
 class BindlessHeap
 {
@@ -61,8 +79,19 @@ public:
     [[nodiscard]] static auto create(const Device& device, const Desc& desc)
         -> std::expected<BindlessHeap, Error>;
 
-    [[nodiscard]] auto descriptorSet() const -> vk::DescriptorSet { return *m_set; }
+    [[nodiscard]] static auto binding(DescriptorType type) -> std::uint32_t;
+
+    [[nodiscard]] auto set() const -> vk::DescriptorSet { return *m_set; }
     [[nodiscard]] auto layout() const -> vk::DescriptorSetLayout { return *m_layout; }
+
+    [[nodiscard]] auto updateSampledImage(const Device& device, vk::ImageView view, vk::ImageLayout layout)
+        -> std::expected<SampledImageHandle, BindlessError>;
+
+    [[nodiscard]] auto updateStorageImage(const Device& device, vk::ImageView view, vk::ImageLayout layout)
+        -> std::expected<StorageImageHandle, BindlessError>;
+
+    [[nodiscard]] auto updateSampler(const Device& device, vk::Sampler sampler)
+        -> std::expected<SamplerHandle, BindlessError>;
 
 private:
     BindlessHeap(const Desc& desc, vk::raii::DescriptorPool&& pool, vk::raii::DescriptorSetLayout&& layout,
@@ -77,6 +106,9 @@ private:
     [[nodiscard]] static auto createSet(const Device& device, vk::DescriptorPool pool,
         vk::DescriptorSetLayout layout)
         -> std::expected<vk::raii::DescriptorSet, Error>;
+
+    auto updateDescriptorSet(const Device& device, DescriptorType type, std::uint32_t index,
+        const vk::DescriptorImageInfo& info) const -> void;
 
     vk::raii::DescriptorPool m_pool;
     vk::raii::DescriptorSetLayout m_layout;
