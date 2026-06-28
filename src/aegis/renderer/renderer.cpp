@@ -95,12 +95,12 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
                 .extent = rhi::Extent3D{
                     static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor),
                     static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor),
-                    image.ref().extent.z
+                    image.extent().z
                 },
                 .format = image.format(),
                 .usage = usage,
-                .mipLevels = image.ref().levelCount,
-                .arrayLayers = image.ref().layerCount,
+                .mipLevels = image.arrayLayers(),
+                .arrayLayers = image.mipLevels(),
             });
 
         if (!result)
@@ -168,8 +168,9 @@ auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
     return std::expected<FrameInfo, Error>{
         std::in_place,
         cmd,
-        acquiredImage->imageRef,
+        acquiredImage->image,
         m_currentFrame,
+        m_swapchain.extent(),
     };
 }
 

@@ -40,7 +40,7 @@ auto Swapchain::acquireNextImage(const Semaphore& signalSemaphore)
 
     return std::expected<AcquiredImage, Error>{
         std::in_place,
-        m_imageViews[*index].ref(),
+        m_imageViews[*index],
         m_semaphores[*index],
         *index,
     };
@@ -71,19 +71,19 @@ auto Swapchain::present(const Queue& queue) -> std::expected<void, Error>
     return {};
 }
 
-auto Swapchain::create(const Device& device, const Desc& desc)
+auto Swapchain::create(Device& device, const Desc& desc)
     -> std::expected<Swapchain, Error>
 {
     return create(device, desc.context.surface(), desc.preferredExtent, vk::SwapchainKHR{});
 }
 
-auto Swapchain::create(const Device& device, const RecreateDesc& desc)
+auto Swapchain::create(Device& device, const RecreateDesc& desc)
     -> std::expected<Swapchain, Error>
 {
     return create(device, desc.oldSwapchain.surface(), desc.preferredExtent, desc.oldSwapchain.handle());
 }
 
-auto Swapchain::create(const Device& device, vk::SurfaceKHR surface,
+auto Swapchain::create(Device& device, vk::SurfaceKHR surface,
     Extent2D preferredExtent, vk::SwapchainKHR oldSwapchain)
     -> std::expected<Swapchain, Error>
 {
@@ -258,22 +258,21 @@ auto Swapchain::createImages(const Device& device, const vk::raii::SwapchainKHR&
 }
 
 auto Swapchain::createImageViews(
-    const Device& device,
+    Device& device,
     const std::vector<vk::Image>& images,
     Extent2D extent,
     Format format)
-    -> std::expected<std::vector<ImageView>, Error>
+    -> std::expected<std::vector<ImageViewHandle>, Error>
 {
     if (images.empty())
         return makeError(ErrorCode::Unknown);
 
-    std::vector<ImageView> imageViews;
+    std::vector<ImageViewHandle> imageViews;
     imageViews.reserve(images.size());
 
     for (size_t i = 0; i < images.size(); ++i)
     {
-        auto imageView = ImageView::create(device,
-            images[i],
+        auto imageView = device.createImageView(images[i],
             ImageView::Desc{
                 .name = std::format("SwapchainImageView{}", i),
                 .extent = Extent3D{ extent },
@@ -283,7 +282,7 @@ auto Swapchain::createImageViews(
         if (!imageView)
             return std::unexpected{ imageView.error() };
 
-        imageViews.emplace_back(std::move(*imageView));
+        imageViews.emplace_back(*imageView);
     }
 
     return imageViews;
@@ -319,7 +318,7 @@ auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> 
 
 Swapchain::Swapchain(
     vk::raii::SwapchainKHR swapchain,
-    std::vector<ImageView> imageViews,
+    std::vector<ImageViewHandle> imageViews,
     std::vector<Semaphore> semaphores,
     vk::SurfaceKHR surface,
     Extent2D extent,

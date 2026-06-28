@@ -32,7 +32,7 @@ public:
 
     struct AcquiredImage
     {
-        ImageRef imageRef;
+        ImageViewHandle image;
         const Semaphore& presentReady;
         std::uint32_t imageIndex;
     };
@@ -51,6 +51,7 @@ public:
     [[nodiscard]] auto surfaceFormat() const -> Format { return m_surfaceFormat; }
     [[nodiscard]] auto extent() const -> Extent2D { return m_extent; }
     [[nodiscard]] auto currentImageIndex() const -> std::uint32_t { return m_currentImage; }
+    [[nodiscard]] auto imageViews() const -> const std::vector<ImageViewHandle>& { return m_imageViews; }
 
     [[nodiscard]] auto currentPresentReady() const -> const Semaphore&
     {
@@ -65,13 +66,13 @@ public:
     [[nodiscard]] auto present(const Queue& queue) -> std::expected<void, Error>;
 
 private:
-    [[nodiscard]] static auto create(const Device& device, const Desc& desc)
+    [[nodiscard]] static auto create(Device& device, const Desc& desc)
         -> std::expected<Swapchain, Error>;
 
-    [[nodiscard]] static auto create(const Device& device, const RecreateDesc& desc)
+    [[nodiscard]] static auto create(Device& device, const RecreateDesc& desc)
         -> std::expected<Swapchain, Error>;
 
-    [[nodiscard]] static auto create(const Device& device, vk::SurfaceKHR surface,
+    [[nodiscard]] static auto create(Device& device, vk::SurfaceKHR surface,
         Extent2D preferredExtent, vk::SwapchainKHR oldSwapchain)
         -> std::expected<Swapchain, Error>;
 
@@ -109,11 +110,11 @@ private:
         -> std::expected<std::vector<vk::Image>, Error>;
 
     [[nodiscard]] static auto createImageViews(
-        const Device& device,
+        Device& device,
         const std::vector<vk::Image>& images,
         Extent2D extent,
         Format format)
-        -> std::expected<std::vector<ImageView>, Error>;
+        -> std::expected<std::vector<ImageViewHandle>, Error>;
 
     [[nodiscard]] static auto createSemaphores(
         const Device& device,
@@ -125,14 +126,14 @@ private:
 
     Swapchain(
         vk::raii::SwapchainKHR swapchain,
-        std::vector<ImageView> imageViews,
+        std::vector<ImageViewHandle> imageViews,
         std::vector<Semaphore> semaphores,
         vk::SurfaceKHR surface,
         Extent2D extent,
         Format format);
 
     vk::raii::SwapchainKHR m_swapchain;
-    std::vector<ImageView> m_imageViews;
+    std::vector<ImageViewHandle> m_imageViews;
     std::vector<Semaphore> m_semaphores;
     vk::SurfaceKHR m_surface;
     Extent2D m_extent;

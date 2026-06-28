@@ -40,8 +40,9 @@ public:
     struct FrameInfo
     {
         rhi::CommandBuffer& cmd;
-        rhi::ImageRef swapchainImage;
+        rhi::ImageViewHandle swapchainImage;
         std::uint32_t frameIndex;
+        rhi::Extent2D swapchainSize;
     };
 
     struct ResolutionDependentResource
