@@ -58,6 +58,15 @@ auto Device::createImage(const Image::Desc& desc) -> std::expected<ImageHandle, 
         });
 }
 
+auto Device::createImageView(vk::Image imageSrc, const ImageView::Desc& desc)
+    -> std::expected<ImageViewHandle, Error>
+{
+    return ImageView::create(*this, imageSrc, desc)
+        .transform([&](auto&& image) -> ImageViewHandle {
+            return m_imageViews.push(std::move(image));
+        });
+}
+
 auto Device::replace(BufferHandle handle, TimelineValue current, const Buffer::Desc& desc)
     -> std::expected<BufferHandle, Error>
 {
@@ -111,18 +120,6 @@ auto Device::createFence(const Fence::Desc& desc) const -> std::expected<Fence, 
     return Fence::create(*this, desc);
 }
 
-auto Device::createImageView(const Image& image, const ImageView::Range& range, std::string_view name) const
-    -> std::expected<ImageView, Error>
-{
-    ImageView::Desc viewDesc{
-        .name = name,
-        .extent = image.extent(),
-        .format = image.format(),
-        .range = range,
-    };
-    return ImageView::create(*this, image.handle(), viewDesc);
-}
-
 auto Device::createPipeline(const Pipeline::GraphicsDesc& desc) const -> std::expected<Pipeline, Error>
 {
     return Pipeline::create(*this, desc);
@@ -138,13 +135,18 @@ auto Device::createSemaphore(const Semaphore::Desc& desc) const -> std::expected
     return Semaphore::create(m_device, desc);
 }
 
-auto Device::createSwapchain(const Swapchain::Desc& desc) const -> std::expected<Swapchain, Error>
+auto Device::createSwapchain(const Swapchain::Desc& desc) -> std::expected<Swapchain, Error>
 {
     return Swapchain::create(*this, desc);
 }
 
-auto Device::createSwapchain(const Swapchain::RecreateDesc& desc) const -> std::expected<Swapchain, Error>
+auto Device::createSwapchain(const Swapchain::RecreateDesc& desc) -> std::expected<Swapchain, Error>
 {
+    for (const auto imageView : desc.oldSwapchain.imageViews())
+    {
+        // TODO: free swapchain image views
+        // free(timelineValue, imageView);
+    }
     return Swapchain::create(*this, desc);
 }
 

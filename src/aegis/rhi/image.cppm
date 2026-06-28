@@ -7,8 +7,6 @@ export module aegis.rhi:image;
 import :common;
 import :error;
 import :fwd;
-import :image_view;
-import :image_ref;
 import :memory;
 import vulkan_hpp;
 
@@ -31,11 +29,12 @@ public:
 
     static constexpr std::uint32_t fullMipChain{ std::numeric_limits<std::uint32_t>::max() };
 
-    [[nodiscard]] auto operator*() const noexcept -> vk::Image { return m_allocation.image(); }
-    [[nodiscard]] auto handle() const noexcept -> vk::Image { return m_allocation.image(); }
-    [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_defaultView.extent(); }
-    [[nodiscard]] auto format() const noexcept -> Format { return m_defaultView.format(); }
-    [[nodiscard]] auto ref() const noexcept -> ImageRef { return m_defaultView.ref(); }
+    [[nodiscard]] auto vk() const noexcept -> vk::Image { return m_allocation.image(); }
+    [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_extent; }
+    [[nodiscard]] auto format() const noexcept -> Format { return m_format; }
+    [[nodiscard]] auto usage() const noexcept -> ImageUsage { return m_usage; }
+    [[nodiscard]] auto mipLevels() const noexcept -> std::uint32_t { return m_mipLevels; }
+    [[nodiscard]] auto arrayLayers() const noexcept -> std::uint32_t { return m_arrayLayers; }
 
 private:
     [[nodiscard]] static auto create(const Device& device, const Desc& desc)
@@ -43,9 +42,13 @@ private:
 
     [[nodiscard]] static auto calcMipLevels(Extent3D extent) -> std::uint32_t;
 
-    Image(ImageAllocation allocation, ImageView view);
+    Image(ImageAllocation allocation, const Desc& desc);
 
     ImageAllocation m_allocation;
-    ImageView m_defaultView;
+    Extent3D m_extent;
+    Format m_format;
+    ImageUsage m_usage;
+    std::uint32_t m_mipLevels;
+    std::uint32_t m_arrayLayers;
 };
 }

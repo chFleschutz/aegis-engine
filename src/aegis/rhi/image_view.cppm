@@ -1,11 +1,14 @@
 module;
 #include <expected>
+#include <optional>
 #include <string_view>
 
 export module aegis.rhi:image_view;
 import :common;
 import :error;
 import :fwd;
+import :resource_pool;
+import :bindless_heap;
 import vulkan_hpp;
 
 export namespace aegis::rhi
@@ -33,23 +36,29 @@ public:
         Range range;
     };
 
-    [[nodiscard]] auto operator*() const noexcept -> vk::ImageView { return *m_view; }
-    [[nodiscard]] auto handle() const noexcept -> vk::ImageView { return *m_view; }
+    [[nodiscard]] auto vk() const noexcept -> vk::ImageView { return *m_view; }
+    [[nodiscard]] auto vkImage() const noexcept -> vk::Image { return m_imageSrc; }
     [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_extent; }
     [[nodiscard]] auto format() const noexcept -> Format { return m_format; }
     [[nodiscard]] auto range() const noexcept -> Range { return m_range; }
-    [[nodiscard]] auto ref() const noexcept -> ImageRef;
 
 private:
-    [[nodiscard]] static auto create(const Device& device, vk::Image image, const Desc& desc)
+    [[nodiscard]] static auto create(const Device& device, ImageHandle image, const Desc& desc)
         -> std::expected<ImageView, Error>;
 
-    ImageView(vk::raii::ImageView view, vk::Image image, Extent3D extent, Format format, Range range);
+    [[nodiscard]] static auto create(const Device& device, vk::Image imageSrc, const Desc& desc)
+        -> std::expected<ImageView, Error>;
+
+    ImageView(vk::raii::ImageView view, vk::Image imageSrc, std::optional<ImageHandle> imageHandle,
+        Extent3D extent, Format format, Range range);
 
     vk::raii::ImageView m_view;
-    vk::Image m_image;
+    vk::Image m_imageSrc;
+    std::optional<ImageHandle> m_image;
     Extent3D m_extent;
     Format m_format;
     Range m_range;
+    std::optional<SampledImageHandle> m_sampledHandle;
+    std::optional<StorageImageHandle> m_storageHandle;
 };
 }

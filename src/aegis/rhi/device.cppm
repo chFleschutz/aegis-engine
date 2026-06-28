@@ -23,9 +23,6 @@ import vulkan_hpp;
 
 export namespace aegis::rhi
 {
-using BufferHandle = Handle<Buffer>;
-using ImageHandle = Handle<Image>;
-
 class Device
 {
     friend class Context;
@@ -75,11 +72,18 @@ public:
     [[nodiscard]] auto properties() const noexcept -> const Properties& { return m_properties; }
     [[nodiscard]] auto capabilities() const noexcept -> const Capabilities& { return m_capabilities; }
 
-    [[nodiscard]] auto get(BufferHandle handle) -> Buffer& { return m_buffers.get(handle); }
-    [[nodiscard]] auto get(ImageHandle handle) -> Image& { return m_images.get(handle); }
+    [[nodiscard]] auto get(BufferHandle handle) const -> const Buffer& { return m_buffers.get(handle); }
+    [[nodiscard]] auto get(ImageHandle handle) const -> const Image& { return m_images.get(handle); }
+
+    [[nodiscard]] auto get(ImageViewHandle handle) const -> const ImageView&
+    {
+        return m_imageViews.get(handle);
+    }
 
     [[nodiscard]] auto createBuffer(const Buffer::Desc& desc) -> std::expected<BufferHandle, Error>;
     [[nodiscard]] auto createImage(const Image::Desc& desc) -> std::expected<ImageHandle, Error>;
+    [[nodiscard]] auto createImageView(vk::Image imageSrc, const ImageView::Desc& desc)
+        -> std::expected<ImageViewHandle, Error>;
 
     auto replace(BufferHandle handle, TimelineValue current, const Buffer::Desc& desc)
         -> std::expected<BufferHandle, Error>;
@@ -100,10 +104,6 @@ public:
     [[nodiscard]] auto createFence(const Fence::Desc& desc) const
         -> std::expected<Fence, Error>;
 
-    [[nodiscard]] auto createImageView(const Image& image, const ImageView::Range& range,
-        std::string_view name = {}) const
-        -> std::expected<ImageView, Error>;
-
     [[nodiscard]] auto createPipeline(const Pipeline::GraphicsDesc& desc) const
         -> std::expected<Pipeline, Error>;
 
@@ -113,10 +113,10 @@ public:
     [[nodiscard]] auto createSemaphore(const Semaphore::Desc& desc) const
         -> std::expected<Semaphore, Error>;
 
-    [[nodiscard]] auto createSwapchain(const Swapchain::Desc& desc) const
+    [[nodiscard]] auto createSwapchain(const Swapchain::Desc& desc)
         -> std::expected<Swapchain, Error>;
 
-    [[nodiscard]] auto createSwapchain(const Swapchain::RecreateDesc& desc) const
+    [[nodiscard]] auto createSwapchain(const Swapchain::RecreateDesc& desc)
         -> std::expected<Swapchain, Error>;
 
     auto waitIdle() const noexcept -> void;
@@ -178,6 +178,7 @@ private:
     Capabilities m_capabilities;
     ResourcePool<Buffer> m_buffers;
     ResourcePool<Image> m_images;
+    ResourcePool<ImageView> m_imageViews;
     DeletionQueue m_deletionQueue;
     TimelineValue m_frameComplete{ 0 };
 };

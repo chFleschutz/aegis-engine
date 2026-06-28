@@ -42,25 +42,9 @@ auto Image::create(const Device& device, const Desc& desc) -> std::expected<Imag
 
     debug::setName(*device, imageAlloc->image(), desc.name);
 
-    auto imageView = ImageView::create(device,
-        imageAlloc->image(),
-        ImageView::Desc{
-            .name = std::format("{}DefaultView", desc.name),
-            .extent = desc.extent,
-            .format = desc.format,
-            .range = ImageView::Range{
-                .baseMipLevel = 0,
-                .mipLevelCount = imageInfo.mipLevels,
-                .baseArrayLayer = 0,
-                .arrayLayerCount = imageInfo.arrayLayers,
-            }
-        });
-    if (!imageView)
-        return std::unexpected{ imageView.error() };
-
     return Image{
         std::move(*imageAlloc),
-        std::move(*imageView),
+        desc,
     };
 }
 
@@ -70,9 +54,13 @@ auto Image::calcMipLevels(Extent3D extent) -> std::uint32_t
     return static_cast<std::uint32_t>(std::floor(std::log2(maxDim))) + 1;
 }
 
-Image::Image(ImageAllocation allocation, ImageView view) :
+Image::Image(ImageAllocation allocation, const Desc& desc) :
     m_allocation{ std::move(allocation) },
-    m_defaultView{ std::move(view) }
+    m_extent{ desc.extent },
+    m_format{ desc.format },
+    m_usage{ desc.usage },
+    m_mipLevels{ desc.mipLevels },
+    m_arrayLayers{ desc.arrayLayers }
 {
 }
 }
