@@ -98,6 +98,17 @@ auto Device::replace(ImageHandle handle, TimelineValue current, const Image::Des
         });
 }
 
+auto Device::replace(ImageViewHandle view, ImageHandle image, TimelineValue current,
+    const ImageView::Desc& desc) -> std::expected<ImageViewHandle, Error>
+{
+    return ImageView::create(*this, image, desc)
+        .transform([&](auto&& imageView) {
+            auto oldView = m_imageViews.replace(view, std::move(imageView));
+            m_deletionQueue.push(current, std::move(oldView));
+            return view;
+        });
+}
+
 auto Device::free(BufferHandle handle, TimelineValue current) -> void
 {
     m_deletionQueue.push(current, m_buffers.pop(handle));

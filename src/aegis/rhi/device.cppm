@@ -91,6 +91,8 @@ public:
         -> std::expected<BufferHandle, Error>;
     auto replace(ImageHandle handle, TimelineValue current, const Image::Desc& desc)
         -> std::expected<ImageHandle, Error>;
+    auto replace(ImageViewHandle view, ImageHandle image, TimelineValue current, const ImageView::Desc& desc)
+    -> std::expected<ImageViewHandle, Error>;
 
     auto free(BufferHandle handle, TimelineValue current) -> void;
     auto free(ImageHandle handle, TimelineValue current) -> void;

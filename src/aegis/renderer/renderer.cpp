@@ -51,6 +51,47 @@ Renderer::Renderer(rhi::Context& context,
 {
 }
 
+auto Renderer::createTexture(const Texture::Desc& desc) const -> std::expected<Texture, rhi::Error>
+{
+    auto image = m_device.createImage(rhi::Image::Desc{
+        .name = desc.name,
+        .extent = desc.extent,
+        .format = desc.format,
+        .usage = desc.usage,
+        .mipLevels = desc.mipLevels,
+        .arrayLayers = desc.arrayLayers,
+    });
+    if (!image)
+        return std::unexpected{ image.error() };
+
+    auto view = m_device.createImageView(*image,
+        rhi::ImageView::Desc{
+            .name = desc.name,
+            .extent = desc.extent,
+            .format = desc.format,
+            .range = rhi::ImageView::Range{
+                .baseMipLevel = 0,
+                .mipLevelCount = desc.mipLevels,
+                .baseArrayLayer = 0,
+                .arrayLayerCount = desc.arrayLayers,
+            }
+        });
+    if (!view)
+        return std::unexpected{ view.error() };
+
+    return Texture{ *image, *view };
+}
+
+auto Renderer::createResolutionDependentTexture(
+    const Texture::Desc& desc) -> std::expected<Texture, rhi::Error>
+{
+    return createTexture(desc)
+        .transform([&](auto texture) {
+            m_resDependent.emplace_back(desc.name, texture, desc.usage, 1.0);
+            return texture;
+        });
+}
+
 auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept -> void
 {
     auto frameInfo = beginFrame();
@@ -84,11 +125,11 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
     }
     m_swapchain = std::move(*swapchain);
 
-    for (auto& [name, imageHandle, usage, scaleFactor] : m_resDependent)
+    for (auto& [name, texture, usage, scaleFactor] : m_resDependent)
     {
-        auto& image = m_device.get(imageHandle);
+        auto& image = m_device.get(texture.image);
 
-        auto result = m_device.replace(imageHandle,
+        auto newImage = m_device.replace(texture.image,
             m_frameContext[m_currentFrame].timelineValue,
             rhi::Image::Desc{
                 .name = name,
@@ -103,21 +144,28 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
                 .arrayLayers = image.mipLevels(),
             });
 
-        if (!result)
+        if (!newImage)
             std::println("Failed to recreate resolution dependent image '{}'", name);
+
+        auto viewResult = m_device.replace(texture.view,
+            *newImage,
+            m_frameContext[m_currentFrame].timelineValue,
+            rhi::ImageView::Desc{
+                .name = name,
+                .extent = rhi::Extent3D{
+                    static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor),
+                    static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor),
+                    image.extent().z
+                },
+                .format = image.format(),
+            }
+        );
+
+        if (!viewResult)
+            std::println("Failed to recreate resolution dependent view '{}'", name);
     }
 
     m_needsResize = false;
-}
-
-auto Renderer::registerResolutionDependentResource(rhi::Image::Desc desc,
-    double scaleFactor) noexcept -> std::expected<rhi::ImageHandle, rhi::Error>
-{
-    return m_device.createImage(desc)
-        .transform([&](auto handle) {
-            m_resDependent.emplace_back(desc.name, std::move(handle), desc.usage, scaleFactor);
-            return handle;
-        });
 }
 
 auto Renderer::createFrameContext(

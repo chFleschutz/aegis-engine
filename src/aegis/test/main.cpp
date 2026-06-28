@@ -102,24 +102,15 @@ public:
             return std::unexpected{ "Failed to create pipeline" };
         engine.m_pipeline = std::move(*pipeline);
 
-        auto depthImage = engine.m_renderer->registerResolutionDependentResource({
+        auto depthTexture = engine.m_renderer->createResolutionDependentTexture({
             .name = "SceneDepth",
             .extent = rhi::Extent3D{ engine.m_renderer->swapchain().extent() },
             .format = rhi::Format::D32_SFLOAT,
             .usage = rhi::ImageUsage::DepthStencilAttachment,
         });
-        if (!depthImage)
+        if (!depthTexture)
             return std::unexpected{ "Failed to create depth image" };
-        engine.m_depthImage = std::move(*depthImage);
-
-        auto depthImageView = engine.m_device->createImageView(engine.m_depthImage, {
-            .name = "SceneDepthView",
-            .extent = rhi::Extent3D{ engine.m_renderer->swapchain().extent() },
-            .format = rhi::Format::D32_SFLOAT,
-        });
-        if (!depthImageView)
-            return std::unexpected{ "Failed to create depth image view" };
-        engine.m_depthImageView = std::move(*depthImageView);
+        engine.m_depthTexture = std::move(*depthTexture);
 
         // rhi::Buffer::Desc bufferDesc{
         //     .name = "TestUniformBuffer",
@@ -183,7 +174,7 @@ public:
             rhi::ResourceState::Unknown,
             rhi::ResourceState::Attachment);
         cmd.transitionImageLayout(
-            m_depthImage,
+            m_depthTexture.view,
             rhi::ResourceState::Unknown,
             rhi::ResourceState::Attachment);
 
@@ -198,7 +189,7 @@ public:
         cmd.beginRendering(rhi::RenderingCmd{
             .colorAttachments = colorAttachments,
             .depthAttachment = rhi::Attachment::depth(
-                m_depthImageView,
+                m_depthTexture.view,
                 rhi::ClearDepthStencil{ 1.0f, 0 }
             ),
         });
@@ -241,8 +232,7 @@ private:
     std::unique_ptr<renderer::Renderer> m_renderer;
 
     std::optional<rhi::Pipeline> m_pipeline;
-    rhi::ImageHandle m_depthImage;
-    rhi::ImageViewHandle m_depthImageView;
+    renderer::Texture m_depthTexture;
 
     // rhi::CommandPool m_uploadPool;
     // rhi::CommandBuffer m_uploadCmd;
