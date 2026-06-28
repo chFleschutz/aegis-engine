@@ -4,43 +4,14 @@ module;
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <ranges>
 #include <vector>
 
 export module aegis.rhi:resource_pool;
+import :fwd;
+import :resource_handle;
 
 export namespace aegis::rhi
 {
-template<typename T>
-struct Handle
-{
-    static constexpr std::uint32_t InvalidValue{ std::numeric_limits<std::uint32_t>::max() };
-    static constexpr std::uint32_t IndexBits{ 20 };
-    static constexpr std::uint32_t GenerationBits{ 12 };
-    static constexpr std::uint32_t IndexMask{ (1u << IndexBits) - 1 };
-    static constexpr std::uint32_t GenerationMask{ (1u << GenerationBits) - 1 };
-
-    static_assert(IndexBits + GenerationBits == 32);
-
-    // Packed as | 12-bit generation | 20-bit index |
-    std::uint32_t value{ InvalidValue };
-
-    Handle() = default;
-
-    Handle(std::uint32_t index, std::uint32_t generation) :
-        value{ (generation << IndexBits) | index }
-    {
-        assert(index <= IndexMask);
-        assert(generation <= GenerationMask);
-    }
-
-    auto operator<=>(const Handle&) const = default;
-
-    [[nodiscard]] auto isValid() const -> bool { return value != InvalidValue; }
-    [[nodiscard]] auto index() const -> std::uint32_t { return value & IndexMask; }
-    [[nodiscard]] auto generation() const -> std::uint32_t { return (value >> IndexBits) & GenerationMask; }
-};
-
 template<typename T>
 class ResourcePool
 {
@@ -53,7 +24,7 @@ public:
         m_freeSlots.reserve(DefaultCapacity);
     }
 
-    [[nodiscard]] auto get(Handle<T> handle) -> T&
+    [[nodiscard]] auto get(ResourceHandle<T> handle) -> T&
     {
         auto& slot = getSlot(handle);
         assert(slot.resource.has_value() && "Resource has been invalidated");
@@ -62,17 +33,26 @@ public:
         return slot.resource.value();
     }
 
-    [[nodiscard]] auto push(T resource) -> Handle<T>
+    [[nodiscard]] auto get(ResourceHandle<T> handle) const -> const T&
+    {
+        auto& slot = getSlot(handle);
+        assert(slot.resource.has_value() && "Resource has been invalidated");
+        assert(slot.generation == handle.generation() && "Handle is out of date");
+
+        return slot.resource.value();
+    }
+
+    [[nodiscard]] auto push(T resource) -> ResourceHandle<T>
     {
         auto [index, slot] = fetchNextSlot();
-        assert(index <= Handle<T>::IndexMask);
+        assert(index <= ResourceHandle<T>::IndexMask);
         assert(!slot.resource.has_value());
 
         slot.resource = std::move(resource);
-        return Handle<T>{ index, slot.generation };
+        return ResourceHandle<T>{ index, slot.generation };
     }
 
-    auto pop(Handle<T> handle) -> T
+    auto pop(ResourceHandle<T> handle) -> T
     {
         auto& slot = getSlot(handle);
         assert(slot.resource.has_value());
@@ -81,13 +61,13 @@ public:
         m_freeSlots.emplace_back(handle.index());
         T resource = std::move(*slot.resource);
         slot.resource = std::nullopt;
-        slot.generation = (slot.generation + 1) % Handle<T>::GenerationMask;
+        slot.generation = (slot.generation + 1) % ResourceHandle<T>::GenerationMask;
         return resource;
     }
 
     /// @brief Replaces the resource at the handle with the newResource and returns the old resource
     /// @note This function does not invalidate the handle (no generation bump)
-    auto replace(Handle<T> handle, T newResource) -> T
+    auto replace(ResourceHandle<T> handle, T newResource) -> T
     {
         auto& slot = getSlot(handle);
         assert(slot.generation == handle.generation());
@@ -103,7 +83,15 @@ private:
         std::uint32_t generation{ 0 };
     };
 
-    auto getSlot(Handle<T> handle) -> Slot&
+    auto getSlot(ResourceHandle<T> handle) -> Slot&
+    {
+        assert(handle.isValid());
+        assert(handle.index() < static_cast<std::uint32_t>(m_slots.size()));
+
+        return m_slots[handle.index()];
+    }
+
+    auto getSlot(ResourceHandle<T> handle) const -> const Slot&
     {
         assert(handle.isValid());
         assert(handle.index() < static_cast<std::uint32_t>(m_slots.size()));
@@ -125,7 +113,7 @@ private:
         return { index, m_slots[index] };
     }
 
-    std::vector<Slot> m_slots;
-    std::vector<std::uint32_t> m_freeSlots;
+    std::vector<Slot> m_slots{};
+    std::vector<std::uint32_t> m_freeSlots{};
 };
 }

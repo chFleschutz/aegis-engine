@@ -56,6 +56,7 @@ target_sources(aegis-rhi
         image_view.cppm
         memory.cppm
         queue.cppm
+        resource_handle.cppm
         resource_pool.cppm
         rhi.cppm
         pipeline.cppm

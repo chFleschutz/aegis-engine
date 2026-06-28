@@ -12,5 +12,6 @@ export import :image_ref;
 export import :image_view;
 export import :pipeline;
 export import :queue;
+export import :resource_handle;
 export import :swapchain;
 export import :sync;
