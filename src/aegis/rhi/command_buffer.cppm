@@ -7,6 +7,7 @@ export module aegis.rhi:command_buffer;
 import :error;
 import :commands;
 import :fwd;
+import :resource_handle;
 import vulkan_hpp;
 
 export namespace aegis::rhi
@@ -42,17 +43,21 @@ public:
     auto setScissor(Extent2D extent) const -> void;
     auto draw(std::uint32_t vertexCount) const -> void;
 
-    auto transitionImageLayout(const ImageLayoutTransition& cmd) const -> void;
-    auto generateMipmaps(const ImageRef& image, ResourceState currentState) const -> void;
+    auto transitionImageLayout(ImageViewHandle imageViewHandle, ResourceState oldState,
+        ResourceState newState) const -> void;
+    auto transitionImageLayout(ImageHandle imageHandle, ResourceState oldState,
+        ResourceState newState) const -> void;
+    auto generateMipmaps(ImageHandle imageHandle, ResourceState currentState) const -> void;
 
 private:
     [[nodiscard]] static auto create(const Device& device, const Desc& desc)
         -> std::expected<CommandBuffer, Error>;
 
-    static auto deriveExtent(const RenderingCmd& cmd) -> vk::Extent2D;
+    CommandBuffer(const Device& device, vk::raii::CommandBuffer cmdBuffer);
 
-    explicit CommandBuffer(vk::raii::CommandBuffer cmdBuffer);
+    auto deriveExtent(const RenderingCmd& cmd) const -> vk::Extent2D;
 
+    const Device& m_device;
     vk::raii::CommandBuffer m_commandBuffer;
 };
 }

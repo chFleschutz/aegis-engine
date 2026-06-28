@@ -17,39 +17,39 @@ import :vulkan_conversions;
 
 namespace aegis::rhi
 {
-auto Attachment::color(const ImageRef& image, ClearColor clear) -> Attachment
+auto Attachment::color(ImageViewHandle view, ClearColor clear) -> Attachment
 {
     return Attachment{
-        .image = image,
+        .imageView = view,
         .loadOp = AttachmentLoadOp::Clear,
         .storeOp = AttachmentStoreOp::Store,
         .clearValue = clear,
     };
 }
 
-auto Attachment::colorLoad(const ImageRef& image) -> Attachment
+auto Attachment::colorLoad(ImageViewHandle view) -> Attachment
 {
     return Attachment{
-        .image = image,
+        .imageView = view,
         .loadOp = AttachmentLoadOp::Load,
         .storeOp = AttachmentStoreOp::Store,
     };
 }
 
-auto Attachment::depth(const ImageRef& image, ClearDepthStencil clear) -> Attachment
+auto Attachment::depth(ImageViewHandle view, ClearDepthStencil clear) -> Attachment
 {
     return Attachment{
-        .image = image,
+        .imageView = view,
         .loadOp = AttachmentLoadOp::Clear,
         .storeOp = AttachmentStoreOp::Store,
         .clearValue = clear,
     };
 }
 
-auto Attachment::depthReadOnly(const ImageRef& image) -> Attachment
+auto Attachment::depthReadOnly(ImageViewHandle view) -> Attachment
 {
     return Attachment{
-        .image = image,
+        .imageView = view,
         .loadOp = AttachmentLoadOp::Load,
         .storeOp = AttachmentStoreOp::None,
     };
@@ -75,16 +75,22 @@ auto CommandBuffer::beginRendering(const RenderingCmd& desc) const -> void
 {
     assert(desc.colorAttachments.size() < maxColorAttachments);
 
-    std::array<vk::RenderingAttachmentInfo, maxColorAttachments> colorAttachments;
-    std::ranges::transform(desc.colorAttachments,
-        colorAttachments.begin(),
-        [](const auto& attachment) -> vk::RenderingAttachmentInfo {
-            return toVulkan(attachment);
-        });
+    auto transformAttachment = [&](const auto& attachment) -> vk::RenderingAttachmentInfo {
+        const auto& view = m_device.get(attachment.imageView);
+        return vk::RenderingAttachmentInfo{
+            .imageView = view.vk(),
+            .loadOp = toVulkan(attachment.loadOp),
+            .storeOp = toVulkan(attachment.storeOp),
+            .clearValue = (attachment.loadOp == AttachmentLoadOp::Clear && attachment.clearValue)
+                              ? toVulkan(*attachment.clearValue)
+                              : vk::ClearValue{},
+        };
+    };
 
-    auto depthAttachment = desc.depthAttachment
-                               ? std::optional(toVulkan(*desc.depthAttachment))
-                               : vk::RenderingAttachmentInfo{};
+    std::array<vk::RenderingAttachmentInfo, maxColorAttachments> colorAttachments;
+    std::ranges::transform(desc.colorAttachments, colorAttachments.begin(), transformAttachment);
+
+    auto depthAttachment = desc.depthAttachment.transform(transformAttachment);
 
     vk::RenderingInfo renderingInfo{
         .renderArea = vk::Rect2D{ vk::Offset2D{ 0, 0 }, deriveExtent(desc) },
@@ -168,10 +174,12 @@ auto CommandBuffer::draw(std::uint32_t vertexCount) const -> void
     m_commandBuffer.draw(vertexCount, 1, 0, 0);
 }
 
-auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) const -> void
+auto CommandBuffer::transitionImageLayout(ImageViewHandle imageViewHandle, ResourceState oldState,
+    ResourceState newState) const -> void
 {
-    auto [srcLayout, srcStage, srcAccess] = toVulkan(cmd.oldState);
-    auto [dstLayout, dstStage, dstAccess] = toVulkan(cmd.newState);
+    auto& view = m_device.get(imageViewHandle);
+    auto [srcLayout, srcStage, srcAccess] = toVulkan(oldState);
+    auto [dstLayout, dstStage, dstAccess] = toVulkan(newState);
 
     vk::ImageMemoryBarrier2 barrier{
         .srcStageMask = srcStage,
@@ -182,36 +190,63 @@ auto CommandBuffer::transitionImageLayout(const ImageLayoutTransition& cmd) cons
         .newLayout = dstLayout,
         .srcQueueFamilyIndex = vk::QueueFamilyIgnored,
         .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
-        .image = cmd.imageRef.image,
+        .image = view.vkImage(),
         .subresourceRange = vk::ImageSubresourceRange{
-            .aspectMask = deriveImageAspectFlags(cmd.imageRef.format),
-            .baseMipLevel = cmd.imageRef.baseMipLevel,
-            .levelCount = cmd.imageRef.levelCount,
-            .baseArrayLayer = cmd.imageRef.baseArrayLayer,
-            .layerCount = cmd.imageRef.layerCount,
+            .aspectMask = deriveImageAspectFlags(view.format()),
+            .baseMipLevel = view.range().baseMipLevel,
+            .levelCount = view.range().mipLevelCount,
+            .baseArrayLayer = view.range().baseArrayLayer,
+            .layerCount = view.range().arrayLayerCount,
         },
     };
 
-    vk::DependencyInfo dependencyInfo{
+    m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &barrier,
-    };
-
-    m_commandBuffer.pipelineBarrier2(dependencyInfo);
+    });
 }
 
-auto CommandBuffer::generateMipmaps(const ImageRef& image, ResourceState currentState) const -> void
+auto CommandBuffer::transitionImageLayout(ImageHandle imageHandle, ResourceState oldState,
+    ResourceState newState) const -> void
+{
+    auto& image = m_device.get(imageHandle);
+    auto [srcLayout, srcStage, srcAccess] = toVulkan(oldState);
+    auto [dstLayout, dstStage, dstAccess] = toVulkan(newState);
+
+    vk::ImageMemoryBarrier2 barrier{
+        .srcStageMask = srcStage,
+        .srcAccessMask = srcAccess,
+        .dstStageMask = dstStage,
+        .dstAccessMask = dstAccess,
+        .oldLayout = srcLayout,
+        .newLayout = dstLayout,
+        .srcQueueFamilyIndex = vk::QueueFamilyIgnored,
+        .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
+        .image = image.vk(),
+        .subresourceRange = vk::ImageSubresourceRange{
+            .aspectMask = deriveImageAspectFlags(image.format()),
+            .baseMipLevel = 0,
+            .levelCount = image.arrayLayers(),
+            .baseArrayLayer = 0,
+            .layerCount = image.arrayLayers(),
+        },
+    };
+
+    m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
+            .imageMemoryBarrierCount = 1,
+            .pImageMemoryBarriers = &barrier,
+        }
+    );
+}
+
+auto CommandBuffer::generateMipmaps(ImageHandle imageHandle, ResourceState currentState) const
+    -> void
 {
     if (currentState != ResourceState::CopyDst)
-    {
-        transitionImageLayout({
-            .imageRef = image,
-            .oldState = currentState,
-            .newState = ResourceState::CopyDst,
-        });
-    }
+        transitionImageLayout(imageHandle, currentState, ResourceState::CopyDst);
 
-    auto aspectMask = deriveImageAspectFlags(image.format);
+    auto& image = m_device.get(imageHandle);
+    auto aspectMask = deriveImageAspectFlags(image.format());
     auto [srcLayout, srcStage, srcAccess] = toVulkan(ResourceState::CopyDst);
     auto [dstLayout, dstStage, dstAccess] = toVulkan(ResourceState::CopySrc);
     vk::ImageMemoryBarrier2 mipToTransferSrcBarrier{
@@ -223,12 +258,12 @@ auto CommandBuffer::generateMipmaps(const ImageRef& image, ResourceState current
         .newLayout = dstLayout,
         .srcQueueFamilyIndex = vk::QueueFamilyIgnored,
         .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
-        .image = image.image,
+        .image = image.vk(),
         .subresourceRange = vk::ImageSubresourceRange{
             .aspectMask = aspectMask,
             .levelCount = 1,
             .baseArrayLayer = 0,
-            .layerCount = image.layerCount,
+            .layerCount = image.arrayLayers(),
         }
     };
 
@@ -236,16 +271,16 @@ auto CommandBuffer::generateMipmaps(const ImageRef& image, ResourceState current
         .srcSubresource = vk::ImageSubresourceLayers{
             .aspectMask = aspectMask,
             .baseArrayLayer = 0,
-            .layerCount = image.layerCount,
+            .layerCount = image.arrayLayers(),
         },
         .dstSubresource = vk::ImageSubresourceLayers{
             .aspectMask = aspectMask,
             .baseArrayLayer = 0,
-            .layerCount = image.layerCount,
+            .layerCount = image.arrayLayers(),
         },
     };
 
-    for (uint32_t i = 1; i < image.levelCount; ++i)
+    for (uint32_t i = 1; i < image.mipLevels(); ++i)
     {
         mipToTransferSrcBarrier.subresourceRange.baseMipLevel = i - 1;
         m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
@@ -257,25 +292,25 @@ auto CommandBuffer::generateMipmaps(const ImageRef& image, ResourceState current
         blit.srcOffsets = std::array{
             vk::Offset3D{ 0, 0, 0 },
             vk::Offset3D{
-                .x = std::max(1, static_cast<std::int32_t>(image.extent.x >> (i - 1))),
-                .y = std::max(1, static_cast<std::int32_t>(image.extent.y >> (i - 1))),
-                .z = std::max(1, static_cast<std::int32_t>(image.extent.z >> (i - 1))),
+                .x = std::max(1, static_cast<std::int32_t>(image.extent().x >> (i - 1))),
+                .y = std::max(1, static_cast<std::int32_t>(image.extent().y >> (i - 1))),
+                .z = std::max(1, static_cast<std::int32_t>(image.extent().z >> (i - 1))),
             }
         };
         blit.dstSubresource.mipLevel = i;
         blit.dstOffsets = std::array{
             vk::Offset3D{ 0, 0, 0 },
             vk::Offset3D{
-                .x = std::max(1, static_cast<std::int32_t>(image.extent.x >> i)),
-                .y = std::max(1, static_cast<std::int32_t>(image.extent.y >> i)),
-                .z = std::max(1, static_cast<std::int32_t>(image.extent.z >> i)),
+                .x = std::max(1, static_cast<std::int32_t>(image.extent().x >> i)),
+                .y = std::max(1, static_cast<std::int32_t>(image.extent().y >> i)),
+                .z = std::max(1, static_cast<std::int32_t>(image.extent().z >> i)),
             }
         };
 
         m_commandBuffer.blitImage2(vk::BlitImageInfo2{
-            .srcImage = image.image,
+            .srcImage = image.vk(),
             .srcImageLayout = vk::ImageLayout::eTransferSrcOptimal,
-            .dstImage = image.image,
+            .dstImage = image.vk(),
             .dstImageLayout = vk::ImageLayout::eTransferDstOptimal,
             .regionCount = 1,
             .pRegions = &blit,
@@ -284,7 +319,7 @@ auto CommandBuffer::generateMipmaps(const ImageRef& image, ResourceState current
     }
 
     // Transition last level so the image is fully in transfer src optimal layout
-    mipToTransferSrcBarrier.subresourceRange.baseMipLevel = image.levelCount - 1;
+    mipToTransferSrcBarrier.subresourceRange.baseMipLevel = image.mipLevels() - 1;
     mipToTransferSrcBarrier.dstStageMask = vk::PipelineStageFlagBits2::eNone;
     mipToTransferSrcBarrier.dstAccessMask = vk::AccessFlagBits2::eNone;
     m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
@@ -307,27 +342,30 @@ auto CommandBuffer::create(const Device& device, const Desc& desc) -> std::expec
 
     debug::setName(*device, *commandBuffer->front(), desc.name);
 
-    return CommandBuffer{ std::move(commandBuffer->front()) };
+    return CommandBuffer{ device, std::move(commandBuffer->front()) };
 }
 
-auto CommandBuffer::deriveExtent(const RenderingCmd& cmd) -> vk::Extent2D
-{
-    if (!cmd.colorAttachments.empty())
-        return vk::Extent2D{
-            cmd.colorAttachments[0].image.extent.x,
-            cmd.colorAttachments[0].image.extent.y
-        };
-    if (cmd.depthAttachment)
-        return vk::Extent2D{
-            cmd.depthAttachment->image.extent.x,
-            cmd.depthAttachment->image.extent.y
-        };
-    assert(false && "RenderingCmd has no attachments");
-    return {};
-}
-
-CommandBuffer::CommandBuffer(vk::raii::CommandBuffer cmdBuffer) :
+CommandBuffer::CommandBuffer(const Device& device, vk::raii::CommandBuffer cmdBuffer) :
+    m_device{ device },
     m_commandBuffer{ std::move(cmdBuffer) }
 {
+}
+
+auto CommandBuffer::deriveExtent(const RenderingCmd& cmd) const -> vk::Extent2D
+{
+    if (!cmd.colorAttachments.empty())
+    {
+        const auto& image = m_device.get(cmd.colorAttachments.front().imageView);
+        return vk::Extent2D{ image.extent().x, image.extent().y };
+    }
+
+    if (cmd.depthAttachment)
+    {
+        const auto& image = m_device.get(cmd.depthAttachment->imageView);
+        return vk::Extent2D{ image.extent().x, image.extent().y };
+    }
+
+    assert(false && "RenderingCmd has no attachments");
+    std::unreachable();
 }
 }

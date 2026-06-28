@@ -5,28 +5,28 @@ module;
 
 export module aegis.rhi:commands;
 import :common;
-import :image_ref;
+import :resource_handle;
 
 export namespace aegis::rhi
 {
 struct ImageLayoutTransition
 {
-    ImageRef imageRef;
+    ImageViewHandle imageView;
     ResourceState oldState;
     ResourceState newState;
 };
 
 struct Attachment
 {
-    ImageRef image;
+    ImageViewHandle imageView;
     AttachmentLoadOp loadOp;
     AttachmentStoreOp storeOp;
     std::optional<ClearValue> clearValue;
 
-    static auto color(const ImageRef& image, ClearColor clear) -> Attachment;
-    static auto colorLoad(const ImageRef& image) -> Attachment;
-    static auto depth(const ImageRef& image, ClearDepthStencil clear) -> Attachment;
-    static auto depthReadOnly(const ImageRef& image) -> Attachment;
+    static auto color(ImageViewHandle view, ClearColor clear) -> Attachment;
+    static auto colorLoad(ImageViewHandle view) -> Attachment;
+    static auto depth(ImageViewHandle view, ClearDepthStencil clear) -> Attachment;
+    static auto depthReadOnly(ImageViewHandle view) -> Attachment;
 };
 
 struct RenderingCmd

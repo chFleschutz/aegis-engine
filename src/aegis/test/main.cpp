@@ -166,20 +166,17 @@ public:
 
     auto drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
     {
-        const auto& [cmd, swapchainImage, frameIndex] = frameInfo;
+        const auto& [cmd, swapchainImage, frameIndex, extent] = frameInfo;
 
         cmd.begin();
         cmd.beginLabel("Frame");
-        cmd.transitionImageLayout({
-            .imageRef = swapchainImage,
-            .oldState = rhi::ResourceState::Unknown,
-            .newState = rhi::ResourceState::Attachment,
-        });
-        cmd.transitionImageLayout({
-            .imageRef = m_device->get(m_depthImage).ref(),
-            .oldState = rhi::ResourceState::Unknown,
-            .newState = rhi::ResourceState::Attachment,
-        });
+        cmd.transitionImageLayout(swapchainImage,
+            rhi::ResourceState::Unknown,
+            rhi::ResourceState::Attachment);
+        cmd.transitionImageLayout(
+            m_depthImage,
+            rhi::ResourceState::Unknown,
+            rhi::ResourceState::Attachment);
 
         cmd.beginLabel("Rendering");
 
@@ -192,23 +189,21 @@ public:
         cmd.beginRendering(rhi::RenderingCmd{
             .colorAttachments = colorAttachments,
             .depthAttachment = rhi::Attachment::depth(
-                m_device->get(m_depthImage).ref(),
+                m_depthImageView,
                 rhi::ClearDepthStencil{ 1.0f, 0 }
             ),
         });
         cmd.bindPipeline(*m_pipeline);
-        cmd.setViewport(swapchainImage.extent.toExtent2D());
-        cmd.setScissor(swapchainImage.extent.toExtent2D());
+        cmd.setViewport(extent);
+        cmd.setScissor(extent);
         cmd.draw(3);
         cmd.endRendering();
 
         cmd.endLabel();
 
-        cmd.transitionImageLayout({
-            .imageRef = swapchainImage,
-            .oldState = rhi::ResourceState::Attachment,
-            .newState = rhi::ResourceState::Present,
-        });
+        cmd.transitionImageLayout(swapchainImage,
+            rhi::ResourceState::Attachment,
+            rhi::ResourceState::Present);
 
         cmd.endLabel();
         cmd.end();
@@ -238,6 +233,7 @@ private:
 
     std::optional<rhi::Pipeline> m_pipeline;
     rhi::ImageHandle m_depthImage;
+    rhi::ImageViewHandle m_depthImageView;
 
     // rhi::CommandPool m_uploadPool;
     // rhi::CommandBuffer m_uploadCmd;

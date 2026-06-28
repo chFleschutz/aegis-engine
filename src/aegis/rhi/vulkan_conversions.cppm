@@ -31,7 +31,6 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState;
 constexpr auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue;
 constexpr auto toVulkan(AttachmentLoadOp op) noexcept -> vk::AttachmentLoadOp;
 constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp;
-constexpr auto toVulkan(const Attachment& a) noexcept -> vk::RenderingAttachmentInfo;
 constexpr auto toVulkan(BufferUsage usage) noexcept -> vk::BufferUsageFlags;
 constexpr auto toVulkan(ImageUsage usage) noexcept -> vk::ImageUsageFlags;
 constexpr auto toVulkan(DescriptorType type) noexcept -> vk::DescriptorType;
@@ -223,19 +222,6 @@ constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp
         return vk::AttachmentStoreOp::eNone;
     }
     std::unreachable();
-}
-
-constexpr auto toVulkan(const Attachment& a) noexcept -> vk::RenderingAttachmentInfo
-{
-    return vk::RenderingAttachmentInfo{
-        .imageView = a.image.view,
-        .imageLayout = deriveAttachmentImageLayout(a.storeOp),
-        .loadOp = toVulkan(a.loadOp),
-        .storeOp = toVulkan(a.storeOp),
-        .clearValue = (a.loadOp == AttachmentLoadOp::Clear && a.clearValue)
-                          ? toVulkan(*a.clearValue)
-                          : vk::ClearValue{},
-    };
 }
 
 constexpr auto toVulkan(BufferUsage usage) noexcept -> vk::BufferUsageFlags
