@@ -79,6 +79,7 @@ auto CommandBuffer::beginRendering(const RenderingCmd& desc) const -> void
         const auto& view = m_device.get(attachment.imageView);
         return vk::RenderingAttachmentInfo{
             .imageView = view.vk(),
+            .imageLayout = deriveAttachmentImageLayout(attachment.storeOp),
             .loadOp = toVulkan(attachment.loadOp),
             .storeOp = toVulkan(attachment.storeOp),
             .clearValue = (attachment.loadOp == AttachmentLoadOp::Clear && attachment.clearValue)

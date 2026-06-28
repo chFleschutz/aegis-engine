@@ -58,12 +58,21 @@ auto Device::createImage(const Image::Desc& desc) -> std::expected<ImageHandle, 
         });
 }
 
+auto Device::createImageView(ImageHandle image, const ImageView::Desc& desc)
+    -> std::expected<ImageViewHandle, Error>
+{
+    return ImageView::create(*this, image, desc)
+        .transform([&](auto&& view) -> ImageViewHandle {
+            return m_imageViews.push(std::move(view));
+        });
+}
+
 auto Device::createImageView(vk::Image imageSrc, const ImageView::Desc& desc)
     -> std::expected<ImageViewHandle, Error>
 {
     return ImageView::create(*this, imageSrc, desc)
-        .transform([&](auto&& image) -> ImageViewHandle {
-            return m_imageViews.push(std::move(image));
+        .transform([&](auto&& view) -> ImageViewHandle {
+            return m_imageViews.push(std::move(view));
         });
 }
 

@@ -82,6 +82,8 @@ public:
 
     [[nodiscard]] auto createBuffer(const Buffer::Desc& desc) -> std::expected<BufferHandle, Error>;
     [[nodiscard]] auto createImage(const Image::Desc& desc) -> std::expected<ImageHandle, Error>;
+    [[nodiscard]] auto createImageView(ImageHandle image, const ImageView::Desc& desc)
+        -> std::expected<ImageViewHandle, Error>;
     [[nodiscard]] auto createImageView(vk::Image imageSrc, const ImageView::Desc& desc)
         -> std::expected<ImageViewHandle, Error>;
 

@@ -112,6 +112,15 @@ public:
             return std::unexpected{ "Failed to create depth image" };
         engine.m_depthImage = std::move(*depthImage);
 
+        auto depthImageView = engine.m_device->createImageView(engine.m_depthImage, {
+            .name = "SceneDepthView",
+            .extent = rhi::Extent3D{ engine.m_renderer->swapchain().extent() },
+            .format = rhi::Format::D32_SFLOAT,
+        });
+        if (!depthImageView)
+            return std::unexpected{ "Failed to create depth image view" };
+        engine.m_depthImageView = std::move(*depthImageView);
+
         // rhi::Buffer::Desc bufferDesc{
         //     .name = "TestUniformBuffer",
         //     .size = sizeof(float),
