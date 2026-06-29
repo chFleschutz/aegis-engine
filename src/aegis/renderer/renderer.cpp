@@ -130,7 +130,6 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
         auto& image = m_device.get(texture.image);
 
         auto newImage = m_device.replace(texture.image,
-            m_frameContext[m_currentFrame].timelineValue,
             rhi::Image::Desc{
                 .name = name,
                 .extent = rhi::Extent3D{
@@ -149,7 +148,6 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
 
         auto viewResult = m_device.replace(texture.view,
             *newImage,
-            m_frameContext[m_currentFrame].timelineValue,
             rhi::ImageView::Desc{
                 .name = name,
                 .extent = rhi::Extent3D{

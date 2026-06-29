@@ -87,15 +87,16 @@ public:
     [[nodiscard]] auto createImageView(vk::Image imageSrc, const ImageView::Desc& desc)
         -> std::expected<ImageViewHandle, Error>;
 
-    auto replace(BufferHandle handle, TimelineValue current, const Buffer::Desc& desc)
+    auto replace(BufferHandle handle, const Buffer::Desc& desc)
         -> std::expected<BufferHandle, Error>;
-    auto replace(ImageHandle handle, TimelineValue current, const Image::Desc& desc)
+    auto replace(ImageHandle handle, const Image::Desc& desc)
         -> std::expected<ImageHandle, Error>;
-    auto replace(ImageViewHandle view, ImageHandle image, TimelineValue current, const ImageView::Desc& desc)
+    auto replace(ImageViewHandle view, ImageHandle image, const ImageView::Desc& desc)
     -> std::expected<ImageViewHandle, Error>;
 
-    auto free(BufferHandle handle, TimelineValue current) -> void;
-    auto free(ImageHandle handle, TimelineValue current) -> void;
+    auto free(BufferHandle handle) -> void;
+    auto free(ImageHandle handle) -> void;
+    auto free(ImageViewHandle handle) -> void;
 
     auto setFrameCompleted(TimelineValue frame) -> void;
 
@@ -184,6 +185,6 @@ private:
     ResourcePool<Image> m_images;
     ResourcePool<ImageView> m_imageViews;
     DeletionQueue m_deletionQueue;
-    TimelineValue m_frameComplete{ 0 };
+    TimelineValue m_currentValue{ 0 };
 };
 }

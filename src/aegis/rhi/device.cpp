@@ -76,52 +76,57 @@ auto Device::createImageView(vk::Image imageSrc, const ImageView::Desc& desc)
         });
 }
 
-auto Device::replace(BufferHandle handle, TimelineValue current, const Buffer::Desc& desc)
+auto Device::replace(BufferHandle handle, const Buffer::Desc& desc)
     -> std::expected<BufferHandle, Error>
 {
     return Buffer::create(*this, desc)
         .transform([&](auto&& buffer) {
             auto oldBuffer = m_buffers.replace(handle, std::move(buffer));
-            m_deletionQueue.push(current, std::move(oldBuffer));
+            m_deletionQueue.push(m_currentValue, std::move(oldBuffer));
             return handle;
         });
 }
 
-auto Device::replace(ImageHandle handle, TimelineValue current, const Image::Desc& desc)
+auto Device::replace(ImageHandle handle, const Image::Desc& desc)
     -> std::expected<ImageHandle, Error>
 {
     return Image::create(*this, desc)
         .transform([&](auto&& image) {
             auto oldImage = m_images.replace(handle, std::move(image));
-            m_deletionQueue.push(current, std::move(oldImage));
+            m_deletionQueue.push(m_currentValue, std::move(oldImage));
             return handle;
         });
 }
 
-auto Device::replace(ImageViewHandle view, ImageHandle image, TimelineValue current,
-    const ImageView::Desc& desc) -> std::expected<ImageViewHandle, Error>
+auto Device::replace(ImageViewHandle view, ImageHandle image, const ImageView::Desc& desc)
+    -> std::expected<ImageViewHandle, Error>
 {
     return ImageView::create(*this, image, desc)
         .transform([&](auto&& imageView) {
             auto oldView = m_imageViews.replace(view, std::move(imageView));
-            m_deletionQueue.push(current, std::move(oldView));
+            m_deletionQueue.push(m_currentValue, std::move(oldView));
             return view;
         });
 }
 
-auto Device::free(BufferHandle handle, TimelineValue current) -> void
+auto Device::free(BufferHandle handle) -> void
 {
-    m_deletionQueue.push(current, m_buffers.pop(handle));
+    m_deletionQueue.push(m_currentValue, m_buffers.pop(handle));
 }
 
-auto Device::free(ImageHandle handle, TimelineValue current) -> void
+auto Device::free(ImageHandle handle) -> void
 {
-    m_deletionQueue.push(current, m_images.pop(handle));
+    m_deletionQueue.push(m_currentValue, m_images.pop(handle));
+}
+
+auto Device::free(ImageViewHandle handle) -> void
+{
+    m_deletionQueue.push(m_currentValue, m_imageViews.pop(handle));
 }
 
 auto Device::setFrameCompleted(TimelineValue frame) -> void
 {
-    m_frameComplete = frame;
+    m_currentValue = frame;
     m_deletionQueue.collect(frame);
 }
 
@@ -164,8 +169,7 @@ auto Device::createSwapchain(const Swapchain::RecreateDesc& desc) -> std::expect
 {
     for (const auto imageView : desc.oldSwapchain.imageViews())
     {
-        // TODO: free swapchain image views
-        // free(timelineValue, imageView);
+        free(imageView);
     }
     return Swapchain::create(*this, desc);
 }
