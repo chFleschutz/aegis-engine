@@ -52,7 +52,6 @@ target_sources(aegis-rhi
         error.cppm
         fwd.cppm
         image.cppm
-        image_ref.cppm
         image_view.cppm
         memory.cppm
         queue.cppm

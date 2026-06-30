@@ -7,7 +7,6 @@ import :common;
 import :fwd;
 import :error;
 import :image_view;
-import :image_ref;
 import :sync;
 import vulkan_hpp;
 

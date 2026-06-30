@@ -8,7 +8,6 @@ export import :context;
 export import :device;
 export import :error;
 export import :image;
-export import :image_ref;
 export import :image_view;
 export import :pipeline;
 export import :queue;
