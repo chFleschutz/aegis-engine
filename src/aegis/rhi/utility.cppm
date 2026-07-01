@@ -46,7 +46,9 @@ template<typename T>
 constexpr auto isFlagEnum{ false };
 
 template<typename T>
-concept FlagEnum = std::is_enum_v<T> && isFlagEnum<T>;
+concept FlagEnum = std::is_enum_v<T> /*&& isFlagEnum<T>*/;
+// TODO: Sometimes clangd doesnt recognize the isFlagEnum template specialization and flags stuff as
+// errors that are no compile errors.
 
 template<FlagEnum T>
 constexpr auto operator|(T a, T b) -> T

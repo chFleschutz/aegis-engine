@@ -76,7 +76,7 @@ public:
     static constexpr std::uint32_t StorageImagesBinding = 1;
     static constexpr std::uint32_t SamplersBinding = 2;
 
-    [[nodiscard]] static auto create(const Device& device, const Desc& desc)
+    [[nodiscard]] static auto create(const vk::raii::Device& device, const Desc& desc)
         -> std::expected<BindlessHeap, Error>;
 
     [[nodiscard]] static auto binding(DescriptorType type) -> std::uint32_t;
@@ -84,26 +84,26 @@ public:
     [[nodiscard]] auto set() const -> vk::DescriptorSet { return *m_set; }
     [[nodiscard]] auto layout() const -> vk::DescriptorSetLayout { return *m_layout; }
 
-    [[nodiscard]] auto updateSampledImage(const Device& device, vk::ImageView view, vk::ImageLayout layout)
+    [[nodiscard]] auto writeSampledImage(const Device& device, const ImageView& view)
         -> std::expected<SampledImageHandle, BindlessError>;
 
-    [[nodiscard]] auto updateStorageImage(const Device& device, vk::ImageView view, vk::ImageLayout layout)
+    [[nodiscard]] auto writeStorageImage(const Device& device, const ImageView& view)
         -> std::expected<StorageImageHandle, BindlessError>;
 
-    [[nodiscard]] auto updateSampler(const Device& device, vk::Sampler sampler)
+    [[nodiscard]] auto writeSampler(const Device& device, vk::Sampler sampler)
         -> std::expected<SamplerHandle, BindlessError>;
 
 private:
     BindlessHeap(const Desc& desc, vk::raii::DescriptorPool&& pool, vk::raii::DescriptorSetLayout&& layout,
         vk::raii::DescriptorSet&& set);
 
-    [[nodiscard]] static auto createLayout(const Device& device, const Desc& desc)
+    [[nodiscard]] static auto createLayout(const vk::raii::Device& device, const Desc& desc)
         -> std::expected<vk::raii::DescriptorSetLayout, Error>;
 
-    [[nodiscard]] static auto createPool(const Device& device, const Desc& desc)
+    [[nodiscard]] static auto createPool(const vk::raii::Device& device, const Desc& desc)
         -> std::expected<vk::raii::DescriptorPool, Error>;
 
-    [[nodiscard]] static auto createSet(const Device& device, vk::DescriptorPool pool,
+    [[nodiscard]] static auto createSet(const vk::raii::Device& device, vk::DescriptorPool pool,
         vk::DescriptorSetLayout layout)
         -> std::expected<vk::raii::DescriptorSet, Error>;
 

@@ -12,6 +12,7 @@ import :device;
 import :context;
 import :debug;
 import :error;
+import :utility;
 import :vulkan_conversions;
 import vulkan_hpp;
 
@@ -25,7 +26,8 @@ Device::Device(
     Queue computeQueue,
     Queue transferQueue,
     Queue presentQueue,
-    Capabilities capabilities) :
+    Capabilities capabilities,
+    BindlessHeap bindlessHeap) :
     m_physicalDevice{ std::move(pd) },
     m_device{ std::move(device) },
     m_allocator{ std::move(allocator) },
@@ -33,7 +35,8 @@ Device::Device(
     m_computeQueue{ std::move(computeQueue) },
     m_transferQueue{ std::move(transferQueue) },
     m_presentQueue{ std::move(presentQueue) },
-    m_capabilities{ capabilities }
+    m_capabilities{ capabilities },
+    m_bindlessHeap{ std::move(bindlessHeap) }
 {
 }
 
@@ -62,7 +65,23 @@ auto Device::createImageView(ImageHandle image, const ImageView::Desc& desc)
     -> std::expected<ImageViewHandle, Error>
 {
     return ImageView::create(*this, image, desc)
-        .transform([&](auto&& view) -> ImageViewHandle {
+        .and_then([&](auto&& view) -> std::expected<ImageViewHandle, Error> {
+            if (utility::hasFlag(desc.usage, ImageUsage::Sampled))
+            {
+                auto handle = m_bindlessHeap.writeSampledImage(*this, view);
+                if (!handle)
+                    return makeError(ErrorCode::InitializationFailed);
+                view.setSampledHandle(*handle);
+            }
+
+            if (utility::hasFlag(desc.usage, ImageUsage::Storage))
+            {
+                auto handle = m_bindlessHeap.writeStorageImage(*this, view);
+                if (!handle)
+                    return makeError(ErrorCode::InitializationFailed);
+                view.setStorageHandle(*handle);
+            }
+
             return m_imageViews.push(std::move(view));
         });
 }
@@ -71,7 +90,23 @@ auto Device::createImageView(vk::Image imageSrc, const ImageView::Desc& desc)
     -> std::expected<ImageViewHandle, Error>
 {
     return ImageView::create(*this, imageSrc, desc)
-        .transform([&](auto&& view) -> ImageViewHandle {
+        .and_then([&](auto&& view) -> std::expected<ImageViewHandle, Error> {
+            if (utility::hasFlag(desc.usage, ImageUsage::Sampled))
+            {
+                auto handle = m_bindlessHeap.writeSampledImage(*this, view);
+                if (!handle)
+                    return makeError(ErrorCode::InitializationFailed);
+                view.setSampledHandle(*handle);
+            }
+
+            if (utility::hasFlag(desc.usage, ImageUsage::Storage))
+            {
+                auto handle = m_bindlessHeap.writeStorageImage(*this, view);
+                if (!handle)
+                    return makeError(ErrorCode::InitializationFailed);
+                view.setStorageHandle(*handle);
+            }
+
             return m_imageViews.push(std::move(view));
         });
 }
@@ -103,6 +138,7 @@ auto Device::replace(ImageViewHandle view, ImageHandle image, const ImageView::D
 {
     return ImageView::create(*this, image, desc)
         .transform([&](auto&& imageView) {
+            // TODO: handle descriptor handles
             auto oldView = m_imageViews.replace(view, std::move(imageView));
             m_deletionQueue.push(m_currentValue, std::move(oldView));
             return view;
@@ -121,6 +157,7 @@ auto Device::free(ImageHandle handle) -> void
 
 auto Device::free(ImageViewHandle handle) -> void
 {
+    // TODO: handle descriptor handles
     m_deletionQueue.push(m_currentValue, m_imageViews.pop(handle));
 }
 
@@ -219,6 +256,16 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
     if (!graphicsQueue)
         return std::unexpected{ graphicsQueue.error() };
 
+    // TODO: query pd for max values
+    auto bindless = BindlessHeap::create(*device,
+        BindlessHeap::Desc{
+            .maxSampledImages = 1024,
+            .maxStorageImages = 1024,
+            .maxSamplers = 1024,
+        });
+    if (!bindless)
+        return std::unexpected{ bindless.error() };
+
     return std::make_unique<Device>(
         std::move(*physicalDevice),
         std::move(*device),
@@ -227,7 +274,8 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
         std::move(*computeQueue),
         std::move(*transferQueue),
         std::move(*presentQueue),
-        capabilities);
+        capabilities,
+        std::move(*bindless));
 }
 
 auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface)

@@ -1,4 +1,5 @@
 module;
+#include <array>
 #include <cstdint>
 #include <expected>
 
@@ -9,7 +10,8 @@ import :vulkan_conversions;
 
 namespace aegis::rhi
 {
-auto BindlessHeap::create(const Device& device, const Desc& desc) -> std::expected<BindlessHeap, Error>
+auto BindlessHeap::create(const vk::raii::Device& device,
+    const Desc& desc) -> std::expected<BindlessHeap, Error>
 {
     auto layout = createLayout(device, desc);
     if (!layout)
@@ -45,8 +47,8 @@ auto BindlessHeap::binding(DescriptorType type) -> std::uint32_t
     std::unreachable();
 }
 
-auto BindlessHeap::updateSampledImage(const Device& device, vk::ImageView view,
-    vk::ImageLayout layout) -> std::expected<SampledImageHandle, BindlessError>
+auto BindlessHeap::writeSampledImage(const Device& device, const ImageView& view)
+    -> std::expected<SampledImageHandle, BindlessError>
 {
     auto index = m_freeSampledImages.pop();
     if (!index)
@@ -55,13 +57,16 @@ auto BindlessHeap::updateSampledImage(const Device& device, vk::ImageView view,
     updateDescriptorSet(device,
         DescriptorType::SampledImage,
         *index,
-        vk::DescriptorImageInfo{ .imageView = view, .imageLayout = layout });
+        vk::DescriptorImageInfo{
+            .imageView = view.vk(),
+            .imageLayout = vk::ImageLayout::eReadOnlyOptimal
+        });
 
     return SampledImageHandle{ *index };
 }
 
-auto BindlessHeap::updateStorageImage(const Device& device, vk::ImageView view,
-    vk::ImageLayout layout) -> std::expected<StorageImageHandle, BindlessError>
+auto BindlessHeap::writeStorageImage(const Device& device, const ImageView& view)
+    -> std::expected<StorageImageHandle, BindlessError>
 {
     auto index = m_freeStorageImages.pop();
     if (!index)
@@ -70,12 +75,12 @@ auto BindlessHeap::updateStorageImage(const Device& device, vk::ImageView view,
     updateDescriptorSet(device,
         DescriptorType::StorageImage,
         *index,
-        vk::DescriptorImageInfo{ .imageView = view, .imageLayout = layout });
+        vk::DescriptorImageInfo{ .imageView = view.vk(), .imageLayout = vk::ImageLayout::eGeneral });
 
     return StorageImageHandle{ *index };
 }
 
-auto BindlessHeap::updateSampler(const Device& device,
+auto BindlessHeap::writeSampler(const Device& device,
     vk::Sampler sampler) -> std::expected<SamplerHandle, BindlessError>
 {
     auto index = m_freeSamplers.pop();
@@ -101,7 +106,7 @@ BindlessHeap::BindlessHeap(const Desc& desc, vk::raii::DescriptorPool&& pool,
 {
 }
 
-auto BindlessHeap::createLayout(const Device& device,
+auto BindlessHeap::createLayout(const vk::raii::Device& device,
     const Desc& desc) -> std::expected<vk::raii::DescriptorSetLayout, Error>
 {
     auto bindings = std::array{
@@ -142,14 +147,14 @@ auto BindlessHeap::createLayout(const Device& device,
         .pBindings = bindings.data(),
     };
 
-    auto layout = device->createDescriptorSetLayout(layoutInfo);
+    auto layout = device.createDescriptorSetLayout(layoutInfo);
     if (!layout.has_value())
         return makeError(toRHI(layout.result));
 
     return std::move(*layout);
 }
 
-auto BindlessHeap::createPool(const Device& device,
+auto BindlessHeap::createPool(const vk::raii::Device& device,
     const Desc& desc) -> std::expected<vk::raii::DescriptorPool, Error>
 {
     std::array poolSizes{
@@ -163,6 +168,7 @@ auto BindlessHeap::createPool(const Device& device,
         },
         vk::DescriptorPoolSize{
             .type = vk::DescriptorType::eSampler,
+            .descriptorCount = desc.maxSamplers,
         },
     };
 
@@ -173,14 +179,14 @@ auto BindlessHeap::createPool(const Device& device,
         .pPoolSizes = poolSizes.data(),
     };
 
-    auto pool = device->createDescriptorPool(poolInfo);
+    auto pool = device.createDescriptorPool(poolInfo);
     if (!pool.has_value())
         return makeError(toRHI(pool.result));
 
     return std::move(*pool);
 }
 
-auto BindlessHeap::createSet(const Device& device, vk::DescriptorPool pool,
+auto BindlessHeap::createSet(const vk::raii::Device& device, vk::DescriptorPool pool,
     vk::DescriptorSetLayout layout) -> std::expected<vk::raii::DescriptorSet, Error>
 {
     vk::DescriptorSetAllocateInfo allocInfo{
@@ -189,7 +195,7 @@ auto BindlessHeap::createSet(const Device& device, vk::DescriptorPool pool,
         .pSetLayouts = &layout,
     };
 
-    auto set = device->allocateDescriptorSets(allocInfo);
+    auto set = device.allocateDescriptorSets(allocInfo);
     if (!set.has_value() || set->empty())
         return makeError(toRHI(set.result));
 

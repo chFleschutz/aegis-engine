@@ -34,6 +34,7 @@ public:
         Extent3D extent;
         Format format;
         Range range;
+        ImageUsage usage;
     };
 
     [[nodiscard]] auto vk() const noexcept -> vk::ImageView { return *m_view; }
@@ -41,6 +42,9 @@ public:
     [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_extent; }
     [[nodiscard]] auto format() const noexcept -> Format { return m_format; }
     [[nodiscard]] auto range() const noexcept -> Range { return m_range; }
+
+    auto setSampledHandle(SampledImageHandle handle) noexcept -> void { m_sampledHandle = handle; }
+    auto setStorageHandle(StorageImageHandle handle) noexcept -> void { m_storageHandle = handle; }
 
 private:
     [[nodiscard]] static auto create(const Device& device, ImageHandle image, const Desc& desc)

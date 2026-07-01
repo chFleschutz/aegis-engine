@@ -57,7 +57,8 @@ public:
         Queue computeQueue,
         Queue transferQueue,
         Queue presentQueue,
-        Capabilities capabilities);
+        Capabilities capabilities,
+        BindlessHeap bindlessHeap);
 
     [[nodiscard]] auto operator->() const noexcept -> const vk::raii::Device* { return &m_device; }
     [[nodiscard]] auto operator*() const noexcept -> const vk::raii::Device& { return m_device; }
@@ -185,6 +186,7 @@ private:
     ResourcePool<Image> m_images;
     ResourcePool<ImageView> m_imageViews;
     DeletionQueue m_deletionQueue;
+    BindlessHeap m_bindlessHeap;
     TimelineValue m_currentValue{ 0 };
 };
 }
