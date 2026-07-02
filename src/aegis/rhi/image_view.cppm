@@ -42,6 +42,8 @@ public:
     [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_extent; }
     [[nodiscard]] auto format() const noexcept -> Format { return m_format; }
     [[nodiscard]] auto range() const noexcept -> Range { return m_range; }
+    [[nodiscard]] auto sampledHandle() const noexcept -> std::optional<SampledImageHandle>;
+    [[nodiscard]] auto storageHandle() const noexcept -> std::optional<StorageImageHandle>;
 
     auto setSampledHandle(SampledImageHandle handle) noexcept -> void { m_sampledHandle = handle; }
     auto setStorageHandle(StorageImageHandle handle) noexcept -> void { m_storageHandle = handle; }

@@ -157,7 +157,10 @@ auto Device::free(ImageHandle handle) -> void
 
 auto Device::free(ImageViewHandle handle) -> void
 {
-    // TODO: handle descriptor handles
+    if (auto h = m_imageViews.get(handle).sampledHandle())
+        m_bindlessHeap.freeSampledImage(*h);
+    if (auto h = m_imageViews.get(handle).storageHandle())
+        m_bindlessHeap.freeStorageImage(*h);
     m_deletionQueue.push(m_currentValue, m_imageViews.pop(handle));
 }
 

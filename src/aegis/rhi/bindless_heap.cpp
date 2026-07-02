@@ -95,6 +95,21 @@ auto BindlessHeap::writeSampler(const Device& device,
     return SamplerHandle{ *index };
 }
 
+auto BindlessHeap::freeSampledImage(SampledImageHandle handle) -> void
+{
+    m_freeSampledImages.push(handle.index);
+}
+
+auto BindlessHeap::freeStorageImage(StorageImageHandle handle) -> void
+{
+    m_freeStorageImages.push(handle.index);
+}
+
+auto BindlessHeap::freeSampler(SamplerHandle handle) -> void
+{
+    m_freeSamplers.push(handle.index);
+}
+
 BindlessHeap::BindlessHeap(const Desc& desc, vk::raii::DescriptorPool&& pool,
     vk::raii::DescriptorSetLayout&& layout, vk::raii::DescriptorSet&& set) :
     m_pool{ std::move(pool) },

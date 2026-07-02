@@ -93,6 +93,10 @@ public:
     [[nodiscard]] auto writeSampler(const Device& device, vk::Sampler sampler)
         -> std::expected<SamplerHandle, BindlessError>;
 
+    auto freeSampledImage(SampledImageHandle handle) -> void;
+    auto freeStorageImage(StorageImageHandle handle) -> void;
+    auto freeSampler(SamplerHandle handle) -> void;
+
 private:
     BindlessHeap(const Desc& desc, vk::raii::DescriptorPool&& pool, vk::raii::DescriptorSetLayout&& layout,
         vk::raii::DescriptorSet&& set);
