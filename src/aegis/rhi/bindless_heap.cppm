@@ -84,13 +84,16 @@ public:
     [[nodiscard]] auto set() const -> vk::DescriptorSet { return *m_set; }
     [[nodiscard]] auto layout() const -> vk::DescriptorSetLayout { return *m_layout; }
 
-    [[nodiscard]] auto writeSampledImage(const Device& device, const ImageView& view)
+    [[nodiscard]] auto writeSampledImage(const Device& device, const ImageView& view,
+    std::optional<SampledImageHandle> oldHandle = std::nullopt)
         -> std::expected<SampledImageHandle, BindlessError>;
 
-    [[nodiscard]] auto writeStorageImage(const Device& device, const ImageView& view)
+    [[nodiscard]] auto writeStorageImage(const Device& device, const ImageView& view,
+    std::optional<StorageImageHandle> oldHandle = std::nullopt)
         -> std::expected<StorageImageHandle, BindlessError>;
 
-    [[nodiscard]] auto writeSampler(const Device& device, vk::Sampler sampler)
+    [[nodiscard]] auto writeSampler(const Device& device, vk::Sampler sampler,
+    std::optional<SamplerHandle> oldHandle = std::nullopt)
         -> std::expected<SamplerHandle, BindlessError>;
 
     auto freeSampledImage(SampledImageHandle handle) -> void;

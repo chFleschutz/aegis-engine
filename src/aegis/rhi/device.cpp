@@ -137,10 +137,25 @@ auto Device::replace(ImageViewHandle view, ImageHandle image, const ImageView::D
     -> std::expected<ImageViewHandle, Error>
 {
     return ImageView::create(*this, image, desc)
-        .transform([&](auto&& imageView) {
-            // TODO: handle descriptor handles
-            auto oldView = m_imageViews.replace(view, std::move(imageView));
-            m_deletionQueue.push(m_currentValue, std::move(oldView));
+        .and_then([&](auto&& imageView) -> std::expected<ImageViewHandle, Error> {
+            auto& oldView = m_imageViews.get(view);
+            if (utility::hasFlag(desc.usage, ImageUsage::Sampled))
+            {
+                auto handle = m_bindlessHeap.writeSampledImage(*this, imageView, oldView.sampledHandle());
+                if (!handle)
+                    return makeError(ErrorCode::InitializationFailed);
+                imageView.setSampledHandle(*handle);
+            }
+
+            if (utility::hasFlag(desc.usage, ImageUsage::Storage))
+            {
+                auto handle = m_bindlessHeap.writeStorageImage(*this, imageView, oldView.storageHandle());
+                if (!handle)
+                    return makeError(ErrorCode::InitializationFailed);
+                imageView.setStorageHandle(*handle);
+            }
+
+            m_deletionQueue.push(m_currentValue, m_imageViews.replace(view, std::move(imageView)));
             return view;
         });
 }

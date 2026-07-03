@@ -2,6 +2,7 @@ module;
 #include <array>
 #include <cstdint>
 #include <expected>
+#include <optional>
 
 module aegis.rhi;
 import :bindless_heap;
@@ -47,52 +48,83 @@ auto BindlessHeap::binding(DescriptorType type) -> std::uint32_t
     std::unreachable();
 }
 
-auto BindlessHeap::writeSampledImage(const Device& device, const ImageView& view)
+auto BindlessHeap::writeSampledImage(const Device& device, const ImageView& view,
+    std::optional<SampledImageHandle> oldHandle)
     -> std::expected<SampledImageHandle, BindlessError>
 {
-    auto index = m_freeSampledImages.pop();
-    if (!index)
-        return std::unexpected{ BindlessError::OutOfMemory };
+    SampledImageHandle handle;
+    if (oldHandle)
+    {
+        handle = *oldHandle;
+    }
+    else
+    {
+        auto index = m_freeSampledImages.pop();
+        if (!index)
+            return std::unexpected{ BindlessError::OutOfMemory };
+
+        handle = SampledImageHandle{ *index };
+    }
 
     updateDescriptorSet(device,
         DescriptorType::SampledImage,
-        *index,
+        handle.index,
         vk::DescriptorImageInfo{
             .imageView = view.vk(),
             .imageLayout = vk::ImageLayout::eReadOnlyOptimal
         });
 
-    return SampledImageHandle{ *index };
+    return handle;
 }
 
-auto BindlessHeap::writeStorageImage(const Device& device, const ImageView& view)
+auto BindlessHeap::writeStorageImage(const Device& device, const ImageView& view,
+    std::optional<StorageImageHandle> oldHandle)
     -> std::expected<StorageImageHandle, BindlessError>
 {
-    auto index = m_freeStorageImages.pop();
-    if (!index)
-        return std::unexpected{ BindlessError::OutOfMemory };
+    StorageImageHandle handle;
+    if (oldHandle)
+    {
+        handle = *oldHandle;
+    }
+    else
+    {
+        auto index = m_freeStorageImages.pop();
+        if (!index)
+            return std::unexpected{ BindlessError::OutOfMemory };
+        handle = StorageImageHandle{ *index };
+    }
 
     updateDescriptorSet(device,
         DescriptorType::StorageImage,
-        *index,
+        handle.index,
         vk::DescriptorImageInfo{ .imageView = view.vk(), .imageLayout = vk::ImageLayout::eGeneral });
 
-    return StorageImageHandle{ *index };
+    return handle;
 }
 
-auto BindlessHeap::writeSampler(const Device& device,
-    vk::Sampler sampler) -> std::expected<SamplerHandle, BindlessError>
+auto BindlessHeap::writeSampler(const Device& device, vk::Sampler sampler,
+    std::optional<SamplerHandle> oldHandle)
+    -> std::expected<SamplerHandle, BindlessError>
 {
-    auto index = m_freeSamplers.pop();
-    if (!index)
-        return std::unexpected{ BindlessError::OutOfMemory };
+    SamplerHandle handle;
+    if (oldHandle)
+    {
+        handle = *oldHandle;
+    }
+    else
+    {
+        auto index = m_freeSamplers.pop();
+        if (!index)
+            return std::unexpected{ BindlessError::OutOfMemory };
+        handle = SamplerHandle{ *index };
+    }
 
     updateDescriptorSet(device,
         DescriptorType::Sampler,
-        *index,
+        handle.index,
         vk::DescriptorImageInfo{ .sampler = sampler });
 
-    return SamplerHandle{ *index };
+    return handle;
 }
 
 auto BindlessHeap::freeSampledImage(SampledImageHandle handle) -> void
