@@ -81,7 +81,7 @@ public:
 
     [[nodiscard]] static auto binding(DescriptorType type) -> std::uint32_t;
 
-    [[nodiscard]] auto set() const -> vk::DescriptorSet { return *m_set; }
+    [[nodiscard]] auto set() const -> vk::DescriptorSet { return m_set; }
     [[nodiscard]] auto layout() const -> vk::DescriptorSetLayout { return *m_layout; }
 
     [[nodiscard]] auto writeSampledImage(const Device& device, const ImageView& view,
@@ -102,7 +102,7 @@ public:
 
 private:
     BindlessHeap(const Desc& desc, vk::raii::DescriptorPool&& pool, vk::raii::DescriptorSetLayout&& layout,
-        vk::raii::DescriptorSet&& set);
+        vk::DescriptorSet set);
 
     [[nodiscard]] static auto createLayout(const vk::raii::Device& device, const Desc& desc)
         -> std::expected<vk::raii::DescriptorSetLayout, Error>;
@@ -112,14 +112,14 @@ private:
 
     [[nodiscard]] static auto createSet(const vk::raii::Device& device, vk::DescriptorPool pool,
         vk::DescriptorSetLayout layout)
-        -> std::expected<vk::raii::DescriptorSet, Error>;
+        -> std::expected<vk::DescriptorSet, Error>;
 
     auto updateDescriptorSet(const Device& device, DescriptorType type, std::uint32_t index,
         const vk::DescriptorImageInfo& info) const -> void;
 
     vk::raii::DescriptorPool m_pool;
     vk::raii::DescriptorSetLayout m_layout;
-    vk::raii::DescriptorSet m_set;
+    vk::DescriptorSet m_set;
     FreeList m_freeSampledImages;
     FreeList m_freeStorageImages;
     FreeList m_freeSamplers;

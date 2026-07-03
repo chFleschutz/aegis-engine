@@ -143,10 +143,10 @@ auto BindlessHeap::freeSampler(SamplerHandle handle) -> void
 }
 
 BindlessHeap::BindlessHeap(const Desc& desc, vk::raii::DescriptorPool&& pool,
-    vk::raii::DescriptorSetLayout&& layout, vk::raii::DescriptorSet&& set) :
+    vk::raii::DescriptorSetLayout&& layout, vk::DescriptorSet set) :
     m_pool{ std::move(pool) },
     m_layout{ std::move(layout) },
-    m_set{ std::move(set) },
+    m_set{ set },
     m_freeSampledImages{ desc.maxSampledImages },
     m_freeStorageImages{ desc.maxStorageImages },
     m_freeSamplers{ desc.maxSamplers }
@@ -234,7 +234,7 @@ auto BindlessHeap::createPool(const vk::raii::Device& device,
 }
 
 auto BindlessHeap::createSet(const vk::raii::Device& device, vk::DescriptorPool pool,
-    vk::DescriptorSetLayout layout) -> std::expected<vk::raii::DescriptorSet, Error>
+    vk::DescriptorSetLayout layout) -> std::expected<vk::DescriptorSet, Error>
 {
     vk::DescriptorSetAllocateInfo allocInfo{
         .descriptorPool = pool,
@@ -246,14 +246,14 @@ auto BindlessHeap::createSet(const vk::raii::Device& device, vk::DescriptorPool 
     if (!set.has_value() || set->empty())
         return makeError(toRHI(set.result));
 
-    return std::move(set->front());
+    return set->front().release();
 }
 
 auto BindlessHeap::updateDescriptorSet(const Device& device, DescriptorType type, std::uint32_t index,
     const vk::DescriptorImageInfo& info) const -> void
 {
     vk::WriteDescriptorSet write{
-        .dstSet = *m_set,
+        .dstSet = m_set,
         .dstBinding = binding(type),
         .dstArrayElement = index,
         .descriptorCount = 1,
