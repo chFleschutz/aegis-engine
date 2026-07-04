@@ -14,6 +14,7 @@ import :debug;
 import :device;
 import :error;
 import :vulkan_conversions;
+import vulkan_hpp;
 
 namespace aegis::rhi
 {
@@ -326,6 +327,23 @@ auto CommandBuffer::generateMipmaps(ImageHandle imageHandle, ResourceState curre
     m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &mipToTransferSrcBarrier,
+    });
+}
+
+auto CommandBuffer::copyBuffer(const Buffer& src, const Buffer& dst, std::size_t size, std::size_t srcOffset,
+    std::size_t dstOffset) const -> void
+{
+    vk::BufferCopy2 copyRegion{
+        .srcOffset = srcOffset,
+        .dstOffset = dstOffset,
+        .size = size,
+    };
+
+    m_commandBuffer.copyBuffer2(vk::CopyBufferInfo2{
+        .srcBuffer = src.vk(),
+        .dstBuffer = dst.vk(),
+        .regionCount = 1,
+        .pRegions = &copyRegion,
     });
 }
 

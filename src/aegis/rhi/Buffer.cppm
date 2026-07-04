@@ -23,17 +23,20 @@ public:
         MemoryUsage memory;
     };
 
-    [[nodiscard]] auto handle() const -> vk::Buffer { return *m_allocation; }
+    [[nodiscard]] auto vk() const -> vk::Buffer { return *m_allocation; }
+    [[nodiscard]] auto size() const -> vk::DeviceSize { return m_size; }
+    [[nodiscard]] auto data() const -> std::byte* { return m_mappedData; }
+
 
     /// @brief Writes 'size' bytes from 'src' to the internal buffer starting at 'offset'.
     /// @note This function needs access to the internal Buffer.
     /// @warning Only valid for memory usage of CpuWrite.
-    auto write(const void* src, std::size_t size, std::size_t offset = 0) const -> void;
+    auto write(const std::byte* src, std::size_t size, std::size_t offset = 0) const -> void;
 
     /// @brief Writes 'size' bytes from the internal buffer starting at 'offset' to 'dst'.
     /// @note This function needs access to the internal Buffer.
     /// @warning Only valid for memory usage of CpuRead.
-    auto read(void* dst, std::size_t size, std::size_t offset = 0) const -> void;
+    auto read(std::byte* dst, std::size_t size, std::size_t offset = 0) const -> void;
 
 private:
     [[nodiscard]] static auto create(const Device& device, const Desc& desc)
@@ -42,11 +45,11 @@ private:
     Buffer(
         BufferAllocation,
         vk::DeviceSize size,
-        void* mappedData);
+        std::byte* mappedData);
 
     BufferAllocation m_allocation;
     vk::DeviceSize m_size;
-    void* m_mappedData;
+    std::byte* m_mappedData;
     vk::MemoryPropertyFlags m_memoryFlags;
 };
 }

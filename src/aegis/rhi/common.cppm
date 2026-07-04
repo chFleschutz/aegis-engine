@@ -8,6 +8,8 @@ import :utility;
 
 export namespace aegis::rhi
 {
+using TimelineValue = std::uint64_t;
+
 enum class ErrorCode
 {
     Unknown,
@@ -191,5 +193,4 @@ struct ClearDepthStencil
 };
 
 using ClearValue = std::variant<ClearColor, ClearDepthStencil>;
-
 }

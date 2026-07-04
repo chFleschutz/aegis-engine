@@ -1,17 +1,15 @@
 module;
 #include <cstdint>
 #include <expected>
-#include <optional>
 
 export module aegis.rhi:queue;
+import :common;
 import :fwd;
 import :sync;
 import vulkan_hpp;
 
 export namespace aegis::rhi
 {
-using TimelineValue = std::uint64_t;
-
 class Queue
 {
 public:

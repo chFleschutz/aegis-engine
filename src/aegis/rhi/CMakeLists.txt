@@ -61,6 +61,7 @@ target_sources(aegis-rhi
         pipeline.cppm
         swapchain.cppm
         sync.cppm
+        upload_manager.cppm
         utility.cppm
         vulkan_conversions.cppm
     PRIVATE
@@ -77,5 +78,6 @@ target_sources(aegis-rhi
         pipeline.cpp
         swapchain.cpp
         sync.cpp
+        upload_manager.cpp
         vma_impl.cpp
 )

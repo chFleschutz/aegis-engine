@@ -14,7 +14,7 @@ import :vulkan_conversions;
 
 namespace aegis::rhi
 {
-auto Buffer::write(const void* src, std::size_t size, std::size_t offset) const -> void
+auto Buffer::write(const std::byte* src, std::size_t size, std::size_t offset) const -> void
 {
     assert(m_mappedData != nullptr && "Cannot write to unmapped buffer");
     assert(src != nullptr && "Cannot copy from nullptr");
@@ -25,7 +25,7 @@ auto Buffer::write(const void* src, std::size_t size, std::size_t offset) const 
         m_allocation.flush(offset, size);
 }
 
-auto Buffer::read(void* dst, std::size_t size, std::size_t offset) const -> void
+auto Buffer::read(std::byte* dst, std::size_t size, std::size_t offset) const -> void
 {
     assert(m_mappedData != nullptr && "Cannot read from unmapped buffer");
     assert(dst != nullptr && "Cannot copy to nullptr");
@@ -53,14 +53,14 @@ auto Buffer::create(const Device& device, const Desc& desc) -> std::expected<Buf
     return Buffer{
         std::move(bufferAlloc->first),
         vk::DeviceSize{ bufferAlloc->second.size },
-        bufferAlloc->second.pMappedData
+        static_cast<std::byte*>(bufferAlloc->second.pMappedData)
     };
 }
 
 Buffer::Buffer(
     BufferAllocation allocation,
     vk::DeviceSize size,
-    void* mappedData) :
+    std::byte* mappedData) :
     m_allocation{ std::move(allocation) },
     m_size{ size },
     m_mappedData{ mappedData },

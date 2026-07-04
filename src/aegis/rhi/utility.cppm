@@ -1,4 +1,5 @@
 module;
+#include <cassert>
 #include <iostream>
 #include <type_traits>
 #include <utility>
@@ -8,6 +9,19 @@ export module aegis.rhi:utility;
 
 export namespace aegis::rhi::utility
 {
+///////////////////
+// RHI Utilities //
+///////////////////
+
+/// @brief Aligns 'size' to the next multiple of 'alignment'.
+/// @note 'alignment' must be a power of 2 greater than 0.
+auto alignTo(std::size_t size, std::size_t alignment) -> std::size_t
+{
+    assert(alignment > 0 && "Alignment must be greater than 0");
+    assert(alignment & (alignment - 1) == 0 && "Alignment must be a power of 2");
+    return (size + alignment - 1) & ~(alignment - 1);
+}
+
 ///////////////////
 // Variant match //
 ///////////////////

@@ -49,6 +49,9 @@ public:
         ResourceState newState) const -> void;
     auto generateMipmaps(ImageHandle imageHandle, ResourceState currentState) const -> void;
 
+    auto copyBuffer(const Buffer& src, const Buffer& dst, std::size_t size, std::size_t srcOffset = 0,
+        std::size_t dstOffset = 0) const -> void;
+
 private:
     [[nodiscard]] static auto create(const Device& device, const Desc& desc)
         -> std::expected<CommandBuffer, Error>;
