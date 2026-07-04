@@ -62,8 +62,16 @@ auto Queue::submit(const SubmitInfo& info) -> std::expected<TimelineValue, Error
 
 auto Queue::submit(const CommandBuffer& cmd) -> std::expected<TimelineValue, Error>
 {
+    m_currentValue += 1;
+
     vk::CommandBufferSubmitInfo cmdInfo{
         .commandBuffer = *cmd,
+    };
+
+    vk::SemaphoreSubmitInfo signalInfo{
+        .semaphore = *m_timeline,
+        .value = m_currentValue,
+        .stageMask = vk::PipelineStageFlagBits2::eAllGraphics,
     };
 
     vk::SubmitInfo2 submitInfo{
@@ -71,8 +79,8 @@ auto Queue::submit(const CommandBuffer& cmd) -> std::expected<TimelineValue, Err
         .pWaitSemaphoreInfos = nullptr,
         .commandBufferInfoCount = 1,
         .pCommandBufferInfos = &cmdInfo,
-        .signalSemaphoreInfoCount = 0,
-        .pSignalSemaphoreInfos = nullptr,
+        .signalSemaphoreInfoCount = 1,
+        .pSignalSemaphoreInfos = &signalInfo,
     };
 
     if (auto result = m_queue.submit2(submitInfo); result != vk::Result::eSuccess)
