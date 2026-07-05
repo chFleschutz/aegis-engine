@@ -332,11 +332,11 @@ auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::
         candidates.emplace_back(score, i);
     }
 
-    std::ranges::sort(candidates);
-    if (candidates.empty() || candidates.front().first == 0)
+    std::ranges::sort(candidates); // Sorts highest score at the end
+    if (candidates.empty() || candidates.back().first == 0)
         return makeError(ErrorCode::Unknown);
 
-    const auto& [_, index] = candidates.front();
+    const auto& [_, index] = candidates.back();
     return physicalDevices[index];
 }
 
