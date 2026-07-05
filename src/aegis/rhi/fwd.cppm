@@ -10,14 +10,14 @@ class CommandBuffer;
 class CommandPool;
 class Context;
 class Device;
-class Error;
 class Image;
 class ImageAllocation;
-class ImageRef;
 class ImageView;
 class Pipeline;
 class Queue;
 class Swapchain;
 class Fence;
 class Semaphore;
+
+struct Error;
 }

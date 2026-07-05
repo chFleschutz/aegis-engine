@@ -12,6 +12,7 @@ class DeletionQueue
     struct PendingDeletion
     {
         TimelineValue enqueueFrame{};
+        // TODO: Replace with type erased holder, std::function is misleading
         std::move_only_function<void()> destroy;
     };
 

@@ -139,8 +139,8 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
                 },
                 .format = image.format(),
                 .usage = usage,
-                .mipLevels = image.arrayLayers(),
-                .arrayLayers = image.mipLevels(),
+                .mipLevels = image.mipLevels(),
+                .arrayLayers = image.arrayLayers(),
             });
 
         if (!newImage)

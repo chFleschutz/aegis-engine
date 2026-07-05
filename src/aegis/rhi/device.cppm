@@ -58,6 +58,7 @@ public:
         Queue transferQueue,
         Queue presentQueue,
         Capabilities capabilities,
+        Properties properties,
         BindlessHeap bindlessHeap);
 
     [[nodiscard]] auto operator->() const noexcept -> const vk::raii::Device* { return &m_device; }

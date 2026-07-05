@@ -20,7 +20,7 @@ public:
 
     ResourcePool()
     {
-        m_slots.resize(DefaultCapacity);
+        m_slots.reserve(DefaultCapacity);
         m_freeSlots.reserve(DefaultCapacity);
     }
 

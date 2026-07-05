@@ -27,6 +27,7 @@ Device::Device(
     Queue transferQueue,
     Queue presentQueue,
     Capabilities capabilities,
+    Properties properties,
     BindlessHeap bindlessHeap) :
     m_physicalDevice{ std::move(pd) },
     m_device{ std::move(device) },
@@ -36,6 +37,7 @@ Device::Device(
     m_transferQueue{ std::move(transferQueue) },
     m_presentQueue{ std::move(presentQueue) },
     m_capabilities{ capabilities },
+    m_properties{ properties },
     m_bindlessHeap{ std::move(bindlessHeap) }
 {
 }
@@ -249,6 +251,7 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
 
     auto queueFamilies = queryQueueFamilies(*physicalDevice, surface);
     auto capabilities = queryCapabilities(*physicalDevice);
+    auto properties = queryProperties(*physicalDevice);
 
     auto device = createDevice(*physicalDevice, capabilities, queueFamilies);
     if (!device)
@@ -293,6 +296,7 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
         std::move(*transferQueue),
         std::move(*presentQueue),
         capabilities,
+        properties,
         std::move(*bindless));
 }
 
@@ -493,6 +497,8 @@ auto Device::supportsExtensions(const vk::raii::PhysicalDevice& pd) -> bool
 
 auto Device::createFeatureChain() -> FeatureChain
 {
+    // TODO: Only enable supported features
+
     FeatureChain featureChain;
 
     featureChain.get<vk::PhysicalDeviceFeatures2>().features.setSamplerAnisotropy(true);
