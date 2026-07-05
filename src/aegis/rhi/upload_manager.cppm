@@ -1,11 +1,8 @@
 module;
 #include <cstdint>
+#include <expected>
 #include <optional>
 #include <span>
-#include <vector>
-
-#include "../../../external/glm/glm/vector_relational.hpp"
-#include "../../../external/glm/glm/gtx/scalar_relational.inl"
 
 export module aegis.rhi:upload_manager;
 import :buffer;
