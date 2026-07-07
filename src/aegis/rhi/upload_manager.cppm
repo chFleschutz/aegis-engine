@@ -88,10 +88,13 @@ public:
     {
         std::uint64_t stagingBufferSize{ 64 * 1024 * 1024 };      // Default 64 MB
         std::uint64_t overflowThreshold{ stagingBufferSize / 2 }; // Threshold for the overflow path
-        std::uint32_t framesInFlight{ 2 };
+        // Depth of the command-buffer ring: how many submitted upload batches may be outstanding on
+        // the GPU before flushPending() stalls to reclaim one. Independent of any frame cadence -- a
+        // caller that flushes once per frame can pass its frames-in-flight count here.
+        std::uint32_t maxOutstandingBatches{ 2 };
     };
 
-    [[nodiscard]] static auto create(Device& device, std::uint32_t queueFamily, const Desc& desc = {})
+    [[nodiscard]] static auto create(Device& device, std::uint32_t queueFamily, const Desc& desc)
         -> std::expected<UploadManager, Error>;
 
     /// @brief Stages 'data' and records a copy into 'dst' at 'dstOffset'. Never blocks.

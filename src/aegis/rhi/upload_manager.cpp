@@ -1,5 +1,7 @@
 module;
 #include <expected>
+#include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -130,8 +132,8 @@ auto UploadManager::create(Device& device, std::uint32_t queueFamily, const Desc
         return std::unexpected{ pool.error() };
 
     std::vector<CommandBuffer> cmds;
-    cmds.reserve(desc.framesInFlight);
-    for (std::uint32_t i = 0; i < desc.framesInFlight; ++i)
+    cmds.reserve(desc.maxOutstandingBatches);
+    for (std::uint32_t i = 0; i < desc.maxOutstandingBatches; ++i)
     {
         auto cmd = device.createCommandBuffer({ .name = "UploadManager", .pool = *pool });
         if (!cmd)
@@ -205,7 +207,7 @@ auto UploadManager::flushPending(Queue& queue) -> std::optional<TimelineValue>
     });
     m_recordIndex = (m_recordIndex + 1) % m_cmds.size();
 
-    // Keep at most framesInFlight-1 batches outstanding so the command buffer the next batch
+    // Keep at most maxOutstandingBatches-1 batches outstanding so the command buffer the next batch
     // records into is free to reset. This is the only blocking point on the happy path, and it
     // only waits when the GPU is a full ring of command buffers behind.
     while (m_inFlight.size() >= m_cmds.size())
