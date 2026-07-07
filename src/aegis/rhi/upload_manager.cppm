@@ -76,8 +76,7 @@ private:
 };
 
 /// @brief Uploads CPU data into GPU resources without stalling the caller.
-///
-/// Data is copied into a staging ring buffer and a copy command is recorded into one of a small
+/// Data is copied into a staging ring buffer, and a copy command is recorded into one of a small
 /// ring of command buffers. `upload` never blocks: it stages the data and records the copy for the
 /// current, still-open batch. `flushPending` submits the open batch on a timeline-synchronized
 /// queue and reclaims completed batches, waiting on the GPU only when a full ring of command
@@ -89,15 +88,10 @@ public:
     {
         std::uint64_t stagingBufferSize{ 64 * 1024 * 1024 };      // Default 64 MB
         std::uint64_t overflowThreshold{ stagingBufferSize / 2 }; // Threshold for the overflow path
+        std::uint32_t framesInFlight{ 2 };
     };
 
-    // Number of command buffers cycled through; matches the renderer's frames-in-flight so an
-    // upload batch can be recorded while a previous one is still executing on the GPU.
-    static constexpr std::uint32_t framesInFlight{ 2 };
-
-    [[nodiscard]] static auto create(Device& device, std::uint32_t queueFamily)
-        -> std::expected<UploadManager, Error>;
-    [[nodiscard]] static auto create(Device& device, std::uint32_t queueFamily, const Desc& desc)
+    [[nodiscard]] static auto create(Device& device, std::uint32_t queueFamily, const Desc& desc = {})
         -> std::expected<UploadManager, Error>;
 
     /// @brief Stages 'data' and records a copy into 'dst' at 'dstOffset'. Never blocks.
@@ -105,93 +99,25 @@ public:
     ///         allocation right now. On failure the caller should flushPending() (which reclaims
     ///         completed batches) and retry.
     [[nodiscard]] auto upload(const Buffer& dst, std::span<const std::byte> data,
-        std::size_t alignment = 4, std::size_t dstOffset = 0) -> bool
-    {
-        auto allocation = m_stagingBuffer.allocate(data.size(), alignment);
-        if (!allocation)
-            return false;
-
-        std::memcpy(allocation->data + allocation->offset, data.data(), data.size());
-
-        auto& cmd = m_cmds[m_recordIndex];
-        if (!m_batchOpen)
-        {
-            // Safe to (re)record: a previous flush guaranteed this command buffer is not in flight.
-            cmd.begin(true);
-            m_batchOpen = true;
-        }
-
-        cmd.copyBuffer(m_stagingBuffer.buffer(), dst, data.size(), allocation->offset, dstOffset);
-        m_pendingEndOffset = allocation->offset + allocation->size;
-        return true;
-    }
+        std::size_t alignment = 4, std::size_t dstOffset = 0) -> bool;
 
     /// @brief Image uploads are not implemented yet (out of scope for the buffer-first pass).
-    [[nodiscard]] auto upload(const Image& dst, std::span<const std::byte> data) -> bool
-    {
-        // TODO: transition layout to transfer-dst optimal, record a copy per mip/layer, transition
-        //       back (and optionally generate mipmaps), mirroring the buffer batch lifecycle.
-        (void) dst;
-        (void) data;
-        return false;
-    }
+    [[nodiscard]] auto upload(const Image& dst, std::span<const std::byte> data) -> bool;
 
     /// @brief Submits the currently open batch and reclaims completed staging memory.
     /// @return The timeline value the submitted batch signals, or nullopt if nothing was submitted.
-    auto flushPending(Queue& queue) -> std::optional<TimelineValue>
-    {
-        if (!m_batchOpen)
-        {
-            // Nothing to submit. Drain the oldest in-flight batch so a caller that is flush
-            // ing to
-            // free staging space (e.g. after upload() returned false) makes forward progress.
-            if (!m_inFlight.empty())
-                reclaimFront(queue);
-            return std::nullopt;
-        }
-
-        auto& cmd = m_cmds[m_recordIndex];
-        cmd.end();
-
-        auto timelineValue = queue.submit(cmd);
-        if (!timelineValue)
-        {
-            m_batchOpen = false;
-            return std::nullopt;
-        }
-
-        m_inFlight.push_back(InFlight{
-            .completeTime = *timelineValue,
-            .endOffset = m_pendingEndOffset,
-        });
-        m_batchOpen = false;
-        m_recordIndex = (m_recordIndex + 1) % framesInFlight;
-
-        // Keep at most framesInFlight-1 batches outstanding so the command buffer the next batch
-        // records into is free to reset. This is the only blocking point on the happy path, and it
-        // only waits when the GPU is a full ring of command buffers behind.
-        while (m_inFlight.size() >= framesInFlight)
-            reclaimFront(queue);
-
-        return *timelineValue;
-    }
+    auto flushPending(Queue& queue) -> std::optional<TimelineValue>;
 
 private:
     struct InFlight
     {
-        TimelineValue completeTime;
-        std::size_t endOffset;
+        TimelineValue completeTime{ 0 };
+        std::size_t endOffset{ 0 };
     };
 
     UploadManager(CommandPool cmdPool, std::vector<CommandBuffer> cmds, StagingBuffer stagingBuffer);
 
-    auto reclaimFront(Queue& queue) -> void
-    {
-        const auto& front = m_inFlight.front();
-        queue.wait(front.completeTime);
-        m_stagingBuffer.reclaim(front.endOffset);
-        m_inFlight.pop_front();
-    }
+    auto reclaimFront(const Queue& queue) -> void;
 
     CommandPool m_cmdPool;
     std::vector<CommandBuffer> m_cmds;

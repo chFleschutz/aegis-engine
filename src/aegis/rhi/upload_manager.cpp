@@ -122,12 +122,6 @@ auto StagingBuffer::isRegionFree(std::size_t start, std::size_t end) const -> bo
     return start >= m_head && end <= m_tail;
 }
 
-auto UploadManager::create(Device& device, std::uint32_t queueFamily)
-    -> std::expected<UploadManager, Error>
-{
-    return create(device, queueFamily, Desc{});
-}
-
 auto UploadManager::create(Device& device, std::uint32_t queueFamily, const Desc& desc)
     -> std::expected<UploadManager, Error>
 {
@@ -136,13 +130,13 @@ auto UploadManager::create(Device& device, std::uint32_t queueFamily, const Desc
         return std::unexpected{ pool.error() };
 
     std::vector<CommandBuffer> cmds;
-    cmds.reserve(framesInFlight);
-    for (std::uint32_t i = 0; i < framesInFlight; ++i)
+    cmds.reserve(desc.framesInFlight);
+    for (std::uint32_t i = 0; i < desc.framesInFlight; ++i)
     {
         auto cmd = device.createCommandBuffer({ .name = "UploadManager", .pool = *pool });
         if (!cmd)
             return std::unexpected{ cmd.error() };
-        cmds.push_back(std::move(*cmd));
+        cmds.emplace_back(std::move(*cmd));
     }
 
     auto staging = StagingBuffer::create(device, desc.stagingBufferSize);
@@ -152,11 +146,87 @@ auto UploadManager::create(Device& device, std::uint32_t queueFamily, const Desc
     return UploadManager{ std::move(*pool), std::move(cmds), std::move(*staging) };
 }
 
+auto UploadManager::upload(const Buffer& dst, std::span<const std::byte> data, std::size_t alignment,
+    std::size_t dstOffset) -> bool
+
+{
+    auto allocation = m_stagingBuffer.allocate(data.size(), alignment);
+    if (!allocation)
+        return false;
+
+    std::memcpy(allocation->data + allocation->offset, data.data(), data.size());
+
+    auto& cmd = m_cmds[m_recordIndex];
+    if (!m_batchOpen)
+    {
+        // Safe to (re)record: a previous flush guaranteed this command buffer is not in flight.
+        cmd.begin(true);
+        m_batchOpen = true;
+    }
+
+    cmd.copyBuffer(m_stagingBuffer.buffer(), dst, data.size(), allocation->offset, dstOffset);
+    m_pendingEndOffset = allocation->offset + allocation->size;
+    return true;
+}
+
+auto UploadManager::upload(const Image& dst, std::span<const std::byte> data) -> bool
+{
+    // TODO: transition layout to transfer-dst optimal, record a copy per mip/layer, transition
+    //       back (and optionally generate mipmaps), mirroring the buffer batch lifecycle.
+    (void) dst;
+    (void) data;
+    return false;
+}
+
+auto UploadManager::flushPending(Queue& queue) -> std::optional<TimelineValue>
+
+{
+    if (!m_batchOpen)
+    {
+        // Nothing to submit. Drain the oldest in-flight batch so a caller flushing to
+        // free staging space (e.g. after upload() returned false) makes forward progress.
+        if (!m_inFlight.empty())
+            reclaimFront(queue);
+        return std::nullopt;
+    }
+
+    auto& cmd = m_cmds[m_recordIndex];
+    cmd.end();
+
+    m_batchOpen = false;
+
+    auto timelineValue = queue.submit(cmd);
+    if (!timelineValue)
+        return std::nullopt;
+
+    m_inFlight.emplace_back(InFlight{
+        .completeTime = *timelineValue,
+        .endOffset = m_pendingEndOffset,
+    });
+    m_recordIndex = (m_recordIndex + 1) % m_cmds.size();
+
+    // Keep at most framesInFlight-1 batches outstanding so the command buffer the next batch
+    // records into is free to reset. This is the only blocking point on the happy path, and it
+    // only waits when the GPU is a full ring of command buffers behind.
+    while (m_inFlight.size() >= m_cmds.size())
+        reclaimFront(queue);
+
+    return *timelineValue;
+}
+
 UploadManager::UploadManager(CommandPool cmdPool, std::vector<CommandBuffer> cmds,
     StagingBuffer stagingBuffer) :
     m_cmdPool{ std::move(cmdPool) },
     m_cmds{ std::move(cmds) },
     m_stagingBuffer{ std::move(stagingBuffer) }
 {
+}
+
+auto UploadManager::reclaimFront(const Queue& queue) -> void
+{
+    const auto& [completeTime, endOffset] = m_inFlight.front();
+    std::ignore = queue.wait(completeTime);
+    m_stagingBuffer.reclaim(endOffset);
+    m_inFlight.pop_front();
 }
 }
