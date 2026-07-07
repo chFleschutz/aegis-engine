@@ -1,8 +1,11 @@
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <fstream>
 #include <print>
+#include <span>
 
 import aegis.platform.window;
 import aegis.renderer;
@@ -112,36 +115,14 @@ public:
             return std::unexpected{ "Failed to create depth image" };
         engine.m_depthTexture = std::move(*depthTexture);
 
-        // rhi::Buffer::Desc bufferDesc{
-        //     .name = "TestUniformBuffer",
-        //     .size = sizeof(float),
-        //     .usage = rhi::BufferUsage::Uniform,
-        // };
-        // auto buffer = engine.m_device->createBuffer(bufferDesc);
-        // if (!buffer)
-        //     return std::unexpected{ "Failed to create buffer" };
-        //
-        // auto uploadPool = engine.m_device->createCommandPool({
-        //     .name = "Upload Command Pool",
-        //     .queueFamily = engine.m_device->graphicsQueue().family(),
-        // });
-        // if (!uploadPool)
-        //     return std::unexpected{ "Failed to create upload command pool" };
-        //
-        // auto uploadCmd = engine.m_device->createCommandBuffer({
-        //     .name = "Upload Command Buffer",
-        //     .pool = *uploadPool,
-        // });
-        // if (!uploadCmd)
-        //     return std::unexpected{ "Failed to create upload command buffer" };
+        if (auto result = engine.verifyUpload(); !result)
+            return std::unexpected{ result.error() };
 
         return engine;
     }
 
     auto run() -> int
     {
-        // upload();
-
         while (!m_window->shouldClose())
         {
             m_window->update();
@@ -209,19 +190,82 @@ public:
         cmd.end();
     }
 
-    // void upload()
-    // {
-    //     m_uploadCmd.begin(true);
-    //     m_uploadCmd.beginLabel("UploadCmdBuffer");
-    //
-    //     m_uploadCmd.endLabel();
-    //     m_uploadCmd.end();
-    //
-    //     auto value = m_device.graphicsQueue().submit(m_uploadCmd);
-    //     if (!value)
-    //         return;
-    //     m_device.graphicsQueue().wait(*value);
-    // }
+    // Smoke-tests Device::upload / flushUploads: stage known bytes into a device-local buffer,
+    // then read them back through a CpuRead buffer to prove the copy actually landed.
+    auto verifyUpload() -> std::expected<void, std::string>
+    {
+        constexpr std::array<std::uint32_t, 4> srcData{
+            0xDEADBEEF, 0x12345678, 0xCAFEBABE, 0x0BADF00D
+        };
+        constexpr auto byteSize = srcData.size() * sizeof(std::uint32_t);
+
+        // TransferDst (upload target) | TransferSrc (readback source). The flag-enum operator| lives
+        // in the unexported rhi::utility namespace, so combine the bits explicitly here.
+        constexpr auto deviceLocalUsage = static_cast<rhi::BufferUsage>(
+            static_cast<std::uint32_t>(rhi::BufferUsage::TransferDst) |
+            static_cast<std::uint32_t>(rhi::BufferUsage::TransferSrc));
+
+        auto deviceLocal = m_device->createBuffer({
+            .name = "UploadTestDeviceLocal",
+            .size = byteSize,
+            .usage = deviceLocalUsage,
+            .memory = rhi::MemoryUsage::GpuOnly,
+        });
+        if (!deviceLocal)
+            return std::unexpected{ "Failed to create device-local upload target" };
+
+        if (!m_device->upload(*deviceLocal, std::as_bytes(std::span{ srcData })))
+            return std::unexpected{ "UploadManager could not stage the test data" };
+
+        auto uploadTimeline = m_device->flushUploads();
+        if (!uploadTimeline)
+            return std::unexpected{ "flushUploads did not submit a batch" };
+        m_device->graphicsQueue().wait(*uploadTimeline);
+
+        auto readback = m_device->createBuffer({
+            .name = "UploadTestReadback",
+            .size = byteSize,
+            .usage = rhi::BufferUsage::TransferDst,
+            .memory = rhi::MemoryUsage::CpuRead,
+        });
+        if (!readback)
+            return std::unexpected{ "Failed to create readback buffer" };
+
+        auto copyPool = m_device->createCommandPool({
+            .name = "UploadTestReadbackPool",
+            .queueFamily = m_device->graphicsQueue().family(),
+        });
+        if (!copyPool)
+            return std::unexpected{ "Failed to create readback command pool" };
+
+        auto copyCmd = m_device->createCommandBuffer({
+            .name = "UploadTestReadbackCmd",
+            .pool = *copyPool,
+        });
+        if (!copyCmd)
+            return std::unexpected{ "Failed to create readback command buffer" };
+
+        copyCmd->begin(true);
+        copyCmd->copyBuffer(m_device->get(*deviceLocal), m_device->get(*readback), byteSize);
+        copyCmd->end();
+
+        auto copyTimeline = m_device->graphicsQueue().submit(*copyCmd);
+        if (!copyTimeline)
+            return std::unexpected{ "Failed to submit readback copy" };
+        m_device->graphicsQueue().wait(*copyTimeline);
+
+        std::array<std::uint32_t, 4> dstData{};
+        m_device->get(*readback).read(reinterpret_cast<std::byte*>(dstData.data()), byteSize);
+
+        m_device->free(*deviceLocal);
+        m_device->free(*readback);
+
+        if (dstData != srcData)
+            return std::unexpected{ "Upload readback mismatch" };
+
+        std::println("Upload round-trip verified: {} bytes match after UploadManager copy", byteSize);
+        return {};
+    }
 
 private:
     Engine() = default;
@@ -233,9 +277,6 @@ private:
 
     std::optional<rhi::Pipeline> m_pipeline;
     renderer::Texture m_depthTexture;
-
-    // rhi::CommandPool m_uploadPool;
-    // rhi::CommandBuffer m_uploadCmd;
 };
 }
 

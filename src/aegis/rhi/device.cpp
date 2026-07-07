@@ -1,10 +1,13 @@
 module;
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <expected>
 #include <format>
+#include <optional>
 #include <ranges>
 #include <set>
+#include <span>
 #include <vector>
 
 module aegis.rhi;
@@ -12,6 +15,7 @@ import :device;
 import :context;
 import :debug;
 import :error;
+import :upload_manager;
 import :utility;
 import :vulkan_conversions;
 import vulkan_hpp;
@@ -187,6 +191,17 @@ auto Device::setFrameCompleted(TimelineValue frame) -> void
     m_deletionQueue.collect(frame);
 }
 
+auto Device::upload(BufferHandle dst, std::span<const std::byte> data, std::size_t alignment,
+    std::size_t dstOffset) -> bool
+{
+    return m_uploadManager->upload(get(dst), data, alignment, dstOffset);
+}
+
+auto Device::flushUploads() -> std::optional<TimelineValue>
+{
+    return m_uploadManager->flushPending(m_graphicsQueue);
+}
+
 auto Device::createCommandBuffer(const CommandBuffer::Desc& desc) const -> std::expected<CommandBuffer, Error>
 {
     return CommandBuffer::create(*this, desc);
@@ -287,7 +302,7 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
     if (!bindless)
         return std::unexpected{ bindless.error() };
 
-    return std::make_unique<Device>(
+    auto result = std::make_unique<Device>(
         std::move(*physicalDevice),
         std::move(*device),
         std::move(*allocator),
@@ -298,6 +313,15 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
         capabilities,
         properties,
         std::move(*bindless));
+
+    // Created after the Device exists because UploadManager::create calls back into
+    // device.createBuffer / createCommandPool. Flushes on the graphics queue for now.
+    auto uploadManager = UploadManager::create(*result, result->graphicsQueue().family(), {});
+    if (!uploadManager)
+        return std::unexpected{ uploadManager.error() };
+    result->m_uploadManager.emplace(std::move(*uploadManager));
+
+    return result;
 }
 
 auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface)

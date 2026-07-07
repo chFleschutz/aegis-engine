@@ -1,8 +1,11 @@
 module;
 #include <array>
+#include <cstddef>
 #include <expected>
 #include <functional>
 #include <memory>
+#include <optional>
+#include <span>
 #include <string>
 
 export module aegis.rhi:device;
@@ -18,6 +21,7 @@ import :pipeline;
 import :queue;
 import :resource_pool;
 import :swapchain;
+import :upload_manager;
 import aegis.platform.window;
 import vulkan_hpp;
 
@@ -101,6 +105,16 @@ public:
     auto free(ImageViewHandle handle) -> void;
 
     auto setFrameCompleted(TimelineValue frame) -> void;
+
+    /// @brief Stages 'data' and records a copy into the buffer 'dst' at 'dstOffset'. Never blocks.
+    /// @return false if the staging ring could not satisfy the allocation right now; the caller
+    ///         should flushUploads() (which reclaims completed batches) and retry.
+    [[nodiscard]] auto upload(BufferHandle dst, std::span<const std::byte> data,
+        std::size_t alignment = 4, std::size_t dstOffset = 0) -> bool;
+
+    /// @brief Submits the open upload batch on the graphics queue and reclaims completed staging.
+    /// @return The timeline value the submitted batch signals, or nullopt if nothing was submitted.
+    auto flushUploads() -> std::optional<TimelineValue>;
 
     [[nodiscard]] auto createCommandBuffer(const CommandBuffer::Desc& desc) const
         -> std::expected<CommandBuffer, Error>;
@@ -188,6 +202,7 @@ private:
     ResourcePool<ImageView> m_imageViews;
     DeletionQueue m_deletionQueue;
     BindlessHeap m_bindlessHeap;
+    std::optional<UploadManager> m_uploadManager;
     TimelineValue m_currentValue{ 0 };
 };
 }
