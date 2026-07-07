@@ -15,14 +15,6 @@ import :resource_handle;
 
 namespace aegis::rhi
 {
-StagingBuffer::StagingBuffer(Device& device, BufferHandle handle, std::byte* data, std::size_t size) :
-    m_device{ &device },
-    m_handle{ handle },
-    m_data{ data },
-    m_size{ size }
-{
-}
-
 StagingBuffer::StagingBuffer(StagingBuffer&& other) noexcept :
     m_device{ other.m_device },
     m_handle{ other.m_handle },
@@ -32,6 +24,12 @@ StagingBuffer::StagingBuffer(StagingBuffer&& other) noexcept :
     m_tail{ other.m_tail }
 {
     other.m_device = nullptr;
+}
+
+StagingBuffer::~StagingBuffer()
+{
+    if (m_device)
+        m_device->free(m_handle);
 }
 
 auto StagingBuffer::operator=(StagingBuffer&& other) noexcept -> StagingBuffer&
@@ -52,17 +50,6 @@ auto StagingBuffer::operator=(StagingBuffer&& other) noexcept -> StagingBuffer&
     return *this;
 }
 
-StagingBuffer::~StagingBuffer()
-{
-    if (m_device)
-        m_device->free(m_handle);
-}
-
-auto StagingBuffer::buffer() const -> const Buffer&
-{
-    return m_device->get(m_handle);
-}
-
 auto StagingBuffer::create(Device& device, std::size_t size) -> std::expected<StagingBuffer, Error>
 {
     auto handle = device.createBuffer({
@@ -79,12 +66,60 @@ auto StagingBuffer::create(Device& device, std::size_t size) -> std::expected<St
     return StagingBuffer{ device, *handle, data, size };
 }
 
-UploadManager::UploadManager(CommandPool cmdPool, std::vector<CommandBuffer> cmds,
-    StagingBuffer stagingBuffer) :
-    m_cmdPool{ std::move(cmdPool) },
-    m_cmds{ std::move(cmds) },
-    m_stagingBuffer{ std::move(stagingBuffer) }
+auto StagingBuffer::buffer() const -> const Buffer&
 {
+    return m_device->get(m_handle);
+}
+
+auto StagingBuffer::allocate(std::size_t size, std::size_t alignment) -> std::expected<Allocation, AllocError>
+{
+    if (size == 0)
+        return std::unexpected{ AllocError::ZeroSizeAllocation };
+
+    if (size > m_size)
+        return std::unexpected{ AllocError::ExceedsBufferSize };
+
+    auto alignedHead = utility::alignTo(m_head, alignment);
+    if (alignedHead + size <= m_size)
+    {
+        // Fits before capacity -> no wrap-around
+        if (!isRegionFree(alignedHead, alignedHead + size))
+            return std::unexpected{ AllocError::MemoryExhausted };
+
+        m_head = alignedHead + size;
+        return Allocation{ .data = m_data, .offset = alignedHead, .size = size };
+    }
+
+    // Does not fit before capacity -> wrap-around to the front
+    if (!isRegionFree(0, size))
+        return std::unexpected{ AllocError::MemoryExhausted };
+
+    m_head = size;
+    return Allocation{ .data = m_data, .offset = 0, .size = size };
+}
+
+StagingBuffer::StagingBuffer(Device& device, BufferHandle handle, std::byte* data, std::size_t size) :
+    m_device{ &device },
+    m_handle{ handle },
+    m_data{ data },
+    m_size{ size }
+{
+}
+
+auto StagingBuffer::isRegionFree(std::size_t start, std::size_t end) const -> bool
+
+{
+    if (start > end)
+        return false; // Cannot allocate a wrapped region
+
+    if (m_tail <= m_head)
+    {
+        // Occupied: [tail, head)  ->  Free: [0, tail) + [head, capacity)
+        return start >= m_head || end <= m_tail;
+    }
+
+    // Occupied (wrapped): [0, head) + [tail, capacity)  ->  Free: [head, tail)
+    return start >= m_head && end <= m_tail;
 }
 
 auto UploadManager::create(Device& device, std::uint32_t queueFamily)
@@ -115,5 +150,13 @@ auto UploadManager::create(Device& device, std::uint32_t queueFamily, const Desc
         return std::unexpected{ staging.error() };
 
     return UploadManager{ std::move(*pool), std::move(cmds), std::move(*staging) };
+}
+
+UploadManager::UploadManager(CommandPool cmdPool, std::vector<CommandBuffer> cmds,
+    StagingBuffer stagingBuffer) :
+    m_cmdPool{ std::move(cmdPool) },
+    m_cmds{ std::move(cmds) },
+    m_stagingBuffer{ std::move(stagingBuffer) }
+{
 }
 }

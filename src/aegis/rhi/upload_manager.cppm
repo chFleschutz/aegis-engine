@@ -20,10 +20,9 @@ import :utility;
 
 export namespace aegis::rhi
 {
-/// @brief A persistently-mapped, host-visible ring buffer used to stage CPU data for GPU uploads.
-/// @note The buffer itself is owned by the Device (created via Device::createBuffer); this type
-///       holds the handle and frees it on destruction. Sub-allocations are handed out in FIFO
-///       order and must be reclaimed (tail advanced) once the GPU no longer reads them.
+/// @brief A persistently mapped, host-visible ring buffer used to stage CPU data for GPU uploads.
+/// @note The Device owns the buffer itself, this type only holds a handle and automatically frees it.
+///       Sub-allocations are handed out in FIFO order and must be reclaimed after the GPU no longer needs them.
 class StagingBuffer
 {
 public:
@@ -55,34 +54,9 @@ public:
     [[nodiscard]] auto size() const noexcept -> std::size_t { return m_size; }
 
     /// @brief Reserves 'size' bytes aligned to 'alignment' from the ring. Never blocks.
-    /// @return The allocation, or MemoryExhausted if the ring cannot satisfy it right now.
+    /// @return The allocation, or an Error if the ring cannot allocate it.
     auto allocate(std::size_t size, std::size_t alignment)
-        -> std::expected<Allocation, AllocError>
-    {
-        if (size == 0)
-            return std::unexpected{ AllocError::ZeroSizeAllocation };
-
-        if (size > m_size)
-            return std::unexpected{ AllocError::ExceedsBufferSize };
-
-        auto alignedHead = utility::alignTo(m_head, alignment);
-        if (alignedHead + size <= m_size)
-        {
-            // Fits before capacity -> no wrap-around
-            if (!isRegionFree(alignedHead, alignedHead + size))
-                return std::unexpected{ AllocError::MemoryExhausted };
-
-            m_head = alignedHead + size;
-            return Allocation{ .data = m_data, .offset = alignedHead, .size = size };
-        }
-
-        // Does not fit before capacity -> wrap-around to the front
-        if (!isRegionFree(0, size))
-            return std::unexpected{ AllocError::MemoryExhausted };
-
-        m_head = size;
-        return Allocation{ .data = m_data, .offset = 0, .size = size };
-    }
+        -> std::expected<Allocation, AllocError>;
 
     /// @brief Frees everything up to (and including) the given allocation end offset.
     auto reclaim(std::size_t allocEndOffset) -> void { m_tail = allocEndOffset; }
@@ -91,20 +65,7 @@ private:
     StagingBuffer(Device& device, BufferHandle handle, std::byte* data, std::size_t size);
 
     /// @brief Whether [start, end) (end exclusive) lies entirely inside the free region.
-    [[nodiscard]] auto isRegionFree(std::size_t start, std::size_t end) const -> bool
-    {
-        if (start > end)
-            return false; // Cannot allocate a wrapped region
-
-        if (m_tail <= m_head)
-        {
-            // Occupied: [tail, head)  ->  Free: [0, tail) + [head, capacity)
-            return start >= m_head || end <= m_tail;
-        }
-
-        // Occupied (wrapped): [0, head) + [tail, capacity)  ->  Free: [head, tail)
-        return start >= m_head && end <= m_tail;
-    }
+    [[nodiscard]] auto isRegionFree(std::size_t start, std::size_t end) const -> bool;
 
     Device* m_device;
     BufferHandle m_handle;
@@ -170,8 +131,8 @@ public:
     {
         // TODO: transition layout to transfer-dst optimal, record a copy per mip/layer, transition
         //       back (and optionally generate mipmaps), mirroring the buffer batch lifecycle.
-        (void)dst;
-        (void)data;
+        (void) dst;
+        (void) data;
         return false;
     }
 
