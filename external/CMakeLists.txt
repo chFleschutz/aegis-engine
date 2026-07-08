@@ -24,3 +24,7 @@ add_subdirectory(tinyobjloader)
 add_subdirectory(vma)
 
 add_subdirectory(volk)
+
+set(DOCTEST_WITH_TESTS OFF)
+set(DOCTEST_NO_INSTALL ON)
+add_subdirectory(doctest)

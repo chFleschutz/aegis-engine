@@ -26,6 +26,12 @@ target_compile_definitions(aegis-engine PUBLIC
     BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}"
 )
 
+option(AEGIS_BUILD_TESTS "Build unit tests" ${PROJECT_IS_TOP_LEVEL})
+if(AEGIS_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
