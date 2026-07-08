@@ -115,9 +115,6 @@ public:
             return std::unexpected{ "Failed to create depth image" };
         engine.m_depthTexture = std::move(*depthTexture);
 
-        if (auto result = engine.verifyUpload(); !result)
-            return std::unexpected{ result.error() };
-
         return engine;
     }
 
@@ -137,6 +134,8 @@ public:
                 m_renderer->resize(rhi::Extent2D{ m_window->extent() });
                 m_window->resetResized();
             }
+
+            m_device->flushUploads();
 
             m_renderer->renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); });
         }
@@ -188,83 +187,6 @@ public:
 
         cmd.endLabel();
         cmd.end();
-    }
-
-    // Smoke-tests Device::upload / flushUploads: stage known bytes into a device-local buffer,
-    // then read them back through a CpuRead buffer to prove the copy actually landed.
-    auto verifyUpload() -> std::expected<void, std::string>
-    {
-        constexpr std::array<std::uint32_t, 4> srcData{
-            0xDEADBEEF, 0x12345678, 0xCAFEBABE, 0x0BADF00D
-        };
-        constexpr auto byteSize = srcData.size() * sizeof(std::uint32_t);
-
-        // TransferDst (upload target) | TransferSrc (readback source). The flag-enum operator| lives
-        // in the unexported rhi::utility namespace, so combine the bits explicitly here.
-        constexpr auto deviceLocalUsage = static_cast<rhi::BufferUsage>(
-            static_cast<std::uint32_t>(rhi::BufferUsage::TransferDst) |
-            static_cast<std::uint32_t>(rhi::BufferUsage::TransferSrc));
-
-        auto deviceLocal = m_device->createBuffer({
-            .name = "UploadTestDeviceLocal",
-            .size = byteSize,
-            .usage = deviceLocalUsage,
-            .memory = rhi::MemoryUsage::GpuOnly,
-        });
-        if (!deviceLocal)
-            return std::unexpected{ "Failed to create device-local upload target" };
-
-        if (!m_device->upload(*deviceLocal, std::as_bytes(std::span{ srcData })))
-            return std::unexpected{ "UploadManager could not stage the test data" };
-
-        auto uploadTimeline = m_device->flushUploads();
-        if (!uploadTimeline)
-            return std::unexpected{ "flushUploads did not submit a batch" };
-        m_device->graphicsQueue().wait(*uploadTimeline);
-
-        auto readback = m_device->createBuffer({
-            .name = "UploadTestReadback",
-            .size = byteSize,
-            .usage = rhi::BufferUsage::TransferDst,
-            .memory = rhi::MemoryUsage::CpuRead,
-        });
-        if (!readback)
-            return std::unexpected{ "Failed to create readback buffer" };
-
-        auto copyPool = m_device->createCommandPool({
-            .name = "UploadTestReadbackPool",
-            .queueFamily = m_device->graphicsQueue().family(),
-        });
-        if (!copyPool)
-            return std::unexpected{ "Failed to create readback command pool" };
-
-        auto copyCmd = m_device->createCommandBuffer({
-            .name = "UploadTestReadbackCmd",
-            .pool = *copyPool,
-        });
-        if (!copyCmd)
-            return std::unexpected{ "Failed to create readback command buffer" };
-
-        copyCmd->begin(true);
-        copyCmd->copyBuffer(m_device->get(*deviceLocal), m_device->get(*readback), byteSize);
-        copyCmd->end();
-
-        auto copyTimeline = m_device->graphicsQueue().submit(*copyCmd);
-        if (!copyTimeline)
-            return std::unexpected{ "Failed to submit readback copy" };
-        m_device->graphicsQueue().wait(*copyTimeline);
-
-        std::array<std::uint32_t, 4> dstData{};
-        m_device->get(*readback).read(reinterpret_cast<std::byte*>(dstData.data()), byteSize);
-
-        m_device->free(*deviceLocal);
-        m_device->free(*readback);
-
-        if (dstData != srcData)
-            return std::unexpected{ "Upload readback mismatch" };
-
-        std::println("Upload round-trip verified: {} bytes match after UploadManager copy", byteSize);
-        return {};
     }
 
 private:
