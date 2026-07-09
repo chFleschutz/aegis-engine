@@ -65,6 +65,13 @@ descriptors**.
 **Never `#include <vulkan/vulkan.h>` directly** — new RHI uses `import vulkan_hpp`; the old stack
 uses `graphics/vulkan/vulkan_include.h` (which loads volk with `VK_NO_PROTOTYPES`).
 
+### Formatting (clang-format)
+One global root `.clang-format` (clang-format **22.x**), encoding the new-RHI style. It's a
+normalizer, not a reflow engine (`ColumnLimit: 0` keeps your line breaks). **Adopt diff-only** —
+format just what you changed with `git clang-format`; never `clang-format -i` whole files. Editing an
+old-stack file nudges changed lines toward new-RHI style (intended). Guard deliberately hand-aligned
+blocks (e.g. enum tables — `AlignConsecutive*` is off) with `// clang-format off` / `on`.
+
 ## Unit tests
 
 doctest (vendored at `external/doctest`) covers **pure, GPU-independent logic** on the new RHI
