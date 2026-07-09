@@ -17,6 +17,16 @@ CMake ≥3.28 + Ninja via presets (`build/<preset>/`). Default preset: `windows-
 - MSVC presets (`windows-msvc-*`) require a Visual Studio developer shell (`VSCMD_VER` set).
 - Requires `git clone --recurse-submodules` — assets live in the `aegis-assets` submodule.
 
+> **Vulkan SDK version matters — configure fails fast with the wrong one.** Configure **rejects** 
+> any SDK that hardcodes `export import std;` (~1.4.350+). Point the build at a **guarded** SDK 
+> such as **1.4.328.1** — if your installed `VULKAN_SDK` is a newer hardcoded one, override it per 
+> configure:
+>
+>     cmake --preset windows-clang-debug -DVulkan_ROOT="C:/VulkanSDK/1.4.328.1"
+>
+> (or set `VULKAN_SDK`/`Vulkan_ROOT` in the environment). See the unit-tests section for the full
+> rationale.
+
 ### Examples (integration smoke tests — verify device-level work by building clean + running an example)
 Executable targets are the PascalCase `project()` names: `Simple-Scene`, `Sponza`, `Eval-Scene`,
 `Helmets`, `Template-Scene`. Build one and run its exe:

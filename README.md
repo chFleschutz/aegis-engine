@@ -35,10 +35,17 @@ C++ render engine developed with Vulkan to explore low level graphics programmin
 ## Prerequisites <a name="prerequisites"></a>
 
 Before building ensure you have the following installed:
-- [Vulkan SDK](https://vulkan.lunarg.com/) - Download and install the latest version (at least version 1.3).
+- [Vulkan SDK](https://vulkan.lunarg.com/) - Install version **1.4.328.1** (see the version note below).
 - CMake - Used for building the project. Either install it manually or use an IDE with built-in CMake support (like Visual Studio)
 
 > Note: The engine currently only targets Windows.
+
+> [!IMPORTANT]
+> **Vulkan SDK version:** the modules-based build needs a Vulkan SDK that *guards* its C++ `std`
+> module behind a feature macro (e.g. **1.4.328.1**). Newer SDKs (~1.4.350 and later) hardcode
+> `export import std;`, which the toolchain can't build yet, so CMake **configure fails fast**
+> against them. If your `VULKAN_SDK` points at such a version, install 1.4.328.1 and point the
+> build at it, e.g. `cmake --preset windows-clang-debug -DVulkan_ROOT="C:/VulkanSDK/1.4.328.1"`.
 
 ## Getting Started <a name="getting-started"></a>
 
