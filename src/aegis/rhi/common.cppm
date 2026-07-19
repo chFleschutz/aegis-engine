@@ -142,17 +142,19 @@ struct Extent2D
     std::uint32_t x{ 0 };
     std::uint32_t y{ 0 };
 
-    Extent2D(std::uint32_t x, std::uint32_t y) :
+    constexpr Extent2D(std::uint32_t x, std::uint32_t y) :
         x{ x },
         y{ y }
     {
     }
 
-    explicit Extent2D(std::pair<std::uint32_t, std::uint32_t> pair) :
+    explicit constexpr Extent2D(std::pair<std::uint32_t, std::uint32_t> pair) :
         x{ pair.first },
         y{ pair.second }
     {
     }
+
+    constexpr auto operator<=>(const Extent2D&) const = default;
 };
 
 struct Extent3D
@@ -161,21 +163,23 @@ struct Extent3D
     std::uint32_t y;
     std::uint32_t z;
 
-    Extent3D(std::uint32_t x, std::uint32_t y, std::uint32_t z) :
+    constexpr Extent3D(std::uint32_t x, std::uint32_t y, std::uint32_t z) :
         x{ x },
         y{ y },
         z{ z }
     {
     }
 
-    explicit Extent3D(Extent2D extent) :
+    explicit constexpr Extent3D(Extent2D extent) :
         x{ extent.x },
         y{ extent.y },
         z{ 1 }
     {
     }
 
-    [[nodiscard]] auto toExtent2D() const noexcept -> Extent2D { return { x, y }; }
+    constexpr auto operator<=>(const Extent3D&) const = default;
+
+    [[nodiscard]] constexpr auto toExtent2D() const noexcept -> Extent2D { return { x, y }; }
 };
 
 struct ClearColor
