@@ -21,9 +21,7 @@ StagingBuffer::StagingBuffer(StagingBuffer&& other) noexcept :
     m_device{ other.m_device },
     m_handle{ other.m_handle },
     m_data{ other.m_data },
-    m_size{ other.m_size },
-    m_head{ other.m_head },
-    m_tail{ other.m_tail }
+    m_ring{ other.m_ring }
 {
     other.m_device = nullptr;
 }
@@ -44,9 +42,7 @@ auto StagingBuffer::operator=(StagingBuffer&& other) noexcept -> StagingBuffer&
         m_device = other.m_device;
         m_handle = other.m_handle;
         m_data = other.m_data;
-        m_size = other.m_size;
-        m_head = other.m_head;
-        m_tail = other.m_tail;
+        m_ring = other.m_ring;
         other.m_device = nullptr;
     }
     return *this;
@@ -75,53 +71,18 @@ auto StagingBuffer::buffer() const -> const Buffer&
 
 auto StagingBuffer::allocate(std::size_t size, std::size_t alignment) -> std::expected<Allocation, AllocError>
 {
-    if (size == 0)
-        return std::unexpected{ AllocError::ZeroSizeAllocation };
-
-    if (size > m_size)
-        return std::unexpected{ AllocError::ExceedsBufferSize };
-
-    auto alignedHead = utility::alignTo(m_head, alignment);
-    if (alignedHead + size <= m_size)
-    {
-        // Fits before capacity -> no wrap-around
-        if (!isRegionFree(alignedHead, alignedHead + size))
-            return std::unexpected{ AllocError::MemoryExhausted };
-
-        m_head = alignedHead + size;
-        return Allocation{ .data = m_data, .offset = alignedHead, .size = size };
-    }
-
-    // Does not fit before capacity -> wrap-around to the front
-    if (!isRegionFree(0, size))
-        return std::unexpected{ AllocError::MemoryExhausted };
-
-    m_head = size;
-    return Allocation{ .data = m_data, .offset = 0, .size = size };
+    return m_ring.allocate(size, alignment)
+        .transform([&](std::size_t offset) {
+            return Allocation{ .data = m_data, .offset = offset, .size = size };
+        });
 }
 
 StagingBuffer::StagingBuffer(Device& device, BufferHandle handle, std::byte* data, std::size_t size) :
     m_device{ &device },
     m_handle{ handle },
     m_data{ data },
-    m_size{ size }
+    m_ring{ size }
 {
-}
-
-auto StagingBuffer::isRegionFree(std::size_t start, std::size_t end) const -> bool
-
-{
-    if (start > end)
-        return false; // Cannot allocate a wrapped region
-
-    if (m_tail <= m_head)
-    {
-        // Occupied: [tail, head)  ->  Free: [0, tail) + [head, capacity)
-        return start >= m_head || end <= m_tail;
-    }
-
-    // Occupied (wrapped): [0, head) + [tail, capacity)  ->  Free: [head, tail)
-    return start >= m_head && end <= m_tail;
 }
 
 auto UploadManager::create(Device& device, std::uint32_t queueFamily, const Desc& desc)
@@ -175,8 +136,8 @@ auto UploadManager::upload(const Image& dst, std::span<const std::byte> data) ->
 {
     // TODO: transition layout to transfer-dst optimal, record a copy per mip/layer, transition
     //       back (and optionally generate mipmaps), mirroring the buffer batch lifecycle.
-    (void) dst;
-    (void) data;
+    (void)dst;
+    (void)data;
     return false;
 }
 

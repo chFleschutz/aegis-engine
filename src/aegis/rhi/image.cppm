@@ -10,6 +10,14 @@ import :fwd;
 import :memory;
 import vulkan_hpp;
 
+export namespace aegis::rhi::detail
+{
+/// @brief Number of mip levels in a full mip chain for an image of the given extent.
+/// @note Free function rather than an Image member: it is pure extent arithmetic that needs no
+///       image, which also keeps it unit-testable.
+[[nodiscard]] auto calcMipLevels(Extent3D extent) -> std::uint32_t;
+}
+
 export namespace aegis::rhi
 {
 class Image
@@ -39,8 +47,6 @@ public:
 private:
     [[nodiscard]] static auto create(const Device& device, const Desc& desc)
         -> std::expected<Image, Error>;
-
-    [[nodiscard]] static auto calcMipLevels(Extent3D extent) -> std::uint32_t;
 
     Image(ImageAllocation allocation, const Desc& desc);
 

@@ -12,12 +12,21 @@ import :error;
 import :vulkan_conversions;
 import vulkan_hpp;
 
+namespace aegis::rhi::detail
+{
+auto calcMipLevels(Extent3D extent) -> std::uint32_t
+{
+    const auto maxDim = std::max({ extent.x, extent.y, extent.z });
+    return static_cast<std::uint32_t>(std::floor(std::log2(maxDim))) + 1;
+}
+}
+
 namespace aegis::rhi
 {
 auto Image::create(const Device& device, const Desc& desc) -> std::expected<Image, Error>
 {
     std::uint32_t mipLevels = desc.mipLevels == Image::fullMipChain
-                                  ? calcMipLevels(desc.extent)
+                                  ? detail::calcMipLevels(desc.extent)
                                   : desc.mipLevels;
 
     vk::ImageCreateInfo imageInfo{
@@ -46,12 +55,6 @@ auto Image::create(const Device& device, const Desc& desc) -> std::expected<Imag
         std::move(*imageAlloc),
         desc,
     };
-}
-
-auto Image::calcMipLevels(Extent3D extent) -> std::uint32_t
-{
-    const auto maxDim = std::max({ extent.x, extent.y, extent.z });
-    return static_cast<std::uint32_t>(std::floor(std::log2(maxDim))) + 1;
 }
 
 Image::Image(ImageAllocation allocation, const Desc& desc) :

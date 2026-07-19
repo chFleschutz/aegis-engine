@@ -58,6 +58,7 @@ target_sources(aegis-rhi
         resource_handle.cppm
         resource_pool.cppm
         rhi.cppm
+        ring_allocator.cppm
         pipeline.cppm
         swapchain.cppm
         sync.cppm

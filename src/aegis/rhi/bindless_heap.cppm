@@ -45,9 +45,9 @@ public:
         }
 
         if (m_head < m_capacity)
-            return std::nullopt;
+            return m_head++;
 
-        return m_head++;
+        return std::nullopt;
     }
 
 private:
