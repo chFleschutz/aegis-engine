@@ -74,30 +74,33 @@ blocks (e.g. enum tables — `AlignConsecutive*` is off) with `// clang-format o
 
 ## Unit tests
 
-doctest (vendored at `external/doctest`) covers **pure, GPU-independent logic** on the new RHI
-stack. Tests live at root `tests/`, mirroring **module** names (not source paths). One executable
-per module (`aegis-tests-rhi`, `aegis-tests-math`), each linking only that module's library;
-`ctest` aggregates every case. Device-level coverage stays in the example smoke tests, not here.
+doctest covers **pure, GPU-independent logic** on the new RHI stack. One executable per module
+(`aegis-tests-rhi`, `aegis-tests-math`), each linking only that module's library. Layout,
+conventions, how to add a module, and the full rationale: **`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*
     ctest --preset windows-clang-debug                    # runs every case
     cmake --build --preset windows-clang-debug --target aegis-tests-rhi   # iterate one module
     ctest --preset windows-clang-debug -R "rhi::"
 
-- **Add a module:** new `tests/<module>/` + `CMakeLists.txt` with one
-  `aegis_add_test(<module> SOURCES <unit>.test.cpp LIBS aegis-<module>)`, plus
-  `add_subdirectory(<module>)` in `tests/CMakeLists.txt`. Tests are ordinary `.cpp` TUs:
-  `#include <doctest/doctest.h>` then `import aegis.<mod>;`.
-- **Naming:** file `<unit>.test.cpp`; `TEST_SUITE("<ns>::<Type>")`; `TEST_CASE` reads as a
-  present-tense behavior; `SUBCASE` for variations sharing setup. Prefer `CHECK` over `REQUIRE`.
-- **Re-export rule (gotcha):** a test TU only sees what the *primary* module interface re-exports.
-  Public testable types must be `export import`-ed from the umbrella (e.g. `rhi.cppm`) —
-  partition-level `export` alone is invisible to tests.
-- **Pure-logic boundary:** unit-test only logic that needs no live `rhi::Device` (free lists,
-  ring/offset math, generational handles, `alignTo`, math). Types whose only constructor touches
-  the GPU (e.g. `StagingBuffer`) belong in the device-level harness; factor pure logic out if it
-  needs coverage. Invariants guarded by `assert` (e.g. `ResourcePool` stale-handle rejection) abort
-  rather than return, so test the behavior around them, not the abort.
+- **Scope:** only logic needing no live `rhi::Device`. Invariants guarded by `assert` (e.g.
+  `ResourcePool` stale-handle rejection) abort rather than return — test around them, not the abort.
+- **Naming:** `<unit>.test.cpp`; `TEST_SUITE("<ns>::<Type>")`; `TEST_CASE` as a present-tense
+  behavior; prefer `CHECK` over `REQUIRE`.
+- **Extract rather than mock:** when pure logic sits behind a GPU-owning type, lift it out and leave
+  a thin adapter at the Vulkan call site. A **stateful type** earns its own partition; a **stateless
+  helper** goes in `aegis::rhi::detail` inside its owner's partition, keeping it out of the public
+  API. Prefer this over standing up a device — there is no headless harness.
+- **Three traps, each costing a build cycle to rediscover:** **(1)** a test TU cannot name a `vk::`
+  type at all (`vulkan-module` is linked PRIVATE, `rhi.cppm` re-exports nothing from it), so
+  extracted helpers must take **plain values** — making a `vk::`-taking function public does *not*
+  make it testable; **(2)** tests see only what the *primary* interface re-exports, so the type
+  needs `export import` from the umbrella (`rhi.cppm`) — partition-level `export` alone is
+  invisible; **(3)** check import direction before picking a home — `:utility` cannot host an
+  `Extent3D` helper because `:common` already imports `:utility`.
+- **Verifying device paths:** green unit tests are *not* sufficient when live upload/swapchain code
+  moved. `src/aegis/test/` (`aegis-test`) is the only `main()` reaching a real `rhi::Device`;
+  `examples/` still runs the old `Aegis::Graphics` stack and will not catch an RHI regression.
 - **`import std` / Vulkan SDK (gotcha):** the toolchain (Clang + MSVC runtime) can't build the
   C++23 `import std` module yet, so `AEGIS_USE_IMPORT_STD` defaults **OFF** and the whole build
   stays on classic includes. Older `vulkan.cppm` guards its std module behind

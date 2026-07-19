@@ -60,7 +60,15 @@ Follow these steps to get started:
 2. Open the folder in a CMake supported IDE (e.g. Visual Studio) or generate project files using CMake.
 
 3. Build and Run one of the example projects.
-   
+
+4. Optionally run the unit tests:
+
+    ```bash
+    ctest --preset windows-clang-debug
+    ```
+
+    See [tests/README.md](tests/README.md) for the test layout, conventions, and what is in scope.
+
 
 ## Modules and External Libraries <a name="external-libraries"></a>
 
