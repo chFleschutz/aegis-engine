@@ -4,6 +4,7 @@ module;
 #include <algorithm>
 #include <cassert>
 #include <expected>
+#include <limits>
 #include <syncstream>
 
 module aegis.rhi;
@@ -13,6 +14,31 @@ import :device;
 import :debug;
 import :vulkan_conversions;
 import vulkan_hpp;
+
+namespace aegis::rhi::detail
+{
+auto chooseSwapchainExtent(Extent2D preferred, Extent2D minExtent, Extent2D maxExtent,
+    Extent2D currentExtent) -> Extent2D
+{
+    if (currentExtent.x != std::numeric_limits<uint32_t>::max() &&
+        currentExtent.y != std::numeric_limits<uint32_t>::max())
+        return currentExtent;
+
+    return Extent2D{
+        std::clamp(preferred.x, minExtent.x, maxExtent.x),
+        std::clamp(preferred.y, minExtent.y, maxExtent.y)
+    };
+}
+
+auto chooseImageCount(std::uint32_t preferred, std::uint32_t minImageCount,
+    std::uint32_t maxImageCount) -> std::uint32_t
+{
+    auto imageCount = std::max(preferred, minImageCount);
+    if (maxImageCount > 0 && imageCount > maxImageCount)
+        imageCount = maxImageCount;
+    return imageCount;
+}
+}
 
 namespace aegis::rhi
 {
@@ -147,13 +173,8 @@ auto Swapchain::querySwapchainExtent(Extent2D preferred,
     const vk::SurfaceCapabilitiesKHR& caps)
     -> Extent2D
 {
-    if (caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
-        return toRHI(caps.currentExtent);
-
-    return Extent2D{
-        std::clamp(preferred.x, caps.minImageExtent.width, caps.maxImageExtent.width),
-        std::clamp(preferred.y, caps.minImageExtent.height, caps.maxImageExtent.height)
-    };
+    return detail::chooseSwapchainExtent(preferred, toRHI(caps.minImageExtent),
+        toRHI(caps.maxImageExtent), toRHI(caps.currentExtent));
 }
 
 auto Swapchain::queryPresentMode(
@@ -167,16 +188,16 @@ auto Swapchain::queryPresentMode(
 
     // Prefer mailbox
     if (std::ranges::any_of(*presentModes,
-        [&](const auto& presentMode) {
-            return presentMode == vk::PresentModeKHR::eMailbox;
-        }))
+            [&](const auto& presentMode) {
+                return presentMode == vk::PresentModeKHR::eMailbox;
+            }))
         return vk::PresentModeKHR::eMailbox;
 
     // Fallback fifo
     if (std::ranges::any_of(*presentModes,
-        [](const auto& presentMode) {
-            return presentMode == vk::PresentModeKHR::eFifo;
-        }))
+            [](const auto& presentMode) {
+                return presentMode == vk::PresentModeKHR::eFifo;
+            }))
         return vk::PresentModeKHR::eFifo;
 
     return makeError(ErrorCode::Unknown);
@@ -212,8 +233,7 @@ auto Swapchain::createSwapchain(
     vk::PresentModeKHR presentMode,
     const vk::SurfaceCapabilitiesKHR& surfaceCaps,
     vk::SurfaceKHR surface,
-    vk::SwapchainKHR oldSwapchain
-)
+    vk::SwapchainKHR oldSwapchain)
     -> std::expected<vk::raii::SwapchainKHR, Error>
 {
     auto minImageCount = chooseSwapImageCount(surfaceCaps);
@@ -309,10 +329,7 @@ auto Swapchain::createSemaphores(
 auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> uint32_t
 {
     constexpr uint32_t desiredImageCount{ 3 };
-    uint32_t imageCount = std::max(desiredImageCount, caps.minImageCount);
-    if (caps.maxImageCount > 0 && imageCount > caps.maxImageCount)
-        imageCount = caps.maxImageCount;
-    return imageCount;
+    return detail::chooseImageCount(desiredImageCount, caps.minImageCount, caps.maxImageCount);
 }
 
 Swapchain::Swapchain(

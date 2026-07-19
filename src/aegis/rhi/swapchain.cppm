@@ -1,4 +1,5 @@
 module;
+#include <cstdint>
 #include <expected>
 #include <vector>
 
@@ -9,6 +10,24 @@ import :error;
 import :image_view;
 import :sync;
 import vulkan_hpp;
+
+export namespace aegis::rhi::detail
+{
+/// @brief Picks a suitable swapchain extent.
+/// @param preferred The preferred extent that is chosen if it is suitable.
+/// @param minExtent, maxExtent Minimum and maximum for the new extent.
+/// @param currentExtent Non uint32_t::max values indicate to keep the current
+///                      extent, otherwise the preferred extent is considered.
+/// @note Free function taking plain values rather than vk::SurfaceCapabilitiesKHR: a test TU
+///       cannot name a vk:: type, so the Vulkan unpacking stays in swapchain.cpp.
+[[nodiscard]] auto chooseSwapchainExtent(Extent2D preferred, Extent2D minExtent, Extent2D maxExtent,
+    Extent2D currentExtent) -> Extent2D;
+
+/// @brief Clamps a preferred swapchain image count into the range the surface supports.
+/// @param maxImageCount Zero means the surface imposes no upper bound.
+[[nodiscard]] auto chooseImageCount(std::uint32_t preferred, std::uint32_t minImageCount,
+    std::uint32_t maxImageCount) -> std::uint32_t;
+}
 
 export namespace aegis::rhi
 {
