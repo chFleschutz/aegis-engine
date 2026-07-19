@@ -16,6 +16,7 @@ import :common;
 import :fwd;
 import :queue;
 import :resource_handle;
+import :ring_allocator;
 import :utility;
 
 export namespace aegis::rhi
@@ -26,12 +27,7 @@ export namespace aegis::rhi
 class StagingBuffer
 {
 public:
-    enum class AllocError
-    {
-        ZeroSizeAllocation,
-        ExceedsBufferSize,
-        MemoryExhausted,
-    };
+    using AllocError = RingAllocator::AllocError;
 
     struct Allocation
     {
@@ -51,7 +47,7 @@ public:
         -> std::expected<StagingBuffer, Error>;
 
     [[nodiscard]] auto buffer() const -> const Buffer&;
-    [[nodiscard]] auto size() const noexcept -> std::size_t { return m_size; }
+    [[nodiscard]] auto size() const noexcept -> std::size_t { return m_ring.size(); }
 
     /// @brief Reserves 'size' bytes aligned to 'alignment' from the ring. Never blocks.
     /// @return The allocation, or an Error if the ring cannot allocate it.
@@ -59,20 +55,15 @@ public:
         -> std::expected<Allocation, AllocError>;
 
     /// @brief Frees everything up to (and including) the given allocation end offset.
-    auto reclaim(std::size_t allocEndOffset) -> void { m_tail = allocEndOffset; }
+    auto reclaim(std::size_t allocEndOffset) -> void { m_ring.reclaim(allocEndOffset); }
 
 private:
     StagingBuffer(Device& device, BufferHandle handle, std::byte* data, std::size_t size);
 
-    /// @brief Whether [start, end) (end exclusive) lies entirely inside the free region.
-    [[nodiscard]] auto isRegionFree(std::size_t start, std::size_t end) const -> bool;
-
     Device* m_device;
     BufferHandle m_handle;
     std::byte* m_data;
-    std::size_t m_size;
-    std::uint64_t m_head{ 0 };
-    std::uint64_t m_tail{ 0 };
+    RingAllocator m_ring;
 };
 
 /// @brief Uploads CPU data into GPU resources without stalling the caller.
