@@ -42,14 +42,31 @@ These are on the critical path — assets cannot move until upload works.
       (`:ring_allocator`, imports no Vulkan) and covered by 9 cases in `tests/rhi/ring_allocator.test.cpp`,
       including wrap-around, wrapped-gap allocation, and reclaim-then-succeed. `StagingBuffer` now
       just adds the base pointer.
-- [ ] **Implement image upload** — the remaining `UploadManager` gap (`upload(const Image&, …)` is a
-      `return false` TODO). Note there is **no primitive underneath it**: `CommandBuffer` has only
-      `copyBuffer`, so this needs `copyBufferToImage` (and `copyImageToBuffer`, for readback
-      verification) added first. Detailed step-by-step plan: see "Next step" below.
-- [ ] **Re-establish upload verification** — `verifyUpload()` was deleted in `cb686cd`, leaving a bare,
-      result-discarding `m_device->flushUploads()` in `test/main.cpp` that never has anything to flush.
-      **The buffer path is currently unexercised at runtime.** Restore a readback round-trip covering
-      buffer *and* image (recoverable via `git show cb686cd^:src/aegis/test/main.cpp`).
+- [x] **Image upload** — `UploadManager::upload(ImageHandle, data, generateMips)` replaces the old
+      `return false` stub, mirroring the buffer batch lifecycle. The missing primitives landed with it:
+      `BufferImageCopy` in `:commands`, plus `CommandBuffer::copyBufferToImage` / `copyImageToBuffer`.
+      `Device::upload(ImageHandle, …)` is the public entry point.
+  - [x] The per-mip offset math is extracted into `aegis::rhi::detail` in `:image`
+        (`bytesPerTexel`, `mipExtent`, `copyAlignment`, `subresourceFootprints`) and unit-tested.
+  - [x] **Source layout contract, decided and documented on `subresourceFootprints`:** mip-major,
+        array layers packed contiguously *inside* each mip, tightly packed. Matches KTX2 and makes each
+        mip one copy region with `layerCount = arrayLayers`, so a cubemap costs 1 region per mip
+        rather than 6. There is no way to detect a caller mismatch at runtime.
+  - [x] **Staging offsets deliberately diverge from source offsets.** Vulkan requires a copy's
+        `bufferOffset` to be a multiple of both 4 and the texel block size, but loaders hand over
+        tightly packed data (a 3×3 `R8_UNORM` mip 0 is 9 bytes, so mip 1 would land illegally).
+        `SubresourceFootprint` therefore carries both `sourceOffset` and `stagingOffset`, and `upload`
+        copies mip by mip rather than in one memcpy.
+  - [x] **Ownership of the read-state transition is the caller's.** `upload` leaves the image in
+        `CopyDst` (`CopySrc` after mip generation) because `UploadManager` cannot know which of
+        `ShaderReadVertex` / `ShaderReadFragment` / `ShaderReadCompute` is wanted; guessing would bake a
+        wrong barrier into every texture. That transition is also what establishes the real execution
+        dependency, since `generateMipmaps` ends with `dstStageMask = eNone`.
+- [x] **Upload verification re-established** — `verifyUploads()` in `test/main.cpp` covers a buffer
+      round-trip, a 3-mip 2D texture (distinct fill per mip, so a wrong mip offset cannot pass), and a
+      6-face cubemap (the only case that exercises the array-layer packing contract, which
+      `solidColorCube` will depend on in Phase 2). All three compare byte-exactly through a `CpuRead`
+      buffer. This also re-covers the buffer path, which had been unexercised at runtime since `cb686cd`.
 - [ ] **Add `rhi:sampler`** — port `graphics/resources/sampler.cppm` to an RHI resource + handle
       (`Device::createSampler` → pooled `SamplerHandle`). `BindlessHeap::writeSampler` already consumes
       `vk::Sampler`; give it a first-class owner. The old type is a thin `VkSampler` wrapper bound to the
@@ -71,20 +88,40 @@ These are on the critical path — assets cannot move until upload works.
       (`device.cpp`, `.setBufferDeviceAddress(true)`) — only the RHI surface is missing. This is real
       work on the Phase 2 critical path, not a checkbox.
   - [ ] While here: `BufferUsage::CpuVisible` is dead — `toVulkan(BufferUsage)` never maps it. Wire it up or delete it.
-- [ ] Extend `test/main.cpp`: upload a buffer + a texture + time a pass. Build + run clean.
+- [ ] Extend `test/main.cpp` with a **timed pass** once `rhi:query` lands. The buffer and texture
+      halves of this item are done (`verifyUploads()`); only the timestamp remains.
 
 **Exit criteria:** `test/main.cpp` uploads a texture and buffer, renders with a timestamped pass, runs clean.
+Buffer + texture upload and the clean run are met; the timestamped pass is outstanding.
 
-### Bugs found while surveying Phase 0 (fix alongside the work that touches them)
+### Bugs found and fixed on the image-upload path
 
-Both are on the image-upload path and are invisible today only because every image in the tree is
-single-mip:
+The first two were latent, invisible only because every image in the tree was single-mip:
 
-- `image.cpp` — `Image::create` resolves `fullMipChain` into a local `mipLevels` and passes it to
-  `vk::ImageCreateInfo`, but the constructor stores `desc.mipLevels`. An image created with
-  `Image::fullMipChain` reports `mipLevels() == UINT32_MAX` while the real image has a proper chain.
-- `command_buffer.cpp` — the `ImageHandle` overload of `transitionImageLayout` sets
-  `.levelCount = image.arrayLayers()` where it means `image.mipLevels()`.
+- [x] `image.cpp` — `Image::create` resolved `fullMipChain` into a local `mipLevels` and passed it to
+      `vk::ImageCreateInfo`, but the constructor stored `desc.mipLevels`, so such an image reported
+      `mipLevels() == UINT32_MAX`. The private constructor now takes the resolved count as its own
+      parameter, so it cannot be bypassed again.
+- [x] `command_buffer.cpp` — the `ImageHandle` overload of `transitionImageLayout` set
+      `.levelCount = image.arrayLayers()` where it meant `image.mipLevels()`.
+- [x] `copyAlignment` rounded the required offset alignment up to the next **power of two**, which is
+      wrong for `RGB32_SFLOAT`: the requirement is `lcm(4, texelBlockSize)` = 12, and 16 is not a
+      multiple of 12. It now uses `std::lcm`.
+  - This had a second half. `copyAlignment` feeds `RingAllocator::allocate`, which routed alignment
+    through `utility::alignTo` — and that **asserts power-of-two**, so the correct value would have
+    aborted in debug. Fixing the arithmetic alone would have converted a validation error into an
+    assert. A general `utility::roundUpTo` was added beside `alignTo` (which stays as the faster
+    bit-trick path for the power-of-two callers that dominate), and `RingAllocator` now uses it.
+    Behaviour is unchanged for every pre-existing caller; a test pins the two functions as identical
+    across powers of two.
+
+**Testing lesson worth carrying forward:** a regrouping of `bytesPerTexel`'s switch briefly put
+`RGBA16_UNORM` (8 bytes) in the 4-byte group and the whole suite stayed green, because the tests
+checked its sibling `RGBA16_SFLOAT` but not `RGBA16_UNORM`. The `Format` enum's `// 16-bit` comments
+mean *per channel*, which makes that grouping look plausible. The suite now covers the per-channel
+families exhaustively, and `copyAlignment` has a case that walks **every** copyable format and asserts
+the alignment divides by both 4 and that format's texel size — so a newly added format cannot
+reintroduce the class of bug.
 
 ---
 
@@ -192,7 +229,7 @@ Scope stays narrow on purpose: **pure, GPU-independent logic** that survives the
 
 ### What is covered now
 
-36 cases. Every item originally listed here is done:
+57 cases. Every item originally listed here is done:
 
 - [x] Staging ring allocator — extracted to `RingAllocator` (`:ring_allocator`) and covered by
       `tests/rhi/ring_allocator.test.cpp` (9 cases: head advance, alignment, zero-size, oversize,
@@ -207,20 +244,23 @@ Scope stays narrow on purpose: **pure, GPU-independent logic** that survives the
 - [x] Bonus, not originally planned: swapchain extent-clamping + image-count policy
       (`chooseSwapchainExtent` / `chooseImageCount`, extracted to `aegis::rhi::detail`) and
       `detail::calcMipLevels`.
+- [x] Image subresource footprint math — `bytesPerTexel`, `mipExtent`, `copyAlignment`, and
+      `subresourceFootprints` in `aegis::rhi::detail` (`:image`), covered by `tests/rhi/image.test.cpp`.
+      Includes the array-layer packing contract and the staging/source offset divergence.
+- [x] `utility::roundUpTo` — `tests/rhi/utility.test.cpp`, including agreement with `alignTo` on
+      powers of two.
 
 ### What to test next
 
-- [ ] Image subresource footprint math (per-mip byte size / offset / extent, and the array-layer
-      packing contract) — extract to `aegis::rhi::detail` in `:image` alongside `calcMipLevels` and
-      test there. This is exactly where silent off-by-one bugs live, and it lands with the image
-      upload work above.
-- [ ] `bytesPerTexel(Format)` — no such helper exists anywhere in the tree yet; the image upload needs one.
 - [ ] Frustum-culling math (once frustum lands in `aegis.render_graph`, Phase 3).
+- [ ] Sampler description → Vulkan mapping, once `rhi:sampler` lands (pure enum/limit translation,
+      the same shape as the swapchain policy helpers).
 
 **Known gap, accepted:** `UploadManager`'s batch state machine (`m_inFlight`, `m_recordIndex`
 wraparound, the `flushPending` drain path) and `StagingBuffer`'s pointer arithmetic have no unit
-tests — both need a live `Device`. That is what the `test/main.cpp` readback round-trip covers, which
-is why restoring it is a Phase 0 checklist item and not optional polish.
+tests — both need a live `Device`. `test/main.cpp`'s readback round-trip is their only coverage, which
+is why it is a Phase 0 deliverable rather than optional polish. Extend it, not the unit suite, when
+that state machine changes.
 
 ### What to defer
 
@@ -252,41 +292,28 @@ are immune to warnings-as-errors. Full rationale in `tests/README.md`.
 - **ImGui ownership** — decide whether the UI layer or a render-graph UI pass owns the descriptor pool and init, before Phase 3's `ui_pass`.
 - **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
 
-## Next step — the image upload path
+## Next step — `rhi:sampler`, then BDA
 
-Phase 0's remaining items are independent of each other; do them one at a time rather than as one
-push. **Image upload first** — it is the only one that blocks the Phase 2 `texture` port, and it is
-verifiable end to end on its own. Sampler is *not* needed to upload a texture, only to sample one, so
-keeping it out lets this step be verified by byte-exact readback rather than by eyeballing a quad.
+Image upload is done (see Phase 0). The remaining Phase 0 items are independent of each other; keep
+doing them one at a time rather than as one push.
 
-1. **Extract the footprint math** into `aegis::rhi::detail` in `image.cppm` — `bytesPerTexel(Format)`,
-   `mipExtent(Extent3D, level)`, and `subresourceFootprints(...)` returning per-mip
-   `{ mipLevel, extent, offset, size }`. Plain values only: a test TU cannot name a `vk::` type at all
-   (see `tests/README.md`). `detail::calcMipLevels` is the precedent and `:image` is already re-exported
-   by `rhi.cppm`. Fold `generateMipmaps`'s four open-coded `>>` shifts onto `mipExtent`.
-   - **Decide and document the source-layout contract.** Recommend mip-major with array layers packed
-     contiguously *inside* each mip (matches KTX2, and makes each mip exactly one copy region with
-     `layerCount = arrayLayers`, so a cubemap is 1 region per mip rather than 6). A caller passing
-     layer-major data otherwise gets silently scrambled faces.
-2. **Fix the two bugs** listed under Phase 0 above (`image.cpp` mip resolution, `command_buffer.cpp`
-   `levelCount`). Prerequisites, not drive-bys — step 4 drives its loop off `mipLevels()`.
-3. **Add the copy primitives:** a plain `BufferImageCopy` struct in `:commands`, then
-   `CommandBuffer::copyBufferToImage` / `copyImageToBuffer`, handle-based like every other image method.
-   `copyImageToBuffer` earns its place beyond the test (screenshots, GPU-driven readback).
-4. **Implement `UploadManager::upload`**, changing the signature from `const Image&` to
-   `ImageHandle` (consistent with `Device::upload(BufferHandle, …)` and with what the transition/copy
-   calls need). Mirror the buffer path's structure exactly. Align the staging allocation to
-   `max(4, bytesPerTexel)` — Vulkan requires `bufferOffset` to be a multiple of both.
-   - **Leave the image in `CopyDst` (or `CopySrc` after mip generation) and say so in the doc comment.**
-     `UploadManager` cannot know which read state the caller wants — `ShaderReadVertex` vs
-     `ShaderReadFragment` vs `ShaderReadCompute` — and guessing bakes a wrong barrier into every
-     texture. The caller's transition is also what establishes the real dependency, since
-     `generateMipmaps` ends with `dstStageMask = eNone`.
-5. **Restore `verifyUpload()`** in `test/main.cpp` covering buffer, multi-mip image (a distinct
-   constant per mip, so a mip-offset mistake cannot pass), and a 6-layer cubemap — the cubemap is the
-   only case that actually exercises the layout contract from step 1, and `solidColorCube` depends on
-   it in Phase 2. Fix the discarded `[[nodiscard]]` on `flushUploads()` while there.
-6. **Unit-test the extracted math** by extending `tests/rhi/image.test.cpp`.
+**`rhi:sampler` next.** It is the smallest remaining item, it completes the texture story started by
+image upload (upload gets pixels onto the GPU; sampler is what lets a shader read them), and it is the
+last thing the Phase 2 `texture` port needs beyond what already exists. `Device::createSampler` →
+pooled `SamplerHandle`, registered into the existing `BindlessHeap::writeSampler`. See the Phase 0
+entry for the `VulkanContext` binding to unwind and the `mipmapMode` bug not to carry forward.
 
-**Verify:** `ctest --preset windows-clang-debug -R "rhi::"`, then a full warnings-as-errors build and
-a clean validation-layer run of `aegis-test`.
+**Then BDA**, which is the larger and riskier one: it has no RHI surface at all today, and per the
+cross-cutting risks below it ripples into every geometry shader in Phase 2. Sequence those shader
+edits with the `StaticMesh` change rather than deferring them.
+
+`rhi:query` and the ImGui descriptor pool are not on the Phase 2 critical path — `query` is
+observability and the ImGui pool is not needed until Phase 3's `ui_pass`. Either can slip behind BDA.
+
+**Verify any of them with:** `ctest --preset windows-clang-debug`, a full warnings-as-errors build, and
+a clean validation-layer run of `aegis-test`. Note that `aegis-test` is the *only* `main()` reaching a
+real `rhi::Device`; `examples/` still runs the old stack and will not catch an RHI regression.
+
+> **Filter gotcha:** `ctest -R "rhi::"` — documented in `CLAUDE.md` and `tests/README.md` — matches
+> nothing. doctest registers CTest tests under the `TEST_CASE` name, not the `TEST_SUITE` name, so that
+> filter silently reports "No tests were found". Plain `ctest` works. Both docs need correcting.
