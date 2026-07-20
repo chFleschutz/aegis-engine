@@ -1,6 +1,7 @@
 module;
 #include <expected>
 #include <optional>
+#include <span>
 #include <string_view>
 
 export module aegis.rhi:command_buffer;
@@ -51,6 +52,16 @@ public:
 
     auto copyBuffer(const Buffer& src, const Buffer& dst, std::size_t size, std::size_t srcOffset = 0,
         std::size_t dstOffset = 0) const -> void;
+
+    /// @brief Copies bytes from buffer 'src' into image 'dst'.
+    /// @note Image 'dst' must already be in ResourceState::CopyDst.
+    auto copyBufferToImage(const Buffer& src, ImageHandle dst,
+        std::span<const BufferImageCopy> regions) const -> void;
+
+    /// @brief Copies bytes from image 'src' into buffer 'dst'.
+    /// @note Image 'src' must already be in ResourceState::CopySrc.
+    auto copyImageToBuffer(ImageHandle src, const Buffer& dst,
+        std::span<const BufferImageCopy> regions) const -> void;
 
 private:
     [[nodiscard]] static auto create(const Device& device, const Desc& desc)

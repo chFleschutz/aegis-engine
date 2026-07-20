@@ -95,8 +95,22 @@ public:
     [[nodiscard]] auto upload(const Buffer& dst, std::span<const std::byte> data,
         std::size_t alignment = 4, std::size_t dstOffset = 0) -> bool;
 
-    /// @brief Image uploads are not implemented yet (out of scope for the buffer-first pass).
-    [[nodiscard]] auto upload(const Image& dst, std::span<const std::byte> data) -> bool;
+    /// @brief Stages 'data' and records a buffer->image copy for every mip of 'dst'. Never blocks.
+    ///
+    /// 'data' must be laid out exactly as detail::subresourceFootprints describes: mip-major, array
+    /// layers packed inside each mip, tightly packed. With 'generateMips' the caller supplies mip 0
+    /// only and the rest are blitted on the GPU.
+    ///
+    /// @note Leaves 'dst' in ResourceState::CopyDst -- or CopySrc when 'generateMips' is set, since
+    ///       mip generation ends by reading the chain. **The caller performs the transition to its
+    ///       read state.** UploadManager cannot know which of ShaderReadVertex / ShaderReadFragment /
+    ///       ShaderReadCompute is wanted, and guessing would bake a wrong barrier into every texture.
+    ///       That transition is also what establishes the real execution dependency: generateMipmaps
+    ///       ends with dstStageMask = eNone.
+    /// @return true if the upload was queued, false if the staging ring could not satisfy it right
+    ///         now (same flush-and-retry contract as the buffer overload).
+    [[nodiscard]] auto upload(ImageHandle dst, std::span<const std::byte> data,
+        bool generateMips = false) -> bool;
 
     /// @brief Submits the currently open batch and reclaims completed staging memory.
     /// @return The timeline value the submitted batch signals, or nullopt if nothing was submitted.
@@ -109,10 +123,12 @@ private:
         std::size_t endOffset{ 0 };
     };
 
-    UploadManager(CommandPool cmdPool, std::vector<CommandBuffer> cmds, StagingBuffer stagingBuffer);
+    UploadManager(Device& device, CommandPool cmdPool, std::vector<CommandBuffer> cmds,
+        StagingBuffer stagingBuffer);
 
     auto reclaimFront(const Queue& queue) -> void;
 
+    Device* m_device;
     CommandPool m_cmdPool;
     std::vector<CommandBuffer> m_cmds;
     StagingBuffer m_stagingBuffer;

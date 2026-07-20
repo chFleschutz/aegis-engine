@@ -197,6 +197,11 @@ auto Device::upload(BufferHandle dst, std::span<const std::byte> data, std::size
     return m_uploadManager->upload(get(dst), data, alignment, dstOffset);
 }
 
+auto Device::upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips) -> bool
+{
+    return m_uploadManager->upload(dst, data, generateMips);
+}
+
 auto Device::flushUploads() -> std::optional<TimelineValue>
 {
     return m_uploadManager->flushPending(m_graphicsQueue);

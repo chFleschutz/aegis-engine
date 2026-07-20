@@ -2,8 +2,10 @@ module;
 #include <algorithm>
 #include <cassert>
 #include <expected>
+#include <iterator>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <vector>
 
 module aegis.rhi;
@@ -228,17 +230,16 @@ auto CommandBuffer::transitionImageLayout(ImageHandle imageHandle, ResourceState
         .subresourceRange = vk::ImageSubresourceRange{
             .aspectMask = deriveImageAspectFlags(image.format()),
             .baseMipLevel = 0,
-            .levelCount = image.arrayLayers(),
+            .levelCount = image.mipLevels(),
             .baseArrayLayer = 0,
             .layerCount = image.arrayLayers(),
         },
     };
 
     m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
-            .imageMemoryBarrierCount = 1,
-            .pImageMemoryBarriers = &barrier,
-        }
-    );
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &barrier,
+    });
 }
 
 auto CommandBuffer::generateMipmaps(ImageHandle imageHandle, ResourceState currentState) const
@@ -290,23 +291,23 @@ auto CommandBuffer::generateMipmaps(ImageHandle imageHandle, ResourceState curre
             .pImageMemoryBarriers = &mipToTransferSrcBarrier,
         });
 
+        auto toOffset = [](Extent3D extent) {
+            return vk::Offset3D{
+                .x = static_cast<std::int32_t>(extent.x),
+                .y = static_cast<std::int32_t>(extent.y),
+                .z = static_cast<std::int32_t>(extent.z),
+            };
+        };
+
         blit.srcSubresource.mipLevel = i - 1;
         blit.srcOffsets = std::array{
             vk::Offset3D{ 0, 0, 0 },
-            vk::Offset3D{
-                .x = std::max(1, static_cast<std::int32_t>(image.extent().x >> (i - 1))),
-                .y = std::max(1, static_cast<std::int32_t>(image.extent().y >> (i - 1))),
-                .z = std::max(1, static_cast<std::int32_t>(image.extent().z >> (i - 1))),
-            }
+            toOffset(detail::mipExtent(image.extent(), i - 1)),
         };
         blit.dstSubresource.mipLevel = i;
         blit.dstOffsets = std::array{
             vk::Offset3D{ 0, 0, 0 },
-            vk::Offset3D{
-                .x = std::max(1, static_cast<std::int32_t>(image.extent().x >> i)),
-                .y = std::max(1, static_cast<std::int32_t>(image.extent().y >> i)),
-                .z = std::max(1, static_cast<std::int32_t>(image.extent().z >> i)),
-            }
+            toOffset(detail::mipExtent(image.extent(), i)),
         };
 
         m_commandBuffer.blitImage2(vk::BlitImageInfo2{
@@ -344,6 +345,70 @@ auto CommandBuffer::copyBuffer(const Buffer& src, const Buffer& dst, std::size_t
         .dstBuffer = dst.vk(),
         .regionCount = 1,
         .pRegions = &copyRegion,
+    });
+}
+
+namespace
+{
+auto toVulkanRegions(std::span<const BufferImageCopy> regions, vk::ImageAspectFlags aspectMask)
+    -> std::vector<vk::BufferImageCopy2>
+{
+    std::vector<vk::BufferImageCopy2> result;
+    result.reserve(regions.size());
+    std::ranges::transform(regions, std::back_inserter(result), [&](const auto& region) {
+        return vk::BufferImageCopy2{
+            .bufferOffset = region.bufferOffset,
+            // Zero means "tightly packed to imageExtent", which is the layout
+            // detail::subresourceFootprints produces.
+            .bufferRowLength = 0,
+            .bufferImageHeight = 0,
+            .imageSubresource = vk::ImageSubresourceLayers{
+                .aspectMask = aspectMask,
+                .mipLevel = region.mipLevel,
+                .baseArrayLayer = region.baseArrayLayer,
+                .layerCount = region.arrayLayerCount,
+            },
+            .imageOffset = vk::Offset3D{ 0, 0, 0 },
+            .imageExtent = toVulkan(region.extent),
+        };
+    });
+    return result;
+}
+}
+
+auto CommandBuffer::copyBufferToImage(const Buffer& src, ImageHandle dst,
+    std::span<const BufferImageCopy> regions) const -> void
+{
+    if (regions.empty())
+        return;
+
+    const auto& image = m_device.get(dst);
+    const auto copyRegions = toVulkanRegions(regions, deriveImageAspectFlags(image.format()));
+
+    m_commandBuffer.copyBufferToImage2(vk::CopyBufferToImageInfo2{
+        .srcBuffer = src.vk(),
+        .dstImage = image.vk(),
+        .dstImageLayout = vk::ImageLayout::eTransferDstOptimal,
+        .regionCount = static_cast<std::uint32_t>(copyRegions.size()),
+        .pRegions = copyRegions.data(),
+    });
+}
+
+auto CommandBuffer::copyImageToBuffer(ImageHandle src, const Buffer& dst,
+    std::span<const BufferImageCopy> regions) const -> void
+{
+    if (regions.empty())
+        return;
+
+    const auto& image = m_device.get(src);
+    const auto copyRegions = toVulkanRegions(regions, deriveImageAspectFlags(image.format()));
+
+    m_commandBuffer.copyImageToBuffer2(vk::CopyImageToBufferInfo2{
+        .srcImage = image.vk(),
+        .srcImageLayout = vk::ImageLayout::eTransferSrcOptimal,
+        .dstBuffer = dst.vk(),
+        .regionCount = static_cast<std::uint32_t>(copyRegions.size()),
+        .pRegions = copyRegions.data(),
     });
 }
 

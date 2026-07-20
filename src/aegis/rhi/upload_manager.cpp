@@ -1,4 +1,6 @@
 module;
+#include <cassert>
+#include <cstring>
 #include <expected>
 #include <optional>
 #include <span>
@@ -10,9 +12,11 @@ import :upload_manager;
 import :buffer;
 import :command_buffer;
 import :command_pool;
+import :commands;
 import :common;
 import :device;
 import :error;
+import :image;
 import :resource_handle;
 
 namespace aegis::rhi
@@ -106,7 +110,7 @@ auto UploadManager::create(Device& device, std::uint32_t queueFamily, const Desc
     if (!staging)
         return std::unexpected{ staging.error() };
 
-    return UploadManager{ std::move(*pool), std::move(cmds), std::move(*staging) };
+    return UploadManager{ device, std::move(*pool), std::move(cmds), std::move(*staging) };
 }
 
 auto UploadManager::upload(const Buffer& dst, std::span<const std::byte> data, std::size_t alignment,
@@ -132,13 +136,67 @@ auto UploadManager::upload(const Buffer& dst, std::span<const std::byte> data, s
     return true;
 }
 
-auto UploadManager::upload(const Image& dst, std::span<const std::byte> data) -> bool
+auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips) -> bool
 {
-    // TODO: transition layout to transfer-dst optimal, record a copy per mip/layer, transition
-    //       back (and optionally generate mipmaps), mirroring the buffer batch lifecycle.
-    (void)dst;
-    (void)data;
-    return false;
+    const auto& image = m_device->get(dst);
+
+    // With generateMips the caller supplies mip 0 only; the rest are blitted below.
+    const auto sourceMips = generateMips ? std::uint32_t{ 1 } : image.mipLevels();
+    const auto footprints = detail::subresourceFootprints(image.extent(), image.format(), sourceMips,
+        image.arrayLayers());
+    if (footprints.empty())
+    {
+        assert(false && "Image format cannot be uploaded from a linear buffer");
+        return false;
+    }
+
+    const auto& last = footprints.back();
+    // A size mismatch is a caller bug, not backpressure: returning false would send a retrying
+    // caller into an infinite flush-and-retry loop, so trap it instead.
+    assert(data.size() == last.sourceOffset + last.size && "Upload data does not match image layout");
+
+    auto allocation = m_stagingBuffer.allocate(last.stagingOffset + last.size,
+        detail::copyAlignment(image.format()));
+    if (!allocation)
+        return false;
+
+    // Mip by mip rather than one memcpy: staging pads each mip up to the copy alignment, the
+    // caller's data does not.
+    for (const auto& footprint : footprints)
+    {
+        std::memcpy(allocation->data + allocation->offset + footprint.stagingOffset,
+            data.data() + footprint.sourceOffset, footprint.size);
+    }
+
+    auto& cmd = m_cmds[m_recordIndex];
+    if (!m_batchOpen)
+    {
+        // Safe to (re)record: a previous flush guaranteed this command buffer is not in flight.
+        cmd.begin(true);
+        m_batchOpen = true;
+    }
+
+    std::vector<BufferImageCopy> regions;
+    regions.reserve(footprints.size());
+    for (const auto& footprint : footprints)
+    {
+        regions.emplace_back(BufferImageCopy{
+            .bufferOffset = allocation->offset + footprint.stagingOffset,
+            .mipLevel = footprint.mipLevel,
+            .baseArrayLayer = 0,
+            .arrayLayerCount = footprint.arrayLayerCount,
+            .extent = footprint.extent,
+        });
+    }
+
+    cmd.transitionImageLayout(dst, ResourceState::Unknown, ResourceState::CopyDst);
+    cmd.copyBufferToImage(m_stagingBuffer.buffer(), dst, regions);
+
+    if (generateMips && image.mipLevels() > 1)
+        cmd.generateMipmaps(dst, ResourceState::CopyDst);
+
+    m_pendingEndOffset = allocation->offset + allocation->size;
+    return true;
 }
 
 auto UploadManager::flushPending(Queue& queue) -> std::optional<TimelineValue>
@@ -177,8 +235,9 @@ auto UploadManager::flushPending(Queue& queue) -> std::optional<TimelineValue>
     return *timelineValue;
 }
 
-UploadManager::UploadManager(CommandPool cmdPool, std::vector<CommandBuffer> cmds,
+UploadManager::UploadManager(Device& device, CommandPool cmdPool, std::vector<CommandBuffer> cmds,
     StagingBuffer stagingBuffer) :
+    m_device{ &device },
     m_cmdPool{ std::move(cmdPool) },
     m_cmds{ std::move(cmds) },
     m_stagingBuffer{ std::move(stagingBuffer) }

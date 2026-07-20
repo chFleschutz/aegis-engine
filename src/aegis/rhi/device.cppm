@@ -112,6 +112,13 @@ public:
     [[nodiscard]] auto upload(BufferHandle dst, std::span<const std::byte> data,
         std::size_t alignment = 4, std::size_t dstOffset = 0) -> bool;
 
+    /// @brief Stages 'data' and records a copy into every mip of the image 'dst'. Never blocks.
+    /// @note Leaves 'dst' in ResourceState::CopyDst (CopySrc when 'generateMips' is set); the caller
+    ///       transitions it to its read state. See UploadManager::upload for the data layout the
+    ///       caller must match.
+    [[nodiscard]] auto upload(ImageHandle dst, std::span<const std::byte> data,
+        bool generateMips = false) -> bool;
+
     /// @brief Submits the open upload batch on the graphics queue and reclaims completed staging.
     /// @return The timeline value the submitted batch signals, or nullopt if nothing was submitted.
     auto flushUploads() -> std::optional<TimelineValue>;
