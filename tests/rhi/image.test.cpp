@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 
@@ -63,6 +64,22 @@ TEST_SUITE("rhi::bytesPerTexel")
         CHECK(bytesPerTexel(Format::B10G11R11_UFLOAT) == std::uint32_t{ 4 });
     }
 
+    TEST_CASE("a format's bit width is per channel, not per texel")
+    {
+        // The Format enum groups these under "16-bit", which reads as a texel width but is not one.
+        CHECK(bytesPerTexel(Format::R16_UNORM) == std::uint32_t{ 2 });
+        CHECK(bytesPerTexel(Format::RG16_UNORM) == std::uint32_t{ 4 });
+        CHECK(bytesPerTexel(Format::RGBA16_UNORM) == std::uint32_t{ 8 });
+
+        SUBCASE("the same holds for the 32-bit family")
+        {
+            CHECK(bytesPerTexel(Format::R32_SFLOAT) == std::uint32_t{ 4 });
+            CHECK(bytesPerTexel(Format::RG32_SFLOAT) == std::uint32_t{ 8 });
+            CHECK(bytesPerTexel(Format::RGB32_SFLOAT) == std::uint32_t{ 12 });
+            CHECK(bytesPerTexel(Format::RGBA32_SFLOAT) == std::uint32_t{ 16 });
+        }
+    }
+
     TEST_CASE("formats that cannot be copied from a linear buffer report zero")
     {
         CHECK(bytesPerTexel(Format::Unknown) == std::uint32_t{ 0 });
@@ -76,6 +93,46 @@ TEST_SUITE("rhi::bytesPerTexel")
         SUBCASE("but single-aspect depth is copyable")
         {
             CHECK(bytesPerTexel(Format::D32_SFLOAT) == std::uint32_t{ 4 });
+        }
+    }
+}
+
+TEST_SUITE("rhi::copyAlignment")
+{
+    using aegis::rhi::Format;
+    using aegis::rhi::detail::bytesPerTexel;
+    using aegis::rhi::detail::copyAlignment;
+
+    TEST_CASE("is the least common multiple of 4 and the texel block size")
+    {
+        CHECK(copyAlignment(Format::R8_UNORM) == std::size_t{ 4 });
+        CHECK(copyAlignment(Format::RG8_UNORM) == std::size_t{ 4 });
+        CHECK(copyAlignment(Format::RGBA8_UNORM) == std::size_t{ 4 });
+        CHECK(copyAlignment(Format::RGBA16_SFLOAT) == std::size_t{ 8 });
+        CHECK(copyAlignment(Format::RGBA32_SFLOAT) == std::size_t{ 16 });
+    }
+
+    TEST_CASE("a 12-byte block aligns to 12, not to the next power of two")
+    {
+        CHECK(copyAlignment(Format::RGB32_SFLOAT) == std::size_t{ 12 });
+    }
+
+    TEST_CASE("every copyable format's alignment satisfies both Vulkan requirements")
+    {
+        constexpr std::array formats{
+            Format::R8_UNORM, Format::RG8_UNORM, Format::RGBA8_UNORM, Format::RGBA8_SRGB,
+            Format::BGRA8_UNORM, Format::BGRA8_SRGB, Format::RGB10A2_UNORM,
+            Format::B10G11R11_UFLOAT, Format::R16_UNORM, Format::RG16_UNORM, Format::RGBA16_UNORM,
+            Format::RGBA16_SFLOAT, Format::R32_SFLOAT, Format::RG32_SFLOAT, Format::RGB32_SFLOAT,
+            Format::RGBA32_SFLOAT, Format::D32_SFLOAT
+        };
+
+        for (const auto format : formats)
+        {
+            CAPTURE(static_cast<int>(format));
+            const auto alignment = copyAlignment(format);
+            CHECK(alignment % std::size_t{ 4 } == std::size_t{ 0 });
+            CHECK(alignment % std::size_t{ bytesPerTexel(format) } == std::size_t{ 0 });
         }
     }
 }
@@ -184,6 +241,19 @@ TEST_SUITE("rhi::subresourceFootprints")
             CHECK(footprints[i].stagingOffset >=
                   footprints[i - 1].stagingOffset + footprints[i - 1].size);
         }
+    }
+
+    TEST_CASE("a 12-byte texel block keeps every staging offset a multiple of 12")
+    {
+        // R32G32B32 needs offsets that are a multiple of lcm(4, 12) == 12. Rounding to the next
+        // power of two (16) satisfies neither the block size nor the spec.
+        const auto footprints = subresourceFootprints(Extent3D{ 2, 1, 1 }, Format::RGB32_SFLOAT, 2, 1);
+
+        REQUIRE(footprints.size() == std::size_t{ 2 });
+        CHECK(footprints[0].size == std::size_t{ 24 });
+        CHECK(footprints[1].size == std::size_t{ 12 });
+        for (const auto& footprint : footprints)
+            CHECK(footprint.stagingOffset % std::size_t{ 12 } == std::size_t{ 0 });
     }
 
     TEST_CASE("a format that cannot be copied from a linear buffer yields no footprints")

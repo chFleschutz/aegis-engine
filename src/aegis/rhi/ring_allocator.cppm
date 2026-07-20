@@ -26,6 +26,9 @@ public:
     }
 
     /// @brief Reserves 'size' bytes aligned to 'alignment' from the ring. Never blocks.
+    /// @note 'alignment' need not be a power of 2: Vulkan buffer-to-image copies of a 12-byte texel
+    ///       block require a multiple of 12. Wrap-around returns offset 0, which satisfies any
+    ///       alignment.
     /// @return The offset of the reserved region, or an Error if the ring cannot allocate it.
     [[nodiscard]] auto allocate(std::size_t size, std::size_t alignment)
         -> std::expected<std::size_t, AllocError>
@@ -36,7 +39,7 @@ public:
         if (size > m_size)
             return std::unexpected{ AllocError::RingSizeExceeded };
 
-        const auto alignedHead = utility::alignTo(m_head, alignment);
+        const auto alignedHead = utility::roundUpTo(m_head, alignment);
         if (alignedHead + size <= m_size)
         {
             // Fits before capacity -> no wrap-around

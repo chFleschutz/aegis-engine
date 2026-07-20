@@ -2,6 +2,7 @@ module;
 #include <algorithm>
 #include <expected>
 #include <limits>
+#include <numeric>
 #include <string_view>
 #include <vector>
 
@@ -22,15 +23,66 @@ export namespace aegis::rhi::detail
 /// @brief Size in bytes of one texel of 'format'.
 /// @return 0 for formats that cannot be copied from a linear buffer: Unknown, and the combined
 ///         depth/stencil formats (those need one copy region per aspect, which is not supported).
-[[nodiscard]] constexpr auto bytesPerTexel(Format format) noexcept -> std::uint32_t;
+[[nodiscard]] constexpr auto bytesPerTexel(Format format) noexcept -> std::uint32_t
+{
+    switch (format)
+    {
+    case Format::Unknown:
+    case Format::D24_UNORM_S8_UINT:
+    case Format::D32_SFLOAT_S8_UINT:
+        return 0;
+    case Format::R8_UNORM:
+        return 1;
+    case Format::RG8_UNORM:
+    case Format::R16_UNORM:
+        return 2;
+    case Format::RGBA8_UNORM:
+    case Format::RGBA8_SRGB:
+    case Format::BGRA8_UNORM:
+    case Format::BGRA8_SRGB:
+    case Format::RGB10A2_UNORM:
+    case Format::B10G11R11_UFLOAT:
+    case Format::RG16_UNORM:
+    case Format::R32_SFLOAT:
+    case Format::D32_SFLOAT:
+        return 4;
+    case Format::RGBA16_UNORM:
+    case Format::RGBA16_SFLOAT:
+    case Format::RG32_SFLOAT:
+        return 8;
+    case Format::RGB32_SFLOAT:
+        return 12;
+    case Format::RGBA32_SFLOAT:
+        return 16;
+    }
+    std::unreachable();
+}
 
 /// @brief Extent of mip level 'level' of an image whose level 0 measures 'base'.
 /// @note Each axis halves per level and clamps at 1, matching the Vulkan mip-chain definition.
-[[nodiscard]] constexpr auto mipExtent(Extent3D base, std::uint32_t level) noexcept -> Extent3D;
+[[nodiscard]] constexpr auto mipExtent(Extent3D base, std::uint32_t level) noexcept -> Extent3D
+{
+    // A shift wider than the operand (32 bit) is UB, and every axis has bottomed out at 1 long before 31.
+    const auto shift = std::min(level, std::uint32_t{ 31 });
+    return Extent3D{
+        std::max(std::uint32_t{ 1 }, base.x >> shift),
+        std::max(std::uint32_t{ 1 }, base.y >> shift),
+        std::max(std::uint32_t{ 1 }, base.z >> shift),
+    };
+}
 
-/// @brief Buffer offset alignment that vkCmdCopyBufferToImage requires for 'format': a multiple of
-///        both 4 and the texel size, rounded up to a power of two so it composes with alignTo.
-[[nodiscard]] constexpr auto copyAlignment(Format format) noexcept -> std::size_t;
+/// @brief Buffer offset alignment that vkCmdCopyBufferToImage requires for 'format'.
+/// @note The offset must be a multiple of both 4 and the texel block size, so the requirement is
+///       their least common multiple -- not the next power of two. Rounding 12 (R32G32B32) up to 16
+///       would satisfy neither 12 nor the spec: 16 is not a multiple of 12. Callers must therefore
+///       round with utility::roundUpTo, not alignTo.
+[[nodiscard]] constexpr auto copyAlignment(Format format) noexcept -> std::size_t
+{
+    const auto texelSize = bytesPerTexel(format);
+    if (texelSize == 0)
+        return 4;
+    return std::lcm(std::size_t{ 4 }, std::size_t{ texelSize });
+}
 
 /// @brief Where one mip level of an image lives, both in the caller's data and in staging memory.
 struct SubresourceFootprint
