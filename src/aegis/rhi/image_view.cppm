@@ -2,6 +2,7 @@ module;
 #include <expected>
 #include <optional>
 #include <string_view>
+#include <utility>
 
 export module aegis.rhi:image_view;
 import :common;
@@ -10,6 +11,33 @@ import :fwd;
 import :resource_pool;
 import :bindless_heap;
 import vulkan_hpp;
+
+export namespace aegis::rhi::detail
+{
+/// @brief The view type a view spanning 'layerCount' layers of an image of 'imageType' gets when
+///        ImageView::Desc::type is not set: the image's own type, as an array over several layers.
+///        A cube image viewed through fewer than 6 layers (e.g. one face as a render target) is 2D.
+[[nodiscard]] constexpr auto defaultViewType(ImageType imageType, std::uint32_t layerCount) noexcept
+    -> ImageViewType
+{
+    switch (imageType)
+    {
+    case ImageType::Dim1D:
+        return layerCount > 1 ? ImageViewType::Dim1DArray : ImageViewType::Dim1D;
+    case ImageType::Dim2D:
+        return layerCount > 1 ? ImageViewType::Dim2DArray : ImageViewType::Dim2D;
+    case ImageType::Dim3D:
+        return ImageViewType::Dim3D;
+    case ImageType::Cube:
+        if (layerCount == 6)
+            return ImageViewType::Cube;
+        if (layerCount % 6 == 0)
+            return ImageViewType::CubeArray;
+        return layerCount > 1 ? ImageViewType::Dim2DArray : ImageViewType::Dim2D;
+    }
+    std::unreachable();
+}
+}
 
 export namespace aegis::rhi
 {
@@ -31,6 +59,7 @@ public:
     struct Desc
     {
         std::string_view name;
+        std::optional<ImageViewType> type; // Defaults to detail::defaultViewType
         Extent3D extent;
         Format format;
         Range range;

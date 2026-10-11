@@ -1,4 +1,5 @@
 module;
+#include <cassert>
 #include <algorithm>
 #include <bit>
 #include <cmath>
@@ -64,13 +65,19 @@ namespace aegis::rhi
 {
 auto Image::create(const Device& device, const Desc& desc) -> std::expected<Image, Error>
 {
+    assert((desc.type != ImageType::Dim1D || (desc.extent.y == 1 && desc.extent.z == 1)) &&
+           "A 1D image must have a height and depth of 1");
+    assert((desc.type == ImageType::Dim3D || desc.extent.z == 1) && "Only a 3D image may have depth");
+    assert((desc.type != ImageType::Cube || (desc.arrayLayers % 6 == 0 && desc.extent.x == desc.extent.y)) &&
+           "A cube image needs square faces and a multiple of 6 array layers");
+
     std::uint32_t mipLevels = desc.mipLevels == Image::fullMipChain
                                   ? detail::calcMipLevels(desc.extent)
                                   : desc.mipLevels;
 
     vk::ImageCreateInfo imageInfo{
-        .flags = deriveImageCreateFlags(desc.extent, desc.arrayLayers),
-        .imageType = deriveImageType(desc.extent),
+        .flags = deriveImageCreateFlags(desc.type),
+        .imageType = toVulkan(desc.type),
         .format = toVulkan(desc.format),
         .extent = toVulkan(desc.extent),
         .mipLevels = mipLevels,
@@ -99,6 +106,7 @@ auto Image::create(const Device& device, const Desc& desc) -> std::expected<Imag
 
 Image::Image(ImageAllocation allocation, const Desc& desc, std::uint32_t mipLevels) :
     m_allocation{ std::move(allocation) },
+    m_type{ desc.type },
     m_extent{ desc.extent },
     m_format{ desc.format },
     m_usage{ desc.usage },

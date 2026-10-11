@@ -149,7 +149,9 @@ public:
             return result;
         if (auto result = verifyImageUpload(); !result)
             return result;
-        return verifyCubemapUpload();
+        if (auto result = verifyCubemapUpload(); !result)
+            return result;
+        return verifySinglePixelUploads();
     }
 
     // The Desc -> Vulkan mapping returns vk:: types, so no unit test can reach it; validation of these
@@ -469,7 +471,7 @@ private:
             std::byte{ 0xAA }, std::byte{ 0xBB }, std::byte{ 0xCC }
         };
 
-        return verifyTextureRoundTrip("UploadTestImage", extent, format, mipLevels, 1,
+        return verifyTextureRoundTrip("UploadTestImage", rhi::ImageType::Dim2D, extent, format, mipLevels, 1,
             [&](const auto& footprint, std::size_t /*layer*/) { return mipFill[footprint.mipLevel]; });
     }
 
@@ -480,15 +482,34 @@ private:
         constexpr auto extent = rhi::Extent3D{ 2, 2, 1 };
         constexpr auto format = rhi::Format::RGBA8_UNORM;
 
-        return verifyTextureRoundTrip("UploadTestCubemap", extent, format, 1, 6,
+        return verifyTextureRoundTrip("UploadTestCubemap", rhi::ImageType::Cube, extent, format, 1, 6,
             [](const auto& /*footprint*/, std::size_t layer) {
                 return static_cast<std::byte>(0x10 + layer);
             });
     }
 
-    // Fills every subresource via 'fillFor', uploads it, reads the image back, and compares.
-    auto verifyTextureRoundTrip(std::string_view name, rhi::Extent3D extent, rhi::Format format,
-        std::uint32_t mipLevels, std::uint32_t arrayLayers, auto&& fillFor)
+    // 1x1 images are what solidColor / solidColorCube produce. Image type used to be inferred from the
+    // extent, which made them 1D; the cube case would then fail validation on its cube view.
+    auto verifySinglePixelUploads() -> std::expected<void, std::string>
+    {
+        constexpr auto extent = rhi::Extent3D{ 1, 1, 1 };
+        constexpr auto format = rhi::Format::RGBA8_UNORM;
+
+        auto pixel = verifyTextureRoundTrip("UploadTestPixel", rhi::ImageType::Dim2D, extent, format, 1, 1,
+            [](const auto& /*footprint*/, std::size_t /*layer*/) { return std::byte{ 0x5A }; });
+        if (!pixel)
+            return pixel;
+
+        return verifyTextureRoundTrip("UploadTestPixelCube", rhi::ImageType::Cube, extent, format, 1, 6,
+            [](const auto& /*footprint*/, std::size_t layer) {
+                return static_cast<std::byte>(0x20 + layer);
+            });
+    }
+
+    // Fills every subresource via 'fillFor', uploads it, reads the image back, and compares. Also
+    // creates a default-typed sampled view, so validation checks the view against the image type.
+    auto verifyTextureRoundTrip(std::string_view name, rhi::ImageType type, rhi::Extent3D extent,
+        rhi::Format format, std::uint32_t mipLevels, std::uint32_t arrayLayers, auto&& fillFor)
         -> std::expected<void, std::string>
     {
         using namespace rhi::utility;
@@ -517,6 +538,7 @@ private:
 
         auto image = m_device->createImage({
             .name = name,
+            .type = type,
             .extent = extent,
             .format = format,
             .usage = rhi::ImageUsage::TransferDst | rhi::ImageUsage::TransferSrc |
@@ -526,6 +548,17 @@ private:
         });
         if (!image)
             return std::unexpected{ std::format("{}: failed to create image", name) };
+
+        auto view = m_device->createImageView(*image, {
+                                                          .name = name,
+                                                          .extent = extent,
+                                                          .format = format,
+                                                          .range = { .mipLevelCount = mipLevels, .arrayLayerCount = arrayLayers },
+                                                          .usage = rhi::ImageUsage::Sampled,
+                                                      });
+        if (!view)
+            return std::unexpected{ std::format("{}: failed to create view", name) };
+        m_device->free(*view);
 
         auto readback = m_device->createBuffer({
             .name = "UploadTestImageReadback",

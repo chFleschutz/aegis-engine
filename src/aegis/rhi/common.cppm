@@ -113,6 +113,29 @@ enum class BufferUsage : std::uint32_t
 template<>
 constexpr auto utility::isFlagEnum<BufferUsage>{ true };
 
+/// @brief Dimensionality of an image. Cube is a 2D image whose array layers are cube faces (a multiple
+///        of 6, square extent); it is what makes an image cube-compatible.
+enum class ImageType
+{
+    Dim1D,
+    Dim2D,
+    Dim3D,
+    Cube,
+};
+
+/// @brief How a view interprets an image. Must match what the shader declares, e.g. Texture2D is
+///        Dim2D, TextureCube is Cube, and RWTexture2DArray over cube faces is Dim2DArray.
+enum class ImageViewType
+{
+    Dim1D,
+    Dim2D,
+    Dim3D,
+    Cube,
+    Dim1DArray,
+    Dim2DArray,
+    CubeArray,
+};
+
 enum class ImageUsage : std::uint32_t
 {
     None                   = 0,

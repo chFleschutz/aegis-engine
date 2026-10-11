@@ -125,6 +125,7 @@ public:
     struct Desc
     {
         std::string_view name;
+        ImageType type{ ImageType::Dim2D };
         Extent3D extent;
         Format format;
         ImageUsage usage;
@@ -135,6 +136,7 @@ public:
     static constexpr std::uint32_t fullMipChain{ std::numeric_limits<std::uint32_t>::max() };
 
     [[nodiscard]] auto vk() const noexcept -> vk::Image { return m_allocation.image(); }
+    [[nodiscard]] auto type() const noexcept -> ImageType { return m_type; }
     [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_extent; }
     [[nodiscard]] auto format() const noexcept -> Format { return m_format; }
     [[nodiscard]] auto usage() const noexcept -> ImageUsage { return m_usage; }
@@ -150,6 +152,7 @@ private:
     Image(ImageAllocation allocation, const Desc& desc, std::uint32_t mipLevels);
 
     ImageAllocation m_allocation;
+    ImageType m_type;
     Extent3D m_extent;
     Format m_format;
     ImageUsage m_usage;

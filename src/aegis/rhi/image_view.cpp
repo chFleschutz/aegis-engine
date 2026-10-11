@@ -26,7 +26,8 @@ auto ImageView::create(const Device& device, ImageHandle image, const Desc& desc
     auto imageSrc = device.get(image).vk();
     vk::ImageViewCreateInfo viewInfo{
         .image = imageSrc,
-        .viewType = deriveImageViewType(desc.extent, desc.range.arrayLayerCount),
+        .viewType = toVulkan(desc.type.value_or(
+            detail::defaultViewType(device.get(image).type(), desc.range.arrayLayerCount))),
         .format = toVulkan(desc.format),
         .subresourceRange = vk::ImageSubresourceRange{
             .aspectMask = deriveImageAspectFlags(desc.format),
@@ -58,7 +59,8 @@ auto ImageView::create(const Device& device, vk::Image imageSrc,
 {
     vk::ImageViewCreateInfo viewInfo{
         .image = imageSrc,
-        .viewType = deriveImageViewType(desc.extent, desc.range.arrayLayerCount),
+        .viewType = toVulkan(desc.type.value_or(
+            detail::defaultViewType(ImageType::Dim2D, desc.range.arrayLayerCount))),
         .format = toVulkan(desc.format),
         .subresourceRange = vk::ImageSubresourceRange{
             .aspectMask = deriveImageAspectFlags(desc.format),

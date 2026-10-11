@@ -55,6 +55,7 @@ auto Renderer::createTexture(const Texture::Desc& desc) const -> std::expected<T
 {
     auto image = m_device.createImage(rhi::Image::Desc{
         .name = desc.name,
+        .type = desc.type,
         .extent = desc.extent,
         .format = desc.format,
         .usage = desc.usage,

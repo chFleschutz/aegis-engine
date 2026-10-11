@@ -41,9 +41,9 @@ constexpr auto toVulkan(TimestampStage stage) noexcept -> vk::PipelineStageFlags
 
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
 constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout;
-constexpr auto deriveImageType(Extent3D extent) noexcept -> vk::ImageType;
-constexpr auto deriveImageViewType(Extent3D extent, std::uint32_t arrayLayers) noexcept -> vk::ImageViewType;
-constexpr auto deriveImageCreateFlags(Extent3D extent, std::uint32_t layers) noexcept -> vk::ImageCreateFlags;
+constexpr auto toVulkan(ImageType type) noexcept -> vk::ImageType;
+constexpr auto toVulkan(ImageViewType type) noexcept -> vk::ImageViewType;
+constexpr auto deriveImageCreateFlags(ImageType type) noexcept -> vk::ImageCreateFlags;
 constexpr auto deriveVmaInfo(MemoryUsage usage) noexcept -> VmaAllocationCreateInfo;
 
 // Vulkan -> RHI conversion
@@ -377,42 +377,46 @@ constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk:
     return vk::ImageLayout::eAttachmentOptimal;
 }
 
-constexpr auto deriveImageType(Extent3D extent) noexcept -> vk::ImageType
+constexpr auto toVulkan(ImageType type) noexcept -> vk::ImageType
 {
-    if (extent.z > 1)
-        return vk::ImageType::e3D;
-    if (extent.y > 1)
-        return vk::ImageType::e2D;
-    return vk::ImageType::e1D;
-}
-
-constexpr auto deriveImageViewType(Extent3D extent, std::uint32_t arrayLayers) noexcept -> vk::ImageViewType
-{
-    auto imageType = deriveImageType(extent);
-    if (arrayLayers == 6 and imageType == vk::ImageType::e2D)
-        return vk::ImageViewType::eCube;
-
-    switch (imageType)
+    switch (type)
     {
-    case vk::ImageType::e1D:
-        return arrayLayers > 1 ? vk::ImageViewType::e1DArray : vk::ImageViewType::e1D;
-    case vk::ImageType::e2D:
-        return arrayLayers > 1 ? vk::ImageViewType::e2DArray : vk::ImageViewType::e2D;
-    case vk::ImageType::e3D:
-        return vk::ImageViewType::e3D;
+    case ImageType::Dim1D:
+        return vk::ImageType::e1D;
+    case ImageType::Dim2D:
+    case ImageType::Cube:
+        return vk::ImageType::e2D;
+    case ImageType::Dim3D:
+        return vk::ImageType::e3D;
     }
     std::unreachable();
 }
 
-constexpr auto deriveImageCreateFlags(Extent3D extent, std::uint32_t layers) noexcept -> vk::ImageCreateFlags
+constexpr auto toVulkan(ImageViewType type) noexcept -> vk::ImageViewType
 {
-    vk::ImageCreateFlags flags{};
+    switch (type)
+    {
+    case ImageViewType::Dim1D:
+        return vk::ImageViewType::e1D;
+    case ImageViewType::Dim2D:
+        return vk::ImageViewType::e2D;
+    case ImageViewType::Dim3D:
+        return vk::ImageViewType::e3D;
+    case ImageViewType::Cube:
+        return vk::ImageViewType::eCube;
+    case ImageViewType::Dim1DArray:
+        return vk::ImageViewType::e1DArray;
+    case ImageViewType::Dim2DArray:
+        return vk::ImageViewType::e2DArray;
+    case ImageViewType::CubeArray:
+        return vk::ImageViewType::eCubeArray;
+    }
+    std::unreachable();
+}
 
-    // Cubemap: 6 array layers on 2D image
-    if (layers == 6 and deriveImageType(extent) == vk::ImageType::e2D)
-        flags |= vk::ImageCreateFlagBits::eCubeCompatible;
-
-    return flags;
+constexpr auto deriveImageCreateFlags(ImageType type) noexcept -> vk::ImageCreateFlags
+{
+    return type == ImageType::Cube ? vk::ImageCreateFlagBits::eCubeCompatible : vk::ImageCreateFlags{};
 }
 
 constexpr auto deriveVmaInfo(MemoryUsage usage) noexcept -> VmaAllocationCreateInfo

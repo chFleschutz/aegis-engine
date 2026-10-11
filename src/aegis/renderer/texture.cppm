@@ -11,6 +11,7 @@ struct Texture
     struct Desc
     {
         std::string_view name;
+        rhi::ImageType type{ rhi::ImageType::Dim2D };
         rhi::Extent3D extent;
         rhi::Format format;
         rhi::ImageUsage usage;
