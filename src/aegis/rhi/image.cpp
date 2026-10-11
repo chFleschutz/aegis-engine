@@ -1,7 +1,7 @@
 module;
-#include <cassert>
 #include <algorithm>
 #include <bit>
+#include <cassert>
 #include <cmath>
 #include <expected>
 #include <format>
