@@ -23,21 +23,13 @@ namespace aegis::assets
 {
 namespace detail
 {
-auto std430Alignment(const MaterialValue& value) -> std::size_t
+auto scalarAlignment(const MaterialValue& /*value*/) -> std::size_t
 {
-    return std::visit(
-        []<typename T>(const T&) -> std::size_t {
-            if constexpr (std::is_same_v<T, glm::vec2>)
-                return 8;
-            else if constexpr (std::is_same_v<T, glm::vec3> || std::is_same_v<T, glm::vec4>)
-                return 16;
-            else // Scalars, and a texture's two 32-bit descriptor indices
-                return 4;
-        },
-        value);
+    // Scalar layout aligns a vector like its components: every parameter type here has 4-byte ones.
+    return 4;
 }
 
-auto std430Size(const MaterialValue& value) -> std::size_t
+auto scalarSize(const MaterialValue& value) -> std::size_t
 {
     return std::visit(
         []<typename T>(const T&) -> std::size_t {
@@ -88,8 +80,8 @@ auto MaterialTemplate::addParameter(const std::string& name, MaterialValue defau
                std::get<std::shared_ptr<Texture>>(defaultValue)) &&
            "A texture parameter needs a default texture");
 
-    const auto offset = rhi::utility::alignTo(m_parameterSize, detail::std430Alignment(defaultValue));
-    const auto size = detail::std430Size(defaultValue);
+    const auto offset = rhi::utility::alignTo(m_parameterSize, detail::scalarAlignment(defaultValue));
+    const auto size = detail::scalarSize(defaultValue);
     m_parameterSize = offset + size;
     m_parameters.emplace(name, MaterialParameter{ .offset = offset, .size = size, .defaultValue = std::move(defaultValue) });
 }
@@ -106,7 +98,7 @@ auto MaterialInstance::create(rhi::Device& device, std::shared_ptr<const Materia
     using namespace rhi::utility;
     assert(materialTemplate && framesInFlight > 0);
 
-    // 16-byte blocks keep every frame's block aligned for the largest std430 member (vec3/vec4).
+    // 16-byte blocks: every frame's block starts at least as aligned as any member needs.
     const auto blockStride = alignTo(std::max<std::size_t>(materialTemplate->parameterSize(), 16), 16);
     auto buffer = device.createBuffer({
         .name = "MaterialParameters",

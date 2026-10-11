@@ -3,6 +3,8 @@ export import :draw_batch_registry;
 export import :error;
 export import :frame_graph;
 export import :frustum;
+export import :ibl;
+export import :immediate;
 export import :render_pass;
 export import :resource;
 export import :resource_pool;

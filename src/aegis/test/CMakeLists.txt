@@ -5,6 +5,7 @@ target_link_libraries(aegis-test
         aegis-assets
         aegis-math
         aegis-platform
+        aegis-render-graph
         aegis-renderer
         aegis-rhi
         aegis-scene

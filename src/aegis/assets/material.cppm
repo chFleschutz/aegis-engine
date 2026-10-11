@@ -27,7 +27,8 @@ enum class MaterialType
 using MaterialValue = std::variant<std::int32_t, std::uint32_t, float, glm::vec2, glm::vec3, glm::vec4,
     std::shared_ptr<Texture>>;
 
-/// @brief Where a parameter lives in a material's parameter block, laid out with std430 rules.
+/// @brief Where a parameter lives in a material's parameter block, laid out with scalar rules
+///        (C++ packing, as the new stack's shaders read blocks; see shaders/modules/README.md).
 ///        A texture takes 8 bytes: its SampledImageDescriptor index, then its SamplerDescriptor index.
 struct MaterialParameter
 {
@@ -124,8 +125,8 @@ private:
 
 export namespace aegis::assets::detail
 {
-[[nodiscard]] auto std430Alignment(const MaterialValue& value) -> std::size_t;
-[[nodiscard]] auto std430Size(const MaterialValue& value) -> std::size_t;
+[[nodiscard]] auto scalarAlignment(const MaterialValue& value) -> std::size_t;
+[[nodiscard]] auto scalarSize(const MaterialValue& value) -> std::size_t;
 
 /// @brief Serializes every parameter of 'materialTemplate' into 'block' (at least parameterSize()
 ///        bytes): the override from 'overrides' if present, otherwise the default. A null texture

@@ -619,7 +619,12 @@ auto Device::createFeatureChain() -> FeatureChain
 
     FeatureChain featureChain;
 
-    featureChain.get<vk::PhysicalDeviceFeatures2>().features.setSamplerAnisotropy(true);
+    // Storage images are read and written without a format: the bindless heap's storage binding
+    // holds images of any format.
+    featureChain.get<vk::PhysicalDeviceFeatures2>()
+        .features.setSamplerAnisotropy(true)
+        .setShaderStorageImageReadWithoutFormat(true)
+        .setShaderStorageImageWriteWithoutFormat(true);
 
     featureChain
         .get<vk::PhysicalDeviceVulkan11Features>() //
@@ -646,6 +651,7 @@ auto Device::createFeatureChain() -> FeatureChain
         .setScalarBlockLayout(true)
         .setUniformBufferStandardLayout(true)
         .setTimelineSemaphore(true)
+        .setDrawIndirectCount(true)
         .setBufferDeviceAddress(true);
 
     featureChain.get<vk::PhysicalDeviceVulkan13Features>()

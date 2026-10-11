@@ -23,6 +23,8 @@ target_sources(aegis-render-graph
     error.cppm
     frame_graph.cppm
     frustum.cppm
+    ibl.cppm
+    immediate.cppm
     render_pass.cppm
     resource.cppm
     resource_pool.cppm
@@ -31,6 +33,7 @@ target_sources(aegis-render-graph
     PRIVATE
     draw_batch_registry.cpp
     frame_graph.cpp
+    ibl.cpp
     resource_pool.cpp
     schedule.cpp
     shader.cpp

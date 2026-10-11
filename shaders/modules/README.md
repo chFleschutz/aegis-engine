@@ -1,8 +1,9 @@
 # Shader interface (new RHI)
 
-How shaders written for the new RHI (`aegis::rhi`) receive their data. `bindless.slang` in this
-folder belongs to the **old** stack (`Aegis::Graphics`) and uses different binding slots; a Slang
-module for the layout below arrives with the Phase 2 shader port (see `docs/rhi-migration-plan.md`).
+How shaders written for the new RHI (`aegis::rhi`) receive their data. They live in `shaders/rhi/`
+and import `rhi.modules.*`. The modules in this folder (`bindless.slang` and friends) belong to the
+**old** stack (`Aegis::Graphics`), which uses different binding slots and std430 packing; they go with
+the old renderer.
 
 ## One pipeline layout for every pipeline
 
@@ -15,8 +16,12 @@ module for the layout below arrives with the Phase 2 shader port (see `docs/rhi-
 | Set 0, binding 2        | samplers (`SamplerDescriptor` indices)                              |
 | Push constants          | 128 bytes at offset 0, visible to all stages                      |
 
-`CommandBuffer::bindPipeline` binds set 0 automatically. Images and samplers are separate, so a
-shader combines a texture index with a sampler index itself.
+`CommandBuffer::bindPipeline` binds set 0 automatically. `rhi/modules/bindless.slang` declares the
+arrays (aliased per resource type, e.g. `Texture2D` and `TextureCube` over binding 0) and typed
+accessors: `bindless::texture2D(SampledImageDescriptor)`, `bindless::storage2DArray(StorageImageDescriptor)`,
+`bindless::sampler(SamplerDescriptor)`. Images and samplers are separate; `bindless::TextureDescriptor`
+pairs them, which is how an `assets::Texture` reaches a shader (8 bytes: image index, sampler index).
+Storage images are declared without a format, so one binding serves every format.
 
 ## Buffers: device addresses in push constants
 
@@ -25,22 +30,30 @@ its push constants (the buffer needs `BufferUsage::ShaderDeviceAddress`). Descri
 same way. One `[[vk::push_constant]]` struct per entry point:
 
 ```slang
+import rhi.modules.bindless;
+
 struct DrawConstants
 {
-    float4x4* transforms;     // buffer device address
-    Vertex* vertices;         // buffer device address
-    uint albedoTexture;       // SampledImageDescriptor::index
-    uint albedoSampler;       // SamplerDescriptor::index
-};
+    float4x4* transforms;                // buffer device address
+    Vertex* vertices;                    // buffer device address
+    bindless::TextureDescriptor albedo;  // assets::Texture's image and sampler indices
+}
 
 [[vk::push_constant]] ConstantBuffer<DrawConstants> constants;
 ```
 
 On the C++ side, mirror the struct with `rhi::DeviceAddress` for pointers and `std::uint32_t` for
 indices, and record it with `cmd.pushConstants(value)`. The struct must fit in 128 bytes, which the
-typed `pushConstants` checks at compile time. Slang lays push constants out with std430 rules, so
-order the members largest-alignment first (pointers, then 4-byte values) and the C++ struct matches
-without padding surprises.
+typed `pushConstants` checks at compile time.
 
-Working example: `computeMain` in `src/aegis/test/shader.slang` and `verifyComputeRoundTrip` in
-`src/aegis/test/main.cpp`.
+## Layout: scalar, so C++ structs match
+
+`shaders/rhi/` compiles with `-fvk-use-scalar-layout` (see `shaders/CMakeLists.txt`): push constants
+and everything read through a pointer are packed like C++ structs, with each member aligned to its
+component type (a `float3` takes 12 bytes, aligned to 4). So a C++ struct of `glm::vec3`, `float` and
+`rhi::DeviceAddress` matches the Slang struct member for member — `assets::Vertex`, `StaticMesh::GpuData`
+and material parameter blocks rely on it. Matrices are row-major (`-matrix-layout-row-major`); upload
+`glm::rowMajor4(m)`.
+
+Working examples: `computeMain` in `src/aegis/test/shader.slang`, and `shaders/rhi/ibl/*.slang`
+(driven by `render_graph::Ibl`).

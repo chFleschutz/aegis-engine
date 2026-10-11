@@ -1,0 +1,296 @@
+module;
+#include <algorithm>
+#include <cstdint>
+#include <expected>
+#include <filesystem>
+#include <format>
+#include <memory>
+#include <string>
+#include <vector>
+
+module aegis.render_graph;
+import aegis.assets;
+import aegis.rhi;
+
+namespace aegis::render_graph
+{
+namespace
+{
+constexpr std::uint32_t groupSize{ 16 };
+
+auto groups(std::uint32_t size) -> std::uint32_t
+{
+    return (size + groupSize - 1) / groupSize;
+}
+
+// Mirrors bindless::TextureDescriptor: image index, then sampler index.
+struct TextureDescriptor
+{
+    std::uint32_t image;
+    std::uint32_t sampler;
+};
+
+auto descriptorOf(const assets::Texture& texture) -> TextureDescriptor
+{
+    return { texture.sampledDescriptor().index, texture.samplerDescriptor().index };
+}
+
+auto createPipeline(rhi::Device& device, std::string_view name, std::string_view shaderPath)
+    -> std::expected<rhi::Pipeline, Error>
+{
+    auto code = loadShader(shaderPath);
+    if (!code)
+        return std::unexpected{ code.error() };
+
+    auto pipeline = device.createPipeline(rhi::Pipeline::ComputeDesc{
+        .name = name,
+        .shader = { .name = name, .stage = rhi::ShaderStage::Compute, .code = *code },
+    });
+    if (!pipeline)
+        return makeError(pipeline.error(), std::format("Failed to create pipeline '{}'", name));
+    return std::move(*pipeline);
+}
+
+auto cubeDesc(std::string_view name, std::uint32_t size, std::uint32_t mipLevels) -> assets::Texture::Desc
+{
+    return assets::Texture::Desc{
+        .name = name,
+        .type = rhi::ImageType::Cube,
+        .extent = { size, size, 1 },
+        .format = rhi::Format::RGBA16_SFLOAT,
+        .mipLevels = mipLevels,
+        .arrayLayers = 6,
+        .sampler = { .addressMode = rhi::SamplerAddressMode::ClampToEdge },
+        .usage = rhi::ImageUsage::Storage,
+    };
+}
+}
+
+auto Ibl::create(rhi::Device& device) -> std::expected<Ibl, Error>
+{
+    auto equirectToCube = createPipeline(device, "IblEquirectToCube", "rhi/ibl/equirect_to_cube.slang.spv");
+    if (!equirectToCube)
+        return std::unexpected{ equirectToCube.error() };
+    auto irradiance = createPipeline(device, "IblIrradiance", "rhi/ibl/irradiance_convolution.slang.spv");
+    if (!irradiance)
+        return std::unexpected{ irradiance.error() };
+    auto prefilter = createPipeline(device, "IblPrefilter", "rhi/ibl/prefilter_environment.slang.spv");
+    if (!prefilter)
+        return std::unexpected{ prefilter.error() };
+    auto brdfLut = createPipeline(device, "IblBrdfLut", "rhi/ibl/brdf_lut.slang.spv");
+    if (!brdfLut)
+        return std::unexpected{ brdfLut.error() };
+
+    return Ibl{ device, std::move(*equirectToCube), std::move(*irradiance), std::move(*prefilter), std::move(*brdfLut) };
+}
+
+Ibl::Ibl(rhi::Device& device, rhi::Pipeline equirectToCube, rhi::Pipeline irradiance, rhi::Pipeline prefilter,
+    rhi::Pipeline brdfLut) :
+    m_device{ &device },
+    m_equirectToCube{ std::move(equirectToCube) },
+    m_irradiance{ std::move(irradiance) },
+    m_prefilter{ std::move(prefilter) },
+    m_brdfLut{ std::move(brdfLut) }
+{
+}
+
+auto Ibl::loadEnvironment(const std::filesystem::path& hdr) -> std::expected<assets::Environment, Error>
+{
+    auto equirect = assets::Texture::loadEquirectangular(*m_device, hdr);
+    if (!equirect)
+        return makeError(std::format("Failed to load environment: {}", equirect.error().message));
+
+    auto cube = cubeFromEquirectangular(**equirect);
+    if (!cube)
+        return std::unexpected{ cube.error() };
+    (*cube)->setPath(hdr);
+    return environmentFrom(std::move(*cube));
+}
+
+auto Ibl::environmentFrom(std::shared_ptr<assets::Texture> cube) -> std::expected<assets::Environment, Error>
+{
+    auto irradianceMap = irradiance(*cube);
+    if (!irradianceMap)
+        return std::unexpected{ irradianceMap.error() };
+    auto prefilteredMap = prefiltered(*cube);
+    if (!prefilteredMap)
+        return std::unexpected{ prefilteredMap.error() };
+    auto lut = brdfLut();
+    if (!lut)
+        return std::unexpected{ lut.error() };
+
+    return assets::Environment{
+        .skybox = std::move(cube),
+        .irradiance = std::move(*irradianceMap),
+        .prefiltered = std::move(*prefilteredMap),
+        .brdfLUT = std::move(*lut),
+    };
+}
+
+auto Ibl::storageView(const assets::Texture& texture, std::uint32_t mipLevel) -> std::expected<rhi::ImageViewHandle, Error>
+{
+    const auto& image = m_device->get(texture.image());
+    const auto extent = image.extent();
+    auto view = m_device->createImageView(texture.image(),
+        rhi::ImageView::Desc{
+            .name = "IblStorageView",
+            .type = image.arrayLayers() > 1 ? rhi::ImageViewType::Dim2DArray : rhi::ImageViewType::Dim2D,
+            .extent = { std::max(extent.x >> mipLevel, 1u), std::max(extent.y >> mipLevel, 1u), 1 },
+            .format = image.format(),
+            .range = { .baseMipLevel = mipLevel, .mipLevelCount = 1, .arrayLayerCount = image.arrayLayers() },
+            .usage = rhi::ImageUsage::Storage,
+        });
+    if (!view)
+        return makeError(view.error(), "Failed to create IBL storage view");
+    return *view;
+}
+
+auto Ibl::cubeFromEquirectangular(const assets::Texture& equirect) -> std::expected<std::shared_ptr<assets::Texture>, Error>
+{
+    // Four faces span the equirectangular image's width.
+    const auto size = m_device->get(equirect.image()).extent().x / 4;
+    auto cube = assets::Texture::create(*m_device, cubeDesc("EnvironmentCube", size, rhi::Image::fullMipChain));
+    if (!cube)
+        return makeError(std::format("Failed to create environment cube: {}", cube.error().message));
+    auto target = storageView(**cube, 0);
+    if (!target)
+        return std::unexpected{ target.error() };
+
+    struct PushConstants
+    {
+        TextureDescriptor equirect;
+        std::uint32_t cube;
+    };
+    const PushConstants constants{ descriptorOf(equirect), m_device->get(*target).storageDescriptor()->index };
+
+    const auto image = (*cube)->image();
+    auto submitted = submitImmediate(*m_device, "EquirectangularToCube", [&](const rhi::CommandBuffer& cmd) {
+        cmd.transitionImageLayout(image, rhi::ResourceState::Unknown, rhi::ResourceState::ComputeStorage);
+        cmd.bindPipeline(m_equirectToCube);
+        cmd.pushConstants(constants);
+        cmd.dispatch(groups(size), groups(size), 6);
+        cmd.generateMipmaps(image, rhi::ResourceState::ComputeStorage);
+        cmd.transitionImageLayout(image, rhi::ResourceState::CopySrc, rhi::ResourceState::ShaderRead);
+    });
+    m_device->free(*target);
+    if (!submitted)
+        return std::unexpected{ submitted.error() };
+    return std::move(*cube);
+}
+
+auto Ibl::irradiance(const assets::Texture& cube) -> std::expected<std::shared_ptr<assets::Texture>, Error>
+{
+    auto map = assets::Texture::create(*m_device, cubeDesc("Irradiance", irradianceSize, 1));
+    if (!map)
+        return makeError(std::format("Failed to create irradiance map: {}", map.error().message));
+    auto target = storageView(**map, 0);
+    if (!target)
+        return std::unexpected{ target.error() };
+
+    struct PushConstants
+    {
+        TextureDescriptor environment;
+        std::uint32_t irradiance;
+    };
+    const PushConstants constants{ descriptorOf(cube), m_device->get(*target).storageDescriptor()->index };
+
+    const auto image = (*map)->image();
+    auto submitted = submitImmediate(*m_device, "IrradianceConvolution", [&](const rhi::CommandBuffer& cmd) {
+        cmd.transitionImageLayout(image, rhi::ResourceState::Unknown, rhi::ResourceState::ComputeStorage);
+        cmd.bindPipeline(m_irradiance);
+        cmd.pushConstants(constants);
+        cmd.dispatch(groups(irradianceSize), groups(irradianceSize), 6);
+        cmd.transitionImageLayout(image, rhi::ResourceState::ComputeStorage, rhi::ResourceState::ShaderRead);
+    });
+    m_device->free(*target);
+    if (!submitted)
+        return std::unexpected{ submitted.error() };
+    return std::move(*map);
+}
+
+auto Ibl::prefiltered(const assets::Texture& cube) -> std::expected<std::shared_ptr<assets::Texture>, Error>
+{
+    auto map = assets::Texture::create(*m_device, cubeDesc("Prefiltered", prefilteredSize, prefilteredMipLevels));
+    if (!map)
+        return makeError(std::format("Failed to create prefiltered map: {}", map.error().message));
+
+    std::vector<rhi::ImageViewHandle> targets;
+    const auto freeTargets = [&] {
+        for (const auto view : targets)
+            m_device->free(view);
+    };
+    for (std::uint32_t mip = 0; mip < prefilteredMipLevels; ++mip)
+    {
+        auto target = storageView(**map, mip);
+        if (!target)
+        {
+            freeTargets();
+            return std::unexpected{ target.error() };
+        }
+        targets.push_back(*target);
+    }
+
+    struct PushConstants
+    {
+        TextureDescriptor environment;
+        std::uint32_t prefiltered;
+        float roughness;
+        float envResolution;
+    };
+    const auto environmentSize = static_cast<float>(m_device->get(cube.image()).extent().x);
+
+    const auto image = (*map)->image();
+    auto submitted = submitImmediate(*m_device, "PrefilterEnvironment", [&](const rhi::CommandBuffer& cmd) {
+        cmd.transitionImageLayout(image, rhi::ResourceState::Unknown, rhi::ResourceState::ComputeStorage);
+        cmd.bindPipeline(m_prefilter);
+        for (std::uint32_t mip = 0; mip < prefilteredMipLevels; ++mip)
+        {
+            cmd.pushConstants(PushConstants{
+                .environment = descriptorOf(cube),
+                .prefiltered = m_device->get(targets[mip]).storageDescriptor()->index,
+                .roughness = static_cast<float>(mip) / static_cast<float>(prefilteredMipLevels - 1),
+                .envResolution = environmentSize,
+            });
+            const auto size = std::max(prefilteredSize >> mip, 1u);
+            cmd.dispatch(groups(size), groups(size), 6);
+        }
+        cmd.transitionImageLayout(image, rhi::ResourceState::ComputeStorage, rhi::ResourceState::ShaderRead);
+    });
+    freeTargets();
+    if (!submitted)
+        return std::unexpected{ submitted.error() };
+    return std::move(*map);
+}
+
+auto Ibl::brdfLut() -> std::expected<std::shared_ptr<assets::Texture>, Error>
+{
+    auto lut = assets::Texture::create(*m_device,
+        assets::Texture::Desc{
+            .name = "BrdfLut",
+            .extent = { brdfLutSize, brdfLutSize, 1 },
+            .format = rhi::Format::RGBA16_SFLOAT,
+            .mipLevels = 1,
+            .sampler = { .addressMode = rhi::SamplerAddressMode::ClampToEdge },
+            .usage = rhi::ImageUsage::Storage,
+        });
+    if (!lut)
+        return makeError(std::format("Failed to create BRDF LUT: {}", lut.error().message));
+    auto target = storageView(**lut, 0);
+    if (!target)
+        return std::unexpected{ target.error() };
+
+    const auto lutDescriptor = m_device->get(*target).storageDescriptor()->index;
+    const auto image = (*lut)->image();
+    auto submitted = submitImmediate(*m_device, "BrdfLut", [&](const rhi::CommandBuffer& cmd) {
+        cmd.transitionImageLayout(image, rhi::ResourceState::Unknown, rhi::ResourceState::ComputeStorage);
+        cmd.bindPipeline(m_brdfLut);
+        cmd.pushConstants(lutDescriptor);
+        cmd.dispatch(groups(brdfLutSize), groups(brdfLutSize), 1);
+        cmd.transitionImageLayout(image, rhi::ResourceState::ComputeStorage, rhi::ResourceState::ShaderRead);
+    });
+    m_device->free(*target);
+    if (!submitted)
+        return std::unexpected{ submitted.error() };
+    return std::move(*lut);
+}
+}

@@ -27,21 +27,21 @@ auto readAt(const std::array<std::byte, 64>& block, std::size_t offset) -> T
 
 TEST_SUITE("assets::MaterialTemplate")
 {
-    TEST_CASE("lays parameters out with std430 alignment")
+    TEST_CASE("packs parameters with scalar alignment, like the C++ structs shaders mirror")
     {
         MaterialTemplate pbr;
-        pbr.addParameter("metallic", 0.0f);             // 4 bytes at 0
-        pbr.addParameter("albedo", glm::vec3{ 1.0f });  // vec3 aligns to 16: 12 bytes at 16
-        pbr.addParameter("roughness", 1.0f);            // Packs into the vec3's last 4 bytes: 28
-        pbr.addParameter("uvScale", glm::vec2{ 1.0f }); // vec2 aligns to 8: 32
-        pbr.addParameter("layer", std::uint32_t{ 0 });  // 40
+        pbr.addParameter("metallic", 0.0f);             // 0
+        pbr.addParameter("albedo", glm::vec3{ 1.0f });  // 4: a vec3 aligns like a float
+        pbr.addParameter("roughness", 1.0f);            // 16
+        pbr.addParameter("uvScale", glm::vec2{ 1.0f }); // 20
+        pbr.addParameter("layer", std::uint32_t{ 0 });  // 28
 
         CHECK(pbr.parameter("metallic")->offset == 0);
-        CHECK(pbr.parameter("albedo")->offset == 16);
-        CHECK(pbr.parameter("roughness")->offset == 28);
-        CHECK(pbr.parameter("uvScale")->offset == 32);
-        CHECK(pbr.parameter("layer")->offset == 40);
-        CHECK(pbr.parameterSize() == 44);
+        CHECK(pbr.parameter("albedo")->offset == 4);
+        CHECK(pbr.parameter("roughness")->offset == 16);
+        CHECK(pbr.parameter("uvScale")->offset == 20);
+        CHECK(pbr.parameter("layer")->offset == 28);
+        CHECK(pbr.parameterSize() == 32);
     }
 
     TEST_CASE("reports unknown parameters as missing")
@@ -52,27 +52,26 @@ TEST_SUITE("assets::MaterialTemplate")
     }
 }
 
-TEST_SUITE("assets::detail::std430")
+TEST_SUITE("assets::detail::scalar")
 {
-    using aegis::assets::detail::std430Alignment;
-    using aegis::assets::detail::std430Size;
+    using aegis::assets::detail::scalarAlignment;
+    using aegis::assets::detail::scalarSize;
 
-    TEST_CASE("scalars are 4 bytes, vec2 8, vec3 12 aligned to 16, vec4 16")
+    TEST_CASE("values take their C++ size and align to 4 bytes")
     {
-        CHECK(std430Size(MaterialValue{ 1.0f }) == 4);
-        CHECK(std430Alignment(MaterialValue{ std::int32_t{ 1 } }) == 4);
-        CHECK(std430Size(MaterialValue{ glm::vec2{} }) == 8);
-        CHECK(std430Alignment(MaterialValue{ glm::vec2{} }) == 8);
-        CHECK(std430Size(MaterialValue{ glm::vec3{} }) == 12);
-        CHECK(std430Alignment(MaterialValue{ glm::vec3{} }) == 16);
-        CHECK(std430Size(MaterialValue{ glm::vec4{} }) == 16);
+        CHECK(scalarSize(MaterialValue{ 1.0f }) == 4);
+        CHECK(scalarSize(MaterialValue{ glm::vec2{} }) == 8);
+        CHECK(scalarSize(MaterialValue{ glm::vec3{} }) == 12);
+        CHECK(scalarSize(MaterialValue{ glm::vec4{} }) == 16);
+        CHECK(scalarAlignment(MaterialValue{ glm::vec3{} }) == 4);
+        CHECK(scalarAlignment(MaterialValue{ std::int32_t{ 1 } }) == 4);
     }
 
     TEST_CASE("a texture is two 32-bit descriptor indices")
     {
         const MaterialValue texture{ std::shared_ptr<aegis::assets::Texture>{} };
-        CHECK(std430Size(texture) == 8);
-        CHECK(std430Alignment(texture) == 4);
+        CHECK(scalarSize(texture) == 8);
+        CHECK(scalarAlignment(texture) == 4);
     }
 }
 
@@ -89,12 +88,12 @@ TEST_SUITE("assets::detail::writeParameters")
         std::array<std::byte, 64> block{};
         writeParameters(pbr, {}, block);
         CHECK(readAt<float>(block, 0) == 0.25f);
-        CHECK(readAt<float>(block, 16) == 1.0f);
-        CHECK(readAt<float>(block, 24) == 3.0f);
+        CHECK(readAt<float>(block, 4) == 1.0f);
+        CHECK(readAt<float>(block, 12) == 3.0f);
 
         const std::unordered_map<std::string, MaterialValue> overrides{ { "metallic", 0.75f } };
         writeParameters(pbr, overrides, block);
         CHECK(readAt<float>(block, 0) == 0.75f);
-        CHECK(readAt<float>(block, 20) == 2.0f);
+        CHECK(readAt<float>(block, 8) == 2.0f);
     }
 }

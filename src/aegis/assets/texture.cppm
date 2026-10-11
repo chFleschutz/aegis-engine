@@ -33,17 +33,29 @@ public:
         std::uint32_t mipLevels{ rhi::Image::fullMipChain };
         std::uint32_t arrayLayers{ 1 };
         rhi::Sampler::Desc sampler{};
+        /// @brief Usage beyond Sampled and transfers, e.g. Storage for a texture a compute shader fills.
+        rhi::ImageUsage usage{ rhi::ImageUsage::None };
     };
 
     /// @param mip0 Mip 0 of every array layer, tightly packed, layers in order.
     [[nodiscard]] static auto create(rhi::Device& device, const Desc& desc, std::span<const std::byte> mip0)
         -> std::expected<std::shared_ptr<Texture>, Error>;
 
+    /// @brief A texture without contents, in ResourceState::Unknown, for the GPU to fill (e.g. IBL
+    ///        maps a compute shader writes). The creator transitions it to ShaderRead once filled.
+    [[nodiscard]] static auto create(rhi::Device& device, const Desc& desc)
+        -> std::expected<std::shared_ptr<Texture>, Error>;
+
     /// @brief Decodes a PNG/JPEG/... file into an RGBA8 texture with a full mip chain.
     /// @param format RGBA8_UNORM or RGBA8_SRGB (color data such as albedo is sRGB).
-    /// @note HDR environment maps (.hdr) need the IBL compute path, which is not ported yet.
+    /// @note For .hdr environment maps use loadEquirectangular (and render_graph::Ibl).
     [[nodiscard]] static auto loadFromFile(rhi::Device& device, const std::filesystem::path& path,
         rhi::Format format = rhi::Format::RGBA8_UNORM) -> std::expected<std::shared_ptr<Texture>, Error>;
+
+    /// @brief Decodes a Radiance .hdr (equirectangular environment) into an RGBA32_SFLOAT texture,
+    ///        one mip, clamped. render_graph::Ibl turns it into a cube map.
+    [[nodiscard]] static auto loadEquirectangular(rhi::Device& device, const std::filesystem::path& path)
+        -> std::expected<std::shared_ptr<Texture>, Error>;
 
     /// @brief Like loadFromFile, for an encoded image already in memory (e.g. embedded in a glTF).
     [[nodiscard]] static auto loadFromMemory(rhi::Device& device, std::span<const std::byte> encoded,
