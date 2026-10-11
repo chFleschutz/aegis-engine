@@ -1,4 +1,5 @@
 module;
+#include <string>
 #include <string_view>
 
 export module aegis.rhi:debug;
@@ -19,10 +20,11 @@ void setName(const vk::raii::Device& device, T handle, std::string_view name)
 {
     if constexpr (Context::enableValidation)
     {
+        const std::string terminated{ name }; // Vulkan reads a null-terminated string
         const vk::DebugUtilsObjectNameInfoEXT info{
             .objectType = T::objectType,
             .objectHandle = reinterpret_cast<std::uint64_t>(static_cast<T::CType>(handle)),
-            .pObjectName = name.data(),
+            .pObjectName = terminated.c_str(),
         };
         std::ignore = device.setDebugUtilsObjectNameEXT(info);
     }

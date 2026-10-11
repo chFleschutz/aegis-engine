@@ -6,6 +6,7 @@ module;
 #include <optional>
 #include <ranges>
 #include <span>
+#include <string>
 #include <vector>
 
 module aegis.rhi;
@@ -118,8 +119,9 @@ auto CommandBuffer::insertLabel(std::string_view name, std::array<float, 4> colo
 {
     if constexpr (Context::enableValidation)
     {
+        const std::string terminated{ name }; // Vulkan reads a null-terminated string
         vk::DebugUtilsLabelEXT label{
-            .pLabelName = name.data(),
+            .pLabelName = terminated.c_str(),
             .color = color,
         };
         m_commandBuffer.insertDebugUtilsLabelEXT(label);
@@ -130,8 +132,9 @@ auto CommandBuffer::beginLabel(std::string_view name, std::array<float, 4> color
 {
     if constexpr (Context::enableValidation)
     {
+        const std::string terminated{ name }; // Vulkan reads a null-terminated string
         vk::DebugUtilsLabelEXT label{
-            .pLabelName = name.data(),
+            .pLabelName = terminated.c_str(),
             .color = color,
         };
         m_commandBuffer.beginDebugUtilsLabelEXT(label);

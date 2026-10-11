@@ -9,6 +9,7 @@ module;
 #include <atomic>
 #include <expected>
 #include <print>
+#include <string>
 
 module aegis.rhi;
 import :context;
@@ -106,8 +107,9 @@ auto Context::createInstance(
     const Desc& desc)
     -> std::expected<vk::raii::Instance, Error>
 {
+    const std::string appName{ desc.appName }; // Vulkan reads a null-terminated string
     vk::ApplicationInfo appInfo{
-        .pApplicationName = desc.appName.data(),
+        .pApplicationName = appName.c_str(),
         .applicationVersion = vk::makeVersion(1, 0, 0),
         .pEngineName = "Aegis Engine",
         .engineVersion = vk::makeVersion(1, 0, 0),

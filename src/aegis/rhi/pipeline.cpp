@@ -3,6 +3,7 @@ module;
 #include <expected>
 #include <format>
 #include <ranges>
+#include <string>
 #include <vector>
 
 module aegis.rhi;
@@ -84,11 +85,12 @@ auto Pipeline::createComputePipeline(
     if (!shaderModule)
         return std::unexpected{ shaderModule.error() };
 
+    const std::string entryPoint{ shader.entryPoint }; // Vulkan reads a null-terminated string
     vk::ComputePipelineCreateInfo createInfo{
         .stage = {
             .stage = vk::ShaderStageFlagBits::eCompute,
             .module = *shaderModule,
-            .pName = shader.entryPoint.data(),
+            .pName = entryPoint.c_str(),
         },
         .layout = *layout,
         .basePipelineHandle = nullptr,
@@ -114,6 +116,11 @@ auto Pipeline::createGraphicsPipeline(
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
     shaderStages.reserve(desc.shaders.size());
 
+    // Null-terminated copies for Vulkan. Reserved up front: a reallocation would move the strings and
+    // invalidate the pointers already handed to shaderStages.
+    std::vector<std::string> entryPoints;
+    entryPoints.reserve(desc.shaders.size());
+
     for (const auto& [name, stage, code, entryPoint] : desc.shaders)
     {
         auto shaderModule = createShaderModule(device, name, code);
@@ -125,7 +132,7 @@ auto Pipeline::createGraphicsPipeline(
             vk::PipelineShaderStageCreateInfo{
                 .stage = toVulkan(stage),
                 .module = *module,
-                .pName = entryPoint.data(),
+                .pName = entryPoints.emplace_back(entryPoint).c_str(),
             });
     }
 
