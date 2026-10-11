@@ -244,6 +244,8 @@ constexpr auto toVulkan(BufferUsage usage) noexcept -> vk::BufferUsageFlags
         flags |= vk::BufferUsageFlagBits::eTransferSrc;
     if (utility::hasFlag(usage, BufferUsage::TransferDst))
         flags |= vk::BufferUsageFlagBits::eTransferDst;
+    if (utility::hasFlag(usage, BufferUsage::ShaderDeviceAddress))
+        flags |= vk::BufferUsageFlagBits::eShaderDeviceAddress;
     return flags;
 }
 

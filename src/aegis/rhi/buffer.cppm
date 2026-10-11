@@ -27,6 +27,9 @@ public:
     [[nodiscard]] auto size() const -> vk::DeviceSize { return m_size; }
     [[nodiscard]] auto data() const -> std::byte* { return m_mappedData; }
 
+    /// @brief The address shaders use to access this buffer.
+    /// @warning Only valid for buffers created with BufferUsage::ShaderDeviceAddress.
+    [[nodiscard]] auto deviceAddress() const -> DeviceAddress;
 
     /// @brief Writes 'size' bytes from 'src' to the internal buffer starting at 'offset'.
     /// @note This function needs access to the internal Buffer.
@@ -45,11 +48,13 @@ private:
     Buffer(
         BufferAllocation,
         vk::DeviceSize size,
-        std::byte* mappedData);
+        std::byte* mappedData,
+        DeviceAddress deviceAddress);
 
     BufferAllocation m_allocation;
     vk::DeviceSize m_size;
     std::byte* m_mappedData;
+    DeviceAddress m_deviceAddress;
     vk::MemoryPropertyFlags m_memoryFlags;
 };
 }

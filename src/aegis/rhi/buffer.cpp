@@ -36,6 +36,12 @@ auto Buffer::read(std::byte* dst, std::size_t size, std::size_t offset) const ->
     std::memcpy(dst, static_cast<std::byte*>(m_mappedData) + offset, size);
 }
 
+auto Buffer::deviceAddress() const -> DeviceAddress
+{
+    assert(m_deviceAddress != 0 && "Buffer was not created with BufferUsage::ShaderDeviceAddress");
+    return m_deviceAddress;
+}
+
 auto Buffer::create(const Device& device, const Desc& desc) -> std::expected<Buffer, Error>
 {
     vk::BufferCreateInfo bufferInfo{
@@ -50,20 +56,27 @@ auto Buffer::create(const Device& device, const Desc& desc) -> std::expected<Buf
 
     debug::setName(*device, *bufferAlloc->first, desc.name);
 
+    DeviceAddress deviceAddress{ 0 };
+    if (utility::hasFlag(desc.usage, BufferUsage::ShaderDeviceAddress))
+        deviceAddress = device->getBufferAddress(vk::BufferDeviceAddressInfo{ .buffer = *bufferAlloc->first });
+
     return Buffer{
         std::move(bufferAlloc->first),
         vk::DeviceSize{ bufferAlloc->second.size },
-        static_cast<std::byte*>(bufferAlloc->second.pMappedData)
+        static_cast<std::byte*>(bufferAlloc->second.pMappedData),
+        deviceAddress
     };
 }
 
 Buffer::Buffer(
     BufferAllocation allocation,
     vk::DeviceSize size,
-    std::byte* mappedData) :
+    std::byte* mappedData,
+    DeviceAddress deviceAddress) :
     m_allocation{ std::move(allocation) },
     m_size{ size },
     m_mappedData{ mappedData },
+    m_deviceAddress{ deviceAddress },
     m_memoryFlags{ m_allocation.queryMemoryProperties() }
 {
 }

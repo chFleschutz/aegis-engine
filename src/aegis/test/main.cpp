@@ -127,6 +127,8 @@ public:
             return std::unexpected{ result.error() };
         if (auto result = engine.verifySamplers(); !result)
             return std::unexpected{ result.error() };
+        if (auto result = engine.verifyBufferDeviceAddress(); !result)
+            return std::unexpected{ result.error() };
 
         return engine;
     }
@@ -189,6 +191,38 @@ public:
             };
 
         std::println("Samplers verified: freed bindless slot {} was reused", freedIndex);
+        return {};
+    }
+
+    // Validation is the real check: it rejects an address query on a buffer missing the usage flag,
+    // or on memory allocated without VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT. A shader reading through
+    // the address is not covered yet; that needs a push-constant path the RHI does not have.
+    auto verifyBufferDeviceAddress() -> std::expected<void, std::string>
+    {
+        using namespace rhi::utility;
+
+        constexpr rhi::Buffer::Desc desc{
+            .name = "DeviceAddressTest",
+            .size = 256,
+            .usage = rhi::BufferUsage::Storage | rhi::BufferUsage::ShaderDeviceAddress,
+            .memory = rhi::MemoryUsage::GpuOnly,
+        };
+        auto first = m_device->createBuffer(desc);
+        auto second = m_device->createBuffer(desc);
+        if (!first || !second)
+            return std::unexpected{ "Failed to create device address test buffers" };
+
+        const auto firstAddress = m_device->get(*first).deviceAddress();
+        const auto secondAddress = m_device->get(*second).deviceAddress();
+        m_device->free(*first);
+        m_device->free(*second);
+
+        if (firstAddress == 0 || secondAddress == 0)
+            return std::unexpected{ "Buffer device address is null" };
+        if (firstAddress == secondAddress)
+            return std::unexpected{ "Two live buffers share a device address" };
+
+        std::println("Buffer device addresses verified: {:#x}, {:#x}", firstAddress, secondAddress);
         return {};
     }
 

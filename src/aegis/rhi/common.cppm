@@ -9,6 +9,7 @@ import :utility;
 export namespace aegis::rhi
 {
 using TimelineValue = std::uint64_t;
+using DeviceAddress = std::uint64_t;
 
 enum class ErrorCode
 {
@@ -91,18 +92,20 @@ enum class AttachmentStoreOp
     None,
 };
 
+// clang-format off
 enum class BufferUsage : std::uint32_t
 {
-    None        = 0,
-    Vertex      = 1 << 0,
-    Index       = 1 << 1,
-    Uniform     = 1 << 2,
-    Storage     = 1 << 3,
-    Indirect    = 1 << 4,
-    TransferSrc = 1 << 5,
-    TransferDst = 1 << 6,
-    CpuVisible  = 1 << 7,
+    None                = 0,
+    Vertex              = 1 << 0,
+    Index               = 1 << 1,
+    Uniform             = 1 << 2,
+    Storage             = 1 << 3,
+    Indirect            = 1 << 4,
+    TransferSrc         = 1 << 5,
+    TransferDst         = 1 << 6,
+    ShaderDeviceAddress = 1 << 7, // Enables Buffer::deviceAddress()
 };
+// clang-format on
 
 template<>
 constexpr auto utility::isFlagEnum<BufferUsage>{ true };
