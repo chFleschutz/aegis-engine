@@ -7,7 +7,7 @@ modules: **`aegis.render_graph`** and **`aegis.assets`**.
 ## Decisions locked
 
 - Frame graph / passes / render systems live in a **new `aegis.render_graph` module** (not renderer partitions).
-- Mesh vertex/index buffers use **buffer device address**, not bindless descriptor handles (per CLAUDE.md).
+- Mesh vertex/index buffers use **buffer device address**, not bindless descriptor handles (per AGENTS.md).
 
 ## The one hard constraint
 
@@ -74,7 +74,7 @@ These are on the critical path — assets cannot move until upload works.
   - [x] **Naming clash resolved first** (own commit): `SamplerHandle` was already the bindless slot
         alias. Bindless slot indices are now `…Descriptor` (`Descriptor<T>`, `SampledImageDescriptor`,
         `StorageImageDescriptor`, `SamplerDescriptor`) and `…Handle` always means a pooled resource.
-        The rule is recorded in `CLAUDE.md`.
+        The rule is recorded in `AGENTS.md`.
   - [x] Old `mipmapMode` bug not carried forward — the field is honoured.
   - [x] **Second inherited bug dropped:** the old `Sampler(config, mipLevels)` derived `maxLod` from
         the texture's mip count, forcing one sampler per texture. The bindless heap keeps samplers
@@ -340,4 +340,4 @@ real `rhi::Device`; `examples/` still runs the old stack and will not catch an R
 
 > **Running one test module:** `ctest --preset windows-clang-debug -L rhi` (or `-L math`). Each case
 > is labelled with its module by `aegis_add_test`. `-R "rhi::"` does not work — CTest registers cases
-> under their `TEST_CASE` name, not the `TEST_SUITE` name. `CLAUDE.md` and `tests/README.md` are fixed.
+> under their `TEST_CASE` name, not the `TEST_SUITE` name. `AGENTS.md` and `tests/README.md` are fixed.

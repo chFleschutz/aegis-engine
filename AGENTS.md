@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working with code in this repository.
 
 Aegis Engine is a Windows-only C++23 Vulkan render engine. The build is **C++20/23 modules-only**
 (every subsystem ships `.cppm` module files) and treats **warnings as errors** — your edits must
@@ -27,14 +27,19 @@ CMake ≥3.28 + Ninja via presets (`build/<preset>/`). Default preset: `windows-
 > (or set `VULKAN_SDK`/`Vulkan_ROOT` in the environment). See the unit-tests section for the full
 > rationale.
 
-### Examples (integration smoke tests — verify device-level work by building clean + running an example)
+### Examples (visual smoke tests of the old `Aegis::Graphics` stack)
 Executable targets are the PascalCase `project()` names: `Simple-Scene`, `Sponza`, `Eval-Scene`,
-`Helmets`, `Template-Scene`. Build one and run its exe:
+`Helmets`, `Template-Scene`; each lives in `examples/<lowercased-name>`. Build one and run its exe:
 
     cmake --build --preset windows-clang-debug --target Simple-Scene
     build\windows-clang-debug\examples\simple-scene\Simple-Scene.exe
 
-`Template-Scene` is empty (safest smoke test); `Simple-Scene` is the simplest content scene.
+`Template-Scene` is empty (safest smoke test); `Simple-Scene` is the simplest content scene. Content
+scenes need the `aegis-assets` submodule. Report whether it built clean (warnings are errors) and the
+window rendered; on a build failure, surface the first real error, not the downstream cascade.
+
+The examples still run the old stack, so they **do not** verify new-RHI work — for that, run
+`aegis-test` (see "Verifying device paths" under Unit tests).
 
 ### Shaders
 Shaders auto-compile on every engine build (`compile_shaders` target). Needs both `glslc` and
@@ -78,6 +83,10 @@ normalizer, not a reflow engine (`ColumnLimit: 0` keeps your line breaks). **Ado
 format just what you changed with `git clang-format`; never `clang-format -i` whole files. Editing an
 old-stack file nudges changed lines toward new-RHI style (intended). Guard deliberately hand-aligned
 blocks (e.g. enum tables — `AlignConsecutive*` is off) with `// clang-format off` / `on`.
+
+## Commits
+Keep messages short: one imperative subject line (e.g. `Add rhi sampler`), no body unless the why
+is non-obvious. **No `Co-Authored-By` or other agent/tool attribution trailers.**
 
 ## Unit tests
 
