@@ -49,7 +49,12 @@ public:
     auto bindPipeline(const Pipeline& pipeline) const -> void;
     auto setViewport(Extent2D extent) const -> void;
     auto setScissor(Extent2D extent) const -> void;
-    auto draw(std::uint32_t vertexCount) const -> void;
+    auto draw(std::uint32_t vertexCount, std::uint32_t instanceCount = 1, std::uint32_t firstVertex = 0,
+        std::uint32_t firstInstance = 0) const -> void;
+    /// @brief Binds 'buffer' (32-bit indices, created with BufferUsage::Index) for drawIndexed.
+    auto bindIndexBuffer(const Buffer& buffer, std::size_t offset = 0) const -> void;
+    auto drawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount = 1, std::uint32_t firstIndex = 0,
+        std::int32_t vertexOffset = 0, std::uint32_t firstInstance = 0) const -> void;
     auto dispatch(std::uint32_t groupCountX, std::uint32_t groupCountY = 1, std::uint32_t groupCountZ = 1) const
         -> void;
 
@@ -80,6 +85,10 @@ public:
 
     auto resetQueries(const QueryPool& pool, std::uint32_t first, std::uint32_t count) const -> void;
     auto writeTimestamp(const QueryPool& pool, std::uint32_t query, TimestampStage stage) const -> void;
+
+    /// @brief Scales the first mip and layers of view 'src' onto those of view 'dst', converting formats.
+    /// @note 'src' must be in ResourceState::CopySrc and 'dst' in ResourceState::CopyDst.
+    auto blit(ImageViewHandle src, ImageViewHandle dst, Filter filter = Filter::Linear) const -> void;
 
     auto copyBuffer(const Buffer& src, const Buffer& dst, std::size_t size, std::size_t srcOffset = 0,
         std::size_t dstOffset = 0) const -> void;

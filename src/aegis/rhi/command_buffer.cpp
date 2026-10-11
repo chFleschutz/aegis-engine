@@ -1,6 +1,8 @@
 module;
 #include <algorithm>
+#include <array>
 #include <cassert>
+#include <cstdint>
 #include <expected>
 #include <iterator>
 #include <optional>
@@ -205,9 +207,59 @@ auto CommandBuffer::setScissor(Extent2D extent) const -> void
     m_commandBuffer.setScissor(0, scissor);
 }
 
-auto CommandBuffer::draw(std::uint32_t vertexCount) const -> void
+auto CommandBuffer::draw(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex,
+    std::uint32_t firstInstance) const -> void
 {
-    m_commandBuffer.draw(vertexCount, 1, 0, 0);
+    m_commandBuffer.draw(vertexCount, instanceCount, firstVertex, firstInstance);
+}
+
+auto CommandBuffer::bindIndexBuffer(const Buffer& buffer, std::size_t offset) const -> void
+{
+    m_commandBuffer.bindIndexBuffer(buffer.vk(), offset, vk::IndexType::eUint32);
+}
+
+auto CommandBuffer::drawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount, std::uint32_t firstIndex,
+    std::int32_t vertexOffset, std::uint32_t firstInstance) const -> void
+{
+    m_commandBuffer.drawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+}
+
+auto CommandBuffer::blit(ImageViewHandle src, ImageViewHandle dst, Filter filter) const -> void
+{
+    const auto& srcView = m_device.get(src);
+    const auto& dstView = m_device.get(dst);
+
+    const auto layers = [](const ImageView& view) {
+        return vk::ImageSubresourceLayers{
+            .aspectMask = deriveImageAspectFlags(view.format()),
+            .mipLevel = view.range().baseMipLevel,
+            .baseArrayLayer = view.range().baseArrayLayer,
+            .layerCount = view.range().arrayLayerCount,
+        };
+    };
+    const auto corner = [](const ImageView& view) {
+        return vk::Offset3D{
+            .x = static_cast<std::int32_t>(view.extent().x),
+            .y = static_cast<std::int32_t>(view.extent().y),
+            .z = static_cast<std::int32_t>(view.extent().z),
+        };
+    };
+
+    const vk::ImageBlit2 region{
+        .srcSubresource = layers(srcView),
+        .srcOffsets = std::array{ vk::Offset3D{ 0, 0, 0 }, corner(srcView) },
+        .dstSubresource = layers(dstView),
+        .dstOffsets = std::array{ vk::Offset3D{ 0, 0, 0 }, corner(dstView) },
+    };
+    m_commandBuffer.blitImage2(vk::BlitImageInfo2{
+        .srcImage = srcView.vkImage(),
+        .srcImageLayout = vk::ImageLayout::eTransferSrcOptimal,
+        .dstImage = dstView.vkImage(),
+        .dstImageLayout = vk::ImageLayout::eTransferDstOptimal,
+        .regionCount = 1,
+        .pRegions = &region,
+        .filter = toVulkan(filter),
+    });
 }
 
 auto CommandBuffer::transitionImageLayout(ImageViewHandle imageViewHandle, ResourceState oldState,

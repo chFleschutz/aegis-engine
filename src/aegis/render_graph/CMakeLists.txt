@@ -30,6 +30,12 @@ target_sources(aegis-render-graph
     resource_pool.cppm
     schedule.cppm
     shader.cppm
+    passes/geometry_pass.cppm
+    passes/lighting_pass.cppm
+    passes/render_system.cppm
+    passes/scene_update_pass.cppm
+    passes/screen_passes.cppm
+    passes/static_mesh_render_system.cppm
     PRIVATE
     draw_batch_registry.cpp
     frame_graph.cpp
@@ -37,4 +43,9 @@ target_sources(aegis-render-graph
     resource_pool.cpp
     schedule.cpp
     shader.cpp
+    passes/geometry_pass.cpp
+    passes/lighting_pass.cpp
+    passes/scene_update_pass.cpp
+    passes/screen_passes.cpp
+    passes/static_mesh_render_system.cpp
 )

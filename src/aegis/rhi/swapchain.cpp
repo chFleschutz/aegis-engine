@@ -253,7 +253,8 @@ auto Swapchain::createSwapchain(
         .imageColorSpace = surfaceFormat.colorSpace,
         .imageExtent = toVulkan(extent),
         .imageArrayLayers = 1,
-        .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
+        // TransferDst: a frame may be blitted onto the image (render_graph's present pass).
+        .imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,
         .imageSharingMode = shared ? vk::SharingMode::eConcurrent : vk::SharingMode::eExclusive,
         .queueFamilyIndexCount = shared ? static_cast<std::uint32_t>(queueFamilies.size()) : 0,
         .pQueueFamilyIndices = shared ? queueFamilies.data() : nullptr,

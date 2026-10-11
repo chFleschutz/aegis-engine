@@ -27,3 +27,7 @@ add_subdirectory(rhi)
 # on any failed check or validation error. Needs a GPU with a Vulkan driver; `ctest -LE device` skips it.
 add_test(NAME aegis-test-headless COMMAND aegis-test --headless --frames 600)
 set_tests_properties(aegis-test-headless PROPERTIES LABELS device TIMEOUT 300)
+
+# The same harness rendering a loaded scene through the render graph (aegis.render_graph).
+add_test(NAME aegis-test-scene COMMAND aegis-test --headless --scene --frames 120)
+set_tests_properties(aegis-test-scene PROPERTIES LABELS device TIMEOUT 300)

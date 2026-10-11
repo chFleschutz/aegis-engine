@@ -271,7 +271,8 @@ auto Renderer::createOffscreenTargets() -> std::expected<void, Error>
     using namespace rhi::utility;
 
     // One per frame in flight, like swapchain images: a frame never draws into a target that the
-    // previous, possibly still running, frame draws into. TransferSrc allows reading a frame back.
+    // previous, possibly still running, frame draws into. TransferSrc allows reading a frame back,
+    // TransferDst blitting one in, as onto a swapchain image.
     for (std::uint32_t i = 0; i < maxFramesInFlight; ++i)
     {
         auto target = createResolutionDependentTexture({
@@ -279,7 +280,7 @@ auto Renderer::createOffscreenTargets() -> std::expected<void, Error>
             .extent = rhi::Extent3D{ m_extent },
             .format = m_targetFormat,
             .usage = rhi::ImageUsage::ColorAttachment | rhi::ImageUsage::Sampled |
-                     rhi::ImageUsage::TransferSrc,
+                     rhi::ImageUsage::TransferSrc | rhi::ImageUsage::TransferDst,
         });
         if (!target)
             return std::unexpected{ Error::RHIInitializationFailed };

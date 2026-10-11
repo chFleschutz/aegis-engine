@@ -6,6 +6,9 @@
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image_write.h>
+
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -32,7 +35,10 @@ import aegis.renderer;
 import aegis.render_graph;
 import aegis.rhi;
 import Aegis.Math;
+import Aegis.Scene;
 import Aegis.Scene.Registry;
+import Aegis.Scene.Systems.CameraSystem;
+import Aegis.Scene.Systems.TransformSystem;
 
 using SpirvBuffer = std::vector<uint32_t>;
 
@@ -64,6 +70,8 @@ struct Options
 {
     bool headless{ false };
     std::uint32_t frames{ 0 }; // 0: until the window is closed
+    bool scene{ false };       // Render a loaded scene through the render graph instead of the triangle
+    std::string screenshot;    // Headless: save the last frame here as PNG
 };
 
 auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
@@ -75,6 +83,14 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         if (arg == "--headless")
         {
             options.headless = true;
+        }
+        else if (arg == "--scene")
+        {
+            options.scene = true;
+        }
+        else if (arg == "--screenshot" && i + 1 < args.size())
+        {
+            options.screenshot = args[++i];
         }
         else if (arg == "--frames" && i + 1 < args.size())
         {
@@ -221,6 +237,12 @@ public:
             return std::unexpected{ result.error() };
         if (auto result = engine.verifyIbl(); !result)
             return std::unexpected{ result.error() };
+
+        if (options.scene)
+        {
+            if (auto result = engine.createScene(); !result)
+                return std::unexpected{ result.error() };
+        }
 
         return engine;
     }
@@ -731,6 +753,78 @@ public:
         return sign * std::ldexp(static_cast<float>(mantissa | 0x400), exponent - 25);
     }
 
+    // The render graph's input: DamagedHelmet under the Kloppenheim sky, a camera and two lights,
+    // and the CPU-driven frame graph to draw it.
+    auto createScene() -> std::expected<void, std::string>
+    {
+        constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
+        auto defaults = assets::DefaultAssets::create(*m_device, framesInFlight);
+        if (!defaults)
+            return std::unexpected{ std::format("Default assets: {}", defaults.error().message) };
+        m_defaults = std::move(*defaults);
+
+        m_scene = std::make_unique<Aegis::Scene::Scene>();
+        m_scene->addSystem<Aegis::Scene::TransformSystem>();
+        m_scene->addSystem<Aegis::Scene::CameraSystem>();
+        m_drawBatches = std::make_unique<render_graph::DrawBatchRegistry>();
+        m_drawBatches->connect(m_scene->registry());
+
+        auto& registry = m_scene->registry();
+        const auto camera = registry.create("Camera", glm::vec3{ 0.0f, -3.0f, 0.0f });
+        registry.add<Aegis::Camera>(camera);
+        m_scene->setMainCamera(camera);
+
+        const auto ambient = registry.create("Ambient Light");
+        registry.add<Aegis::AmbientLight>(ambient).intensity = 1.0f;
+        m_scene->setAmbientLight(ambient);
+
+        const auto sun = registry.create("Directional Light");
+        registry.add<Aegis::DirectionalLight>(sun);
+        registry.get<Aegis::Transform>(sun).rotation = glm::quat{ glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }) };
+        m_scene->setDirectionalLight(sun);
+
+        auto ibl = render_graph::Ibl::create(*m_device);
+        if (!ibl)
+            return std::unexpected{ std::format("IBL: {}", ibl.error().message) };
+        auto environment = ibl->loadEnvironment(std::filesystem::path{ ASSETS_DIR } / "Environments/KloppenheimSky.hdr");
+        if (!environment)
+            return std::unexpected{ std::format("Environment: {}", environment.error().message) };
+        const auto sky = registry.create("Sky");
+        registry.add<assets::Environment>(sky, std::move(*environment));
+        m_scene->setEnvironment(sky);
+
+        auto helmet = assets::Loader::load(
+            {
+                .device = *m_device,
+                .scene = registry,
+                .pbrTemplate = m_defaults->pbrTemplate,
+                .defaultMaterial = m_defaults->pbrMaterial,
+                .framesInFlight = framesInFlight,
+            },
+            std::filesystem::path{ ASSETS_DIR } / "DamagedHelmet/DamagedHelmet.gltf");
+        if (!helmet)
+            return std::unexpected{ std::format("Loading the helmet: {}", helmet.error().message) };
+
+        m_frameGraph = std::make_unique<render_graph::FrameGraph>(*m_device, *m_renderer);
+        m_frameGraph->add<render_graph::SceneUpdatePass>();
+        m_frameGraph->add<render_graph::GeometryPass>().addRenderSystem<render_graph::StaticMeshRenderSystem>();
+        m_frameGraph->add<render_graph::LightingPass>();
+        m_frameGraph->add<render_graph::SkyBoxPass>();
+        m_frameGraph->add<render_graph::PostProcessingPass>(false);
+        m_frameGraph->add<render_graph::PresentPass>();
+        if (auto compiled = m_frameGraph->compile(); !compiled)
+            return std::unexpected{ std::format("Frame graph: {}", compiled.error().message) };
+
+        m_scene->begin();
+        m_frameGraph->sceneInitialized(*m_scene);
+
+        std::print("Frame graph compiled:");
+        for (const auto* pass : m_frameGraph->passes())
+            std::print(" {} |", pass->info().name);
+        std::println("");
+        return {};
+    }
+
     auto verifyRendererTextures() -> std::expected<void, std::string>
     {
         using namespace rhi::utility;
@@ -792,6 +886,9 @@ public:
             // Nothing queues uploads per frame yet; drain anyway so the path stays exercised.
             std::ignore = m_device->flushUploads();
 
+            if (m_scene)
+                m_scene->update(1.0f / 60.0f);
+
             m_renderer->renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); });
             ++frames;
         }
@@ -825,6 +922,22 @@ public:
             recordFrameTime(timer);
 
         cmd.resetQueries(timer.pool, 0, 2);
+        if (m_frameGraph)
+        {
+            cmd.writeTimestamp(timer.pool, 0, rhi::TimestampStage::TopOfPipe);
+            m_frameGraph->execute({
+                .cmd = cmd,
+                .scene = *m_scene,
+                .drawBatches = *m_drawBatches,
+                .frameIndex = frameIndex,
+                .extent = extent,
+                .target = target,
+            });
+            cmd.writeTimestamp(timer.pool, 1, rhi::TimestampStage::AllCommands);
+            timer.pending = true;
+            return;
+        }
+
         cmd.transitionImageLayout(
             m_depthTexture.view,
             rhi::ResourceState::Unknown,
@@ -897,7 +1010,8 @@ private:
     Engine() = default;
 
     // The only proof that offscreen frames are drawn at all: read a target back and look for the
-    // triangle. Its centre is covered (opaque), a corner only cleared (alpha 0).
+    // triangle (its centre is covered and opaque, a corner only cleared, alpha 0), or in scene mode
+    // for an image that is not one flat color. Saves it with --screenshot.
     auto verifyOffscreenFrame() -> std::expected<void, std::string>
     {
         const auto& target = m_renderer->offscreenTarget(0);
@@ -928,6 +1042,27 @@ private:
         std::vector<std::byte> pixels(byteSize);
         m_device->get(*readback).read(pixels.data(), byteSize);
         m_device->free(*readback);
+
+        if (!m_options.screenshot.empty())
+        {
+            const auto stride = static_cast<int>(extent.x * texelSize);
+            if (!stbi_write_png(m_options.screenshot.c_str(), static_cast<int>(extent.x), static_cast<int>(extent.y), 4,
+                    pixels.data(), stride))
+                return std::unexpected{ std::format("failed to write screenshot '{}'", m_options.screenshot) };
+            std::println("Screenshot saved: {}", m_options.screenshot);
+        }
+
+        if (m_scene)
+        {
+            const auto texel = [&](std::uint32_t x, std::uint32_t y) {
+                const auto offset = (std::size_t{ y } * extent.x + x) * texelSize;
+                return std::array{ pixels[offset], pixels[offset + 1], pixels[offset + 2] };
+            };
+            if (texel(extent.x / 2, extent.y / 2) == texel(0, 0))
+                return std::unexpected{ "the scene frame's centre and corner have the same color" };
+            std::println("Offscreen scene frame verified: {}x{} target read back, not uniform", extent.x, extent.y);
+            return {};
+        }
 
         const auto alphaAt = [&](std::uint32_t x, std::uint32_t y) {
             return std::to_integer<std::uint32_t>(pixels[(std::size_t{ y } * extent.x + x) * texelSize + 3]);
@@ -1251,6 +1386,12 @@ private:
     std::uint32_t m_timedFrames{ 0 };
     std::uint32_t m_frameTimeErrors{ 0 };
     double m_frameTimeTotalMs{ 0.0 };
+
+    // --scene only. Declared last: destroyed first, while the device they free into still exists.
+    std::optional<assets::DefaultAssets> m_defaults;
+    std::unique_ptr<Aegis::Scene::Scene> m_scene;
+    std::unique_ptr<render_graph::DrawBatchRegistry> m_drawBatches; // Disconnects before the scene goes
+    std::unique_ptr<render_graph::FrameGraph> m_frameGraph;
 };
 }
 
@@ -1259,7 +1400,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--screenshot <png>]", options.error());
         return 2;
     }
 

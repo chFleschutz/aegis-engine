@@ -49,6 +49,8 @@ public:
     [[nodiscard]] auto meshletCount() const noexcept -> std::uint32_t { return m_gpuData.meshletCount; }
     [[nodiscard]] auto bounds() const noexcept -> const BoundingSphere& { return m_gpuData.bounds; }
     [[nodiscard]] auto gpuData() const noexcept -> const GpuData& { return m_gpuData; }
+    /// @brief The 32-bit index buffer, for drawing with CommandBuffer::bindIndexBuffer / drawIndexed.
+    [[nodiscard]] auto indexBuffer() const noexcept -> rhi::BufferHandle { return m_buffers[Indices]; }
 
     /// @brief Address of the GpuData block, the one value a draw needs to reach the whole mesh.
     [[nodiscard]] auto meshDataAddress() const -> rhi::DeviceAddress;

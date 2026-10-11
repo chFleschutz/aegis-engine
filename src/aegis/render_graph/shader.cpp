@@ -1,4 +1,5 @@
 module;
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -9,6 +10,7 @@ module;
 #include <vector>
 
 module aegis.render_graph;
+import aegis.rhi;
 
 namespace aegis::render_graph
 {
@@ -34,5 +36,40 @@ auto loadShader(std::string_view relativePath) -> std::expected<std::vector<std:
     if (!file)
         return makeError(std::format("Failed to read shader '{}'", path.string()));
     return code;
+}
+
+auto createComputePipeline(rhi::Device& device, std::string_view name, std::string_view shaderPath,
+    std::string_view entryPoint) -> std::expected<rhi::Pipeline, Error>
+{
+    auto code = loadShader(shaderPath);
+    if (!code)
+        return std::unexpected{ code.error() };
+
+    auto pipeline = device.createPipeline(rhi::Pipeline::ComputeDesc{
+        .name = name,
+        .shader = { .name = name, .stage = rhi::ShaderStage::Compute, .code = *code, .entryPoint = entryPoint },
+    });
+    if (!pipeline)
+        return makeError(pipeline.error(), std::format("Failed to create pipeline '{}'", name));
+    return std::move(*pipeline);
+}
+
+auto createGraphicsPipeline(rhi::Device& device, std::string_view shaderPath, rhi::Pipeline::GraphicsDesc desc)
+    -> std::expected<rhi::Pipeline, Error>
+{
+    auto code = loadShader(shaderPath);
+    if (!code)
+        return std::unexpected{ code.error() };
+
+    std::array shaders{
+        rhi::Pipeline::Shader{ .name = desc.name, .stage = rhi::ShaderStage::Vertex, .code = *code, .entryPoint = "vertexMain" },
+        rhi::Pipeline::Shader{ .name = desc.name, .stage = rhi::ShaderStage::Fragment, .code = *code, .entryPoint = "fragmentMain" },
+    };
+    desc.shaders = shaders;
+
+    auto pipeline = device.createPipeline(desc);
+    if (!pipeline)
+        return makeError(pipeline.error(), std::format("Failed to create pipeline '{}'", desc.name));
+    return std::move(*pipeline);
 }
 }

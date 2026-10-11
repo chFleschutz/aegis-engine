@@ -16,11 +16,9 @@ namespace aegis::render_graph
 {
 namespace
 {
-constexpr std::uint32_t groupSize{ 16 };
-
 auto groups(std::uint32_t size) -> std::uint32_t
 {
-    return (size + groupSize - 1) / groupSize;
+    return groupCount(size, 16);
 }
 
 // Mirrors bindless::TextureDescriptor: image index, then sampler index.
@@ -33,22 +31,6 @@ struct TextureDescriptor
 auto descriptorOf(const assets::Texture& texture) -> TextureDescriptor
 {
     return { texture.sampledDescriptor().index, texture.samplerDescriptor().index };
-}
-
-auto createPipeline(rhi::Device& device, std::string_view name, std::string_view shaderPath)
-    -> std::expected<rhi::Pipeline, Error>
-{
-    auto code = loadShader(shaderPath);
-    if (!code)
-        return std::unexpected{ code.error() };
-
-    auto pipeline = device.createPipeline(rhi::Pipeline::ComputeDesc{
-        .name = name,
-        .shader = { .name = name, .stage = rhi::ShaderStage::Compute, .code = *code },
-    });
-    if (!pipeline)
-        return makeError(pipeline.error(), std::format("Failed to create pipeline '{}'", name));
-    return std::move(*pipeline);
 }
 
 auto cubeDesc(std::string_view name, std::uint32_t size, std::uint32_t mipLevels) -> assets::Texture::Desc
@@ -68,16 +50,16 @@ auto cubeDesc(std::string_view name, std::uint32_t size, std::uint32_t mipLevels
 
 auto Ibl::create(rhi::Device& device) -> std::expected<Ibl, Error>
 {
-    auto equirectToCube = createPipeline(device, "IblEquirectToCube", "rhi/ibl/equirect_to_cube.slang.spv");
+    auto equirectToCube = createComputePipeline(device, "IblEquirectToCube", "rhi/ibl/equirect_to_cube.slang.spv");
     if (!equirectToCube)
         return std::unexpected{ equirectToCube.error() };
-    auto irradiance = createPipeline(device, "IblIrradiance", "rhi/ibl/irradiance_convolution.slang.spv");
+    auto irradiance = createComputePipeline(device, "IblIrradiance", "rhi/ibl/irradiance_convolution.slang.spv");
     if (!irradiance)
         return std::unexpected{ irradiance.error() };
-    auto prefilter = createPipeline(device, "IblPrefilter", "rhi/ibl/prefilter_environment.slang.spv");
+    auto prefilter = createComputePipeline(device, "IblPrefilter", "rhi/ibl/prefilter_environment.slang.spv");
     if (!prefilter)
         return std::unexpected{ prefilter.error() };
-    auto brdfLut = createPipeline(device, "IblBrdfLut", "rhi/ibl/brdf_lut.slang.spv");
+    auto brdfLut = createComputePipeline(device, "IblBrdfLut", "rhi/ibl/brdf_lut.slang.spv");
     if (!brdfLut)
         return std::unexpected{ brdfLut.error() };
 

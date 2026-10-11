@@ -9,6 +9,7 @@ target_link_libraries(aegis-test
         aegis-renderer
         aegis-rhi
         aegis-scene
+        stb # stb_image_write for --screenshot
 )
 
 set(SHADER_SPIRV "${CMAKE_CURRENT_BINARY_DIR}/shader.spv")
