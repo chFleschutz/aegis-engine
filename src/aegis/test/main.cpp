@@ -123,6 +123,14 @@ public:
             return std::unexpected{ "Failed to create depth image" };
         engine.m_depthTexture = std::move(*depthTexture);
 
+        for (std::uint32_t i = 0; i < renderer::Renderer::maxFramesInFlight; ++i)
+        {
+            auto pool = engine.m_device->createQueryPool({ .name = "FrameTimestamps", .count = 2 });
+            if (!pool)
+                return std::unexpected{ "Failed to create timestamp query pool" };
+            engine.m_frameTimers.push_back({ .pool = std::move(*pool) });
+        }
+
         if (auto result = engine.verifyUploads(); !result)
             return std::unexpected{ result.error() };
         if (auto result = engine.verifySamplers(); !result)
@@ -262,14 +270,20 @@ public:
         }
 
         m_device->waitIdle();
-        return 0;
+        return reportFrameTimes();
     }
 
     auto drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
     {
         const auto& [cmd, swapchainImage, frameIndex, extent] = frameInfo;
 
+        // beginFrame waited for the frame that last used this slot, so its timestamps are final.
+        auto& timer = m_frameTimers[frameIndex];
+        if (timer.pending)
+            recordFrameTime(timer);
+
         cmd.begin();
+        cmd.resetQueries(timer.pool, 0, 2);
         cmd.beginLabel("Frame");
         cmd.transitionImageLayout(swapchainImage,
             rhi::ResourceState::Unknown,
@@ -280,6 +294,7 @@ public:
             rhi::ResourceState::Attachment);
 
         cmd.beginLabel("Rendering");
+        cmd.writeTimestamp(timer.pool, 0, rhi::TimestampStage::TopOfPipe);
 
         std::array colorAttachments{
             rhi::Attachment::color(
@@ -299,6 +314,8 @@ public:
         cmd.setScissor(extent);
         cmd.draw(3);
         cmd.endRendering();
+        cmd.writeTimestamp(timer.pool, 1, rhi::TimestampStage::AllCommands);
+        timer.pending = true;
 
         cmd.endLabel();
 
@@ -311,6 +328,41 @@ public:
     }
 
 private:
+    // One pool per frame in flight, so a frame's timestamps are read only after the GPU finished it.
+    struct FrameTimer
+    {
+        rhi::QueryPool pool;
+        bool pending{ false };
+    };
+
+    auto recordFrameTime(FrameTimer& timer) -> void
+    {
+        timer.pending = false;
+        auto timestamps = timer.pool.readTimestamps(0, 2);
+        if (!timestamps)
+        {
+            ++m_frameTimeErrors;
+            return;
+        }
+        m_frameTimeTotalMs += timer.pool.elapsedMs((*timestamps)[0], (*timestamps)[1]);
+        ++m_timedFrames;
+    }
+
+    // The exit criterion for rhi:query: every frame's rendering pass was timed and read back.
+    auto reportFrameTimes() const -> int
+    {
+        if (m_frameTimeErrors > 0 || m_timedFrames == 0)
+        {
+            std::println("Timed pass failed: {} frames read back, {} reads not ready",
+                m_timedFrames, m_frameTimeErrors);
+            return 1;
+        }
+
+        std::println("Timed pass verified: {} frames, {:.4f} ms average GPU time",
+            m_timedFrames, m_frameTimeTotalMs / m_timedFrames);
+        return 0;
+    }
+
     Engine() = default;
 
     // Records 'record' into a one-shot command buffer, submits it, and waits for completion.
@@ -534,6 +586,10 @@ private:
 
     std::optional<rhi::Pipeline> m_pipeline;
     renderer::Texture m_depthTexture;
+    std::vector<FrameTimer> m_frameTimers;
+    std::uint32_t m_timedFrames{ 0 };
+    std::uint32_t m_frameTimeErrors{ 0 };
+    double m_frameTimeTotalMs{ 0.0 };
 };
 }
 

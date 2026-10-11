@@ -37,6 +37,7 @@ constexpr auto toVulkan(DescriptorType type) noexcept -> vk::DescriptorType;
 constexpr auto toVulkan(Filter filter) noexcept -> vk::Filter;
 constexpr auto toVulkan(SamplerMipmapMode mode) noexcept -> vk::SamplerMipmapMode;
 constexpr auto toVulkan(SamplerAddressMode mode) noexcept -> vk::SamplerAddressMode;
+constexpr auto toVulkan(TimestampStage stage) noexcept -> vk::PipelineStageFlags2;
 
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
 constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout;
@@ -321,6 +322,18 @@ constexpr auto toVulkan(SamplerAddressMode mode) noexcept -> vk::SamplerAddressM
     std::unreachable();
 }
 
+constexpr auto toVulkan(TimestampStage stage) noexcept -> vk::PipelineStageFlags2
+{
+    switch (stage)
+    {
+    case TimestampStage::TopOfPipe:
+        return vk::PipelineStageFlagBits2::eTopOfPipe;
+    case TimestampStage::AllCommands:
+        return vk::PipelineStageFlagBits2::eAllCommands;
+    }
+    std::unreachable();
+}
+
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags
 {
     switch (format)
@@ -445,6 +458,7 @@ constexpr auto toRHI(vk::Result result) noexcept -> ErrorCode
     case vk::Result::eErrorLayerNotPresent:
     case vk::Result::eErrorExtensionNotPresent:
     case vk::Result::eErrorInitializationFailed: return ErrorCode::InitializationFailed;
+    case vk::Result::eNotReady: return ErrorCode::NotReady;
     default: return ErrorCode::Unknown;
     }
 }

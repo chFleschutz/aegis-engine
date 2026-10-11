@@ -2,6 +2,7 @@ aegis_add_test(rhi
     SOURCES
         deletion_queue.test.cpp
         free_list.test.cpp
+        query.test.cpp
         image.test.cpp
         resource_pool.test.cpp
         ring_allocator.test.cpp

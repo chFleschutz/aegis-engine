@@ -18,6 +18,7 @@ import :image;
 import :image_view;
 import :memory;
 import :pipeline;
+import :query;
 import :queue;
 import :resource_pool;
 import :sampler;
@@ -142,6 +143,10 @@ public:
 
     [[nodiscard]] auto createPipeline(const Pipeline::GraphicsDesc& desc) const
         -> std::expected<Pipeline, Error>;
+
+    /// @brief Creates a timestamp query pool for work on the graphics queue.
+    [[nodiscard]] auto createQueryPool(const QueryPool::Desc& desc) const
+        -> std::expected<QueryPool, Error>;
 
     [[nodiscard]] auto createPipeline(const Pipeline::ComputeDesc& desc) const
         -> std::expected<Pipeline, Error>;

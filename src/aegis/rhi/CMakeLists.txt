@@ -54,6 +54,7 @@ target_sources(aegis-rhi
         image.cppm
         image_view.cppm
         memory.cppm
+        query.cppm
         queue.cppm
         resource_handle.cppm
         resource_pool.cppm
@@ -76,6 +77,7 @@ target_sources(aegis-rhi
         image.cpp
         image_view.cpp
         memory.cpp
+        query.cpp
         queue.cpp
         sampler.cpp
         pipeline.cpp

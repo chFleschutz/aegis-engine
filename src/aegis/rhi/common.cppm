@@ -20,6 +20,7 @@ enum class ErrorCode
     OutOfHostMemory,
     OutOfDeviceMemory,
     InitializationFailed,
+    NotReady,
 };
 
 enum class Format
@@ -149,6 +150,14 @@ enum class SamplerAddressMode
     MirroredRepeat,
     ClampToEdge,
     ClampToBorder, // Border is always opaque black
+};
+
+/// @brief Where a timestamp is taken: once all previously submitted commands have reached that
+///        stage. Bracket timed work with TopOfPipe before it and AllCommands after it.
+enum class TimestampStage
+{
+    TopOfPipe,
+    AllCommands,
 };
 
 /// @brief Describes all descriptor types.

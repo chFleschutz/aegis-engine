@@ -7,6 +7,7 @@ module;
 export module aegis.rhi:command_buffer;
 import :error;
 import :commands;
+import :common;
 import :fwd;
 import :resource_handle;
 import vulkan_hpp;
@@ -49,6 +50,9 @@ public:
     auto transitionImageLayout(ImageHandle imageHandle, ResourceState oldState,
         ResourceState newState) const -> void;
     auto generateMipmaps(ImageHandle imageHandle, ResourceState currentState) const -> void;
+
+    auto resetQueries(const QueryPool& pool, std::uint32_t first, std::uint32_t count) const -> void;
+    auto writeTimestamp(const QueryPool& pool, std::uint32_t query, TimestampStage stage) const -> void;
 
     auto copyBuffer(const Buffer& src, const Buffer& dst, std::size_t size, std::size_t srcOffset = 0,
         std::size_t dstOffset = 0) const -> void;

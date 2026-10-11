@@ -259,6 +259,11 @@ auto Device::createPipeline(const Pipeline::GraphicsDesc& desc) const -> std::ex
     return Pipeline::create(*this, desc);
 }
 
+auto Device::createQueryPool(const QueryPool::Desc& desc) const -> std::expected<QueryPool, Error>
+{
+    return QueryPool::create(*this, desc, m_graphicsQueue.family());
+}
+
 auto Device::createPipeline(const Pipeline::ComputeDesc& desc) const -> std::expected<Pipeline, Error>
 {
     return Pipeline::create(*this, desc);

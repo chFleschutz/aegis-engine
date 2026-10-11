@@ -12,6 +12,7 @@ export import :error;
 export import :image;
 export import :image_view;
 export import :pipeline;
+export import :query;
 export import :queue;
 export import :resource_handle;
 export import :resource_pool;

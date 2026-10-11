@@ -331,6 +331,18 @@ auto CommandBuffer::generateMipmaps(ImageHandle imageHandle, ResourceState curre
     });
 }
 
+auto CommandBuffer::resetQueries(const QueryPool& pool, std::uint32_t first, std::uint32_t count) const
+    -> void
+{
+    m_commandBuffer.resetQueryPool(pool.vk(), first, count);
+}
+
+auto CommandBuffer::writeTimestamp(const QueryPool& pool, std::uint32_t query, TimestampStage stage) const
+    -> void
+{
+    m_commandBuffer.writeTimestamp2(toVulkan(stage), pool.vk(), query);
+}
+
 auto CommandBuffer::copyBuffer(const Buffer& src, const Buffer& dst, std::size_t size, std::size_t srcOffset,
     std::size_t dstOffset) const -> void
 {

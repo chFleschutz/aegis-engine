@@ -14,6 +14,7 @@ class Image;
 class ImageAllocation;
 class ImageView;
 class Pipeline;
+class QueryPool;
 class Queue;
 class Sampler;
 class Swapchain;
