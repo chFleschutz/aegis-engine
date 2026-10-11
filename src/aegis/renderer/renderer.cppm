@@ -2,6 +2,7 @@ module;
 #include <expected>
 #include <functional>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -48,9 +49,9 @@ public:
 
     struct ResolutionDependentResource
     {
-        std::string_view name;
+        std::string name; // Owned: the caller's Desc::name need not outlive the call
         Texture texture;
-        rhi::ImageUsage usage;
+        Texture::Desc desc; // As requested (mipLevels may be fullMipChain); desc.name is cleared
         double scaleFactor;
     };
 

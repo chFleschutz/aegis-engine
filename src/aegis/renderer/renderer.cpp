@@ -65,6 +65,8 @@ auto Renderer::createTexture(const Texture::Desc& desc) const -> std::expected<T
     if (!image)
         return std::unexpected{ image.error() };
 
+    // The resolved mip count: desc.mipLevels may be the fullMipChain sentinel. The usage is what makes
+    // Device write the view's bindless descriptors; without it the texture is invisible to shaders.
     auto view = m_device.createImageView(*image,
         rhi::ImageView::Desc{
             .name = desc.name,
@@ -72,10 +74,11 @@ auto Renderer::createTexture(const Texture::Desc& desc) const -> std::expected<T
             .format = desc.format,
             .range = rhi::ImageView::Range{
                 .baseMipLevel = 0,
-                .mipLevelCount = desc.mipLevels,
+                .mipLevelCount = m_device.get(*image).mipLevels(),
                 .baseArrayLayer = 0,
                 .arrayLayerCount = desc.arrayLayers,
-            }
+            },
+            .usage = desc.usage,
         });
     if (!view)
         return std::unexpected{ view.error() };
@@ -88,7 +91,9 @@ auto Renderer::createResolutionDependentTexture(
 {
     return createTexture(desc)
         .transform([&](auto texture) {
-            m_resDependent.emplace_back(desc.name, texture, desc.usage, 1.0);
+            auto stored = desc;
+            stored.name = {};
+            m_resDependent.emplace_back(std::string{ desc.name }, texture, stored, 1.0);
             return texture;
         });
 }
@@ -126,41 +131,43 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
     }
     m_swapchain = std::move(*swapchain);
 
-    for (auto& [name, texture, usage, scaleFactor] : m_resDependent)
+    for (auto& [name, texture, desc, scaleFactor] : m_resDependent)
     {
-        auto& image = m_device.get(texture.image);
+        const auto extent = rhi::Extent3D{
+            static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor),
+            static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor),
+            desc.extent.z,
+        };
 
         auto newImage = m_device.replace(texture.image,
             rhi::Image::Desc{
                 .name = name,
-                .extent = rhi::Extent3D{
-                    static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor),
-                    static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor),
-                    image.extent().z
-                },
-                .format = image.format(),
-                .usage = usage,
-                .mipLevels = image.mipLevels(),
-                .arrayLayers = image.arrayLayers(),
+                .type = desc.type,
+                .extent = extent,
+                .format = desc.format,
+                .usage = desc.usage,
+                .mipLevels = desc.mipLevels,
+                .arrayLayers = desc.arrayLayers,
             });
-
         if (!newImage)
+        {
             std::println("Failed to recreate resolution dependent image '{}'", name);
+            continue;
+        }
 
-        auto viewResult = m_device.replace(texture.view,
+        auto newView = m_device.replace(texture.view,
             *newImage,
             rhi::ImageView::Desc{
                 .name = name,
-                .extent = rhi::Extent3D{
-                    static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor),
-                    static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor),
-                    image.extent().z
+                .extent = extent,
+                .format = desc.format,
+                .range = rhi::ImageView::Range{
+                    .mipLevelCount = m_device.get(*newImage).mipLevels(),
+                    .arrayLayerCount = desc.arrayLayers,
                 },
-                .format = image.format(),
-            }
-        );
-
-        if (!viewResult)
+                .usage = desc.usage,
+            });
+        if (!newView)
             std::println("Failed to recreate resolution dependent view '{}'", name);
     }
 

@@ -137,6 +137,8 @@ public:
             return std::unexpected{ result.error() };
         if (auto result = engine.verifyBufferDeviceAddress(); !result)
             return std::unexpected{ result.error() };
+        if (auto result = engine.verifyRendererTextures(); !result)
+            return std::unexpected{ result.error() };
 
         return engine;
     }
@@ -245,6 +247,42 @@ public:
             return std::unexpected{ "Two live buffers share a device address" };
 
         std::println("Buffer device addresses verified: {:#x}, {:#x}", firstAddress, secondAddress);
+        return {};
+    }
+
+    // Renderer textures must reach shaders through bindless, cover all their mips, and keep their
+    // bindless slot across a resize. The name is a temporary on purpose: the renderer must copy it.
+    auto verifyRendererTextures() -> std::expected<void, std::string>
+    {
+        using namespace rhi::utility;
+
+        auto texture = m_renderer->createResolutionDependentTexture({
+            .name = std::format("RendererTest{}", "Texture"),
+            .extent = rhi::Extent3D{ m_renderer->swapchain().extent() },
+            .format = rhi::Format::RGBA8_UNORM,
+            .usage = rhi::ImageUsage::Sampled | rhi::ImageUsage::ColorAttachment,
+            .mipLevels = rhi::Image::fullMipChain,
+        });
+        if (!texture)
+            return std::unexpected{ "Failed to create renderer texture" };
+
+        const auto before = m_device->get(texture->view).sampledDescriptor();
+        if (!before)
+            return std::unexpected{ "Renderer texture has no sampled descriptor" };
+        const auto mipLevels = m_device->get(texture->image).mipLevels();
+        if (m_device->get(texture->view).range().mipLevelCount != mipLevels)
+            return std::unexpected{ "Renderer texture view does not cover the image's mips" };
+
+        m_renderer->resize(m_renderer->swapchain().extent());
+
+        const auto after = m_device->get(texture->view).sampledDescriptor();
+        if (!after || after->index != before->index)
+            return std::unexpected{ "Renderer texture lost its bindless slot across a resize" };
+        if (m_device->get(texture->view).range().mipLevelCount != m_device->get(texture->image).mipLevels())
+            return std::unexpected{ "Resized renderer texture view does not cover the image's mips" };
+
+        std::println("Renderer textures verified: {} mips, bindless slot {} kept across a resize",
+            mipLevels, after->index);
         return {};
     }
 
