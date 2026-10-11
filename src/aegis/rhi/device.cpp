@@ -354,12 +354,20 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
     if (!graphicsQueue)
         return std::unexpected{ graphicsQueue.error() };
 
-    // TODO: query pd for max values
+    // Desc's defaults, clamped to what the device allows for update-after-bind descriptors.
+    constexpr BindlessHeap::Desc wanted{};
+    const auto& limits = properties.vk12;
     auto bindless = BindlessHeap::create(*device,
         BindlessHeap::Desc{
-            .maxSampledImages = 1024,
-            .maxStorageImages = 1024,
-            .maxSamplers = 1024,
+            .maxSampledImages = std::min({ wanted.maxSampledImages,
+                limits.maxPerStageDescriptorUpdateAfterBindSampledImages,
+                limits.maxDescriptorSetUpdateAfterBindSampledImages }),
+            .maxStorageImages = std::min({ wanted.maxStorageImages,
+                limits.maxPerStageDescriptorUpdateAfterBindStorageImages,
+                limits.maxDescriptorSetUpdateAfterBindStorageImages }),
+            .maxSamplers = std::min({ wanted.maxSamplers,
+                limits.maxPerStageDescriptorUpdateAfterBindSamplers,
+                limits.maxDescriptorSetUpdateAfterBindSamplers }),
         });
     if (!bindless)
         return std::unexpected{ bindless.error() };
