@@ -33,6 +33,7 @@ target_sources(aegis-render-graph
     passes/geometry_pass.cppm
     passes/gpu_driven.cppm
     passes/lighting_pass.cppm
+    passes/post_effects.cppm
     passes/render_system.cppm
     passes/scene_update_pass.cppm
     passes/screen_passes.cppm
@@ -47,6 +48,7 @@ target_sources(aegis-render-graph
     passes/geometry_pass.cpp
     passes/gpu_driven.cpp
     passes/lighting_pass.cpp
+    passes/post_effects.cpp
     passes/scene_update_pass.cpp
     passes/screen_passes.cpp
     passes/static_mesh_render_system.cpp

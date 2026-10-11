@@ -8,6 +8,7 @@ export import :gpu_driven;
 export import :ibl;
 export import :immediate;
 export import :lighting_pass;
+export import :post_effects;
 export import :render_pass;
 export import :render_system;
 export import :resource;

@@ -83,6 +83,16 @@ auto FrameGraph::compile() -> std::expected<void, Error>
     return {};
 }
 
+auto FrameGraph::resized() -> std::expected<void, Error>
+{
+    for (const auto index : m_order)
+    {
+        if (auto result = m_passes[index]->resized(m_pool); !result)
+            return result;
+    }
+    return {};
+}
+
 auto FrameGraph::sceneInitialized(Aegis::Scene::Scene& scene) -> void
 {
     for (const auto index : m_order)

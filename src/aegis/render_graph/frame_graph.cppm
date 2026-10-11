@@ -47,6 +47,10 @@ public:
     ///        Call once, after all passes were added.
     [[nodiscard]] auto compile() -> std::expected<void, Error>;
 
+    /// @brief Call after renderer::Renderer::resize: graph textures keep their handles, but passes
+    ///        may hold views of the replaced images.
+    [[nodiscard]] auto resized() -> std::expected<void, Error>;
+
     /// @brief Tells every pass a scene was loaded (e.g. to upload static instance data).
     auto sceneInitialized(Aegis::Scene::Scene& scene) -> void;
 

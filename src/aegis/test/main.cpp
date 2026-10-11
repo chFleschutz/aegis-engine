@@ -789,6 +789,10 @@ public:
         registry.get<Aegis::Transform>(sun).rotation = glm::quat{ glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }) };
         m_scene->setDirectionalLight(sun);
 
+        // In view, off to the side of the helmet: drawn as a billboard by the transparent pass.
+        const auto lamp = registry.create("Point Light", glm::vec3{ 1.2f, -1.0f, 0.6f });
+        registry.add<Aegis::PointLight>(lamp).color = glm::vec3{ 1.0f, 0.4f, 0.1f };
+
         auto ibl = render_graph::Ibl::create(*m_device);
         if (!ibl)
             return std::unexpected{ std::format("IBL: {}", ibl.error().message) };
@@ -826,7 +830,9 @@ public:
         }
         m_frameGraph->add<render_graph::LightingPass>();
         m_frameGraph->add<render_graph::SkyBoxPass>();
-        m_frameGraph->add<render_graph::PostProcessingPass>(false);
+        m_frameGraph->add<render_graph::TransparentPass>().addRenderSystem<render_graph::PointLightRenderSystem>();
+        m_frameGraph->add<render_graph::BloomPass>();
+        m_frameGraph->add<render_graph::PostProcessingPass>();
         m_frameGraph->add<render_graph::PresentPass>();
         if (auto compiled = m_frameGraph->compile(); !compiled)
             return std::unexpected{ std::format("Frame graph: {}", compiled.error().message) };
@@ -896,6 +902,11 @@ public:
                 {
                     m_renderer->resize(rhi::Extent2D{ m_window->extent() });
                     m_window->resetResized();
+                    if (m_frameGraph)
+                    {
+                        if (auto resized = m_frameGraph->resized(); !resized)
+                            std::println("Frame graph resize failed: {}", resized.error().message);
+                    }
                 }
             }
 

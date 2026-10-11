@@ -53,6 +53,10 @@ public:
     /// @brief Creates what the pass owns. Called by FrameGraph::compile once graph resources exist.
     [[nodiscard]] virtual auto createResources(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
 
+    /// @brief Called by FrameGraph::resized after the renderer recreated its resolution-dependent
+    ///        textures, for a pass to recreate what it derived from them (e.g. extra image views).
+    [[nodiscard]] virtual auto resized(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
+
     /// @brief Called once a scene has been loaded, before its first frame.
     virtual auto sceneInitialized(ResourcePool& /*pool*/, Aegis::Scene::Scene& /*scene*/) -> void {}
 

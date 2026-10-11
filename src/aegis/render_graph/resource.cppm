@@ -43,6 +43,8 @@ struct TextureDesc
     /// @brief {0, 0}: the renderer's extent, recreated on resize. Otherwise a fixed size.
     rhi::Extent2D extent{ 0, 0 };
     std::uint32_t mipLevels{ 1 };
+    /// @brief Usage beyond what the graph accesses imply, e.g. Sampled for mips a pass samples itself.
+    rhi::ImageUsage usage{ rhi::ImageUsage::None };
 };
 
 struct BufferDesc

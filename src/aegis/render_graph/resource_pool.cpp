@@ -158,6 +158,7 @@ auto ResourcePool::createResources() -> std::expected<void, Error>
         const auto& entry = m_entries[i];
         if (const auto* desc = std::get_if<TextureDesc>(&entry.info))
         {
+            imageUsage[i] = imageUsage[i] | desc->usage;
             const bool resolutionDependent = desc->extent == rhi::Extent2D{ 0, 0 };
             const renderer::Texture::Desc textureDesc{
                 .name = entry.name,
