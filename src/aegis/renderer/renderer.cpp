@@ -51,6 +51,11 @@ Renderer::Renderer(rhi::Context& context,
 {
 }
 
+Renderer::~Renderer()
+{
+    m_device.waitIdle();
+}
+
 auto Renderer::createTexture(const Texture::Desc& desc) const -> std::expected<Texture, rhi::Error>
 {
     auto image = m_device.createImage(rhi::Image::Desc{

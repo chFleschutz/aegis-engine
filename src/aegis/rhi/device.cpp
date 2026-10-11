@@ -45,6 +45,11 @@ Device::Device(
 {
 }
 
+Device::~Device()
+{
+    waitIdle();
+}
+
 auto Device::physicalDevice() const noexcept -> const vk::raii::PhysicalDevice&
 {
     return m_physicalDevice;

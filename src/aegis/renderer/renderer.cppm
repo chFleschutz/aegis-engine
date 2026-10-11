@@ -65,6 +65,9 @@ public:
         rhi::CommandPool&& commandPool,
         std::vector<FrameContext>&& frameContext);
 
+    /// @brief Waits for the GPU first: the frame command buffers and semaphores may still be in use.
+    ~Renderer();
+
     [[nodiscard]] auto swapchain() const noexcept -> const rhi::Swapchain& { return m_swapchain; }
     [[nodiscard]] auto needsResize() const noexcept -> bool
     {

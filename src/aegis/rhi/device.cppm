@@ -67,6 +67,9 @@ public:
         Properties properties,
         BindlessHeap bindlessHeap);
 
+    /// @brief Waits for the GPU first: destroying resources it may still use is invalid.
+    ~Device();
+
     [[nodiscard]] auto operator->() const noexcept -> const vk::raii::Device* { return &m_device; }
     [[nodiscard]] auto operator*() const noexcept -> const vk::raii::Device& { return m_device; }
 
