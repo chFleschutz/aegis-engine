@@ -33,15 +33,17 @@ auto Queue::submit(const SubmitInfo& info) -> std::expected<TimelineValue, Error
     };
 
     auto signalInfos = std::array{
+        // All commands, not all graphics: the timeline value retires staging memory and deleted
+        // resources, so copies and compute work must be complete when it is signalled.
         vk::SemaphoreSubmitInfo{
             .semaphore = *m_timeline,
             .value = m_currentValue,
-            .stageMask = vk::PipelineStageFlagBits2::eAllGraphics,
+            .stageMask = vk::PipelineStageFlagBits2::eAllCommands,
         },
         vk::SemaphoreSubmitInfo{
             .semaphore = *info.signalSemaphore,
             .value = 0,
-            .stageMask = vk::PipelineStageFlagBits2::eAllGraphics,
+            .stageMask = vk::PipelineStageFlagBits2::eAllCommands,
         },
     };
 
@@ -71,7 +73,7 @@ auto Queue::submit(const CommandBuffer& cmd) -> std::expected<TimelineValue, Err
     vk::SemaphoreSubmitInfo signalInfo{
         .semaphore = *m_timeline,
         .value = m_currentValue,
-        .stageMask = vk::PipelineStageFlagBits2::eAllGraphics,
+        .stageMask = vk::PipelineStageFlagBits2::eAllCommands,
     };
 
     vk::SubmitInfo2 submitInfo{
