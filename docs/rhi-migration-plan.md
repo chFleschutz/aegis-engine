@@ -8,6 +8,10 @@ modules: **`aegis.render_graph`** and **`aegis.assets`**.
 
 - Frame graph / passes / render systems live in a **new `aegis.render_graph` module** (not renderer partitions).
 - Mesh vertex/index buffers use **buffer device address**, not bindless descriptor handles (per AGENTS.md).
+- **One pipeline layout shared by every pipeline**: the bindless set plus one fixed 128-byte push-constant
+  range for all stages. Shaders receive buffer device addresses and descriptor indices through push
+  constants; `Pipeline::*Desc` carries no layout and no `vk::` types. See Phase 0.5.
+- **The engine can run headless** (no window, surface or swapchain), for tests and tooling. See Phase 0.5.
 
 ## The one hard constraint
 
@@ -217,14 +221,14 @@ covered by a new `aegis-test` check. (For the record: before R2, the environment
 
 **Needed before specific Phase 2 items** (not blocking Phase 1):
 
-- [ ] **Shader-facing pipeline layout / `pushConstants` / `dispatch`** — see the BDA gap above and
-  "Next step". Blocks every shader that reads through BDA.
+- [ ] **Shader-facing pipeline layout / `pushConstants` / `dispatch`** — decided; scheduled as Phase 0.5
+  part B. Blocks every shader that reads through BDA.
 - [ ] **`Pipeline::GraphicsDesc` has no fixed-function state.** Depth test/write/compare (hard-coded
   on, on, `eLess`), cull mode (hard-coded back, CCW), per-attachment blending (hard-coded off) and a
   stencil format are all fixed. The old builder exposed them, and old passes use them: the sky box needs
   `LESS_OR_EQUAL`, no depth write and front culling; the transparent and UI passes need blending. Needed
   by the Phase 2 material port and Phase 3 passes. Add them to `GraphicsDesc` with today's values as
-  defaults.
+  defaults. Scheduled with the pipeline layout (Phase 0.5 part B): both reshape `GraphicsDesc`.
 
 **Minor** (all fixed):
 
@@ -276,6 +280,81 @@ mean *per channel*, which makes that grouping look plausible. The suite now cove
 families exhaustively, and `copyAlignment` has a case that walks **every** copyable format and asserts
 the alignment divides by both 4 and that format's texel size — so a newly added format cannot
 reintroduce the class of bug.
+
+---
+
+## Phase 0.5 — Headless mode and the shader interface (before Phase 2)
+
+Two foundation pieces found missing at the end of Phase 0. Suggested order: **A then B**. A is smaller,
+and it makes every later verification run window-free and self-terminating, B's included.
+
+### A — Headless engine mode
+
+**Why:** every `aegis-test` run opens a GLFW window that must be closed by hand (or gracefully closed
+by a script, or buffered stdout is lost), and a console window when launched from outside a terminal.
+That makes device verification slow to run, impossible to automate, and unsuitable for CI. Headless
+mode renders to an offscreen target with no window, surface or swapchain, and the harness exits on its
+own after a fixed number of frames.
+
+**Design:**
+
+- **`rhi::Context`** — the window becomes optional (`Context::Desc::window` a nullable pointer, or a
+  separate headless `Desc`). Without one: no GLFW instance extensions (`glfwGetRequiredInstanceExtensions`
+  needs an initialized GLFW), no surface.
+- **`rhi::Device`** — the surface becomes optional. Without one: `VK_KHR_swapchain` is not required
+  (today `Device::requiredExtensions` always lists it), and queue-family selection must not require
+  present support (Phase 0's review made that mandatory, which is right only when there is a surface).
+  `presentQueue()` is unavailable headless.
+- **`renderer::Renderer`** — an offscreen mode: `Renderer::Desc` takes either a window or an offscreen
+  extent + format. Offscreen frames render into a resolution-independent `Texture` instead of an acquired
+  swapchain image, pace on the timeline semaphore alone (no acquire/present semaphores), and never
+  resize. `FrameInfo::swapchainImage` becomes a mode-neutral name (e.g. `target`).
+- **Renderer owns the frame's command-buffer bracket.** Today the draw callback calls `cmd.begin()` /
+  `cmd.end()` and records the final `ColorAttachment → Present` transition itself. Headless has no
+  present, and `ePresentSrcKHR` is invalid without `VK_KHR_swapchain`, so the callback cannot keep owning
+  that transition. Move begin, end and the final transition (to `Present`, or nothing offscreen) into
+  `Renderer::renderFrame`; the callback only records rendering.
+- **`aegis-test`** — `--headless` and `--frames <n>` arguments. `--frames` also helps windowed runs:
+  the harness exits by itself, so nothing has to close its window.
+- **CTest** — register a headless `aegis-test --frames <n>` run as a test labelled `device` (it needs a
+  GPU, so it can be excluded with `ctest -LE device`). `ctest` then covers device paths too, not just the
+  pure logic.
+- **Keep a windowed check.** Headless does not exercise surface, swapchain, acquire or present. Those
+  stay covered by a windowed `aegis-test --frames <n>` run whenever that code changes.
+- Not chosen: `VK_EXT_headless_surface`. It would keep the swapchain path, but driver support on
+  Windows is not dependable. Offscreen rendering works everywhere.
+
+**Verify:** headless `aegis-test --frames 600` exits 0, opens no window, and runs every check
+(uploads, samplers, BDA, renderer textures, timed pass) under core + sync validation; windowed
+`--frames 600` still exits 0; `ctest` runs the device test. Update `AGENTS.md`'s "Verifying device paths"
+(the graceful-close advice becomes obsolete).
+
+### B — Shader interface: shared pipeline layout, push constants, dispatch, fixed-function state
+
+**Decided:** one pipeline layout shared by every pipeline, owned by the `Device` and created with it:
+set 0 = the bindless heap's layout, plus one push-constant range of **128 bytes** (the minimum
+`maxPushConstantsSize` Vulkan guarantees) visible to all stages.
+
+- **`Pipeline::GraphicsDesc` / `ComputeDesc`** — drop `setLayouts` and `pushConstantRanges` (the only
+  `vk::` types left in them); every pipeline uses the shared layout. Layout compatibility then holds
+  across all pipelines, so binding the bindless set once per command buffer and bind point is enough.
+- **`CommandBuffer`** — bind the bindless set when a pipeline of a new bind point is first bound;
+  add `pushConstants(std::span<const std::byte>, offset = 0)` plus a typed helper that
+  `static_assert`s `sizeof(T) <= 128`, and `dispatch(x, y, z)`. Indirect draws wait for Phase 3.
+- **Shader convention** — a Slang `[[vk::push_constant]]` struct carries BDA pointers and
+  `SampledImageDescriptor` / `SamplerDescriptor` indices. Document it next to `shaders/modules/bindless.slang`.
+- **`GraphicsDesc` fixed-function state**, defaults equal to today's hard-coded values: depth
+  test / write / compare op, cull mode and front face, per-color-attachment blending (at least none,
+  alpha, additive), and a stencil attachment format. Covers the sky box (`LESS_OR_EQUAL`, no depth
+  write, front culling) and the transparent and UI passes (alpha blending).
+
+**Verify:** a compute round-trip in `aegis-test`: push `{ srcAddress, dstAddress, count }`, dispatch a
+shader that writes `dst[i] = f(src[i])` through BDA, read back and compare. This is the first check that
+a shader can read and write through a buffer device address; today BDA is only checked by validation.
+Plus a graphics pipeline built with non-default fixed-function state under validation.
+
+**Exit criteria:** headless `aegis-test` runs in CTest and passes; shaders receive data through push
+constants and BDA, verified by the round-trip; `Pipeline::*Desc` contains no `vk::` types.
 
 ---
 
@@ -473,22 +552,15 @@ are immune to warnings-as-errors. Full rationale in `tests/README.md`.
 - **BDA mesh layout** (Phase 2) ripples into every geometry shader — sequence the shader edits with the `StaticMesh` change, don't leave them for later.
 - **GPU-driven vs CPU-driven** paths both need porting in Phase 3, or one must be explicitly deferred with a note.
 - **ImGui ownership** — *decided:* the UI layer owns the descriptor pool via the backend's `DescriptorPoolSize` (Phase 0). Who calls `ImGui_ImplVulkan_Init` (UI layer vs a render-graph `ui_pass`) is still open for Phase 3.
-- **Shader-facing pipeline layout** — how pipelines expose the bindless set and push constants without `vk::` types in `Pipeline::*Desc`. Blocks shaders consuming BDA (Phase 2) and every pass (Phase 3).
+- **Shader-facing pipeline layout** — *decided:* one shared layout (bindless set + 128-byte push constants, all stages); see Phase 0.5 B. Blocks shaders consuming BDA (Phase 2) and every pass (Phase 3) until it lands.
 - **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
 
-## Next step — settle the shader-facing pipeline layout
+## Next step — Phase 0.5
 
 **Phase 0 is complete** — exit criteria met under core and synchronization validation, and every
-review item fixed.
-
-The remaining foundation work needs a decision before Phase 2's shader edits: shaders cannot yet
-receive data. There is no `CommandBuffer::pushConstants` / `dispatch`, and `Pipeline::*Desc` takes
-`vk::` types nothing outside `aegis.rhi` can construct. The obvious candidate is one shared pipeline
-layout (bindless set plus a fixed push-constant range, e.g. 128 bytes for all stages), so `*Desc` drops
-`setLayouts` / `pushConstantRanges` entirely and `pushConstants` takes plain bytes. A compute
-round-trip in `aegis-test` (read through one BDA pointer, write through another) then verifies BDA
-end-to-end, which today is only checked by validation. Extend `GraphicsDesc` with fixed-function state
-(depth, cull, blend, stencil format) in the same pass, since both reshape `GraphicsDesc`.
+review item fixed. Next is **Phase 0.5**: **A, headless mode** first (window-free, self-terminating
+verification runs that also go into CTest), then **B, the shader interface** (shared pipeline layout,
+push constants, `dispatch`, `GraphicsDesc` fixed-function state), which unblocks Phase 2's shaders.
 
 **Phase 1 (platform window + input) is independent** of all of this and can go in parallel.
 
