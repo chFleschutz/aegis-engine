@@ -108,6 +108,8 @@ auto ResourcePool::bufferAddress(ResourceHandle handle, std::uint32_t frameIndex
 auto ResourcePool::write(ResourceHandle handle, std::uint32_t frameIndex, std::span<const std::byte> data,
     std::size_t offset) const -> void
 {
+    if (data.empty())
+        return;
     buffer(handle).write(data.data(), data.size(), bufferOffset(handle, frameIndex) + offset);
 }
 

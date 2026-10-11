@@ -2,6 +2,7 @@ module;
 #include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -21,8 +22,19 @@ export namespace aegis::render_graph
 [[nodiscard]] auto createComputePipeline(rhi::Device& device, std::string_view name, std::string_view shaderPath,
     std::string_view entryPoint = "main") -> std::expected<rhi::Pipeline, Error>;
 
-/// @brief A graphics pipeline from one compiled shader holding both stages ("vertexMain" and
-///        "fragmentMain"). 'desc.shaders' is filled in here.
+/// @brief One stage of a pipeline: an entry point in a compiled shader (see loadShader).
+struct ShaderEntry
+{
+    rhi::ShaderStage stage;
+    std::string_view shaderPath;
+    std::string_view entryPoint;
+};
+
+/// @brief A graphics pipeline from the given stages. 'desc.shaders' is filled in here.
+[[nodiscard]] auto createGraphicsPipeline(rhi::Device& device, rhi::Pipeline::GraphicsDesc desc,
+    std::span<const ShaderEntry> stages) -> std::expected<rhi::Pipeline, Error>;
+
+/// @brief The usual case: a vertex and a fragment stage, "vertexMain" and "fragmentMain".
 [[nodiscard]] auto createGraphicsPipeline(rhi::Device& device, std::string_view shaderPath,
     rhi::Pipeline::GraphicsDesc desc) -> std::expected<rhi::Pipeline, Error>;
 

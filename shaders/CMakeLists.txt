@@ -63,6 +63,7 @@ endforeach()
 set(SLANG_CAPABILITIES
     spirv_1_6
     spvDerivativeControl
+    spvGroupNonUniform
     spvFragmentFullyCoveredEXT
     spvGroupNonUniformBallot
     spvImageGatherExtended

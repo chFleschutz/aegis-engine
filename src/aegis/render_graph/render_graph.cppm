@@ -4,6 +4,7 @@ export import :error;
 export import :frame_graph;
 export import :frustum;
 export import :geometry_pass;
+export import :gpu_driven;
 export import :ibl;
 export import :immediate;
 export import :lighting_pass;

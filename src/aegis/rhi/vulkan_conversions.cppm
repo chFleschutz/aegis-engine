@@ -262,9 +262,10 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState
             .accessMask = vk::AccessFlagBits2::eTransferRead
         };
     case ResourceState::CopyDst:
+        // All transfer stages: fills and clears write from the clear stage, not copy or blit.
         return VulkanState{
             .layout = vk::ImageLayout::eTransferDstOptimal,
-            .stageMask = vk::PipelineStageFlagBits2::eCopy | vk::PipelineStageFlagBits2::eBlit,
+            .stageMask = vk::PipelineStageFlagBits2::eAllTransfer,
             .accessMask = vk::AccessFlagBits2::eTransferWrite
         };
     case ResourceState::Present:

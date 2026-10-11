@@ -6,6 +6,7 @@ module;
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -54,22 +55,37 @@ auto createComputePipeline(rhi::Device& device, std::string_view name, std::stri
     return std::move(*pipeline);
 }
 
-auto createGraphicsPipeline(rhi::Device& device, std::string_view shaderPath, rhi::Pipeline::GraphicsDesc desc)
+auto createGraphicsPipeline(rhi::Device& device, rhi::Pipeline::GraphicsDesc desc, std::span<const ShaderEntry> stages)
     -> std::expected<rhi::Pipeline, Error>
 {
-    auto code = loadShader(shaderPath);
-    if (!code)
-        return std::unexpected{ code.error() };
-
-    std::array shaders{
-        rhi::Pipeline::Shader{ .name = desc.name, .stage = rhi::ShaderStage::Vertex, .code = *code, .entryPoint = "vertexMain" },
-        rhi::Pipeline::Shader{ .name = desc.name, .stage = rhi::ShaderStage::Fragment, .code = *code, .entryPoint = "fragmentMain" },
-    };
+    // One load per stage: stages may come from different files. Codes outlive pipeline creation.
+    std::vector<std::vector<std::uint32_t>> codes;
+    codes.reserve(stages.size());
+    std::vector<rhi::Pipeline::Shader> shaders;
+    shaders.reserve(stages.size());
+    for (const auto& [stage, shaderPath, entryPoint] : stages)
+    {
+        auto code = loadShader(shaderPath);
+        if (!code)
+            return std::unexpected{ code.error() };
+        auto& stored = codes.emplace_back(std::move(*code));
+        shaders.push_back({ .name = desc.name, .stage = stage, .code = stored, .entryPoint = entryPoint });
+    }
     desc.shaders = shaders;
 
     auto pipeline = device.createPipeline(desc);
     if (!pipeline)
         return makeError(pipeline.error(), std::format("Failed to create pipeline '{}'", desc.name));
     return std::move(*pipeline);
+}
+
+auto createGraphicsPipeline(rhi::Device& device, std::string_view shaderPath, rhi::Pipeline::GraphicsDesc desc)
+    -> std::expected<rhi::Pipeline, Error>
+{
+    const std::array stages{
+        ShaderEntry{ rhi::ShaderStage::Vertex, shaderPath, "vertexMain" },
+        ShaderEntry{ rhi::ShaderStage::Fragment, shaderPath, "fragmentMain" },
+    };
+    return createGraphicsPipeline(device, desc, stages);
 }
 }

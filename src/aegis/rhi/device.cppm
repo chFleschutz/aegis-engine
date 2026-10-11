@@ -191,7 +191,6 @@ private:
         vk::PhysicalDeviceVulkan11Features,
         vk::PhysicalDeviceVulkan12Features,
         vk::PhysicalDeviceVulkan13Features,
-        vk::PhysicalDeviceShaderObjectFeaturesEXT,
         vk::PhysicalDeviceMeshShaderFeaturesEXT>;
 
     struct QueueFamilyIndices
@@ -231,7 +230,7 @@ private:
         -> std::vector<const char*>;
     [[nodiscard]] static auto supportsExtensions(const vk::raii::PhysicalDevice& pd, bool presentation)
         -> bool;
-    [[nodiscard]] static auto createFeatureChain() -> FeatureChain;
+    [[nodiscard]] static auto createFeatureChain(const Capabilities& capabilities) -> FeatureChain;
     [[nodiscard]] static auto queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties;
     [[nodiscard]] static auto createPipelineLayout(const vk::raii::Device& device,
         const BindlessHeap& bindlessHeap)

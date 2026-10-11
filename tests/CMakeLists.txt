@@ -31,3 +31,5 @@ set_tests_properties(aegis-test-headless PROPERTIES LABELS device TIMEOUT 300)
 # The same harness rendering a loaded scene through the render graph (aegis.render_graph).
 add_test(NAME aegis-test-scene COMMAND aegis-test --headless --scene --frames 120)
 set_tests_properties(aegis-test-scene PROPERTIES LABELS device TIMEOUT 300)
+add_test(NAME aegis-test-scene-gpu-driven COMMAND aegis-test --headless --gpu-driven --frames 120)
+set_tests_properties(aegis-test-scene-gpu-driven PROPERTIES LABELS device TIMEOUT 300)

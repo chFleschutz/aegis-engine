@@ -55,6 +55,11 @@ public:
     auto bindIndexBuffer(const Buffer& buffer, std::size_t offset = 0) const -> void;
     auto drawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount = 1, std::uint32_t firstIndex = 0,
         std::int32_t vertexOffset = 0, std::uint32_t firstInstance = 0) const -> void;
+    /// @brief Mesh-shader draws read from 'commands' (12-byte VkDrawMeshTasksIndirectCommandEXT each),
+    ///        as many as the 32-bit count at 'countOffset' in 'counts' says, at most 'maxDrawCount'.
+    /// @note Needs Device::capabilities().meshShaders; both buffers need BufferUsage::Indirect.
+    auto drawMeshTasksIndirectCount(const Buffer& commands, std::size_t offset, const Buffer& counts,
+        std::size_t countOffset, std::uint32_t maxDrawCount) const -> void;
     auto dispatch(std::uint32_t groupCountX, std::uint32_t groupCountY = 1, std::uint32_t groupCountZ = 1) const
         -> void;
 
@@ -89,6 +94,10 @@ public:
     /// @brief Scales the first mip and layers of view 'src' onto those of view 'dst', converting formats.
     /// @note 'src' must be in ResourceState::CopySrc and 'dst' in ResourceState::CopyDst.
     auto blit(ImageViewHandle src, ImageViewHandle dst, Filter filter = Filter::Linear) const -> void;
+
+    /// @brief Fills 'size' bytes of 'buffer' at 'offset' (both multiples of 4) with the 32-bit 'value'.
+    ///        Needs BufferUsage::TransferDst; counts as a transfer write (ResourceState::CopyDst).
+    auto fillBuffer(const Buffer& buffer, std::uint32_t value, std::size_t offset, std::size_t size) const -> void;
 
     auto copyBuffer(const Buffer& src, const Buffer& dst, std::size_t size, std::size_t srcOffset = 0,
         std::size_t dstOffset = 0) const -> void;

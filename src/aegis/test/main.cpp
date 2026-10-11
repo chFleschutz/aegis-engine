@@ -71,6 +71,7 @@ struct Options
     bool headless{ false };
     std::uint32_t frames{ 0 }; // 0: until the window is closed
     bool scene{ false };       // Render a loaded scene through the render graph instead of the triangle
+    bool gpuDriven{ false };   // With --scene: the GPU-driven (mesh shader) geometry path
     std::string screenshot;    // Headless: save the last frame here as PNG
 };
 
@@ -87,6 +88,11 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         else if (arg == "--scene")
         {
             options.scene = true;
+        }
+        else if (arg == "--gpu-driven")
+        {
+            options.scene = true;
+            options.gpuDriven = true;
         }
         else if (arg == "--screenshot" && i + 1 < args.size())
         {
@@ -807,7 +813,17 @@ public:
 
         m_frameGraph = std::make_unique<render_graph::FrameGraph>(*m_device, *m_renderer);
         m_frameGraph->add<render_graph::SceneUpdatePass>();
-        m_frameGraph->add<render_graph::GeometryPass>().addRenderSystem<render_graph::StaticMeshRenderSystem>();
+        if (m_options.gpuDriven)
+        {
+            const auto& instances = m_frameGraph->add<render_graph::InstanceUpdatePass>(*m_drawBatches);
+            m_frameGraph->add<render_graph::ClearDrawCountsPass>();
+            m_frameGraph->add<render_graph::CullingPass>(instances);
+            m_frameGraph->add<render_graph::GpuDrivenGeometryPass>(instances);
+        }
+        else
+        {
+            m_frameGraph->add<render_graph::GeometryPass>().addRenderSystem<render_graph::StaticMeshRenderSystem>();
+        }
         m_frameGraph->add<render_graph::LightingPass>();
         m_frameGraph->add<render_graph::SkyBoxPass>();
         m_frameGraph->add<render_graph::PostProcessingPass>(false);
@@ -1400,7 +1416,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--screenshot <png>]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--screenshot <png>]", options.error());
         return 2;
     }
 

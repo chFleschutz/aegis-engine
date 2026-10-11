@@ -224,6 +224,19 @@ auto CommandBuffer::drawIndexed(std::uint32_t indexCount, std::uint32_t instance
     m_commandBuffer.drawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
+auto CommandBuffer::drawMeshTasksIndirectCount(const Buffer& commands, std::size_t offset, const Buffer& counts,
+    std::size_t countOffset, std::uint32_t maxDrawCount) const -> void
+{
+    constexpr auto stride = static_cast<std::uint32_t>(sizeof(vk::DrawMeshTasksIndirectCommandEXT));
+    m_commandBuffer.drawMeshTasksIndirectCountEXT(commands.vk(), offset, counts.vk(), countOffset, maxDrawCount, stride);
+}
+
+auto CommandBuffer::fillBuffer(const Buffer& buffer, std::uint32_t value, std::size_t offset, std::size_t size) const
+    -> void
+{
+    m_commandBuffer.fillBuffer(buffer.vk(), offset, size, value);
+}
+
 auto CommandBuffer::blit(ImageViewHandle src, ImageViewHandle dst, Filter filter) const -> void
 {
     const auto& srcView = m_device.get(src);

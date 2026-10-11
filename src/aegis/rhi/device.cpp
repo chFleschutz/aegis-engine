@@ -523,7 +523,7 @@ auto Device::createDevice(const vk::raii::PhysicalDevice& pd, const Capabilities
     const QueueFamilyIndices& queueFamilyIndices, bool presentation)
     -> std::expected<vk::raii::Device, Error>
 {
-    auto features = createFeatureChain();
+    auto features = createFeatureChain(capabilities);
 
     std::set uniqueQueueFamilies{
         queueFamilyIndices.graphics,
@@ -613,7 +613,7 @@ auto Device::supportsExtensions(const vk::raii::PhysicalDevice& pd, bool present
         });
 }
 
-auto Device::createFeatureChain() -> FeatureChain
+auto Device::createFeatureChain(const Capabilities& capabilities) -> FeatureChain
 {
     // TODO: Only enable supported features
 
@@ -660,14 +660,18 @@ auto Device::createFeatureChain() -> FeatureChain
         .setDynamicRendering(true)
         .setMaintenance4(true);
 
-    featureChain
-        .get<vk::PhysicalDeviceShaderObjectFeaturesEXT>() //
-        .setShaderObject(true);
-
-    featureChain
-        .get<vk::PhysicalDeviceMeshShaderFeaturesEXT>() //
-        .setMeshShader(true)
-        .setTaskShader(true);
+    // Only chained (and its extension only enabled) where the device has mesh shaders.
+    if (capabilities.meshShaders)
+    {
+        featureChain
+            .get<vk::PhysicalDeviceMeshShaderFeaturesEXT>() //
+            .setMeshShader(true)
+            .setTaskShader(true);
+    }
+    else
+    {
+        featureChain.unlink<vk::PhysicalDeviceMeshShaderFeaturesEXT>();
+    }
 
     return featureChain;
 }
