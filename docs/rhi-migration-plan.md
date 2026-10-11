@@ -86,26 +86,40 @@ These are on the critical path — assets cannot move until upload works.
         under validation, and pins that a freed sampler's bindless slot is reused.
   - [ ] Deferred: a sampler cache deduplicating identical `Desc`s. Wanted by the Phase 2 `texture`
         port, not before.
-- [ ] **Add `rhi:query`** — GPU timestamp query pool + `CommandBuffer::writeTimestamp` / resolve,
-      replacing `graphics/gpu_timer.cppm` + `GPUScopeTimer`. Porting hazards: it uses the pre-sync2
-      `vkCmdWriteTimestamp` (new stack is Vulkan 1.3 / sync2, so `writeTimestamp2` with
-      `vk::PipelineStageFlags2`), relies on the `VulkanContext` singleton and a global
-      `MAX_FRAMES_IN_FLIGHT`, and its `resolveTimings` shadows `queryCount` while asserting against the
-      outer one — the assert only holds by coincidence. Drop the shadowing; also note the existing
-      `aquireQueryIndices` typo is not worth preserving.
-- [ ] **Expose an ImGui-compatible descriptor pool** from `rhi::Device` (or document that the UI layer owns one). Old code feeds `VulkanContext::descriptorPool()` into `ImGui_ImplVulkan_Init`. `BindlessHeap::m_pool` is **not** reusable for this: it is `eUpdateAfterBind`, has no `eCombinedImageSampler` pool size, and lacks `eFreeDescriptorSet`.
-- [ ] **Add buffer-device-address plumbing** to `rhi::Buffer`. This was previously listed as "confirm
-      helpers exist" — **they do not.** There is no `deviceAddress()` getter and no
-      `BufferUsage::ShaderDeviceAddress`; `Buffer::create` never sets `eShaderDeviceAddress` nor calls
-      `getBufferAddress`, so any BDA use fails validation today. The device feature *is* already enabled
-      (`device.cpp`, `.setBufferDeviceAddress(true)`) — only the RHI surface is missing. This is real
-      work on the Phase 2 critical path, not a checkbox.
-  - [ ] While here: `BufferUsage::CpuVisible` is dead — `toVulkan(BufferUsage)` never maps it. Wire it up or delete it.
-- [ ] Extend `test/main.cpp` with a **timed pass** once `rhi:query` lands. The buffer and texture
-      halves of this item are done (`verifyUploads()`); only the timestamp remains.
+- [x] **Add `rhi:query`** — `Device::createQueryPool(QueryPool::Desc)` returns a timestamp
+      `QueryPool` by value (like `Fence`). `CommandBuffer::resetQueries` / `writeTimestamp` use sync2
+      `writeTimestamp2`, at `TimestampStage::TopOfPipe` / `AllCommands`. `QueryPool::readTimestamps`
+      never blocks (`ErrorCode::NotReady` if unwritten), and `elapsedMs` converts via
+      `detail::timestampDeltaMs`, which masks to the queue family's `timestampValidBits` so a wrapped
+      counter still yields the forward delta (unit-tested). None of the old hazards carried over: no
+      singleton, no global frame count, no shadowed `queryCount`.
+  - [ ] Deferred: the old `GPUTimerManager`'s per-frame bookkeeping (named scopes, one pool per frame
+        in flight, results for the profiler panel). That belongs to whoever owns the frame loop, so it
+        lands with the frame graph in Phase 3 (per-node timing), not in the RHI. `aegis-test`'s
+        `FrameTimer` is the pattern to follow.
+- [x] **ImGui descriptor pool — decided: the UI layer owns it, the RHI exposes nothing.** The vendored
+      ImGui (1.92.4) Vulkan backend creates and owns its own pool when `InitInfo::DescriptorPoolSize > 0`,
+      and `ImGui_ImplVulkan_AddTexture` allocates from it. `BindlessHeap::m_pool` stays unusable for this
+      (`eUpdateAfterBind`, no `eCombinedImageSampler`, no `eFreeDescriptorSet`). See Phase 4's ImGui item.
+- [x] **Add buffer-device-address plumbing** — `BufferUsage::ShaderDeviceAddress` maps to
+      `eShaderDeviceAddress`; `Buffer::deviceAddress()` returns a `DeviceAddress` queried at creation
+      (asserts if the buffer lacked the usage). The VMA allocator already had
+      `VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT`. `aegis-test` creates BDA buffers under
+      validation, which rejects a missing usage or allocation flag.
+  - [x] `BufferUsage::CpuVisible` deleted — CPU visibility is `MemoryUsage`'s job; the flag was
+        redundant as well as dead.
+  - [ ] **Gap found, not in scope here — shaders cannot receive an address yet.** There is no
+        `CommandBuffer::pushConstants` (nor `dispatch`), and `Pipeline::*Desc` takes
+        `std::span<vk::PushConstantRange>` / `std::span<vk::DescriptorSetLayout>`, which no code outside
+        `aegis.rhi` can name (the same trap as for tests). Fixing it means settling a pipeline-layout
+        convention for bindless (e.g. every pipeline shares one layout: the bindless set plus one fixed
+        push-constant range), which is a design decision, not plumbing. See Next step.
+- [x] **Timed pass in `test/main.cpp`** — one `QueryPool` per frame in flight brackets the rendering
+      pass; each frame reads back its slot's previous timestamps after `beginFrame`'s wait. The run
+      fails (exit 1) if any read is not ready or no frame was timed.
 
-**Exit criteria:** `test/main.cpp` uploads a texture and buffer, renders with a timestamped pass, runs clean.
-Buffer + texture upload and the clean run are met; the timestamped pass is outstanding.
+**Exit criteria — met:** `test/main.cpp` uploads a texture and buffer, renders with a timestamped pass
+(~20k frames timed per 6 s run), and runs validation-clean.
 
 ### Bugs found and fixed on the image-upload path
 
@@ -203,7 +217,7 @@ Single commit. Replace the GPU stack in `engine.cppm`:
 - [ ] Move `loadDefaultAssets()` (default textures, PBR template/instance, pipeline build) onto `aegis.assets` + `rhi::Pipeline`.
 - [ ] Rewire `run()`: `m_renderer.renderFrame([&](const auto& frameInfo){ m_frameGraph.execute(...); })`.
 - [ ] Rewire `loadScene` / `sceneChanged` / `sceneInitialized` to the new frame graph + draw batch registry.
-- [ ] Wire **ImGui** to the new device + descriptor pool (replaces old `Renderer::setupUI`).
+- [ ] Wire **ImGui** to the new device (replaces old `Renderer::setupUI`): set `DescriptorPoolSize` (at least 1 for the font plus one per `AddTexture`) instead of passing a pool, and `UseDynamicRendering = true` with the swapchain format.
 - [ ] Handle resize via `renderer::Renderer::resize` + `needsResize` (already implemented) instead of the old `recreateSwapChain`.
 - [ ] Update the engine accessor `renderer()` return type and any callers.
 - [ ] Build + run `Template-Scene` → `Simple-Scene` → `Sponza` / `Helmets` / `Eval-Scene`.
@@ -247,7 +261,7 @@ Scope stays narrow on purpose: **pure, GPU-independent logic** that survives the
 
 ### What is covered now
 
-61 cases. Every item originally listed here is done:
+68 cases. Every item originally listed here is done:
 
 - [x] Staging ring allocator — extracted to `RingAllocator` (`:ring_allocator`) and covered by
       `tests/rhi/ring_allocator.test.cpp` (9 cases: head advance, alignment, zero-size, oversize,
@@ -268,6 +282,8 @@ Scope stays narrow on purpose: **pure, GPU-independent logic** that survives the
 - [x] `utility::roundUpTo` — `tests/rhi/utility.test.cpp`, including agreement with `alignTo` on
       powers of two.
 - [x] `detail::resolveAnisotropy` — `tests/rhi/sampler.test.cpp` (4 cases).
+- [x] `DeletionQueue` — `tests/rhi/deletion_queue.test.cpp` (3 cases).
+- [x] `detail::timestampDeltaMs` — `tests/rhi/query.test.cpp` (4 cases), including counter wrap.
 
 ### What to test next
 
@@ -276,14 +292,22 @@ Scope stays narrow on purpose: **pure, GPU-independent logic** that survives the
       returns `vk::` types, which a test TU cannot name. Only the plain-value part
       (`resolveAnisotropy`) was extracted and tested; the mapping is covered by `aegis-test`.
 
-**Known issue, not yet fixed — bindless writes while frames are in flight.** The heap's bindings
-use `ePartiallyBound | eUpdateAfterBind` but not `eUpdateUnusedWhilePending`, so by the spec *any*
-descriptor write while a command buffer using the set is pending is invalid — i.e. creating any
-image view or sampler mid-frame. Separately, `Device::free` returns the bindless slot to the free
-list immediately while only the object's destruction is deferred, so a freed slot can be rewritten
-while an in-flight frame still indexes it. Validation has not flagged it because `aegis-test` creates
-everything before the first frame. Fix: add `eUpdateUnusedWhilePending` and route slot release
-through the `DeletionQueue`. Must land before Phase 2 streams assets at runtime.
+**Fixed — freed resources were released while in-flight frames still used them.** Three parts:
+- The bindless bindings lacked `eUpdateUnusedWhilePending`, so by the spec *any* descriptor write
+  while a frame was pending (creating an image view or sampler mid-frame) was invalid. Added.
+- `Device::free` returned bindless slots to the heap immediately; a new resource could overwrite a
+  descriptor an in-flight frame still read. Slot release now goes through the `DeletionQueue`
+  (`defer`), whose `collect` now actually invokes its entries.
+- **Worse, found while fixing it:** every deletion was tagged with the last *completed* timeline
+  value, so `DeletionQueue` destroyed objects at the very next `setFrameCompleted` even if a later
+  in-flight frame used them — a GPU use-after-free with 2 frames in flight. Deletions are now tagged
+  with `Device::retireValue()` = the graphics queue's last submitted value + 1, covering the frame
+  being recorded. (All submissions go through the graphics queue today; if transfer/compute queues
+  get their own submissions, retirement needs a per-queue value.)
+
+`Device::replace(ImageViewHandle, …)` still rewrites descriptors in place; documented as requiring
+idle, which `Renderer::resize` guarantees. `aegis-test` now checks that a freed sampler slot is *not*
+reused before retirement and *is* after; `DeletionQueue` is unit-tested (3 cases).
 
 **Known gap, accepted:** `UploadManager`'s batch state machine (`m_inFlight`, `m_recordIndex`
 wraparound, the `flushPending` drain path) and `StagingBuffer`'s pointer arithmetic have no unit
@@ -318,21 +342,22 @@ are immune to warnings-as-errors. Full rationale in `tests/README.md`.
 
 - **BDA mesh layout** (Phase 2) ripples into every geometry shader — sequence the shader edits with the `StaticMesh` change, don't leave them for later.
 - **GPU-driven vs CPU-driven** paths both need porting in Phase 3, or one must be explicitly deferred with a note.
-- **ImGui ownership** — decide whether the UI layer or a render-graph UI pass owns the descriptor pool and init, before Phase 3's `ui_pass`.
+- **ImGui ownership** — *decided:* the UI layer owns the descriptor pool via the backend's `DescriptorPoolSize` (Phase 0). Who calls `ImGui_ImplVulkan_Init` (UI layer vs a render-graph `ui_pass`) is still open for Phase 3.
+- **Shader-facing pipeline layout** — how pipelines expose the bindless set and push constants without `vk::` types in `Pipeline::*Desc`. Blocks shaders consuming BDA (Phase 2) and every pass (Phase 3).
 - **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
 
-## Next step — buffer device address
+## Next step — settle the shader-facing pipeline layout
 
-`rhi:sampler` is done (see Phase 0). **BDA is next**: it is the larger and riskier remaining item —
-it has no RHI surface at all today, and per the cross-cutting risks it ripples into every geometry
-shader in Phase 2. Sequence those shader edits with the `StaticMesh` change rather than deferring
-them. Decide `BufferUsage::CpuVisible` (wire up or delete) in the same change.
+**Phase 0 is complete** (exit criteria met). The one foundation gap it surfaced is that shaders cannot
+yet receive data: there is no `CommandBuffer::pushConstants` / `dispatch`, and `Pipeline::*Desc` takes
+`vk::` types nothing outside `aegis.rhi` can construct. Decide the convention before Phase 2's BDA
+shader edits. The obvious candidate is one shared pipeline layout (bindless set plus a fixed
+push-constant range, e.g. 128 bytes for all stages), so `*Desc` drops `setLayouts` /
+`pushConstantRanges` entirely and `pushConstants` takes plain bytes. A compute round-trip in
+`aegis-test` (read through one BDA pointer, write through another) then verifies BDA end-to-end, which
+today is only checked by validation.
 
-The bindless in-flight write issue (see Testing strategy → Known issue) is small and independent; it
-can go before or after BDA, but must land before Phase 2.
-
-`rhi:query` and the ImGui descriptor pool are not on the Phase 2 critical path — `query` is
-observability and the ImGui pool is not needed until Phase 3's `ui_pass`. Either can slip behind BDA.
+**Phase 1 (platform window + input) is independent** and can go before, after, or in parallel.
 
 **Verify any of them with:** `ctest --preset windows-clang-debug`, a full warnings-as-errors build, and
 a clean validation-layer run of `aegis-test`. Note that `aegis-test` is the *only* `main()` reaching a
