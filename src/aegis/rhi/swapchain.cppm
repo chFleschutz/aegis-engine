@@ -1,4 +1,5 @@
 module;
+#include <array>
 #include <cstdint>
 #include <expected>
 #include <vector>
@@ -121,7 +122,8 @@ private:
         vk::PresentModeKHR presentMode,
         const vk::SurfaceCapabilitiesKHR& surfaceCaps,
         vk::SurfaceKHR surface,
-        vk::SwapchainKHR oldSwapchain)
+        vk::SwapchainKHR oldSwapchain,
+        std::array<std::uint32_t, 2> queueFamilies)
         -> std::expected<vk::raii::SwapchainKHR, Error>;
 
     [[nodiscard]] static auto createImages(const Device& device, const vk::raii::SwapchainKHR& swapchain)

@@ -2,6 +2,7 @@ module;
 #include "GLFW/glfw3.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <expected>
 #include <limits>
@@ -133,7 +134,8 @@ auto Swapchain::create(Device& device, vk::SurfaceKHR surface,
         *presentMode,
         *surfaceCaps,
         surface,
-        oldSwapchain);
+        oldSwapchain,
+        { device.graphicsQueue().family(), device.presentQueue().family() });
     if (!swapchain)
         return std::unexpected(swapchain.error());
 
@@ -234,10 +236,15 @@ auto Swapchain::createSwapchain(
     vk::PresentModeKHR presentMode,
     const vk::SurfaceCapabilitiesKHR& surfaceCaps,
     vk::SurfaceKHR surface,
-    vk::SwapchainKHR oldSwapchain)
+    vk::SwapchainKHR oldSwapchain,
+    std::array<std::uint32_t, 2> queueFamilies)
     -> std::expected<vk::raii::SwapchainKHR, Error>
 {
     auto minImageCount = chooseSwapImageCount(surfaceCaps);
+
+    // Rendered on the graphics family, presented on the present family. When they differ, sharing
+    // concurrently avoids a queue family ownership transfer for every image, every frame.
+    const bool shared = queueFamilies[0] != queueFamilies[1];
 
     vk::SwapchainCreateInfoKHR createInfo{
         .surface = surface,
@@ -247,7 +254,9 @@ auto Swapchain::createSwapchain(
         .imageExtent = toVulkan(extent),
         .imageArrayLayers = 1,
         .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
-        .imageSharingMode = vk::SharingMode::eExclusive,
+        .imageSharingMode = shared ? vk::SharingMode::eConcurrent : vk::SharingMode::eExclusive,
+        .queueFamilyIndexCount = shared ? static_cast<std::uint32_t>(queueFamilies.size()) : 0,
+        .pQueueFamilyIndices = shared ? queueFamilies.data() : nullptr,
         .preTransform = surfaceCaps.currentTransform,
         .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
         .presentMode = presentMode,
