@@ -41,4 +41,5 @@ struct ResourceHandle
 using BufferHandle = ResourceHandle<Buffer>;
 using ImageHandle = ResourceHandle<Image>;
 using ImageViewHandle = ResourceHandle<ImageView>;
+using SamplerHandle = ResourceHandle<Sampler>;
 }

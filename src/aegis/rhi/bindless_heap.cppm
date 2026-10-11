@@ -13,14 +13,14 @@ import vulkan_hpp;
 export namespace aegis::rhi
 {
 template<DescriptorType T>
-struct DescriptorHandle
+struct Descriptor
 {
     std::uint32_t index;
 };
 
-using SampledImageHandle = DescriptorHandle<DescriptorType::SampledImage>;
-using StorageImageHandle = DescriptorHandle<DescriptorType::StorageImage>;
-using SamplerHandle = DescriptorHandle<DescriptorType::Sampler>;
+using SampledImageDescriptor = Descriptor<DescriptorType::SampledImage>;
+using StorageImageDescriptor = Descriptor<DescriptorType::StorageImage>;
+using SamplerDescriptor = Descriptor<DescriptorType::Sampler>;
 
 class FreeList
 {
@@ -85,20 +85,20 @@ public:
     [[nodiscard]] auto layout() const -> vk::DescriptorSetLayout { return *m_layout; }
 
     [[nodiscard]] auto writeSampledImage(const Device& device, const ImageView& view,
-    std::optional<SampledImageHandle> oldHandle = std::nullopt)
-        -> std::expected<SampledImageHandle, BindlessError>;
+    std::optional<SampledImageDescriptor> oldDescriptor = std::nullopt)
+        -> std::expected<SampledImageDescriptor, BindlessError>;
 
     [[nodiscard]] auto writeStorageImage(const Device& device, const ImageView& view,
-    std::optional<StorageImageHandle> oldHandle = std::nullopt)
-        -> std::expected<StorageImageHandle, BindlessError>;
+    std::optional<StorageImageDescriptor> oldDescriptor = std::nullopt)
+        -> std::expected<StorageImageDescriptor, BindlessError>;
 
     [[nodiscard]] auto writeSampler(const Device& device, vk::Sampler sampler,
-    std::optional<SamplerHandle> oldHandle = std::nullopt)
-        -> std::expected<SamplerHandle, BindlessError>;
+    std::optional<SamplerDescriptor> oldDescriptor = std::nullopt)
+        -> std::expected<SamplerDescriptor, BindlessError>;
 
-    auto freeSampledImage(SampledImageHandle handle) -> void;
-    auto freeStorageImage(StorageImageHandle handle) -> void;
-    auto freeSampler(SamplerHandle handle) -> void;
+    auto freeSampledImage(SampledImageDescriptor descriptor) -> void;
+    auto freeStorageImage(StorageImageDescriptor descriptor) -> void;
+    auto freeSampler(SamplerDescriptor descriptor) -> void;
 
 private:
     BindlessHeap(const Desc& desc, vk::raii::DescriptorPool&& pool, vk::raii::DescriptorSetLayout&& layout,

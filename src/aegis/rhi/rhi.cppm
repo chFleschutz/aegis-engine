@@ -15,6 +15,7 @@ export import :queue;
 export import :resource_handle;
 export import :resource_pool;
 export import :ring_allocator;
+export import :sampler;
 export import :swapchain;
 export import :sync;
 export import :upload_manager;

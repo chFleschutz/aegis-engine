@@ -125,6 +125,8 @@ public:
 
         if (auto result = engine.verifyUploads(); !result)
             return std::unexpected{ result.error() };
+        if (auto result = engine.verifySamplers(); !result)
+            return std::unexpected{ result.error() };
 
         return engine;
     }
@@ -138,6 +140,56 @@ public:
         if (auto result = verifyImageUpload(); !result)
             return result;
         return verifyCubemapUpload();
+    }
+
+    // The Desc -> Vulkan mapping returns vk:: types, so no unit test can reach it; validation of these
+    // create calls is its only coverage, hence every enum value appears once. The reuse check pins
+    // that freeing a sampler hands its bindless slot back to the heap.
+    auto verifySamplers() -> std::expected<void, std::string>
+    {
+        auto linear = m_device->createSampler({ .name = "SamplerTestLinearRepeat" });
+        auto nearest = m_device->createSampler({
+            .name = "SamplerTestNearestClampToEdge",
+            .magFilter = rhi::Filter::Nearest,
+            .minFilter = rhi::Filter::Nearest,
+            .mipmapMode = rhi::SamplerMipmapMode::Nearest,
+            .addressMode = rhi::SamplerAddressMode::ClampToEdge,
+            .maxAnisotropy = 1.0f,
+        });
+        auto mirrored = m_device->createSampler({
+            .name = "SamplerTestMirroredRepeat",
+            .addressMode = rhi::SamplerAddressMode::MirroredRepeat,
+        });
+        auto border = m_device->createSampler({
+            .name = "SamplerTestClampToBorder",
+            .addressMode = rhi::SamplerAddressMode::ClampToBorder,
+            .maxLod = 0.0f,
+        });
+        if (!linear || !nearest || !mirrored || !border)
+            return std::unexpected{ "Failed to create test samplers" };
+
+        const auto freedIndex = m_device->get(*nearest).descriptor().index;
+        if (freedIndex == m_device->get(*linear).descriptor().index)
+            return std::unexpected{ "Two live samplers share a bindless slot" };
+
+        m_device->free(*nearest);
+        auto reused = m_device->createSampler({ .name = "SamplerTestReused" });
+        if (!reused)
+            return std::unexpected{ "Failed to create sampler after freeing one" };
+        const auto reusedIndex = m_device->get(*reused).descriptor().index;
+
+        m_device->free(*linear);
+        m_device->free(*mirrored);
+        m_device->free(*border);
+        m_device->free(*reused);
+
+        if (reusedIndex != freedIndex)
+            return std::unexpected{
+                std::format("Freed sampler slot {} was not reused (got {})", freedIndex, reusedIndex)
+            };
+
+        std::println("Samplers verified: freed bindless slot {} was reused", freedIndex);
+        return {};
     }
 
     auto run() -> int

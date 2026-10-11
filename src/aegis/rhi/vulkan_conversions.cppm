@@ -34,6 +34,9 @@ constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp;
 constexpr auto toVulkan(BufferUsage usage) noexcept -> vk::BufferUsageFlags;
 constexpr auto toVulkan(ImageUsage usage) noexcept -> vk::ImageUsageFlags;
 constexpr auto toVulkan(DescriptorType type) noexcept -> vk::DescriptorType;
+constexpr auto toVulkan(Filter filter) noexcept -> vk::Filter;
+constexpr auto toVulkan(SamplerMipmapMode mode) noexcept -> vk::SamplerMipmapMode;
+constexpr auto toVulkan(SamplerAddressMode mode) noexcept -> vk::SamplerAddressMode;
 
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
 constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout;
@@ -272,6 +275,46 @@ constexpr auto toVulkan(DescriptorType type) noexcept -> vk::DescriptorType
         return vk::DescriptorType::eStorageImage;
     case DescriptorType::Sampler:
         return vk::DescriptorType::eSampler;
+    }
+    std::unreachable();
+}
+
+constexpr auto toVulkan(Filter filter) noexcept -> vk::Filter
+{
+    switch (filter)
+    {
+    case Filter::Nearest:
+        return vk::Filter::eNearest;
+    case Filter::Linear:
+        return vk::Filter::eLinear;
+    }
+    std::unreachable();
+}
+
+constexpr auto toVulkan(SamplerMipmapMode mode) noexcept -> vk::SamplerMipmapMode
+{
+    switch (mode)
+    {
+    case SamplerMipmapMode::Nearest:
+        return vk::SamplerMipmapMode::eNearest;
+    case SamplerMipmapMode::Linear:
+        return vk::SamplerMipmapMode::eLinear;
+    }
+    std::unreachable();
+}
+
+constexpr auto toVulkan(SamplerAddressMode mode) noexcept -> vk::SamplerAddressMode
+{
+    switch (mode)
+    {
+    case SamplerAddressMode::Repeat:
+        return vk::SamplerAddressMode::eRepeat;
+    case SamplerAddressMode::MirroredRepeat:
+        return vk::SamplerAddressMode::eMirroredRepeat;
+    case SamplerAddressMode::ClampToEdge:
+        return vk::SamplerAddressMode::eClampToEdge;
+    case SamplerAddressMode::ClampToBorder:
+        return vk::SamplerAddressMode::eClampToBorder;
     }
     std::unreachable();
 }

@@ -62,6 +62,13 @@ handles (`ResourceHandle<T>` / `BufferHandle` / `ImageHandle`) as the public cur
 pointers. Descriptors are bindless with fixed slots; **buffers use buffer device address, not
 descriptors**.
 
+**`…Handle` vs `…Descriptor` (naming rule):** `…Handle` always means a pooled, generational
+resource reference resolved through `Device::get` (`BufferHandle`, `ImageViewHandle`,
+`SamplerHandle`). `…Descriptor` always means a bindless slot index a shader consumes
+(`Descriptor<T>`: `SampledImageDescriptor`, `StorageImageDescriptor`, `SamplerDescriptor`). A
+resource *owns* its descriptors (`ImageView::sampledDescriptor()`, `Sampler::descriptor()`). Never
+call a slot index a handle.
+
 **Never `#include <vulkan/vulkan.h>` directly** — new RHI uses `import vulkan_hpp`; the old stack
 uses `graphics/vulkan/vulkan_include.h` (which loads volk with `VK_NO_PROTOTYPES`).
 
@@ -81,7 +88,7 @@ conventions, how to add a module, and the full rationale: **`tests/README.md`**.
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*
     ctest --preset windows-clang-debug                    # runs every case
     cmake --build --preset windows-clang-debug --target aegis-tests-rhi   # iterate one module
-    ctest --preset windows-clang-debug -R "rhi::"
+    ctest --preset windows-clang-debug -L rhi                # one module (by label; -R "rhi::" matches nothing)
 
 - **Scope:** only logic needing no live `rhi::Device`. Invariants guarded by `assert` (e.g.
   `ResourcePool` stale-handle rejection) abort rather than return — test around them, not the abort.

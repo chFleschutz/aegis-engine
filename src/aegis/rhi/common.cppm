@@ -128,6 +128,26 @@ enum class MemoryUsage
     CpuRead,  // Persistent map, random read + cached (readback)
 };
 
+enum class Filter
+{
+    Nearest,
+    Linear,
+};
+
+enum class SamplerMipmapMode
+{
+    Nearest,
+    Linear,
+};
+
+enum class SamplerAddressMode
+{
+    Repeat,
+    MirroredRepeat,
+    ClampToEdge,
+    ClampToBorder, // Border is always opaque black
+};
+
 /// @brief Describes all descriptor types.
 /// @note Buffers are not accessed via descriptors and use buffer device address instead.
 enum class DescriptorType

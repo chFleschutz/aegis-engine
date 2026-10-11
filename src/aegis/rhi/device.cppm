@@ -20,6 +20,7 @@ import :memory;
 import :pipeline;
 import :queue;
 import :resource_pool;
+import :sampler;
 import :swapchain;
 import :upload_manager;
 import aegis.platform.window;
@@ -86,12 +87,15 @@ public:
         return m_imageViews.get(handle);
     }
 
+    [[nodiscard]] auto get(SamplerHandle handle) const -> const Sampler& { return m_samplers.get(handle); }
+
     [[nodiscard]] auto createBuffer(const Buffer::Desc& desc) -> std::expected<BufferHandle, Error>;
     [[nodiscard]] auto createImage(const Image::Desc& desc) -> std::expected<ImageHandle, Error>;
     [[nodiscard]] auto createImageView(ImageHandle image, const ImageView::Desc& desc)
         -> std::expected<ImageViewHandle, Error>;
     [[nodiscard]] auto createImageView(vk::Image imageSrc, const ImageView::Desc& desc)
         -> std::expected<ImageViewHandle, Error>;
+    [[nodiscard]] auto createSampler(const Sampler::Desc& desc) -> std::expected<SamplerHandle, Error>;
 
     auto replace(BufferHandle handle, const Buffer::Desc& desc)
         -> std::expected<BufferHandle, Error>;
@@ -103,6 +107,7 @@ public:
     auto free(BufferHandle handle) -> void;
     auto free(ImageHandle handle) -> void;
     auto free(ImageViewHandle handle) -> void;
+    auto free(SamplerHandle handle) -> void;
 
     auto setFrameCompleted(TimelineValue frame) -> void;
 
@@ -207,6 +212,7 @@ private:
     ResourcePool<Buffer> m_buffers;
     ResourcePool<Image> m_images;
     ResourcePool<ImageView> m_imageViews;
+    ResourcePool<Sampler> m_samplers;
     DeletionQueue m_deletionQueue;
     BindlessHeap m_bindlessHeap;
     std::optional<UploadManager> m_uploadManager;

@@ -10,14 +10,14 @@ import vulkan_hpp;
 
 namespace aegis::rhi
 {
-auto ImageView::sampledHandle() const noexcept -> std::optional<SampledImageHandle>
+auto ImageView::sampledDescriptor() const noexcept -> std::optional<SampledImageDescriptor>
 {
-    return m_sampledHandle;
+    return m_sampledDescriptor;
 }
 
-auto ImageView::storageHandle() const noexcept -> std::optional<StorageImageHandle>
+auto ImageView::storageDescriptor() const noexcept -> std::optional<StorageImageDescriptor>
 {
-    return m_storageHandle;
+    return m_storageDescriptor;
 }
 
 auto ImageView::create(const Device& device, ImageHandle image, const Desc& desc)

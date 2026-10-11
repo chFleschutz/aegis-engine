@@ -42,11 +42,11 @@ public:
     [[nodiscard]] auto extent() const noexcept -> Extent3D { return m_extent; }
     [[nodiscard]] auto format() const noexcept -> Format { return m_format; }
     [[nodiscard]] auto range() const noexcept -> Range { return m_range; }
-    [[nodiscard]] auto sampledHandle() const noexcept -> std::optional<SampledImageHandle>;
-    [[nodiscard]] auto storageHandle() const noexcept -> std::optional<StorageImageHandle>;
+    [[nodiscard]] auto sampledDescriptor() const noexcept -> std::optional<SampledImageDescriptor>;
+    [[nodiscard]] auto storageDescriptor() const noexcept -> std::optional<StorageImageDescriptor>;
 
-    auto setSampledHandle(SampledImageHandle handle) noexcept -> void { m_sampledHandle = handle; }
-    auto setStorageHandle(StorageImageHandle handle) noexcept -> void { m_storageHandle = handle; }
+    auto setSampledDescriptor(SampledImageDescriptor descriptor) noexcept -> void { m_sampledDescriptor = descriptor; }
+    auto setStorageDescriptor(StorageImageDescriptor descriptor) noexcept -> void { m_storageDescriptor = descriptor; }
 
 private:
     [[nodiscard]] static auto create(const Device& device, ImageHandle image, const Desc& desc)
@@ -64,7 +64,7 @@ private:
     Extent3D m_extent;
     Format m_format;
     Range m_range;
-    std::optional<SampledImageHandle> m_sampledHandle;
-    std::optional<StorageImageHandle> m_storageHandle;
+    std::optional<SampledImageDescriptor> m_sampledDescriptor;
+    std::optional<StorageImageDescriptor> m_storageDescriptor;
 };
 }

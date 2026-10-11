@@ -4,6 +4,7 @@ aegis_add_test(rhi
         image.test.cpp
         resource_pool.test.cpp
         ring_allocator.test.cpp
+        sampler.test.cpp
         swapchain.test.cpp
         utility.test.cpp
     LIBS aegis-rhi

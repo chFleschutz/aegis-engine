@@ -15,6 +15,7 @@ class ImageAllocation;
 class ImageView;
 class Pipeline;
 class Queue;
+class Sampler;
 class Swapchain;
 class Fence;
 class Semaphore;

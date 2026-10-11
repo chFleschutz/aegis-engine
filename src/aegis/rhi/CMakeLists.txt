@@ -59,6 +59,7 @@ target_sources(aegis-rhi
         resource_pool.cppm
         rhi.cppm
         ring_allocator.cppm
+        sampler.cppm
         pipeline.cppm
         swapchain.cppm
         sync.cppm
@@ -76,6 +77,7 @@ target_sources(aegis-rhi
         image_view.cpp
         memory.cpp
         queue.cpp
+        sampler.cpp
         pipeline.cpp
         swapchain.cpp
         sync.cpp

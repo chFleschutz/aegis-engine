@@ -16,10 +16,13 @@ Iterating on one module:
 
 ```
 cmake --build --preset windows-clang-debug --target aegis-tests-rhi
-ctest --preset windows-clang-debug -R "rhi::"
+ctest --preset windows-clang-debug -L rhi
 ```
 
-Currently 36 cases across `aegis-tests-rhi` and `aegis-tests-math`.
+`-L` filters by the per-module label. `-R "rhi::"` does **not** work: CTest registers each case under
+its `TEST_CASE` name, so a `TEST_SUITE` filter silently reports "No tests were found".
+
+Currently 61 cases across `aegis-tests-rhi` and `aegis-tests-math`.
 
 ### Device-level check
 

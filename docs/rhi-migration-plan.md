@@ -67,12 +67,25 @@ These are on the critical path — assets cannot move until upload works.
       6-face cubemap (the only case that exercises the array-layer packing contract, which
       `solidColorCube` will depend on in Phase 2). All three compare byte-exactly through a `CpuRead`
       buffer. This also re-covers the buffer path, which had been unexercised at runtime since `cb686cd`.
-- [ ] **Add `rhi:sampler`** — port `graphics/resources/sampler.cppm` to an RHI resource + handle
-      (`Device::createSampler` → pooled `SamplerHandle`). `BindlessHeap::writeSampler` already consumes
-      `vk::Sampler`; give it a first-class owner. The old type is a thin `VkSampler` wrapper bound to the
-      `VulkanContext` singleton — that binding is the only real redesign. **Do not carry forward its
-      bug:** `sampler.cppm:33` hardcodes `mipmapMode` to `LINEAR` and silently ignores the
-      `CreateInfo::mipmapMode` field.
+- [x] **Add `rhi:sampler`** — `Device::createSampler(Sampler::Desc)` → pooled `SamplerHandle`; the
+      sampler registers itself in the bindless heap and owns its `SamplerDescriptor`
+      (`Sampler::descriptor()`). New enums `Filter` / `SamplerMipmapMode` / `SamplerAddressMode`, named
+      after their Vulkan counterparts like `Format`.
+  - [x] **Naming clash resolved first** (own commit): `SamplerHandle` was already the bindless slot
+        alias. Bindless slot indices are now `…Descriptor` (`Descriptor<T>`, `SampledImageDescriptor`,
+        `StorageImageDescriptor`, `SamplerDescriptor`) and `…Handle` always means a pooled resource.
+        The rule is recorded in `CLAUDE.md`.
+  - [x] Old `mipmapMode` bug not carried forward — the field is honoured.
+  - [x] **Second inherited bug dropped:** the old `Sampler(config, mipLevels)` derived `maxLod` from
+        the texture's mip count, forcing one sampler per texture. The bindless heap keeps samplers
+        separate from images, so `maxLod` now defaults to `Sampler::LodClampNone` and the image view
+        bounds the mips — one sampler can serve every texture.
+  - [x] Anisotropy is a requested maximum (default 16; ≤ 1 disables) clamped to the device limit by
+        `detail::resolveAnisotropy`, unit-tested. The enum mapping itself returns `vk::` types and is
+        unreachable from tests; `aegis-test`'s `verifySamplers()` creates one sampler per enum value
+        under validation, and pins that a freed sampler's bindless slot is reused.
+  - [ ] Deferred: a sampler cache deduplicating identical `Desc`s. Wanted by the Phase 2 `texture`
+        port, not before.
 - [ ] **Add `rhi:query`** — GPU timestamp query pool + `CommandBuffer::writeTimestamp` / resolve,
       replacing `graphics/gpu_timer.cppm` + `GPUScopeTimer`. Porting hazards: it uses the pre-sync2
       `vkCmdWriteTimestamp` (new stack is Vulkan 1.3 / sync2, so `writeTimestamp2` with
@@ -149,6 +162,11 @@ Create the module and port in dependency order. Each item is created against an 
   - [ ] Upload vertex/index/meshlet buffers via `UploadManager`.
   - [ ] Update the shaders that read these (`shaders/**/vertex_geometry_bindless.slang`, `gpu-driven/*mesh*`, `task_meshlet_cull`) to consume BDA. Track shader edits as their own sub-checklist.
 - [ ] Port **`texture`** (`resources/texture.cppm`) onto `rhi::Image`/`ImageView` + `rhi:sampler` + bindless heap. Cover `solidColor` / `solidColorCube` used by `loadDefaultAssets()`.
+  - [ ] **Shader ripple:** the old shaders sample through combined `Sampler2D` (`bindless.slang`'s
+        `SampledImage2D` typedefs it), but the new heap binds `eSampledImage` (binding 0) and
+        `eSampler` (binding 2) separately. Textured shaders must move to a `Texture2D` + `SamplerState`
+        pair indexed by a `SampledImageDescriptor` and a `SamplerDescriptor`. Rename `bindless.slang`'s
+        "handle" terminology to "descriptor" while there, to match the C++ naming rule.
 - [ ] Port **material** (`material/material_template.cppm`, `material/material_instance.cppm`) — build pipelines via `rhi::Pipeline::GraphicsDesc` instead of the old `Pipeline::GraphicsBuilder`.
 - [ ] Port **loaders** (`loader/{loader,gltf_loader,fast_gltf_loader,obj_loader}.cppm`) to emit the new mesh/texture/material types.
 - [ ] Move **render components** (`components.cppm`: `Mesh`, `Material`, `Environment`) into `aegis.assets` (or `scene` if you prefer components centralized there).
@@ -229,7 +247,7 @@ Scope stays narrow on purpose: **pure, GPU-independent logic** that survives the
 
 ### What is covered now
 
-57 cases. Every item originally listed here is done:
+61 cases. Every item originally listed here is done:
 
 - [x] Staging ring allocator — extracted to `RingAllocator` (`:ring_allocator`) and covered by
       `tests/rhi/ring_allocator.test.cpp` (9 cases: head advance, alignment, zero-size, oversize,
@@ -249,12 +267,23 @@ Scope stays narrow on purpose: **pure, GPU-independent logic** that survives the
       Includes the array-layer packing contract and the staging/source offset divergence.
 - [x] `utility::roundUpTo` — `tests/rhi/utility.test.cpp`, including agreement with `alignTo` on
       powers of two.
+- [x] `detail::resolveAnisotropy` — `tests/rhi/sampler.test.cpp` (4 cases).
 
 ### What to test next
 
 - [ ] Frustum-culling math (once frustum lands in `aegis.render_graph`, Phase 3).
-- [ ] Sampler description → Vulkan mapping, once `rhi:sampler` lands (pure enum/limit translation,
-      the same shape as the swapchain policy helpers).
+- [x] ~~Sampler description → Vulkan mapping~~ — **not unit-testable as planned**: the mapping
+      returns `vk::` types, which a test TU cannot name. Only the plain-value part
+      (`resolveAnisotropy`) was extracted and tested; the mapping is covered by `aegis-test`.
+
+**Known issue, not yet fixed — bindless writes while frames are in flight.** The heap's bindings
+use `ePartiallyBound | eUpdateAfterBind` but not `eUpdateUnusedWhilePending`, so by the spec *any*
+descriptor write while a command buffer using the set is pending is invalid — i.e. creating any
+image view or sampler mid-frame. Separately, `Device::free` returns the bindless slot to the free
+list immediately while only the object's destruction is deferred, so a freed slot can be rewritten
+while an in-flight frame still indexes it. Validation has not flagged it because `aegis-test` creates
+everything before the first frame. Fix: add `eUpdateUnusedWhilePending` and route slot release
+through the `DeletionQueue`. Must land before Phase 2 streams assets at runtime.
 
 **Known gap, accepted:** `UploadManager`'s batch state machine (`m_inFlight`, `m_recordIndex`
 wraparound, the `flushPending` drain path) and `StagingBuffer`'s pointer arithmetic have no unit
@@ -292,20 +321,15 @@ are immune to warnings-as-errors. Full rationale in `tests/README.md`.
 - **ImGui ownership** — decide whether the UI layer or a render-graph UI pass owns the descriptor pool and init, before Phase 3's `ui_pass`.
 - **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
 
-## Next step — `rhi:sampler`, then BDA
+## Next step — buffer device address
 
-Image upload is done (see Phase 0). The remaining Phase 0 items are independent of each other; keep
-doing them one at a time rather than as one push.
+`rhi:sampler` is done (see Phase 0). **BDA is next**: it is the larger and riskier remaining item —
+it has no RHI surface at all today, and per the cross-cutting risks it ripples into every geometry
+shader in Phase 2. Sequence those shader edits with the `StaticMesh` change rather than deferring
+them. Decide `BufferUsage::CpuVisible` (wire up or delete) in the same change.
 
-**`rhi:sampler` next.** It is the smallest remaining item, it completes the texture story started by
-image upload (upload gets pixels onto the GPU; sampler is what lets a shader read them), and it is the
-last thing the Phase 2 `texture` port needs beyond what already exists. `Device::createSampler` →
-pooled `SamplerHandle`, registered into the existing `BindlessHeap::writeSampler`. See the Phase 0
-entry for the `VulkanContext` binding to unwind and the `mipmapMode` bug not to carry forward.
-
-**Then BDA**, which is the larger and riskier one: it has no RHI surface at all today, and per the
-cross-cutting risks below it ripples into every geometry shader in Phase 2. Sequence those shader
-edits with the `StaticMesh` change rather than deferring them.
+The bindless in-flight write issue (see Testing strategy → Known issue) is small and independent; it
+can go before or after BDA, but must land before Phase 2.
 
 `rhi:query` and the ImGui descriptor pool are not on the Phase 2 critical path — `query` is
 observability and the ImGui pool is not needed until Phase 3's `ui_pass`. Either can slip behind BDA.
@@ -314,6 +338,6 @@ observability and the ImGui pool is not needed until Phase 3's `ui_pass`. Either
 a clean validation-layer run of `aegis-test`. Note that `aegis-test` is the *only* `main()` reaching a
 real `rhi::Device`; `examples/` still runs the old stack and will not catch an RHI regression.
 
-> **Filter gotcha:** `ctest -R "rhi::"` — documented in `CLAUDE.md` and `tests/README.md` — matches
-> nothing. doctest registers CTest tests under the `TEST_CASE` name, not the `TEST_SUITE` name, so that
-> filter silently reports "No tests were found". Plain `ctest` works. Both docs need correcting.
+> **Running one test module:** `ctest --preset windows-clang-debug -L rhi` (or `-L math`). Each case
+> is labelled with its module by `aegis_add_test`. `-R "rhi::"` does not work — CTest registers cases
+> under their `TEST_CASE` name, not the `TEST_SUITE` name. `CLAUDE.md` and `tests/README.md` are fixed.

@@ -9,12 +9,13 @@ target_link_libraries(aegis-test-main PUBLIC doctest::doctest)
 
 # aegis_add_test(<module> SOURCES <a.cpp> ... LIBS <lib> ...)
 # Builds one executable per module linking only that module's library, then registers its
-# cases with CTest so `ctest` aggregates across every executable.
+# cases with CTest so `ctest` aggregates across every executable. Each case is labelled with its
+# module, so `ctest -L <module>` runs one module (CTest names cases by TEST_CASE, not TEST_SUITE).
 function(aegis_add_test module)
     cmake_parse_arguments(T "" "" "SOURCES;LIBS" ${ARGN})
     add_executable(aegis-tests-${module} ${T_SOURCES})
     target_link_libraries(aegis-tests-${module} PRIVATE aegis-test-main ${T_LIBS})
-    doctest_discover_tests(aegis-tests-${module})
+    doctest_discover_tests(aegis-tests-${module} PROPERTIES LABELS ${module})
 endfunction()
 
 add_subdirectory(rhi)
