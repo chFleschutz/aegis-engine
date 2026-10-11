@@ -5,8 +5,6 @@ module;
 
 #include <aegis-log/log.h>
 
-#include <GLFW/glfw3.h>
-
 #include <chrono>
 #include <format>
 #include <memory>
@@ -24,7 +22,6 @@ export import Aegis.Core.Input;
 export import Aegis.Core.LayerStack;
 export import Aegis.Core.Logging;
 export import Aegis.Core.Profiler;
-export import Aegis.Core.Window;
 export import Aegis.Graphics.Components;
 export import Aegis.Graphics.Loader;
 export import Aegis.Graphics.MaterialInstance;
@@ -48,8 +45,9 @@ export namespace Aegis
 		{
 			AGX_ASSERT_X(!s_instance, "Only one instance of Engine is allowed");
 			s_instance = this;
+            Input::setInstance(&m_input);
 
-			loadDefaultAssets();
+            loadDefaultAssets();
 			m_layerStack.push<Editor::EditorLayer>(m_renderer, m_scene);
 
 			ALOG::info("Engine Initialized!");
@@ -58,9 +56,9 @@ export namespace Aegis
 
 		Engine(const Engine&) = delete;
 		Engine(Engine&&) = delete;
-		~Engine() = default;
+        ~Engine() { Input::setInstance(nullptr); }
 
-		auto operator=(const Engine&) -> Engine & = delete;
+        auto operator=(const Engine&) -> Engine & = delete;
 		auto operator=(Engine&&) -> Engine & = delete;
 
 		/// @brief Returns the instance of the engine
@@ -71,8 +69,9 @@ export namespace Aegis
 		}
 
 		[[nodiscard]] static auto assets() -> Core::AssetManager& { return Engine::instance().m_assets; }
-		[[nodiscard]] static auto window() -> Core::Window& { return Engine::instance().m_window; }
-		[[nodiscard]] static auto renderer() -> Graphics::Renderer& { return Engine::instance().m_renderer; }
+        [[nodiscard]] static auto window() -> aegis::platform::Window& { return Engine::instance().m_window; }
+        [[nodiscard]] static auto input() -> aegis::platform::Input& { return Engine::instance().m_input; }
+        [[nodiscard]] static auto renderer() -> Graphics::Renderer& { return Engine::instance().m_renderer; }
 		[[nodiscard]] static auto ui() -> UI::UI& { return Engine::instance().m_ui; }
 		[[nodiscard]] static auto scene() -> Scene::Scene& { return Engine::instance().m_scene; }
 
@@ -89,9 +88,9 @@ export namespace Aegis
 				float frameTimeSec = std::chrono::duration<float, std::chrono::seconds::period>(currentFrameBegin - lastFrameBegin).count();
 				lastFrameBegin = currentFrameBegin;
 
-				glfwPollEvents();
+                m_window.update();
 
-				// Update
+                // Update
 				m_scene.update(frameTimeSec);
 				m_scriptManager.update(frameTimeSec);
 				m_layerStack.update(frameTimeSec);
@@ -220,10 +219,11 @@ export namespace Aegis
 		Logging m_logging{};
 		Core::LayerStack m_layerStack{};
 		UI::UI m_ui{ m_layerStack };
-		Core::Window m_window{ Core::DEFAULT_WIDTH,Core::DEFAULT_HEIGHT, "Aegis" };
-		Graphics::Renderer m_renderer{ m_window };
-		Input m_input{ m_window };
-		Core::AssetManager m_assets{};
+        aegis::platform::Window m_window{ { .title = "Aegis", .width = Core::DEFAULT_WIDTH, .height = Core::DEFAULT_HEIGHT } };
+        // Before the renderer: ImGui chains to the key callback installed when it initializes.
+        aegis::platform::Input m_input{ m_window };
+        Graphics::Renderer m_renderer{ m_window };
+        Core::AssetManager m_assets{};
 		Scene::Scene m_scene;
 		Scripting::ScriptManager m_scriptManager{ m_scene };
 	};

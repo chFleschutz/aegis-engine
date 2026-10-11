@@ -13,7 +13,7 @@ module;
 
 export module Aegis.Graphics.Vulkan.Device;
 
-import Aegis.Core.Window;
+import aegis.platform;
 import Aegis.Graphics.Vulkan.Tools;
 import Aegis.Graphics.Vulkan.VulkanMemory;
 import Aegis.Graphics.DebugUtils;
@@ -80,8 +80,8 @@ export namespace Aegis::Graphics
 		[[nodiscard]] auto properties() const -> const VkPhysicalDeviceProperties& { return m_properties; }
 		[[nodiscard]] auto features() const -> const VulkanFeatures& { return m_features; }
 
-		void initialize(Core::Window& window)
-		{
+        void initialize(aegis::platform::Window& window)
+        {
 			createInstance();
 			m_debugMessenger.create(m_instance);
 			createSurface(window);
@@ -323,8 +323,8 @@ export namespace Aegis::Graphics
 			checkGflwRequiredInstanceExtensions();
 		}
 
-		void createSurface(Core::Window& window)
-		{
+        void createSurface(aegis::platform::Window& window)
+        {
 			VK_CHECK(glfwCreateWindowSurface(m_instance, window.glfwWindow(), nullptr, &m_surface));
 		}
 

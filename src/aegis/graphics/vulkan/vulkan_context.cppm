@@ -9,7 +9,7 @@ export import Aegis.Graphics.Vulkan.Device;
 export import Aegis.Graphics.Vulkan.VulkanMemory;
 export import Aegis.Graphics.DeletionQueue;
 export import Aegis.Graphics.DescriptorPool;
-import Aegis.Core.Window;
+import aegis.platform;
 
 export namespace Aegis::Graphics
 {
@@ -33,8 +33,8 @@ export namespace Aegis::Graphics
 		[[nodiscard]] static auto descriptorPool() -> DescriptorPool& { return instance().m_descriptorPool; }
 		[[nodiscard]] static auto deletionQueue() -> DeletionQueue& { return instance().m_deletionQueue; }
 
-		static auto initialize(Core::Window& window) -> VulkanContext&
-		{
+        static auto initialize(aegis::platform::Window& window) -> VulkanContext&
+        {
 			auto& context = instance();
 			context.m_device.initialize(window);
 

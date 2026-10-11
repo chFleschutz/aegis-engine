@@ -10,7 +10,7 @@ module;
 export module aegis.renderer;
 export import :texture;
 import aegis.rhi;
-import aegis.platform.window;
+import aegis.platform;
 
 export namespace aegis::renderer
 {

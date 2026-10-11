@@ -125,7 +125,8 @@ conventions, how to add a module, and the full rationale: **`tests/README.md`**.
   - `aegis-test --headless` renders offscreen: no window, no surface, no swapchain, and stops after
     600 frames (or `--frames <n>`). `ctest` runs it as the `device`-labelled test. Use this by default.
   - Headless does not touch surface, swapchain, acquire or present. When that code changed, also run
-    `aegis-test --frames 600`: it opens a window briefly and exits by itself.
+    `aegis-test --frames 600`: it opens a window briefly and exits by itself. It also checks
+    `platform::Input` with synthetic key and mouse messages, so run it when platform code changes too.
 - **`import std` / Vulkan SDK (gotcha):** the toolchain (Clang + MSVC runtime) can't build the
   C++23 `import std` module yet, so `AEGIS_USE_IMPORT_STD` defaults **OFF** and the whole build
   stays on classic includes. Older `vulkan.cppm` guards its std module behind

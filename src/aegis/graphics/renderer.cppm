@@ -16,7 +16,7 @@ module;
 
 export module Aegis.Graphics.Renderer;
 
-import Aegis.Core.Window;
+import aegis.platform;
 import Aegis.Core.Globals;
 import Aegis.Core.Profiler;
 import Aegis.Graphics.DrawBatchRegistry;
@@ -65,11 +65,11 @@ export namespace Aegis::Graphics
 				&& VulkanContext::device().features().meshShaderEXT.taskShader;
 		}
 
-		Renderer(Core::Window& window) :
-			m_window{ window },
-			m_vulkanContext{ VulkanContext::initialize(m_window) },
-			m_swapChain{ VkExtent2D{ m_window.width(), m_window.height() } }
-		{
+        Renderer(aegis::platform::Window& window) :
+            m_window{ window },
+            m_vulkanContext{ VulkanContext::initialize(m_window) },
+            m_swapChain{ VkExtent2D{ m_window.width(), m_window.height() } }
+        {
 			createFrameContext();
 			setupUI();
 
@@ -104,8 +104,8 @@ export namespace Aegis::Graphics
 		auto operator=(const Renderer&) -> Renderer & = delete;
 		auto operator=(Renderer&&) noexcept -> Renderer & = delete;
 
-		[[nodiscard]] auto window() -> Core::Window& { return m_window; }
-		[[nodiscard]] auto swapChain() -> SwapChain& { return m_swapChain; }
+        [[nodiscard]] auto window() -> aegis::platform::Window& { return m_window; }
+        [[nodiscard]] auto swapChain() -> SwapChain& { return m_swapChain; }
 		[[nodiscard]] auto bindlessDescriptorSet() -> Bindless::BindlessDescriptorSet& { return m_bindlessDescriptorSet; }
 		[[nodiscard]] auto drawBatchRegistry() -> DrawBatchRegistry& { return m_drawBatchRegistry; }
 		[[nodiscard]] auto frameGraph() -> FrameGraph& { return m_frameGraph; }
@@ -212,8 +212,8 @@ export namespace Aegis::Graphics
 			waitIdle();
 			m_swapChain.resize(extent);
 			m_frameGraph.swapChainResized(extent.width, extent.height);
-			m_window.resetResizedFlag();
-		}
+            m_window.resetResized();
+        }
 
 		void setupUI()
 		{
@@ -353,8 +353,8 @@ export namespace Aegis::Graphics
 			VulkanContext::flushDeletionQueue(m_currentFrameIndex);
 		}
 
-		Core::Window& m_window;
-		VulkanContext& m_vulkanContext;
+        aegis::platform::Window& m_window;
+        VulkanContext& m_vulkanContext;
 
 		SwapChain m_swapChain;
 		std::array<FrameContext, MAX_FRAMES_IN_FLIGHT> m_frames;

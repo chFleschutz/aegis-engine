@@ -393,12 +393,40 @@ constants and BDA, verified by the round-trip; `Pipeline::*Desc` contains no `vk
 
 ## Phase 1 — Platform (window + input)
 
-- [ ] Make `platform::Window` the canonical window. Diff its API against `Aegis.Core.Window` and add any missing accessors used by the engine/editor.
-- [ ] Add **`platform:input`** partition ported from `Aegis.Core.Input` (currently bound to `Core::Window`).
-- [ ] Repoint `Core::Window` consumers to `platform::Window` (temporary alias acceptable to stage the change).
-- [ ] Build + run an example still on the old renderer (window/input change is orthogonal to rendering).
+- [x] Make `platform::Window` the canonical window. Diff its API against `Aegis.Core.Window` and add any missing accessors used by the engine/editor.
+- [x] Add **`platform:input`** partition ported from `Aegis.Core.Input` (currently bound to `Core::Window`).
+- [x] Repoint `Core::Window` consumers to `platform::Window` (temporary alias acceptable to stage the change).
+- [x] Build + run an example still on the old renderer (window/input change is orthogonal to rendering).
 
 **Exit criteria:** engine constructs a `platform::Window`, input works, old renderer still drives frames.
+
+**Done.** Decisions and details:
+
+- **One module, two partitions:** `aegis.platform` with `:window` and `:input` (was the standalone
+  `aegis.platform.window`), matching `aegis.rhi`. `aegis-platform` links GLFW `PUBLIC`, since both
+  interfaces include it.
+- **`platform::Input` has no global state.** It binds to a `Window&`; the window owns every GLFW
+  callback (GLFW allows one per event type) and routes key events to it. Scoped enums with GLFW's
+  values: `Key`, `MouseButton`, `KeyAction`, `Modifiers` (flags), plus `CursorMode` and
+  `CursorPosition`. `bind(Key, std::function<void()>, KeyAction, Modifiers)` replaces the
+  member-pointer `bind`. `setCursorMode` replaces `setInputMode(GLFW_CURSOR, ...)`.
+- **The Engine owns the `Input`**, constructed before the old renderer so ImGui chains to its key
+  callback. The old stack reaches it through `Aegis.Core.Input`, now a shim: `Aegis::Input::instance()`
+  returns the engine's `platform::Input`, and `Input::Key` / `MouseButton` / `CursorMode` alias the platform
+  enums. Delete the shim once scripts and the editor receive input explicitly (listed in Phase 6).
+- **`Aegis.Core.Window` deleted.** Engine, the old `Renderer`, `VulkanContext` and `VulkanDevice` use
+  `platform::Window`; the engine loop calls `Window::update()` instead of `glfwPollEvents()`.
+- **`platform::Window` fixes:** move construction/assignment carried only the GLFW handle (size and
+  resize flag were lost); size now tracks the framebuffer size (what a swapchain must match, and what
+  `update()` already read) instead of the window size; the title is copied to a null-terminated string.
+- **Verification:** windowed `aegis-test` posts synthetic Win32 key and mouse messages to its window
+  and checks key state, a press-only exact-modifier binding, and mouse button state through the real
+  event loop. `Simple-Scene` (old renderer) builds, runs and exits 0.
+- **Not ported:** `src/aegis/ai/` is not built (it includes a `core/input.h` that no longer exists) and
+  still uses the old `bind`.
+- **Old-stack validation errors seen in `Simple-Scene`**, unrelated to window/input and left for the
+  old stack's removal: `vkCmdDrawMeshTasksIndirectCountEXT` without the `drawIndirectCount` feature, a
+  device layer passed to `vkCreateDevice`, and swapchain images transitioned before being acquired.
 
 ---
 
@@ -452,7 +480,7 @@ Create the module and port in dependency order. Each item is created against an 
 
 Single commit. Replace the GPU stack in `engine.cppm`:
 
-- [ ] Swap members: `Core::Window`→`platform::Window`, `Graphics::Renderer`→`renderer::Renderer` + `render_graph::FrameGraph`, construct `rhi::Context` + `rhi::Device`.
+- [ ] Swap members: ~~`Core::Window`→`platform::Window`~~ (done in Phase 1), `Graphics::Renderer`→`renderer::Renderer` + `render_graph::FrameGraph`, construct `rhi::Context` + `rhi::Device`.
 - [ ] Move `loadDefaultAssets()` (default textures, PBR template/instance, pipeline build) onto `aegis.assets` + `rhi::Pipeline`.
 - [ ] Rewire `run()`: `m_renderer.renderFrame([&](const auto& frameInfo){ m_frameGraph.execute(...); })`.
 - [ ] Rewire `loadScene` / `sceneChanged` / `sceneInitialized` to the new frame graph + draw batch registry.
@@ -480,7 +508,8 @@ Single commit. Replace the GPU stack in `engine.cppm`:
 
 - [ ] Delete `src/aegis/graphics/` and its `add_subdirectory(graphics)` + `aegis-graphics` link in `src/aegis/CMakeLists.txt`.
 - [ ] Remove volk dependency, `graphics/vulkan/volk_impl.cpp`, and `graphics/vulkan/vulkan_include.h`.
-- [ ] Remove `Aegis.Core.Window` if fully superseded by `platform::Window`.
+- [x] Remove `Aegis.Core.Window` if fully superseded by `platform::Window`. *Done in Phase 1.*
+- [ ] Remove the `Aegis.Core.Input` shim once scripts and the editor receive `platform::Input` explicitly.
 - [ ] Grep for stragglers: `VK_CHECK`, `AGX_ASSERT` in migrated code, `#include ".../vulkan_include.h"`, `import Aegis.Graphics`.
 - [ ] Full clean build (warnings-as-errors) + run all examples.
 
@@ -588,12 +617,11 @@ are immune to warnings-as-errors. Full rationale in `tests/README.md`.
 - **Shader-facing pipeline layout** — *decided and done:* one shared layout (bindless set + 128-byte push constants, all stages); see Phase 0.5 B and `shaders/modules/README.md`.
 - **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
 
-## Next step — Phase 1 or Phase 2
+## Next step — Phase 2
 
-**Phases 0 and 0.5 are complete**: exit criteria met under core and synchronization validation. The
-engine runs headless, and shaders receive data through push constants and buffer device addresses.
-Next is **Phase 2** (assets onto the RHI), which no longer has a blocker. **Phase 1 (platform window +
-input) is independent** and can go first or in parallel.
+**Phases 0, 0.5 and 1 are complete**: exit criteria met under core and synchronization validation. The
+engine runs headless, shaders receive data through push constants and buffer device addresses, and the
+engine runs on `platform::Window` / `platform::Input`. Next is **Phase 2** (assets onto the RHI).
 
 **Verify any of them with:** a full warnings-as-errors build and `ctest --preset windows-clang-debug`,
 which includes the headless `aegis-test` run (label `device`). It fails on any failed check or

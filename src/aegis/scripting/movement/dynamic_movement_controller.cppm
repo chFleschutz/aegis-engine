@@ -12,11 +12,11 @@ namespace Aegis::Scripting
 	public:
 		struct KeyMappings
 		{
-			Input::Key moveForward = Input::Up;
-			Input::Key moveBackward = Input::Down;
-			Input::Key rotateLeft = Input::Left;
-			Input::Key rotateRight = Input::Right;
-		};
+            Input::Key moveForward = Input::Key::Up;
+            Input::Key moveBackward = Input::Key::Down;
+            Input::Key rotateLeft = Input::Key::Left;
+            Input::Key rotateRight = Input::Key::Right;
+        };
 
 		virtual void update(float deltaSeconds) override
 		{

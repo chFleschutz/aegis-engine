@@ -23,18 +23,18 @@ export namespace Aegis::Editor
 
 		virtual void onUpdate(float deltaSeconds) override
 		{
-			m_snapping = Input::instance().keyPressed(Input::LeftControl);
+            m_snapping = Input::instance().keyPressed(Input::Key::LeftControl);
 
-			if (!ImGuizmo::IsUsing())
+            if (!ImGuizmo::IsUsing())
 			{
-				if (Input::instance().keyPressed(Input::Q))
-					m_gizmoType = -1;
-				else if (Input::instance().keyPressed(Input::W))
-					m_gizmoType = ImGuizmo::OPERATION::TRANSLATE;
-				else if (Input::instance().keyPressed(Input::E))
-					m_gizmoType = ImGuizmo::OPERATION::ROTATE;
-				else if (Input::instance().keyPressed(Input::R))
-					m_gizmoType = ImGuizmo::OPERATION::SCALE;
+                if (Input::instance().keyPressed(Input::Key::Q))
+                    m_gizmoType = -1;
+                else if (Input::instance().keyPressed(Input::Key::W))
+                    m_gizmoType = ImGuizmo::OPERATION::TRANSLATE;
+                else if (Input::instance().keyPressed(Input::Key::E))
+                    m_gizmoType = ImGuizmo::OPERATION::ROTATE;
+                else if (Input::instance().keyPressed(Input::Key::R))
+                    m_gizmoType = ImGuizmo::OPERATION::SCALE;
 			}
 		}
 

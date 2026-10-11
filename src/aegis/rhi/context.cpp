@@ -15,7 +15,7 @@ module aegis.rhi;
 import :context;
 import :error;
 import :vulkan_conversions;
-import aegis.platform.window;
+import aegis.platform;
 
 namespace aegis::rhi
 {

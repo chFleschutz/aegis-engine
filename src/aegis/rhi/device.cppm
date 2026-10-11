@@ -25,7 +25,7 @@ import :resource_pool;
 import :sampler;
 import :swapchain;
 import :upload_manager;
-import aegis.platform.window;
+import aegis.platform;
 import vulkan_hpp;
 
 export namespace aegis::rhi

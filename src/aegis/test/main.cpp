@@ -1,3 +1,11 @@
+// Win32 only to synthesize input events for verifyInput; the harness is Windows-only like the engine.
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -16,7 +24,7 @@
 #include <tuple>
 #include <vector>
 
-import aegis.platform.window;
+import aegis.platform;
 import aegis.renderer;
 import aegis.rhi;
 
@@ -97,6 +105,10 @@ public:
                 .height = 480,
             };
             engine.m_window = std::make_unique<platform::Window>(windowDesc);
+            engine.m_input = std::make_unique<platform::Input>(*engine.m_window);
+
+            if (auto result = engine.verifyInput(); !result)
+                return std::unexpected{ result.error() };
         }
 
         auto context = rhi::Context::create({
@@ -455,6 +467,60 @@ public:
         }
 
         std::println("Compute round-trip verified: {} values read and written through device addresses", count);
+        return {};
+    }
+
+    // Posts synthetic Win32 key and mouse messages to the window and lets the real event loop process
+    // them, so polling and key bindings are checked end to end without anyone at the keyboard.
+    // Assumes no modifier key is physically held during the run: GLFW reads modifiers from the keyboard.
+    auto verifyInput() -> std::expected<void, std::string>
+    {
+        const auto hwnd = glfwGetWin32Window(m_window->glfwWindow());
+        const auto postKey = [hwnd](UINT message, WPARAM virtualKey) {
+            // GLFW identifies the key by the scancode in bits 16-23, then sets the state from the message.
+            const auto scancode = MapVirtualKeyW(static_cast<UINT>(virtualKey), MAPVK_VK_TO_VSC);
+            auto lParam = static_cast<LPARAM>(1 | (scancode << 16));
+            if (message == WM_KEYUP)
+                lParam |= (LPARAM{ 1 } << 30) | (LPARAM{ 1 } << 31);
+            PostMessageW(hwnd, message, virtualKey, lParam);
+        };
+
+        // Shared, not 'this': the bindings outlive this call and the Engine is moved after create().
+        const auto presses = std::make_shared<std::uint32_t>(0);
+        m_input->bind(platform::Key::K, [presses] { ++*presses; });
+        m_input->bind(platform::Key::K, [presses] { ++*presses; }, platform::KeyAction::Press,
+            platform::Modifiers::Control); // Must not fire: Control is not held
+
+        postKey(WM_KEYDOWN, 'K');
+        m_window->update();
+        const bool keyDown = m_input->keyPressed(platform::Key::K);
+        const auto pressesAfterDown = *presses;
+
+        postKey(WM_KEYUP, 'K');
+        m_window->update();
+        const bool keyUp = !m_input->keyPressed(platform::Key::K);
+
+        PostMessageW(hwnd, WM_RBUTTONDOWN, MK_RBUTTON, 0);
+        m_window->update();
+        const bool buttonDown = m_input->mouseButtonPressed(platform::MouseButton::Right);
+
+        PostMessageW(hwnd, WM_RBUTTONUP, 0, 0);
+        m_window->update();
+        const bool buttonUp = !m_input->mouseButtonPressed(platform::MouseButton::Right);
+
+        if (!keyDown || !keyUp)
+            return std::unexpected{ std::format("Input: key state wrong (down {}, released {})", keyDown, keyUp) };
+        if (pressesAfterDown != 1 || *presses != 1)
+            return std::unexpected{
+                std::format("Input: expected 1 binding call on press only, got {} then {}", pressesAfterDown,
+                    *presses)
+            };
+        if (!buttonDown || !buttonUp)
+            return std::unexpected{
+                std::format("Input: mouse button state wrong (down {}, released {})", buttonDown, buttonUp)
+            };
+
+        std::println("Input verified: key state, key binding (press only, exact modifiers) and mouse button");
         return {};
     }
 
@@ -968,6 +1034,7 @@ private:
 
     Options m_options;
     std::unique_ptr<platform::Window> m_window; // null when headless
+    std::unique_ptr<platform::Input> m_input;   // null when headless
     std::unique_ptr<rhi::Context> m_context;
     std::unique_ptr<rhi::Device> m_device;
     std::unique_ptr<renderer::Renderer> m_renderer;
