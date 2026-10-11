@@ -270,7 +270,14 @@ public:
         }
 
         m_device->waitIdle();
-        return reportFrameTimes();
+
+        const auto frameTimesResult = reportFrameTimes();
+        if (const auto errors = rhi::Context::validationErrorCount(); errors > 0)
+        {
+            std::println("Validation failed: {} errors reported (see stderr)", errors);
+            return 1;
+        }
+        return frameTimesResult;
     }
 
     auto drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void

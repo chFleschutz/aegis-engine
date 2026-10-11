@@ -5,6 +5,8 @@ module;
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <expected>
 #include <print>
 
@@ -16,6 +18,11 @@ import aegis.platform.window;
 
 namespace aegis::rhi
 {
+namespace
+{
+std::atomic<std::uint32_t> g_validationErrors{ 0 };
+}
+
 VKAPI_ATTR auto VKAPI_CALL debugCallback(
     vk::DebugUtilsMessageSeverityFlagBitsEXT severity,
     vk::DebugUtilsMessageTypeFlagsEXT type,
@@ -35,12 +42,23 @@ VKAPI_ATTR auto VKAPI_CALL debugCallback(
         trimmedType.remove_suffix(2);
     }
 
+    const bool isError = severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
+    if (isError)
+        ++g_validationErrors;
+
+    const auto* severityStr = isError ? "Error" : "Warning";
     std::println(
         stderr,
-        "Vulkan {} Error: \n{}\n",
+        "Vulkan {} {}: \n{}\n",
         trimmedType,
+        severityStr,
         pCallbackData->pMessage);
     return vk::False;
+}
+
+auto Context::validationErrorCount() noexcept -> std::uint32_t
+{
+    return g_validationErrors.load();
 }
 
 auto Context::create(const Desc& desc) -> std::expected<std::unique_ptr<Context>, Error>
@@ -101,7 +119,25 @@ auto Context::createInstance(
     if (!layers)
         return std::unexpected{ layers.error() };
 
+    // Synchronization validation is off by default in the layer, and without it barrier bugs pass
+    // validation silently.
+    constexpr vk::Bool32 enableSyncValidation{ vk::True };
+    const std::array layerSettings{
+        vk::LayerSettingEXT{
+            .pLayerName = "VK_LAYER_KHRONOS_validation",
+            .pSettingName = "validate_sync",
+            .type = vk::LayerSettingTypeEXT::eBool32,
+            .valueCount = 1,
+            .pValues = &enableSyncValidation,
+        },
+    };
+    const vk::LayerSettingsCreateInfoEXT layerSettingsInfo{
+        .settingCount = static_cast<uint32_t>(layerSettings.size()),
+        .pSettings = layerSettings.data(),
+    };
+
     const vk::InstanceCreateInfo instanceInfo{
+        .pNext = enableValidation ? &layerSettingsInfo : nullptr,
         .pApplicationInfo = &appInfo,
         .enabledLayerCount = static_cast<uint32_t>(layers->size()),
         .ppEnabledLayerNames = layers->data(),
@@ -168,6 +204,7 @@ auto Context::findExtensions() -> std::vector<const char*>
     if constexpr (enableValidation)
     {
         extensions.emplace_back(vk::EXTDebugUtilsExtensionName);
+        extensions.emplace_back(vk::EXTLayerSettingsExtensionName);
     }
 
     return extensions;

@@ -30,6 +30,10 @@ public:
 
     [[nodiscard]] static auto create(const Desc& desc) -> std::expected<std::unique_ptr<Context>, Error>;
 
+    /// @brief Number of validation-layer errors reported so far (always 0 without validation).
+    ///        Lets a test harness fail on errors instead of relying on someone reading stderr.
+    [[nodiscard]] static auto validationErrorCount() noexcept -> std::uint32_t;
+
     Context(
         vk::raii::Context context,
         vk::raii::Instance instance,
