@@ -71,8 +71,7 @@ auto BindlessHeap::writeSampledImage(const Device& device, const ImageView& view
         descriptor.index,
         vk::DescriptorImageInfo{
             .imageView = view.vk(),
-            .imageLayout = vk::ImageLayout::eReadOnlyOptimal
-        });
+            .imageLayout = vk::ImageLayout::eReadOnlyOptimal });
 
     return descriptor;
 }
@@ -179,8 +178,8 @@ auto BindlessHeap::createLayout(const vk::raii::Device& device,
 
     std::array<vk::DescriptorBindingFlags, bindings.size()> flags;
     flags.fill(vk::DescriptorBindingFlagBits::ePartiallyBound |
-        vk::DescriptorBindingFlagBits::eUpdateAfterBind |
-        vk::DescriptorBindingFlagBits::eUpdateUnusedWhilePending);
+               vk::DescriptorBindingFlagBits::eUpdateAfterBind |
+               vk::DescriptorBindingFlagBits::eUpdateUnusedWhilePending);
 
     vk::DescriptorSetLayoutBindingFlagsCreateInfo flagsInfo{
         .bindingCount = static_cast<uint32_t>(flags.size()),
