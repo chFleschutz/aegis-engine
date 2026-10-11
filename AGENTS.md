@@ -116,7 +116,10 @@ conventions, how to add a module, and the full rationale: **`tests/README.md`**.
   `Extent3D` helper because `:common` already imports `:utility`.
 - **Verifying device paths:** green unit tests are *not* sufficient when live upload/swapchain code
   moved. `src/aegis/test/` (`aegis-test`) is the only `main()` reaching a real `rhi::Device`;
-  `examples/` still runs the old `Aegis::Graphics` stack and will not catch an RHI regression.
+  `examples/` still runs the old `Aegis::Graphics` stack and will not catch an RHI regression. Debug
+  builds enable core **and synchronization** validation, and `aegis-test` exits non-zero on any
+  validation error (messages go to stderr) — a run is only verified if it exits 0. It opens a window
+  and runs until closed; close it gracefully (not a kill) or buffered stdout is lost.
 - **`import std` / Vulkan SDK (gotcha):** the toolchain (Clang + MSVC runtime) can't build the
   C++23 `import std` module yet, so `AEGIS_USE_IMPORT_STD` defaults **OFF** and the whole build
   stays on classic includes. Older `vulkan.cppm` guards its std module behind

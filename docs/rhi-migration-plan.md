@@ -118,22 +118,23 @@ These are on the critical path — assets cannot move until upload works.
       pass; each frame reads back its slot's previous timestamps after `beginFrame`'s wait. The run
       fails (exit 1) if any read is not ready or no frame was timed.
 
-**Exit criteria — re-opened by the review below.** `test/main.cpp` uploads a texture and buffer and
-renders with a timestamped pass (~20k frames timed per 6 s run), clean under *core* validation. But
-core validation does not check synchronization: with synchronization validation enabled the same run
-reports three hazards every frame (R1). The criterion is now: **clean under core + synchronization
-validation**, with the review's blocking items fixed.
+**Exit criteria — met (after the review below).** `test/main.cpp` uploads a texture and buffer and
+renders with a timestamped pass, clean under core **and synchronization** validation (~28k frames per
+10 s run). The first claim of "met" was wrong: it held only under core validation, which does not check
+synchronization, and sync validation then reported three hazards every frame (R1). Sync validation is now
+always on in debug builds (R2), and `aegis-test` exits non-zero on any validation error.
 
-### Phase 0 review — fix before moving on
+### Phase 0 review — all fixed
 
 A full read of `rhi/`, `renderer/` and `test/main.cpp`, plus an `aegis-test` run with synchronization
-validation (enable it with `VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT`;
-the layer suggests `VK_LAYER_VALIDATE_SYNC=1` instead, but that produced no reports in testing with SDK
-1.4.328.1). Errors go to **stderr**, warnings to stdout.
+validation. Every item below is fixed, one commit each, and each fix that a device run can show is
+covered by a new `aegis-test` check. (For the record: before R2, the environment switch that worked was
+`VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT`; the layer's suggested
+`VK_LAYER_VALIDATE_SYNC=1` produced no reports with SDK 1.4.328.1. Validation errors go to stderr.)
 
-**Blocking — fix before Phase 1/2 work builds on them** (roughly in order):
+**Blocking** (fixed in the order R2, R1, R3, R4, R5, R8, R6, R7):
 
-- [ ] **R1 — Barrier stage masks are wrong; three sync hazards per frame.** Reported by sync validation:
+- [x] **R1 — Barrier stage masks are wrong; three sync hazards per frame.** Reported by sync validation:
   - `ResourceState::Unknown` has source stage `eNone`, so a transition from it does not chain with
     anything earlier. Swapchain: the transition does not wait for the acquire semaphore (signalled for
     `eColorAttachmentOutput`), so it can write the image while the presentation engine still reads it
@@ -148,20 +149,28 @@ the layer suggests `VK_LAYER_VALIDATE_SYNC=1` instead, but that produced no repo
     harness to use `DepthWrite`, and rename `Attachment` → `ColorAttachment` so the API cannot invite
     this again.
   - Verify: zero sync-validation reports over a multi-second `aegis-test` run.
-- [ ] **R2 — Turn on synchronization validation in debug builds by default.** Enable it in `Context`
+  - **Fixed:** `Unknown` → source `eAllCommands`, `Present` → destination `eAllCommands`, `Attachment`
+    renamed `ColorAttachment`, harness depth uses `DepthWrite`. Zero sync reports since.
+- [x] **R2 — Turn on synchronization validation in debug builds by default.** Enable it in `Context`
   through `VK_EXT_layer_settings` (`validate_sync`), not an environment variable, so "validation-clean"
   includes synchronization from now on. Without this, R1 went unnoticed through all of Phase 0.
-- [ ] **R3 — `Queue::submit` signals its timeline at `eAllGraphics`, which excludes copy and compute.**
+  - **Fixed**, plus: `Context::validationErrorCount()` counts reported errors and `aegis-test` fails on
+    any, so a broken run can no longer look green to someone not reading stderr. The callback also
+    labelled warnings "Error"; it now prints the real severity.
+- [x] **R3 — `Queue::submit` signals its timeline at `eAllGraphics`, which excludes copy and compute.**
   In sync2, `ALL_GRAPHICS` covers only graphics-pipeline stages. So a signalled timeline value does not
   guarantee an upload batch's copies have finished. Yet `UploadManager` reclaims staging and
   `DeletionQueue` retires resources on exactly that value, and Phase 3's compute passes would not be
   covered either. Fix: signal at `eAllCommands` (both `submit` overloads).
-- [ ] **R4 — Buffer uploads have no visibility barrier.** `UploadManager::upload(Buffer…)` records a copy
+  - **Fixed.** Not observable by validation today (every consumer host-waits first).
+- [x] **R4 — Buffer uploads have no visibility barrier.** `UploadManager::upload(Buffer…)` records a copy
   and nothing else; a later shader read (Phase 2 vertex/index data through BDA) has no memory dependency
   on that copy. Image uploads leave this to the caller by contract; buffer uploads have no such contract
   and no barrier. Fix: end each batch with a global barrier (copy write → all-commands read). This is
   independent of R3, which is about the host wait.
-- [ ] **R5 — Image type is inferred from the extent, so a 1-pixel-tall image becomes 1D.**
+  - **Fixed:** `CommandBuffer::makeTransferWritesVisible()`, recorded at the end of every upload batch.
+    Like R3, only a consumer that does not host-wait would show it; Phase 2 will be the first.
+- [x] **R5 — Image type is inferred from the extent, so a 1-pixel-tall image becomes 1D.**
   `deriveImageType` returns `e1D` whenever `extent.y == 1`. `solidColor` (1×1) would be a 1D image, and
   `solidColorCube` (1×1, 6 layers) cannot even be cube-compatible (that requires 2D), so it becomes a
   `1DArray`. Both are needed by `loadDefaultAssets()` in Phase 2. The upload tests use 2×2 and 4×4, which
@@ -169,23 +178,42 @@ the layer suggests `VK_LAYER_VALIDATE_SYNC=1` instead, but that produced no repo
   `eCube`, so a compute pass cannot write cube faces through a `2DArray` view (IBL), and cube arrays are
   impossible. Fix: an explicit image type on `Image::Desc` (default 2D) and an optional explicit view
   type on `ImageView::Desc`. Add a 1×1 and a 1×1×6 case to `verifyUploads()`.
-- [ ] **R6 — Uploads larger than the staging ring can never succeed.** `UploadManager::Desc` declares
+  - **Fixed:** `ImageType` (`Dim1D`/`Dim2D`/`Dim3D`/`Cube`, default `Dim2D`; only `Cube` sets cube
+    compatibility) and an optional `ImageViewType`, defaulting to `detail::defaultViewType` (unit-tested:
+    a 6-layer 2D image is an array, not a cube). `verifyUploads()` round-trips 1×1 and 1×1×6 and creates
+    a default-typed view of every test image, so validation checks view against image.
+- [x] **R6 — Uploads larger than the staging ring can never succeed.** `UploadManager::Desc` declares
   `overflowThreshold` "for the overflow path", but no overflow path exists. Any single upload over the
   64 MB ring returns `false` every time, and the documented response (flush and retry) loops forever.
   Phase 2 hits it: a 4096×2048 RGBA32F HDR environment map is 128 MB. Fix: implement the overflow path
   (a dedicated staging buffer for oversize uploads, retired through the `DeletionQueue`), or at least
   return an error the caller can tell apart from "full right now".
-- [ ] **R7 — `generateMipmaps` does not check format support.** It blits with `eLinear` without checking
+  - **Fixed, both:** uploads above `overflowThreshold` get a dedicated staging buffer, freed through
+    the `DeletionQueue` when their batch is submitted; `upload` now returns `std::expected<void, Error>`
+    where only `ErrorCode::NotReady` means "flush and retry". `aegis-test` round-trips 80 MB.
+  - **Found while fixing it — `RingAllocator` handed out in-flight memory.** An allocation ending
+    exactly at the tail left `head == tail`, which reads as an *empty* ring, so the next allocation
+    overwrote data the GPU had not consumed yet. An existing test pinned that exact-fit behaviour as
+    correct. Fixed (an allocation may not end at the tail; one byte is given up) with two new cases.
+- [x] **R7 — `generateMipmaps` does not check format support.** It blits with `eLinear` without checking
   `eBlitSrc` / `eBlitDst` / `eSampledImageFilterLinear` for the format; for formats without linear
   filtering (commonly 32-bit float) that is invalid usage. Phase 2's texture loading relies on
   `upload(…, generateMips = true)`. Fix: check the format features, and fail (or fall back) explicitly.
-- [ ] **R8 — Renderer textures are invisible to shaders, and `resize` is broken.**
+  - **Fixed:** `Device::supportsMipGeneration(Format)` (blit src/dst + linear filter, not depth); an
+    upload asking for mips of an unsupported format returns `ErrorCode::FormatNotSupported` and records
+    nothing. `aegis-test` generates RGBA8 mips and checks that D32 is refused.
+- [x] **R8 — Renderer textures are invisible to shaders, and `resize` is broken.**
   `Renderer::createTexture` builds its `ImageView::Desc` without `.usage`, so `Device` never writes
   bindless descriptors for it; every renderer texture lacks a `SampledImageDescriptor`. `resize` repeats
   the omission and also drops `.range` (so multi-mip/array textures get a 1-mip, 1-layer view), and it
   dereferences `*newImage` right after reporting that it failed. `ResolutionDependentResource::name` is a
   `std::string_view` that dangles for any non-literal name. Fix all four together; the G-buffer depends
   on them in Phase 3, but the renderer is foundation code and the fixes are small.
+  - **Fixed, plus a fifth:** `createTexture` passed `desc.mipLevels` straight into the view range, so a
+    `fullMipChain` texture got a view of `UINT32_MAX` mips; views now use the resolved count. Resize
+    recreates from the stored *requested* `Texture::Desc`, so a full chain is recomputed for the new size.
+    `aegis-test` creates a full-chain texture under a temporary name and checks it keeps its bindless
+    slot and mip coverage across a resize.
 
 **Needed before specific Phase 2 items** (not blocking Phase 1):
 
@@ -198,24 +226,27 @@ the layer suggests `VK_LAYER_VALIDATE_SYNC=1` instead, but that produced no repo
   by the Phase 2 material port and Phase 3 passes. Add them to `GraphicsDesc` with today's values as
   defaults.
 
-**Minor — track, not blocking:**
+**Minor** (all fixed):
 
-- [ ] `Swapchain::present` treats `eSuboptimalKHR` as a failure (prints "Failed to present") and doesn't
+- [x] `Swapchain::present` treats `eSuboptimalKHR` as a failure (prints "Failed to present") and doesn't
   flag a recreate, and `Renderer::needsResize` never consults `Swapchain::needsRecreation`, so an
   acquire-time suboptimal never triggers a resize either.
-- [ ] `CommandBuffer::beginRendering` asserts `colorAttachments.size() < maxColorAttachments`; should be
+- [x] `CommandBuffer::beginRendering` asserts `colorAttachments.size() < maxColorAttachments`; should be
   `<=` (off by one: 8 attachments are rejected).
-- [ ] `std::string_view::data()` is passed to Vulkan as a null-terminated string in debug labels,
+- [x] `std::string_view::data()` is passed to Vulkan as a null-terminated string in debug labels,
   `debug::setName` and shader `entryPoint`. Literals and `std::string`s happen to work; a substring view
-  over-reads.
-- [ ] Physical-device selection never requires present support, because the queue-family fallbacks
+  over-reads. Fixed with null-terminated copies (also the application name).
+- [x] Physical-device selection never requires present support, because the queue-family fallbacks
   always mark the set complete, and a GPU without a graphics queue trips an `assert` instead of being
   skipped.
-- [ ] Neither `Device` nor `Renderer` waits for the GPU on destruction. Early-exit paths (a failed
+- [x] Neither `Device` nor `Renderer` waits for the GPU on destruction. Early-exit paths (a failed
   `Engine::create` after work was submitted) destroy objects the GPU may still use.
-- [ ] Bindless heap capacities are hard-coded to 1024 each (`// TODO: query pd for max values`).
-- [ ] The swapchain uses `eExclusive` sharing with no queue-family ownership transfer. Harmless while
-  present and graphics share a family (selection prefers that), wrong otherwise.
+- [x] Bindless heap capacities are hard-coded to 1024 each (`// TODO: query pd for max values`). Now
+  `BindlessHeap::Desc`'s defaults (16384 / 4096 / 2048) clamped to the update-after-bind limits.
+- [x] The swapchain uses `eExclusive` sharing with no queue-family ownership transfer. Harmless while
+  present and graphics share a family (selection prefers that), wrong otherwise. Now `eConcurrent`
+  across both families when they differ; untested here, since this GPU presents from the graphics
+  family.
 
 ### Bugs found and fixed on the image-upload path
 
@@ -357,7 +388,7 @@ Scope stays narrow on purpose: **pure, GPU-independent logic** that survives the
 
 ### What is covered now
 
-68 cases. Every item originally listed here is done:
+75 cases. Every item originally listed here is done:
 
 - [x] Staging ring allocator — extracted to `RingAllocator` (`:ring_allocator`) and covered by
       `tests/rhi/ring_allocator.test.cpp` (9 cases: head advance, alignment, zero-size, oversize,
@@ -380,6 +411,9 @@ Scope stays narrow on purpose: **pure, GPU-independent logic** that survives the
 - [x] `detail::resolveAnisotropy` — `tests/rhi/sampler.test.cpp` (4 cases).
 - [x] `DeletionQueue` — `tests/rhi/deletion_queue.test.cpp` (3 cases).
 - [x] `detail::timestampDeltaMs` — `tests/rhi/query.test.cpp` (4 cases), including counter wrap.
+- [x] `detail::defaultViewType` — `tests/rhi/image_view.test.cpp` (5 cases).
+- [x] `RingAllocator` head-meets-tail — 2 new cases in `tests/rhi/ring_allocator.test.cpp`, and the
+      existing exact-fit subcase corrected (it pinned the bug).
 
 ### What to test next
 
@@ -442,28 +476,25 @@ are immune to warnings-as-errors. Full rationale in `tests/README.md`.
 - **Shader-facing pipeline layout** — how pipelines expose the bindless set and push constants without `vk::` types in `Pipeline::*Desc`. Blocks shaders consuming BDA (Phase 2) and every pass (Phase 3).
 - **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
 
-## Next step — fix the Phase 0 review's blocking items, then settle the pipeline layout
+## Next step — settle the shader-facing pipeline layout
 
-**Phase 0 is not done yet.** Its exit criterion is re-opened (see "Phase 0 review"). Suggested order:
+**Phase 0 is complete** — exit criteria met under core and synchronization validation, and every
+review item fixed.
 
-1. **R2 then R1** — turn on sync validation first, so the barrier fixes are checked as they land.
-2. **R3, R4** — submission and upload synchronization; small, and they share the review's reasoning.
-3. **R5, R8** — image/view types and renderer textures; extend `verifyUploads()` with 1×1 and 1×1×6.
-4. **R6, R7** — upload overflow path and mip-generation format checks, before Phase 2 loads real assets.
-
-Then **settle the shader-facing pipeline layout** (needs a decision). Shaders cannot yet receive data:
-there is no `CommandBuffer::pushConstants` / `dispatch`, and `Pipeline::*Desc` takes `vk::` types
-nothing outside `aegis.rhi` can construct. The obvious candidate is one shared pipeline layout (bindless
-set plus a fixed push-constant range, e.g. 128 bytes for all stages), so `*Desc` drops `setLayouts` /
-`pushConstantRanges` entirely and `pushConstants` takes plain bytes. A compute round-trip in
-`aegis-test` (read through one BDA pointer, write through another) then verifies BDA end-to-end, which
-today is only checked by validation. Extend `GraphicsDesc` with fixed-function state in the same pass.
+The remaining foundation work needs a decision before Phase 2's shader edits: shaders cannot yet
+receive data. There is no `CommandBuffer::pushConstants` / `dispatch`, and `Pipeline::*Desc` takes
+`vk::` types nothing outside `aegis.rhi` can construct. The obvious candidate is one shared pipeline
+layout (bindless set plus a fixed push-constant range, e.g. 128 bytes for all stages), so `*Desc` drops
+`setLayouts` / `pushConstantRanges` entirely and `pushConstants` takes plain bytes. A compute
+round-trip in `aegis-test` (read through one BDA pointer, write through another) then verifies BDA
+end-to-end, which today is only checked by validation. Extend `GraphicsDesc` with fixed-function state
+(depth, cull, blend, stencil format) in the same pass, since both reshape `GraphicsDesc`.
 
 **Phase 1 (platform window + input) is independent** of all of this and can go in parallel.
 
 **Verify any of them with:** `ctest --preset windows-clang-debug`, a full warnings-as-errors build, and
-a run of `aegis-test` that is clean under core **and synchronization** validation (check stderr; until
-R2 lands, enable sync validation via `VK_LAYER_ENABLES`, see the review). Note that `aegis-test` is the *only* `main()` reaching a
+a run of `aegis-test` that exits 0 — it fails on any validation error, core or synchronization (both
+are on in debug builds). Note that `aegis-test` is the *only* `main()` reaching a
 real `rhi::Device`; `examples/` still runs the old stack and will not catch an RHI regression.
 
 > **Running one test module:** `ctest --preset windows-clang-debug -L rhi` (or `-L math`). Each case
