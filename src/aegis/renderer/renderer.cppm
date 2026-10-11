@@ -66,7 +66,10 @@ public:
         std::vector<FrameContext>&& frameContext);
 
     [[nodiscard]] auto swapchain() const noexcept -> const rhi::Swapchain& { return m_swapchain; }
-    [[nodiscard]] auto needsResize() const noexcept -> bool { return m_needsResize; }
+    [[nodiscard]] auto needsResize() const noexcept -> bool
+    {
+        return m_needsResize || m_swapchain.needsRecreation();
+    }
 
     [[nodiscard]] auto createTexture(const Texture::Desc& desc) const -> std::expected<Texture, rhi::Error>;
     [[nodiscard]] auto createResolutionDependentTexture(const Texture::Desc& desc)

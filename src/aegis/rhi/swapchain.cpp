@@ -83,8 +83,9 @@ auto Swapchain::present(const Queue& queue) -> std::expected<void, Error>
         .pImageIndices = &m_currentImage,
     };
 
+    // Suboptimal still presented, but like out-of-date the swapchain no longer matches the surface.
     auto result = queue->presentKHR(presentInfo);
-    if (result == vk::Result::eErrorOutOfDateKHR)
+    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR)
     {
         m_needsRecreation = true;
     }
