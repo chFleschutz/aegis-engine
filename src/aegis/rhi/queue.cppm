@@ -25,6 +25,7 @@ public:
     [[nodiscard]] auto operator*() const -> vk::Queue { return *m_queue; }
     [[nodiscard]] auto operator->() const -> const vk::raii::Queue* { return &m_queue; }
     [[nodiscard]] auto family() const -> std::uint32_t { return m_queueFamily; }
+    [[nodiscard]] auto lastSubmitted() const noexcept -> TimelineValue { return m_currentValue; }
 
     [[nodiscard]] auto submit(const SubmitInfo& info) -> std::expected<TimelineValue, Error>;
     [[nodiscard]] auto submit(const CommandBuffer& cmd) -> std::expected<TimelineValue, Error>;

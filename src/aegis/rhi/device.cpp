@@ -136,7 +136,7 @@ auto Device::replace(BufferHandle handle, const Buffer::Desc& desc)
     return Buffer::create(*this, desc)
         .transform([&](auto&& buffer) {
             auto oldBuffer = m_buffers.replace(handle, std::move(buffer));
-            m_deletionQueue.push(m_currentValue, std::move(oldBuffer));
+            m_deletionQueue.push(retireValue(), std::move(oldBuffer));
             return handle;
         });
 }
@@ -147,7 +147,7 @@ auto Device::replace(ImageHandle handle, const Image::Desc& desc)
     return Image::create(*this, desc)
         .transform([&](auto&& image) {
             auto oldImage = m_images.replace(handle, std::move(image));
-            m_deletionQueue.push(m_currentValue, std::move(oldImage));
+            m_deletionQueue.push(retireValue(), std::move(oldImage));
             return handle;
         });
 }
@@ -174,39 +174,52 @@ auto Device::replace(ImageViewHandle view, ImageHandle image, const ImageView::D
                 imageView.setStorageDescriptor(*descriptor);
             }
 
-            m_deletionQueue.push(m_currentValue, m_imageViews.replace(view, std::move(imageView)));
+            m_deletionQueue.push(retireValue(), m_imageViews.replace(view, std::move(imageView)));
             return view;
         });
 }
 
 auto Device::free(BufferHandle handle) -> void
 {
-    m_deletionQueue.push(m_currentValue, m_buffers.pop(handle));
+    m_deletionQueue.push(retireValue(), m_buffers.pop(handle));
 }
 
 auto Device::free(ImageHandle handle) -> void
 {
-    m_deletionQueue.push(m_currentValue, m_images.pop(handle));
+    m_deletionQueue.push(retireValue(), m_images.pop(handle));
 }
 
 auto Device::free(ImageViewHandle handle) -> void
 {
-    if (auto descriptor = m_imageViews.get(handle).sampledDescriptor())
-        m_bindlessHeap.freeSampledImage(*descriptor);
-    if (auto descriptor = m_imageViews.get(handle).storageDescriptor())
-        m_bindlessHeap.freeStorageImage(*descriptor);
-    m_deletionQueue.push(m_currentValue, m_imageViews.pop(handle));
+    // The slots go back to the heap only once the GPU is done, or a new resource could overwrite a
+    // descriptor that an in-flight frame still reads.
+    const auto& view = m_imageViews.get(handle);
+    m_deletionQueue.defer(retireValue(),
+        [this, sampled = view.sampledDescriptor(), storage = view.storageDescriptor()] {
+            if (sampled)
+                m_bindlessHeap.freeSampledImage(*sampled);
+            if (storage)
+                m_bindlessHeap.freeStorageImage(*storage);
+        });
+    m_deletionQueue.push(retireValue(), m_imageViews.pop(handle));
 }
 
 auto Device::free(SamplerHandle handle) -> void
 {
-    m_bindlessHeap.freeSampler(m_samplers.get(handle).descriptor());
-    m_deletionQueue.push(m_currentValue, m_samplers.pop(handle));
+    m_deletionQueue.defer(retireValue(),
+        [this, descriptor = m_samplers.get(handle).descriptor()] {
+            m_bindlessHeap.freeSampler(descriptor);
+        });
+    m_deletionQueue.push(retireValue(), m_samplers.pop(handle));
+}
+
+auto Device::retireValue() const noexcept -> TimelineValue
+{
+    return m_graphicsQueue.lastSubmitted() + 1;
 }
 
 auto Device::setFrameCompleted(TimelineValue frame) -> void
 {
-    m_currentValue = frame;
     m_deletionQueue.collect(frame);
 }
 

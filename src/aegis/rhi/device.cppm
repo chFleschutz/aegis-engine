@@ -101,14 +101,17 @@ public:
         -> std::expected<BufferHandle, Error>;
     auto replace(ImageHandle handle, const Image::Desc& desc)
         -> std::expected<ImageHandle, Error>;
+    /// @warning Rewrites the view's bindless descriptors in place, so no pending GPU work may still
+    ///          read them; wait for the device to idle first (as Renderer::resize does).
     auto replace(ImageViewHandle view, ImageHandle image, const ImageView::Desc& desc)
-    -> std::expected<ImageViewHandle, Error>;
+        -> std::expected<ImageViewHandle, Error>;
 
     auto free(BufferHandle handle) -> void;
     auto free(ImageHandle handle) -> void;
     auto free(ImageViewHandle handle) -> void;
     auto free(SamplerHandle handle) -> void;
 
+    /// @brief Reports that the graphics queue reached 'frame', releasing everything freed before it.
     auto setFrameCompleted(TimelineValue frame) -> void;
 
     /// @brief Stages 'data' and records a copy into the buffer 'dst' at 'dstOffset'. Never blocks.
@@ -200,6 +203,10 @@ private:
     [[nodiscard]] static auto createFeatureChain() -> FeatureChain;
     [[nodiscard]] static auto queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties;
 
+    /// @brief The timeline value at which something freed now is safe to release. Already-submitted
+    ///        work may reference it, and so may the frame being recorded, which is submitted next.
+    [[nodiscard]] auto retireValue() const noexcept -> TimelineValue;
+
     vk::raii::PhysicalDevice m_physicalDevice;
     vk::raii::Device m_device;
     Allocator m_allocator;
@@ -216,6 +223,5 @@ private:
     DeletionQueue m_deletionQueue;
     BindlessHeap m_bindlessHeap;
     std::optional<UploadManager> m_uploadManager;
-    TimelineValue m_currentValue{ 0 };
 };
 }

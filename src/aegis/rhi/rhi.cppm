@@ -6,6 +6,7 @@ export import :command_pool;
 export import :commands;
 export import :common;
 export import :context;
+export import :deletion_queue;
 export import :device;
 export import :error;
 export import :image;

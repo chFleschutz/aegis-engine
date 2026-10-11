@@ -145,8 +145,8 @@ public:
     }
 
     // The Desc -> Vulkan mapping returns vk:: types, so no unit test can reach it; validation of these
-    // create calls is its only coverage, hence every enum value appears once. The reuse check pins
-    // that freeing a sampler hands its bindless slot back to the heap.
+    // create calls is its only coverage, hence every enum value appears once. The reuse checks pin
+    // that a freed bindless slot stays reserved until the GPU retires it, then returns to the heap.
     auto verifySamplers() -> std::expected<void, std::string>
     {
         auto linear = m_device->createSampler({ .name = "SamplerTestLinearRepeat" });
@@ -175,22 +175,34 @@ public:
             return std::unexpected{ "Two live samplers share a bindless slot" };
 
         m_device->free(*nearest);
-        auto reused = m_device->createSampler({ .name = "SamplerTestReused" });
-        if (!reused)
+        auto early = m_device->createSampler({ .name = "SamplerTestBeforeRetire" });
+        if (!early)
             return std::unexpected{ "Failed to create sampler after freeing one" };
+        if (m_device->get(*early).descriptor().index == freedIndex)
+            return std::unexpected{ "A freed sampler slot was reused before the GPU retired it" };
+
+        // Retire the free the way Renderer::beginFrame does: complete a submission and report it.
+        if (auto result = submitAndWait("SamplerTestRetire", [](const auto&) {}); !result)
+            return result;
+        m_device->setFrameCompleted(m_device->graphicsQueue().lastSubmitted());
+
+        auto reused = m_device->createSampler({ .name = "SamplerTestAfterRetire" });
+        if (!reused)
+            return std::unexpected{ "Failed to create sampler after retiring one" };
         const auto reusedIndex = m_device->get(*reused).descriptor().index;
 
         m_device->free(*linear);
         m_device->free(*mirrored);
         m_device->free(*border);
+        m_device->free(*early);
         m_device->free(*reused);
 
         if (reusedIndex != freedIndex)
             return std::unexpected{
-                std::format("Freed sampler slot {} was not reused (got {})", freedIndex, reusedIndex)
+                std::format("Retired sampler slot {} was not reused (got {})", freedIndex, reusedIndex)
             };
 
-        std::println("Samplers verified: freed bindless slot {} was reused", freedIndex);
+        std::println("Samplers verified: slot {} held until retired, then reused", freedIndex);
         return {};
     }
 
