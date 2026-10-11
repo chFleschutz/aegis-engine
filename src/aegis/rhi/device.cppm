@@ -67,7 +67,8 @@ public:
         std::optional<Queue> presentQueue,
         Capabilities capabilities,
         Properties properties,
-        BindlessHeap bindlessHeap);
+        BindlessHeap bindlessHeap,
+        vk::raii::PipelineLayout pipelineLayout);
 
     /// @brief Waits for the GPU first: destroying resources it may still use is invalid.
     ~Device();
@@ -91,6 +92,11 @@ public:
     [[nodiscard]] auto headless() const noexcept -> bool { return !m_presentQueue; }
     [[nodiscard]] auto properties() const noexcept -> const Properties& { return m_properties; }
     [[nodiscard]] auto capabilities() const noexcept -> const Capabilities& { return m_capabilities; }
+    [[nodiscard]] auto bindlessHeap() const noexcept -> const BindlessHeap& { return m_bindlessHeap; }
+
+    /// @brief The layout every pipeline uses: set 0 is the bindless heap, plus
+    ///        CommandBuffer::maxPushConstantSize bytes of push constants visible to all stages.
+    [[nodiscard]] auto pipelineLayout() const noexcept -> vk::PipelineLayout { return *m_pipelineLayout; }
 
     [[nodiscard]] auto get(BufferHandle handle) const -> const Buffer& { return m_buffers.get(handle); }
     [[nodiscard]] auto get(ImageHandle handle) const -> const Image& { return m_images.get(handle); }
@@ -227,6 +233,9 @@ private:
         -> bool;
     [[nodiscard]] static auto createFeatureChain() -> FeatureChain;
     [[nodiscard]] static auto queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties;
+    [[nodiscard]] static auto createPipelineLayout(const vk::raii::Device& device,
+        const BindlessHeap& bindlessHeap)
+        -> std::expected<vk::raii::PipelineLayout, Error>;
 
     /// @brief The timeline value at which something freed now is safe to release. Already-submitted
     ///        work may reference it, and so may the frame being recorded, which is submitted next.
@@ -247,6 +256,7 @@ private:
     ResourcePool<Sampler> m_samplers;
     DeletionQueue m_deletionQueue;
     BindlessHeap m_bindlessHeap;
+    vk::raii::PipelineLayout m_pipelineLayout;
     std::optional<UploadManager> m_uploadManager;
 };
 }

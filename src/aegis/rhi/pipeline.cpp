@@ -16,68 +16,29 @@ namespace aegis::rhi
 {
 auto Pipeline::create(const Device& device, const ComputeDesc& desc) -> std::expected<Pipeline, Error>
 {
-    auto pipelineLayout = createPipelineLayout(device.device(), desc.setLayouts, desc.pushConstantRanges);
-    if (!pipelineLayout)
-        return std::unexpected{ pipelineLayout.error() };
-
-    debug::setName(*device, **pipelineLayout, std::format("{}Layout", desc.name));
-
-    auto pipeline = createComputePipeline(device.device(), *pipelineLayout, desc.shader);
+    auto pipeline = createComputePipeline(device.device(), device.pipelineLayout(), desc.shader);
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
     debug::setName(*device, **pipeline, desc.name);
 
-    return Pipeline{
-        std::move(*pipeline),
-        std::move(*pipelineLayout),
-        vk::PipelineBindPoint::eCompute
-    };
+    return Pipeline{ std::move(*pipeline), vk::PipelineBindPoint::eCompute };
 }
 
 auto Pipeline::create(const Device& device, const GraphicsDesc& desc) -> std::expected<Pipeline, Error>
 {
-    auto pipelineLayout = createPipelineLayout(device.device(), desc.setLayouts, desc.pushConstantRanges);
-    if (!pipelineLayout)
-        return std::unexpected{ pipelineLayout.error() };
-
-    debug::setName(*device, **pipelineLayout, std::format("{}Layout", desc.name));
-
-    auto pipeline = createGraphicsPipeline(device.device(), *pipelineLayout, desc);
+    auto pipeline = createGraphicsPipeline(device.device(), device.pipelineLayout(), desc);
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
 
     debug::setName(*device, **pipeline, desc.name);
 
-    return Pipeline{
-        std::move(*pipeline),
-        std::move(*pipelineLayout),
-        vk::PipelineBindPoint::eGraphics
-    };
-}
-
-auto Pipeline::createPipelineLayout(
-    const vk::raii::Device& device,
-    std::span<vk::DescriptorSetLayout> setLayouts,
-    std::span<vk::PushConstantRange> pushConstantRanges)
-    -> std::expected<vk::raii::PipelineLayout, Error>
-{
-    vk::PipelineLayoutCreateInfo layoutCreateInfo{
-        .setLayoutCount = static_cast<uint32_t>(setLayouts.size()),
-        .pSetLayouts = setLayouts.data(),
-        .pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
-        .pPushConstantRanges = pushConstantRanges.data(),
-    };
-    auto pipelineLayout = device.createPipelineLayout(layoutCreateInfo);
-    if (!pipelineLayout.has_value())
-        return makeError(toRHI(pipelineLayout.result));
-
-    return std::move(pipelineLayout.value);
+    return Pipeline{ std::move(*pipeline), vk::PipelineBindPoint::eGraphics };
 }
 
 auto Pipeline::createComputePipeline(
     const vk::raii::Device& device,
-    const vk::raii::PipelineLayout& layout,
+    vk::PipelineLayout layout,
     const Shader& shader)
     -> std::expected<vk::raii::Pipeline, Error>
 {
@@ -92,7 +53,7 @@ auto Pipeline::createComputePipeline(
             .module = *shaderModule,
             .pName = entryPoint.c_str(),
         },
-        .layout = *layout,
+        .layout = layout,
         .basePipelineHandle = nullptr,
         .basePipelineIndex = -1,
     };
@@ -106,7 +67,7 @@ auto Pipeline::createComputePipeline(
 
 auto Pipeline::createGraphicsPipeline(
     const vk::raii::Device& device,
-    const vk::raii::PipelineLayout& pipelineLayout,
+    vk::PipelineLayout pipelineLayout,
     const GraphicsDesc& desc)
     -> std::expected<vk::raii::Pipeline, Error>
 {
@@ -178,8 +139,8 @@ auto Pipeline::createGraphicsPipeline(
         .depthClampEnable = vk::False,
         .rasterizerDiscardEnable = vk::False,
         .polygonMode = vk::PolygonMode::eFill,
-        .cullMode = vk::CullModeFlagBits::eBack,
-        .frontFace = vk::FrontFace::eCounterClockwise,
+        .cullMode = toVulkan(desc.cullMode),
+        .frontFace = toVulkan(desc.frontFace),
         .depthBiasEnable = vk::False,
         .depthBiasConstantFactor = 0.0f,
         .depthBiasClamp = 0.0f,
@@ -197,9 +158,9 @@ auto Pipeline::createGraphicsPipeline(
     };
 
     vk::PipelineDepthStencilStateCreateInfo depthStencilState{
-        .depthTestEnable = vk::True,
-        .depthWriteEnable = vk::True,
-        .depthCompareOp = vk::CompareOp::eLess,
+        .depthTestEnable = desc.depth.test,
+        .depthWriteEnable = desc.depth.write,
+        .depthCompareOp = toVulkan(desc.depth.compareOp),
         .depthBoundsTestEnable = vk::False,
         .stencilTestEnable = vk::False,
         .front = {},
@@ -208,23 +169,9 @@ auto Pipeline::createGraphicsPipeline(
         .maxDepthBounds = 1.0f,
     };
 
-    std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments{};
-    colorBlendAttachments.reserve(desc.colorAttachments.size());
-    for (Format _ : desc.colorAttachments)
-    {
-        vk::PipelineColorBlendAttachmentState colorBlend{
-            .blendEnable = vk::False,
-            .srcColorBlendFactor = vk::BlendFactor::eOne,
-            .dstColorBlendFactor = vk::BlendFactor::eZero,
-            .colorBlendOp = vk::BlendOp::eAdd,
-            .srcAlphaBlendFactor = vk::BlendFactor::eOne,
-            .dstAlphaBlendFactor = vk::BlendFactor::eZero,
-            .alphaBlendOp = vk::BlendOp::eAdd,
-            .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-                              vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
-        };
-        colorBlendAttachments.emplace_back(colorBlend);
-    }
+    auto colorBlendAttachments = desc.colorAttachments |
+                                 std::views::transform([](const auto& a) { return toVulkan(a.blend); }) |
+                                 std::ranges::to<std::vector>();
 
     vk::PipelineColorBlendStateCreateInfo colorBlendState{
         .logicOpEnable = vk::False,
@@ -238,7 +185,8 @@ auto Pipeline::createGraphicsPipeline(
     vk::PipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.setDynamicStates(dynamicStates);
 
-    auto formats = desc.colorAttachments | std::views::transform([](Format f) { return toVulkan(f); }) |
+    auto formats = desc.colorAttachments |
+                   std::views::transform([](const auto& a) { return toVulkan(a.format); }) |
                    std::ranges::to<std::vector<vk::Format>>();
 
     auto structureChain = vk::StructureChain{
@@ -247,7 +195,7 @@ auto Pipeline::createGraphicsPipeline(
             .colorAttachmentCount = static_cast<uint32_t>(formats.size()),
             .pColorAttachmentFormats = formats.data(),
             .depthAttachmentFormat = toVulkan(desc.depthAttachment),
-            // .stencilAttachmentFormat =
+            .stencilAttachmentFormat = toVulkan(desc.stencilAttachment),
         }
     };
 
@@ -264,7 +212,7 @@ auto Pipeline::createGraphicsPipeline(
         .pDepthStencilState = &depthStencilState,
         .pColorBlendState = &colorBlendState,
         .pDynamicState = &dynamicState,
-        .layout = *pipelineLayout,
+        .layout = pipelineLayout,
         .renderPass = nullptr,
         .subpass = 0,
         .basePipelineHandle = nullptr,
@@ -298,12 +246,8 @@ auto Pipeline::createShaderModule(
     return std::move(shaderModule.value);
 }
 
-Pipeline::Pipeline(
-    vk::raii::Pipeline pipeline,
-    vk::raii::PipelineLayout layout,
-    vk::PipelineBindPoint bindPoint) :
+Pipeline::Pipeline(vk::raii::Pipeline pipeline, vk::PipelineBindPoint bindPoint) :
     m_pipeline{ std::move(pipeline) },
-    m_layout{ std::move(layout) },
     m_bindPoint{ bindPoint }
 {
 }

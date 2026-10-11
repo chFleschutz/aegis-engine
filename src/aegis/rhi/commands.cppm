@@ -47,5 +47,7 @@ struct RenderingCmd
     std::string_view name;
     std::span<Attachment> colorAttachments;
     std::optional<Attachment> depthAttachment;
+    /// @brief For a combined depth/stencil format, the same view as 'depthAttachment'.
+    std::optional<Attachment> stencilAttachment;
 };
 }

@@ -31,7 +31,8 @@ Device::Device(
     std::optional<Queue> presentQueue,
     Capabilities capabilities,
     Properties properties,
-    BindlessHeap bindlessHeap) :
+    BindlessHeap bindlessHeap,
+    vk::raii::PipelineLayout pipelineLayout) :
     m_physicalDevice{ std::move(pd) },
     m_device{ std::move(device) },
     m_allocator{ std::move(allocator) },
@@ -41,7 +42,8 @@ Device::Device(
     m_presentQueue{ std::move(presentQueue) },
     m_capabilities{ capabilities },
     m_properties{ properties },
-    m_bindlessHeap{ std::move(bindlessHeap) }
+    m_bindlessHeap{ std::move(bindlessHeap) },
+    m_pipelineLayout{ std::move(pipelineLayout) }
 {
 }
 
@@ -378,6 +380,10 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
     if (!bindless)
         return std::unexpected{ bindless.error() };
 
+    auto pipelineLayout = createPipelineLayout(*device, *bindless);
+    if (!pipelineLayout)
+        return std::unexpected{ pipelineLayout.error() };
+
     auto result = std::make_unique<Device>(
         std::move(*physicalDevice),
         std::move(*device),
@@ -388,7 +394,8 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
         std::move(presentQueue),
         capabilities,
         properties,
-        std::move(*bindless));
+        std::move(*bindless),
+        std::move(*pipelineLayout));
 
     // Created after the Device exists because UploadManager::create calls back into
     // device.createBuffer / createCommandPool. Flushes on the graphics queue for now.
@@ -657,6 +664,31 @@ auto Device::createFeatureChain() -> FeatureChain
         .setTaskShader(true);
 
     return featureChain;
+}
+
+auto Device::createPipelineLayout(const vk::raii::Device& device, const BindlessHeap& bindlessHeap)
+    -> std::expected<vk::raii::PipelineLayout, Error>
+{
+    // 128 bytes is the minimum maxPushConstantsSize every device guarantees. One range for all stages
+    // keeps every pipeline layout-compatible, so the bindless set survives pipeline changes.
+    const auto setLayout = bindlessHeap.layout();
+    const vk::PushConstantRange pushConstants{
+        .stageFlags = vk::ShaderStageFlagBits::eAll,
+        .offset = 0,
+        .size = CommandBuffer::maxPushConstantSize,
+    };
+
+    auto layout = device.createPipelineLayout(vk::PipelineLayoutCreateInfo{
+        .setLayoutCount = 1,
+        .pSetLayouts = &setLayout,
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = &pushConstants,
+    });
+    if (!layout.has_value())
+        return makeError(toRHI(layout.result));
+
+    debug::setName(device, **layout, "SharedPipelineLayout");
+    return std::move(*layout);
 }
 
 auto Device::queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties

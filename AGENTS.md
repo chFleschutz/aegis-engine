@@ -65,7 +65,9 @@ Both stacks: `m_`-prefixed camelCase members, Allman braces, `snake_case` filena
 uses trailing return types, `[[nodiscard]]`, `Desc` nested config structs, and packed generational
 handles (`ResourceHandle<T>` / `BufferHandle` / `ImageHandle`) as the public currency instead of raw
 pointers. Descriptors are bindless with fixed slots; **buffers use buffer device address, not
-descriptors**.
+descriptors**. Every pipeline shares one layout (the bindless set plus 128 bytes of push constants),
+so `Pipeline::*Desc` names no layout; shaders get addresses and descriptor indices through push
+constants. Convention: `shaders/modules/README.md`.
 
 **`…Handle` vs `…Descriptor` (naming rule):** `…Handle` always means a pooled, generational
 resource reference resolved through `Device::get` (`BufferHandle`, `ImageViewHandle`,

@@ -126,7 +126,7 @@ public:
         if (!shader)
             return std::unexpected{ std::format("Failed to load shader from {}", SHADER_PATH) };
 
-        auto colorAttachments = std::array{ engine.m_renderer->targetFormat() };
+        auto colorAttachments = std::array{ rhi::Pipeline::ColorAttachment{ engine.m_renderer->targetFormat() } };
         auto shaders = std::array{
             rhi::Pipeline::Shader{
                 .name = "TriangleVertexShader",
@@ -143,8 +143,6 @@ public:
         };
         rhi::Pipeline::GraphicsDesc pipelineDesc{
             .name = "TrianglePipeline",
-            .setLayouts = {},
-            .pushConstantRanges = {},
             .shaders = shaders,
             .colorAttachments = colorAttachments,
             .depthAttachment = rhi::Format::D32_SFLOAT,
@@ -153,6 +151,25 @@ public:
         if (!pipeline)
             return std::unexpected{ "Failed to create pipeline" };
         engine.m_pipeline = std::move(*pipeline);
+
+        // Every fixed-function field away from its default, drawn each frame so validation checks the
+        // state against the render pass at draw time, not only at creation. The triangle is
+        // counter-clockwise, so with a clockwise front face it is back-facing and survives front culling.
+        const auto overlayAttachments = std::array{
+            rhi::Pipeline::ColorAttachment{ engine.m_renderer->targetFormat(), rhi::BlendMode::Alpha },
+        };
+        auto overlay = engine.m_device->createPipeline(rhi::Pipeline::GraphicsDesc{
+            .name = "TriangleOverlayPipeline",
+            .shaders = shaders,
+            .colorAttachments = overlayAttachments,
+            .depthAttachment = rhi::Format::D32_SFLOAT,
+            .depth = { .test = true, .write = false, .compareOp = rhi::CompareOp::LessOrEqual },
+            .cullMode = rhi::CullMode::Front,
+            .frontFace = rhi::FrontFace::Clockwise,
+        });
+        if (!overlay)
+            return std::unexpected{ "Failed to create overlay pipeline" };
+        engine.m_overlayPipeline = std::move(*overlay);
 
         auto depthTexture = engine.m_renderer->createResolutionDependentTexture({
             .name = "SceneDepth",
@@ -177,6 +194,8 @@ public:
         if (auto result = engine.verifySamplers(); !result)
             return std::unexpected{ result.error() };
         if (auto result = engine.verifyBufferDeviceAddress(); !result)
+            return std::unexpected{ result.error() };
+        if (auto result = engine.verifyComputeRoundTrip(); !result)
             return std::unexpected{ result.error() };
         if (auto result = engine.verifyRendererTextures(); !result)
             return std::unexpected{ result.error() };
@@ -308,8 +327,8 @@ public:
     }
 
     // Validation is the real check: it rejects an address query on a buffer missing the usage flag,
-    // or on memory allocated without VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT. A shader reading through
-    // the address is not covered yet; that needs a push-constant path the RHI does not have.
+    // or on memory allocated without VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT. verifyComputeRoundTrip
+    // covers a shader actually reading and writing through the addresses.
     auto verifyBufferDeviceAddress() -> std::expected<void, std::string>
     {
         using namespace rhi::utility;
@@ -336,6 +355,106 @@ public:
             return std::unexpected{ "Two live buffers share a device address" };
 
         std::println("Buffer device addresses verified: {:#x}, {:#x}", firstAddress, secondAddress);
+        return {};
+    }
+
+    // A shader reads and writes through buffer device addresses it receives as push constants: the
+    // shared pipeline layout, pushConstants, dispatch and BDA, end to end.
+    auto verifyComputeRoundTrip() -> std::expected<void, std::string>
+    {
+        using namespace rhi::utility;
+
+        constexpr std::uint32_t count{ 1000 }; // Not a multiple of the group size: the bounds check matters
+        constexpr std::uint32_t groupSize{ 64 };
+        constexpr auto byteSize = count * sizeof(std::uint32_t);
+        std::vector<std::uint32_t> srcData(count);
+        for (std::uint32_t i = 0; i < count; ++i)
+            srcData[i] = i * 7;
+
+        auto src = m_device->createBuffer({
+            .name = "ComputeTestSrc",
+            .size = byteSize,
+            .usage = rhi::BufferUsage::Storage | rhi::BufferUsage::ShaderDeviceAddress |
+                     rhi::BufferUsage::TransferDst,
+            .memory = rhi::MemoryUsage::GpuOnly,
+        });
+        auto dst = m_device->createBuffer({
+            .name = "ComputeTestDst",
+            .size = byteSize,
+            .usage = rhi::BufferUsage::Storage | rhi::BufferUsage::ShaderDeviceAddress |
+                     rhi::BufferUsage::TransferSrc,
+            .memory = rhi::MemoryUsage::GpuOnly,
+        });
+        auto readback = m_device->createBuffer({
+            .name = "ComputeTestReadback",
+            .size = byteSize,
+            .usage = rhi::BufferUsage::TransferDst,
+            .memory = rhi::MemoryUsage::CpuRead,
+        });
+        if (!src || !dst || !readback)
+            return std::unexpected{ "Failed to create compute test buffers" };
+
+        auto shader = loadSPIRV(SHADER_PATH);
+        if (!shader)
+            return std::unexpected{ shader.error() };
+        auto pipeline = m_device->createPipeline(rhi::Pipeline::ComputeDesc{
+            .name = "ComputeTestPipeline",
+            .shader = {
+                .name = "ComputeTestShader",
+                .stage = rhi::ShaderStage::Compute,
+                .code = *shader,
+                .entryPoint = "computeMain",
+            },
+        });
+        if (!pipeline)
+            return std::unexpected{ "Failed to create compute pipeline" };
+
+        if (!m_device->upload(*src, std::as_bytes(std::span{ srcData })))
+            return std::unexpected{ "UploadManager could not stage the compute test data" };
+        if (auto result = flushAndWait(); !result)
+            return result;
+
+        // Matches RoundTripConstants in shader.slang.
+        struct RoundTripConstants
+        {
+            rhi::DeviceAddress src;
+            rhi::DeviceAddress dst;
+            std::uint32_t count;
+        };
+        const RoundTripConstants constants{
+            .src = m_device->get(*src).deviceAddress(),
+            .dst = m_device->get(*dst).deviceAddress(),
+            .count = count,
+        };
+
+        auto ran = submitAndWait("ComputeTest", [&](const auto& cmd) {
+            cmd.bindPipeline(*pipeline);
+            cmd.pushConstants(constants);
+            cmd.dispatch((count + groupSize - 1) / groupSize);
+            cmd.memoryBarrier(rhi::ResourceState::ComputeStorage, rhi::ResourceState::CopySrc);
+            cmd.copyBuffer(m_device->get(*dst), m_device->get(*readback), byteSize);
+        });
+        if (!ran)
+            return ran;
+
+        std::vector<std::uint32_t> dstData(count);
+        m_device->get(*readback).read(reinterpret_cast<std::byte*>(dstData.data()), byteSize);
+
+        m_device->free(*src);
+        m_device->free(*dst);
+        m_device->free(*readback);
+
+        for (std::uint32_t i = 0; i < count; ++i)
+        {
+            if (dstData[i] != srcData[i] * 3 + 1)
+            {
+                return std::unexpected{
+                    std::format("Compute round-trip mismatch at {}: got {}, want {}", i, dstData[i], srcData[i] * 3 + 1)
+                };
+            }
+        }
+
+        std::println("Compute round-trip verified: {} values read and written through device addresses", count);
         return {};
     }
 
@@ -458,6 +577,8 @@ public:
         cmd.bindPipeline(*m_pipeline);
         cmd.setViewport(extent);
         cmd.setScissor(extent);
+        cmd.draw(3);
+        cmd.bindPipeline(*m_overlayPipeline);
         cmd.draw(3);
         cmd.endRendering();
         cmd.writeTimestamp(timer.pool, 1, rhi::TimestampStage::AllCommands);
@@ -852,6 +973,7 @@ private:
     std::unique_ptr<renderer::Renderer> m_renderer;
 
     std::optional<rhi::Pipeline> m_pipeline;
+    std::optional<rhi::Pipeline> m_overlayPipeline;
     renderer::Texture m_depthTexture;
     std::vector<FrameTimer> m_frameTimers;
     std::uint32_t m_timedFrames{ 0 };

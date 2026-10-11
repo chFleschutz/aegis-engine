@@ -38,6 +38,10 @@ constexpr auto toVulkan(Filter filter) noexcept -> vk::Filter;
 constexpr auto toVulkan(SamplerMipmapMode mode) noexcept -> vk::SamplerMipmapMode;
 constexpr auto toVulkan(SamplerAddressMode mode) noexcept -> vk::SamplerAddressMode;
 constexpr auto toVulkan(TimestampStage stage) noexcept -> vk::PipelineStageFlags2;
+constexpr auto toVulkan(CompareOp op) noexcept -> vk::CompareOp;
+constexpr auto toVulkan(CullMode mode) noexcept -> vk::CullModeFlags;
+constexpr auto toVulkan(FrontFace face) noexcept -> vk::FrontFace;
+constexpr auto toVulkan(BlendMode mode) noexcept -> vk::PipelineColorBlendAttachmentState;
 
 constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspectFlags;
 constexpr auto deriveAttachmentImageLayout(AttachmentStoreOp op) noexcept -> vk::ImageLayout;
@@ -92,6 +96,77 @@ constexpr auto toVulkan(Format format) noexcept -> vk::Format
     case Format::D32_SFLOAT_S8_UINT: return vk::Format::eD32SfloatS8Uint;
     }
     std::unreachable();
+}
+
+constexpr auto toVulkan(CompareOp op) noexcept -> vk::CompareOp
+{
+    switch (op)
+    {
+    case CompareOp::Never: return vk::CompareOp::eNever;
+    case CompareOp::Less: return vk::CompareOp::eLess;
+    case CompareOp::Equal: return vk::CompareOp::eEqual;
+    case CompareOp::LessOrEqual: return vk::CompareOp::eLessOrEqual;
+    case CompareOp::Greater: return vk::CompareOp::eGreater;
+    case CompareOp::NotEqual: return vk::CompareOp::eNotEqual;
+    case CompareOp::GreaterOrEqual: return vk::CompareOp::eGreaterOrEqual;
+    case CompareOp::Always: return vk::CompareOp::eAlways;
+    }
+    std::unreachable();
+}
+
+constexpr auto toVulkan(CullMode mode) noexcept -> vk::CullModeFlags
+{
+    switch (mode)
+    {
+    case CullMode::None: return vk::CullModeFlagBits::eNone;
+    case CullMode::Front: return vk::CullModeFlagBits::eFront;
+    case CullMode::Back: return vk::CullModeFlagBits::eBack;
+    case CullMode::FrontAndBack: return vk::CullModeFlagBits::eFrontAndBack;
+    }
+    std::unreachable();
+}
+
+constexpr auto toVulkan(FrontFace face) noexcept -> vk::FrontFace
+{
+    switch (face)
+    {
+    case FrontFace::CounterClockwise: return vk::FrontFace::eCounterClockwise;
+    case FrontFace::Clockwise: return vk::FrontFace::eClockwise;
+    }
+    std::unreachable();
+}
+
+constexpr auto toVulkan(BlendMode mode) noexcept -> vk::PipelineColorBlendAttachmentState
+{
+    vk::PipelineColorBlendAttachmentState state{
+        .blendEnable = vk::False,
+        .srcColorBlendFactor = vk::BlendFactor::eOne,
+        .dstColorBlendFactor = vk::BlendFactor::eZero,
+        .colorBlendOp = vk::BlendOp::eAdd,
+        .srcAlphaBlendFactor = vk::BlendFactor::eOne,
+        .dstAlphaBlendFactor = vk::BlendFactor::eZero,
+        .alphaBlendOp = vk::BlendOp::eAdd,
+        .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                          vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA,
+    };
+
+    switch (mode)
+    {
+    case BlendMode::None:
+        break;
+    case BlendMode::Alpha:
+        state.blendEnable = vk::True;
+        state.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
+        state.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
+        state.dstAlphaBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
+        break;
+    case BlendMode::Additive:
+        state.blendEnable = vk::True;
+        state.dstColorBlendFactor = vk::BlendFactor::eOne;
+        state.dstAlphaBlendFactor = vk::BlendFactor::eOne;
+        break;
+    }
+    return state;
 }
 
 constexpr auto toVulkan(ShaderStage stage) noexcept -> vk::ShaderStageFlagBits

@@ -112,12 +112,12 @@ These are on the critical path — assets cannot move until upload works.
       validation, which rejects a missing usage or allocation flag.
   - [x] `BufferUsage::CpuVisible` deleted — CPU visibility is `MemoryUsage`'s job; the flag was
         redundant as well as dead.
-  - [ ] **Gap found, not in scope here — shaders cannot receive an address yet.** There is no
+  - [x] **Gap found, not in scope here — shaders cannot receive an address yet.** There is no
         `CommandBuffer::pushConstants` (nor `dispatch`), and `Pipeline::*Desc` takes
         `std::span<vk::PushConstantRange>` / `std::span<vk::DescriptorSetLayout>`, which no code outside
         `aegis.rhi` can name (the same trap as for tests). Fixing it means settling a pipeline-layout
         convention for bindless (e.g. every pipeline shares one layout: the bindless set plus one fixed
-        push-constant range), which is a design decision, not plumbing. See Next step.
+        push-constant range), which is a design decision, not plumbing. *Fixed in Phase 0.5 B.*
 - [x] **Timed pass in `test/main.cpp`** — one `QueryPool` per frame in flight brackets the rendering
       pass; each frame reads back its slot's previous timestamps after `beginFrame`'s wait. The run
       fails (exit 1) if any read is not ready or no frame was timed.
@@ -221,14 +221,15 @@ covered by a new `aegis-test` check. (For the record: before R2, the environment
 
 **Needed before specific Phase 2 items** (not blocking Phase 1):
 
-- [ ] **Shader-facing pipeline layout / `pushConstants` / `dispatch`** — decided; scheduled as Phase 0.5
-  part B. Blocks every shader that reads through BDA.
-- [ ] **`Pipeline::GraphicsDesc` has no fixed-function state.** Depth test/write/compare (hard-coded
+- [x] **Shader-facing pipeline layout / `pushConstants` / `dispatch`** — decided; scheduled as Phase 0.5
+  part B. Blocks every shader that reads through BDA. *Fixed in Phase 0.5 B.*
+- [x] **`Pipeline::GraphicsDesc` has no fixed-function state.** Depth test/write/compare (hard-coded
   on, on, `eLess`), cull mode (hard-coded back, CCW), per-attachment blending (hard-coded off) and a
   stencil format are all fixed. The old builder exposed them, and old passes use them: the sky box needs
   `LESS_OR_EQUAL`, no depth write and front culling; the transparent and UI passes need blending. Needed
   by the Phase 2 material port and Phase 3 passes. Add them to `GraphicsDesc` with today's values as
   defaults. Scheduled with the pipeline layout (Phase 0.5 part B): both reshape `GraphicsDesc`.
+  *Fixed in Phase 0.5 B.*
 
 **Minor** (all fixed):
 
@@ -369,6 +370,24 @@ Plus a graphics pipeline built with non-default fixed-function state under valid
 
 **Exit criteria:** headless `aegis-test` runs in CTest and passes; shaders receive data through push
 constants and BDA, verified by the round-trip; `Pipeline::*Desc` contains no `vk::` types.
+
+**Done.** Exit criteria met under core + sync validation, headless and windowed. Details:
+
+- The `Device` owns the shared layout (`Device::pipelineLayout()`, named `SharedPipelineLayout`); the
+  push-constant range uses `eAll` stages. `Pipeline` no longer owns a layout.
+- `CommandBuffer::bindPipeline` binds the bindless set on the first bind per bind point since `begin()`.
+  Added `pushConstants` (bytes, and a typed overload that `static_assert`s the 128-byte limit),
+  `dispatch`, and `memoryBarrier(ResourceState, ResourceState)`: the compute round-trip needed a
+  compute-write → copy-read dependency on a buffer, and no buffer barrier existed.
+- `GraphicsDesc` gained `Pipeline::ColorAttachment { format, blend }` (replacing the `Format` span),
+  `DepthState { test, write, compareOp }`, `cullMode`, `frontFace` and `stencilAttachment`; new enums
+  `CompareOp`, `CullMode`, `FrontFace`, `BlendMode { None, Alpha, Additive }`. Defaults match the old
+  hard-coded values. `RenderingCmd` gained `stencilAttachment` so the stencil format can be rendered with.
+- Shader convention documented in `shaders/modules/README.md`. `bindless.slang` there is the old stack's
+  (different binding slots); a Slang module for the new layout belongs to the Phase 2 shader port.
+- `aegis-test`: `verifyComputeRoundTrip` (1000 values, `dst[i] = src[i] * 3 + 1` through BDA pointers
+  in push constants), and an overlay pipeline with every fixed-function field non-default
+  (alpha blend, `LessOrEqual` without depth write, front culling, clockwise front face) drawn each frame.
 
 ---
 
@@ -566,22 +585,22 @@ are immune to warnings-as-errors. Full rationale in `tests/README.md`.
 - **BDA mesh layout** (Phase 2) ripples into every geometry shader — sequence the shader edits with the `StaticMesh` change, don't leave them for later.
 - **GPU-driven vs CPU-driven** paths both need porting in Phase 3, or one must be explicitly deferred with a note.
 - **ImGui ownership** — *decided:* the UI layer owns the descriptor pool via the backend's `DescriptorPoolSize` (Phase 0). Who calls `ImGui_ImplVulkan_Init` (UI layer vs a render-graph `ui_pass`) is still open for Phase 3.
-- **Shader-facing pipeline layout** — *decided:* one shared layout (bindless set + 128-byte push constants, all stages); see Phase 0.5 B. Blocks shaders consuming BDA (Phase 2) and every pass (Phase 3) until it lands.
+- **Shader-facing pipeline layout** — *decided and done:* one shared layout (bindless set + 128-byte push constants, all stages); see Phase 0.5 B and `shaders/modules/README.md`.
 - **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
 
-## Next step — Phase 0.5
+## Next step — Phase 1 or Phase 2
 
-**Phase 0 is complete** — exit criteria met under core and synchronization validation, and every
-review item fixed. Next is **Phase 0.5**: **A, headless mode** first (window-free, self-terminating
-verification runs that also go into CTest), then **B, the shader interface** (shared pipeline layout,
-push constants, `dispatch`, `GraphicsDesc` fixed-function state), which unblocks Phase 2's shaders.
+**Phases 0 and 0.5 are complete**: exit criteria met under core and synchronization validation. The
+engine runs headless, and shaders receive data through push constants and buffer device addresses.
+Next is **Phase 2** (assets onto the RHI), which no longer has a blocker. **Phase 1 (platform window +
+input) is independent** and can go first or in parallel.
 
-**Phase 1 (platform window + input) is independent** of all of this and can go in parallel.
-
-**Verify any of them with:** `ctest --preset windows-clang-debug`, a full warnings-as-errors build, and
-a run of `aegis-test` that exits 0 — it fails on any validation error, core or synchronization (both
-are on in debug builds). Note that `aegis-test` is the *only* `main()` reaching a
-real `rhi::Device`; `examples/` still runs the old stack and will not catch an RHI regression.
+**Verify any of them with:** a full warnings-as-errors build and `ctest --preset windows-clang-debug`,
+which includes the headless `aegis-test` run (label `device`). It fails on any failed check or
+validation error, core or synchronization (both are on in debug builds). When surface, swapchain or
+present code changes, also run `aegis-test --frames 600` (windowed, exits by itself). `aegis-test` is
+the *only* `main()` reaching a real `rhi::Device`; `examples/` still runs the old stack and will not
+catch an RHI regression.
 
 > **Running one test module:** `ctest --preset windows-clang-debug -L rhi` (or `-L math`). Each case
 > is labelled with its module by `aegis_add_test`. `-R "rhi::"` does not work — CTest registers cases

@@ -96,6 +96,40 @@ enum class AttachmentStoreOp
     None,
 };
 
+enum class CompareOp
+{
+    Never,
+    Less,
+    Equal,
+    LessOrEqual,
+    Greater,
+    NotEqual,
+    GreaterOrEqual,
+    Always,
+};
+
+enum class CullMode
+{
+    None,
+    Front,
+    Back,
+    FrontAndBack,
+};
+
+enum class FrontFace
+{
+    CounterClockwise,
+    Clockwise,
+};
+
+/// @brief How a fragment's color combines with the attachment's.
+enum class BlendMode
+{
+    None,     // Overwrite
+    Alpha,    // Straight alpha: src * srcAlpha + dst * (1 - srcAlpha)
+    Additive, // src + dst
+};
+
 // clang-format off
 enum class BufferUsage : std::uint32_t
 {

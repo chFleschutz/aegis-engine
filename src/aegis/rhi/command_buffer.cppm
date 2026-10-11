@@ -1,8 +1,11 @@
 module;
+#include <concepts>
+#include <cstddef>
 #include <expected>
 #include <optional>
 #include <span>
 #include <string_view>
+#include <type_traits>
 
 export module aegis.rhi:command_buffer;
 import :error;
@@ -26,6 +29,8 @@ public:
     };
 
     static constexpr std::uint32_t maxColorAttachments = 8;
+    /// @brief Size of the push-constant block every pipeline shares; the minimum Vulkan guarantees.
+    static constexpr std::uint32_t maxPushConstantSize = 128;
 
     [[nodiscard]] auto operator*() const noexcept -> vk::CommandBuffer { return *m_commandBuffer; }
     [[nodiscard]] auto handle() const noexcept -> vk::CommandBuffer { return *m_commandBuffer; }
@@ -40,10 +45,25 @@ public:
     auto endLabel() const -> void;
     auto insertLabel(std::string_view name, std::array<float, 4> color = {}) const -> void;
 
+    /// @brief Also binds the bindless set, the first time a pipeline of its bind point is bound.
     auto bindPipeline(const Pipeline& pipeline) const -> void;
     auto setViewport(Extent2D extent) const -> void;
     auto setScissor(Extent2D extent) const -> void;
     auto draw(std::uint32_t vertexCount) const -> void;
+    auto dispatch(std::uint32_t groupCountX, std::uint32_t groupCountY = 1, std::uint32_t groupCountZ = 1) const
+        -> void;
+
+    /// @brief Writes 'data' into the shared push-constant block at 'offset', visible to all stages.
+    /// @note Offset and size must be multiples of 4, and offset + size at most maxPushConstantSize.
+    auto pushConstants(std::span<const std::byte> data, std::uint32_t offset = 0) const -> void;
+
+    template<typename T>
+        requires std::is_trivially_copyable_v<T> && (!std::convertible_to<const T&, std::span<const std::byte>>)
+    auto pushConstants(const T& value, std::uint32_t offset = 0) const -> void
+    {
+        static_assert(sizeof(T) <= maxPushConstantSize, "Push constants are limited to 128 bytes");
+        pushConstants(std::as_bytes(std::span{ &value, 1 }), offset);
+    }
 
     auto transitionImageLayout(ImageViewHandle imageViewHandle, ResourceState oldState,
         ResourceState newState) const -> void;
@@ -52,6 +72,9 @@ public:
     /// @brief Makes every earlier copy and blit write available and visible to all later commands.
     ///        Buffers have no layout, so this is the only dependency an uploaded buffer needs.
     auto makeTransferWritesVisible() const -> void;
+    /// @brief Orders all memory accesses of state 'before' against later ones of state 'after'. Image
+    ///        layouts are ignored; this is the dependency a buffer, which has no layout, needs.
+    auto memoryBarrier(ResourceState before, ResourceState after) const -> void;
 
     auto generateMipmaps(ImageHandle imageHandle, ResourceState currentState) const -> void;
 
@@ -81,5 +104,8 @@ private:
 
     const Device& m_device;
     vk::raii::CommandBuffer m_commandBuffer;
+    // Whether the bindless set is bound for each bind point in the current recording; begin() resets.
+    mutable bool m_graphicsSetBound{ false };
+    mutable bool m_computeSetBound{ false };
 };
 }

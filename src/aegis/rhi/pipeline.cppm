@@ -38,22 +38,39 @@ public:
         std::uint32_t stride;
     };
 
+    struct ColorAttachment
+    {
+        Format format;
+        BlendMode blend{ BlendMode::None };
+    };
+
+    struct DepthState
+    {
+        bool test{ true };
+        bool write{ true };
+        CompareOp compareOp{ CompareOp::Less };
+    };
+
+    // Neither Desc names a layout: every pipeline uses the Device's shared one (the bindless set
+    // plus CommandBuffer::maxPushConstantSize bytes of push constants, visible to all stages).
+
     struct ComputeDesc
     {
         std::string_view name;
-        std::span<vk::DescriptorSetLayout> setLayouts;
-        std::span<vk::PushConstantRange> pushConstantRanges;
         Shader shader;
     };
 
     struct GraphicsDesc
     {
         std::string_view name;
-        std::span<vk::DescriptorSetLayout> setLayouts;
-        std::span<vk::PushConstantRange> pushConstantRanges;
         std::span<Shader> shaders;
-        std::span<Format> colorAttachments;
+        std::span<const ColorAttachment> colorAttachments;
         Format depthAttachment{ Format::Unknown };
+        /// @brief Set to the depth format as well when that format has a stencil aspect to use.
+        Format stencilAttachment{ Format::Unknown };
+        DepthState depth{};
+        CullMode cullMode{ CullMode::Back };
+        FrontFace frontFace{ FrontFace::CounterClockwise };
         std::span<VertexBinding> vertexBindings;
         std::span<VertexAttribute> vertexAttributes;
     };
@@ -73,21 +90,15 @@ private:
         const GraphicsDesc& desc)
         -> std::expected<Pipeline, Error>;
 
-    [[nodiscard]] static auto createPipelineLayout(
-        const vk::raii::Device& device,
-        std::span<vk::DescriptorSetLayout> setLayouts,
-        std::span<vk::PushConstantRange> pushConstantRanges)
-        -> std::expected<vk::raii::PipelineLayout, Error>;
-
     [[nodiscard]] static auto createComputePipeline(
         const vk::raii::Device& device,
-        const vk::raii::PipelineLayout& layout,
+        vk::PipelineLayout layout,
         const Shader& shader)
         -> std::expected<vk::raii::Pipeline, Error>;
 
     [[nodiscard]] static auto createGraphicsPipeline(
         const vk::raii::Device& device,
-        const vk::raii::PipelineLayout& pipelineLayout,
+        vk::PipelineLayout pipelineLayout,
         const GraphicsDesc& desc)
         -> std::expected<vk::raii::Pipeline, Error>;
 
@@ -97,13 +108,9 @@ private:
         std::span<std::uint32_t> code)
         -> std::expected<vk::raii::ShaderModule, Error>;
 
-    Pipeline(
-        vk::raii::Pipeline pipeline,
-        vk::raii::PipelineLayout layout,
-        vk::PipelineBindPoint bindPoint);
+    Pipeline(vk::raii::Pipeline pipeline, vk::PipelineBindPoint bindPoint);
 
     vk::raii::Pipeline m_pipeline;
-    vk::raii::PipelineLayout m_layout;
     vk::PipelineBindPoint m_bindPoint;
 };
 }

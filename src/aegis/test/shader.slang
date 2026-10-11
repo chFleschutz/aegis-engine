@@ -29,3 +29,23 @@ func fragmentMain(VSOut input, out float4 color : SV_Target)
 {
     color = float4(input.color, 1.0);
 }
+
+// Buffer-device-address round trip: both arrays are reached through pointers passed as push
+// constants, the shader-interface convention (see shaders/modules/README.md).
+struct RoundTripConstants
+{
+    uint* src;
+    uint* dst;
+    uint count;
+};
+
+[[vk::push_constant]] ConstantBuffer<RoundTripConstants> roundTrip;
+
+[shader("compute")]
+[numthreads(64, 1, 1)]
+func computeMain(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= roundTrip.count)
+        return;
+    roundTrip.dst[id.x] = roundTrip.src[id.x] * 3 + 1;
+}

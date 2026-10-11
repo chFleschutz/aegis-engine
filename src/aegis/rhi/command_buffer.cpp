@@ -61,6 +61,9 @@ auto Attachment::depthReadOnly(ImageViewHandle view) -> Attachment
 
 auto CommandBuffer::begin(bool oneTimeSubmit) const -> void
 {
+    m_graphicsSetBound = false;
+    m_computeSetBound = false;
+
     [[maybe_unused]] auto result = m_commandBuffer.begin({
         .flags = oneTimeSubmit
                      ? vk::CommandBufferUsageFlagBits::eOneTimeSubmit
@@ -96,6 +99,7 @@ auto CommandBuffer::beginRendering(const RenderingCmd& desc) const -> void
     std::ranges::transform(desc.colorAttachments, colorAttachments.begin(), transformAttachment);
 
     auto depthAttachment = desc.depthAttachment.transform(transformAttachment);
+    auto stencilAttachment = desc.stencilAttachment.transform(transformAttachment);
 
     vk::RenderingInfo renderingInfo{
         .renderArea = vk::Rect2D{ vk::Offset2D{ 0, 0 }, deriveExtent(desc) },
@@ -104,7 +108,7 @@ auto CommandBuffer::beginRendering(const RenderingCmd& desc) const -> void
         .colorAttachmentCount = static_cast<std::uint32_t>(desc.colorAttachments.size()),
         .pColorAttachments = colorAttachments.data(),
         .pDepthAttachment = depthAttachment ? &depthAttachment.value() : nullptr,
-        .pStencilAttachment = nullptr,
+        .pStencilAttachment = stencilAttachment ? &stencilAttachment.value() : nullptr,
     };
 
     m_commandBuffer.beginRendering(renderingInfo);
@@ -152,6 +156,31 @@ auto CommandBuffer::endLabel() const -> void
 auto CommandBuffer::bindPipeline(const Pipeline& pipeline) const -> void
 {
     m_commandBuffer.bindPipeline(pipeline.bindPoint(), *pipeline);
+
+    // Every pipeline shares one layout, so a bound set stays valid across pipeline changes: binding it
+    // once per bind point and recording is enough.
+    auto& setBound = pipeline.bindPoint() == vk::PipelineBindPoint::eCompute ? m_computeSetBound : m_graphicsSetBound;
+    if (!setBound)
+    {
+        m_commandBuffer.bindDescriptorSets(pipeline.bindPoint(), m_device.pipelineLayout(), 0,
+            m_device.bindlessHeap().set(), {});
+        setBound = true;
+    }
+}
+
+auto CommandBuffer::pushConstants(std::span<const std::byte> data, std::uint32_t offset) const -> void
+{
+    assert(offset % 4 == 0 && data.size() % 4 == 0 && "Push constant offset and size must be multiples of 4");
+    assert(offset + data.size() <= maxPushConstantSize && "Push constants exceed the shared block");
+
+    m_commandBuffer.pushConstants<std::byte>(m_device.pipelineLayout(), vk::ShaderStageFlagBits::eAll, offset,
+        vk::ArrayProxy<const std::byte>{ static_cast<std::uint32_t>(data.size()), data.data() });
+}
+
+auto CommandBuffer::dispatch(std::uint32_t groupCountX, std::uint32_t groupCountY,
+    std::uint32_t groupCountZ) const -> void
+{
+    m_commandBuffer.dispatch(groupCountX, groupCountY, groupCountZ);
 }
 
 auto CommandBuffer::setViewport(Extent2D extent) const -> void
@@ -252,6 +281,23 @@ auto CommandBuffer::makeTransferWritesVisible() const -> void
         .srcAccessMask = vk::AccessFlagBits2::eTransferWrite,
         .dstStageMask = vk::PipelineStageFlagBits2::eAllCommands,
         .dstAccessMask = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite,
+    };
+
+    m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
+        .memoryBarrierCount = 1,
+        .pMemoryBarriers = &barrier,
+    });
+}
+
+auto CommandBuffer::memoryBarrier(ResourceState before, ResourceState after) const -> void
+{
+    const auto src = toVulkan(before);
+    const auto dst = toVulkan(after);
+    vk::MemoryBarrier2 barrier{
+        .srcStageMask = src.stageMask,
+        .srcAccessMask = src.accessMask,
+        .dstStageMask = dst.stageMask,
+        .dstAccessMask = dst.accessMask,
     };
 
     m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
@@ -474,9 +520,11 @@ auto CommandBuffer::deriveExtent(const RenderingCmd& cmd) const -> vk::Extent2D
         return vk::Extent2D{ image.extent().x, image.extent().y };
     }
 
-    if (cmd.depthAttachment)
+    for (const auto& attachment : { cmd.depthAttachment, cmd.stencilAttachment })
     {
-        const auto& image = m_device.get(cmd.depthAttachment->imageView);
+        if (!attachment)
+            continue;
+        const auto& image = m_device.get(attachment->imageView);
         return vk::Extent2D{ image.extent().x, image.extent().y };
     }
 
