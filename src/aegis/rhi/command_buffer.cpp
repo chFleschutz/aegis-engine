@@ -76,7 +76,7 @@ auto CommandBuffer::end() const -> void
 
 auto CommandBuffer::beginRendering(const RenderingCmd& desc) const -> void
 {
-    assert(desc.colorAttachments.size() < maxColorAttachments);
+    assert(desc.colorAttachments.size() <= maxColorAttachments);
 
     auto transformAttachment = [&](const auto& attachment) -> vk::RenderingAttachmentInfo {
         const auto& view = m_device.get(attachment.imageView);
