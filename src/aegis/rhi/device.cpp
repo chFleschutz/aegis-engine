@@ -1,6 +1,5 @@
 module;
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <expected>
 #include <format>
@@ -320,6 +319,9 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
         return std::unexpected{ physicalDevice.error() };
 
     auto queueFamilies = queryQueueFamilies(*physicalDevice, surface);
+    if (!queueFamilies.isComplete())
+        return makeError(ErrorCode::InitializationFailed);
+
     auto capabilities = queryCapabilities(*physicalDevice);
     auto properties = queryProperties(*physicalDevice);
 
@@ -464,11 +466,8 @@ auto Device::queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,
     if (indices.transfer == vk::QueueFamilyIgnored)
         indices.transfer = indices.graphics;
 
-    // Fallback: if no presentation queue matches graphics, use graphics queue
-    if (indices.present == vk::QueueFamilyIgnored)
-        indices.present = indices.graphics;
-
-    assert(indices.isComplete() && "Queue family indices must be complete");
+    // No fallback for present: a family that cannot present to the surface must not be used for it.
+    // Indices stay incomplete without graphics or present support; createPhysicalDevice skips those.
     return indices;
 }
 
