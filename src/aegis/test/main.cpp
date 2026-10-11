@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -45,23 +46,62 @@ auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, 
 
 namespace aegis
 {
+struct Options
+{
+    bool headless{ false };
+    std::uint32_t frames{ 0 }; // 0: until the window is closed
+};
+
+auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
+{
+    Options options;
+    for (std::size_t i = 1; i < args.size(); ++i)
+    {
+        const std::string_view arg{ args[i] };
+        if (arg == "--headless")
+        {
+            options.headless = true;
+        }
+        else if (arg == "--frames" && i + 1 < args.size())
+        {
+            const std::string_view value{ args[++i] };
+            const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), options.frames);
+            if (error != std::errc{} || end != value.data() + value.size() || options.frames == 0)
+                return std::unexpected{ std::format("--frames needs a positive integer, got '{}'", value) };
+        }
+        else
+        {
+            return std::unexpected{ std::format("Unknown argument '{}'", arg) };
+        }
+    }
+
+    // Headless has no window to close, so it always stops by itself.
+    if (options.headless && options.frames == 0)
+        options.frames = 600;
+    return options;
+}
+
 class Engine
 {
 public:
-    static auto create() -> std::expected<Engine, std::string>
+    static auto create(const Options& options) -> std::expected<Engine, std::string>
     {
         Engine engine{};
+        engine.m_options = options;
 
-        platform::Window::Desc windowDesc{
-            .title = "Test Window",
-            .width = 640,
-            .height = 480,
-        };
-        engine.m_window = std::make_unique<platform::Window>(windowDesc);
+        if (!options.headless)
+        {
+            platform::Window::Desc windowDesc{
+                .title = "Test Window",
+                .width = 640,
+                .height = 480,
+            };
+            engine.m_window = std::make_unique<platform::Window>(windowDesc);
+        }
 
         auto context = rhi::Context::create({
             .appName = "TestApp",
-            .window = *engine.m_window,
+            .window = engine.m_window.get(),
         });
         if (!context)
             return std::unexpected{ "Failed to create rhi context" };
@@ -73,9 +113,10 @@ public:
         engine.m_device = std::move(*device);
 
         auto renderer = renderer::Renderer::create({
-            .window = *engine.m_window,
             .context = *engine.m_context,
             .device = *engine.m_device,
+            .window = engine.m_window.get(),
+            .offscreen = { .extent = { 640, 480 } },
         });
         if (!renderer)
             return std::unexpected{ "Failed to create renderer" };
@@ -85,7 +126,7 @@ public:
         if (!shader)
             return std::unexpected{ std::format("Failed to load shader from {}", SHADER_PATH) };
 
-        auto colorAttachments = std::array{ engine.m_renderer->swapchain().surfaceFormat() };
+        auto colorAttachments = std::array{ engine.m_renderer->targetFormat() };
         auto shaders = std::array{
             rhi::Pipeline::Shader{
                 .name = "TriangleVertexShader",
@@ -115,7 +156,7 @@ public:
 
         auto depthTexture = engine.m_renderer->createResolutionDependentTexture({
             .name = "SceneDepth",
-            .extent = rhi::Extent3D{ engine.m_renderer->swapchain().extent() },
+            .extent = rhi::Extent3D{ engine.m_renderer->extent() },
             .format = rhi::Format::D32_SFLOAT,
             .usage = rhi::ImageUsage::DepthStencilAttachment,
         });
@@ -306,7 +347,7 @@ public:
 
         auto texture = m_renderer->createResolutionDependentTexture({
             .name = std::format("RendererTest{}", "Texture"),
-            .extent = rhi::Extent3D{ m_renderer->swapchain().extent() },
+            .extent = rhi::Extent3D{ m_renderer->extent() },
             .format = rhi::Format::RGBA8_UNORM,
             .usage = rhi::ImageUsage::Sampled | rhi::ImageUsage::ColorAttachment,
             .mipLevels = rhi::Image::fullMipChain,
@@ -321,7 +362,7 @@ public:
         if (m_device->get(texture->view).range().mipLevelCount != mipLevels)
             return std::unexpected{ "Renderer texture view does not cover the image's mips" };
 
-        m_renderer->resize(m_renderer->swapchain().extent());
+        m_renderer->resize(m_renderer->extent());
 
         const auto after = m_device->get(texture->view).sampledDescriptor();
         if (!after || after->index != before->index)
@@ -336,53 +377,64 @@ public:
 
     auto run() -> int
     {
-        while (!m_window->shouldClose())
+        std::uint32_t frames{ 0 };
+        while (m_options.frames == 0 || frames < m_options.frames)
         {
-            m_window->update();
-            if (m_window->isMinimized())
+            if (m_window)
             {
-                m_window->waitEvents();
-                continue;
-            }
+                if (m_window->shouldClose())
+                    break;
 
-            if (m_window->wasResized() || m_renderer->needsResize())
-            {
-                m_renderer->resize(rhi::Extent2D{ m_window->extent() });
-                m_window->resetResized();
+                m_window->update();
+                if (m_window->isMinimized())
+                {
+                    m_window->waitEvents();
+                    continue;
+                }
+
+                if (m_window->wasResized() || m_renderer->needsResize())
+                {
+                    m_renderer->resize(rhi::Extent2D{ m_window->extent() });
+                    m_window->resetResized();
+                }
             }
 
             // Nothing queues uploads per frame yet; drain anyway so the path stays exercised.
             std::ignore = m_device->flushUploads();
 
             m_renderer->renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); });
+            ++frames;
         }
 
         m_device->waitIdle();
 
-        const auto frameTimesResult = reportFrameTimes();
+        auto result = reportFrameTimes();
+        if (m_renderer->offscreen())
+        {
+            if (auto offscreen = verifyOffscreenFrame(); !offscreen)
+            {
+                std::println("Offscreen frame check failed: {}", offscreen.error());
+                result = 1;
+            }
+        }
         if (const auto errors = rhi::Context::validationErrorCount(); errors > 0)
         {
             std::println("Validation failed: {} errors reported (see stderr)", errors);
             return 1;
         }
-        return frameTimesResult;
+        return result;
     }
 
     auto drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
     {
-        const auto& [cmd, swapchainImage, frameIndex, extent] = frameInfo;
+        const auto& [cmd, target, frameIndex, extent] = frameInfo;
 
         // beginFrame waited for the frame that last used this slot, so its timestamps are final.
         auto& timer = m_frameTimers[frameIndex];
         if (timer.pending)
             recordFrameTime(timer);
 
-        cmd.begin();
         cmd.resetQueries(timer.pool, 0, 2);
-        cmd.beginLabel("Frame");
-        cmd.transitionImageLayout(swapchainImage,
-            rhi::ResourceState::Unknown,
-            rhi::ResourceState::ColorAttachment);
         cmd.transitionImageLayout(
             m_depthTexture.view,
             rhi::ResourceState::Unknown,
@@ -393,9 +445,8 @@ public:
 
         std::array colorAttachments{
             rhi::Attachment::color(
-                swapchainImage,
-                rhi::ClearColor{ 0.0, 0.0, 0.0, 0.0 }
-            )
+                target,
+                rhi::ClearColor{ 0.0, 0.0, 0.0, 0.0 })
         };
         cmd.beginRendering(rhi::RenderingCmd{
             .colorAttachments = colorAttachments,
@@ -413,13 +464,6 @@ public:
         timer.pending = true;
 
         cmd.endLabel();
-
-        cmd.transitionImageLayout(swapchainImage,
-            rhi::ResourceState::ColorAttachment,
-            rhi::ResourceState::Present);
-
-        cmd.endLabel();
-        cmd.end();
     }
 
 private:
@@ -459,6 +503,51 @@ private:
     }
 
     Engine() = default;
+
+    // The only proof that offscreen frames are drawn at all: read a target back and look for the
+    // triangle. Its centre is covered (opaque), a corner only cleared (alpha 0).
+    auto verifyOffscreenFrame() -> std::expected<void, std::string>
+    {
+        const auto& target = m_renderer->offscreenTarget(0);
+        const auto extent = m_renderer->extent();
+        if (m_renderer->targetFormat() != rhi::Format::RGBA8_UNORM)
+            return std::unexpected{ "the check assumes an RGBA8 target" };
+
+        constexpr std::size_t texelSize{ 4 };
+        const auto byteSize = std::size_t{ extent.x } * extent.y * texelSize;
+        auto readback = m_device->createBuffer({
+            .name = "OffscreenReadback",
+            .size = byteSize,
+            .usage = rhi::BufferUsage::TransferDst,
+            .memory = rhi::MemoryUsage::CpuRead,
+        });
+        if (!readback)
+            return std::unexpected{ "failed to create readback buffer" };
+
+        const std::array regions{ rhi::BufferImageCopy{ .extent = rhi::Extent3D{ extent } } };
+        auto copied = submitAndWait("OffscreenReadback", [&](const auto& cmd) {
+            cmd.transitionImageLayout(target.view, rhi::ResourceState::ColorAttachment,
+                rhi::ResourceState::CopySrc);
+            cmd.copyImageToBuffer(target.image, m_device->get(*readback), regions);
+        });
+        if (!copied)
+            return copied;
+
+        std::vector<std::byte> pixels(byteSize);
+        m_device->get(*readback).read(pixels.data(), byteSize);
+        m_device->free(*readback);
+
+        const auto alphaAt = [&](std::uint32_t x, std::uint32_t y) {
+            return std::to_integer<std::uint32_t>(pixels[(std::size_t{ y } * extent.x + x) * texelSize + 3]);
+        };
+        const auto centre = alphaAt(extent.x / 2, extent.y / 2);
+        const auto corner = alphaAt(0, 0);
+        if (centre != 255 || corner != 0)
+            return std::unexpected{ std::format("centre alpha {} (want 255), corner alpha {} (want 0)", centre, corner) };
+
+        std::println("Offscreen frame verified: {}x{} target read back, triangle drawn", extent.x, extent.y);
+        return {};
+    }
 
     // Records 'record' into a one-shot command buffer, submits it, and waits for completion.
     auto submitAndWait(std::string_view name, auto&& record) -> std::expected<void, std::string>
@@ -756,7 +845,8 @@ private:
         return {};
     }
 
-    std::unique_ptr<platform::Window> m_window;
+    Options m_options;
+    std::unique_ptr<platform::Window> m_window; // null when headless
     std::unique_ptr<rhi::Context> m_context;
     std::unique_ptr<rhi::Device> m_device;
     std::unique_ptr<renderer::Renderer> m_renderer;
@@ -770,9 +860,16 @@ private:
 };
 }
 
-auto main() -> int
+auto main(int argc, char** argv) -> int
 {
-    auto engine = aegis::Engine::create();
+    const auto options = aegis::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
+    if (!options)
+    {
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>]", options.error());
+        return 2;
+    }
+
+    auto engine = aegis::Engine::create(*options);
     if (!engine)
     {
         std::println("Failed to create engine \n{}", engine.error());

@@ -116,7 +116,7 @@ auto Context::createInstance(
         .apiVersion = vulkanVersion,
     };
 
-    auto extensions = findExtensions();
+    auto extensions = findExtensions(desc);
     auto layers = findLayers(context);
     if (!layers)
         return std::unexpected{ layers.error() };
@@ -187,21 +187,29 @@ auto Context::createSurface(
     const Desc& desc)
     -> std::expected<vk::raii::SurfaceKHR, Error>
 {
+    if (!desc.window)
+        return vk::raii::SurfaceKHR{ nullptr };
+
     VkSurfaceKHR surface;
     auto result = static_cast<vk::Result>(
-        glfwCreateWindowSurface(*instance, desc.window.glfwWindow(), nullptr, &surface));
+        glfwCreateWindowSurface(*instance, desc.window->glfwWindow(), nullptr, &surface));
     if (result != vk::Result::eSuccess)
         return makeError(toRHI(result));
 
     return vk::raii::SurfaceKHR{ instance, surface };
 }
 
-auto Context::findExtensions() -> std::vector<const char*>
+auto Context::findExtensions(const Desc& desc) -> std::vector<const char*>
 {
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    std::vector<const char*> extensions;
 
-    std::vector<const char*> extensions{ glfwExtensions, glfwExtensions + glfwExtensionCount };
+    // Headless never touches GLFW: it may not even be initialized, since only a Window does that.
+    if (desc.window)
+    {
+        uint32_t glfwExtensionCount = 0;
+        const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+        extensions.assign(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    }
 
     if constexpr (enableValidation)
     {

@@ -329,6 +329,20 @@ own after a fixed number of frames.
 `--frames 600` still exits 0; `ctest` runs the device test. Update `AGENTS.md`'s "Verifying device paths"
 (the graceful-close advice becomes obsolete).
 
+**Done.** All of the above verified under core + sync validation. Where it differs from the design:
+
+- **One offscreen target per frame in flight**, not a single texture, as with swapchain images: a frame
+  never draws into the target the previous frame may still be drawing into. They are
+  resolution-dependent textures, so an explicit `Renderer::resize` works offscreen too (the
+  renderer-texture check relies on it); there is just nothing that triggers one.
+- **The renderer records the opening transition as well** (`Unknown → ColorAttachment`) and the
+  `Frame` debug label. The callback contract is symmetric: `FrameInfo::target` is a color attachment
+  when the callback starts and must be one when it returns.
+- `--headless` without `--frames` stops after 600 frames; there is no window to close.
+- Added a check the design did not list: after the run, headless `aegis-test` reads an offscreen
+  target back and checks that the triangle was drawn. Without it, an offscreen path that silently draws
+  nothing would still pass.
+
 ### B — Shader interface: shared pipeline layout, push constants, dispatch, fixed-function state
 
 **Decided:** one pipeline layout shared by every pipeline, owned by the `Device` and created with it:

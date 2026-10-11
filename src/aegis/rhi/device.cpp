@@ -28,7 +28,7 @@ Device::Device(
     Queue graphicsQueue,
     Queue computeQueue,
     Queue transferQueue,
-    Queue presentQueue,
+    std::optional<Queue> presentQueue,
     Capabilities capabilities,
     Properties properties,
     BindlessHeap bindlessHeap) :
@@ -310,9 +310,9 @@ auto Device::waitIdle() const noexcept -> void
     std::ignore = m_device.waitIdle();
 }
 
-auto Device::QueueFamilyIndices::isComplete() const -> bool
+auto Device::QueueFamilyIndices::isComplete(bool presentation) const -> bool
 {
-    return graphics != vk::QueueFamilyIgnored && present != vk::QueueFamilyIgnored &&
+    return graphics != vk::QueueFamilyIgnored && (!presentation || present != vk::QueueFamilyIgnored) &&
            compute != vk::QueueFamilyIgnored && transfer != vk::QueueFamilyIgnored;
 }
 
@@ -323,14 +323,15 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
     if (!physicalDevice)
         return std::unexpected{ physicalDevice.error() };
 
+    const bool presentation = *surface != nullptr;
     auto queueFamilies = queryQueueFamilies(*physicalDevice, surface);
-    if (!queueFamilies.isComplete())
+    if (!queueFamilies.isComplete(presentation))
         return makeError(ErrorCode::InitializationFailed);
 
     auto capabilities = queryCapabilities(*physicalDevice);
     auto properties = queryProperties(*physicalDevice);
 
-    auto device = createDevice(*physicalDevice, capabilities, queueFamilies);
+    auto device = createDevice(*physicalDevice, capabilities, queueFamilies, presentation);
     if (!device)
         return std::unexpected{ device.error() };
 
@@ -338,9 +339,14 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
     if (!allocator)
         return std::unexpected{ allocator.error() };
 
-    auto presentQueue = createQueue(*device, "PresentQueue", queueFamilies.present);
-    if (!presentQueue)
-        return std::unexpected{ presentQueue.error() };
+    std::optional<Queue> presentQueue;
+    if (presentation)
+    {
+        auto queue = createQueue(*device, "PresentQueue", queueFamilies.present);
+        if (!queue)
+            return std::unexpected{ queue.error() };
+        presentQueue.emplace(std::move(*queue));
+    }
 
     auto transferQueue = createQueue(*device, "TransferQueue", queueFamilies.transfer);
     if (!transferQueue)
@@ -379,7 +385,7 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
         std::move(*graphicsQueue),
         std::move(*computeQueue),
         std::move(*transferQueue),
-        std::move(*presentQueue),
+        std::move(presentQueue),
         capabilities,
         properties,
         std::move(*bindless));
@@ -404,19 +410,21 @@ auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::
     if (physicalDevices.empty())
         return makeError(ErrorCode::Unknown);
 
+    const bool presentation = *surface != nullptr;
+
     std::vector<std::pair<uint32_t, uint32_t>> candidates;
     for (size_t i = 0; i < physicalDevices.size(); ++i)
     {
         const auto& physicalDevice = physicalDevices[i];
         uint32_t score{ 0 };
 
-        if (!queryQueueFamilies(physicalDevice, surface).isComplete())
+        if (!queryQueueFamilies(physicalDevice, surface).isComplete(presentation))
             continue;
 
         // TODO: handle missing capabilities
         // auto capabilities = queryCapabilities(physicalDevice);
 
-        if (!supportsExtensions(physicalDevice))
+        if (!supportsExtensions(physicalDevice, presentation))
             continue;
 
         const auto properties = physicalDevice.getProperties();
@@ -464,7 +472,9 @@ auto Device::queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,
         if (hasTransfer && !hasGraphics && !hasCompute && indices.transfer == vk::QueueFamilyIgnored)
             indices.transfer = i;
 
-        // Present queue - prefer one that matches graphics
+        // Present queue - prefer one that matches graphics. Headless has no surface to present to.
+        if (!*surface)
+            continue;
         auto [result, hasPresent] = physicalDevice.getSurfaceSupportKHR(i, *surface);
         if (result == vk::Result::eSuccess && hasPresent)
         {
@@ -480,7 +490,8 @@ auto Device::queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,
         indices.transfer = indices.graphics;
 
     // No fallback for present: a family that cannot present to the surface must not be used for it.
-    // Indices stay incomplete without graphics or present support; createPhysicalDevice skips those.
+    // Indices stay incomplete without graphics or (with a surface) present support; createPhysicalDevice
+    // skips those.
     return indices;
 }
 
@@ -502,7 +513,7 @@ auto Device::createQueue(const vk::raii::Device& device, std::string_view name, 
 }
 
 auto Device::createDevice(const vk::raii::PhysicalDevice& pd, const Capabilities& capabilities,
-    const QueueFamilyIndices& queueFamilyIndices)
+    const QueueFamilyIndices& queueFamilyIndices, bool presentation)
     -> std::expected<vk::raii::Device, Error>
 {
     auto features = createFeatureChain();
@@ -511,8 +522,9 @@ auto Device::createDevice(const vk::raii::PhysicalDevice& pd, const Capabilities
         queueFamilyIndices.graphics,
         queueFamilyIndices.compute,
         queueFamilyIndices.transfer,
-        queueFamilyIndices.present,
     };
+    if (presentation)
+        uniqueQueueFamilies.insert(queueFamilyIndices.present);
 
     auto queuePriority = 1.0f;
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
@@ -526,7 +538,7 @@ auto Device::createDevice(const vk::raii::PhysicalDevice& pd, const Capabilities
             });
     }
 
-    auto extensions = queryExtensions(capabilities);
+    auto extensions = queryExtensions(capabilities, presentation);
 
     auto deviceInfo = vk::DeviceCreateInfo{}
         .setPNext(&features.get<vk::PhysicalDeviceFeatures2>())
@@ -559,9 +571,17 @@ auto Device::queryCapabilities(const vk::raii::PhysicalDevice& pd) -> Capabiliti
     };
 }
 
-auto Device::queryExtensions(const Capabilities& caps) -> std::vector<const char*>
+auto Device::requiredExtensions(bool presentation) -> std::vector<const char*>
 {
-    std::vector extensions(requiredExtensions.begin(), requiredExtensions.end());
+    std::vector<const char*> extensions;
+    if (presentation)
+        extensions.assign(presentationExtensions.begin(), presentationExtensions.end());
+    return extensions;
+}
+
+auto Device::queryExtensions(const Capabilities& caps, bool presentation) -> std::vector<const char*>
+{
+    auto extensions = requiredExtensions(presentation);
 
     if (caps.meshShaders)
     {
@@ -571,13 +591,13 @@ auto Device::queryExtensions(const Capabilities& caps) -> std::vector<const char
     return extensions;
 }
 
-auto Device::supportsExtensions(const vk::raii::PhysicalDevice& pd) -> bool
+auto Device::supportsExtensions(const vk::raii::PhysicalDevice& pd, bool presentation) -> bool
 {
     auto availableExtensions = pd.enumerateDeviceExtensionProperties();
     if (!availableExtensions.has_value())
         return false;
 
-    return std::ranges::all_of(requiredExtensions,
+    return std::ranges::all_of(requiredExtensions(presentation),
         [&availableExtensions](const auto& required) {
             return std::ranges::any_of(*availableExtensions,
                 [&required](const auto& available) {

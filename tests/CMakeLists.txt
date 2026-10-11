@@ -20,3 +20,8 @@ endfunction()
 
 add_subdirectory(rhi)
 add_subdirectory(math)
+
+# Device-level check: the aegis-test harness, headless for a fixed number of frames. It exits non-zero
+# on any failed check or validation error. Needs a GPU with a Vulkan driver; `ctest -LE device` skips it.
+add_test(NAME aegis-test-headless COMMAND aegis-test --headless --frames 600)
+set_tests_properties(aegis-test-headless PROPERTIES LABELS device TIMEOUT 300)

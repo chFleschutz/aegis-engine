@@ -95,7 +95,8 @@ doctest covers **pure, GPU-independent logic** on the new RHI stack. One executa
 conventions, how to add a module, and the full rationale: **`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*
-    ctest --preset windows-clang-debug                    # runs every case
+    ctest --preset windows-clang-debug                    # runs every case, plus the device check
+    ctest --preset windows-clang-debug -LE device         # skips the device check (no GPU needed)
     cmake --build --preset windows-clang-debug --target aegis-tests-rhi   # iterate one module
     ctest --preset windows-clang-debug -L rhi                # one module (by label; -R "rhi::" matches nothing)
 
@@ -106,7 +107,7 @@ conventions, how to add a module, and the full rationale: **`tests/README.md`**.
 - **Extract rather than mock:** when pure logic sits behind a GPU-owning type, lift it out and leave
   a thin adapter at the Vulkan call site. A **stateful type** earns its own partition; a **stateless
   helper** goes in `aegis::rhi::detail` inside its owner's partition, keeping it out of the public
-  API. Prefer this over standing up a device — there is no headless harness.
+  API. Prefer this over a device check: `aegis-test` proves integration, not the logic's edge cases.
 - **Three traps, each costing a build cycle to rediscover:** **(1)** a test TU cannot name a `vk::`
   type at all (`vulkan-module` is linked PRIVATE, `rhi.cppm` re-exports nothing from it), so
   extracted helpers must take **plain values** — making a `vk::`-taking function public does *not*
@@ -114,12 +115,15 @@ conventions, how to add a module, and the full rationale: **`tests/README.md`**.
   needs `export import` from the umbrella (`rhi.cppm`) — partition-level `export` alone is
   invisible; **(3)** check import direction before picking a home — `:utility` cannot host an
   `Extent3D` helper because `:common` already imports `:utility`.
-- **Verifying device paths:** green unit tests are *not* sufficient when live upload/swapchain code
-  moved. `src/aegis/test/` (`aegis-test`) is the only `main()` reaching a real `rhi::Device`;
-  `examples/` still runs the old `Aegis::Graphics` stack and will not catch an RHI regression. Debug
-  builds enable core **and synchronization** validation, and `aegis-test` exits non-zero on any
-  validation error (messages go to stderr) — a run is only verified if it exits 0. It opens a window
-  and runs until closed; close it gracefully (not a kill) or buffered stdout is lost.
+- **Verifying device paths:** green unit tests are *not* sufficient when device code changed.
+  `src/aegis/test/` (`aegis-test`) is the only `main()` reaching a real `rhi::Device`; `examples/`
+  still runs the old `Aegis::Graphics` stack and will not catch an RHI regression. Debug builds enable
+  core **and synchronization** validation, and `aegis-test` exits non-zero on any failed check or
+  validation error (messages go to stderr) — a run is only verified if it exits 0.
+  - `aegis-test --headless` renders offscreen: no window, no surface, no swapchain, and stops after
+    600 frames (or `--frames <n>`). `ctest` runs it as the `device`-labelled test. Use this by default.
+  - Headless does not touch surface, swapchain, acquire or present. When that code changed, also run
+    `aegis-test --frames 600`: it opens a window briefly and exits by itself.
 - **`import std` / Vulkan SDK (gotcha):** the toolchain (Clang + MSVC runtime) can't build the
   C++23 `import std` module yet, so `AEGIS_USE_IMPORT_STD` defaults **OFF** and the whole build
   stays on classic includes. Older `vulkan.cppm` guards its std module behind

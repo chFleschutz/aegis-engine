@@ -1,5 +1,6 @@
 module;
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <expected>
 #include <functional>
@@ -51,7 +52,8 @@ public:
         bool meshShaders{ false };
     };
 
-    static constexpr std::array requiredExtensions{
+    /// @brief Required only with a surface: a headless device never presents.
+    static constexpr std::array presentationExtensions{
         vk::KHRSwapchainExtensionName,
     };
 
@@ -62,7 +64,7 @@ public:
         Queue graphicsQueue,
         Queue computeQueue,
         Queue transferQueue,
-        Queue presentQueue,
+        std::optional<Queue> presentQueue,
         Capabilities capabilities,
         Properties properties,
         BindlessHeap bindlessHeap);
@@ -79,7 +81,14 @@ public:
     [[nodiscard]] auto graphicsQueue() noexcept -> Queue& { return m_graphicsQueue; }
     [[nodiscard]] auto computeQueue() noexcept -> Queue& { return m_computeQueue; }
     [[nodiscard]] auto transferQueue() noexcept -> Queue& { return m_transferQueue; };
-    [[nodiscard]] auto presentQueue() noexcept -> Queue& { return m_presentQueue; };
+    [[nodiscard]] auto presentQueue() noexcept -> Queue&
+    {
+        assert(m_presentQueue && "A headless device has no present queue");
+        return *m_presentQueue;
+    }
+
+    /// @brief Created without a surface: no present queue, and no swapchain can be created.
+    [[nodiscard]] auto headless() const noexcept -> bool { return !m_presentQueue; }
     [[nodiscard]] auto properties() const noexcept -> const Properties& { return m_properties; }
     [[nodiscard]] auto capabilities() const noexcept -> const Capabilities& { return m_capabilities; }
 
@@ -186,7 +195,8 @@ private:
         uint32_t transfer{ vk::QueueFamilyIgnored };
         uint32_t present{ vk::QueueFamilyIgnored };
 
-        [[nodiscard]] auto isComplete() const -> bool;
+        /// @param presentation Whether a present family is required (false when headless).
+        [[nodiscard]] auto isComplete(bool presentation) const -> bool;
     };
 
     [[nodiscard]] static auto create(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface,
@@ -206,12 +216,15 @@ private:
         -> std::expected<Queue, Error>;
 
     [[nodiscard]] static auto createDevice(const vk::raii::PhysicalDevice& pd,
-        const Capabilities& capabilities, const QueueFamilyIndices& queueFamilyIndices)
+        const Capabilities& capabilities, const QueueFamilyIndices& queueFamilyIndices, bool presentation)
         -> std::expected<vk::raii::Device, Error>;
 
     [[nodiscard]] static auto queryCapabilities(const vk::raii::PhysicalDevice& pd) -> Capabilities;
-    [[nodiscard]] static auto queryExtensions(const Capabilities& caps) -> std::vector<const char*>;
-    [[nodiscard]] static auto supportsExtensions(const vk::raii::PhysicalDevice& pd) -> bool;
+    [[nodiscard]] static auto requiredExtensions(bool presentation) -> std::vector<const char*>;
+    [[nodiscard]] static auto queryExtensions(const Capabilities& caps, bool presentation)
+        -> std::vector<const char*>;
+    [[nodiscard]] static auto supportsExtensions(const vk::raii::PhysicalDevice& pd, bool presentation)
+        -> bool;
     [[nodiscard]] static auto createFeatureChain() -> FeatureChain;
     [[nodiscard]] static auto queryProperties(const vk::raii::PhysicalDevice& pd) -> Properties;
 
@@ -225,7 +238,7 @@ private:
     Queue m_graphicsQueue;
     Queue m_computeQueue;
     Queue m_transferQueue;
-    Queue m_presentQueue;
+    std::optional<Queue> m_presentQueue; // nullopt when headless
     Properties m_properties;
     Capabilities m_capabilities;
     ResourcePool<Buffer> m_buffers;

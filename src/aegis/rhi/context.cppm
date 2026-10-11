@@ -18,7 +18,8 @@ public:
     struct Desc
     {
         std::string_view appName;
-        const platform::Window& window;
+        /// @brief nullptr runs headless: no surface, and no window-system instance extensions.
+        const platform::Window* window{ nullptr };
     };
 
     static constexpr std::uint32_t vulkanVersion{ vk::makeApiVersion(0, 1, 3, 0) };
@@ -42,6 +43,7 @@ public:
 
     [[nodiscard]] auto instance() const -> const vk::raii::Instance& { return m_instance; }
     [[nodiscard]] auto surface() const -> const vk::raii::SurfaceKHR& { return m_surface; }
+    [[nodiscard]] auto headless() const noexcept -> bool { return !*m_surface; }
 
     [[nodiscard]] auto createDevice(const Device::Desc& desc) const
         -> std::expected<std::unique_ptr<Device>, Error>;
@@ -57,7 +59,7 @@ private:
         const vk::raii::Instance& instance,
         const Desc& desc)
         -> std::expected<vk::raii::SurfaceKHR, Error>;
-    [[nodiscard]] static auto findExtensions() -> std::vector<const char*>;
+    [[nodiscard]] static auto findExtensions(const Desc& desc) -> std::vector<const char*>;
     [[nodiscard]] static auto findLayers(const vk::raii::Context& context)
         -> std::expected<std::vector<const char*>, Error>;
 

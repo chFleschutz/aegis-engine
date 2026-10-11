@@ -1,4 +1,5 @@
 module;
+#include <cassert>
 #include <expected>
 #include <format>
 #include <functional>
@@ -12,12 +13,22 @@ namespace aegis::renderer
 {
 auto Renderer::create(const Desc& desc) -> std::expected<std::unique_ptr<Renderer>, Error>
 {
-    auto swapchain = desc.device.createSwapchain(rhi::Swapchain::Desc{
-        .context = desc.context,
-        .preferredExtent = rhi::Extent2D{ desc.window.extent() },
-    });
-    if (!swapchain)
-        return std::unexpected{ Error::RHIInitializationFailed };
+    std::optional<rhi::Swapchain> swapchain;
+    auto extent = desc.offscreen.extent;
+    auto format = desc.offscreen.format;
+    if (desc.window)
+    {
+        auto created = desc.device.createSwapchain(rhi::Swapchain::Desc{
+            .context = desc.context,
+            .preferredExtent = rhi::Extent2D{ desc.window->extent() },
+        });
+        if (!created)
+            return std::unexpected{ Error::RHIInitializationFailed };
+
+        extent = created->extent();
+        format = created->surfaceFormat();
+        swapchain.emplace(std::move(*created));
+    }
 
     auto commandPool = desc.device.createCommandPool({
         .name = "FrameCmdPool",
@@ -30,22 +41,36 @@ auto Renderer::create(const Desc& desc) -> std::expected<std::unique_ptr<Rendere
     if (!frameContext)
         return std::unexpected{ Error::RHIInitializationFailed };
 
-    return std::make_unique<Renderer>(
+    auto renderer = std::make_unique<Renderer>(
         desc.context,
         desc.device,
-        std::move(*swapchain),
+        std::move(swapchain),
+        extent,
+        format,
         std::move(*commandPool),
         std::move(*frameContext));
+
+    if (renderer->offscreen())
+    {
+        if (auto result = renderer->createOffscreenTargets(); !result)
+            return std::unexpected{ result.error() };
+    }
+
+    return renderer;
 }
 
 Renderer::Renderer(rhi::Context& context,
     rhi::Device& device,
-    rhi::Swapchain&& swapchain,
+    std::optional<rhi::Swapchain>&& swapchain,
+    rhi::Extent2D extent,
+    rhi::Format targetFormat,
     rhi::CommandPool&& commandPool,
     std::vector<FrameContext>&& frameContext) :
     m_context{ context },
     m_device{ device },
     m_swapchain{ std::move(swapchain) },
+    m_extent{ extent },
+    m_targetFormat{ targetFormat },
     m_commandPool{ std::move(commandPool) },
     m_frameContext{ std::move(frameContext) }
 {
@@ -54,6 +79,12 @@ Renderer::Renderer(rhi::Context& context,
 Renderer::~Renderer()
 {
     m_device.waitIdle();
+}
+
+auto Renderer::offscreenTarget(std::uint32_t frameIndex) const -> const Texture&
+{
+    assert(offscreen() && "Only an offscreen renderer has offscreen targets");
+    return m_offscreenTargets[frameIndex];
 }
 
 auto Renderer::createTexture(const Texture::Desc& desc) const -> std::expected<Texture, rhi::Error>
@@ -109,7 +140,26 @@ auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc
     if (!frameInfo)
         return;
 
+    const auto& cmd = frameInfo->cmd;
+    cmd.begin();
+    cmd.beginLabel("Frame");
+    // Every frame redraws the whole target, so its previous contents are discarded.
+    cmd.transitionImageLayout(frameInfo->target,
+        rhi::ResourceState::Unknown,
+        rhi::ResourceState::ColorAttachment);
+
     drawFunc(*frameInfo);
+
+    // An offscreen target stays a color attachment: there is no present, and ePresentSrcKHR is not
+    // even valid without VK_KHR_swapchain.
+    if (m_swapchain)
+    {
+        cmd.transitionImageLayout(frameInfo->target,
+            rhi::ResourceState::ColorAttachment,
+            rhi::ResourceState::Present);
+    }
+    cmd.endLabel();
+    cmd.end();
 
     endFrame();
 }
@@ -124,23 +174,32 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
 
     std::ignore = m_device->waitIdle();
 
-    auto swapchain = m_device.createSwapchain(rhi::Swapchain::RecreateDesc{
-        .preferredExtent = newSize,
-        .oldSwapchain = m_swapchain,
-    });
-
-    if (!swapchain)
+    if (m_swapchain)
     {
-        std::println("Failed to recreate swapchain");
-        return;
+        auto swapchain = m_device.createSwapchain(rhi::Swapchain::RecreateDesc{
+            .preferredExtent = newSize,
+            .oldSwapchain = *m_swapchain,
+        });
+
+        if (!swapchain)
+        {
+            std::println("Failed to recreate swapchain");
+            return;
+        }
+        m_swapchain = std::move(*swapchain);
+        m_extent = m_swapchain->extent();
     }
-    m_swapchain = std::move(*swapchain);
+    else
+    {
+        // The offscreen targets are resolution-dependent textures, so the loop below resizes them.
+        m_extent = newSize;
+    }
 
     for (auto& [name, texture, desc, scaleFactor] : m_resDependent)
     {
         const auto extent = rhi::Extent3D{
-            static_cast<uint32_t>(m_swapchain.extent().x * scaleFactor),
-            static_cast<uint32_t>(m_swapchain.extent().y * scaleFactor),
+            static_cast<uint32_t>(m_extent.x * scaleFactor),
+            static_cast<uint32_t>(m_extent.y * scaleFactor),
             desc.extent.z,
         };
 
@@ -207,6 +266,28 @@ auto Renderer::createFrameContext(
     return frameContext;
 }
 
+auto Renderer::createOffscreenTargets() -> std::expected<void, Error>
+{
+    using namespace rhi::utility;
+
+    // One per frame in flight, like swapchain images: a frame never draws into a target that the
+    // previous, possibly still running, frame draws into. TransferSrc allows reading a frame back.
+    for (std::uint32_t i = 0; i < maxFramesInFlight; ++i)
+    {
+        auto target = createResolutionDependentTexture({
+            .name = std::format("OffscreenTarget{}", i),
+            .extent = rhi::Extent3D{ m_extent },
+            .format = m_targetFormat,
+            .usage = rhi::ImageUsage::ColorAttachment | rhi::ImageUsage::Sampled |
+                     rhi::ImageUsage::TransferSrc,
+        });
+        if (!target)
+            return std::unexpected{ Error::RHIInitializationFailed };
+        m_offscreenTargets.emplace_back(*target);
+    }
+    return {};
+}
+
 auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
 {
     auto& [cmd, imageAvailable, timePoint] = m_frameContext[m_currentFrame];
@@ -215,7 +296,18 @@ auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
 
     m_device.setFrameCompleted(timePoint);
 
-    auto acquiredImage = m_swapchain.acquireNextImage(imageAvailable);
+    if (!m_swapchain)
+    {
+        return std::expected<FrameInfo, Error>{
+            std::in_place,
+            cmd,
+            m_offscreenTargets[m_currentFrame].view,
+            m_currentFrame,
+            m_extent,
+        };
+    }
+
+    auto acquiredImage = m_swapchain->acquireNextImage(imageAvailable);
     if (!acquiredImage && acquiredImage.error().code == rhi::ErrorCode::OutOfDate)
     {
         m_needsResize = true;
@@ -229,7 +321,7 @@ auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
         cmd,
         acquiredImage->image,
         m_currentFrame,
-        m_swapchain.extent(),
+        m_extent,
     };
 }
 
@@ -237,11 +329,15 @@ auto Renderer::endFrame() noexcept -> void
 {
     auto& [cmd, imageAvailable, timePoint] = m_frameContext[m_currentFrame];
 
-    auto newSubmitTime = m_device.graphicsQueue().submit({
-        .commandBuffer = cmd,
-        .waitSemaphore = imageAvailable,
-        .signalSemaphore = m_swapchain.currentPresentReady(),
-    });
+    // Offscreen frames are paced by the timeline semaphore alone; there is nothing to acquire or
+    // present, so no binary semaphores either.
+    auto newSubmitTime = m_swapchain
+                             ? m_device.graphicsQueue().submit({
+                                   .commandBuffer = cmd,
+                                   .waitSemaphore = imageAvailable,
+                                   .signalSemaphore = m_swapchain->currentPresentReady(),
+                               })
+                             : m_device.graphicsQueue().submit(cmd);
     if (!newSubmitTime)
     {
         std::println("Failed to submit to queue");
@@ -249,11 +345,14 @@ auto Renderer::endFrame() noexcept -> void
     }
     timePoint = *newSubmitTime;
 
-    auto result = m_swapchain.present(m_device.presentQueue());
-    if (!result)
+    if (m_swapchain)
     {
-        std::println("Failed to present to queue");
-        return;
+        auto result = m_swapchain->present(m_device.presentQueue());
+        if (!result)
+        {
+            std::println("Failed to present to queue");
+            return;
+        }
     }
 
     m_currentFrame = (m_currentFrame + 1) % m_frameContext.size();

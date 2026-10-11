@@ -2,14 +2,15 @@
 
 Unit tests for the new RHI stack (`aegis.rhi` / `renderer` / `platform`, later `render_graph` /
 `assets`). Scope is intentionally narrow: **pure, GPU-independent logic** that survives the
-migration. Device-level integration stays in the interactive harness (`../src/aegis/test/`) and the
-example smoke tests.
+migration. Device-level integration stays in the harness (`../src/aegis/test/`), which CTest also
+runs headless as the one `device`-labelled test.
 
 ## Quick start
 
 ```
 cmake --build --preset windows-clang-debug   # builds all aegis-tests-* targets
-ctest --preset windows-clang-debug           # runs every discovered case
+ctest --preset windows-clang-debug           # runs every discovered case, plus the device check
+ctest --preset windows-clang-debug -LE device # everything that needs no GPU
 ```
 
 Iterating on one module:
@@ -26,17 +27,19 @@ Currently 75 cases across `aegis-tests-rhi` and `aegis-tests-math`.
 
 ### Device-level check
 
-Unit tests are not sufficient when a change touches live upload or swapchain code:
+Unit tests are not sufficient when a change touches live device code:
 
 ```
 cmake --build --preset windows-clang-debug --target aegis-test
-build\windows-clang-debug\src\aegis\test\aegis-test.exe
+build\windows-clang-debug\src\aegis\test\aegis-test.exe --headless       # offscreen, 600 frames
+build\windows-clang-debug\src\aegis\test\aegis-test.exe --frames 600     # windowed, exits by itself
 ```
 
 `../src/aegis/test/main.cpp` is the only `main()` that reaches a real `rhi::Device` — the
 `examples/` targets still run on the old `Aegis::Graphics` stack and will not catch an RHI
-regression. It should open its window and draw the triangle. Validation layers are on in debug
-builds, so a silent stderr is part of the signal.
+regression. Debug builds enable core and synchronization validation; the harness exits non-zero on
+a failed check or any validation error. CTest runs the headless form (label `device`); the windowed
+form is the only check of surface, swapchain and present, so run it when those change.
 
 ## What we test
 

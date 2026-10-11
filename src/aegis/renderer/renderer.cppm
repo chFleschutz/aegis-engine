@@ -2,6 +2,7 @@ module;
 #include <expected>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -25,11 +26,20 @@ enum class Error
 class Renderer
 {
 public:
+    /// @brief Render targets the renderer owns, used instead of a swapchain when there is no window.
+    struct Offscreen
+    {
+        rhi::Extent2D extent{ 0, 0 };
+        rhi::Format format{ rhi::Format::RGBA8_UNORM };
+    };
+
     struct Desc
     {
-        platform::Window& window;
         rhi::Context& context;
         rhi::Device& device;
+        /// @brief nullptr renders offscreen: no swapchain, so no acquire and no present.
+        const platform::Window* window{ nullptr };
+        Offscreen offscreen{}; // Used only without a window
     };
 
     struct FrameContext
@@ -39,12 +49,15 @@ public:
         std::uint64_t timelineValue{ 0 };
     };
 
+    /// @brief What a frame callback records into. 'cmd' is already begun and 'target' is in
+    ///        ResourceState::ColorAttachment; the callback must leave it there. The renderer records
+    ///        the transitions around the callback and ends the command buffer.
     struct FrameInfo
     {
         rhi::CommandBuffer& cmd;
-        rhi::ImageViewHandle swapchainImage;
+        rhi::ImageViewHandle target;
         std::uint32_t frameIndex;
-        rhi::Extent2D swapchainSize;
+        rhi::Extent2D extent;
     };
 
     struct ResolutionDependentResource
@@ -61,17 +74,25 @@ public:
 
     Renderer(rhi::Context& context,
         rhi::Device& device,
-        rhi::Swapchain&& swapchain,
+        std::optional<rhi::Swapchain>&& swapchain,
+        rhi::Extent2D extent,
+        rhi::Format targetFormat,
         rhi::CommandPool&& commandPool,
         std::vector<FrameContext>&& frameContext);
 
     /// @brief Waits for the GPU first: the frame command buffers and semaphores may still be in use.
     ~Renderer();
 
-    [[nodiscard]] auto swapchain() const noexcept -> const rhi::Swapchain& { return m_swapchain; }
+    [[nodiscard]] auto offscreen() const noexcept -> bool { return !m_swapchain; }
+    [[nodiscard]] auto extent() const noexcept -> rhi::Extent2D { return m_extent; }
+    [[nodiscard]] auto targetFormat() const noexcept -> rhi::Format { return m_targetFormat; }
+
+    /// @brief The offscreen target of frame slot 'frameIndex'. Offscreen only.
+    [[nodiscard]] auto offscreenTarget(std::uint32_t frameIndex) const -> const Texture&;
+
     [[nodiscard]] auto needsResize() const noexcept -> bool
     {
-        return m_needsResize || m_swapchain.needsRecreation();
+        return m_needsResize || (m_swapchain && m_swapchain->needsRecreation());
     }
 
     [[nodiscard]] auto createTexture(const Texture::Desc& desc) const -> std::expected<Texture, rhi::Error>;
@@ -80,6 +101,7 @@ public:
 
     auto renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept -> void;
 
+    /// @brief Recreates the swapchain (offscreen: the targets) and every resolution-dependent texture.
     auto resize(rhi::Extent2D newSize) -> void;
 
 private:
@@ -88,12 +110,17 @@ private:
         const rhi::CommandPool& pool) noexcept
         -> std::expected<std::vector<FrameContext>, Error>;
 
+    auto createOffscreenTargets() -> std::expected<void, Error>;
+
     auto beginFrame() noexcept -> std::expected<FrameInfo, Error>;
     auto endFrame() noexcept -> void;
 
     rhi::Context& m_context;
     rhi::Device& m_device;
-    rhi::Swapchain m_swapchain;
+    std::optional<rhi::Swapchain> m_swapchain; // nullopt when offscreen
+    std::vector<Texture> m_offscreenTargets;   // One per frame in flight; empty with a swapchain
+    rhi::Extent2D m_extent;
+    rhi::Format m_targetFormat;
     rhi::CommandPool m_commandPool;
     std::vector<FrameContext> m_frameContext;
     std::vector<ResolutionDependentResource> m_resDependent;
