@@ -294,11 +294,11 @@ public:
         cmd.beginLabel("Frame");
         cmd.transitionImageLayout(swapchainImage,
             rhi::ResourceState::Unknown,
-            rhi::ResourceState::Attachment);
+            rhi::ResourceState::ColorAttachment);
         cmd.transitionImageLayout(
             m_depthTexture.view,
             rhi::ResourceState::Unknown,
-            rhi::ResourceState::Attachment);
+            rhi::ResourceState::DepthWrite);
 
         cmd.beginLabel("Rendering");
         cmd.writeTimestamp(timer.pool, 0, rhi::TimestampStage::TopOfPipe);
@@ -327,7 +327,7 @@ public:
         cmd.endLabel();
 
         cmd.transitionImageLayout(swapchainImage,
-            rhi::ResourceState::Attachment,
+            rhi::ResourceState::ColorAttachment,
             rhi::ResourceState::Present);
 
         cmd.endLabel();

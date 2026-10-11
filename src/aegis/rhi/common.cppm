@@ -64,10 +64,12 @@ enum class ShaderStage
     Mesh,
 };
 
+/// @brief The ways a resource is used, each mapping to a layout plus the stages and accesses that
+///        synchronize it. Barriers are formed from a pair: the resource's previous and next state.
 enum class ResourceState
 {
-    Unknown,
-    Attachment,
+    Unknown, // Contents are discarded; waits for all prior work, so a reused resource is safe
+    ColorAttachment,
     DepthWrite,
     DepthRead,
     ShaderReadVertex,

@@ -116,12 +116,14 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState
     switch (state)
     {
     case ResourceState::Unknown:
+        // All stages rather than none: the transition must wait for whatever used the resource
+        // before, e.g. a swapchain image's acquire semaphore or the previous frame's depth writes.
         return VulkanState{
             .layout = vk::ImageLayout::eUndefined,
-            .stageMask = vk::PipelineStageFlagBits2::eNone,
+            .stageMask = vk::PipelineStageFlagBits2::eAllCommands,
             .accessMask = vk::AccessFlagBits2::eNone,
         };
-    case ResourceState::Attachment:
+    case ResourceState::ColorAttachment:
         return VulkanState{
             .layout = vk::ImageLayout::eAttachmentOptimal,
             .stageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
@@ -179,9 +181,11 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState
             .accessMask = vk::AccessFlagBits2::eTransferWrite
         };
     case ResourceState::Present:
+        // All stages rather than none: the render-finished semaphore signal must cover the
+        // transition, and it only covers work in its stage mask.
         return VulkanState{
             .layout = vk::ImageLayout::ePresentSrcKHR,
-            .stageMask = vk::PipelineStageFlagBits2::eNone,
+            .stageMask = vk::PipelineStageFlagBits2::eAllCommands,
             .accessMask = vk::AccessFlagBits2::eNone
         };
     }
