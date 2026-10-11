@@ -224,12 +224,13 @@ auto Device::setFrameCompleted(TimelineValue frame) -> void
 }
 
 auto Device::upload(BufferHandle dst, std::span<const std::byte> data, std::size_t alignment,
-    std::size_t dstOffset) -> bool
+    std::size_t dstOffset) -> std::expected<void, Error>
 {
     return m_uploadManager->upload(get(dst), data, alignment, dstOffset);
 }
 
-auto Device::upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips) -> bool
+auto Device::upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips)
+    -> std::expected<void, Error>
 {
     return m_uploadManager->upload(dst, data, generateMips);
 }

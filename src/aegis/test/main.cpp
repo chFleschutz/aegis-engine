@@ -149,6 +149,8 @@ public:
     {
         if (auto result = verifyBufferUpload(); !result)
             return result;
+        if (auto result = verifyOverflowUpload(); !result)
+            return result;
         if (auto result = verifyImageUpload(); !result)
             return result;
         if (auto result = verifyCubemapUpload(); !result)
@@ -495,6 +497,57 @@ private:
             return std::unexpected{ "Buffer upload readback mismatch" };
 
         std::println("Buffer upload verified: {} bytes match after round-trip", byteSize);
+        return {};
+    }
+
+    // Larger than the whole 64 MB staging ring. Before the overflow path this could never be staged,
+    // and the documented flush-and-retry response looped forever.
+    auto verifyOverflowUpload() -> std::expected<void, std::string>
+    {
+        using namespace rhi::utility;
+
+        constexpr std::size_t count{ 20 * 1024 * 1024 };
+        constexpr auto byteSize = count * sizeof(std::uint32_t);
+        std::vector<std::uint32_t> srcData(count);
+        for (std::size_t i = 0; i < count; ++i)
+            srcData[i] = static_cast<std::uint32_t>(i * 2654435761u);
+
+        auto deviceLocal = m_device->createBuffer({
+            .name = "OverflowTestDeviceLocal",
+            .size = byteSize,
+            .usage = rhi::BufferUsage::TransferDst | rhi::BufferUsage::TransferSrc,
+            .memory = rhi::MemoryUsage::GpuOnly,
+        });
+        auto readback = m_device->createBuffer({
+            .name = "OverflowTestReadback",
+            .size = byteSize,
+            .usage = rhi::BufferUsage::TransferDst,
+            .memory = rhi::MemoryUsage::CpuRead,
+        });
+        if (!deviceLocal || !readback)
+            return std::unexpected{ "Failed to create overflow test buffers" };
+
+        if (!m_device->upload(*deviceLocal, std::as_bytes(std::span{ srcData })))
+            return std::unexpected{ "UploadManager could not stage an upload larger than its ring" };
+        if (auto result = flushAndWait(); !result)
+            return result;
+
+        auto copied = submitAndWait("OverflowTestReadback", [&](const auto& cmd) {
+            cmd.copyBuffer(m_device->get(*deviceLocal), m_device->get(*readback), byteSize);
+        });
+        if (!copied)
+            return copied;
+
+        std::vector<std::uint32_t> dstData(count);
+        m_device->get(*readback).read(reinterpret_cast<std::byte*>(dstData.data()), byteSize);
+
+        m_device->free(*deviceLocal);
+        m_device->free(*readback);
+
+        if (dstData != srcData)
+            return std::unexpected{ "Overflow upload readback mismatch" };
+
+        std::println("Overflow upload verified: {} MB, larger than the staging ring", byteSize >> 20);
         return {};
     }
 

@@ -110,33 +110,28 @@ auto UploadManager::create(Device& device, std::uint32_t queueFamily, const Desc
     if (!staging)
         return std::unexpected{ staging.error() };
 
-    return UploadManager{ device, std::move(*pool), std::move(cmds), std::move(*staging) };
+    assert(desc.overflowThreshold < desc.stagingBufferSize && "Uploads up to the threshold must fit the ring");
+    return UploadManager{ device, std::move(*pool), std::move(cmds), std::move(*staging),
+        desc.overflowThreshold };
 }
 
 auto UploadManager::upload(const Buffer& dst, std::span<const std::byte> data, std::size_t alignment,
-    std::size_t dstOffset) -> bool
-
+    std::size_t dstOffset) -> std::expected<void, Error>
 {
-    auto allocation = m_stagingBuffer.allocate(data.size(), alignment);
-    if (!allocation)
-        return false;
+    if (data.empty())
+        return {};
 
-    std::memcpy(allocation->data + allocation->offset, data.data(), data.size());
+    auto staging = stage(data.size(), alignment);
+    if (!staging)
+        return std::unexpected{ staging.error() };
 
-    auto& cmd = m_cmds[m_recordIndex];
-    if (!m_batchOpen)
-    {
-        // Safe to (re)record: a previous flush guaranteed this command buffer is not in flight.
-        cmd.begin(true);
-        m_batchOpen = true;
-    }
-
-    cmd.copyBuffer(m_stagingBuffer.buffer(), dst, data.size(), allocation->offset, dstOffset);
-    m_pendingEndOffset = allocation->offset + allocation->size;
-    return true;
+    std::memcpy(staging->data, data.data(), data.size());
+    openBatch().copyBuffer(staging->buffer, dst, data.size(), staging->offset, dstOffset);
+    return {};
 }
 
-auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips) -> bool
+auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips)
+    -> std::expected<void, Error>
 {
     const auto& image = m_device->get(dst);
 
@@ -147,33 +142,24 @@ auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, boo
     if (footprints.empty())
     {
         assert(false && "Image format cannot be uploaded from a linear buffer");
-        return false;
+        return makeError(ErrorCode::Unknown);
     }
 
     const auto& last = footprints.back();
-    // A size mismatch is a caller bug, not backpressure: returning false would send a retrying
+    // A size mismatch is a caller bug, not backpressure: reporting NotReady would send a retrying
     // caller into an infinite flush-and-retry loop, so trap it instead.
     assert(data.size() == last.sourceOffset + last.size && "Upload data does not match image layout");
 
-    auto allocation = m_stagingBuffer.allocate(last.stagingOffset + last.size,
-        detail::copyAlignment(image.format()));
-    if (!allocation)
-        return false;
+    auto staging = stage(last.stagingOffset + last.size, detail::copyAlignment(image.format()));
+    if (!staging)
+        return std::unexpected{ staging.error() };
 
     // Mip by mip rather than one memcpy: staging pads each mip up to the copy alignment, the
     // caller's data does not.
     for (const auto& footprint : footprints)
     {
-        std::memcpy(allocation->data + allocation->offset + footprint.stagingOffset,
-            data.data() + footprint.sourceOffset, footprint.size);
-    }
-
-    auto& cmd = m_cmds[m_recordIndex];
-    if (!m_batchOpen)
-    {
-        // Safe to (re)record: a previous flush guaranteed this command buffer is not in flight.
-        cmd.begin(true);
-        m_batchOpen = true;
+        std::memcpy(staging->data + footprint.stagingOffset, data.data() + footprint.sourceOffset,
+            footprint.size);
     }
 
     std::vector<BufferImageCopy> regions;
@@ -181,7 +167,7 @@ auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, boo
     for (const auto& footprint : footprints)
     {
         regions.emplace_back(BufferImageCopy{
-            .bufferOffset = allocation->offset + footprint.stagingOffset,
+            .bufferOffset = staging->offset + footprint.stagingOffset,
             .mipLevel = footprint.mipLevel,
             .baseArrayLayer = 0,
             .arrayLayerCount = footprint.arrayLayerCount,
@@ -189,14 +175,14 @@ auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, boo
         });
     }
 
+    auto& cmd = openBatch();
     cmd.transitionImageLayout(dst, ResourceState::Unknown, ResourceState::CopyDst);
-    cmd.copyBufferToImage(m_stagingBuffer.buffer(), dst, regions);
+    cmd.copyBufferToImage(staging->buffer, dst, regions);
 
     if (generateMips && image.mipLevels() > 1)
         cmd.generateMipmaps(dst, ResourceState::CopyDst);
 
-    m_pendingEndOffset = allocation->offset + allocation->size;
-    return true;
+    return {};
 }
 
 auto UploadManager::flushPending(Queue& queue) -> std::optional<TimelineValue>
@@ -220,6 +206,12 @@ auto UploadManager::flushPending(Queue& queue) -> std::optional<TimelineValue>
     m_batchOpen = false;
 
     auto timelineValue = queue.submit(cmd);
+
+    // Freed now, released by the Device once the queue passes this submission.
+    for (const auto handle : m_overflowBuffers)
+        m_device->free(handle);
+    m_overflowBuffers.clear();
+
     if (!timelineValue)
         return std::nullopt;
 
@@ -239,12 +231,55 @@ auto UploadManager::flushPending(Queue& queue) -> std::optional<TimelineValue>
 }
 
 UploadManager::UploadManager(Device& device, CommandPool cmdPool, std::vector<CommandBuffer> cmds,
-    StagingBuffer stagingBuffer) :
+    StagingBuffer stagingBuffer, std::uint64_t overflowThreshold) :
     m_device{ &device },
     m_cmdPool{ std::move(cmdPool) },
     m_cmds{ std::move(cmds) },
-    m_stagingBuffer{ std::move(stagingBuffer) }
+    m_stagingBuffer{ std::move(stagingBuffer) },
+    m_overflowThreshold{ overflowThreshold }
 {
+}
+
+auto UploadManager::stage(std::size_t size, std::size_t alignment) -> std::expected<Staging, Error>
+{
+    if (size > m_overflowThreshold)
+    {
+        auto handle = m_device->createBuffer({
+            .name = "UploadManager overflow",
+            .size = size,
+            .usage = BufferUsage::TransferSrc,
+            .memory = MemoryUsage::CpuWrite,
+        });
+        if (!handle)
+            return std::unexpected{ handle.error() };
+
+        m_overflowBuffers.push_back(*handle);
+        const auto& buffer = m_device->get(*handle);
+        return Staging{ .buffer = buffer, .offset = 0, .data = buffer.data() }; // 0 suits any alignment
+    }
+
+    auto allocation = m_stagingBuffer.allocate(size, alignment);
+    if (!allocation)
+        return makeError(ErrorCode::NotReady); // Ring full right now; the caller flushes and retries
+
+    m_pendingEndOffset = allocation->offset + allocation->size;
+    return Staging{
+        .buffer = m_stagingBuffer.buffer(),
+        .offset = allocation->offset,
+        .data = allocation->data + allocation->offset,
+    };
+}
+
+auto UploadManager::openBatch() -> CommandBuffer&
+{
+    auto& cmd = m_cmds[m_recordIndex];
+    if (!m_batchOpen)
+    {
+        // Safe to (re)record: a previous flush guaranteed this command buffer is not in flight.
+        cmd.begin(true);
+        m_batchOpen = true;
+    }
+    return cmd;
 }
 
 auto UploadManager::reclaimFront(const Queue& queue) -> void

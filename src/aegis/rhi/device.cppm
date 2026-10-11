@@ -116,17 +116,17 @@ public:
     auto setFrameCompleted(TimelineValue frame) -> void;
 
     /// @brief Stages 'data' and records a copy into the buffer 'dst' at 'dstOffset'. Never blocks.
-    /// @return false if the staging ring could not satisfy the allocation right now; the caller
-    ///         should flushUploads() (which reclaims completed batches) and retry.
+    /// @return ErrorCode::NotReady if the staging ring cannot fit it right now: flushUploads() (which
+    ///         reclaims completed batches) and retry. Any other error is not retryable.
     [[nodiscard]] auto upload(BufferHandle dst, std::span<const std::byte> data,
-        std::size_t alignment = 4, std::size_t dstOffset = 0) -> bool;
+        std::size_t alignment = 4, std::size_t dstOffset = 0) -> std::expected<void, Error>;
 
     /// @brief Stages 'data' and records a copy into every mip of the image 'dst'. Never blocks.
     /// @note Leaves 'dst' in ResourceState::CopyDst (CopySrc when 'generateMips' is set); the caller
     ///       transitions it to its read state. See UploadManager::upload for the data layout the
     ///       caller must match.
     [[nodiscard]] auto upload(ImageHandle dst, std::span<const std::byte> data,
-        bool generateMips = false) -> bool;
+        bool generateMips = false) -> std::expected<void, Error>;
 
     /// @brief Submits the open upload batch on the graphics queue and reclaims completed staging.
     /// @return The timeline value the submitted batch signals, or nullopt if nothing was submitted.
