@@ -80,9 +80,11 @@ TEST_SUITE("rhi::RingAllocator")
         REQUIRE(!tooBig.has_value());
         CHECK(tooBig.error() == AllocError::MemoryExhausted);
 
-        SUBCASE("a request that fits the gap exactly succeeds")
+        SUBCASE("a request that would fill the gap exactly is refused")
         {
-            CHECK(ring.allocate(16, 4) == 48);
+            // It would leave head == tail, which reads as an empty ring (see the cases below).
+            CHECK(!ring.allocate(16, 4).has_value());
+            CHECK(ring.allocate(12, 4) == 48);
         }
     }
 
@@ -94,6 +96,32 @@ TEST_SUITE("rhi::RingAllocator")
 
         ring.reclaim(128); // The GPU is done with everything
         CHECK(ring.allocate(64, 4) == 0);
+    }
+
+    // head == tail means "empty", so the head must never catch up with the tail while anything is in
+    // flight; otherwise the next allocation is handed bytes the GPU is still reading.
+    TEST_CASE("an allocation wrapping to the front never ends exactly at the tail")
+    {
+        RingAllocator ring{ 100 };
+        REQUIRE(ring.allocate(30, 1) == 0);
+        REQUIRE(ring.allocate(30, 1) == 30);
+        REQUIRE(ring.allocate(30, 1) == 60);
+        ring.reclaim(30); // [30, 90) still in flight
+
+        CHECK(!ring.allocate(30, 1).has_value()); // [0, 30) would end at the tail
+        CHECK(ring.allocate(10, 1) == 90);        // the real gap is still usable
+    }
+
+    TEST_CASE("an allocation inside a wrapped gap never ends exactly at the tail")
+    {
+        RingAllocator ring{ 100 };
+        REQUIRE(ring.allocate(60, 1) == 0);
+        REQUIRE(ring.allocate(40, 1) == 60);
+        ring.reclaim(60);                   // [60, 100) still in flight
+        REQUIRE(ring.allocate(30, 1) == 0); // wraps; the free gap is now [30, 60)
+
+        CHECK(!ring.allocate(30, 1).has_value()); // [30, 60) would end at the tail
+        CHECK(ring.allocate(29, 1) == 30);
     }
 
     TEST_CASE("reports the capacity it was built with")

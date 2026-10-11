@@ -65,6 +65,8 @@ public:
 
 private:
     /// @brief Whether [start, end) (end exclusive) lies entirely inside the free region.
+    /// @note A region may not end exactly at the tail: the head would then equal the tail, which
+    ///       reads as an empty ring while everything is in flight. One byte is given up instead.
     [[nodiscard]] auto isRegionFree(std::size_t start, std::size_t end) const -> bool
     {
         if (start > end)
@@ -73,11 +75,11 @@ private:
         if (m_tail <= m_head)
         {
             // Occupied: [tail, head)  ->  Free: [0, tail) + [head, capacity)
-            return start >= m_head || end <= m_tail;
+            return start >= m_head || end < m_tail;
         }
 
         // Occupied (wrapped): [0, head) + [tail, capacity)  ->  Free: [head, tail)
-        return start >= m_head && end <= m_tail;
+        return start >= m_head && end < m_tail;
     }
 
     std::size_t m_size;
