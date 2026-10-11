@@ -435,25 +435,58 @@ constants and BDA, verified by the round-trip; `Pipeline::*Desc` contains no `vk
 Create the module and port in dependency order. Each item is created against an `rhi::Device` +
 `UploadManager`; the old renderer keeps drawing throughout.
 
-- [ ] Create `aegis/assets/` dir + `CMakeLists.txt` + `aegis.assets` primary module; add to `src/aegis/CMakeLists.txt` (`add_subdirectory(assets)`, link).
-- [ ] Port **`vertex`** (`resources/vertex.cppm`) — pure data, first.
-- [ ] Port **`mesh_preprocessor`** (`resources/mesh_preprocessor.cppm`, meshopt) — no GPU dependency.
-- [ ] Port **`static_mesh`** (`resources/static_mesh.cppm`):
-  - [ ] Rework `MeshData` from `Bindless::DescriptorHandle` vertex/index/meshlet buffers to **buffer device address**.
-  - [ ] Upload vertex/index/meshlet buffers via `UploadManager`.
-  - [ ] Update the shaders that read these (`shaders/**/vertex_geometry_bindless.slang`, `gpu-driven/*mesh*`, `task_meshlet_cull`) to consume BDA. Track shader edits as their own sub-checklist.
-- [ ] Port **`texture`** (`resources/texture.cppm`) onto `rhi::Image`/`ImageView` + `rhi:sampler` + bindless heap. Cover `solidColor` / `solidColorCube` used by `loadDefaultAssets()`.
-  - [ ] **Shader ripple:** the old shaders sample through combined `Sampler2D` (`bindless.slang`'s
-        `SampledImage2D` typedefs it), but the new heap binds `eSampledImage` (binding 0) and
-        `eSampler` (binding 2) separately. Textured shaders must move to a `Texture2D` + `SamplerState`
-        pair indexed by a `SampledImageDescriptor` and a `SamplerDescriptor`. Rename `bindless.slang`'s
-        "handle" terminology to "descriptor" while there, to match the C++ naming rule.
-- [ ] Port **material** (`material/material_template.cppm`, `material/material_instance.cppm`) — build pipelines via `rhi::Pipeline::GraphicsDesc` instead of the old `Pipeline::GraphicsBuilder`.
-- [ ] Port **loaders** (`loader/{loader,gltf_loader,fast_gltf_loader,obj_loader}.cppm`) to emit the new mesh/texture/material types.
-- [ ] Move **render components** (`components.cppm`: `Mesh`, `Material`, `Environment`) into `aegis.assets` (or `scene` if you prefer components centralized there).
-- [ ] Verify by loading a glTF asset headlessly (small harness or extended `test/main.cpp`) and confirming uploaded resources.
+- [x] Create `aegis/assets/` dir + `CMakeLists.txt` + `aegis.assets` primary module; add to `src/aegis/CMakeLists.txt` (`add_subdirectory(assets)`, link).
+  *Not linked into `aegis-engine`: both stacks in one binary fail to link (each compiles its own VMA
+  implementation), the hard constraint at link level. `aegis-test` links it; the engine does in Phase 4.*
+- [x] Port **`vertex`** (`resources/vertex.cppm`) — pure data, first.
+- [x] Port **`mesh_preprocessor`** (`resources/mesh_preprocessor.cppm`, meshopt) — no GPU dependency.
+- [x] Port **`static_mesh`** (`resources/static_mesh.cppm`):
+  - [x] Rework `MeshData` from `Bindless::DescriptorHandle` vertex/index/meshlet buffers to **buffer device address**.
+  - [x] Upload vertex/index/meshlet buffers via `UploadManager`.
+  - [ ] ~~Update the shaders that read these~~ — *moved to Phase 3 (decided: Phase 2 ports no shaders).*
+- [x] Port **`texture`** (`resources/texture.cppm`) onto `rhi::Image`/`ImageView` + `rhi:sampler` + bindless heap. Cover `solidColor` / `solidColorCube` used by `loadDefaultAssets()`.
+  - [ ] ~~Shader ripple (combined `Sampler2D` → `Texture2D` + `SamplerState`)~~ — *moved to Phase 3.*
+  - [ ] ~~HDR equirect → cube, irradiance, prefiltered, BRDF LUT~~ — *moved to Phase 3: they are compute
+        shaders. `loadFromFile` on an `.hdr` returns `ErrorCode::UnsupportedFormat` until then.*
+- [x] Port **material** (`material/material_template.cppm`, `material/material_instance.cppm`). *Without
+  pipelines: the template is parameters + layout only; pipelines belong to the Phase 3 passes that draw
+  it (the old template's own TODO). The draw-batch id moves with the draw batch registry.*
+- [x] Port **loaders** (`loader/{loader,gltf_loader,fast_gltf_loader,obj_loader}.cppm`) to emit the new mesh/texture/material types. *FastGLTF + OBJ only; the unused `GLTFLoader` stays with the old stack.*
+- [x] Move **render components** (`components.cppm`: `Mesh`, `Material`, `Environment`) into `aegis.assets` (or `scene` if you prefer components centralized there).
+- [x] Verify by loading a glTF asset headlessly (small harness or extended `test/main.cpp`) and confirming uploaded resources.
 
 **Exit criteria:** a glTF/OBJ loads into new mesh + material + texture types on the RHI, BDA-backed, with default PBR assets reproducible.
+
+**Done.** Exit criteria met under core + sync validation (shaders excluded, see above). Decisions and details:
+
+- **New types alongside the old ones.** `aegis::assets::{StaticMesh, Texture, MaterialTemplate,
+  MaterialInstance}`, loaders and components are new code; `Aegis::Graphics`' versions keep feeding the
+  old renderer, and scenes loaded by the new loader are invisible to it until Phase 4.
+- **RAII on the device.** `StaticMesh`, `Texture` and `MaterialInstance` hold the `rhi::Device&` and
+  free their handles in the destructor (deferred by the deletion queue); they stay `shared_ptr`-owned and
+  derive from `Core::Asset`, so `AssetManager` can hold them. Errors are `std::expected<T, assets::Error>`.
+- **Meshes:** each stream is a `GpuOnly` storage + device-address buffer; a `StaticMesh::GpuData` block
+  (addresses, counts, bounds) gives a draw one address to push. No vertex-input descriptions: vertices
+  are pulled through BDA.
+- **Textures** own image, view and sampler (bindless slots for both); shaders get a
+  `SampledImageDescriptor` and a `SamplerDescriptor`. Mips are generated on upload, or dropped for
+  formats that cannot be blitted. **RHI addition:** `Device::upload(image, ..., finalState)` lets the upload
+  batch record the final transition, and `ResourceState::ShaderRead` (any shader stage) is that state
+  for textures whose readers are unknown at load time.
+- **Materials:** std430 layout as before; a texture parameter is 8 bytes (image index, sampler index).
+  Each instance has one `CpuWrite` device-address buffer with a block per frame in flight;
+  `update(frame)` rewrites a block only when parameters changed.
+- **`DefaultAssets::create`** reproduces `loadDefaultAssets()`: solid black/white/normal textures and
+  cubes, the PBR template and default instance.
+- **Fixed while porting:** the glTF loader's texture cache skipped textures without an image but was
+  indexed by texture index, shifting every later texture; meshlet buffers are sized by meshoptimizer's
+  documented bound instead of the index count. `STB_IMAGE_IMPLEMENTATION` now lives in one place
+  (`external/stb_image_impl.cpp`, the `stb` target), and the old OBJ loader no longer defines
+  `TINYOBJLOADER_IMPLEMENTATION` (the `tinyobjloader` library already compiles it).
+- **Tests:** `aegis-tests-assets` (11 cases: mesh preprocessing, material layout and serialization).
+  `aegis-test` builds the defaults, reads the white texture back, checks per-frame material blocks, and
+  loads `DamagedHelmet.gltf` (5 × 2048² textures, more than the staging ring, so the flush-and-retry path
+  runs) and `cube.obj` into a scene, checking meshes, materials and the albedo map's size and mips.
 
 ---
 
@@ -471,6 +504,15 @@ Create the module and port in dependency order. Each item is created against an 
   - [ ] `ssao_pass` (currently disabled; port last or defer)
 - [ ] Port **render systems** (`bindless_static_mesh_render_system`, `point_light_render_system`, base `render_system`).
 - [ ] Keep both CPU-driven and GPU-driven paths (mirror old `Renderer::createFrameGraph` branch), or explicitly defer one and note it.
+- [ ] **Shaders (moved from Phase 2).** New files for the new layout (`shaders/modules/README.md`); the
+      old renderer keeps the originals until Phase 6.
+  - [ ] A Slang bindless module for the new heap (sampled images, storage images, samplers), with
+        "descriptor" naming.
+  - [ ] Geometry shaders (`vertex_geometry_bindless`, `gpu-driven/*mesh*`, `task_meshlet_cull`) read
+        `StaticMesh::GpuData` and material blocks through BDA, and sample `Texture2D` + `SamplerState`
+        pairs.
+  - [ ] IBL: equirect → cube (then `Texture::loadFromFile` accepts `.hdr`), irradiance, prefiltered map,
+        BRDF LUT, on bindless storage images instead of ad-hoc descriptor sets.
 
 **Exit criteria:** the full frame graph compiles against the RHI and can execute given a `renderer::Renderer::FrameInfo` + scene, verified in a standalone harness before touching the engine.
 
@@ -617,11 +659,12 @@ are immune to warnings-as-errors. Full rationale in `tests/README.md`.
 - **Shader-facing pipeline layout** — *decided and done:* one shared layout (bindless set + 128-byte push constants, all stages); see Phase 0.5 B and `shaders/modules/README.md`.
 - **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
 
-## Next step — Phase 2
+## Next step — Phase 3
 
-**Phases 0, 0.5 and 1 are complete**: exit criteria met under core and synchronization validation. The
-engine runs headless, shaders receive data through push constants and buffer device addresses, and the
-engine runs on `platform::Window` / `platform::Input`. Next is **Phase 2** (assets onto the RHI).
+**Phases 0 through 2 are complete**: exit criteria met under core and synchronization validation. The
+engine runs headless, shaders receive data through push constants and buffer device addresses, the
+engine runs on `platform::Window` / `platform::Input`, and models load into `aegis.assets` types on the
+RHI. Next is **Phase 3** (the render graph on the RHI), which now also carries the shader ports.
 
 **Verify any of them with:** a full warnings-as-errors build and `ctest --preset windows-clang-debug`,
 which includes the headless `aegis-test` run (label `device`). It fails on any failed check or

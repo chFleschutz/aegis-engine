@@ -76,6 +76,7 @@ enum class ResourceState
     ShaderReadVertex,
     ShaderReadFragment,
     ShaderReadCompute,
+    ShaderRead, // Any shader stage, e.g. a texture whose readers are not known when it is uploaded
     ComputeStorage,
     CopySrc,
     CopyDst,

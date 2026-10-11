@@ -247,10 +247,10 @@ auto Device::upload(BufferHandle dst, std::span<const std::byte> data, std::size
     return m_uploadManager->upload(get(dst), data, alignment, dstOffset);
 }
 
-auto Device::upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips)
-    -> std::expected<void, Error>
+auto Device::upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips,
+    std::optional<ResourceState> finalState) -> std::expected<void, Error>
 {
-    return m_uploadManager->upload(dst, data, generateMips);
+    return m_uploadManager->upload(dst, data, generateMips, finalState);
 }
 
 auto Device::flushUploads() -> std::optional<TimelineValue>

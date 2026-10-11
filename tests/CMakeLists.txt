@@ -18,8 +18,9 @@ function(aegis_add_test module)
     doctest_discover_tests(aegis-tests-${module} PROPERTIES LABELS ${module})
 endfunction()
 
-add_subdirectory(rhi)
+add_subdirectory(assets)
 add_subdirectory(math)
+add_subdirectory(rhi)
 
 # Device-level check: the aegis-test harness, headless for a fixed number of frames. It exits non-zero
 # on any failed check or validation error. Needs a GPU with a Vulkan driver; `ctest -LE device` skips it.

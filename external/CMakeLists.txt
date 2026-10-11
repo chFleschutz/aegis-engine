@@ -16,8 +16,10 @@ add_subdirectory(imguizmo)
 
 add_subdirectory(meshoptimizer)
 
-add_library(stb INTERFACE)
-target_include_directories(stb INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+# stb is header-only; its implementation is compiled once here, so the old and new texture code can
+# both decode images without duplicate symbols.
+add_library(stb STATIC stb_image_impl.cpp)
+target_include_directories(stb SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(tinyobjloader)
 

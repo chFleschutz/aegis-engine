@@ -104,15 +104,15 @@ public:
     /// layers packed inside each mip, tightly packed. With 'generateMips' the caller supplies mip 0
     /// only and the rest are blitted on the GPU.
     ///
-    /// @note Leaves 'dst' in ResourceState::CopyDst -- or CopySrc when 'generateMips' is set, since
-    ///       mip generation ends by reading the chain. **The caller performs the transition to its
-    ///       read state.** UploadManager cannot know which of ShaderReadVertex / ShaderReadFragment /
-    ///       ShaderReadCompute is wanted, and guessing would bake a wrong barrier into every texture.
-    ///       That transition is also what establishes the real execution dependency: generateMipmaps
-    ///       ends with dstStageMask = eNone.
+    /// @param finalState The state the batch leaves 'dst' in, typically its read state.
+    /// @note Without 'finalState', 'dst' is left in ResourceState::CopyDst -- or CopySrc when mips were
+    ///       generated (generateMips with more than one mip), since generation ends by reading the
+    ///       chain -- and the caller records the transition to its read state. That transition is
+    ///       also what establishes the real execution dependency: generateMipmaps ends with
+    ///       dstStageMask = eNone.
     /// @return Same contract as the buffer overload: ErrorCode::NotReady means flush and retry.
-    [[nodiscard]] auto upload(ImageHandle dst, std::span<const std::byte> data,
-        bool generateMips = false) -> std::expected<void, Error>;
+    [[nodiscard]] auto upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips = false,
+        std::optional<ResourceState> finalState = std::nullopt) -> std::expected<void, Error>;
 
     /// @brief Submits the currently open batch and reclaims completed staging memory.
     /// @return The timeline value the submitted batch signals, or nullopt if nothing was submitted.

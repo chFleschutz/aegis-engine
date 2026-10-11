@@ -53,7 +53,7 @@ renaming the source tree or the build dir breaks asset/shader loading — re-run
 ## Two stacks, two conventions (most important)
 The codebase is mid-migration. **Match the conventions of the stack you are editing.**
 
-| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/` | Old stack — everything else |
+| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/` | Old stack — everything else |
 |---|---|---|
 | Namespace | `aegis::rhi` (lowercase) | `Aegis::Graphics` (PascalCase) |
 | Vulkan | vulkan-hpp `vk::raii`, `import vulkan_hpp` | volk, via `graphics/vulkan/vulkan_include.h` |
@@ -93,7 +93,7 @@ is non-obvious. **No `Co-Authored-By` or other agent/tool attribution trailers.*
 ## Unit tests
 
 doctest covers **pure, GPU-independent logic** on the new RHI stack. One executable per module
-(`aegis-tests-rhi`, `aegis-tests-math`), each linking only that module's library. Layout,
+(`aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-math`), each linking only that module's library. Layout,
 conventions, how to add a module, and the full rationale: **`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*

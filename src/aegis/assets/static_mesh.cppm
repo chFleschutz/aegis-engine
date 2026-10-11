@@ -1,0 +1,74 @@
+module;
+#include <array>
+#include <cstdint>
+#include <expected>
+#include <memory>
+#include <string_view>
+
+export module aegis.assets:static_mesh;
+import :error;
+import :mesh_data;
+import aegis.rhi;
+import Aegis.Core.Asset;
+
+export namespace aegis::assets
+{
+/// @brief A mesh in GPU buffers, reached by shaders through buffer device addresses.
+/// @note Holds the Device and frees its buffers on destruction (deferred until the GPU is done).
+class StaticMesh : public Aegis::Core::Asset
+{
+public:
+    /// @brief What meshDataAddress() points at; the layout shaders read (scalar).
+    struct GpuData
+    {
+        rhi::DeviceAddress vertices;
+        rhi::DeviceAddress indices;
+        rhi::DeviceAddress meshlets;
+        rhi::DeviceAddress meshletVertices;
+        rhi::DeviceAddress meshletPrimitives;
+        std::uint32_t vertexCount;
+        std::uint32_t indexCount;
+        std::uint32_t meshletCount;
+        BoundingSphere bounds;
+    };
+
+    /// @brief Creates the buffers and queues their uploads; usable once the next
+    ///        Device::flushUploads has completed.
+    [[nodiscard]] static auto create(rhi::Device& device, const MeshData& data, std::string_view name = {})
+        -> std::expected<std::shared_ptr<StaticMesh>, Error>;
+
+    StaticMesh(const StaticMesh&) = delete;
+    StaticMesh(StaticMesh&&) = delete;
+    ~StaticMesh() override;
+
+    auto operator=(const StaticMesh&) -> StaticMesh& = delete;
+    auto operator=(StaticMesh&&) -> StaticMesh& = delete;
+
+    [[nodiscard]] auto vertexCount() const noexcept -> std::uint32_t { return m_gpuData.vertexCount; }
+    [[nodiscard]] auto indexCount() const noexcept -> std::uint32_t { return m_gpuData.indexCount; }
+    [[nodiscard]] auto meshletCount() const noexcept -> std::uint32_t { return m_gpuData.meshletCount; }
+    [[nodiscard]] auto bounds() const noexcept -> const BoundingSphere& { return m_gpuData.bounds; }
+    [[nodiscard]] auto gpuData() const noexcept -> const GpuData& { return m_gpuData; }
+
+    /// @brief Address of the GpuData block, the one value a draw needs to reach the whole mesh.
+    [[nodiscard]] auto meshDataAddress() const -> rhi::DeviceAddress;
+
+private:
+    enum BufferIndex
+    {
+        Vertices,
+        Indices,
+        Meshlets,
+        MeshletVertices,
+        MeshletPrimitives,
+        MeshDataBlock,
+        BufferCount,
+    };
+
+    StaticMesh(rhi::Device& device, std::array<rhi::BufferHandle, BufferCount> buffers, const GpuData& gpuData);
+
+    rhi::Device& m_device;
+    std::array<rhi::BufferHandle, BufferCount> m_buffers;
+    GpuData m_gpuData;
+};
+}

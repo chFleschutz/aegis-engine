@@ -24,9 +24,12 @@
 #include <tuple>
 #include <vector>
 
+import aegis.assets;
 import aegis.platform;
 import aegis.renderer;
 import aegis.rhi;
+import Aegis.Math;
+import Aegis.Scene.Registry;
 
 using SpirvBuffer = std::vector<uint32_t>;
 
@@ -210,6 +213,8 @@ public:
         if (auto result = engine.verifyComputeRoundTrip(); !result)
             return std::unexpected{ result.error() };
         if (auto result = engine.verifyRendererTextures(); !result)
+            return std::unexpected{ result.error() };
+        if (auto result = engine.verifyAssets(); !result)
             return std::unexpected{ result.error() };
 
         return engine;
@@ -526,6 +531,100 @@ public:
 
     // Renderer textures must reach shaders through bindless, cover all their mips, and keep their
     // bindless slot across a resize. The name is a temporary on purpose: the renderer must copy it.
+    // aegis.assets against a real device: default assets, a texture read back after its upload left
+    // it in ShaderRead, per-frame material blocks, and glTF + OBJ files loaded into a scene.
+    auto verifyAssets() -> std::expected<void, std::string>
+    {
+        constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
+        auto defaults = assets::DefaultAssets::create(*m_device, framesInFlight);
+        if (!defaults)
+            return std::unexpected{ std::format("Default assets: {}", defaults.error().message) };
+        if (auto result = flushAndWait(); !result)
+            return result;
+
+        // The white texture: 1x1 RGBA32_SFLOAT, so 16 bytes of 1.0f.
+        auto readback = m_device->createBuffer({
+            .name = "AssetTestReadback",
+            .size = 4 * sizeof(float),
+            .usage = rhi::BufferUsage::TransferDst,
+            .memory = rhi::MemoryUsage::CpuRead,
+        });
+        if (!readback)
+            return std::unexpected{ "Failed to create asset readback buffer" };
+        const std::array regions{ rhi::BufferImageCopy{ .extent = { 1, 1, 1 } } };
+        auto copied = submitAndWait("AssetTestReadback", [&](const auto& cmd) {
+            cmd.transitionImageLayout(defaults->white->image(), rhi::ResourceState::ShaderRead,
+                rhi::ResourceState::CopySrc);
+            cmd.copyImageToBuffer(defaults->white->image(), m_device->get(*readback), regions);
+            cmd.transitionImageLayout(defaults->white->image(), rhi::ResourceState::CopySrc,
+                rhi::ResourceState::ShaderRead);
+        });
+        if (!copied)
+            return copied;
+        std::array<float, 4> white{};
+        m_device->get(*readback).read(reinterpret_cast<std::byte*>(white.data()), sizeof(white));
+        m_device->free(*readback);
+        if (white != std::array{ 1.0f, 1.0f, 1.0f, 1.0f })
+            return std::unexpected{ std::format("Default white texture reads back as {}", white) };
+
+        auto& material = *defaults->pbrMaterial;
+        for (std::uint32_t frame = 0; frame < framesInFlight; ++frame)
+            material.update(frame);
+        if (material.parameterAddress(0) == 0 || material.parameterAddress(1) == material.parameterAddress(0))
+            return std::unexpected{ "Material parameter blocks are null or shared between frames" };
+
+        Aegis::Scene::Registry scene;
+        const assets::Loader::Desc loaderDesc{
+            .device = *m_device,
+            .scene = scene,
+            .pbrTemplate = defaults->pbrTemplate,
+            .defaultMaterial = defaults->pbrMaterial,
+            .framesInFlight = framesInFlight,
+        };
+        for (const auto* model : { "DamagedHelmet/DamagedHelmet.gltf", "Misc/cube.obj" })
+        {
+            auto root = assets::Loader::load(loaderDesc, std::filesystem::path{ ASSETS_DIR } / model);
+            if (!root)
+                return std::unexpected{ std::format("Loading {}: {}", model, root.error().message) };
+        }
+        if (auto result = flushAndWait(); !result)
+            return result;
+
+        std::size_t meshes{ 0 };
+        std::size_t texturedMaterials{ 0 };
+        for (auto&& [entity, mesh, material] : scene.view<assets::Mesh, assets::Material>().each())
+        {
+            if (!mesh.staticMesh || mesh.staticMesh->indexCount() == 0 || mesh.staticMesh->meshDataAddress() == 0)
+                return std::unexpected{ "A loaded mesh is empty or has no device address" };
+            if (!material.instance)
+                return std::unexpected{ "A loaded mesh has no material" };
+            const auto& albedo = material.instance->parameter<std::shared_ptr<assets::Texture>>("albedoMap");
+            if (albedo != defaults->white)
+            {
+                // The helmet's albedo: decoded at full size, with GPU-generated mips.
+                const auto& image = m_device->get(albedo->image());
+                if (image.extent().x != 2048 || image.extent().y != 2048 || image.mipLevels() != 12)
+                {
+                    return std::unexpected{ std::format("Loaded albedo map is {}x{} with {} mips, want 2048x2048 with 12",
+                        image.extent().x, image.extent().y, image.mipLevels()) };
+                }
+                ++texturedMaterials;
+            }
+            ++meshes;
+        }
+        if (meshes != 2 || texturedMaterials != 1)
+        {
+            return std::unexpected{
+                std::format("Expected 2 meshes, 1 with its own albedo map; got {} and {}", meshes, texturedMaterials)
+            };
+        }
+
+        std::println("Assets verified: defaults (white texture read back), material blocks, glTF + OBJ loaded "
+                     "({} meshes)",
+            meshes);
+        return {};
+    }
+
     auto verifyRendererTextures() -> std::expected<void, std::string>
     {
         using namespace rhi::utility;

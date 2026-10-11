@@ -23,7 +23,8 @@ ctest --preset windows-clang-debug -L rhi
 `-L` filters by the per-module label. `-R "rhi::"` does **not** work: CTest registers each case under
 its `TEST_CASE` name, so a `TEST_SUITE` filter silently reports "No tests were found".
 
-Currently 75 cases across `aegis-tests-rhi` and `aegis-tests-math`.
+Currently 86 cases across `aegis-tests-rhi`, `aegis-tests-assets` and `aegis-tests-math`, plus the
+`device`-labelled `aegis-test` run.
 
 ### Device-level check
 

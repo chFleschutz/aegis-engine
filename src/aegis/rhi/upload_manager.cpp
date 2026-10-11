@@ -130,8 +130,8 @@ auto UploadManager::upload(const Buffer& dst, std::span<const std::byte> data, s
     return {};
 }
 
-auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips)
-    -> std::expected<void, Error>
+auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips,
+    std::optional<ResourceState> finalState) -> std::expected<void, Error>
 {
     const auto& image = m_device->get(dst);
 
@@ -182,8 +182,12 @@ auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, boo
     cmd.transitionImageLayout(dst, ResourceState::Unknown, ResourceState::CopyDst);
     cmd.copyBufferToImage(staging->buffer, dst, regions);
 
-    if (generateMips && image.mipLevels() > 1)
+    const bool mipsGenerated = generateMips && image.mipLevels() > 1;
+    if (mipsGenerated)
         cmd.generateMipmaps(dst, ResourceState::CopyDst);
+
+    if (finalState)
+        cmd.transitionImageLayout(dst, mipsGenerated ? ResourceState::CopySrc : ResourceState::CopyDst, *finalState);
 
     return {};
 }
