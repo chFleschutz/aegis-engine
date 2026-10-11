@@ -112,3 +112,6 @@ endforeach()
 
 add_custom_target(compile_shaders DEPENDS ${SPIRV_FILES})
 add_dependencies(aegis-engine compile_shaders)
+if(TARGET aegis-render-graph)
+    add_dependencies(aegis-render-graph compile_shaders)
+endif()

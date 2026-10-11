@@ -20,6 +20,7 @@ endfunction()
 
 add_subdirectory(assets)
 add_subdirectory(math)
+add_subdirectory(render_graph)
 add_subdirectory(rhi)
 
 # Device-level check: the aegis-test harness, headless for a fixed number of frames. It exits non-zero

@@ -8,6 +8,7 @@ add_subdirectory(platform)
 add_subdirectory(rhi)
 add_subdirectory(renderer)
 add_subdirectory(assets)
+add_subdirectory(render_graph)
 add_subdirectory(test)
 
 add_subdirectory(math)

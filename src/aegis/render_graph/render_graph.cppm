@@ -1,0 +1,10 @@
+export module aegis.render_graph;
+export import :draw_batch_registry;
+export import :error;
+export import :frame_graph;
+export import :frustum;
+export import :render_pass;
+export import :resource;
+export import :resource_pool;
+export import :schedule;
+export import :shader;

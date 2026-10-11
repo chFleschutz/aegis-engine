@@ -243,6 +243,12 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState
             .stageMask = vk::PipelineStageFlagBits2::eAllCommands,
             .accessMask = vk::AccessFlagBits2::eShaderRead,
         };
+    case ResourceState::IndirectRead:
+        return VulkanState{
+            .layout = vk::ImageLayout::eUndefined, // Never an image state
+            .stageMask = vk::PipelineStageFlagBits2::eDrawIndirect,
+            .accessMask = vk::AccessFlagBits2::eIndirectCommandRead,
+        };
     case ResourceState::ComputeStorage:
         return VulkanState{
             .layout = vk::ImageLayout::eGeneral,
