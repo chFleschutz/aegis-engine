@@ -264,6 +264,7 @@ auto CommandBuffer::generateMipmaps(ImageHandle imageHandle, ResourceState curre
         transitionImageLayout(imageHandle, currentState, ResourceState::CopyDst);
 
     auto& image = m_device.get(imageHandle);
+    assert(m_device.supportsMipGeneration(image.format()) && "Format cannot be mip-mapped by linear blits");
     auto aspectMask = deriveImageAspectFlags(image.format());
     auto [srcLayout, srcStage, srcAccess] = toVulkan(ResourceState::CopyDst);
     auto [dstLayout, dstStage, dstAccess] = toVulkan(ResourceState::CopySrc);

@@ -213,6 +213,18 @@ auto Device::free(SamplerHandle handle) -> void
     m_deletionQueue.push(retireValue(), m_samplers.pop(handle));
 }
 
+auto Device::supportsMipGeneration(Format format) const -> bool
+{
+    // Depth/stencil blits must use nearest filtering, so linear mip generation never applies.
+    if (deriveImageAspectFlags(format) != vk::ImageAspectFlagBits::eColor)
+        return false;
+
+    constexpr auto required = vk::FormatFeatureFlagBits::eBlitSrc | vk::FormatFeatureFlagBits::eBlitDst |
+                              vk::FormatFeatureFlagBits::eSampledImageFilterLinear;
+    const auto features = m_physicalDevice.getFormatProperties(toVulkan(format)).optimalTilingFeatures;
+    return (features & required) == required;
+}
+
 auto Device::retireValue() const noexcept -> TimelineValue
 {
     return m_graphicsQueue.lastSubmitted() + 1;

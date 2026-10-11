@@ -145,6 +145,9 @@ auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, boo
         return makeError(ErrorCode::Unknown);
     }
 
+    if (generateMips && image.mipLevels() > 1 && !m_device->supportsMipGeneration(image.format()))
+        return makeError(ErrorCode::FormatNotSupported);
+
     const auto& last = footprints.back();
     // A size mismatch is a caller bug, not backpressure: reporting NotReady would send a retrying
     // caller into an infinite flush-and-retry loop, so trap it instead.

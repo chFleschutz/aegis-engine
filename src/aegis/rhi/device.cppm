@@ -115,6 +115,10 @@ public:
     /// @brief Reports that the graphics queue reached 'frame', releasing everything freed before it.
     auto setFrameCompleted(TimelineValue frame) -> void;
 
+    /// @brief Whether mips of 'format' can be generated on the GPU, which uses linear blits: the
+    ///        format must support blit source/destination and linear filtering, and not be depth.
+    [[nodiscard]] auto supportsMipGeneration(Format format) const -> bool;
+
     /// @brief Stages 'data' and records a copy into the buffer 'dst' at 'dstOffset'. Never blocks.
     /// @return ErrorCode::NotReady if the staging ring cannot fit it right now: flushUploads() (which
     ///         reclaims completed batches) and retry. Any other error is not retryable.

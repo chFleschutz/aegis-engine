@@ -21,6 +21,7 @@ enum class ErrorCode
     OutOfDeviceMemory,
     InitializationFailed,
     NotReady,
+    FormatNotSupported,
 };
 
 enum class Format
