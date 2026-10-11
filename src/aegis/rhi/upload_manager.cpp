@@ -212,6 +212,9 @@ auto UploadManager::flushPending(Queue& queue) -> std::optional<TimelineValue>
     }
 
     auto& cmd = m_cmds[m_recordIndex];
+    // Uploaded buffers are read by later submissions with no barrier of their own; images still get
+    // their layout transition from the caller.
+    cmd.makeTransferWritesVisible();
     cmd.end();
 
     m_batchOpen = false;

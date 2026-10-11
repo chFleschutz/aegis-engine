@@ -49,6 +49,10 @@ public:
         ResourceState newState) const -> void;
     auto transitionImageLayout(ImageHandle imageHandle, ResourceState oldState,
         ResourceState newState) const -> void;
+    /// @brief Makes every earlier copy and blit write available and visible to all later commands.
+    ///        Buffers have no layout, so this is the only dependency an uploaded buffer needs.
+    auto makeTransferWritesVisible() const -> void;
+
     auto generateMipmaps(ImageHandle imageHandle, ResourceState currentState) const -> void;
 
     auto resetQueries(const QueryPool& pool, std::uint32_t first, std::uint32_t count) const -> void;

@@ -242,6 +242,21 @@ auto CommandBuffer::transitionImageLayout(ImageHandle imageHandle, ResourceState
     });
 }
 
+auto CommandBuffer::makeTransferWritesVisible() const -> void
+{
+    vk::MemoryBarrier2 barrier{
+        .srcStageMask = vk::PipelineStageFlagBits2::eAllTransfer,
+        .srcAccessMask = vk::AccessFlagBits2::eTransferWrite,
+        .dstStageMask = vk::PipelineStageFlagBits2::eAllCommands,
+        .dstAccessMask = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite,
+    };
+
+    m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
+        .memoryBarrierCount = 1,
+        .pMemoryBarriers = &barrier,
+    });
+}
+
 auto CommandBuffer::generateMipmaps(ImageHandle imageHandle, ResourceState currentState) const
     -> void
 {
