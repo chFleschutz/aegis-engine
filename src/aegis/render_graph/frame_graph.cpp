@@ -1,4 +1,5 @@
 module;
+#include <chrono>
 #include <cstdint>
 #include <expected>
 #include <format>
@@ -80,7 +81,34 @@ auto FrameGraph::compile() -> std::expected<void, Error>
         }
     }
     m_transitions = detail::planTransitions(accesses, m_kinds);
+
+    const auto queryCount = static_cast<std::uint32_t>(2 * m_order.size());
+    for (std::uint32_t i = 0; i < renderer::Renderer::maxFramesInFlight && queryCount > 0; ++i)
+    {
+        auto pool = m_pool.device().createQueryPool({ .name = "FrameGraphTimestamps", .count = queryCount });
+        if (!pool)
+            return makeError(pool.error(), "Failed to create the frame graph's timestamp queries");
+        m_timers.push_back({ .pool = std::move(*pool) });
+    }
     return {};
+}
+
+auto FrameGraph::readTimings(FrameTimer& timer) -> void
+{
+    timer.pending = false;
+    auto timestamps = timer.pool.readTimestamps(0, timer.pool.count());
+    if (!timestamps)
+        return; // Not ready: keep the previous frame's timings
+
+    m_timings.resize(m_order.size());
+    for (std::size_t i = 0; i < m_order.size(); ++i)
+    {
+        m_timings[i] = {
+            .name = m_passes[m_order[i]]->info().name,
+            .gpuMs = timer.pool.elapsedMs((*timestamps)[2 * i], (*timestamps)[2 * i + 1]),
+            .cpuMs = timer.cpuMs[i],
+        };
+    }
 }
 
 auto FrameGraph::resized() -> std::expected<void, Error>
@@ -101,14 +129,37 @@ auto FrameGraph::sceneInitialized(Aegis::Scene::Scene& scene) -> void
 
 auto FrameGraph::execute(const FrameInfo& frameInfo) -> void
 {
+    // The renderer waited for the frame that last used this slot, so its timestamps are final.
+    auto* timer = m_timers.empty() ? nullptr : &m_timers[frameInfo.frameIndex];
+    if (timer)
+    {
+        if (timer->pending)
+            readTimings(*timer);
+        frameInfo.cmd.resetQueries(timer->pool, 0, timer->pool.count());
+        timer->cpuMs.assign(m_order.size(), 0.0);
+    }
+
     for (std::size_t i = 0; i < m_order.size(); ++i)
     {
+        const auto cpuStart = std::chrono::steady_clock::now();
         auto& pass = *m_passes[m_order[i]];
         frameInfo.cmd.beginLabel(pass.info().name);
+        if (timer)
+            frameInfo.cmd.writeTimestamp(timer->pool, static_cast<std::uint32_t>(2 * i), rhi::TimestampStage::TopOfPipe);
+
         recordTransitions(frameInfo.cmd, m_transitions[i]);
         pass.execute(m_pool, frameInfo);
+
+        if (timer)
+        {
+            frameInfo.cmd.writeTimestamp(timer->pool, static_cast<std::uint32_t>(2 * i + 1),
+                rhi::TimestampStage::AllCommands);
+            timer->cpuMs[i] = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - cpuStart).count();
+        }
         frameInfo.cmd.endLabel();
     }
+    if (timer)
+        timer->pending = true;
 }
 
 auto FrameGraph::passes() const -> std::vector<RenderPass*>

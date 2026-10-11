@@ -96,7 +96,8 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 PostProcessingPass::PostProcessingPass(ResourcePool& pool, bool bloom) :
     m_sceneColor{ pool.addReference("SceneColor", Usage::StorageRead) },
     m_bloom{ bloom ? std::optional{ pool.addReference("Bloom", Usage::StorageRead) } : std::nullopt },
-    m_final{ pool.addTexture("Final", Usage::StorageWrite, { .format = rhi::Format::RGBA8_UNORM }) }
+    // 16-bit: the image may stay linear until the blit onto an sRGB target encodes it (see execute).
+    m_final{ pool.addTexture("Final", Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) }
 {
 }
 
@@ -130,6 +131,10 @@ auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
         float gamma;
     };
 
+    // An sRGB target (the swapchain prefers one) encodes on write; gamma here would apply it twice.
+    const auto targetFormat = pool.device().get(frameInfo.target).format();
+    const bool targetEncodes = targetFormat == rhi::Format::BGRA8_SRGB || targetFormat == rhi::Format::RGBA8_SRGB;
+
     const auto sceneColor = storageIndex(pool, m_sceneColor);
     const auto& cmd = frameInfo.cmd;
     cmd.bindPipeline(*m_pipeline);
@@ -140,7 +145,7 @@ auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
         .toneMapping = m_settings.toneMapping,
         .bloomIntensity = m_bloom ? m_settings.bloomIntensity : 0.0f,
         .exposure = m_settings.exposure,
-        .gamma = m_settings.gamma,
+        .gamma = targetEncodes ? 1.0f : m_settings.gamma,
     });
     cmd.dispatch(groupCount(frameInfo.extent.x, 16), groupCount(frameInfo.extent.y, 16));
 }

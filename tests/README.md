@@ -23,8 +23,8 @@ ctest --preset windows-clang-debug -L rhi
 `-L` filters by the per-module label. `-R "rhi::"` does **not** work: CTest registers each case under
 its `TEST_CASE` name, so a `TEST_SUITE` filter silently reports "No tests were found".
 
-Currently 86 cases across `aegis-tests-rhi`, `aegis-tests-assets` and `aegis-tests-math`, plus the
-`device`-labelled `aegis-test` run.
+Currently 104 cases across `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph` and
+`aegis-tests-math`, plus three `device`-labelled `aegis-test` runs (triangle, CPU- and GPU-driven scene).
 
 ### Device-level check
 
@@ -34,6 +34,7 @@ Unit tests are not sufficient when a change touches live device code:
 cmake --build --preset windows-clang-debug --target aegis-test
 build\windows-clang-debug\src\aegis\test\aegis-test.exe --headless       # offscreen, 600 frames
 build\windows-clang-debug\src\aegis\test\aegis-test.exe --frames 600     # windowed, exits by itself
+build\windows-clang-debug\src\aegis\test\aegis-test.exe --headless --gpu-driven --screenshot frame.png
 ```
 
 `../src/aegis/test/main.cpp` is the only `main()` that reaches a real `rhi::Device` — the

@@ -53,7 +53,7 @@ renaming the source tree or the build dir breaks asset/shader loading — re-run
 ## Two stacks, two conventions (most important)
 The codebase is mid-migration. **Match the conventions of the stack you are editing.**
 
-| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/` | Old stack — everything else |
+| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/` | Old stack — everything else |
 |---|---|---|
 | Namespace | `aegis::rhi` (lowercase) | `Aegis::Graphics` (PascalCase) |
 | Vulkan | vulkan-hpp `vk::raii`, `import vulkan_hpp` | volk, via `graphics/vulkan/vulkan_include.h` |
@@ -93,7 +93,7 @@ is non-obvious. **No `Co-Authored-By` or other agent/tool attribution trailers.*
 ## Unit tests
 
 doctest covers **pure, GPU-independent logic** on the new RHI stack. One executable per module
-(`aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-math`), each linking only that module's library. Layout,
+(`aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`, `aegis-tests-math`), each linking only that module's library. Layout,
 conventions, how to add a module, and the full rationale: **`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*
@@ -123,7 +123,10 @@ conventions, how to add a module, and the full rationale: **`tests/README.md`**.
   core **and synchronization** validation, and `aegis-test` exits non-zero on any failed check or
   validation error (messages go to stderr) — a run is only verified if it exits 0.
   - `aegis-test --headless` renders offscreen: no window, no surface, no swapchain, and stops after
-    600 frames (or `--frames <n>`). `ctest` runs it as the `device`-labelled test. Use this by default.
+    600 frames (or `--frames <n>`). `ctest` runs it as a `device`-labelled test. Use this by default.
+  - `--scene` / `--gpu-driven` render a loaded scene through `aegis.render_graph` (CPU- / GPU-driven
+    geometry) instead of the test triangle; `--screenshot <png>` saves the last headless frame — look at
+    it after render changes. `ctest` runs both paths too.
   - Headless does not touch surface, swapchain, acquire or present. When that code changed, also run
     `aegis-test --frames 600`: it opens a window briefly and exits by itself. It also checks
     `platform::Input` with synthetic key and mouse messages, so run it when platform code changes too.

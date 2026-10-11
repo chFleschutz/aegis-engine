@@ -27,7 +27,8 @@ private:
     std::optional<rhi::Pipeline> m_pipeline;
 };
 
-/// @brief Tone maps "SceneColor" (plus "Bloom", if enabled) into "Final" (RGBA8).
+/// @brief Tone maps "SceneColor" (plus "Bloom", if enabled) into "Final" (RGBA16F), gamma encoded
+///        unless the frame's target is an sRGB format that encodes by itself.
 class PostProcessingPass : public RenderPass
 {
 public:

@@ -916,6 +916,18 @@ public:
             if (m_scene)
                 m_scene->update(1.0f / 60.0f);
 
+            // Headless scene runs resize halfway, so the graph's resolution-dependent textures and the
+            // views passes derive from them are recreated under validation.
+            if (m_frameGraph && m_renderer->offscreen() && frames == m_options.frames / 2)
+            {
+                m_renderer->resize({ 800, 600 });
+                if (auto resized = m_frameGraph->resized(); !resized)
+                {
+                    std::println("Frame graph resize failed: {}", resized.error().message);
+                    return 1;
+                }
+            }
+
             m_renderer->renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); });
             ++frames;
         }
@@ -923,6 +935,18 @@ public:
         m_device->waitIdle();
 
         auto result = reportFrameTimes();
+        if (m_frameGraph)
+        {
+            // The frame graph's own per-pass timestamps: one entry per pass, read back once complete.
+            const auto timings = m_frameGraph->timings();
+            if (timings.size() != m_frameGraph->passes().size())
+            {
+                std::println("Pass timings failed: {} timings for {} passes", timings.size(), m_frameGraph->passes().size());
+                result = 1;
+            }
+            for (const auto& [name, gpuMs, cpuMs] : timings)
+                std::println("  {:<20} GPU {:7.4f} ms  CPU {:7.4f} ms", name, gpuMs, cpuMs);
+        }
         if (m_renderer->offscreen())
         {
             if (auto offscreen = verifyOffscreenFrame(); !offscreen)

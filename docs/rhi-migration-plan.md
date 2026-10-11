@@ -492,31 +492,74 @@ Create the module and port in dependency order. Each item is created against an 
 
 ## Phase 3 — `aegis.render_graph` on RHI (built alongside, not yet wired in)
 
-- [ ] Create `aegis/render_graph/` dir + `CMakeLists.txt` + `aegis.render_graph` module; depends on `rhi` + `renderer` + `scene` + `assets`.
-- [ ] Reimplement **`FrameGraph` + `FGResourcePool`** on `rhi::ImageHandle` and the resolution-dependent-texture mechanism `renderer::Renderer` already provides (replacing the old `VkImage`/attachment allocation).
-- [ ] Port **`draw_batch_registry`** and **`frustum`**.
-- [ ] Port **render passes** one at a time against `rhi::CommandBuffer` (`beginRendering` / `transitionImageLayout` / `bindPipeline` — the API `test/main.cpp` already exercises). Order suggestion:
-  - [ ] `geometry_pass` (+ multi-attachment G-buffer: 5 color + depth) and `scene_update_pass`
-  - [ ] `culling_pass` + `gpu_driven_geometry` (GPU-driven path; gate on `rhi::Device::Capabilities::meshShaders`)
-  - [ ] `lighting_pass`, `sky_box_pass`
-  - [ ] `present_pass`, `post_processing_pass`, `bloom_pass`, `transparent_pass`
-  - [ ] `ui_pass` (depends on ImGui wiring — see Phase 4)
-  - [ ] `ssao_pass` (currently disabled; port last or defer)
-- [ ] Port **render systems** (`bindless_static_mesh_render_system`, `point_light_render_system`, base `render_system`).
-- [ ] Keep both CPU-driven and GPU-driven paths (mirror old `Renderer::createFrameGraph` branch), or explicitly defer one and note it.
-- [ ] **Shaders (moved from Phase 2).** New files for the new layout (`shaders/modules/README.md`); the
+- [x] Create `aegis/render_graph/` dir + `CMakeLists.txt` + `aegis.render_graph` module; depends on `rhi` + `renderer` + `scene` + `assets`.
+- [x] Reimplement **`FrameGraph` + `FGResourcePool`** on `rhi::ImageHandle` and the resolution-dependent-texture mechanism `renderer::Renderer` already provides (replacing the old `VkImage`/attachment allocation).
+- [x] Port **`draw_batch_registry`** and **`frustum`**.
+- [x] Port **render passes** one at a time against `rhi::CommandBuffer`:
+  - [x] `geometry_pass` (+ multi-attachment G-buffer: 5 color + depth) and `scene_update_pass`
+  - [x] `culling_pass` + `gpu_driven_geometry` (GPU-driven path; gated on `rhi::Device::Capabilities::meshShaders`)
+  - [x] `lighting_pass`, `sky_box_pass`
+  - [x] `present_pass`, `post_processing_pass`, `bloom_pass`, `transparent_pass`
+  - [ ] ~~`ui_pass`~~ — *moved to Phase 4 (decided): it needs ImGui initialized on the new device.*
+  - [ ] ~~`ssao_pass`~~ — *not ported (decided): disabled in the old renderer; its lighting input is
+        commented out. Port it if SSAO comes back.*
+- [x] Port **render systems** (`bindless_static_mesh_render_system`, `point_light_render_system`, base `render_system`).
+- [x] Keep both CPU-driven and GPU-driven paths (mirror old `Renderer::createFrameGraph` branch), or explicitly defer one and note it.
+- [x] **Shaders (moved from Phase 2).** New files for the new layout (`shaders/modules/README.md`); the
       old renderer keeps the originals until Phase 6.
-  - [ ] A Slang bindless module for the new heap (sampled images, storage images, samplers), with
+  - [x] A Slang bindless module for the new heap (sampled images, storage images, samplers), with
         "descriptor" naming.
-  - [ ] Geometry shaders (`vertex_geometry_bindless`, `gpu-driven/*mesh*`, `task_meshlet_cull`) read
-        `StaticMesh::GpuData` and material blocks through BDA, and sample `Texture2D` + `SamplerState`
-        pairs.
-  - [ ] IBL: equirect → cube (then `Texture::loadFromFile` accepts `.hdr`), irradiance, prefiltered map,
-        BRDF LUT, on bindless storage images instead of ad-hoc descriptor sets.
+  - [x] Geometry shaders read `StaticMesh::GpuData` and material blocks through BDA, and sample
+        `Texture2D` + `SamplerState` pairs.
+  - [x] IBL: equirect → cube, irradiance, prefiltered map, BRDF LUT, on bindless storage images instead
+        of ad-hoc descriptor sets.
+- [x] **Per-pass GPU timers** (decided: kept in Phase 3).
 
 **Exit criteria:** the full frame graph compiles against the RHI and can execute given a `renderer::Renderer::FrameInfo` + scene, verified in a standalone harness before touching the engine.
 
----
+**Done.** Verified in `aegis-test`: `--scene` (CPU-driven) and `--gpu-driven` render DamagedHelmet under the
+Kloppenheim sky, with a point light, through every ported pass, headless and windowed, under core + sync
+validation, including a mid-run resize. `--screenshot <png>` saves the frame (it was inspected for each
+milestone). CTest runs both paths as `device` tests. Decisions and details:
+
+- **Barriers from declarations.** Passes declare each access with a `render_graph::Usage`; `compile()`
+  orders the passes (the old algorithm, now `detail::sortPasses`) and plans the barriers
+  (`detail::planTransitions`), both pure and unit tested. An image's first use each frame transitions
+  from undefined (every graph image is produced each frame); a buffer's first use syncs with its last use
+  of the previous frame. Buffers get global memory barriers (shaders reach them by address). A pass that
+  needs barriers between its own dispatches (bloom's mip chain) records them itself.
+- **Resources:** graph textures are the renderer's (resolution-dependent unless sized), so a resize keeps
+  their handles and bindless slots; `FrameGraph::resized()` lets passes recreate views of the replaced
+  images. Buffers can be per-frame (`BufferDesc::perFrame`) and host-written (`Usage::HostWrite`, no
+  barriers). Everything that can fail moved from pass constructors to `createResources`, so `compile()`
+  returns `std::expected`.
+- **Pipelines belong to passes** (and render systems): the static mesh render system and GPU-driven
+  geometry pass draw the default PBR parameter block. A material template choosing its own shaders is
+  not modeled yet.
+- **Shaders** live in `shaders/rhi/` and compile with `-fvk-use-scalar-layout`, so shader structs match the
+  C++ ones member for member (`InstanceData`, `CameraData`, `StaticMesh::GpuData`, material blocks — the
+  material layout became scalar). The sky box needs no buffers (vertices from `SV_VertexID`); the CPU path
+  pulls vertices through BDA with the index buffer bound; the GPU path's mesh shader hands the instance ID
+  to the fragment shader, which finds the material through it. The task shader is its own module: sharing
+  one, the mesh stage declared the task stage's `DrawIndex`, which validation rejects.
+- **GPU-driven buffers** are sized by maxima (65536 static + 4096 dynamic instances, 256 draw batches)
+  instead of the scene's counts, so the graph does not depend on the scene loaded; culling dispatches the
+  counts `InstanceUpdatePass` actually wrote. Draw counts are cleared by their own pass
+  (`ClearDrawCountsPass`), so the graph places the barrier between the fill and the culling writes.
+- **IBL** is `render_graph::Ibl` (GPU work; `assets` cannot depend on `render_graph`):
+  `loadEnvironment(hdr)` builds an `assets::Environment`. `aegis-test` checks the BRDF LUT and irradiance
+  values.
+- **RHI additions:** `CommandBuffer::blit`, `bindIndexBuffer` / `drawIndexed`, `drawMeshTasksIndirectCount`,
+  `fillBuffer`; `ResourceState::IndirectRead`; `CopyDst` covers all transfer stages (fills write from the
+  clear stage); features `drawIndirectCount` and storage images without format; the mesh shader feature is
+  only chained where supported and the unused shader-object feature is no longer enabled; swapchain
+  images and offscreen targets allow `TransferDst` (present blits).
+- **Fixed while porting:** the old draw batch registry never assigned batch IDs (every template was batch
+  0); the new one numbers templates as they first appear. The new swapchain prefers sRGB while the old
+  chose UNORM, so post-processing now skips its own gamma when the target encodes sRGB itself ("Final" is
+  RGBA16F so the linear case does not band).
+- **Not ported:** the old non-bindless `static_mesh_render_system` (unused); drawing `MaterialType::Transparent`
+  meshes (the old transparent pass only drew point lights).
 
 ## Phase 4 — Atomic engine cutover (volk dies here)
 
@@ -526,6 +569,7 @@ Single commit. Replace the GPU stack in `engine.cppm`:
 - [ ] Move `loadDefaultAssets()` (default textures, PBR template/instance, pipeline build) onto `aegis.assets` + `rhi::Pipeline`.
 - [ ] Rewire `run()`: `m_renderer.renderFrame([&](const auto& frameInfo){ m_frameGraph.execute(...); })`.
 - [ ] Rewire `loadScene` / `sceneChanged` / `sceneInitialized` to the new frame graph + draw batch registry.
+- [ ] Port the **UI pass** (moved from Phase 3) once ImGui runs on the new device.
 - [ ] Wire **ImGui** to the new device (replaces old `Renderer::setupUI`): set `DescriptorPoolSize` (at least 1 for the font plus one per `AddTexture`) instead of passing a pool, and `UseDynamicRendering = true` with the swapchain format.
 - [ ] Handle resize via `renderer::Renderer::resize` + `needsResize` (already implemented) instead of the old `recreateSwapChain`.
 - [ ] Update the engine accessor `renderer()` return type and any callers.
@@ -659,12 +703,11 @@ are immune to warnings-as-errors. Full rationale in `tests/README.md`.
 - **Shader-facing pipeline layout** — *decided and done:* one shared layout (bindless set + 128-byte push constants, all stages); see Phase 0.5 B and `shaders/modules/README.md`.
 - **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
 
-## Next step — Phase 3
+## Next step — Phase 4
 
-**Phases 0 through 2 are complete**: exit criteria met under core and synchronization validation. The
-engine runs headless, shaders receive data through push constants and buffer device addresses, the
-engine runs on `platform::Window` / `platform::Input`, and models load into `aegis.assets` types on the
-RHI. Next is **Phase 3** (the render graph on the RHI), which now also carries the shader ports.
+**Phases 0 through 3 are complete**: exit criteria met under core and synchronization validation. Scenes
+load into `aegis.assets` on the RHI and render through `aegis.render_graph` (CPU- and GPU-driven), proven in
+`aegis-test`. Next is **Phase 4**, the atomic engine cutover — which now also wires ImGui and the UI pass.
 
 **Verify any of them with:** a full warnings-as-errors build and `ctest --preset windows-clang-debug`,
 which includes the headless `aegis-test` run (label `device`). It fails on any failed check or
