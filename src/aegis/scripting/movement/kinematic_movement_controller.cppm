@@ -6,7 +6,7 @@ export module Aegis.Scripting.Movement.KinematicMovementController;
 
 import Aegis.Scripting.ScriptBase;
 import Aegis.Math;
-import Aegis.Core.Input;
+import aegis.platform;
 import Aegis.Scene.Components;
 
 export namespace Aegis::Scripting
@@ -19,28 +19,28 @@ export namespace Aegis::Scripting
 		/// @brief Default keybindings for movement and view control
 		struct KeyMappings
 		{
-            Input::Key moveLeft = Input::Key::A;
-            Input::Key moveRight = Input::Key::D;
-            Input::Key moveForward = Input::Key::W;
-            Input::Key moveBackward = Input::Key::S;
-            Input::Key moveUp = Input::Key::E;
-            Input::Key moveDown = Input::Key::Q;
+            aegis::platform::Key moveLeft = aegis::platform::Key::A;
+            aegis::platform::Key moveRight = aegis::platform::Key::D;
+            aegis::platform::Key moveForward = aegis::platform::Key::W;
+            aegis::platform::Key moveBackward = aegis::platform::Key::S;
+            aegis::platform::Key moveUp = aegis::platform::Key::E;
+            aegis::platform::Key moveDown = aegis::platform::Key::Q;
 
             // Speed modifiers
-            Input::Key increaseSpeed = Input::Key::PageUp;
-            Input::Key decreaseSpeed = Input::Key::PageDown;
-            Input::Key resetSpeed = Input::Key::Home;
-            Input::Key speedupModifier = Input::Key::LeftShift;
-            Input::Key slowdownModifier = Input::Key::LeftControl;
+            aegis::platform::Key increaseSpeed = aegis::platform::Key::PageUp;
+            aegis::platform::Key decreaseSpeed = aegis::platform::Key::PageDown;
+            aegis::platform::Key resetSpeed = aegis::platform::Key::Home;
+            aegis::platform::Key speedupModifier = aegis::platform::Key::LeftShift;
+            aegis::platform::Key slowdownModifier = aegis::platform::Key::LeftControl;
 
-            Input::MouseButton mouseRotate = Input::MouseButton::Right;
-            Input::MouseButton mousePan = Input::MouseButton::Middle;
+            aegis::platform::MouseButton mouseRotate = aegis::platform::MouseButton::Right;
+            aegis::platform::MouseButton mousePan = aegis::platform::MouseButton::Middle;
 
             // Disabled by default
-            Input::Key lookLeft = Input::Key::Unknown;
-            Input::Key lookRight = Input::Key::Unknown;
-            Input::Key lookUp = Input::Key::Unknown;
-            Input::Key lookDown = Input::Key::Unknown;
+            aegis::platform::Key lookLeft = aegis::platform::Key::Unknown;
+            aegis::platform::Key lookRight = aegis::platform::Key::Unknown;
+            aegis::platform::Key lookUp = aegis::platform::Key::Unknown;
+            aegis::platform::Key lookDown = aegis::platform::Key::Unknown;
         };
 
 		void begin() override
@@ -62,9 +62,9 @@ export namespace Aegis::Scripting
 		void setMouseSensitivity(float sensitivity) { m_mouseSensitivity = sensitivity; }
 
 	private:
-        [[nodiscard]] static auto cursorPosition() -> glm::vec2
+        [[nodiscard]] auto cursorPosition() const -> glm::vec2
         {
-            const auto [x, y] = Input::instance().cursorPosition();
+            const auto [x, y] = input().cursorPosition();
             return { static_cast<float>(x), static_cast<float>(y) };
         }
 
@@ -74,14 +74,18 @@ export namespace Aegis::Scripting
 
 			// Key input rotation
 			glm::vec3 rotate{ 0.0f };
-			if (Input::instance().keyPressed(m_keys.lookRight)) rotate.z -= m_lookSpeed;
-			if (Input::instance().keyPressed(m_keys.lookLeft)) rotate.z += m_lookSpeed;
-			if (Input::instance().keyPressed(m_keys.lookUp)) rotate.x += m_lookSpeed;
-			if (Input::instance().keyPressed(m_keys.lookDown)) rotate.x -= m_lookSpeed;
+            if (input().keyPressed(m_keys.lookRight))
+                rotate.z -= m_lookSpeed;
+            if (input().keyPressed(m_keys.lookLeft))
+                rotate.z += m_lookSpeed;
+            if (input().keyPressed(m_keys.lookUp))
+                rotate.x += m_lookSpeed;
+            if (input().keyPressed(m_keys.lookDown))
+                rotate.x -= m_lookSpeed;
 
-			// Mouse input rotation
-			toggleMouseRotate(Input::instance().mouseButtonPressed(m_keys.mouseRotate));
-			if (m_mouseRotateEnabled)
+            // Mouse input rotation
+            toggleMouseRotate(input().mouseButtonPressed(m_keys.mouseRotate));
+            if (m_mouseRotateEnabled)
 			{
                 auto cursorPos = cursorPosition();
                 rotate.x -= (cursorPos.y - m_previousCursorPos.y) * m_mouseSensitivity;
@@ -109,32 +113,43 @@ export namespace Aegis::Scripting
 			auto upDir = Math::World::UP;
 
 			// Speed modifiers
-			if (Input::instance().keyPressed(m_keys.increaseSpeed)) m_moveSpeed += 100.0f * deltaSeconds;
-			if (Input::instance().keyPressed(m_keys.decreaseSpeed)) m_moveSpeed -= 100.0f * deltaSeconds;
-			if (Input::instance().keyPressed(m_keys.resetSpeed)) m_moveSpeed = DEFAULT_MOVE_SPEED;
-			m_moveSpeed = std::max(m_moveSpeed, 0.1f);
+            if (input().keyPressed(m_keys.increaseSpeed))
+                m_moveSpeed += 100.0f * deltaSeconds;
+            if (input().keyPressed(m_keys.decreaseSpeed))
+                m_moveSpeed -= 100.0f * deltaSeconds;
+            if (input().keyPressed(m_keys.resetSpeed))
+                m_moveSpeed = DEFAULT_MOVE_SPEED;
+            m_moveSpeed = std::max(m_moveSpeed, 0.1f);
 
 			auto currentSpeed = m_moveSpeed;
-			if (Input::instance().keyPressed(m_keys.speedupModifier)) currentSpeed *= 2.0f;
-			if (Input::instance().keyPressed(m_keys.slowdownModifier)) currentSpeed *= 0.5f;
+            if (input().keyPressed(m_keys.speedupModifier))
+                currentSpeed *= 2.0f;
+            if (input().keyPressed(m_keys.slowdownModifier))
+                currentSpeed *= 0.5f;
 
-			// Key input movement
+            // Key input movement
 			glm::vec3 moveDir{ 0.0f };
-			if (Input::instance().keyPressed(m_keys.moveForward)) moveDir += forwardDir;
-			if (Input::instance().keyPressed(m_keys.moveBackward)) moveDir -= forwardDir;
-			if (Input::instance().keyPressed(m_keys.moveRight)) moveDir += rightDir;
-			if (Input::instance().keyPressed(m_keys.moveLeft)) moveDir -= rightDir;
-			if (Input::instance().keyPressed(m_keys.moveUp)) moveDir += upDir;
-			if (Input::instance().keyPressed(m_keys.moveDown)) moveDir -= upDir;
+            if (input().keyPressed(m_keys.moveForward))
+                moveDir += forwardDir;
+            if (input().keyPressed(m_keys.moveBackward))
+                moveDir -= forwardDir;
+            if (input().keyPressed(m_keys.moveRight))
+                moveDir += rightDir;
+            if (input().keyPressed(m_keys.moveLeft))
+                moveDir -= rightDir;
+            if (input().keyPressed(m_keys.moveUp))
+                moveDir += upDir;
+            if (input().keyPressed(m_keys.moveDown))
+                moveDir -= upDir;
 
-			if (glm::length(moveDir) > std::numeric_limits<float>::epsilon())
+            if (glm::length(moveDir) > std::numeric_limits<float>::epsilon())
 			{
 				transform.location += currentSpeed * glm::normalize(moveDir) * deltaSeconds;
 			}
 
 			// Mouse pan input movement
-			toogleMousePan(Input::instance().mouseButtonPressed(m_keys.mousePan));
-			if (m_mousePanEnabled)
+            toogleMousePan(input().mouseButtonPressed(m_keys.mousePan));
+            if (m_mousePanEnabled)
 			{
                 auto cursorPos = cursorPosition();
                 moveDir -= rightDir * (cursorPos.x - m_previousCursorPos.x);
@@ -155,13 +170,13 @@ export namespace Aegis::Scripting
 
 			if (!m_mouseRotateEnabled && enabled)
 			{
-                Input::instance().setCursorMode(Input::CursorMode::Disabled);
+                input().setCursorMode(aegis::platform::CursorMode::Disabled);
                 m_mouseRotateEnabled = true;
                 m_previousCursorPos = cursorPosition();
             }
 			else if (m_mouseRotateEnabled && !enabled)
 			{
-                Input::instance().setCursorMode(Input::CursorMode::Normal);
+                input().setCursorMode(aegis::platform::CursorMode::Normal);
                 m_mouseRotateEnabled = false;
 			}
 		}
@@ -173,13 +188,13 @@ export namespace Aegis::Scripting
 
 			if (!m_mousePanEnabled && enabled)
 			{
-                Input::instance().setCursorMode(Input::CursorMode::Disabled);
+                input().setCursorMode(aegis::platform::CursorMode::Disabled);
                 m_mousePanEnabled = true;
                 m_previousCursorPos = cursorPosition();
             }
 			else if (m_mousePanEnabled && !enabled)
 			{
-                Input::instance().setCursorMode(Input::CursorMode::Normal);
+                input().setCursorMode(aegis::platform::CursorMode::Normal);
                 m_mousePanEnabled = false;
 			}
 		}

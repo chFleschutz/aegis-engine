@@ -7,8 +7,8 @@ export module Aegis.Editor;
 
 import Aegis.Math;
 import Aegis.Core.Layer;
-import Aegis.Core.Input;
 import Aegis.Editor.Panels;
+import aegis.platform;
 import aegis.render_graph;
 import aegis.renderer;
 import Aegis.Scene;
@@ -18,8 +18,10 @@ export namespace Aegis::Editor
 	class EditorLayer : public Core::Layer
 	{
 	public:
-        EditorLayer(aegis::renderer::Renderer& renderer, aegis::render_graph::FrameGraph& frameGraph,
-            aegis::render_graph::DrawBatchRegistry& drawBatches, Scene::Scene& scene) :
+        EditorLayer(aegis::platform::Input& input, aegis::renderer::Renderer& renderer,
+            aegis::render_graph::FrameGraph& frameGraph, aegis::render_graph::DrawBatchRegistry& drawBatches,
+            Scene::Scene& scene) :
+            m_input(input),
             m_renderer(renderer),
             m_frameGraph(frameGraph),
             m_drawBatches(drawBatches),
@@ -28,17 +30,17 @@ export namespace Aegis::Editor
 
 		virtual void onUpdate(float deltaSeconds) override
 		{
-            m_snapping = Input::instance().keyPressed(Input::Key::LeftControl);
+            m_snapping = m_input.keyPressed(aegis::platform::Key::LeftControl);
 
             if (!ImGuizmo::IsUsing())
 			{
-                if (Input::instance().keyPressed(Input::Key::Q))
+                if (m_input.keyPressed(aegis::platform::Key::Q))
                     m_gizmoType = -1;
-                else if (Input::instance().keyPressed(Input::Key::W))
+                else if (m_input.keyPressed(aegis::platform::Key::W))
                     m_gizmoType = ImGuizmo::OPERATION::TRANSLATE;
-                else if (Input::instance().keyPressed(Input::Key::E))
+                else if (m_input.keyPressed(aegis::platform::Key::E))
                     m_gizmoType = ImGuizmo::OPERATION::ROTATE;
-                else if (Input::instance().keyPressed(Input::Key::R))
+                else if (m_input.keyPressed(aegis::platform::Key::R))
                     m_gizmoType = ImGuizmo::OPERATION::SCALE;
 			}
 		}
@@ -104,6 +106,7 @@ export namespace Aegis::Editor
 			}
 		}
 
+        aegis::platform::Input& m_input;
         aegis::renderer::Renderer& m_renderer;
         aegis::render_graph::FrameGraph& m_frameGraph;
         aegis::render_graph::DrawBatchRegistry& m_drawBatches;

@@ -2,7 +2,6 @@ add_library(aegis-core STATIC)
 
 target_link_libraries(aegis-core 
 PUBLIC
-	aegis-platform
 	aegis-utils
 	imguizmo
 	Aegis::Log
@@ -16,7 +15,6 @@ PUBLIC
 		asset.cppm
 		asset_manager.cppm
 		globals.cppm
-		input.cppm
 		layer.cppm
 		layer_stack.cppm
 		logging.cppm

@@ -25,7 +25,6 @@ export import Aegis.Defaults;
 export import Aegis.SceneDescription;
 export import Aegis.Core.AssetManager;
 export import Aegis.Core.Globals;
-export import Aegis.Core.Input;
 export import Aegis.Core.LayerStack;
 export import Aegis.Core.Logging;
 export import Aegis.Core.Profiler;
@@ -52,13 +51,12 @@ export namespace Aegis
         Engine()
 		{
 			AGX_ASSERT_X(!s_instance, "Only one instance of Engine is allowed");
-			s_instance = this;
-            Input::setInstance(&m_input);
+            s_instance = this;
 
             createRenderer();
             loadDefaultAssets();
             createFrameGraph();
-            m_layerStack.push<Editor::EditorLayer>(*m_renderer, *m_frameGraph, m_drawBatches, m_scene);
+            m_layerStack.push<Editor::EditorLayer>(m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_scene);
 
             ALOG::info("Engine Initialized!");
             ALOG::info("Using {} Driven Rendering", useGpuDrivenRendering() ? "GPU" : "CPU");
@@ -74,7 +72,6 @@ export namespace Aegis
             m_frameGraph.reset();
             ImGui_ImplGlfw_Shutdown();
             ImGui::DestroyContext();
-            Input::setInstance(nullptr);
             s_instance = nullptr;
         }
 
@@ -334,7 +331,7 @@ export namespace Aegis
         std::optional<aegis::render_graph::Ibl> m_ibl;
         std::shared_ptr<aegis::assets::Texture> m_brdfLut;
         Scene::Scene m_scene;
-		Scripting::ScriptManager m_scriptManager{ m_scene };
+        Scripting::ScriptManager m_scriptManager{ m_scene, m_input };
         aegis::render_graph::DrawBatchRegistry m_drawBatches; // Disconnects from the scene first
         std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
     };

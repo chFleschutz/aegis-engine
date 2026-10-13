@@ -2,6 +2,7 @@ export module Aegis.Scripting.ScriptBase;
 
 import Aegis.Scene.Entity;
 import Aegis.Scene.Registry;
+import aegis.platform;
 
 export namespace Aegis::Scripting
 {
@@ -13,11 +14,12 @@ export namespace Aegis::Scripting
 		ScriptBase() = default;
 		virtual ~ScriptBase() = default;
 
-		void init(Scene::Registry* reg, Scene::Entity entity)
-		{
-		    m_registry = reg;
-			m_entity = entity;
-		}
+        void init(Scene::Registry* reg, Scene::Entity entity, aegis::platform::Input& input)
+        {
+            m_registry = reg;
+            m_entity = entity;
+            m_input = &input;
+        }
 
 		/// @brief Called once at the first frame just before update
 		virtual void begin() {}
@@ -51,8 +53,12 @@ export namespace Aegis::Scripting
 		/// @brief Returns the entity
 		auto entity() const -> Scene::Entity { return m_entity; }
 
-	private:
+        /// @brief Returns the engine's keyboard and mouse input
+        auto input() const -> aegis::platform::Input& { return *m_input; }
+
+    private:
 		Scene::Registry* m_registry{ nullptr };
 		Scene::Entity m_entity;
-	};
+        aegis::platform::Input* m_input{ nullptr };
+    };
 }
