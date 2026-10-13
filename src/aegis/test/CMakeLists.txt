@@ -9,6 +9,7 @@ target_link_libraries(aegis-test
         aegis-renderer
         aegis-rhi
         aegis-scene
+        imgui
         stb # stb_image_write for --screenshot
 )
 

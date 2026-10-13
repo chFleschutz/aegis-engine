@@ -9,6 +9,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb/stb_image_write.h>
 
+#include <imgui.h>
+
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -815,6 +817,10 @@ public:
         if (!helmet)
             return std::unexpected{ std::format("Loading the helmet: {}", helmet.error().message) };
 
+        // No platform backend: the UI is drawn, not interacted with.
+        m_imgui = ImGuiContextHandle{ ImGui::CreateContext() };
+        ImGui::GetIO().IniFilename = nullptr;
+
         m_frameGraph = std::make_unique<render_graph::FrameGraph>(*m_device, *m_renderer);
         m_frameGraph->add<render_graph::SceneUpdatePass>();
         if (m_options.gpuDriven)
@@ -833,6 +839,11 @@ public:
         m_frameGraph->add<render_graph::TransparentPass>().addRenderSystem<render_graph::PointLightRenderSystem>();
         m_frameGraph->add<render_graph::BloomPass>();
         m_frameGraph->add<render_graph::PostProcessingPass>();
+        m_frameGraph->add<render_graph::UiPass>(render_graph::UiPass::Desc{
+            .context = *m_context,
+            // Not 'this': the Engine is moved after create(). Renderer and graph live on the heap.
+            .build = [renderer = m_renderer.get(), graph = m_frameGraph.get()] { buildUi(*renderer, *graph); },
+        });
         m_frameGraph->add<render_graph::PresentPass>();
         if (auto compiled = m_frameGraph->compile(); !compiled)
             return std::unexpected{ std::format("Frame graph: {}", compiled.error().message) };
@@ -845,6 +856,21 @@ public:
             std::print(" {} |", pass->info().name);
         std::println("");
         return {};
+    }
+
+    // The UI pass's input: one window, so a screenshot shows ImGui drawn over the scene.
+    static auto buildUi(const renderer::Renderer& renderer, const render_graph::FrameGraph& frameGraph) -> void
+    {
+        auto& io = ImGui::GetIO();
+        const auto extent = renderer.extent();
+        io.DisplaySize = ImVec2{ static_cast<float>(extent.x), static_cast<float>(extent.y) };
+        ImGui::NewFrame();
+        ImGui::SetNextWindowPos(ImVec2{ 10.0f, 10.0f });
+        ImGui::Begin("aegis-test", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Text("Frame graph: %d passes", static_cast<int>(frameGraph.passes().size()));
+        for (const auto& timing : frameGraph.timings())
+            ImGui::Text("%-20s %.3f ms", timing.name.c_str(), timing.gpuMs);
+        ImGui::End();
     }
 
     auto verifyRendererTextures() -> std::expected<void, std::string>
@@ -1442,6 +1468,12 @@ private:
     std::optional<assets::DefaultAssets> m_defaults;
     std::unique_ptr<Aegis::Scene::Scene> m_scene;
     std::unique_ptr<render_graph::DrawBatchRegistry> m_drawBatches; // Disconnects before the scene goes
+    struct ImGuiContextDeleter
+    {
+        auto operator()(ImGuiContext* context) const -> void { ImGui::DestroyContext(context); }
+    };
+    using ImGuiContextHandle = std::unique_ptr<ImGuiContext, ImGuiContextDeleter>;
+    ImGuiContextHandle m_imgui; // Outlives the frame graph's UI pass
     std::unique_ptr<render_graph::FrameGraph> m_frameGraph;
 };
 }

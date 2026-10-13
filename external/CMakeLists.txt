@@ -9,8 +9,12 @@ add_subdirectory(glfw)
 
 add_subdirectory(glm)
 
-set(IMGUI_USE_VOLK ON)
+# No volk and no prototypes: ImGui's Vulkan backend keeps its own function pointers, filled by
+# ImGui_ImplVulkan_LoadFunctions from whichever stack initializes it. Prototypes would clash with
+# volk's same-named globals (the old stack's binaries resolved them to volk's data).
+set(IMGUI_USE_VOLK OFF)
 add_subdirectory(imgui)
+target_compile_definitions(imgui PUBLIC IMGUI_IMPL_VULKAN_NO_PROTOTYPES)
 
 add_subdirectory(imguizmo)
 

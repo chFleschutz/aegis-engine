@@ -10,6 +10,7 @@ target_link_libraries(aegis-render-graph
         EnTT::EnTT # The draw batch registry follows scene component signals
     PRIVATE
         imgui
+        vulkan-module # The UI pass hands raw Vulkan handles to ImGui's backend
 )
 
 # Compiled shaders are loaded at run time from the build tree (see shaders/CMakeLists.txt).
@@ -38,6 +39,7 @@ target_sources(aegis-render-graph
     passes/scene_update_pass.cppm
     passes/screen_passes.cppm
     passes/static_mesh_render_system.cppm
+    passes/ui_pass.cppm
     PRIVATE
     draw_batch_registry.cpp
     frame_graph.cpp
@@ -52,4 +54,5 @@ target_sources(aegis-render-graph
     passes/scene_update_pass.cpp
     passes/screen_passes.cpp
     passes/static_mesh_render_system.cpp
+    passes/ui_pass.cpp
 )

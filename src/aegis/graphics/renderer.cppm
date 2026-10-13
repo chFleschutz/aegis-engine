@@ -244,7 +244,8 @@ export namespace Aegis::Graphics
 				.UseDynamicRendering = true,
 			};
 
-			ImGui_ImplVulkan_Init(&initInfo);
+            ImGui_ImplVulkan_LoadFunctions(Graphics::VulkanDevice::API_VERSION, [](const char* name, void* instance) { return vkGetInstanceProcAddr(static_cast<VkInstance>(instance), name); }, device.instance());
+            ImGui_ImplVulkan_Init(&initInfo);
 		}
 
 		void createFrameGraph()

@@ -218,9 +218,11 @@ auto Swapchain::querySwapchainFormat(
     if (availableFormats->empty())
         return makeError(ErrorCode::Unknown);
 
+    // UNORM: frames arrive gamma encoded (post-processing applies it), and ImGui draws into them
+    // assuming an UNORM target. An sRGB format would encode a second time.
     const auto it = std::ranges::find_if(*availableFormats,
         [](const auto& format) {
-            return format.format == vk::Format::eB8G8R8A8Srgb &&
+            return format.format == vk::Format::eB8G8R8A8Unorm &&
                    format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear;
         });
 

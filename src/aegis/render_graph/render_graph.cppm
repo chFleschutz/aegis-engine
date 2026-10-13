@@ -18,3 +18,4 @@ export import :schedule;
 export import :screen_passes;
 export import :shader;
 export import :static_mesh_render_system;
+export import :ui_pass;
