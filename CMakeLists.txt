@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(BUILD_EXAMPLES "Build example projects" ON)
-option(COMPILE_SHADERS "Compile GLSL shaders to SPIR-V" ON)
+option(COMPILE_SHADERS "Compile shaders to SPIR-V" ON)
 
 # Find the Vulkan package
 find_package(Vulkan REQUIRED)

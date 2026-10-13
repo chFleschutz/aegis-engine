@@ -38,32 +38,32 @@ Executable targets are the PascalCase `project()` names: `Simple-Scene`, `Sponza
 scenes need the `aegis-assets` submodule. Report whether it built clean (warnings are errors) and the
 window rendered; on a build failure, surface the first real error, not the downstream cascade.
 
-The examples run the new RHI stack through the `Engine` facade, but they open a window and have no
-pass/fail signal — validation errors only go to stderr. Verify RHI work with `aegis-test` first (see
-"Verifying device paths" under Unit tests). `src/aegis/graphics/` (the old `Aegis::Graphics` stack) is
-no longer built and is about to be deleted; don't edit it.
+The examples render through the `Engine` facade, but they open a window and have no pass/fail
+signal — validation errors only go to stderr. Verify RHI work with `aegis-test` first (see "Verifying
+device paths" under Unit tests).
 
 ### Shaders
-Shaders auto-compile on every engine build (`compile_shaders` target). Needs both `glslc` and
-`slangc` from the Vulkan SDK on PATH (`$VULKAN_SDK/bin`). Output: `build/<preset>/shaders/*.spv`.
+Shaders auto-compile on every engine build (`compile_shaders` target). Needs `slangc` from the Vulkan
+SDK on PATH (`$VULKAN_SDK/bin`). Output: `build/<preset>/shaders/*.spv`.
 
 ### Asset/shader paths (gotcha)
 `PROJECT_DIR`/`BUILD_DIR` are baked in as compile definitions, so assets and shaders load via
 **absolute paths fixed at configure time**. Running the exe from any cwd is fine, but moving or
 renaming the source tree or the build dir breaks asset/shader loading — re-run configure instead.
 
-## Two stacks, two conventions (most important)
-The codebase is mid-migration. **Match the conventions of the stack you are editing.**
+## Two code styles (most important)
+The renderer was rewritten onto a new RHI; the code around it (engine, editor, scene, scripting, UI)
+still follows the older style. **Match the conventions of the code you are editing.**
 
-| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/` | Old stack — everything else |
+| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/`, `test/` | Legacy — everything else (`core/`, `editor/`, `scene/`, `scripting/`, `ui/`, `engine.cppm`, `examples/`) |
 |---|---|---|
-| Namespace | `aegis::rhi` (lowercase) | `Aegis::Graphics` (PascalCase) |
-| Vulkan | vulkan-hpp `vk::raii`, `import vulkan_hpp` | volk, via `graphics/vulkan/vulkan_include.h` |
-| Errors | `std::expected<T, Error>` + `makeError`, never throw | `VK_CHECK(...)`, `AGX_ASSERT*` |
+| Namespace | `aegis::rhi` (lowercase) | `Aegis::Scene` (PascalCase) |
+| Vulkan | vulkan-hpp `vk::raii`, `import vulkan_hpp` | none — go through `aegis::rhi` and friends |
+| Errors | `std::expected<T, Error>` + `makeError`, never throw | `AGX_ASSERT*` |
 | Indent | 4 spaces; namespace body un-indented | tabs; namespace body indented |
 | Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm`, dotted PascalCase module names |
 
-Both stacks: `m_`-prefixed camelCase members, Allman braces, `snake_case` filenames. New RHI also
+Both styles: `m_`-prefixed camelCase members, Allman braces, `snake_case` filenames. New RHI also
 uses trailing return types, `[[nodiscard]]`, `Desc` nested config structs, and packed generational
 handles (`ResourceHandle<T>` / `BufferHandle` / `ImageHandle`) as the public currency instead of raw
 pointers. Descriptors are bindless with fixed slots; **buffers use buffer device address, not
@@ -78,14 +78,14 @@ resource reference resolved through `Device::get` (`BufferHandle`, `ImageViewHan
 resource *owns* its descriptors (`ImageView::sampledDescriptor()`, `Sampler::descriptor()`). Never
 call a slot index a handle.
 
-**Never `#include <vulkan/vulkan.h>` directly** — new RHI uses `import vulkan_hpp`; the old stack
-uses `graphics/vulkan/vulkan_include.h` (which loads volk with `VK_NO_PROTOTYPES`).
+**Never `#include <vulkan/vulkan.h>` directly** — use `import vulkan_hpp`, and only inside the new
+RHI modules (the vulkan module is linked PRIVATE, so `vk::` types never cross their public API).
 
 ### Formatting (clang-format)
 One global root `.clang-format` (clang-format **22.x**), encoding the new-RHI style. It's a
 normalizer, not a reflow engine (`ColumnLimit: 0` keeps your line breaks). **Adopt diff-only** —
 format just what you changed with `git clang-format`; never `clang-format -i` whole files. Editing an
-old-stack file nudges changed lines toward new-RHI style (intended). Guard deliberately hand-aligned
+legacy file nudges changed lines toward new-RHI style (intended). Guard deliberately hand-aligned
 blocks (e.g. enum tables — `AlignConsecutive*` is off) with `// clang-format off` / `on`.
 
 ## Commits

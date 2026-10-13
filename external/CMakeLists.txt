@@ -11,7 +11,6 @@ add_subdirectory(glm)
 
 # No prototypes: ImGui's Vulkan backend keeps its own function pointers, which render_graph::UiPass
 # fills through the RHI's instance (ImGui_ImplVulkan_LoadFunctions).
-set(IMGUI_USE_VOLK OFF)
 add_subdirectory(imgui)
 target_compile_definitions(imgui PUBLIC IMGUI_IMPL_VULKAN_NO_PROTOTYPES)
 

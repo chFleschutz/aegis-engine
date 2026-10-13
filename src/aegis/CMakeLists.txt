@@ -13,7 +13,6 @@ add_subdirectory(test)
 
 add_subdirectory(math)
 add_subdirectory(core)
-# graphics/ (the old Aegis::Graphics stack) is no longer built; Phase 6 deletes it.
 add_subdirectory(scene)
 add_subdirectory(scripting)
 add_subdirectory(ui)

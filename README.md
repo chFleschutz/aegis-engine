@@ -88,7 +88,6 @@ The engine relies on the following external libraries:
 - [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader) - OBJ 3D model loader
 - [Vulkan](https://www.vulkan.org/) - Graphics API
 - [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) - Vulkan Memory Management
-- [Volk](https://github.com/zeux/volk) - Vulkan Function loader
 
 ## Screenshots
 
