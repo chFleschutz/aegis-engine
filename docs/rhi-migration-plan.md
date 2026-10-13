@@ -602,14 +602,28 @@ by eye: textures, point lights, bloom, the sky box and the editor UI all render.
 
 ## Phase 6 — Delete old stack + remove volk
 
-- [ ] Delete `src/aegis/graphics/` (no longer built since the cutover; `add_subdirectory(graphics)` and the `aegis-graphics` link are already gone).
-- [ ] Remove the `external/volk` submodule (the build stopped adding it at the cutover), `graphics/vulkan/volk_impl.cpp`, and `graphics/vulkan/vulkan_include.h`.
+- [x] Delete `src/aegis/graphics/` (no longer built since the cutover; `add_subdirectory(graphics)` and the `aegis-graphics` link are already gone).
+- [x] Remove the `external/volk` submodule (the build stopped adding it at the cutover), `graphics/vulkan/volk_impl.cpp`, and `graphics/vulkan/vulkan_include.h`.
 - [x] Remove `Aegis.Core.Window` if fully superseded by `platform::Window`. *Done in Phase 1.*
-- [ ] Remove the `Aegis.Core.Input` shim once scripts and the editor receive `platform::Input` explicitly.
-- [ ] Grep for stragglers: `VK_CHECK`, `AGX_ASSERT` in migrated code, `#include ".../vulkan_include.h"`, `import Aegis.Graphics`.
-- [ ] Full clean build (warnings-as-errors) + run all examples.
+- [x] Remove the `Aegis.Core.Input` shim once scripts and the editor receive `platform::Input` explicitly.
+- [x] Grep for stragglers: `VK_CHECK`, `AGX_ASSERT` in migrated code, `#include ".../vulkan_include.h"`, `import Aegis.Graphics`.
+- [x] Full clean build (warnings-as-errors) + run all examples.
 
 **Exit criteria:** `graphics/` gone, volk gone, all examples green.
+
+**Done.** A clean warnings-as-errors build passes, `ctest` passes, and all five examples exit 0 with no
+validation output. Details:
+
+- **Input:** `ScriptManager` takes the engine's `platform::Input` and hands it to each script through
+  `ScriptBase::init`; scripts call `input()`. `EditorLayer` takes it in its constructor.
+- **Shaders flattened (decided):** the old stack's shaders (including the unported `ssao.comp`, the only
+  GLSL shader) went with it, and `shaders/rhi/*` moved up to `shaders/`. Shaders import `modules.*`,
+  pipelines load e.g. `"ibl/brdf_lut.slang.spv"`, and every shader compiles with
+  `-fvk-use-scalar-layout`. `glslc` is no longer needed.
+- **Stragglers:** none outside `src/aegis/ai/`, which no CMake target builds and which predates the
+  migration (it still calls the old input API). The legacy modules (`core`, `editor`, `scene`,
+  `scripting`, `ui`) keep their old code style; AGENTS.md now calls them "legacy" rather than "old
+  stack".
 
 ---
 
@@ -712,12 +726,20 @@ are immune to warnings-as-errors. Full rationale in `tests/README.md`.
 - **Shader-facing pipeline layout** — *decided and done:* one shared layout (bindless set + 128-byte push constants, all stages); see Phase 0.5 B and `shaders/modules/README.md`.
 - **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
 
-## Next step — Phase 6
+## Status — migration complete
 
-**Phases 0 through 5 are complete.** The engine, editor and every example run on the new RHI
-(`aegis.rhi` / `renderer` / `platform` / `assets` / `render_graph`) with no validation output, and volk is
-out of the build. Next is **Phase 6**: delete the unbuilt `graphics/` tree and the volk submodule, retire
-the `Aegis.Core.Input` shim, and grep for stragglers.
+**Phases 0 through 6 are complete.** The old `Aegis::Graphics` stack and volk are gone; the engine,
+editor and every example render through `aegis.rhi` / `renderer` / `platform` / `assets` /
+`render_graph`. Known gaps carried forward, none blocking:
+
+- Transparent materials (`MaterialType::Transparent`) are not drawn; the transparent pass only draws
+  point lights (Phase 3).
+- A material template cannot choose its own shaders yet; the geometry passes draw the default PBR
+  block (Phase 3).
+- SSAO is not ported (Phase 3 decision).
+- `src/aegis/ai/` is unbuilt dead code on the old input API.
+- The legacy modules still use the old code style (tabs, `Aegis::` namespaces, `AGX_ASSERT`).
+- Growing `aegis-test` into a device-level harness ("After the rework" under Testing strategy).
 
 **Verify any of them with:** a full warnings-as-errors build and `ctest --preset windows-clang-debug`,
 which includes the headless `aegis-test` run (label `device`). It fails on any failed check or
