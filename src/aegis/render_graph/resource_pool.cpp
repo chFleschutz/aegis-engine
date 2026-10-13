@@ -63,6 +63,30 @@ auto ResourcePool::addReference(std::string name, Usage usage) -> ResourceHandle
     return { static_cast<std::uint32_t>(m_entries.size() - 1) };
 }
 
+auto ResourcePool::describe() const -> std::vector<ResourceDescription>
+{
+    std::vector<ResourceDescription> descriptions;
+    descriptions.reserve(m_entries.size());
+    for (const auto& entry : m_entries)
+    {
+        auto& description = descriptions.emplace_back(ResourceDescription{
+            .name = entry.name,
+            .kind = ResourceDescription::Kind::Reference,
+            .usage = entry.usage,
+        });
+        if (const auto* texture = std::get_if<TextureDesc>(&entry.info))
+        {
+            description.kind = ResourceDescription::Kind::Texture;
+            description.format = texture->format;
+        }
+        else if (std::holds_alternative<BufferDesc>(entry.info))
+        {
+            description.kind = ResourceDescription::Kind::Buffer;
+        }
+    }
+    return descriptions;
+}
+
 auto ResourcePool::actual(ResourceHandle handle) const -> std::uint32_t
 {
     assert(handle.index < m_entries.size() && "Invalid frame graph resource handle");

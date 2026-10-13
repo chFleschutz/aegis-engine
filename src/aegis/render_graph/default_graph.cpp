@@ -1,0 +1,35 @@
+module;
+#include <cassert>
+
+module aegis.render_graph;
+
+namespace aegis::render_graph
+{
+auto addDefaultPasses(FrameGraph& graph, const DefaultPassesDesc& desc) -> void
+{
+    graph.add<SceneUpdatePass>();
+    if (desc.gpuDriven)
+    {
+        const auto& instances = graph.add<InstanceUpdatePass>(desc.drawBatches);
+        graph.add<ClearDrawCountsPass>();
+        graph.add<CullingPass>(instances);
+        graph.add<GpuDrivenGeometryPass>(instances);
+    }
+    else
+    {
+        graph.add<GeometryPass>().addRenderSystem<StaticMeshRenderSystem>();
+    }
+
+    graph.add<LightingPass>();
+    graph.add<SkyBoxPass>();
+    graph.add<TransparentPass>().addRenderSystem<PointLightRenderSystem>();
+    graph.add<BloomPass>();
+    graph.add<PostProcessingPass>();
+    if (desc.buildUi)
+    {
+        assert(desc.context && "The UI pass needs the rhi::Context");
+        graph.add<UiPass>(UiPass::Desc{ .context = *desc.context, .build = desc.buildUi });
+    }
+    graph.add<PresentPass>();
+}
+}

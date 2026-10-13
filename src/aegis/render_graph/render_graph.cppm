@@ -1,4 +1,5 @@
 export module aegis.render_graph;
+export import :default_graph;
 export import :draw_batch_registry;
 export import :error;
 export import :frame_graph;

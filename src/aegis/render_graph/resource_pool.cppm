@@ -5,6 +5,7 @@ module;
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -17,6 +18,22 @@ import aegis.rhi;
 export namespace aegis::render_graph
 {
 class FrameGraph;
+
+/// @brief One resource pool entry as tools show it (the editor's renderer panel).
+struct ResourceDescription
+{
+    enum class Kind
+    {
+        Texture,
+        Buffer,
+        Reference,
+    };
+
+    std::string_view name;
+    Kind kind;
+    Usage usage;
+    std::optional<rhi::Format> format; // Textures only
+};
 
 /// @brief The frame graph's resource declarations and, once compiled, the resources behind them.
 ///        Passes declare in their constructor and look resources up while executing.
@@ -42,6 +59,10 @@ public:
     auto addBuffer(std::string name, Usage usage, const BufferDesc& desc) -> ResourceHandle;
     /// @brief Declares an access to a resource another pass creates, found by name at compile time.
     auto addReference(std::string name, Usage usage) -> ResourceHandle;
+
+    /// @brief Every declaration, in the order passes made them.
+    [[nodiscard]] auto describe() const -> std::vector<ResourceDescription>;
+    [[nodiscard]] auto name(ResourceHandle handle) const -> std::string_view { return m_entries[handle.index].name; }
 
     // Valid after FrameGraph::compile
 

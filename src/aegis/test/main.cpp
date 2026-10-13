@@ -822,29 +822,14 @@ public:
         ImGui::GetIO().IniFilename = nullptr;
 
         m_frameGraph = std::make_unique<render_graph::FrameGraph>(*m_device, *m_renderer);
-        m_frameGraph->add<render_graph::SceneUpdatePass>();
-        if (m_options.gpuDriven)
-        {
-            const auto& instances = m_frameGraph->add<render_graph::InstanceUpdatePass>(*m_drawBatches);
-            m_frameGraph->add<render_graph::ClearDrawCountsPass>();
-            m_frameGraph->add<render_graph::CullingPass>(instances);
-            m_frameGraph->add<render_graph::GpuDrivenGeometryPass>(instances);
-        }
-        else
-        {
-            m_frameGraph->add<render_graph::GeometryPass>().addRenderSystem<render_graph::StaticMeshRenderSystem>();
-        }
-        m_frameGraph->add<render_graph::LightingPass>();
-        m_frameGraph->add<render_graph::SkyBoxPass>();
-        m_frameGraph->add<render_graph::TransparentPass>().addRenderSystem<render_graph::PointLightRenderSystem>();
-        m_frameGraph->add<render_graph::BloomPass>();
-        m_frameGraph->add<render_graph::PostProcessingPass>();
-        m_frameGraph->add<render_graph::UiPass>(render_graph::UiPass::Desc{
-            .context = *m_context,
-            // Not 'this': the Engine is moved after create(). Renderer and graph live on the heap.
-            .build = [renderer = m_renderer.get(), graph = m_frameGraph.get()] { buildUi(*renderer, *graph); },
-        });
-        m_frameGraph->add<render_graph::PresentPass>();
+        render_graph::addDefaultPasses(*m_frameGraph,
+            {
+                .gpuDriven = m_options.gpuDriven,
+                .drawBatches = *m_drawBatches,
+                // Not 'this': the Engine is moved after create(). Renderer and graph live on the heap.
+                .buildUi = [renderer = m_renderer.get(), graph = m_frameGraph.get()] { buildUi(*renderer, *graph); },
+                .context = m_context.get(),
+            });
         if (auto compiled = m_frameGraph->compile(); !compiled)
             return std::unexpected{ std::format("Frame graph: {}", compiled.error().message) };
 

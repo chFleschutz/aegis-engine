@@ -1,5 +1,6 @@
 module;
 #include <cstdint>
+#include <string_view>
 #include <utility>
 #include <variant>
 
@@ -52,6 +53,35 @@ enum class Format
     D24_UNORM_S8_UINT,
     D32_SFLOAT_S8_UINT,
 };
+
+/// @brief The enumerator's name, e.g. "RGBA16_SFLOAT", for tools and logs.
+[[nodiscard]] constexpr auto formatName(Format format) noexcept -> std::string_view
+{
+    switch (format)
+    {
+    case Format::Unknown: return "Unknown";
+    case Format::R8_UNORM: return "R8_UNORM";
+    case Format::RG8_UNORM: return "RG8_UNORM";
+    case Format::RGBA8_UNORM: return "RGBA8_UNORM";
+    case Format::RGBA8_SRGB: return "RGBA8_SRGB";
+    case Format::BGRA8_UNORM: return "BGRA8_UNORM";
+    case Format::BGRA8_SRGB: return "BGRA8_SRGB";
+    case Format::RGB10A2_UNORM: return "RGB10A2_UNORM";
+    case Format::B10G11R11_UFLOAT: return "B10G11R11_UFLOAT";
+    case Format::R16_UNORM: return "R16_UNORM";
+    case Format::RG16_UNORM: return "RG16_UNORM";
+    case Format::RGBA16_UNORM: return "RGBA16_UNORM";
+    case Format::RGBA16_SFLOAT: return "RGBA16_SFLOAT";
+    case Format::R32_SFLOAT: return "R32_SFLOAT";
+    case Format::RG32_SFLOAT: return "RG32_SFLOAT";
+    case Format::RGB32_SFLOAT: return "RGB32_SFLOAT";
+    case Format::RGBA32_SFLOAT: return "RGBA32_SFLOAT";
+    case Format::D32_SFLOAT: return "D32_SFLOAT";
+    case Format::D24_UNORM_S8_UINT: return "D24_UNORM_S8_UINT";
+    case Format::D32_SFLOAT_S8_UINT: return "D32_SFLOAT_S8_UINT";
+    }
+    return "Unknown";
+}
 
 enum class ShaderStage
 {
