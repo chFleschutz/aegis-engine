@@ -19,7 +19,7 @@ export module Aegis.Editor.Panels:ScenePanel;
 import Aegis.Scene;
 import Aegis.Scene.Entity;
 import Aegis.Scene.Components;
-import Aegis.Graphics.Components;
+import aegis.assets;
 
 export namespace Aegis::Editor
 {
@@ -186,13 +186,12 @@ export namespace Aegis::Editor
 					ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f);
 				});
 
-			drawComponent<Graphics::Mesh>(registry, "Mesh", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
-				[](Graphics::Mesh& mesh)
-				{
+            drawComponent<aegis::assets::Mesh>(registry, "Mesh", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
+                [](aegis::assets::Mesh& mesh) {
 					drawAssetSlot("Mesh", "Mesh Asset", mesh.staticMesh != nullptr);
-				});
+                });
 
-			drawComponent<AmbientLight>(registry, "Ambient Light", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
+            drawComponent<AmbientLight>(registry, "Ambient Light", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
 				[](AmbientLight& ambientLight)
 				{
 					ImGui::ColorEdit3("Color", &ambientLight.color.r);
@@ -315,9 +314,9 @@ export namespace Aegis::Editor
 				drawAddComponentItem<DirectionalLight>(registry, "Directional Light");
 				drawAddComponentItem<PointLight>(registry, "Point Light");
 				drawAddComponentItem<Camera>(registry, "Camera");
-				drawAddComponentItem<Graphics::Mesh>(registry, "Mesh");
-				drawAddComponentItem<Graphics::Material>(registry, "Default Material");
-				ImGui::EndPopup();
+                drawAddComponentItem<aegis::assets::Mesh>(registry, "Mesh");
+                drawAddComponentItem<aegis::assets::Material>(registry, "Default Material");
+                ImGui::EndPopup();
 			}
 		}
 

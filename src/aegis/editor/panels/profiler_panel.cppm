@@ -7,15 +7,15 @@ module;
 export module Aegis.Editor.Panels:ProfilerPanel;
 
 import Aegis.Core.Profiler;
-import Aegis.Graphics.GPUTimer;
+import aegis.render_graph;
 
 export namespace Aegis::Editor
 {
 	class ProfilerPanel
 	{
 	public:
-		void draw()
-		{
+        void draw(const aegis::render_graph::FrameGraph& frameGraph)
+        {
 			ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 10), ImGuiCond_FirstUseEver, ImVec2(0, 1));
 			if (!ImGui::Begin("Profiler"))
 			{
@@ -65,16 +65,16 @@ export namespace Aegis::Editor
 				ImGui::TableSetupColumn("Frame Percent (%)", ImGuiTableColumnFlags_WidthFixed);
 				ImGui::TableHeadersRow();
 
-				for (const auto& timing : Graphics::GPUTimerManager::instance().timings())
-				{
+                for (const auto& timing : frameGraph.timings())
+                {
 					ImGui::TableNextRow();
 					ImGui::TableSetColumnIndex(0);
 					ImGui::Text("%s", timing.name.c_str());
 					ImGui::TableSetColumnIndex(1);
-					ImGui::Text("%7.3f", timing.timeMs);
-					ImGui::TableSetColumnIndex(2);
-					ImGui::Text("%7.2f", timing.timeMs / frameTime * 100.0);
-				}
+                    ImGui::Text("%7.3f", timing.gpuMs);
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::Text("%7.2f", timing.gpuMs / frameTime * 100.0);
+                }
 				ImGui::EndTable();
 			}
 

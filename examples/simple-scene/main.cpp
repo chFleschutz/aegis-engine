@@ -1,4 +1,3 @@
-#include <aegis/graphics/vulkan/vulkan_include.h>
 #include <cmath>
 #include <string>
 
@@ -24,28 +23,28 @@ public:
 		using namespace Aegis;
 
 		// MATERIALS
-		auto paintingTexture = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Misc/painting.png", VK_FORMAT_R8G8B8A8_SRGB);
-		auto metalTexture = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Misc/brushed-metal.png", VK_FORMAT_R8G8B8A8_SRGB);
+        auto paintingTexture = Engine::loadTexture(Core::ASSETS_DIR / "Misc/painting.png", aegis::rhi::Format::RGBA8_SRGB);
+        auto metalTexture = Engine::loadTexture(Core::ASSETS_DIR / "Misc/brushed-metal.png", aegis::rhi::Format::RGBA8_SRGB);
 
-		auto pbrMatTemplate = Core::AssetManager::instance().get<Graphics::MaterialTemplate>("default/PBR_template");
-		auto paintingMat = Graphics::MaterialInstance::create(pbrMatTemplate);
-		paintingMat->setParameter("albedoMap", paintingTexture);
+        auto pbrMatTemplate = Engine::defaults().pbrTemplate;
+        auto paintingMat = Engine::createMaterial(pbrMatTemplate);
+        paintingMat->setParameter("albedoMap", paintingTexture);
 
-		auto metalMat = Graphics::MaterialInstance::create(pbrMatTemplate);
-		metalMat->setParameter("albedoMap", metalTexture);
+        auto metalMat = Engine::createMaterial(pbrMatTemplate);
+        metalMat->setParameter("albedoMap", metalTexture);
 		metalMat->setParameter("metallic", 1.0f);
 
 		// ENTITIES
 		auto& registry = scene.registry();
 
-		auto floorPlane = Graphics::Loader::load(registry, Core::ASSETS_DIR / "Misc/plane.obj");
-		registry.get<Transform>(floorPlane).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
-		registry.get<Graphics::Material>(floorPlane).instance = paintingMat;
+        auto floorPlane = Engine::loadModel(Core::ASSETS_DIR / "Misc/plane.obj");
+        registry.get<Transform>(floorPlane).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
+        registry.get<aegis::assets::Material>(floorPlane).instance = paintingMat;
 
-		auto teapot = Graphics::Loader::load(registry, Core::ASSETS_DIR / "Misc/teapot.obj");
-		registry.get<Transform>(teapot).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
-		registry.get<Graphics::Material>(teapot).instance = metalMat;
-		scripts.addScript<Rotator>(teapot);
+        auto teapot = Engine::loadModel(Core::ASSETS_DIR / "Misc/teapot.obj");
+        registry.get<Transform>(teapot).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
+        registry.get<aegis::assets::Material>(teapot).instance = metalMat;
+        scripts.addScript<Rotator>(teapot);
 
 		// LIGHTS
 		constexpr int lightCount = 64;

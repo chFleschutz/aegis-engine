@@ -37,8 +37,8 @@ build\windows-clang-debug\src\aegis\test\aegis-test.exe --frames 600     # windo
 build\windows-clang-debug\src\aegis\test\aegis-test.exe --headless --gpu-driven --screenshot frame.png
 ```
 
-`../src/aegis/test/main.cpp` is the only `main()` that reaches a real `rhi::Device` — the
-`examples/` targets still run on the old `Aegis::Graphics` stack and will not catch an RHI
+`../src/aegis/test/main.cpp` is the only `main()` that checks a real `rhi::Device` for failures —
+the `examples/` targets run the same stack, but open a window and nothing fails them on an RHI
 regression. Debug builds enable core and synchronization validation; the harness exits non-zero on
 a failed check or any validation error. CTest runs the headless form (label `device`); the windowed
 form is the only check of surface, swapchain and present, so run it when those change.

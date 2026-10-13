@@ -1,8 +1,7 @@
 #include <doctest/doctest.h>
 
-#include <string_view>
-
 #include <cstddef>
+#include <string_view>
 
 import aegis.rhi;
 

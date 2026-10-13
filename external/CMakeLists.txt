@@ -9,9 +9,8 @@ add_subdirectory(glfw)
 
 add_subdirectory(glm)
 
-# No volk and no prototypes: ImGui's Vulkan backend keeps its own function pointers, filled by
-# ImGui_ImplVulkan_LoadFunctions from whichever stack initializes it. Prototypes would clash with
-# volk's same-named globals (the old stack's binaries resolved them to volk's data).
+# No prototypes: ImGui's Vulkan backend keeps its own function pointers, which render_graph::UiPass
+# fills through the RHI's instance (ImGui_ImplVulkan_LoadFunctions).
 set(IMGUI_USE_VOLK OFF)
 add_subdirectory(imgui)
 target_compile_definitions(imgui PUBLIC IMGUI_IMPL_VULKAN_NO_PROTOTYPES)
@@ -28,8 +27,6 @@ target_include_directories(stb SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(tinyobjloader)
 
 add_subdirectory(vma)
-
-add_subdirectory(volk)
 
 set(DOCTEST_WITH_TESTS OFF)
 set(DOCTEST_NO_INSTALL ON)

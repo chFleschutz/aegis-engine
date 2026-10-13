@@ -27,7 +27,7 @@ CMake ≥3.28 + Ninja via presets (`build/<preset>/`). Default preset: `windows-
 > (or set `VULKAN_SDK`/`Vulkan_ROOT` in the environment). See the unit-tests section for the full
 > rationale.
 
-### Examples (visual smoke tests of the old `Aegis::Graphics` stack)
+### Examples (visual smoke tests of the engine)
 Executable targets are the PascalCase `project()` names: `Simple-Scene`, `Sponza`, `Eval-Scene`,
 `Helmets`, `Template-Scene`; each lives in `examples/<lowercased-name>`. Build one and run its exe:
 
@@ -38,8 +38,10 @@ Executable targets are the PascalCase `project()` names: `Simple-Scene`, `Sponza
 scenes need the `aegis-assets` submodule. Report whether it built clean (warnings are errors) and the
 window rendered; on a build failure, surface the first real error, not the downstream cascade.
 
-The examples still run the old stack, so they **do not** verify new-RHI work — for that, run
-`aegis-test` (see "Verifying device paths" under Unit tests).
+The examples run the new RHI stack through the `Engine` facade, but they open a window and have no
+pass/fail signal — validation errors only go to stderr. Verify RHI work with `aegis-test` first (see
+"Verifying device paths" under Unit tests). `src/aegis/graphics/` (the old `Aegis::Graphics` stack) is
+no longer built and is about to be deleted; don't edit it.
 
 ### Shaders
 Shaders auto-compile on every engine build (`compile_shaders` target). Needs both `glslc` and
@@ -118,8 +120,8 @@ conventions, how to add a module, and the full rationale: **`tests/README.md`**.
   invisible; **(3)** check import direction before picking a home — `:utility` cannot host an
   `Extent3D` helper because `:common` already imports `:utility`.
 - **Verifying device paths:** green unit tests are *not* sufficient when device code changed.
-  `src/aegis/test/` (`aegis-test`) is the only `main()` reaching a real `rhi::Device`; `examples/`
-  still runs the old `Aegis::Graphics` stack and will not catch an RHI regression. Debug builds enable
+  `src/aegis/test/` (`aegis-test`) is the only `main()` that checks a real `rhi::Device` for
+  failures; `examples/` run the same stack but nothing fails them on a regression. Debug builds enable
   core **and synchronization** validation, and `aegis-test` exits non-zero on any failed check or
   validation error (messages go to stderr) — a run is only verified if it exits 0.
   - `aegis-test --headless` renders offscreen: no window, no surface, no swapchain, and stops after

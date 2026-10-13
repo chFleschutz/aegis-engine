@@ -8,8 +8,7 @@ import :texture;
 
 export namespace aegis::assets
 {
-// Scene components referencing assets. The old renderer draws Aegis::Graphics' equivalents, so
-// entities carrying these are invisible to it until the Phase 4 cutover.
+// Scene components referencing assets; the render graph draws entities carrying them.
 
 struct Mesh
 {

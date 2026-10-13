@@ -555,45 +555,55 @@ milestone). CTest runs both paths as `device` tests. Decisions and details:
   only chained where supported and the unused shader-object feature is no longer enabled; swapchain
   images and offscreen targets allow `TransferDst` (present blits).
 - **Fixed while porting:** the old draw batch registry never assigned batch IDs (every template was batch
-  0); the new one numbers templates as they first appear. The new swapchain prefers sRGB while the old
-  chose UNORM, so post-processing now skips its own gamma when the target encodes sRGB itself ("Final" is
-  RGBA16F so the linear case does not band).
+  0); the new one numbers templates as they first appear. Post-processing skips its own gamma when the target
+  encodes sRGB itself ("Final" is RGBA16F so the linear case does not band). *Phase 4 switched the
+  swapchain back to preferring UNORM, like the old one, because ImGui assumes it.*
 - **Not ported:** the old non-bindless `static_mesh_render_system` (unused); drawing `MaterialType::Transparent`
   meshes (the old transparent pass only drew point lights).
 
-## Phase 4 — Atomic engine cutover (volk dies here)
+## Phases 4 + 5 — Engine cutover, editor and examples
 
-Single commit. Replace the GPU stack in `engine.cppm`:
+**Done, merged into one cutover commit:** the two stacks cannot link into one binary (both carry VMA,
+so the symbols collide), so the engine, editor and examples moved together. `graphics/` stays in the
+tree but is no longer built. All five examples build warnings-as-errors and run on the new stack with
+**no validation output** (core + sync). Window captures of Simple-Scene, Helmets and Sponza were checked
+by eye: textures, point lights, bloom, the sky box and the editor UI all render. Decisions and details:
 
-- [ ] Swap members: ~~`Core::Window`→`platform::Window`~~ (done in Phase 1), `Graphics::Renderer`→`renderer::Renderer` + `render_graph::FrameGraph`, construct `rhi::Context` + `rhi::Device`.
-- [ ] Move `loadDefaultAssets()` (default textures, PBR template/instance, pipeline build) onto `aegis.assets` + `rhi::Pipeline`.
-- [ ] Rewire `run()`: `m_renderer.renderFrame([&](const auto& frameInfo){ m_frameGraph.execute(...); })`.
-- [ ] Rewire `loadScene` / `sceneChanged` / `sceneInitialized` to the new frame graph + draw batch registry.
-- [ ] Port the **UI pass** (moved from Phase 3) once ImGui runs on the new device.
-- [ ] Wire **ImGui** to the new device (replaces old `Renderer::setupUI`): set `DescriptorPoolSize` (at least 1 for the font plus one per `AddTexture`) instead of passing a pool, and `UseDynamicRendering = true` with the swapchain format.
-- [ ] Handle resize via `renderer::Renderer::resize` + `needsResize` (already implemented) instead of the old `recreateSwapChain`.
-- [ ] Update the engine accessor `renderer()` return type and any callers.
-- [ ] Build + run `Template-Scene` → `Simple-Scene` → `Sponza` / `Helmets` / `Eval-Scene`.
-
-**Exit criteria:** every example runs on the new stack; no code path touches `VulkanContext` or volk.
-
----
-
-## Phase 5 — Editor / UI / examples repoint
-
-- [ ] Repoint `editor/*` (esp. `editor_layer`, `panels/renderer_panel`, `panels/statistics_panel` — already partially on new modules) from `Aegis::Graphics::*` to `aegis::render_graph` / `aegis::assets`.
-- [ ] Repoint `ui/*` and `scene` render-component references.
-- [ ] Update every `examples/*` scene that referenced `Aegis::Graphics` types.
-- [ ] Build + run each example.
-
-**Exit criteria:** no remaining `import Aegis.Graphics.*` outside `graphics/` itself.
+- **Engine facade.** `Engine` owns `platform::Window`/`Input`, `rhi::Context`/`Device`,
+  `renderer::Renderer`, the default assets, `render_graph::Ibl`, the draw batch registry and the frame
+  graph. Examples load through `Engine::loadModel`, `loadEnvironment`, `loadTexture` and `createMaterial`
+  instead of calling the asset loaders with a device. These helpers log, assert and return an empty
+  value on failure (examples have no error path). `Engine::ENABLE_GPU_DRIVEN_RENDERING` chooses the
+  geometry path.
+- **Default graph.** `render_graph::addDefaultPasses(FrameGraph&, DefaultPassesDesc)` builds the pass
+  list shared by the engine and `aegis-test`: scene update, CPU- or GPU-driven geometry, lighting, sky
+  box, transparent (point lights), bloom, post-processing, the optional UI pass and present.
+- **UI pass.** `render_graph::UiPass` owns `ImGui_ImplVulkan_Init`/`Shutdown`, sizing the backend's own
+  descriptor pool (`DescriptorPoolSize`). It uses dynamic rendering, draws into "Final" (RGBA16F), and
+  calls a `build` callback each frame. ImGui is built with `IMGUI_IMPL_VULKAN_NO_PROTOTYPES` and loads its
+  function pointers through the dispatcher's `vkGetInstanceProcAddr`. Functions a headless instance lacks
+  (surface/swapchain) resolve to an aborting stub, because the backend requires every pointer to be non-null.
+  `aegis-test` runs the UI pass too (a timings window), so CTest covers it.
+- **Swapchain prefers UNORM** (like the old one): frames arrive gamma encoded from post-processing, and
+  ImGui assumes an UNORM target.
+- **Default environment.** `createDefaultScene` takes an `assets::Environment` (the engine's default
+  sky), so every scene has IBL before an example replaces it.
+- **Editor** panels read the new stack: the renderer panel lists `FrameGraph::passes()` and
+  `ResourcePool::describe()` (name, kind, `rhi::formatName`); the profiler shows `FrameGraph::timings()`;
+  statistics come from `DrawBatchRegistry`.
+- **Resize:** `renderer::Renderer::resize` followed by `FrameGraph::resized()`; a minimized window waits on
+  events.
+- **volk is gone from the build** (`external/CMakeLists.txt` no longer adds it); only the unbuilt
+  `graphics/` still references it.
+- **Not carried over:** the old `Renderer::setupUI` and `recreateSwapChain` paths, and the SSAO pass
+  (dropped in Phase 3).
 
 ---
 
 ## Phase 6 — Delete old stack + remove volk
 
-- [ ] Delete `src/aegis/graphics/` and its `add_subdirectory(graphics)` + `aegis-graphics` link in `src/aegis/CMakeLists.txt`.
-- [ ] Remove volk dependency, `graphics/vulkan/volk_impl.cpp`, and `graphics/vulkan/vulkan_include.h`.
+- [ ] Delete `src/aegis/graphics/` (no longer built since the cutover; `add_subdirectory(graphics)` and the `aegis-graphics` link are already gone).
+- [ ] Remove the `external/volk` submodule (the build stopped adding it at the cutover), `graphics/vulkan/volk_impl.cpp`, and `graphics/vulkan/vulkan_include.h`.
 - [x] Remove `Aegis.Core.Window` if fully superseded by `platform::Window`. *Done in Phase 1.*
 - [ ] Remove the `Aegis.Core.Input` shim once scripts and the editor receive `platform::Input` explicitly.
 - [ ] Grep for stragglers: `VK_CHECK`, `AGX_ASSERT` in migrated code, `#include ".../vulkan_include.h"`, `import Aegis.Graphics`.
@@ -675,9 +685,8 @@ that state machine changes.
 ### What to defer
 
 - Anything requiring a live `vk::Device` (pipelines, real rendering, uploads end-to-end) — covered by
-  `src/aegis/test/` (`aegis-test`). **Correction to the earlier note here:** the `examples/` targets do
-  *not* cover this. They still run the old `Aegis::Graphics` stack and will not catch an RHI
-  regression; `aegis-test` is the only `main()` that reaches a real `rhi::Device`.
+  `src/aegis/test/` (`aegis-test`). The `examples/` targets run the same stack since the cutover, but
+  they have no pass/fail signal; `aegis-test` is the only `main()` that fails on an RHI regression.
 - Any test against `Aegis::Graphics::*` — that code is scheduled for deletion; testing it is throwaway.
 
 ### After the rework (Phase 6+)
@@ -699,22 +708,23 @@ are immune to warnings-as-errors. Full rationale in `tests/README.md`.
 
 - **BDA mesh layout** (Phase 2) ripples into every geometry shader — sequence the shader edits with the `StaticMesh` change, don't leave them for later.
 - **GPU-driven vs CPU-driven** paths both need porting in Phase 3, or one must be explicitly deferred with a note.
-- **ImGui ownership** — *decided:* the UI layer owns the descriptor pool via the backend's `DescriptorPoolSize` (Phase 0). Who calls `ImGui_ImplVulkan_Init` (UI layer vs a render-graph `ui_pass`) is still open for Phase 3.
+- **ImGui ownership** — *decided and done:* the backend owns its descriptor pool (`DescriptorPoolSize`), and `render_graph::UiPass` calls `ImGui_ImplVulkan_Init` / `Shutdown` (Phases 4 + 5).
 - **Shader-facing pipeline layout** — *decided and done:* one shared layout (bindless set + 128-byte push constants, all stages); see Phase 0.5 B and `shaders/modules/README.md`.
 - **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
 
-## Next step — Phase 4
+## Next step — Phase 6
 
-**Phases 0 through 3 are complete**: exit criteria met under core and synchronization validation. Scenes
-load into `aegis.assets` on the RHI and render through `aegis.render_graph` (CPU- and GPU-driven), proven in
-`aegis-test`. Next is **Phase 4**, the atomic engine cutover — which now also wires ImGui and the UI pass.
+**Phases 0 through 5 are complete.** The engine, editor and every example run on the new RHI
+(`aegis.rhi` / `renderer` / `platform` / `assets` / `render_graph`) with no validation output, and volk is
+out of the build. Next is **Phase 6**: delete the unbuilt `graphics/` tree and the volk submodule, retire
+the `Aegis.Core.Input` shim, and grep for stragglers.
 
 **Verify any of them with:** a full warnings-as-errors build and `ctest --preset windows-clang-debug`,
 which includes the headless `aegis-test` run (label `device`). It fails on any failed check or
 validation error, core or synchronization (both are on in debug builds). When surface, swapchain or
 present code changes, also run `aegis-test --frames 600` (windowed, exits by itself). `aegis-test` is
-the *only* `main()` reaching a real `rhi::Device`; `examples/` still runs the old stack and will not
-catch an RHI regression.
+the *only* `main()` that fails on an RHI regression; `examples/` run the same stack but have no
+pass/fail signal.
 
 > **Running one test module:** `ctest --preset windows-clang-debug -L rhi` (or `-L math`). Each case
 > is labelled with its module by `aegis_add_test`. `-R "rhi::"` does not work — CTest registers cases

@@ -1,13 +1,20 @@
 module;
 
 #include "core/assert.h"
-#include "graphics/vulkan/vulkan_include.h"
 
 #include <aegis-log/log.h>
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+
 #include <chrono>
+#include <expected>
+#include <filesystem>
 #include <format>
 #include <memory>
+#include <optional>
+#include <string>
+#include <utility>
 
 export module Aegis.Engine;
 
@@ -22,44 +29,57 @@ export import Aegis.Core.Input;
 export import Aegis.Core.LayerStack;
 export import Aegis.Core.Logging;
 export import Aegis.Core.Profiler;
-export import Aegis.Graphics.Components;
-export import Aegis.Graphics.Loader;
-export import Aegis.Graphics.MaterialInstance;
-export import Aegis.Graphics.MaterialTemplate;
-export import Aegis.Graphics.Pipeline;
-export import Aegis.Graphics.Renderer;
-export import Aegis.Graphics.StaticMesh;
-export import Aegis.Graphics.Texture;
 export import Aegis.Scene;
 export import Aegis.Scene.Components;
 export import Aegis.Scene.System;
 export import Aegis.Scripting.ScriptBase;
 export import Aegis.Scripting.ScriptManager;
+export import aegis.assets;
+export import aegis.platform;
+export import aegis.render_graph;
+export import aegis.renderer;
+export import aegis.rhi;
 
 export namespace Aegis
 {
 	class Engine
 	{
 	public:
-		Engine()
+        /// @brief GPU-driven rendering (mesh shaders) where the device supports it, CPU-driven otherwise.
+        static constexpr bool ENABLE_GPU_DRIVEN_RENDERING{ true };
+        static constexpr std::uint32_t FRAMES_IN_FLIGHT{ aegis::renderer::Renderer::maxFramesInFlight };
+
+        Engine()
 		{
 			AGX_ASSERT_X(!s_instance, "Only one instance of Engine is allowed");
 			s_instance = this;
             Input::setInstance(&m_input);
 
+            createRenderer();
             loadDefaultAssets();
-			m_layerStack.push<Editor::EditorLayer>(m_renderer, m_scene);
+            createFrameGraph();
+            m_layerStack.push<Editor::EditorLayer>(*m_renderer, *m_frameGraph, m_drawBatches, m_scene);
 
-			ALOG::info("Engine Initialized!");
-			Logging::logo();
+            ALOG::info("Engine Initialized!");
+            ALOG::info("Using {} Driven Rendering", useGpuDrivenRendering() ? "GPU" : "CPU");
+            Logging::logo();
 		}
 
 		Engine(const Engine&) = delete;
 		Engine(Engine&&) = delete;
-        ~Engine() { Input::setInstance(nullptr); }
+        ~Engine()
+        {
+            // The GPU may still use what the members below free; ImGui's backends go before its context.
+            m_device->waitIdle();
+            m_frameGraph.reset();
+            ImGui_ImplGlfw_Shutdown();
+            ImGui::DestroyContext();
+            Input::setInstance(nullptr);
+            s_instance = nullptr;
+        }
 
-        auto operator=(const Engine&) -> Engine & = delete;
-		auto operator=(Engine&&) -> Engine & = delete;
+        auto operator=(const Engine&) -> Engine& = delete;
+        auto operator=(Engine&&) -> Engine & = delete;
 
 		/// @brief Returns the instance of the engine
 		[[nodiscard]] static auto instance() -> Engine&
@@ -68,163 +88,254 @@ export namespace Aegis
 			return *s_instance;
 		}
 
-		[[nodiscard]] static auto assets() -> Core::AssetManager& { return Engine::instance().m_assets; }
-        [[nodiscard]] static auto window() -> aegis::platform::Window& { return Engine::instance().m_window; }
-        [[nodiscard]] static auto input() -> aegis::platform::Input& { return Engine::instance().m_input; }
-        [[nodiscard]] static auto renderer() -> Graphics::Renderer& { return Engine::instance().m_renderer; }
-		[[nodiscard]] static auto ui() -> UI::UI& { return Engine::instance().m_ui; }
-		[[nodiscard]] static auto scene() -> Scene::Scene& { return Engine::instance().m_scene; }
+        [[nodiscard]] static auto assets() -> Core::AssetManager& { return instance().m_assets; }
+        [[nodiscard]] static auto window() -> aegis::platform::Window& { return instance().m_window; }
+        [[nodiscard]] static auto input() -> aegis::platform::Input& { return instance().m_input; }
+        [[nodiscard]] static auto device() -> aegis::rhi::Device& { return *instance().m_device; }
+        [[nodiscard]] static auto renderer() -> aegis::renderer::Renderer& { return *instance().m_renderer; }
+        [[nodiscard]] static auto frameGraph() -> aegis::render_graph::FrameGraph& { return *instance().m_frameGraph; }
+        [[nodiscard]] static auto drawBatches() -> aegis::render_graph::DrawBatchRegistry& { return instance().m_drawBatches; }
+        [[nodiscard]] static auto ui() -> UI::UI& { return instance().m_ui; }
+        [[nodiscard]] static auto scene() -> Scene::Scene& { return instance().m_scene; }
+        [[nodiscard]] static auto defaults() -> const aegis::assets::DefaultAssets& { return *instance().m_defaults; }
 
-		void run()
-		{
-			// Main Update loop
-			auto lastFrameBegin = std::chrono::steady_clock::now();
+        [[nodiscard]] auto useGpuDrivenRendering() const -> bool
+        {
+            return ENABLE_GPU_DRIVEN_RENDERING && m_device->capabilities().meshShaders;
+        }
+
+        // Asset helpers: the new stack's loaders with the engine's device and defaults filled in.
+        // Failures are logged and asserted, like the engine's other setup errors.
+
+        /// @brief Loads a .gltf / .glb / .obj into the current scene; returns its root entity.
+        static auto loadModel(const std::filesystem::path& path) -> Scene::Entity
+        {
+            auto& engine = instance();
+            auto root = aegis::assets::Loader::load(
+                {
+                    .device = *engine.m_device,
+                    .scene = engine.m_scene.registry(),
+                    .pbrTemplate = engine.m_defaults->pbrTemplate,
+                    .defaultMaterial = engine.m_defaults->pbrMaterial,
+                    .framesInFlight = FRAMES_IN_FLIGHT,
+                },
+                path);
+            return check(std::move(root), std::format("load model '{}'", path.string()));
+        }
+
+        /// @brief An environment (sky box and IBL maps) from a Radiance .hdr.
+        static auto loadEnvironment(const std::filesystem::path& hdr) -> aegis::assets::Environment
+        {
+            return check(instance().m_ibl->loadEnvironment(hdr), std::format("load environment '{}'", hdr.string()));
+        }
+
+        /// @brief A PNG/JPEG/... texture; color data (e.g. albedo) is RGBA8_SRGB.
+        static auto loadTexture(const std::filesystem::path& path,
+            aegis::rhi::Format format = aegis::rhi::Format::RGBA8_UNORM) -> std::shared_ptr<aegis::assets::Texture>
+        {
+            return check(aegis::assets::Texture::loadFromFile(*instance().m_device, path, format),
+                std::format("load texture '{}'", path.string()));
+        }
+
+        /// @brief A new instance of 'materialTemplate' (by default the PBR template).
+        static auto createMaterial(std::shared_ptr<const aegis::assets::MaterialTemplate> materialTemplate = nullptr)
+            -> std::shared_ptr<aegis::assets::MaterialInstance>
+        {
+            auto& engine = instance();
+            if (!materialTemplate)
+                materialTemplate = engine.m_defaults->pbrTemplate;
+            return check(aegis::assets::MaterialInstance::create(*engine.m_device, std::move(materialTemplate), FRAMES_IN_FLIGHT),
+                "create a material");
+        }
+
+        void run()
+        {
+            auto lastFrameBegin = std::chrono::steady_clock::now();
 			while (!m_window.shouldClose())
 			{
 				ScopeProfiler frameTime("Frame Time");
 
-				// Calculate time
-				auto currentFrameBegin = std::chrono::steady_clock::now();
+                auto currentFrameBegin = std::chrono::steady_clock::now();
 				float frameTimeSec = std::chrono::duration<float, std::chrono::seconds::period>(currentFrameBegin - lastFrameBegin).count();
 				lastFrameBegin = currentFrameBegin;
 
                 m_window.update();
+                if (m_window.isMinimized())
+                {
+                    m_window.waitEvents();
+                    continue;
+                }
+                if (m_window.wasResized() || m_renderer->needsResize())
+                    resize();
 
                 // Update
-				m_scene.update(frameTimeSec);
+                m_scene.update(frameTimeSec);
 				m_scriptManager.update(frameTimeSec);
 				m_layerStack.update(frameTimeSec);
 
-				// Rendering
-				m_renderer.renderFrame(m_scene, m_ui);
+                // Rendering: uploads queued this frame (or while loading) go first, on the same queue.
+                std::ignore = m_device->flushUploads();
+                m_renderer->renderFrame([this](const aegis::renderer::Renderer::FrameInfo& frame) {
+                    m_frameGraph->execute({
+                        .cmd = frame.cmd,
+                        .scene = m_scene,
+                        .drawBatches = m_drawBatches,
+                        .frameIndex = frame.frameIndex,
+                        .extent = frame.extent,
+                        .target = frame.target,
+                    });
+                });
 
-				applyFrameBrake(currentFrameBegin);
+                applyFrameBrake(currentFrameBegin);
 			}
 
-			m_renderer.waitIdle();
-		}
+            m_device->waitIdle();
+        }
 
-		/// @brief Creates a scene from a description
+        /// @brief Creates a scene from a description
 		/// @tparam T Description of the scene (Derived from Scene::Description)
 		template<SceneDescriptionDerived T, typename... Args>
 		void loadScene(Args&&... args)
 		{
 			m_scene.reset();
-			m_renderer.sceneChanged(m_scene);
-			createDefaultScene(m_scene, m_scriptManager);
-			T description{ std::forward<Args>(args)... };
+            createDefaultScene(m_scene, m_scriptManager, defaultEnvironment());
+            T description{ std::forward<Args>(args)... };
 			description.initialize(m_scene, m_scriptManager);
 			m_scene.begin();
-			m_renderer.sceneInitialized(m_scene);
-		}
+            m_frameGraph->sceneInitialized(m_scene);
+        }
 
 	private:
-		void applyFrameBrake(std::chrono::steady_clock::time_point frameBegin)
-		{
-			using namespace std::chrono;
+        template<typename T, typename E>
+        static auto check(std::expected<T, E> result, const std::string& what) -> T
+        {
+            if (!result)
+            {
+                ALOG::fatal("Failed to {}: {}", what, result.error().message);
+                AGX_ASSERT_X(false, "Engine setup failed (see log)");
+                return T{};
+            }
+            return std::move(*result);
+        }
 
-			ScopeProfiler frameBrake("Wait for FPS limit");
+        void createRenderer()
+        {
+            auto context = aegis::rhi::Context::create({ .appName = "Aegis", .window = &m_window });
+            AGX_ASSERT_X(context, "Failed to create the Vulkan context");
+            m_context = std::move(*context);
 
-			if constexpr (!Core::ENABLE_FPS_LIMIT)
-				return;
+            auto device = m_context->createDevice({});
+            AGX_ASSERT_X(device, "Failed to create the Vulkan device");
+            m_device = std::move(*device);
 
-			// Note: This has to be a busy wait since sleep_for is not accurate enough (especially on Windows)
-			while (duration<double, std::milli>(steady_clock::now() - frameBegin).count() < Core::TARGET_FRAME_TIME)
-			{
-				// busy wait
-			}
-		}
+            auto renderer = aegis::renderer::Renderer::create({
+                .context = *m_context,
+                .device = *m_device,
+                .window = &m_window,
+            });
+            AGX_ASSERT_X(renderer, "Failed to create the renderer");
+            m_renderer = std::move(*renderer);
+        }
 
-		void loadDefaultAssets()
-		{
-			using namespace Aegis::Graphics;
+        void loadDefaultAssets()
+        {
+            m_defaults = check(aegis::assets::DefaultAssets::create(*m_device, FRAMES_IN_FLIGHT), "create the default assets");
+            auto ibl = aegis::render_graph::Ibl::create(*m_device);
+            if (!ibl)
+                ALOG::fatal("Failed to create the IBL pipelines: {}", ibl.error().message);
+            AGX_ASSERT_X(ibl, "Failed to create the IBL pipelines");
+            m_ibl.emplace(std::move(*ibl));
+            m_brdfLut = check(m_ibl->brdfLut(), "compute the BRDF lookup table");
 
-			// Default Textures
+            // Under the names the old renderer used, for code that looks them up.
+            m_assets.add("default/texture_black", m_defaults->black);
+            m_assets.add("default/texture_white", m_defaults->white);
+            m_assets.add("default/texture_normal", m_defaults->normal);
+            m_assets.add("default/cubemap_black", m_defaults->blackCube);
+            m_assets.add("default/cubemap_white", m_defaults->whiteCube);
+            m_assets.add("default/PBR_template", m_defaults->pbrTemplate);
+            m_assets.add("default/PBR_instance", m_defaults->pbrMaterial);
+        }
 
-			m_assets.add("default/texture_black", Texture::solidColor(glm::vec4{ 0.0f }));
-			m_assets.add("default/texture_white", Texture::solidColor(glm::vec4{ 1.0f }));
-			m_assets.add("default/texture_normal", Texture::solidColor(glm::vec4{ 0.5f, 0.5f, 1.0f, 0.0f }));
+        void createFrameGraph()
+        {
+            m_drawBatches.connect(m_scene.registry());
 
-			m_assets.add("default/cubemap_black", Texture::solidColorCube(glm::vec4{ 0.0f }));
-			m_assets.add("default/cubemap_white", Texture::solidColorCube(glm::vec4{ 1.0f }));
+            ImGui_ImplGlfw_InitForVulkan(m_window.glfwWindow(), true);
 
-			// Default PBR Material
-			{
-				auto pipeline = []() {
-					Pipeline::GraphicsBuilder builder{};
-					builder.addDescriptorSetLayout(Engine::renderer().bindlessDescriptorSet().layout())
-						.addPushConstantRange(VK_SHADER_STAGE_ALL, 128)
-						.addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT)
-						.addColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT)
-						.addColorAttachment(VK_FORMAT_R8G8B8A8_UNORM)
-						.addColorAttachment(VK_FORMAT_R8G8B8A8_UNORM)
-						.addColorAttachment(VK_FORMAT_R8G8B8A8_UNORM)
-						.setDepthAttachment(VK_FORMAT_D32_SFLOAT);
-					if (Renderer::useGPUDrivenRendering())
-					{
-						return builder
-							.addShaderStages(VK_SHADER_STAGE_TASK_BIT_EXT,
-								Core::SHADER_DIR / "gpu-driven/task_meshlet_cull.slang.spv")
-							.addShaderStages(VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT,
-								Core::SHADER_DIR / "gpu-driven/mesh_geometry_indirect.slang.spv")
-							.addFlag(Pipeline::Flags::MeshShader)
-							.build();
-					}
-					else
-					{
-						// Vertex shader
-						return builder
-							.addShaderStages(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-								Core::SHADER_DIR / "cpu-driven/vertex_geometry_bindless.slang.spv")
-							.build();
+            m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, *m_renderer);
+            aegis::render_graph::addDefaultPasses(*m_frameGraph,
+                {
+                    .gpuDriven = useGpuDrivenRendering(),
+                    .drawBatches = m_drawBatches,
+                    .buildUi = [this] {
+                        ImGui_ImplGlfw_NewFrame();
+                        m_ui.render();
+                    },
+                    .context = m_context.get(),
+                });
+            if (auto compiled = m_frameGraph->compile(); !compiled)
+            {
+                ALOG::fatal("Failed to compile the frame graph: {}", compiled.error().message);
+                AGX_ASSERT_X(false, "Failed to compile the frame graph");
+            }
+        }
 
-						// Mesh shader
-						//return builder
-						//	.addShaderStages(VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT,
-						//		SHADER_DIR "cpu-driven/mesh_geometry_bindless.slang.spv")
-						//	.addFlag(Pipeline::Flags::MeshShader)
-						//	.build();
+        /// @brief A black sky; scenes replace it with Engine::loadEnvironment.
+        auto defaultEnvironment() const -> aegis::assets::Environment
+        {
+            return aegis::assets::Environment{
+                .skybox = m_defaults->blackCube,
+                .irradiance = m_defaults->blackCube,
+                .prefiltered = m_defaults->blackCube,
+                .brdfLUT = m_brdfLut,
+            };
+        }
 
-						// Mesh shader + task shader culling (Need to adjust StaticMesh::drawMeshlets to use group size of 32)
-						//return builder
-						//	.addShaderStages(VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT,
-						//		SHADER_DIR "cpu-driven/mesh_geometry_cull.slang.spv")
-						//	.addFlag(Pipeline::Flags::MeshShader)
-						//	.build();
-					}
-					}();
+        void resize()
+        {
+            m_renderer->resize(aegis::rhi::Extent2D{ m_window.extent() });
+            m_window.resetResized();
+            if (auto resized = m_frameGraph->resized(); !resized)
+                ALOG::fatal("Failed to resize the frame graph: {}", resized.error().message);
+        }
 
-				auto pbrMatTemplate = std::make_shared<MaterialTemplate>(std::move(pipeline));
-				pbrMatTemplate->addParameter("albedo", glm::vec3{ 1.0f, 1.0f, 1.0f });
-				pbrMatTemplate->addParameter("emissive", glm::vec3{ 0.0f, 0.0f, 0.0f });
-				pbrMatTemplate->addParameter("metallic", 0.0f);
-				pbrMatTemplate->addParameter("roughness", 1.0f);
-				pbrMatTemplate->addParameter("ambientOcclusion", 1.0f);
-				pbrMatTemplate->addParameter("albedoMap", m_assets.get<Texture>("default/texture_white"));
-				pbrMatTemplate->addParameter("normalMap", m_assets.get<Texture>("default/texture_normal"));
-				pbrMatTemplate->addParameter("metalRoughnessMap", m_assets.get<Texture>("default/texture_white"));
-				pbrMatTemplate->addParameter("ambientOcclusionMap", m_assets.get<Texture>("default/texture_white"));
-				pbrMatTemplate->addParameter("emissiveMap", m_assets.get<Texture>("default/texture_white"));
-				m_assets.add("default/PBR_template", pbrMatTemplate);
+        void applyFrameBrake(std::chrono::steady_clock::time_point frameBegin)
+        {
+            using namespace std::chrono;
 
-				auto defaultPBRMaterial = Graphics::MaterialInstance::create(pbrMatTemplate);
-				defaultPBRMaterial->setParameter("albedo", glm::vec3{ 0.8f, 0.8f, 0.9f });
-				m_assets.add("default/PBR_instance", defaultPBRMaterial);
-			}
-		}
+            ScopeProfiler frameBrake("Wait for FPS limit");
 
+            if constexpr (!Core::ENABLE_FPS_LIMIT)
+                return;
 
-		inline static Engine* s_instance{ nullptr };
+            // Note: This has to be a busy wait since sleep_for is not accurate enough (especially on Windows)
+            while (duration<double, std::milli>(steady_clock::now() - frameBegin).count() < Core::TARGET_FRAME_TIME)
+            {
+                // busy wait
+            }
+        }
 
-		Logging m_logging{};
+        inline static Engine* s_instance{ nullptr };
+
+        // Order matters: members are destroyed bottom up, and everything holding GPU resources must go
+        // before the device.
+        Logging m_logging{};
 		Core::LayerStack m_layerStack{};
 		UI::UI m_ui{ m_layerStack };
         aegis::platform::Window m_window{ { .title = "Aegis", .width = Core::DEFAULT_WIDTH, .height = Core::DEFAULT_HEIGHT } };
-        // Before the renderer: ImGui chains to the key callback installed when it initializes.
+        // Before ImGui's GLFW backend installs its callbacks, which chain to the window's.
         aegis::platform::Input m_input{ m_window };
-        Graphics::Renderer m_renderer{ m_window };
+        std::unique_ptr<aegis::rhi::Context> m_context;
+        std::unique_ptr<aegis::rhi::Device> m_device;
+        std::unique_ptr<aegis::renderer::Renderer> m_renderer;
         Core::AssetManager m_assets{};
-		Scene::Scene m_scene;
+        std::optional<aegis::assets::DefaultAssets> m_defaults;
+        std::optional<aegis::render_graph::Ibl> m_ibl;
+        std::shared_ptr<aegis::assets::Texture> m_brdfLut;
+        Scene::Scene m_scene;
 		Scripting::ScriptManager m_scriptManager{ m_scene };
-	};
+        aegis::render_graph::DrawBatchRegistry m_drawBatches; // Disconnects from the scene first
+        std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
+    };
 }

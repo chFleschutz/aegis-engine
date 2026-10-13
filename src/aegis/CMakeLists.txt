@@ -13,7 +13,7 @@ add_subdirectory(test)
 
 add_subdirectory(math)
 add_subdirectory(core)
-add_subdirectory(graphics)
+# graphics/ (the old Aegis::Graphics stack) is no longer built; Phase 6 deletes it.
 add_subdirectory(scene)
 add_subdirectory(scripting)
 add_subdirectory(ui)
@@ -33,8 +33,12 @@ PRIVATE
 
 target_link_libraries(aegis-engine 
 PUBLIC 
+	aegis-assets
 	aegis-core
-	aegis-graphics
+	aegis-platform
+	aegis-render-graph
+	aegis-renderer
+	aegis-rhi
 	aegis-scene
 	aegis-ui
 	aegis-editor
