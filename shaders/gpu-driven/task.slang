@@ -1,7 +1,7 @@
-import rhi.modules.common;
-import rhi.modules.indirect_draw;
-import rhi.modules.meshlet_cull;
-import rhi.modules.visibility;
+import modules.common;
+import modules.indirect_draw;
+import modules.meshlet_cull;
+import modules.visibility;
 
 // GPU-driven G-buffer pass, task stage: one indirect mesh-task draw per visible instance of a draw
 // batch. Culls the instance's meshlets (frustum and normal cone) and launches mesh groups for the rest.

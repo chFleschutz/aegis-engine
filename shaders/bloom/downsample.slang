@@ -1,5 +1,5 @@
-import rhi.modules.bindless;
-import rhi.modules.constants;
+import modules.bindless;
+import modules.constants;
 
 // Bloom, step 2: each mip is a 13-tap filtered downsample of the one above.
 

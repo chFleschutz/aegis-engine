@@ -146,7 +146,7 @@ auto CullingPass::info() const -> Info
 
 auto CullingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    auto pipeline = createComputePipeline(pool.device(), "Culling", "rhi/gpu-driven/culling.slang.spv");
+    auto pipeline = createComputePipeline(pool.device(), "Culling", "gpu-driven/culling.slang.spv");
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
     m_pipeline = std::move(*pipeline);
@@ -233,9 +233,9 @@ auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected
     // The task shader is a separate module: sharing one, the mesh stage would also declare the
     // task stage's DrawIndex, which a mesh shader with a task stage must not.
     constexpr std::array stages{
-        ShaderEntry{ rhi::ShaderStage::Task, "rhi/gpu-driven/task.slang.spv", "taskMain" },
-        ShaderEntry{ rhi::ShaderStage::Mesh, "rhi/gpu-driven/geometry.slang.spv", "meshMain" },
-        ShaderEntry{ rhi::ShaderStage::Fragment, "rhi/gpu-driven/geometry.slang.spv", "fragmentMain" },
+        ShaderEntry{ rhi::ShaderStage::Task, "gpu-driven/task.slang.spv", "taskMain" },
+        ShaderEntry{ rhi::ShaderStage::Mesh, "gpu-driven/geometry.slang.spv", "meshMain" },
+        ShaderEntry{ rhi::ShaderStage::Fragment, "gpu-driven/geometry.slang.spv", "fragmentMain" },
     };
     auto pipeline = createGraphicsPipeline(pool.device(),
         rhi::Pipeline::GraphicsDesc{

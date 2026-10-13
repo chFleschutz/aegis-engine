@@ -1,6 +1,6 @@
 module visibility;
 
-import rhi.modules.common;
+import modules.common;
 
 namespace visibility
 {

@@ -1,5 +1,5 @@
-import rhi.modules.bindless;
-import rhi.modules.ibl;
+import modules.bindless;
+import modules.ibl;
 
 // Projects an equirectangular (longitude/latitude) HDR image onto the six faces of a cube map.
 

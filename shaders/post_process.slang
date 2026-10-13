@@ -1,4 +1,4 @@
-import rhi.modules.bindless;
+import modules.bindless;
 
 // HDR scene color (+ bloom) -> tone mapped, gamma corrected final image.
 

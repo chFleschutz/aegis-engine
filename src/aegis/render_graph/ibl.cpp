@@ -50,16 +50,16 @@ auto cubeDesc(std::string_view name, std::uint32_t size, std::uint32_t mipLevels
 
 auto Ibl::create(rhi::Device& device) -> std::expected<Ibl, Error>
 {
-    auto equirectToCube = createComputePipeline(device, "IblEquirectToCube", "rhi/ibl/equirect_to_cube.slang.spv");
+    auto equirectToCube = createComputePipeline(device, "IblEquirectToCube", "ibl/equirect_to_cube.slang.spv");
     if (!equirectToCube)
         return std::unexpected{ equirectToCube.error() };
-    auto irradiance = createComputePipeline(device, "IblIrradiance", "rhi/ibl/irradiance_convolution.slang.spv");
+    auto irradiance = createComputePipeline(device, "IblIrradiance", "ibl/irradiance_convolution.slang.spv");
     if (!irradiance)
         return std::unexpected{ irradiance.error() };
-    auto prefilter = createComputePipeline(device, "IblPrefilter", "rhi/ibl/prefilter_environment.slang.spv");
+    auto prefilter = createComputePipeline(device, "IblPrefilter", "ibl/prefilter_environment.slang.spv");
     if (!prefilter)
         return std::unexpected{ prefilter.error() };
-    auto brdfLut = createComputePipeline(device, "IblBrdfLut", "rhi/ibl/brdf_lut.slang.spv");
+    auto brdfLut = createComputePipeline(device, "IblBrdfLut", "ibl/brdf_lut.slang.spv");
     if (!brdfLut)
         return std::unexpected{ brdfLut.error() };
 

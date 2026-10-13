@@ -1,4 +1,4 @@
-import rhi.modules.bindless;
+import modules.bindless;
 
 // Draws the environment cube behind everything: depth is forced to 1 and tested less-or-equal
 // against the G-buffer depth, so only pixels no geometry covered receive the sky.

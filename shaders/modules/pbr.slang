@@ -1,6 +1,6 @@
 module pbr;
 
-import rhi.modules.constants;
+import modules.constants;
 
 namespace PBR
 {

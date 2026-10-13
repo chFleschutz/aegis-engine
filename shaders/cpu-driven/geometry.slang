@@ -1,6 +1,6 @@
-import rhi.modules.bindless;
-import rhi.modules.common;
-import rhi.modules.tbn;
+import modules.bindless;
+import modules.common;
+import modules.tbn;
 
 // CPU-driven G-buffer pass: one draw per entity, vertices pulled through the mesh's device address
 // (the index buffer is bound, so SV_VertexID is the vertex index).

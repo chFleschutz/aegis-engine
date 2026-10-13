@@ -1,8 +1,8 @@
-import rhi.modules.bindless;
-import rhi.modules.common;
-import rhi.modules.indirect_draw;
-import rhi.modules.meshlet_cull;
-import rhi.modules.tbn;
+import modules.bindless;
+import modules.common;
+import modules.indirect_draw;
+import modules.meshlet_cull;
+import modules.tbn;
 
 // GPU-driven G-buffer pass, mesh and fragment stages: the mesh shader emits the meshlets task.slang
 // kept (one task group per 32 meshlets of a visible instance).

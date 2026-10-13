@@ -1,6 +1,6 @@
-import rhi.modules.bindless;
-import rhi.modules.constants;
-import rhi.modules.ibl;
+import modules.bindless;
+import modules.constants;
+import modules.ibl;
 
 // Diffuse irradiance: the environment convolved with a cosine lobe, per cube face texel.
 

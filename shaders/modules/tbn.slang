@@ -1,6 +1,6 @@
 module TBN;
 
-import rhi.modules.constants;
+import modules.constants;
 
 namespace TBN
 {

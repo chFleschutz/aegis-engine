@@ -1,6 +1,6 @@
-import rhi.modules.bindless;
-import rhi.modules.constants;
-import rhi.modules.ibl;
+import modules.bindless;
+import modules.constants;
+import modules.ibl;
 
 // Split-sum BRDF lookup table: scale and bias to F0 by (NdotV, roughness).
 

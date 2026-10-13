@@ -1,9 +1,7 @@
-# Shader interface (new RHI)
+# Shader interface
 
-How shaders written for the new RHI (`aegis::rhi`) receive their data. They live in `shaders/rhi/`
-and import `rhi.modules.*`. The modules in this folder (`bindless.slang` and friends) belong to the
-**old** stack (`Aegis::Graphics`), which uses different binding slots and std430 packing; they go with
-the old renderer.
+How shaders receive their data from the RHI (`aegis::rhi`). Shaders live in `shaders/` and share the
+modules in this folder through `import modules.*`.
 
 ## One pipeline layout for every pipeline
 
@@ -16,7 +14,7 @@ the old renderer.
 | Set 0, binding 2        | samplers (`SamplerDescriptor` indices)                              |
 | Push constants          | 128 bytes at offset 0, visible to all stages                      |
 
-`CommandBuffer::bindPipeline` binds set 0 automatically. `rhi/modules/bindless.slang` declares the
+`CommandBuffer::bindPipeline` binds set 0 automatically. `modules/bindless.slang` declares the
 arrays (aliased per resource type, e.g. `Texture2D` and `TextureCube` over binding 0) and typed
 accessors: `bindless::texture2D(SampledImageDescriptor)`, `bindless::storage2DArray(StorageImageDescriptor)`,
 `bindless::sampler(SamplerDescriptor)`. Images and samplers are separate; `bindless::TextureDescriptor`
@@ -30,7 +28,7 @@ its push constants (the buffer needs `BufferUsage::ShaderDeviceAddress`). Descri
 same way. One `[[vk::push_constant]]` struct per entry point:
 
 ```slang
-import rhi.modules.bindless;
+import modules.bindless;
 
 struct DrawConstants
 {
@@ -48,12 +46,12 @@ typed `pushConstants` checks at compile time.
 
 ## Layout: scalar, so C++ structs match
 
-`shaders/rhi/` compiles with `-fvk-use-scalar-layout` (see `shaders/CMakeLists.txt`): push constants
+Every shader compiles with `-fvk-use-scalar-layout` (see `shaders/CMakeLists.txt`): push constants
 and everything read through a pointer are packed like C++ structs, with each member aligned to its
 component type (a `float3` takes 12 bytes, aligned to 4). So a C++ struct of `glm::vec3`, `float` and
 `rhi::DeviceAddress` matches the Slang struct member for member — `assets::Vertex`, `StaticMesh::GpuData`
 and material parameter blocks rely on it. Matrices are row-major (`-matrix-layout-row-major`); upload
 `glm::rowMajor4(m)`.
 
-Working examples: `computeMain` in `src/aegis/test/shader.slang`, and `shaders/rhi/ibl/*.slang`
+Working examples: `computeMain` in `src/aegis/test/shader.slang`, and `shaders/ibl/*.slang`
 (driven by `render_graph::Ibl`).

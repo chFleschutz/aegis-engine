@@ -1,6 +1,6 @@
 module indirect_draw;
 
-import rhi.modules.common;
+import modules.common;
 
 // The GPU-driven path's instance data (render_graph::InstanceData) and the push constants its
 // geometry stages share (render_graph::GpuDrivenGeometryPass).

@@ -1,6 +1,6 @@
-import rhi.modules.bindless;
-import rhi.modules.constants;
-import rhi.modules.ibl;
+import modules.bindless;
+import modules.constants;
+import modules.ibl;
 
 // Specular prefiltering: one mip of the prefiltered cube per roughness, GGX importance sampled.
 

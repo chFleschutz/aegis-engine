@@ -1,7 +1,7 @@
-import rhi.modules.common;
-import rhi.modules.indirect_draw;
-import rhi.modules.meshlet_cull;
-import rhi.modules.visibility;
+import modules.common;
+import modules.indirect_draw;
+import modules.meshlet_cull;
+import modules.visibility;
 
 // Frustum-culls every instance and, for each visible one, appends its ID to its draw batch and
 // writes the batch's indirect mesh-task command.

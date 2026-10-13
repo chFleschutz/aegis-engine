@@ -1,6 +1,6 @@
 module common;
 
-import rhi.modules.bindless;
+import modules.bindless;
 
 // Data the C++ side writes, mirrored member for member (scalar layout; see shaders/modules/README.md).
 

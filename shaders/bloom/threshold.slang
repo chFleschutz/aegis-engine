@@ -1,5 +1,5 @@
-import rhi.modules.bindless;
-import rhi.modules.constants;
+import modules.bindless;
+import modules.constants;
 
 // Bloom, step 1: keeps the parts of the scene brighter than the threshold (soft knee), into mip 0.
 

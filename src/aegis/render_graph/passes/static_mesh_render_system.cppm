@@ -19,7 +19,7 @@ export namespace aegis::render_graph
 class StaticMeshRenderSystem : public RenderSystem
 {
 public:
-    /// @brief rhi/cpu-driven/geometry.slang's push constants.
+    /// @brief cpu-driven/geometry.slang's push constants.
     struct PushConstants
     {
         glm::mat3x4 model; // Top three rows
@@ -33,7 +33,7 @@ public:
     static_assert(sizeof(PushConstants) <= rhi::CommandBuffer::maxPushConstantSize);
 
     explicit StaticMeshRenderSystem(assets::MaterialType type = assets::MaterialType::Opaque,
-        std::string shader = "rhi/cpu-driven/geometry.slang.spv");
+        std::string shader = "cpu-driven/geometry.slang.spv");
 
     [[nodiscard]] auto createResources(rhi::Device& device, const RenderTargets& targets)
         -> std::expected<void, Error> override;

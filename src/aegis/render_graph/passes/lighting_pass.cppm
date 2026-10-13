@@ -31,7 +31,7 @@ class LightingPass : public RenderPass
 public:
     static constexpr std::uint32_t maxPointLights{ 128 };
 
-    /// @brief rhi/lighting.slang's Lighting block.
+    /// @brief lighting.slang's Lighting block.
     struct Uniforms
     {
         struct PointLight

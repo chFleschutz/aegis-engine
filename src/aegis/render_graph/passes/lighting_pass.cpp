@@ -30,7 +30,7 @@ auto descriptorOf(const assets::Texture& texture) -> TextureDescriptor
     return { texture.sampledDescriptor().index, texture.samplerDescriptor().index };
 }
 
-// rhi/lighting.slang's push constants.
+// lighting.slang's push constants.
 struct PushConstants
 {
     rhi::DeviceAddress lighting;
@@ -70,7 +70,7 @@ auto LightingPass::info() const -> Info
 
 auto LightingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    auto pipeline = createComputePipeline(pool.device(), "Lighting", "rhi/lighting.slang.spv");
+    auto pipeline = createComputePipeline(pool.device(), "Lighting", "lighting.slang.spv");
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
     m_pipeline = std::move(*pipeline);

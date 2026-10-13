@@ -1,5 +1,5 @@
-import rhi.modules.bindless;
-import rhi.modules.pbr;
+import modules.bindless;
+import modules.pbr;
 
 // Deferred PBR lighting: reads the G-buffer, writes HDR scene color.
 

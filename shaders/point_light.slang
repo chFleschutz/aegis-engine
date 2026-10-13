@@ -1,5 +1,5 @@
-import rhi.modules.common;
-import rhi.modules.constants;
+import modules.common;
+import modules.constants;
 
 // Point lights as glowing billboards, alpha blended into the scene color after lighting.
 

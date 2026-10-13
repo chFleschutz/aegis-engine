@@ -42,9 +42,9 @@ auto BloomPass::createResources(ResourcePool& pool) -> std::expected<void, Error
     m_device = &pool.device();
 
     for (auto [pipeline, name, path] : {
-             std::tuple{ &m_threshold, "BloomThreshold", "rhi/bloom/threshold.slang.spv" },
-             std::tuple{ &m_downsample, "BloomDownsample", "rhi/bloom/downsample.slang.spv" },
-             std::tuple{ &m_upsample, "BloomUpsample", "rhi/bloom/upsample.slang.spv" },
+             std::tuple{ &m_threshold, "BloomThreshold", "bloom/threshold.slang.spv" },
+             std::tuple{ &m_downsample, "BloomDownsample", "bloom/downsample.slang.spv" },
+             std::tuple{ &m_upsample, "BloomUpsample", "bloom/upsample.slang.spv" },
          })
     {
         auto created = createComputePipeline(*m_device, name, path);
@@ -249,7 +249,7 @@ auto PointLightRenderSystem::createResources(rhi::Device& device, const RenderTa
     for (auto& attachment : blended)
         attachment.blend = rhi::BlendMode::Alpha;
 
-    auto pipeline = createGraphicsPipeline(device, "rhi/point_light.slang.spv",
+    auto pipeline = createGraphicsPipeline(device, "point_light.slang.spv",
         rhi::Pipeline::GraphicsDesc{
             .name = "PointLights",
             .colorAttachments = blended,

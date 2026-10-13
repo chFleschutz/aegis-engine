@@ -48,13 +48,6 @@ foreach(SLANG ${SLANG_SOURCES})
     get_filename_component(SLANG_SPIRV_DIR ${SLANG_SPIRV} DIRECTORY)
     file(MAKE_DIRECTORY ${SLANG_SPIRV_DIR})
 
-    # The new RHI's shaders read buffers through device addresses with C++-compatible packing
-    # (see modules/README.md); the old stack's shaders keep std430.
-    set(SLANG_LAYOUT_FLAGS "")
-    if(REL_PATH MATCHES "^rhi/")
-        set(SLANG_LAYOUT_FLAGS -fvk-use-scalar-layout)
-    endif()
-
     add_custom_command(
         OUTPUT ${SLANG_SPIRV}
         COMMAND ${SLANGC_EXE} ${SLANG} 
@@ -64,7 +57,7 @@ foreach(SLANG ${SLANG_SOURCES})
             -I ${SHADERS_DIR}
             -fvk-use-entrypoint-name 
             -matrix-layout-row-major
-            ${SLANG_LAYOUT_FLAGS}
+            -fvk-use-scalar-layout # C++-compatible packing for device-address reads (modules/README.md)
             -warnings-disable 39001
             $<$<CONFIG:Debug>:-O0> $<$<CONFIG:Release>:-O3>
             $<$<CONFIG:Debug>:-g>

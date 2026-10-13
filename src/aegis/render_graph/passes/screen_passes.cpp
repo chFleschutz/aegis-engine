@@ -38,7 +38,7 @@ auto SkyBoxPass::info() const -> Info
 auto SkyBoxPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
     const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = rhi::Format::RGBA16_SFLOAT } };
-    auto pipeline = createGraphicsPipeline(pool.device(), "rhi/sky_box.slang.spv",
+    auto pipeline = createGraphicsPipeline(pool.device(), "sky_box.slang.spv",
         rhi::Pipeline::GraphicsDesc{
             .name = "SkyBox",
             .colorAttachments = colorAttachments,
@@ -111,7 +111,7 @@ auto PostProcessingPass::info() const -> Info
 
 auto PostProcessingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    auto pipeline = createComputePipeline(pool.device(), "PostProcessing", "rhi/post_process.slang.spv");
+    auto pipeline = createComputePipeline(pool.device(), "PostProcessing", "post_process.slang.spv");
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
     m_pipeline = std::move(*pipeline);

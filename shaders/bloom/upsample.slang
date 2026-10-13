@@ -1,4 +1,4 @@
-import rhi.modules.bindless;
+import modules.bindless;
 
 // Bloom, step 3: each mip becomes a 3x3 tent-filtered upsample of the one below, back up to mip 0.
 
