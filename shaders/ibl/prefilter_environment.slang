@@ -1,18 +1,20 @@
-import "modules/constants"; 
-import "modules/ibl";
+import modules.bindless;
+import modules.constants;
+import modules.ibl;
+
+// Specular prefiltering: one mip of the prefiltered cube per roughness, GGX importance sampled.
 
 static const uint SAMPLE_COUNT = 4096;
 
-struct Push
+struct PushConstants
 {
+    bindless::TextureDescriptor environment;   // Cube
+    bindless::StorageImageDescriptor prefiltered; // A 2D-array view of one mip of the prefiltered cube
     float roughness;
-    float envResolution;
+    float envResolution; // Width of the environment cube's mip 0
 }
 
-[vk::push_constant] ConstantBuffer<Push> push;
-
-[vk::binding(0)] SamplerCube environmentMap;
-[vk::binding(1)] RWTexture2DArray<float4> prefilteredMap;
+[[vk::push_constant]] ConstantBuffer<PushConstants> push;
 
 func importanceSampleGGX(float2 Xi, float3 N, float roughness) -> float3
 {
@@ -35,7 +37,7 @@ func importanceSampleGGX(float2 Xi, float3 N, float roughness) -> float3
     return tangent * H.x + bitangent * H.y + N * H.z;
 }
 
-func DistributionGGX(float NdotH, float roughness) -> float
+func distributionGGX(float NdotH, float roughness) -> float
 {
     float alpha2 = roughness * roughness * roughness * roughness;
     float NdotH2 = NdotH * NdotH;
@@ -47,8 +49,11 @@ func DistributionGGX(float NdotH, float roughness) -> float
 [numthreads(16, 16, 1)]
 func main(uint3 dispatchID: SV_DispatchThreadID)
 {
+    let prefilteredMap = bindless::storage2DArray(push.prefiltered);
     uint3 imageSize;
     prefilteredMap.GetDimensions(imageSize.x, imageSize.y, imageSize.z);
+    if (any(dispatchID.xy >= imageSize.xy))
+        return;
 
     float2 st = float2(dispatchID.xy) / float2(imageSize.xy);
     float2 uv = float2(st.x, 1.0 - st.y) * 2.0 - 1.0;
@@ -71,14 +76,14 @@ func main(uint3 dispatchID: SV_DispatchThreadID)
         {
             float NdotH = max(dot(N, H), 0.0);
             float HdotV = max(dot(H, V), 0.0);
-            float D = DistributionGGX(NdotH, push.roughness);
+            float D = distributionGGX(NdotH, push.roughness);
             float pdf = D * NdotH / max(4.0 * HdotV, constants::EPSILON);
 
             float saTexel = 4.0 * constants::PI / (6.0 * push.envResolution * push.envResolution);
             float saSample = 1.0 / max(float(SAMPLE_COUNT) * pdf, constants::EPSILON);
 
             float mipLevel = push.roughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel);
-            prefilteredColor += environmentMap.SampleLevel(L, mipLevel).rgb * NdotL;
+            prefilteredColor += push.environment.sampleCubeLevel(L, mipLevel).rgb * NdotL;
             totalWeight += NdotL;
         }
     }

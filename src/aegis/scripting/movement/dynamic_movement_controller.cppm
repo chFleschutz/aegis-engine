@@ -2,7 +2,7 @@ export module Aegis.Scripting.Movement.DynamicMovementController;
 
 import Aegis.Scripting.ScriptBase;
 import Aegis.Physics.MotionDynamics;
-import Aegis.Core.Input;
+import aegis.platform;
 import Aegis.Scene.Components;
 
 namespace Aegis::Scripting
@@ -12,23 +12,23 @@ namespace Aegis::Scripting
 	public:
 		struct KeyMappings
 		{
-			Input::Key moveForward = Input::Up;
-			Input::Key moveBackward = Input::Down;
-			Input::Key rotateLeft = Input::Left;
-			Input::Key rotateRight = Input::Right;
-		};
+            aegis::platform::Key moveForward = aegis::platform::Key::Up;
+            aegis::platform::Key moveBackward = aegis::platform::Key::Down;
+            aegis::platform::Key rotateLeft = aegis::platform::Key::Left;
+            aegis::platform::Key rotateRight = aegis::platform::Key::Right;
+        };
 
 		virtual void update(float deltaSeconds) override
 		{
 			auto& transform = get<Transform>();
 			auto& dynamics = get<Physics::MotionDynamics>();
 
-			bool forwardPressed = Input::instance().keyPressed(m_keys.moveForward);
-			bool backwardPressed = Input::instance().keyPressed(m_keys.moveBackward);
-			bool leftPressed = Input::instance().keyPressed(m_keys.rotateLeft);
-			bool rightPressed = Input::instance().keyPressed(m_keys.rotateRight);
+            bool forwardPressed = input().keyPressed(m_keys.moveForward);
+            bool backwardPressed = input().keyPressed(m_keys.moveBackward);
+            bool leftPressed = input().keyPressed(m_keys.rotateLeft);
+            bool rightPressed = input().keyPressed(m_keys.rotateRight);
 
-			auto speed = dynamics.linearSpeed();
+            auto speed = dynamics.linearSpeed();
 			auto angularSpeed = dynamics.angularSpeed();
 
 			// Directional forces

@@ -1,6 +1,6 @@
 module TBN;
 
-import "modules/constants";
+import modules.constants;
 
 namespace TBN
 {

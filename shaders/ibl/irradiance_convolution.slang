@@ -1,12 +1,19 @@
-import "modules/constants";
-import "modules/ibl";
+import modules.bindless;
+import modules.constants;
+import modules.ibl;
+
+// Diffuse irradiance: the environment convolved with a cosine lobe, per cube face texel.
 
 static const uint SAMPLE_COUNT = 16 * 1024;
-static const float INV_SAMPLE_COUNT = 1.0 / float(SAMPLE_COUNT);
 static const float3 MAX_BRIGHTNESS = float3(1000.0);
 
-[vk::binding(0)] SamplerCube environmentMap;
-[vk::binding(1)] RWTexture2DArray<float4> irradianceMap;
+struct PushConstants
+{
+    bindless::TextureDescriptor environment; // Cube
+    bindless::StorageImageDescriptor irradiance; // A 2D-array view of the irradiance cube
+}
+
+[[vk::push_constant]] ConstantBuffer<PushConstants> push;
 
 func computeBasisVectors(const float3 N, out float3 S, out float3 T)
 {
@@ -35,8 +42,11 @@ func hemisphereToWorld(const float3 v, const float3 N, const float3 S, const flo
 [numthreads(16, 16, 1)]
 func main(uint3 dispatchID: SV_DispatchThreadID)
 {
+    let irradianceMap = bindless::storage2DArray(push.irradiance);
     uint3 imageSize;
     irradianceMap.GetDimensions(imageSize.x, imageSize.y, imageSize.z);
+    if (any(dispatchID.xy >= imageSize.xy))
+        return;
 
     float2 st = float2(dispatchID.xy) / float2(imageSize.xy);
     float2 uv = float2(st.x, 1.0 - st.y) * 2.0 - 1.0;
@@ -53,7 +63,7 @@ func main(uint3 dispatchID: SV_DispatchThreadID)
         float NdotL = max(dot(N, L), 0.0);
 
         // Clamp color to reduces noise from overly bright pixels
-        float3 sampleColor = min(environmentMap.SampleLevel(L, 0).rgb, MAX_BRIGHTNESS);
+        float3 sampleColor = min(push.environment.sampleCubeLevel(L, 0).rgb, MAX_BRIGHTNESS);
         irradiance += 2.0 * sampleColor * NdotL;
     }
     irradiance /= float3(SAMPLE_COUNT);

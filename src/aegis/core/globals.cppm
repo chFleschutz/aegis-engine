@@ -1,7 +1,9 @@
 module;
 
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
+#include <limits>
 
 export module Aegis.Core.Globals;
 

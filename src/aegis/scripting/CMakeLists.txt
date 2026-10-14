@@ -1,6 +1,8 @@
 add_library(aegis-scripting STATIC)
 
 target_link_libraries(aegis-scripting 
+PUBLIC
+	aegis-platform
 PRIVATE
 	aegis-core
 	aegis-math

@@ -28,9 +28,6 @@
 [submodule "external/vma"]
 	path = external/vma
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
-[submodule "external/volk"]
-	path = external/volk
-	url = https://github.com/zeux/volk.git
 [submodule "modules/aegis-assets"]
 	path = modules/aegis-assets
 	url = https://github.com/chFleschutz/aegis-assets.git
@@ -40,3 +37,6 @@
 [submodule "modules/aegis-log"]
 	path = modules/aegis-log
 	url = https://github.com/chFleschutz/aegis-log.git
+[submodule "external/doctest"]
+	path = external/doctest
+	url = https://github.com/doctest/doctest

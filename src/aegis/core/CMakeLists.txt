@@ -15,12 +15,10 @@ PUBLIC
 		asset.cppm
 		asset_manager.cppm
 		globals.cppm
-		input.cppm
 		layer.cppm
 		layer_stack.cppm
 		logging.cppm
 		profiler.cppm
-		window.cppm
 )
 
 target_compile_definitions(aegis-core PUBLIC

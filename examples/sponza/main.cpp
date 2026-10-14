@@ -16,15 +16,13 @@ public:
 		};
 
 		// SKYBOX
-		auto& env = registry.get<Graphics::Environment>(scene.environment());
-		env.skybox = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
-		env.irradiance = Graphics::Texture::irradianceMap(env.skybox);
-		env.prefiltered = Graphics::Texture::prefilteredMap(env.skybox);
+        registry.get<aegis::assets::Environment>(scene.environment()) =
+            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
-		// MODELS
-		Graphics::Loader::load(registry, Core::ASSETS_DIR / "Sponza/Sponza.gltf");
+        // MODELS
+        Engine::loadModel(Core::ASSETS_DIR / "Sponza/Sponza.gltf");
 
-		// LIGHTS
+        // LIGHTS
 		registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.5f;
 		registry.get<DirectionalLight>(scene.directionalLight()).intensity = 1.0f;
 	}

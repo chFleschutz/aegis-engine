@@ -1,154 +1,92 @@
 module bindless;
 
-// Bindless resource handle system for indexing resources via global descriptor arrays
-//
-// This works similar to slangs built-in DescriptorHandle, but allows for resources to be
-// grouped by type at different binding slots (Required for Vulkan).
-// Also each handle only uses 32 bits (instead of slangs 64 bits) and packs additional
-// information for debugging like type and version.
-//
-// For type safety each handle stores the expected resource type as a generic parameter.
-// Sadly slangs types do not include the required information to reliably distinguish between
-// Samplers, Textures, Buffers, etc. So we need to define our own types wrapping the underlying
-// descriptor types with additional type information.
+// Set 0 of the pipeline layout every pipeline shares: the RHI's bindless heap (rhi::BindlessHeap).
+// It has one binding per descriptor type; the arrays below alias those bindings with the resource
+// types shaders need. A descriptor index from C++ (rhi::SampledImageDescriptor and friends) selects
+// the element. See shaders/modules/README.md.
 
-public interface IBindlessResource
-{
-    public associatedtype UnderlyingDescriptor : IOpaqueDescriptor;
-    public static const bindless::DescriptorKind kind;
-}
+[allow("parameterBindingsOverlap")] [vk::binding(0, 0)] Texture2D g_texture2D[];
+[allow("parameterBindingsOverlap")] [vk::binding(0, 0)] TextureCube g_textureCube[];
+[allow("parameterBindingsOverlap")] [vk::binding(0, 0)] Texture2DArray g_texture2DArray[];
 
-public struct SampledImage2D : IBindlessResource
-{
-    public typedef Sampler2D UnderlyingDescriptor;
-    public static const bindless::DescriptorKind kind = bindless::DescriptorKind.SampledImage;
-}
+// Storage images are declared without a format (shaderStorageImage{Read,Write}WithoutFormat).
+[allow("parameterBindingsOverlap")] [vk::binding(1, 0)] RWTexture2D<float4> g_storage2D[];
+[allow("parameterBindingsOverlap")] [vk::binding(1, 0)] RWTexture2DArray<float4> g_storage2DArray[];
 
-public struct RWImage2D : IBindlessResource
-{
-    public typedef RWTexture2D UnderlyingDescriptor;
-    public static const bindless::DescriptorKind kind = bindless::DescriptorKind.SampledImage;
-}
-
-public struct StorageBuffer<T, L = Std430DataLayout> : IBindlessResource
-    where L : IBufferDataLayout
-{
-    public typedef StructuredBuffer<T, L> UnderlyingDescriptor;
-    public static const bindless::DescriptorKind kind = bindless::DescriptorKind.StorageBuffer;
-}
-
-public struct RWStorageBuffer<T, L = Std430DataLayout> : IBindlessResource
-    where L : IBufferDataLayout
-{
-    public typedef RWStructuredBuffer<T, L> UnderlyingDescriptor;
-    public static const bindless::DescriptorKind kind = bindless::DescriptorKind.StorageBuffer;
-}
-
-public struct UniformBuffer<T, L = Std430DataLayout> : IBindlessResource
-    where L : IBufferDataLayout
-{
-    public typedef ConstantBuffer<T, L> UnderlyingDescriptor;
-    public static const bindless::DescriptorKind kind = bindless::DescriptorKind.UniformBuffer;
-}
-
-public struct Undefined : IBindlessResource
-{
-    public typedef IOpaqueDescriptor UnderlyingDescriptor;
-    public static const bindless::DescriptorKind kind = bindless::DescriptorKind.Unkown;
-}
+[vk::binding(2, 0)] SamplerState g_samplers[];
 
 namespace bindless
 {
-    // Binding slots for different descriptor types
-    public static const uint SAMPLED_IMAGE = 0;
-    public static const uint STORAGE_IMAGE = 1;
-    public static const uint STORAGE_BUFFER = 2;
-    public static const uint UNIFORM_BUFFER = 3;
-
-    // Bits for extracting packed handle data
-    public static const uint INDEX_BITS = 24;
-    public static const uint VERSION_BITS = 6;
-    public static const uint TYPE_BITS = 2;
-
-    public static const uint INDEX_MASK = (1 << INDEX_BITS) - 1;
-    public static const uint VERSION_MASK = (1 << VERSION_BITS) - 1;
-    public static const uint TYPE_MASK = (1 << TYPE_BITS) - 1;
-
-    [allow("parameterBindingsOverlap")] 
-    [vk::binding(SAMPLED_IMAGE)] __DynamicResource g_sampledImages[];
-
-    [allow("parameterBindingsOverlap")] 
-    [vk::binding(STORAGE_IMAGE)] __DynamicResource g_storageImages[];
-
-    [allow("parameterBindingsOverlap")] 
-    [vk::binding(STORAGE_BUFFER)] __DynamicResource g_storageBuffers[];
-
-    [allow("parameterBindingsOverlap")] 
-    [vk::binding(UNIFORM_BUFFER)] __DynamicResource g_uniformBuffers[];
-
-    public enum DescriptorKind
+    public struct SampledImageDescriptor
     {
-        SampledImage,
-        StorageImage,
-        StorageBuffer,
-        UniformBuffer,
-        Unkown,
+        public uint index;
     }
 
-    public struct Handle<T = Undefined> where T : IBindlessResource
+    public struct StorageImageDescriptor
     {
-        // Packed as: | 2 bits type | 6 bits version | 24 bits index |
-        uint handle;
+        public uint index;
+    }
 
-        public __init(uint h)
+    public struct SamplerDescriptor
+    {
+        public uint index;
+    }
+
+    public func texture2D(SampledImageDescriptor descriptor) -> Texture2D
+    {
+        return g_texture2D[NonUniformResourceIndex(descriptor.index)];
+    }
+
+    public func textureCube(SampledImageDescriptor descriptor) -> TextureCube
+    {
+        return g_textureCube[NonUniformResourceIndex(descriptor.index)];
+    }
+
+    public func texture2DArray(SampledImageDescriptor descriptor) -> Texture2DArray
+    {
+        return g_texture2DArray[NonUniformResourceIndex(descriptor.index)];
+    }
+
+    public func storage2D(StorageImageDescriptor descriptor) -> RWTexture2D<float4>
+    {
+        return g_storage2D[NonUniformResourceIndex(descriptor.index)];
+    }
+
+    public func storage2DArray(StorageImageDescriptor descriptor) -> RWTexture2DArray<float4>
+    {
+        return g_storage2DArray[NonUniformResourceIndex(descriptor.index)];
+    }
+
+    public func sampler(SamplerDescriptor descriptor) -> SamplerState
+    {
+        return g_samplers[NonUniformResourceIndex(descriptor.index)];
+    }
+
+    /// An image plus the sampler to read it with: how assets::Texture reaches shaders, and the 8
+    /// bytes a texture parameter of a material takes.
+    public struct TextureDescriptor
+    {
+        public SampledImageDescriptor image;
+        public SamplerDescriptor sampler;
+
+        public func sample(float2 uv) -> float4
         {
-            handle = h;
+            return texture2D(image).Sample(bindless::sampler(sampler), uv);
         }
 
-        public property uint index
+        public func sampleLevel(float2 uv, float lod) -> float4
         {
-            get { return handle & INDEX_MASK; }
+            return texture2D(image).SampleLevel(bindless::sampler(sampler), uv, lod);
         }
 
-        public property uint version
+        public func sampleCube(float3 direction) -> float4
         {
-            get { return (handle >> INDEX_BITS) & VERSION_MASK; }
+            return textureCube(image).Sample(bindless::sampler(sampler), direction);
         }
 
-        public property uint type
+        public func sampleCubeLevel(float3 direction, float lod) -> float4
         {
-            get { return (handle >> (INDEX_BITS + VERSION_BITS)) & TYPE_MASK; }
+            return textureCube(image).SampleLevel(bindless::sampler(sampler), direction, lod);
         }
-
-        public func get() -> T.UnderlyingDescriptor
-        {
-            if (T.kind == DescriptorKind.SampledImage)
-            {
-                return g_sampledImages[NonUniformResourceIndex(index)].asOpaqueDescriptor<T.UnderlyingDescriptor>();
-            }
-            else if (T.kind == DescriptorKind.StorageImage)
-            {
-                return g_storageImages[NonUniformResourceIndex(index)].asOpaqueDescriptor<T.UnderlyingDescriptor>();
-            }
-            else if (T.kind == DescriptorKind.StorageBuffer)
-            {
-                return g_storageBuffers[NonUniformResourceIndex(index)].asOpaqueDescriptor<T.UnderlyingDescriptor>();
-            }
-            else if (T.kind == DescriptorKind.UniformBuffer)
-            {
-                return g_uniformBuffers[NonUniformResourceIndex(index)].asOpaqueDescriptor<T.UnderlyingDescriptor>();
-            }
-            else
-            {
-                static_assert(false, "Unknown descriptor kind");
-                return T.UnderlyingDescriptor();
-            }
-        }
-
-        public func asHandle<U>() -> Handle<U>
-            where U : IBindlessResource
-        {
-            return Handle<U>(handle);
-        }
-    };
+    }
 }

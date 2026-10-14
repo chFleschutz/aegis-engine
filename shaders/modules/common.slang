@@ -2,13 +2,16 @@ module common;
 
 import modules.bindless;
 
+// Data the C++ side writes, mirrored member for member (scalar layout; see shaders/modules/README.md).
+
 namespace common
 {
     public struct Frustum
     {
-        public float4 planes[6];
+        public float4 planes[6]; // render_graph::Frustum
     }
 
+    /// render_graph::CameraData, written by the scene update pass once per frame.
     public struct Camera
     {
         public float4x4 view;
@@ -18,14 +21,16 @@ namespace common
         public float3 position;
     }
 
+    /// assets::Vertex
     public struct Vertex
     {
         public float3 position;
         public float3 normal;
         public float2 uv;
         public float3 color;
-    };
+    }
 
+    /// assets::BoundingSphere
     public struct BoundingSphere
     {
         public float3 center;
@@ -36,7 +41,7 @@ namespace common
             let maxScale = max(length(mat[0].xyz), max(length(mat[1].xyz), length(mat[2].xyz)));
             return BoundingSphere(mul(mat, float4(center, 1.0)).xyz, radius * maxScale);
         }
-    };
+    }
 
     public struct NormalCone
     {
@@ -52,8 +57,9 @@ namespace common
         {
             get { return float(cutoff_s8) / 127.0; }
         }
-    };
+    }
 
+    /// assets::Meshlet
     public struct Meshlet
     {
         public BoundingSphere bounds;
@@ -62,28 +68,49 @@ namespace common
         public uint primitiveOffset;
         public uint8_t vertexCount;
         public uint8_t primitiveCount;
-    };
+    }
 
+    /// assets::StaticMesh::GpuData: a whole mesh, reached through one address.
+    /// Struct pointers are stored as plain addresses and exposed as properties: slangc 2025.17
+    /// (Vulkan SDK 1.4.328) emits a duplicate OpTypeForwardPointer for a struct pointer member of a
+    /// struct that is itself reached through a pointer, which spirv-val rejects.
     public struct Mesh
     {
-        public bindless::Handle<StorageBuffer<Vertex, ScalarDataLayout>> vertices;
-        public bindless::Handle<StorageBuffer<uint>> indices;
-        public bindless::Handle<StorageBuffer<Meshlet>> meshlets;
-        public bindless::Handle<StorageBuffer<uint>> meshletVertices;
-        public bindless::Handle<StorageBuffer<uint8_t, ScalarDataLayout>> meshletPrimitives;
+        uint64_t vertexAddress; // Vertex*
+        public uint* indices;
+        uint64_t meshletAddress; // Meshlet*
+        public uint* meshletVertices;
+        public uint8_t* meshletPrimitives;
         public uint vertexCount;
         public uint indexCount;
         public uint meshletCount;
         public BoundingSphere bounds;
-    };
 
-    public struct VertexIn
+        public property Vertex* vertices
+        {
+            get { return (Vertex*)vertexAddress; }
+        }
+
+        public property Meshlet* meshlets
+        {
+            get { return (Meshlet*)meshletAddress; }
+        }
+    }
+
+    /// The default PBR material's parameter block (assets::DefaultAssets::pbrTemplate, in order).
+    public struct PbrMaterial
     {
-        [vk::location(0)] public float3 position;
-        [vk::location(1)] public float3 normal;
-        [vk::location(2)] public float2 uv;
-        [vk::location(3)] public float3 color;
-    };
+        public float3 albedo;
+        public float3 emissive;
+        public float metallic;
+        public float roughness;
+        public float ambientOcclusion;
+        public bindless::TextureDescriptor albedoMap;
+        public bindless::TextureDescriptor normalMap;
+        public bindless::TextureDescriptor metalRoughnessMap;
+        public bindless::TextureDescriptor ambientOcclusionMap;
+        public bindless::TextureDescriptor emissiveMap;
+    }
 
     public struct GBuffer
     {
@@ -92,5 +119,5 @@ namespace common
         [vk::location(2)] public float4 albedo;
         [vk::location(3)] public float4 arm;
         [vk::location(4)] public float4 emissive;
-    };
+    }
 }

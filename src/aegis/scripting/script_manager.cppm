@@ -1,19 +1,26 @@
 module;
 
+#include <concepts>
+#include <utility>
 #include <vector>
 
 export module Aegis.Scripting.ScriptManager;
 
 import Aegis.Scene;
 import Aegis.Scripting.ScriptBase;
+import aegis.platform;
 
 export namespace Aegis::Scripting
 {
 	class ScriptManager
 	{
 	public:
-		ScriptManager(Scene::Scene& scene) : m_scene(scene) {}
-		ScriptManager(const ScriptManager&) = delete;
+        ScriptManager(Scene::Scene& scene, aegis::platform::Input& input) :
+            m_scene(scene),
+            m_input(input)
+        {
+        }
+        ScriptManager(const ScriptManager&) = delete;
 		ScriptManager(ScriptManager&&) = delete;
 		~ScriptManager()
 		{
@@ -36,8 +43,8 @@ export namespace Aegis::Scripting
 		{
 			T* script = new T(std::forward<Args>(args)...);
 			m_newScripts.emplace_back(script);
-			script->init(&m_scene.registry(), entity);
-		}
+            script->init(&m_scene.registry(), entity, m_input);
+        }
 
 		/// @brief Calls the update function of each script
 		void update(float deltaSeconds)
@@ -63,7 +70,8 @@ export namespace Aegis::Scripting
 		}
 
 		Scene::Scene& m_scene;
-		std::vector<ScriptBase*> m_scripts;
+        aegis::platform::Input& m_input;
+        std::vector<ScriptBase*> m_scripts;
 		std::vector<ScriptBase*> m_newScripts;
 	};
 }

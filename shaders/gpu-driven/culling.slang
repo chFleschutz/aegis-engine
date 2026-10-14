@@ -1,10 +1,10 @@
-import modules.bindless;
-import modules.constants;
 import modules.common;
 import modules.indirect_draw;
+import modules.meshlet_cull;
 import modules.visibility;
 
-static const uint TASK_GROUP_SIZE = 32;
+// Frustum-culls every instance and, for each visible one, appends its ID to its draw batch and
+// writes the batch's indirect mesh-task command.
 
 struct DrawBatch
 {
@@ -19,54 +19,49 @@ struct DrawMeshTasksIndirectCommand
     uint groupCountZ;
 }
 
-struct PushConstant
+struct PushConstants
 {
-    bindless::Handle<UniformBuffer<common::Camera>> camera;
-    bindless::Handle<StorageBuffer<indirectDraw::Instance>> staticInstances;
-    bindless::Handle<StorageBuffer<indirectDraw::Instance>> dynamicInstances;
-    bindless::Handle<StorageBuffer<DrawBatch>> drawBatches;
-    bindless::Handle<RWStorageBuffer<uint>> visibility;
-    bindless::Handle<RWStorageBuffer<DrawMeshTasksIndirectCommand>> indirectDrawCommands;
-    bindless::Handle<RWStorageBuffer<uint>> indirectDrawCounts;
+    common::Camera* camera;
+    indirectDraw::Instance* staticInstances;
+    indirectDraw::Instance* dynamicInstances;
+    DrawBatch* drawBatches;
+    uint* visibility;
+    DrawMeshTasksIndirectCommand* commands;
+    uint* counts; // One per draw batch, cleared to 0 before this pass
     uint staticCount;
     uint dynamicCount;
 }
 
-[vk_push_constant] PushConstant pc;
+[[vk::push_constant]] ConstantBuffer<PushConstants> pc;
 
 func getInstance(uint index) -> indirectDraw::Instance
 {
     if (index < pc.staticCount)
-        return pc.staticInstances.get()[index];
-    return pc.dynamicInstances.get()[index - pc.staticCount];
+        return pc.staticInstances[index];
+    return pc.dynamicInstances[index - pc.staticCount];
 }
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
 func main(uint3 dispatchThreadID : SV_DispatchThreadID)
 {
-    if (dispatchThreadID.x >= pc.staticCount + pc.dynamicCount)
-        return;
-
     let instanceID = dispatchThreadID.x;
-    let instance = getInstance(instanceID);
-    let mesh = instance.mesh.get();
-    let camera = pc.camera.get();
-
-    // Culling
-
-    let worldBounds = mesh.bounds.transform(instance.modelMatrix);
-    if (!visibility::frustumVisible(worldBounds, camera.frustum))
+    if (instanceID >= pc.staticCount + pc.dynamicCount)
         return;
 
-    // Indirect Draw Command Generation
+    let instance = getInstance(instanceID);
+    let mesh = instance.mesh;
+
+    let worldBounds = mesh->bounds.transform(instance.modelMatrix);
+    if (!visibility::frustumVisible(worldBounds, pc.camera->frustum))
+        return;
 
     uint drawID;
-    InterlockedAdd(pc.indirectDrawCounts.get()[instance.drawBatchID], 1, drawID);
+    InterlockedAdd(pc.counts[instance.drawBatch], 1, drawID);
 
-    let drawBatch = pc.drawBatches.get()[instance.drawBatchID];
-    pc.visibility.get()[drawBatch.offset + drawID] = instanceID;
+    let batch = pc.drawBatches[instance.drawBatch];
+    pc.visibility[batch.offset + drawID] = instanceID;
 
-    uint groupCountX = (mesh.meshletCount + TASK_GROUP_SIZE - 1) / TASK_GROUP_SIZE;
-    pc.indirectDrawCommands.get()[drawBatch.offset + drawID] = DrawMeshTasksIndirectCommand(groupCountX, 1, 1);
+    let groupCountX = (mesh->meshletCount + TASK_GROUP_SIZE - 1) / TASK_GROUP_SIZE;
+    pc.commands[batch.offset + drawID] = DrawMeshTasksIndirectCommand(groupCountX, 1, 1);
 }

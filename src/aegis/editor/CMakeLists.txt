@@ -2,8 +2,11 @@ add_library(aegis-editor STATIC)
 
 target_link_libraries(aegis-editor
 PUBLIC
+	aegis-assets
 	aegis-core
-	aegis-graphics
+	aegis-platform
+	aegis-render-graph
+	aegis-renderer
 	aegis-scene
 	imgui
 	imguizmo

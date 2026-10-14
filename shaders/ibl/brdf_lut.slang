@@ -1,9 +1,17 @@
-import "modules/constants";
-import "modules/ibl";
+import modules.bindless;
+import modules.constants;
+import modules.ibl;
+
+// Split-sum BRDF lookup table: scale and bias to F0 by (NdotV, roughness).
 
 static const uint SAMPLE_COUNT = 1024;
 
-[vk::binding(0)] RWTexture2D<float2> brdfLUTMap;
+struct PushConstants
+{
+    bindless::StorageImageDescriptor lut; // RG16F
+}
+
+[[vk::push_constant]] ConstantBuffer<PushConstants> push;
 
 func importanceSampleGGX(float2 Xi, float3 N, float roughness) -> float3
 {
@@ -82,10 +90,12 @@ func integrateBRDF(float NdotV, float roughness) -> float2
 [numthreads(16, 16, 1)]
 func main(uint3 dispatchID: SV_DispatchThreadID)
 {
+    let lut = bindless::storage2D(push.lut);
     uint2 imageSize;
-    brdfLUTMap.GetDimensions(imageSize.x, imageSize.y);
-    float2 uv = float2(dispatchID.xy) / float2(imageSize);
+    lut.GetDimensions(imageSize.x, imageSize.y);
+    if (any(dispatchID.xy >= imageSize))
+        return;
 
-    float2 brdf = integrateBRDF(uv.x, uv.y);
-    brdfLUTMap[dispatchID.xy] = brdf;
+    float2 uv = float2(dispatchID.xy) / float2(imageSize);
+    lut[dispatchID.xy] = float4(integrateBRDF(uv.x, uv.y), 0.0, 0.0);
 }

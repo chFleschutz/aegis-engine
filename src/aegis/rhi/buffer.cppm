@@ -1,0 +1,61 @@
+module;
+#include <cstddef>
+#include <expected>
+#include <string_view>
+
+export module aegis.rhi:buffer;
+import :common;
+import :fwd;
+import :memory;
+import vulkan_hpp;
+
+export namespace aegis::rhi
+{
+class Buffer
+{
+    friend Device;
+
+public:
+    struct Desc
+    {
+        std::string_view name;
+        std::size_t size;
+        BufferUsage usage;
+        MemoryUsage memory;
+    };
+
+    [[nodiscard]] auto vk() const -> vk::Buffer { return *m_allocation; }
+    [[nodiscard]] auto size() const -> vk::DeviceSize { return m_size; }
+    [[nodiscard]] auto data() const -> std::byte* { return m_mappedData; }
+
+    /// @brief The address shaders use to access this buffer.
+    /// @warning Only valid for buffers created with BufferUsage::ShaderDeviceAddress.
+    [[nodiscard]] auto deviceAddress() const -> DeviceAddress;
+
+    /// @brief Writes 'size' bytes from 'src' to the internal buffer starting at 'offset'.
+    /// @note This function needs access to the internal Buffer.
+    /// @warning Only valid for memory usage of CpuWrite.
+    auto write(const std::byte* src, std::size_t size, std::size_t offset = 0) const -> void;
+
+    /// @brief Writes 'size' bytes from the internal buffer starting at 'offset' to 'dst'.
+    /// @note This function needs access to the internal Buffer.
+    /// @warning Only valid for memory usage of CpuRead.
+    auto read(std::byte* dst, std::size_t size, std::size_t offset = 0) const -> void;
+
+private:
+    [[nodiscard]] static auto create(const Device& device, const Desc& desc)
+        -> std::expected<Buffer, Error>;
+
+    Buffer(
+        BufferAllocation,
+        vk::DeviceSize size,
+        std::byte* mappedData,
+        DeviceAddress deviceAddress);
+
+    BufferAllocation m_allocation;
+    vk::DeviceSize m_size;
+    std::byte* m_mappedData;
+    DeviceAddress m_deviceAddress;
+    vk::MemoryPropertyFlags m_memoryFlags;
+};
+}

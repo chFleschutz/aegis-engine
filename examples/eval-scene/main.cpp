@@ -19,16 +19,14 @@ public:
 		using namespace Aegis;
 		auto& registry = scene.registry();
 
-		auto& env = registry.get<Graphics::Environment>(scene.environment());
-		env.skybox = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
-		env.irradiance = Graphics::Texture::irradianceMap(env.skybox);
-		env.prefiltered = Graphics::Texture::prefilteredMap(env.skybox);
+        registry.get<aegis::assets::Environment>(scene.environment()) =
+            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
-		registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
+        registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
 		registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-		Graphics::Loader::load(registry, Core::ASSETS_DIR / "Sponza/Sponza.gltf");
-		registry.get<Transform>(scene.mainCamera()) = Transform{
+        Engine::loadModel(Core::ASSETS_DIR / "Sponza/Sponza.gltf");
+        registry.get<Transform>(scene.mainCamera()) = Transform{
 			.location = { -9.75f, 1.2f, 5.25f},
 			.rotation = glm::radians(glm::vec3{ -12.0f, 0.0f, 263.0f })
 		};
@@ -52,20 +50,18 @@ public:
 		auto& registry = scene.registry();
 
 		// Environment setup
-		auto& env = registry.get<Graphics::Environment>(scene.environment());
-		env.skybox = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
-		env.irradiance = Graphics::Texture::irradianceMap(env.skybox);
-		env.prefiltered = Graphics::Texture::prefilteredMap(env.skybox);
+        registry.get<aegis::assets::Environment>(scene.environment()) =
+            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
-		registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
+        registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
 		registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
 		std::filesystem::path bistroPath = Core::ENGINE_DIR / "temp/Bistro/bistro.gltf";
 		AGX_ASSERT_X(std::filesystem::exists(bistroPath),
 			"Bistro scene not found! Please download the scene from 'https://github.com/zeux/niagara_bistro' and place it in the 'temp/Bistro' folder.");
 
-		Graphics::Loader::load(registry, bistroPath);
-		registry.get<Transform>(scene.mainCamera()) = Transform{
+        Engine::loadModel(bistroPath);
+        registry.get<Transform>(scene.mainCamera()) = Transform{
 			.location = { -24.5f, 2.75f, 5.25f},
 			.rotation = glm::radians(glm::vec3{ -1.5f, 0.0f, -90.0f })
 		};
@@ -88,12 +84,10 @@ public:
 		auto& registry = scene.registry();
 
 		// Environment setup
-		auto& env = registry.get<Graphics::Environment>(scene.environment());
-		env.skybox = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
-		env.irradiance = Graphics::Texture::irradianceMap(env.skybox);
-		env.prefiltered = Graphics::Texture::prefilteredMap(env.skybox);
+        registry.get<aegis::assets::Environment>(scene.environment()) =
+            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
-		registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
+        registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
 		registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 		if (cameraMode == 0)
 		{
@@ -112,20 +106,20 @@ public:
 			};
 		}
 
-		auto scifiHelmet = Graphics::Loader::load(registry, Core::ASSETS_DIR / "SciFiHelmet/ScifiHelmet.gltf");
-		registry.get<Transform>(scifiHelmet).location = { 2.0f, 0.0f, 2.0f };
+        auto scifiHelmet = Engine::loadModel(Core::ASSETS_DIR / "SciFiHelmet/SciFiHelmet.gltf");
+        registry.get<Transform>(scifiHelmet).location = { 2.0f, 0.0f, 2.0f };
 
 		Scene::Entity meshEntity = scifiHelmet;
-		std::shared_ptr<Graphics::StaticMesh> mesh;
-		std::shared_ptr<Graphics::MaterialInstance> materialInstance;
-		while (!registry.has<Graphics::Mesh, Graphics::Material>(meshEntity))
-		{
+        std::shared_ptr<aegis::assets::StaticMesh> mesh;
+        std::shared_ptr<aegis::assets::MaterialInstance> materialInstance;
+        while (!registry.has<aegis::assets::Mesh, aegis::assets::Material>(meshEntity))
+        {
 			meshEntity = registry.get<Children>(meshEntity).last;
 			AGX_ASSERT_X(meshEntity, "Failed to find mesh and material in SciFiHelmet scene");
 		}
-		mesh = registry.get<Graphics::Mesh>(meshEntity).staticMesh;
-		materialInstance = registry.get<Graphics::Material>(meshEntity).instance;
-		AGX_ASSERT(mesh && materialInstance);
+        mesh = registry.get<aegis::assets::Mesh>(meshEntity).staticMesh;
+        materialInstance = registry.get<aegis::assets::Material>(meshEntity).instance;
+        AGX_ASSERT(mesh && materialInstance);
 
 		constexpr int instanceCount = 10'000;
 		constexpr float boxSize = 100.0f;
@@ -136,9 +130,9 @@ public:
 		for (int i = 0; i < instanceCount; i++)
 		{
 			auto instance = registry.create("SciFiHelmetInstance");
-			registry.add<Graphics::Mesh>(instance, mesh);
-			registry.add<Graphics::Material>(instance, materialInstance);
-			auto& transform = registry.get<Transform>(instance);
+            registry.add<aegis::assets::Mesh>(instance, mesh);
+            registry.add<aegis::assets::Material>(instance, materialInstance);
+            auto& transform = registry.get<Transform>(instance);
 			transform.location = {
 				posDis(Math::Random::generator()),
 				posDis(Math::Random::generator()),
@@ -166,12 +160,10 @@ public:
 		auto& registry = scene.registry();
 
 		// Environment setup
-		auto& env = registry.get<Graphics::Environment>(scene.environment());
-		env.skybox = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
-		env.irradiance = Graphics::Texture::irradianceMap(env.skybox);
-		env.prefiltered = Graphics::Texture::prefilteredMap(env.skybox);
+        registry.get<aegis::assets::Environment>(scene.environment()) =
+            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
-		registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
+        registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
 		registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
 		if (cameraMode == 0)
@@ -191,16 +183,16 @@ public:
 			};
 		}
 
-		auto cube = Graphics::Loader::load(registry, Core::ASSETS_DIR / "Misc/cube.obj");
-		auto& cubeMesh = registry.get<Graphics::Mesh>(cube).staticMesh;
+        auto cube = Engine::loadModel(Core::ASSETS_DIR / "Misc/cube.obj");
+        auto& cubeMesh = registry.get<aegis::assets::Mesh>(cube).staticMesh;
 
-		constexpr int materialCount = 10;
-		auto pbrMatTemplate = Core::AssetManager::instance().get<Graphics::MaterialTemplate>("default/PBR_template");
-		std::vector<std::shared_ptr<Graphics::MaterialInstance>> cubeMats;
-		for (int i = 0; i < materialCount; i++)
+        constexpr int materialCount = 10;
+        auto pbrMatTemplate = Engine::defaults().pbrTemplate;
+        std::vector<std::shared_ptr<aegis::assets::MaterialInstance>> cubeMats;
+        for (int i = 0; i < materialCount; i++)
 		{
-			auto matInstance = Graphics::MaterialInstance::create(pbrMatTemplate);
-			glm::vec3 color{
+            auto matInstance = Engine::createMaterial(pbrMatTemplate);
+            glm::vec3 color{
 				Math::Random::uniformFloat(0.0f, 1.0f),
 				Math::Random::uniformFloat(0.0f, 1.0f),
 				Math::Random::uniformFloat(0.0f, 1.0f)
@@ -233,9 +225,9 @@ public:
 			glm::vec3 scale{ scaleDis(Math::Random::generator()) };
 
 			auto cubeInstance = registry.create(std::format("Cube {}", i), pos, rot, scale);
-			registry.add<Graphics::Mesh>(cubeInstance, cubeMesh);
-			registry.add<Graphics::Material>(cubeInstance, cubeMats[i % materialCount]);
-		}
+            registry.add<aegis::assets::Mesh>(cubeInstance, cubeMesh);
+            registry.add<aegis::assets::Material>(cubeInstance, cubeMats[i % materialCount]);
+        }
 	}
 };
 
@@ -271,12 +263,10 @@ public:
 		auto& registry = scene.registry();
 
 		// Environment setup
-		auto& env = registry.get<Graphics::Environment>(scene.environment());
-		env.skybox = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
-		env.irradiance = Graphics::Texture::irradianceMap(env.skybox);
-		env.prefiltered = Graphics::Texture::prefilteredMap(env.skybox);
+        registry.get<aegis::assets::Environment>(scene.environment()) =
+            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
-		registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
+        registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
 		registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 		registry.get<Transform>(scene.mainCamera()) = Transform{
 			.location = { -200.0f, -200.0f, 150.0f},
@@ -285,10 +275,10 @@ public:
 
 		scene.addSystem<RotationSystem>();
 
-		auto cube = Graphics::Loader::load(registry, Core::ASSETS_DIR / "Misc/cube.obj");
-		auto& cubeMesh = registry.get<Graphics::Mesh>(cube).staticMesh;
-		auto& cubeMat = registry.get<Graphics::Material>(cube).instance;
-		cubeMat->setParameter("albedo", glm::vec3{ 0.8f, 0.1f, 0.1f });
+        auto cube = Engine::loadModel(Core::ASSETS_DIR / "Misc/cube.obj");
+        auto& cubeMesh = registry.get<aegis::assets::Mesh>(cube).staticMesh;
+        auto& cubeMat = registry.get<aegis::assets::Material>(cube).instance;
+        cubeMat->setParameter("albedo", glm::vec3{ 0.8f, 0.1f, 0.1f });
 		cubeMat->setParameter("metallic", 1.0f);
 		cubeMat->setParameter("roughness", 0.5f);
 
@@ -312,9 +302,9 @@ public:
 			glm::vec3 scale{ scaleDis(Math::Random::generator()) };
 
 			auto cubeInstance = registry.create(std::format("Cube {}", i), pos, rot, scale);
-			registry.add<Graphics::Mesh>(cubeInstance, cubeMesh);
-			registry.add<Graphics::Material>(cubeInstance, cubeMat);
-			registry.add<Rotatable>(cubeInstance, glm::radians(Math::Random::uniformFloat(10.0f, 90.0f)));
+            registry.add<aegis::assets::Mesh>(cubeInstance, cubeMesh);
+            registry.add<aegis::assets::Material>(cubeInstance, cubeMat);
+            registry.add<Rotatable>(cubeInstance, glm::radians(Math::Random::uniformFloat(10.0f, 90.0f)));
 			registry.add<DynamicTag>(cubeInstance); // Mark dynamic, so its updated every frame
 		}
 	}
@@ -334,20 +324,18 @@ public:
 		using namespace Aegis;
 		auto& registry = scene.registry();
 		// Environment setup
-		auto& env = registry.get<Graphics::Environment>(scene.environment());
-		env.skybox = Graphics::Texture::loadFromFile(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
-		env.irradiance = Graphics::Texture::irradianceMap(env.skybox);
-		env.prefiltered = Graphics::Texture::prefilteredMap(env.skybox);
+        registry.get<aegis::assets::Environment>(scene.environment()) =
+            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
-		registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
+        registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
 		registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
 		std::filesystem::path bistroPath = Core::ENGINE_DIR / "temp/Lucy/lucy.gltf";
 		AGX_ASSERT_X(std::filesystem::exists(bistroPath),
 			"Lucy statue model not found! Please download the model from 'https://graphics.stanford.edu/data/3Dscanrep/' and place it in the 'temp/Lucy' folder.");
 
-		Graphics::Loader::load(registry, bistroPath);
-		registry.get<Transform>(scene.mainCamera()) = Transform{
+        Engine::loadModel(bistroPath);
+        registry.get<Transform>(scene.mainCamera()) = Transform{
 			.location = { 0.0f, 16.0f, 14.0f},
 			.rotation = glm::radians(glm::vec3{ -17.0f, 0.0f, 175.0f })
 		};
@@ -357,9 +345,9 @@ public:
 auto main() -> int
 {
 	// Toggle between cpu/gpu driven by changing this constant:
-	// Aegis::Graphics::Renderer::ENABLE_GPU_DRIVEN_RENDERING
+    // Aegis::Engine::ENABLE_GPU_DRIVEN_RENDERING
 
-	Aegis::Engine engine;
+    Aegis::Engine engine;
 	engine.loadScene<Sponza>();
 	//engine.loadScene<Bistro>(); // NOTE: Bistro model not included
 	//engine.loadScene<HighPolyHighObj>(0);

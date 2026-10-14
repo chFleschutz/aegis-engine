@@ -1,6 +1,6 @@
 module pbr;
 
-import "modules/constants";
+import modules.constants;
 
 namespace PBR
 {

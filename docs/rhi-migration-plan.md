@@ -1,0 +1,755 @@
+# RHI Migration Plan — splitting `graphics/` onto `rhi` / `renderer` / `platform`
+
+Detailed, ordered steps for retiring the old volk-based `Aegis::Graphics` stack and moving
+the engine onto the new `aegis.rhi`, `aegis.renderer`, `aegis.platform` modules plus two new
+modules: **`aegis.render_graph`** and **`aegis.assets`**.
+
+## Decisions locked
+
+- Frame graph / passes / render systems live in a **new `aegis.render_graph` module** (not renderer partitions).
+- Mesh vertex/index buffers use **buffer device address**, not bindless descriptor handles (per AGENTS.md).
+- **One pipeline layout shared by every pipeline**: the bindless set plus one fixed 128-byte push-constant
+  range for all stages. Shaders receive buffer device addresses and descriptor indices through push
+  constants; `Pipeline::*Desc` carries no layout and no `vk::` types. See Phase 0.5.
+- **The engine can run headless** (no window, surface or swapchain), for tests and tooling. See Phase 0.5.
+
+## The one hard constraint
+
+The old stack (volk + `VK_NO_PROTOTYPES` + singleton `VulkanContext`) and the new stack
+(`vk::raii` + owned `rhi::Device`) **cannot share a frame**. They own the device and swapchain
+independently. Therefore:
+
+- Everything *above* the GPU context (assets, render graph) can be built and tested alongside the old stack.
+- The device + swapchain + frame-loop substitution in `engine.cppm` is **a single atomic commit** (Phase 4). volk dies there.
+
+## Target module layout
+
+```
+aegis.platform      window (+ input, filesystem)
+aegis.rhi           + :sampler  + :query  + finished :upload_manager  + general descriptor pool
+aegis.renderer      frame loop, swapchain lifetime, resolution-dependent textures, Texture
+aegis.render_graph  (NEW) frame graph, render passes, render systems, draw batch registry, frustum
+aegis.assets        (NEW) vertex, static_mesh, mesh_preprocessor, texture, material, loaders, render components
+```
+
+---
+
+## Phase 0 — RHI foundations (unblocks everything; no engine behavior change)
+
+These are on the critical path — assets cannot move until upload works.
+
+- [x] **Buffer upload path** (`rhi/upload_manager.cppm/.cpp`) — done. The command-buffer
+      begin/enqueue lifecycle, batch submit, and staging reclaim all landed: `upload(const Buffer&, …)`
+      stages + records a copy without blocking, `flushPending` submits and reclaims on a timeline,
+      stalling only when a full ring of command buffers is outstanding.
+- [x] **Staging ring reclaim** — the ring math was extracted verbatim into `RingAllocator`
+      (`:ring_allocator`, imports no Vulkan) and covered by 9 cases in `tests/rhi/ring_allocator.test.cpp`,
+      including wrap-around, wrapped-gap allocation, and reclaim-then-succeed. `StagingBuffer` now
+      just adds the base pointer.
+- [x] **Image upload** — `UploadManager::upload(ImageHandle, data, generateMips)` replaces the old
+      `return false` stub, mirroring the buffer batch lifecycle. The missing primitives landed with it:
+      `BufferImageCopy` in `:commands`, plus `CommandBuffer::copyBufferToImage` / `copyImageToBuffer`.
+      `Device::upload(ImageHandle, …)` is the public entry point.
+  - [x] The per-mip offset math is extracted into `aegis::rhi::detail` in `:image`
+        (`bytesPerTexel`, `mipExtent`, `copyAlignment`, `subresourceFootprints`) and unit-tested.
+  - [x] **Source layout contract, decided and documented on `subresourceFootprints`:** mip-major,
+        array layers packed contiguously *inside* each mip, tightly packed. Matches KTX2 and makes each
+        mip one copy region with `layerCount = arrayLayers`, so a cubemap costs 1 region per mip
+        rather than 6. There is no way to detect a caller mismatch at runtime.
+  - [x] **Staging offsets deliberately diverge from source offsets.** Vulkan requires a copy's
+        `bufferOffset` to be a multiple of both 4 and the texel block size, but loaders hand over
+        tightly packed data (a 3×3 `R8_UNORM` mip 0 is 9 bytes, so mip 1 would land illegally).
+        `SubresourceFootprint` therefore carries both `sourceOffset` and `stagingOffset`, and `upload`
+        copies mip by mip rather than in one memcpy.
+  - [x] **Ownership of the read-state transition is the caller's.** `upload` leaves the image in
+        `CopyDst` (`CopySrc` after mip generation) because `UploadManager` cannot know which of
+        `ShaderReadVertex` / `ShaderReadFragment` / `ShaderReadCompute` is wanted; guessing would bake a
+        wrong barrier into every texture. That transition is also what establishes the real execution
+        dependency, since `generateMipmaps` ends with `dstStageMask = eNone`.
+- [x] **Upload verification re-established** — `verifyUploads()` in `test/main.cpp` covers a buffer
+      round-trip, a 3-mip 2D texture (distinct fill per mip, so a wrong mip offset cannot pass), and a
+      6-face cubemap (the only case that exercises the array-layer packing contract, which
+      `solidColorCube` will depend on in Phase 2). All three compare byte-exactly through a `CpuRead`
+      buffer. This also re-covers the buffer path, which had been unexercised at runtime since `cb686cd`.
+- [x] **Add `rhi:sampler`** — `Device::createSampler(Sampler::Desc)` → pooled `SamplerHandle`; the
+      sampler registers itself in the bindless heap and owns its `SamplerDescriptor`
+      (`Sampler::descriptor()`). New enums `Filter` / `SamplerMipmapMode` / `SamplerAddressMode`, named
+      after their Vulkan counterparts like `Format`.
+  - [x] **Naming clash resolved first** (own commit): `SamplerHandle` was already the bindless slot
+        alias. Bindless slot indices are now `…Descriptor` (`Descriptor<T>`, `SampledImageDescriptor`,
+        `StorageImageDescriptor`, `SamplerDescriptor`) and `…Handle` always means a pooled resource.
+        The rule is recorded in `AGENTS.md`.
+  - [x] Old `mipmapMode` bug not carried forward — the field is honoured.
+  - [x] **Second inherited bug dropped:** the old `Sampler(config, mipLevels)` derived `maxLod` from
+        the texture's mip count, forcing one sampler per texture. The bindless heap keeps samplers
+        separate from images, so `maxLod` now defaults to `Sampler::LodClampNone` and the image view
+        bounds the mips — one sampler can serve every texture.
+  - [x] Anisotropy is a requested maximum (default 16; ≤ 1 disables) clamped to the device limit by
+        `detail::resolveAnisotropy`, unit-tested. The enum mapping itself returns `vk::` types and is
+        unreachable from tests; `aegis-test`'s `verifySamplers()` creates one sampler per enum value
+        under validation, and pins that a freed sampler's bindless slot is reused.
+  - [ ] Deferred: a sampler cache deduplicating identical `Desc`s. Wanted by the Phase 2 `texture`
+        port, not before.
+- [x] **Add `rhi:query`** — `Device::createQueryPool(QueryPool::Desc)` returns a timestamp
+      `QueryPool` by value (like `Fence`). `CommandBuffer::resetQueries` / `writeTimestamp` use sync2
+      `writeTimestamp2`, at `TimestampStage::TopOfPipe` / `AllCommands`. `QueryPool::readTimestamps`
+      never blocks (`ErrorCode::NotReady` if unwritten), and `elapsedMs` converts via
+      `detail::timestampDeltaMs`, which masks to the queue family's `timestampValidBits` so a wrapped
+      counter still yields the forward delta (unit-tested). None of the old hazards carried over: no
+      singleton, no global frame count, no shadowed `queryCount`.
+  - [ ] Deferred: the old `GPUTimerManager`'s per-frame bookkeeping (named scopes, one pool per frame
+        in flight, results for the profiler panel). That belongs to whoever owns the frame loop, so it
+        lands with the frame graph in Phase 3 (per-node timing), not in the RHI. `aegis-test`'s
+        `FrameTimer` is the pattern to follow.
+- [x] **ImGui descriptor pool — decided: the UI layer owns it, the RHI exposes nothing.** The vendored
+      ImGui (1.92.4) Vulkan backend creates and owns its own pool when `InitInfo::DescriptorPoolSize > 0`,
+      and `ImGui_ImplVulkan_AddTexture` allocates from it. `BindlessHeap::m_pool` stays unusable for this
+      (`eUpdateAfterBind`, no `eCombinedImageSampler`, no `eFreeDescriptorSet`). See Phase 4's ImGui item.
+- [x] **Add buffer-device-address plumbing** — `BufferUsage::ShaderDeviceAddress` maps to
+      `eShaderDeviceAddress`; `Buffer::deviceAddress()` returns a `DeviceAddress` queried at creation
+      (asserts if the buffer lacked the usage). The VMA allocator already had
+      `VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT`. `aegis-test` creates BDA buffers under
+      validation, which rejects a missing usage or allocation flag.
+  - [x] `BufferUsage::CpuVisible` deleted — CPU visibility is `MemoryUsage`'s job; the flag was
+        redundant as well as dead.
+  - [x] **Gap found, not in scope here — shaders cannot receive an address yet.** There is no
+        `CommandBuffer::pushConstants` (nor `dispatch`), and `Pipeline::*Desc` takes
+        `std::span<vk::PushConstantRange>` / `std::span<vk::DescriptorSetLayout>`, which no code outside
+        `aegis.rhi` can name (the same trap as for tests). Fixing it means settling a pipeline-layout
+        convention for bindless (e.g. every pipeline shares one layout: the bindless set plus one fixed
+        push-constant range), which is a design decision, not plumbing. *Fixed in Phase 0.5 B.*
+- [x] **Timed pass in `test/main.cpp`** — one `QueryPool` per frame in flight brackets the rendering
+      pass; each frame reads back its slot's previous timestamps after `beginFrame`'s wait. The run
+      fails (exit 1) if any read is not ready or no frame was timed.
+
+**Exit criteria — met (after the review below).** `test/main.cpp` uploads a texture and buffer and
+renders with a timestamped pass, clean under core **and synchronization** validation (~28k frames per
+10 s run). The first claim of "met" was wrong: it held only under core validation, which does not check
+synchronization, and sync validation then reported three hazards every frame (R1). Sync validation is now
+always on in debug builds (R2), and `aegis-test` exits non-zero on any validation error.
+
+### Phase 0 review — all fixed
+
+A full read of `rhi/`, `renderer/` and `test/main.cpp`, plus an `aegis-test` run with synchronization
+validation. Every item below is fixed, one commit each, and each fix that a device run can show is
+covered by a new `aegis-test` check. (For the record: before R2, the environment switch that worked was
+`VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT`; the layer's suggested
+`VK_LAYER_VALIDATE_SYNC=1` produced no reports with SDK 1.4.328.1. Validation errors go to stderr.)
+
+**Blocking** (fixed in the order R2, R1, R3, R4, R5, R8, R6, R7):
+
+- [x] **R1 — Barrier stage masks are wrong; three sync hazards per frame.** Reported by sync validation:
+  - `ResourceState::Unknown` has source stage `eNone`, so a transition from it does not chain with
+    anything earlier. Swapchain: the transition does not wait for the acquire semaphore (signalled for
+    `eColorAttachmentOutput`), so it can write the image while the presentation engine still reads it
+    (`WRITE_AFTER_READ`). Reused attachments (the depth buffer shared by both frames in flight): the
+    transition does not wait for the previous frame's writes. Fix: give `Unknown` a source stage of
+    `eAllCommands` (or the caller's real previous state).
+  - `ResourceState::Present` has destination stage `eNone`, so the render-finished semaphore signal does
+    not cover the layout transition (`PRESENT_AFTER_WRITE`). Fix: a destination stage inside the
+    signal's stage mask.
+  - `aegis-test` moves the depth texture to `ResourceState::Attachment`, which is color-only (color stages
+    and access), so depth tests are not ordered after the transition (`WRITE_AFTER_WRITE`). Fix the
+    harness to use `DepthWrite`, and rename `Attachment` → `ColorAttachment` so the API cannot invite
+    this again.
+  - Verify: zero sync-validation reports over a multi-second `aegis-test` run.
+  - **Fixed:** `Unknown` → source `eAllCommands`, `Present` → destination `eAllCommands`, `Attachment`
+    renamed `ColorAttachment`, harness depth uses `DepthWrite`. Zero sync reports since.
+- [x] **R2 — Turn on synchronization validation in debug builds by default.** Enable it in `Context`
+  through `VK_EXT_layer_settings` (`validate_sync`), not an environment variable, so "validation-clean"
+  includes synchronization from now on. Without this, R1 went unnoticed through all of Phase 0.
+  - **Fixed**, plus: `Context::validationErrorCount()` counts reported errors and `aegis-test` fails on
+    any, so a broken run can no longer look green to someone not reading stderr. The callback also
+    labelled warnings "Error"; it now prints the real severity.
+- [x] **R3 — `Queue::submit` signals its timeline at `eAllGraphics`, which excludes copy and compute.**
+  In sync2, `ALL_GRAPHICS` covers only graphics-pipeline stages. So a signalled timeline value does not
+  guarantee an upload batch's copies have finished. Yet `UploadManager` reclaims staging and
+  `DeletionQueue` retires resources on exactly that value, and Phase 3's compute passes would not be
+  covered either. Fix: signal at `eAllCommands` (both `submit` overloads).
+  - **Fixed.** Not observable by validation today (every consumer host-waits first).
+- [x] **R4 — Buffer uploads have no visibility barrier.** `UploadManager::upload(Buffer…)` records a copy
+  and nothing else; a later shader read (Phase 2 vertex/index data through BDA) has no memory dependency
+  on that copy. Image uploads leave this to the caller by contract; buffer uploads have no such contract
+  and no barrier. Fix: end each batch with a global barrier (copy write → all-commands read). This is
+  independent of R3, which is about the host wait.
+  - **Fixed:** `CommandBuffer::makeTransferWritesVisible()`, recorded at the end of every upload batch.
+    Like R3, only a consumer that does not host-wait would show it; Phase 2 will be the first.
+- [x] **R5 — Image type is inferred from the extent, so a 1-pixel-tall image becomes 1D.**
+  `deriveImageType` returns `e1D` whenever `extent.y == 1`. `solidColor` (1×1) would be a 1D image, and
+  `solidColorCube` (1×1, 6 layers) cannot even be cube-compatible (that requires 2D), so it becomes a
+  `1DArray`. Both are needed by `loadDefaultAssets()` in Phase 2. The upload tests use 2×2 and 4×4, which
+  is why this was missed. View type has the same problem in reverse: any 6-layer view is forced to
+  `eCube`, so a compute pass cannot write cube faces through a `2DArray` view (IBL), and cube arrays are
+  impossible. Fix: an explicit image type on `Image::Desc` (default 2D) and an optional explicit view
+  type on `ImageView::Desc`. Add a 1×1 and a 1×1×6 case to `verifyUploads()`.
+  - **Fixed:** `ImageType` (`Dim1D`/`Dim2D`/`Dim3D`/`Cube`, default `Dim2D`; only `Cube` sets cube
+    compatibility) and an optional `ImageViewType`, defaulting to `detail::defaultViewType` (unit-tested:
+    a 6-layer 2D image is an array, not a cube). `verifyUploads()` round-trips 1×1 and 1×1×6 and creates
+    a default-typed view of every test image, so validation checks view against image.
+- [x] **R6 — Uploads larger than the staging ring can never succeed.** `UploadManager::Desc` declares
+  `overflowThreshold` "for the overflow path", but no overflow path exists. Any single upload over the
+  64 MB ring returns `false` every time, and the documented response (flush and retry) loops forever.
+  Phase 2 hits it: a 4096×2048 RGBA32F HDR environment map is 128 MB. Fix: implement the overflow path
+  (a dedicated staging buffer for oversize uploads, retired through the `DeletionQueue`), or at least
+  return an error the caller can tell apart from "full right now".
+  - **Fixed, both:** uploads above `overflowThreshold` get a dedicated staging buffer, freed through
+    the `DeletionQueue` when their batch is submitted; `upload` now returns `std::expected<void, Error>`
+    where only `ErrorCode::NotReady` means "flush and retry". `aegis-test` round-trips 80 MB.
+  - **Found while fixing it — `RingAllocator` handed out in-flight memory.** An allocation ending
+    exactly at the tail left `head == tail`, which reads as an *empty* ring, so the next allocation
+    overwrote data the GPU had not consumed yet. An existing test pinned that exact-fit behaviour as
+    correct. Fixed (an allocation may not end at the tail; one byte is given up) with two new cases.
+- [x] **R7 — `generateMipmaps` does not check format support.** It blits with `eLinear` without checking
+  `eBlitSrc` / `eBlitDst` / `eSampledImageFilterLinear` for the format; for formats without linear
+  filtering (commonly 32-bit float) that is invalid usage. Phase 2's texture loading relies on
+  `upload(…, generateMips = true)`. Fix: check the format features, and fail (or fall back) explicitly.
+  - **Fixed:** `Device::supportsMipGeneration(Format)` (blit src/dst + linear filter, not depth); an
+    upload asking for mips of an unsupported format returns `ErrorCode::FormatNotSupported` and records
+    nothing. `aegis-test` generates RGBA8 mips and checks that D32 is refused.
+- [x] **R8 — Renderer textures are invisible to shaders, and `resize` is broken.**
+  `Renderer::createTexture` builds its `ImageView::Desc` without `.usage`, so `Device` never writes
+  bindless descriptors for it; every renderer texture lacks a `SampledImageDescriptor`. `resize` repeats
+  the omission and also drops `.range` (so multi-mip/array textures get a 1-mip, 1-layer view), and it
+  dereferences `*newImage` right after reporting that it failed. `ResolutionDependentResource::name` is a
+  `std::string_view` that dangles for any non-literal name. Fix all four together; the G-buffer depends
+  on them in Phase 3, but the renderer is foundation code and the fixes are small.
+  - **Fixed, plus a fifth:** `createTexture` passed `desc.mipLevels` straight into the view range, so a
+    `fullMipChain` texture got a view of `UINT32_MAX` mips; views now use the resolved count. Resize
+    recreates from the stored *requested* `Texture::Desc`, so a full chain is recomputed for the new size.
+    `aegis-test` creates a full-chain texture under a temporary name and checks it keeps its bindless
+    slot and mip coverage across a resize.
+
+**Needed before specific Phase 2 items** (not blocking Phase 1):
+
+- [x] **Shader-facing pipeline layout / `pushConstants` / `dispatch`** — decided; scheduled as Phase 0.5
+  part B. Blocks every shader that reads through BDA. *Fixed in Phase 0.5 B.*
+- [x] **`Pipeline::GraphicsDesc` has no fixed-function state.** Depth test/write/compare (hard-coded
+  on, on, `eLess`), cull mode (hard-coded back, CCW), per-attachment blending (hard-coded off) and a
+  stencil format are all fixed. The old builder exposed them, and old passes use them: the sky box needs
+  `LESS_OR_EQUAL`, no depth write and front culling; the transparent and UI passes need blending. Needed
+  by the Phase 2 material port and Phase 3 passes. Add them to `GraphicsDesc` with today's values as
+  defaults. Scheduled with the pipeline layout (Phase 0.5 part B): both reshape `GraphicsDesc`.
+  *Fixed in Phase 0.5 B.*
+
+**Minor** (all fixed):
+
+- [x] `Swapchain::present` treats `eSuboptimalKHR` as a failure (prints "Failed to present") and doesn't
+  flag a recreate, and `Renderer::needsResize` never consults `Swapchain::needsRecreation`, so an
+  acquire-time suboptimal never triggers a resize either.
+- [x] `CommandBuffer::beginRendering` asserts `colorAttachments.size() < maxColorAttachments`; should be
+  `<=` (off by one: 8 attachments are rejected).
+- [x] `std::string_view::data()` is passed to Vulkan as a null-terminated string in debug labels,
+  `debug::setName` and shader `entryPoint`. Literals and `std::string`s happen to work; a substring view
+  over-reads. Fixed with null-terminated copies (also the application name).
+- [x] Physical-device selection never requires present support, because the queue-family fallbacks
+  always mark the set complete, and a GPU without a graphics queue trips an `assert` instead of being
+  skipped.
+- [x] Neither `Device` nor `Renderer` waits for the GPU on destruction. Early-exit paths (a failed
+  `Engine::create` after work was submitted) destroy objects the GPU may still use.
+- [x] Bindless heap capacities are hard-coded to 1024 each (`// TODO: query pd for max values`). Now
+  `BindlessHeap::Desc`'s defaults (16384 / 4096 / 2048) clamped to the update-after-bind limits.
+- [x] The swapchain uses `eExclusive` sharing with no queue-family ownership transfer. Harmless while
+  present and graphics share a family (selection prefers that), wrong otherwise. Now `eConcurrent`
+  across both families when they differ; untested here, since this GPU presents from the graphics
+  family.
+
+### Bugs found and fixed on the image-upload path
+
+The first two were latent, invisible only because every image in the tree was single-mip:
+
+- [x] `image.cpp` — `Image::create` resolved `fullMipChain` into a local `mipLevels` and passed it to
+      `vk::ImageCreateInfo`, but the constructor stored `desc.mipLevels`, so such an image reported
+      `mipLevels() == UINT32_MAX`. The private constructor now takes the resolved count as its own
+      parameter, so it cannot be bypassed again.
+- [x] `command_buffer.cpp` — the `ImageHandle` overload of `transitionImageLayout` set
+      `.levelCount = image.arrayLayers()` where it meant `image.mipLevels()`.
+- [x] `copyAlignment` rounded the required offset alignment up to the next **power of two**, which is
+      wrong for `RGB32_SFLOAT`: the requirement is `lcm(4, texelBlockSize)` = 12, and 16 is not a
+      multiple of 12. It now uses `std::lcm`.
+  - This had a second half. `copyAlignment` feeds `RingAllocator::allocate`, which routed alignment
+    through `utility::alignTo` — and that **asserts power-of-two**, so the correct value would have
+    aborted in debug. Fixing the arithmetic alone would have converted a validation error into an
+    assert. A general `utility::roundUpTo` was added beside `alignTo` (which stays as the faster
+    bit-trick path for the power-of-two callers that dominate), and `RingAllocator` now uses it.
+    Behaviour is unchanged for every pre-existing caller; a test pins the two functions as identical
+    across powers of two.
+
+**Testing lesson worth carrying forward:** a regrouping of `bytesPerTexel`'s switch briefly put
+`RGBA16_UNORM` (8 bytes) in the 4-byte group and the whole suite stayed green, because the tests
+checked its sibling `RGBA16_SFLOAT` but not `RGBA16_UNORM`. The `Format` enum's `// 16-bit` comments
+mean *per channel*, which makes that grouping look plausible. The suite now covers the per-channel
+families exhaustively, and `copyAlignment` has a case that walks **every** copyable format and asserts
+the alignment divides by both 4 and that format's texel size — so a newly added format cannot
+reintroduce the class of bug.
+
+---
+
+## Phase 0.5 — Headless mode and the shader interface (before Phase 2)
+
+Two foundation pieces found missing at the end of Phase 0. Suggested order: **A then B**. A is smaller,
+and it makes every later verification run window-free and self-terminating, B's included.
+
+### A — Headless engine mode
+
+**Why:** every `aegis-test` run opens a GLFW window that must be closed by hand (or gracefully closed
+by a script, or buffered stdout is lost), and a console window when launched from outside a terminal.
+That makes device verification slow to run, impossible to automate, and unsuitable for CI. Headless
+mode renders to an offscreen target with no window, surface or swapchain, and the harness exits on its
+own after a fixed number of frames.
+
+**Design:**
+
+- **`rhi::Context`** — the window becomes optional (`Context::Desc::window` a nullable pointer, or a
+  separate headless `Desc`). Without one: no GLFW instance extensions (`glfwGetRequiredInstanceExtensions`
+  needs an initialized GLFW), no surface.
+- **`rhi::Device`** — the surface becomes optional. Without one: `VK_KHR_swapchain` is not required
+  (today `Device::requiredExtensions` always lists it), and queue-family selection must not require
+  present support (Phase 0's review made that mandatory, which is right only when there is a surface).
+  `presentQueue()` is unavailable headless.
+- **`renderer::Renderer`** — an offscreen mode: `Renderer::Desc` takes either a window or an offscreen
+  extent + format. Offscreen frames render into a resolution-independent `Texture` instead of an acquired
+  swapchain image, pace on the timeline semaphore alone (no acquire/present semaphores), and never
+  resize. `FrameInfo::swapchainImage` becomes a mode-neutral name (e.g. `target`).
+- **Renderer owns the frame's command-buffer bracket.** Today the draw callback calls `cmd.begin()` /
+  `cmd.end()` and records the final `ColorAttachment → Present` transition itself. Headless has no
+  present, and `ePresentSrcKHR` is invalid without `VK_KHR_swapchain`, so the callback cannot keep owning
+  that transition. Move begin, end and the final transition (to `Present`, or nothing offscreen) into
+  `Renderer::renderFrame`; the callback only records rendering.
+- **`aegis-test`** — `--headless` and `--frames <n>` arguments. `--frames` also helps windowed runs:
+  the harness exits by itself, so nothing has to close its window.
+- **CTest** — register a headless `aegis-test --frames <n>` run as a test labelled `device` (it needs a
+  GPU, so it can be excluded with `ctest -LE device`). `ctest` then covers device paths too, not just the
+  pure logic.
+- **Keep a windowed check.** Headless does not exercise surface, swapchain, acquire or present. Those
+  stay covered by a windowed `aegis-test --frames <n>` run whenever that code changes.
+- Not chosen: `VK_EXT_headless_surface`. It would keep the swapchain path, but driver support on
+  Windows is not dependable. Offscreen rendering works everywhere.
+
+**Verify:** headless `aegis-test --frames 600` exits 0, opens no window, and runs every check
+(uploads, samplers, BDA, renderer textures, timed pass) under core + sync validation; windowed
+`--frames 600` still exits 0; `ctest` runs the device test. Update `AGENTS.md`'s "Verifying device paths"
+(the graceful-close advice becomes obsolete).
+
+**Done.** All of the above verified under core + sync validation. Where it differs from the design:
+
+- **One offscreen target per frame in flight**, not a single texture, as with swapchain images: a frame
+  never draws into the target the previous frame may still be drawing into. They are
+  resolution-dependent textures, so an explicit `Renderer::resize` works offscreen too (the
+  renderer-texture check relies on it); there is just nothing that triggers one.
+- **The renderer records the opening transition as well** (`Unknown → ColorAttachment`) and the
+  `Frame` debug label. The callback contract is symmetric: `FrameInfo::target` is a color attachment
+  when the callback starts and must be one when it returns.
+- `--headless` without `--frames` stops after 600 frames; there is no window to close.
+- Added a check the design did not list: after the run, headless `aegis-test` reads an offscreen
+  target back and checks that the triangle was drawn. Without it, an offscreen path that silently draws
+  nothing would still pass.
+
+### B — Shader interface: shared pipeline layout, push constants, dispatch, fixed-function state
+
+**Decided:** one pipeline layout shared by every pipeline, owned by the `Device` and created with it:
+set 0 = the bindless heap's layout, plus one push-constant range of **128 bytes** (the minimum
+`maxPushConstantsSize` Vulkan guarantees) visible to all stages.
+
+- **`Pipeline::GraphicsDesc` / `ComputeDesc`** — drop `setLayouts` and `pushConstantRanges` (the only
+  `vk::` types left in them); every pipeline uses the shared layout. Layout compatibility then holds
+  across all pipelines, so binding the bindless set once per command buffer and bind point is enough.
+- **`CommandBuffer`** — bind the bindless set when a pipeline of a new bind point is first bound;
+  add `pushConstants(std::span<const std::byte>, offset = 0)` plus a typed helper that
+  `static_assert`s `sizeof(T) <= 128`, and `dispatch(x, y, z)`. Indirect draws wait for Phase 3.
+- **Shader convention** — a Slang `[[vk::push_constant]]` struct carries BDA pointers and
+  `SampledImageDescriptor` / `SamplerDescriptor` indices. Document it next to `shaders/modules/bindless.slang`.
+- **`GraphicsDesc` fixed-function state**, defaults equal to today's hard-coded values: depth
+  test / write / compare op, cull mode and front face, per-color-attachment blending (at least none,
+  alpha, additive), and a stencil attachment format. Covers the sky box (`LESS_OR_EQUAL`, no depth
+  write, front culling) and the transparent and UI passes (alpha blending).
+
+**Verify:** a compute round-trip in `aegis-test`: push `{ srcAddress, dstAddress, count }`, dispatch a
+shader that writes `dst[i] = f(src[i])` through BDA, read back and compare. This is the first check that
+a shader can read and write through a buffer device address; today BDA is only checked by validation.
+Plus a graphics pipeline built with non-default fixed-function state under validation.
+
+**Exit criteria:** headless `aegis-test` runs in CTest and passes; shaders receive data through push
+constants and BDA, verified by the round-trip; `Pipeline::*Desc` contains no `vk::` types.
+
+**Done.** Exit criteria met under core + sync validation, headless and windowed. Details:
+
+- The `Device` owns the shared layout (`Device::pipelineLayout()`, named `SharedPipelineLayout`); the
+  push-constant range uses `eAll` stages. `Pipeline` no longer owns a layout.
+- `CommandBuffer::bindPipeline` binds the bindless set on the first bind per bind point since `begin()`.
+  Added `pushConstants` (bytes, and a typed overload that `static_assert`s the 128-byte limit),
+  `dispatch`, and `memoryBarrier(ResourceState, ResourceState)`: the compute round-trip needed a
+  compute-write → copy-read dependency on a buffer, and no buffer barrier existed.
+- `GraphicsDesc` gained `Pipeline::ColorAttachment { format, blend }` (replacing the `Format` span),
+  `DepthState { test, write, compareOp }`, `cullMode`, `frontFace` and `stencilAttachment`; new enums
+  `CompareOp`, `CullMode`, `FrontFace`, `BlendMode { None, Alpha, Additive }`. Defaults match the old
+  hard-coded values. `RenderingCmd` gained `stencilAttachment` so the stencil format can be rendered with.
+- Shader convention documented in `shaders/modules/README.md`. `bindless.slang` there is the old stack's
+  (different binding slots); a Slang module for the new layout belongs to the Phase 2 shader port.
+- `aegis-test`: `verifyComputeRoundTrip` (1000 values, `dst[i] = src[i] * 3 + 1` through BDA pointers
+  in push constants), and an overlay pipeline with every fixed-function field non-default
+  (alpha blend, `LessOrEqual` without depth write, front culling, clockwise front face) drawn each frame.
+
+---
+
+## Phase 1 — Platform (window + input)
+
+- [x] Make `platform::Window` the canonical window. Diff its API against `Aegis.Core.Window` and add any missing accessors used by the engine/editor.
+- [x] Add **`platform:input`** partition ported from `Aegis.Core.Input` (currently bound to `Core::Window`).
+- [x] Repoint `Core::Window` consumers to `platform::Window` (temporary alias acceptable to stage the change).
+- [x] Build + run an example still on the old renderer (window/input change is orthogonal to rendering).
+
+**Exit criteria:** engine constructs a `platform::Window`, input works, old renderer still drives frames.
+
+**Done.** Decisions and details:
+
+- **One module, two partitions:** `aegis.platform` with `:window` and `:input` (was the standalone
+  `aegis.platform.window`), matching `aegis.rhi`. `aegis-platform` links GLFW `PUBLIC`, since both
+  interfaces include it.
+- **`platform::Input` has no global state.** It binds to a `Window&`; the window owns every GLFW
+  callback (GLFW allows one per event type) and routes key events to it. Scoped enums with GLFW's
+  values: `Key`, `MouseButton`, `KeyAction`, `Modifiers` (flags), plus `CursorMode` and
+  `CursorPosition`. `bind(Key, std::function<void()>, KeyAction, Modifiers)` replaces the
+  member-pointer `bind`. `setCursorMode` replaces `setInputMode(GLFW_CURSOR, ...)`.
+- **The Engine owns the `Input`**, constructed before the old renderer so ImGui chains to its key
+  callback. The old stack reaches it through `Aegis.Core.Input`, now a shim: `Aegis::Input::instance()`
+  returns the engine's `platform::Input`, and `Input::Key` / `MouseButton` / `CursorMode` alias the platform
+  enums. Delete the shim once scripts and the editor receive input explicitly (listed in Phase 6).
+- **`Aegis.Core.Window` deleted.** Engine, the old `Renderer`, `VulkanContext` and `VulkanDevice` use
+  `platform::Window`; the engine loop calls `Window::update()` instead of `glfwPollEvents()`.
+- **`platform::Window` fixes:** move construction/assignment carried only the GLFW handle (size and
+  resize flag were lost); size now tracks the framebuffer size (what a swapchain must match, and what
+  `update()` already read) instead of the window size; the title is copied to a null-terminated string.
+- **Verification:** windowed `aegis-test` posts synthetic Win32 key and mouse messages to its window
+  and checks key state, a press-only exact-modifier binding, and mouse button state through the real
+  event loop. `Simple-Scene` (old renderer) builds, runs and exits 0.
+- **Not ported:** `src/aegis/ai/` is not built (it includes a `core/input.h` that no longer exists) and
+  still uses the old `bind`.
+- **Old-stack validation errors seen in `Simple-Scene`**, unrelated to window/input and left for the
+  old stack's removal: `vkCmdDrawMeshTasksIndirectCountEXT` without the `drawIndirectCount` feature, a
+  device layer passed to `vkCreateDevice`, and swapchain images transitioned before being acquired.
+
+---
+
+## Phase 2 — `aegis.assets` on RHI (independent of the frame loop)
+
+Create the module and port in dependency order. Each item is created against an `rhi::Device` +
+`UploadManager`; the old renderer keeps drawing throughout.
+
+- [x] Create `aegis/assets/` dir + `CMakeLists.txt` + `aegis.assets` primary module; add to `src/aegis/CMakeLists.txt` (`add_subdirectory(assets)`, link).
+  *Not linked into `aegis-engine`: both stacks in one binary fail to link (each compiles its own VMA
+  implementation), the hard constraint at link level. `aegis-test` links it; the engine does in Phase 4.*
+- [x] Port **`vertex`** (`resources/vertex.cppm`) — pure data, first.
+- [x] Port **`mesh_preprocessor`** (`resources/mesh_preprocessor.cppm`, meshopt) — no GPU dependency.
+- [x] Port **`static_mesh`** (`resources/static_mesh.cppm`):
+  - [x] Rework `MeshData` from `Bindless::DescriptorHandle` vertex/index/meshlet buffers to **buffer device address**.
+  - [x] Upload vertex/index/meshlet buffers via `UploadManager`.
+  - [ ] ~~Update the shaders that read these~~ — *moved to Phase 3 (decided: Phase 2 ports no shaders).*
+- [x] Port **`texture`** (`resources/texture.cppm`) onto `rhi::Image`/`ImageView` + `rhi:sampler` + bindless heap. Cover `solidColor` / `solidColorCube` used by `loadDefaultAssets()`.
+  - [ ] ~~Shader ripple (combined `Sampler2D` → `Texture2D` + `SamplerState`)~~ — *moved to Phase 3.*
+  - [ ] ~~HDR equirect → cube, irradiance, prefiltered, BRDF LUT~~ — *moved to Phase 3: they are compute
+        shaders. `loadFromFile` on an `.hdr` returns `ErrorCode::UnsupportedFormat` until then.*
+- [x] Port **material** (`material/material_template.cppm`, `material/material_instance.cppm`). *Without
+  pipelines: the template is parameters + layout only; pipelines belong to the Phase 3 passes that draw
+  it (the old template's own TODO). The draw-batch id moves with the draw batch registry.*
+- [x] Port **loaders** (`loader/{loader,gltf_loader,fast_gltf_loader,obj_loader}.cppm`) to emit the new mesh/texture/material types. *FastGLTF + OBJ only; the unused `GLTFLoader` stays with the old stack.*
+- [x] Move **render components** (`components.cppm`: `Mesh`, `Material`, `Environment`) into `aegis.assets` (or `scene` if you prefer components centralized there).
+- [x] Verify by loading a glTF asset headlessly (small harness or extended `test/main.cpp`) and confirming uploaded resources.
+
+**Exit criteria:** a glTF/OBJ loads into new mesh + material + texture types on the RHI, BDA-backed, with default PBR assets reproducible.
+
+**Done.** Exit criteria met under core + sync validation (shaders excluded, see above). Decisions and details:
+
+- **New types alongside the old ones.** `aegis::assets::{StaticMesh, Texture, MaterialTemplate,
+  MaterialInstance}`, loaders and components are new code; `Aegis::Graphics`' versions keep feeding the
+  old renderer, and scenes loaded by the new loader are invisible to it until Phase 4.
+- **RAII on the device.** `StaticMesh`, `Texture` and `MaterialInstance` hold the `rhi::Device&` and
+  free their handles in the destructor (deferred by the deletion queue); they stay `shared_ptr`-owned and
+  derive from `Core::Asset`, so `AssetManager` can hold them. Errors are `std::expected<T, assets::Error>`.
+- **Meshes:** each stream is a `GpuOnly` storage + device-address buffer; a `StaticMesh::GpuData` block
+  (addresses, counts, bounds) gives a draw one address to push. No vertex-input descriptions: vertices
+  are pulled through BDA.
+- **Textures** own image, view and sampler (bindless slots for both); shaders get a
+  `SampledImageDescriptor` and a `SamplerDescriptor`. Mips are generated on upload, or dropped for
+  formats that cannot be blitted. **RHI addition:** `Device::upload(image, ..., finalState)` lets the upload
+  batch record the final transition, and `ResourceState::ShaderRead` (any shader stage) is that state
+  for textures whose readers are unknown at load time.
+- **Materials:** std430 layout as before; a texture parameter is 8 bytes (image index, sampler index).
+  Each instance has one `CpuWrite` device-address buffer with a block per frame in flight;
+  `update(frame)` rewrites a block only when parameters changed.
+- **`DefaultAssets::create`** reproduces `loadDefaultAssets()`: solid black/white/normal textures and
+  cubes, the PBR template and default instance.
+- **Fixed while porting:** the glTF loader's texture cache skipped textures without an image but was
+  indexed by texture index, shifting every later texture; meshlet buffers are sized by meshoptimizer's
+  documented bound instead of the index count. `STB_IMAGE_IMPLEMENTATION` now lives in one place
+  (`external/stb_image_impl.cpp`, the `stb` target), and the old OBJ loader no longer defines
+  `TINYOBJLOADER_IMPLEMENTATION` (the `tinyobjloader` library already compiles it).
+- **Tests:** `aegis-tests-assets` (11 cases: mesh preprocessing, material layout and serialization).
+  `aegis-test` builds the defaults, reads the white texture back, checks per-frame material blocks, and
+  loads `DamagedHelmet.gltf` (5 × 2048² textures, more than the staging ring, so the flush-and-retry path
+  runs) and `cube.obj` into a scene, checking meshes, materials and the albedo map's size and mips.
+
+---
+
+## Phase 3 — `aegis.render_graph` on RHI (built alongside, not yet wired in)
+
+- [x] Create `aegis/render_graph/` dir + `CMakeLists.txt` + `aegis.render_graph` module; depends on `rhi` + `renderer` + `scene` + `assets`.
+- [x] Reimplement **`FrameGraph` + `FGResourcePool`** on `rhi::ImageHandle` and the resolution-dependent-texture mechanism `renderer::Renderer` already provides (replacing the old `VkImage`/attachment allocation).
+- [x] Port **`draw_batch_registry`** and **`frustum`**.
+- [x] Port **render passes** one at a time against `rhi::CommandBuffer`:
+  - [x] `geometry_pass` (+ multi-attachment G-buffer: 5 color + depth) and `scene_update_pass`
+  - [x] `culling_pass` + `gpu_driven_geometry` (GPU-driven path; gated on `rhi::Device::Capabilities::meshShaders`)
+  - [x] `lighting_pass`, `sky_box_pass`
+  - [x] `present_pass`, `post_processing_pass`, `bloom_pass`, `transparent_pass`
+  - [ ] ~~`ui_pass`~~ — *moved to Phase 4 (decided): it needs ImGui initialized on the new device.*
+  - [ ] ~~`ssao_pass`~~ — *not ported (decided): disabled in the old renderer; its lighting input is
+        commented out. Port it if SSAO comes back.*
+- [x] Port **render systems** (`bindless_static_mesh_render_system`, `point_light_render_system`, base `render_system`).
+- [x] Keep both CPU-driven and GPU-driven paths (mirror old `Renderer::createFrameGraph` branch), or explicitly defer one and note it.
+- [x] **Shaders (moved from Phase 2).** New files for the new layout (`shaders/modules/README.md`); the
+      old renderer keeps the originals until Phase 6.
+  - [x] A Slang bindless module for the new heap (sampled images, storage images, samplers), with
+        "descriptor" naming.
+  - [x] Geometry shaders read `StaticMesh::GpuData` and material blocks through BDA, and sample
+        `Texture2D` + `SamplerState` pairs.
+  - [x] IBL: equirect → cube, irradiance, prefiltered map, BRDF LUT, on bindless storage images instead
+        of ad-hoc descriptor sets.
+- [x] **Per-pass GPU timers** (decided: kept in Phase 3).
+
+**Exit criteria:** the full frame graph compiles against the RHI and can execute given a `renderer::Renderer::FrameInfo` + scene, verified in a standalone harness before touching the engine.
+
+**Done.** Verified in `aegis-test`: `--scene` (CPU-driven) and `--gpu-driven` render DamagedHelmet under the
+Kloppenheim sky, with a point light, through every ported pass, headless and windowed, under core + sync
+validation, including a mid-run resize. `--screenshot <png>` saves the frame (it was inspected for each
+milestone). CTest runs both paths as `device` tests. Decisions and details:
+
+- **Barriers from declarations.** Passes declare each access with a `render_graph::Usage`; `compile()`
+  orders the passes (the old algorithm, now `detail::sortPasses`) and plans the barriers
+  (`detail::planTransitions`), both pure and unit tested. An image's first use each frame transitions
+  from undefined (every graph image is produced each frame); a buffer's first use syncs with its last use
+  of the previous frame. Buffers get global memory barriers (shaders reach them by address). A pass that
+  needs barriers between its own dispatches (bloom's mip chain) records them itself.
+- **Resources:** graph textures are the renderer's (resolution-dependent unless sized), so a resize keeps
+  their handles and bindless slots; `FrameGraph::resized()` lets passes recreate views of the replaced
+  images. Buffers can be per-frame (`BufferDesc::perFrame`) and host-written (`Usage::HostWrite`, no
+  barriers). Everything that can fail moved from pass constructors to `createResources`, so `compile()`
+  returns `std::expected`.
+- **Pipelines belong to passes** (and render systems): the static mesh render system and GPU-driven
+  geometry pass draw the default PBR parameter block. A material template choosing its own shaders is
+  not modeled yet.
+- **Shaders** live in `shaders/rhi/` and compile with `-fvk-use-scalar-layout`, so shader structs match the
+  C++ ones member for member (`InstanceData`, `CameraData`, `StaticMesh::GpuData`, material blocks — the
+  material layout became scalar). The sky box needs no buffers (vertices from `SV_VertexID`); the CPU path
+  pulls vertices through BDA with the index buffer bound; the GPU path's mesh shader hands the instance ID
+  to the fragment shader, which finds the material through it. The task shader is its own module: sharing
+  one, the mesh stage declared the task stage's `DrawIndex`, which validation rejects.
+- **GPU-driven buffers** start at 65536 static + 4096 dynamic instances (256 draw batches, fixed) and
+  grow to the draw batch registry's counts through `ResourcePool::resizeBuffer`, which swaps the buffer
+  behind a handle (so the graph's barriers are unaffected) and frees the old one once the GPU is done.
+  *Pre-merge fix: they used to be fixed maxima, which Eval-Scene's 1M cubes overran.* Culling
+  dispatches the counts `InstanceUpdatePass` actually wrote. Draw counts are cleared by their own pass
+  (`ClearDrawCountsPass`), so the graph places the barrier between the fill and the culling writes.
+- **IBL** is `render_graph::Ibl` (GPU work; `assets` cannot depend on `render_graph`):
+  `loadEnvironment(hdr)` builds an `assets::Environment`. `aegis-test` checks the BRDF LUT and irradiance
+  values.
+- **RHI additions:** `CommandBuffer::blit`, `bindIndexBuffer` / `drawIndexed`, `drawMeshTasksIndirectCount`,
+  `fillBuffer`; `ResourceState::IndirectRead`; `CopyDst` covers all transfer stages (fills write from the
+  clear stage); features `drawIndirectCount` and storage images without format; the mesh shader feature is
+  only chained where supported and the unused shader-object feature is no longer enabled; swapchain
+  images and offscreen targets allow `TransferDst` (present blits).
+- **Fixed while porting:** the old draw batch registry never assigned batch IDs (every template was batch
+  0); the new one numbers templates as they first appear. Post-processing skips its own gamma when the target
+  encodes sRGB itself ("Final" is RGBA16F so the linear case does not band). *Phase 4 switched the
+  swapchain back to preferring UNORM, like the old one, because ImGui assumes it.*
+- **Not ported:** the old non-bindless `static_mesh_render_system` (unused); drawing `MaterialType::Transparent`
+  meshes (the old transparent pass only drew point lights).
+
+## Phases 4 + 5 — Engine cutover, editor and examples
+
+**Done, merged into one cutover commit:** the two stacks cannot link into one binary (both carry VMA,
+so the symbols collide), so the engine, editor and examples moved together. `graphics/` stays in the
+tree but is no longer built. All five examples build warnings-as-errors and run on the new stack with
+**no validation output** (core + sync). Window captures of Simple-Scene, Helmets and Sponza were checked
+by eye: textures, point lights, bloom, the sky box and the editor UI all render. Decisions and details:
+
+- **Engine facade.** `Engine` owns `platform::Window`/`Input`, `rhi::Context`/`Device`,
+  `renderer::Renderer`, the default assets, `render_graph::Ibl`, the draw batch registry and the frame
+  graph. Examples load through `Engine::loadModel`, `loadEnvironment`, `loadTexture` and `createMaterial`
+  instead of calling the asset loaders with a device. These helpers log, assert and return an empty
+  value on failure (examples have no error path). `Engine::ENABLE_GPU_DRIVEN_RENDERING` chooses the
+  geometry path.
+- **Default graph.** `render_graph::addDefaultPasses(FrameGraph&, DefaultPassesDesc)` builds the pass
+  list shared by the engine and `aegis-test`: scene update, CPU- or GPU-driven geometry, lighting, sky
+  box, transparent (point lights), bloom, post-processing, the optional UI pass and present.
+- **UI pass.** `render_graph::UiPass` owns `ImGui_ImplVulkan_Init`/`Shutdown`, sizing the backend's own
+  descriptor pool (`DescriptorPoolSize`). It uses dynamic rendering, draws into "Final" (RGBA16F), and
+  calls a `build` callback each frame. ImGui is built with `IMGUI_IMPL_VULKAN_NO_PROTOTYPES` and loads its
+  function pointers through the dispatcher's `vkGetInstanceProcAddr`. Functions a headless instance lacks
+  (surface/swapchain) resolve to an aborting stub, because the backend requires every pointer to be non-null.
+  `aegis-test` runs the UI pass too (a timings window), so CTest covers it.
+- **Swapchain prefers UNORM** (like the old one): frames arrive gamma encoded from post-processing, and
+  ImGui assumes an UNORM target.
+- **Default environment.** `createDefaultScene` takes an `assets::Environment` (the engine's default
+  sky), so every scene has IBL before an example replaces it.
+- **Editor** panels read the new stack: the renderer panel lists `FrameGraph::passes()` and
+  `ResourcePool::describe()` (name, kind, `rhi::formatName`); the profiler shows `FrameGraph::timings()`;
+  statistics come from `DrawBatchRegistry`.
+- **Resize:** `renderer::Renderer::resize` followed by `FrameGraph::resized()`; a minimized window waits on
+  events.
+- **volk is gone from the build** (`external/CMakeLists.txt` no longer adds it); only the unbuilt
+  `graphics/` still references it.
+- **Not carried over:** the old `Renderer::setupUI` and `recreateSwapChain` paths, and the SSAO pass
+  (dropped in Phase 3).
+
+---
+
+## Phase 6 — Delete old stack + remove volk
+
+- [x] Delete `src/aegis/graphics/` (no longer built since the cutover; `add_subdirectory(graphics)` and the `aegis-graphics` link are already gone).
+- [x] Remove the `external/volk` submodule (the build stopped adding it at the cutover), `graphics/vulkan/volk_impl.cpp`, and `graphics/vulkan/vulkan_include.h`.
+- [x] Remove `Aegis.Core.Window` if fully superseded by `platform::Window`. *Done in Phase 1.*
+- [x] Remove the `Aegis.Core.Input` shim once scripts and the editor receive `platform::Input` explicitly.
+- [x] Grep for stragglers: `VK_CHECK`, `AGX_ASSERT` in migrated code, `#include ".../vulkan_include.h"`, `import Aegis.Graphics`.
+- [x] Full clean build (warnings-as-errors) + run all examples.
+
+**Exit criteria:** `graphics/` gone, volk gone, all examples green.
+
+**Done.** A clean warnings-as-errors build passes, `ctest` passes, and all five examples exit 0 with no
+validation output. Details:
+
+- **Input:** `ScriptManager` takes the engine's `platform::Input` and hands it to each script through
+  `ScriptBase::init`; scripts call `input()`. `EditorLayer` takes it in its constructor.
+- **Shaders flattened (decided):** the old stack's shaders (including the unported `ssao.comp`, the only
+  GLSL shader) went with it, and `shaders/rhi/*` moved up to `shaders/`. Shaders import `modules.*`,
+  pipelines load e.g. `"ibl/brdf_lut.slang.spv"`, and every shader compiles with
+  `-fvk-use-scalar-layout`. `glslc` is no longer needed.
+- **Stragglers:** none outside `src/aegis/ai/`, which no CMake target builds and which predates the
+  migration (it still calls the old input API). The legacy modules (`core`, `editor`, `scene`,
+  `scripting`, `ui`) keep their old code style; AGENTS.md now calls them "legacy" rather than "old
+  stack".
+
+---
+
+## Testing strategy
+
+**Done — the framework landed.** doctest, vendored under `external/`, one executable per module
+(`aegis-tests-rhi`, `aegis-tests-math`), CTest integration via `doctest_discover_tests`, gated behind
+`AEGIS_BUILD_TESTS`. Layout, conventions, how to add a module, and the extraction guidance:
+**`tests/README.md`** — read that before adding tests, it records three traps that each cost a build
+cycle to rediscover.
+
+Scope stays narrow on purpose: **pure, GPU-independent logic** that survives the migration.
+
+### What is covered now
+
+75 cases. Every item originally listed here is done:
+
+- [x] Staging ring allocator — extracted to `RingAllocator` (`:ring_allocator`) and covered by
+      `tests/rhi/ring_allocator.test.cpp` (9 cases: head advance, alignment, zero-size, oversize,
+      exhaustion, wrap-around, wrapped-gap allocation, reclaim-then-succeed, capacity).
+- [x] `FreeList` (`bindless_heap.cppm`) — `tests/rhi/free_list.test.cpp`. **The suspicion recorded
+      here was wrong:** `pop()` is correct — it drains the free list first, then hands out `m_head++`
+      while `m_head < m_capacity`, and only then reports exhaustion. The first test pinned it as
+      correct and closed the question.
+- [x] `ResourcePool` / generational `ResourceHandle` — `tests/rhi/resource_pool.test.cpp` (5 cases).
+- [x] `utility::alignTo` — `tests/rhi/utility.test.cpp`.
+- [x] `Aegis.Math` — `tests/math/math.test.cpp` (5 cases).
+- [x] Bonus, not originally planned: swapchain extent-clamping + image-count policy
+      (`chooseSwapchainExtent` / `chooseImageCount`, extracted to `aegis::rhi::detail`) and
+      `detail::calcMipLevels`.
+- [x] Image subresource footprint math — `bytesPerTexel`, `mipExtent`, `copyAlignment`, and
+      `subresourceFootprints` in `aegis::rhi::detail` (`:image`), covered by `tests/rhi/image.test.cpp`.
+      Includes the array-layer packing contract and the staging/source offset divergence.
+- [x] `utility::roundUpTo` — `tests/rhi/utility.test.cpp`, including agreement with `alignTo` on
+      powers of two.
+- [x] `detail::resolveAnisotropy` — `tests/rhi/sampler.test.cpp` (4 cases).
+- [x] `DeletionQueue` — `tests/rhi/deletion_queue.test.cpp` (3 cases).
+- [x] `detail::timestampDeltaMs` — `tests/rhi/query.test.cpp` (4 cases), including counter wrap.
+- [x] `detail::defaultViewType` — `tests/rhi/image_view.test.cpp` (5 cases).
+- [x] `RingAllocator` head-meets-tail — 2 new cases in `tests/rhi/ring_allocator.test.cpp`, and the
+      existing exact-fit subcase corrected (it pinned the bug).
+
+### What to test next
+
+- [ ] Frustum-culling math (once frustum lands in `aegis.render_graph`, Phase 3).
+- [x] ~~Sampler description → Vulkan mapping~~ — **not unit-testable as planned**: the mapping
+      returns `vk::` types, which a test TU cannot name. Only the plain-value part
+      (`resolveAnisotropy`) was extracted and tested; the mapping is covered by `aegis-test`.
+
+**Fixed — freed resources were released while in-flight frames still used them.** Three parts:
+- The bindless bindings lacked `eUpdateUnusedWhilePending`, so by the spec *any* descriptor write
+  while a frame was pending (creating an image view or sampler mid-frame) was invalid. Added.
+- `Device::free` returned bindless slots to the heap immediately; a new resource could overwrite a
+  descriptor an in-flight frame still read. Slot release now goes through the `DeletionQueue`
+  (`defer`), whose `collect` now actually invokes its entries.
+- **Worse, found while fixing it:** every deletion was tagged with the last *completed* timeline
+  value, so `DeletionQueue` destroyed objects at the very next `setFrameCompleted` even if a later
+  in-flight frame used them — a GPU use-after-free with 2 frames in flight. Deletions are now tagged
+  with `Device::retireValue()` = the graphics queue's last submitted value + 1, covering the frame
+  being recorded. (All submissions go through the graphics queue today; if transfer/compute queues
+  get their own submissions, retirement needs a per-queue value.)
+
+`Device::replace(ImageViewHandle, …)` still rewrites descriptors in place; documented as requiring
+idle, which `Renderer::resize` guarantees. `aegis-test` now checks that a freed sampler slot is *not*
+reused before retirement and *is* after; `DeletionQueue` is unit-tested (3 cases).
+
+**Known gap, accepted:** `UploadManager`'s batch state machine (`m_inFlight`, `m_recordIndex`
+wraparound, the `flushPending` drain path) and `StagingBuffer`'s pointer arithmetic have no unit
+tests — both need a live `Device`. `test/main.cpp`'s readback round-trip is their only coverage, which
+is why it is a Phase 0 deliverable rather than optional polish. Extend it, not the unit suite, when
+that state machine changes.
+
+### What to defer
+
+- Anything requiring a live `vk::Device` (pipelines, real rendering, uploads end-to-end) — covered by
+  `src/aegis/test/` (`aegis-test`). The `examples/` targets run the same stack since the cutover, but
+  they have no pass/fail signal; `aegis-test` is the only `main()` that fails on an RHI regression.
+- Any test against `Aegis::Graphics::*` — that code is scheduled for deletion; testing it is throwaway.
+
+### After the rework (Phase 6+)
+
+Grow `test/main.cpp` into a proper **headless RHI harness** (it's already a seed of one) for
+device-level integration tests, once the API has stopped moving. Coverage-oriented work belongs here.
+
+### Framework choice — settled
+
+**doctest.** Minimal compile-time overhead (single header, ~4× faster to include than Catch2 v3) in a
+modules-heavy, warnings-as-errors build; header-only with trivial single assertions; ships CTest
+integration. Tests stay ordinary `.cpp` TUs that `import aegis.rhi;`, so the framework never touches
+module interfaces. Vendored as a submodule under `external/`'s `SYSTEM` subdirectory so its headers
+are immune to warnings-as-errors. Full rationale in `tests/README.md`.
+
+---
+
+## Cross-cutting risks / decisions to settle early
+
+- **BDA mesh layout** (Phase 2) ripples into every geometry shader — sequence the shader edits with the `StaticMesh` change, don't leave them for later.
+- **GPU-driven vs CPU-driven** paths both need porting in Phase 3, or one must be explicitly deferred with a note.
+- **ImGui ownership** — *decided and done:* the backend owns its descriptor pool (`DescriptorPoolSize`), and `render_graph::UiPass` calls `ImGui_ImplVulkan_Init` / `Shutdown` (Phases 4 + 5).
+- **Shader-facing pipeline layout** — *decided and done:* one shared layout (bindless set + 128-byte push constants, all stages); see Phase 0.5 B and `shaders/modules/README.md`.
+- **Convention drift** — new code follows the RHI conventions (lowercase `aegis::` namespaces, 4-space indent, `std::expected` + `makeError`, trailing return types, `[[nodiscard]]`, `Desc` structs), not the old `Aegis::Graphics` tabs/`VK_CHECK` style.
+
+## Status — migration complete
+
+**Phases 0 through 6 are complete.** The old `Aegis::Graphics` stack and volk are gone; the engine,
+editor and every example render through `aegis.rhi` / `renderer` / `platform` / `assets` /
+`render_graph`. Known gaps carried forward, none blocking:
+
+- Transparent materials (`MaterialType::Transparent`) are not drawn; the transparent pass only draws
+  point lights (Phase 3).
+- A material template cannot choose its own shaders yet; the geometry passes draw the default PBR
+  block (Phase 3).
+- SSAO is not ported (Phase 3 decision).
+- `src/aegis/ai/` is unbuilt dead code on the old input API.
+- The legacy modules still use the old code style (tabs, `Aegis::` namespaces, `AGX_ASSERT`).
+- Growing `aegis-test` into a device-level harness ("After the rework" under Testing strategy).
+
+**Verify any of them with:** a full warnings-as-errors build and `ctest --preset windows-clang-debug`,
+which includes the headless `aegis-test` run (label `device`). It fails on any failed check or
+validation error, core or synchronization (both are on in debug builds). When surface, swapchain or
+present code changes, also run `aegis-test --frames 600` (windowed, exits by itself). `aegis-test` is
+the *only* `main()` that fails on an RHI regression; `examples/` run the same stack but have no
+pass/fail signal.
+
+> **Running one test module:** `ctest --preset windows-clang-debug -L rhi` (or `-L math`). Each case
+> is labelled with its module by `aegis_add_test`. `-R "rhi::"` does not work — CTest registers cases
+> under their `TEST_CASE` name, not the `TEST_SUITE` name. `AGENTS.md` and `tests/README.md` are fixed.

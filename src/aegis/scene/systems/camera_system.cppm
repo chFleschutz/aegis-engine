@@ -3,6 +3,7 @@ module;
 #include "core/assert.h"
 
 #include <cmath>
+#include <limits>
 
 export module Aegis.Scene.Systems.CameraSystem;
 

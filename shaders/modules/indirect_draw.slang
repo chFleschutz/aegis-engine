@@ -1,23 +1,25 @@
-module indirectDraw;
+module indirect_draw;
 
-import modules.bindless;
 import modules.common;
+
+// The GPU-driven path's instance data (render_graph::InstanceData) and the push constants its
+// geometry stages share (render_graph::GpuDrivenGeometryPass).
 
 namespace indirectDraw
 {
     public struct Instance
     {
-        public float3x4 transform;
+        public float3x4 model; // Top three rows of the model matrix
         public float3 normalRow0;
-        public bindless::Handle<UniformBuffer<common::Mesh>> mesh;
         public float3 normalRow1;
-        public bindless::Handle material;
         public float3 normalRow2;
-        public uint drawBatchID;
+        public common::Mesh* mesh;
+        public common::PbrMaterial* material;
+        public uint drawBatch;
 
         public property float4x4 modelMatrix
         {
-            get { return float4x4(transform, float4(0.0, 0.0, 0.0, 1.0)); }
+            get { return float4x4(model, float4(0.0, 0.0, 0.0, 1.0)); }
         }
 
         public property float3x3 normalMatrix
@@ -26,28 +28,25 @@ namespace indirectDraw
         }
     }
 
-    public struct PushConstant
+    public struct PushConstants
     {
-        public bindless::Handle<UniformBuffer<common::Camera>> camera;
-        public bindless::Handle<StorageBuffer<Instance>> staticInstances;
-        public bindless::Handle<StorageBuffer<Instance>> dynamicInstances;
-        public bindless::Handle<StorageBuffer<uint>> visibility;
-        public uint batchFirstID;
+        public common::Camera* camera;
+        public Instance* staticInstances;
+        public Instance* dynamicInstances;
+        public uint* visibility; // Visible instance IDs, grouped by draw batch
+        public uint batchFirst;  // Where this batch's IDs start in 'visibility'
         public uint batchSize;
         public uint staticCount;
         public uint dynamicCount;
     }
-    public [vk::push_constant] PushConstant pc;
 
-    public func getInstance(uint index) -> Instance
+    public [[vk::push_constant]] ConstantBuffer<PushConstants> pc;
+
+    /// Instance IDs count the static instances first, then the dynamic ones.
+    public func getInstance(uint id) -> Instance
     {
-        if (index < pc.staticCount)
-        {
-            return pc.staticInstances.get()[index];
-        }
-        else
-        {
-            return pc.dynamicInstances.get()[index - pc.staticCount];
-        }
+        if (id < pc.staticCount)
+            return pc.staticInstances[id];
+        return pc.dynamicInstances[id - pc.staticCount];
     }
 }

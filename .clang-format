@@ -1,0 +1,60 @@
+# Aegis Engine — global formatting config (clang-format 22.x).
+# Normalizer (no full reflow) ColumnLimit 0 keeps line breaks. Only spacing, indent and braces are normalized. 
+# Guard deliberately hand-laid-out blocks with // clang-format off/on.
+
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: Latest
+
+ColumnLimit: 0
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+NamespaceIndentation: None
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterExternBlock: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: false
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+Cpp11BracedListStyle: false
+AlignAfterOpenBracket: DontAlign
+
+AccessModifierOffset: -4
+FixNamespaceComments: false
+PackConstructorInitializers: Never
+BreakConstructorInitializers: AfterColon
+
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: None
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 0
+
+ReflowComments: Never
+SortIncludes: Never
+IncludeBlocks: Preserve
+
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortCaseLabelsOnASingleLine: true
+SpaceAfterTemplateKeyword: false

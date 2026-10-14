@@ -7,9 +7,10 @@ export module Aegis.Editor;
 
 import Aegis.Math;
 import Aegis.Core.Layer;
-import Aegis.Core.Input;
 import Aegis.Editor.Panels;
-import Aegis.Graphics.Renderer;
+import aegis.platform;
+import aegis.render_graph;
+import aegis.renderer;
 import Aegis.Scene;
 
 export namespace Aegis::Editor
@@ -17,24 +18,30 @@ export namespace Aegis::Editor
 	class EditorLayer : public Core::Layer
 	{
 	public:
-		EditorLayer(Graphics::Renderer& renderer, Scene::Scene& scene)
-			: m_renderer(renderer), m_scene(scene)
-		{}
+        EditorLayer(aegis::platform::Input& input, aegis::renderer::Renderer& renderer,
+            aegis::render_graph::FrameGraph& frameGraph, aegis::render_graph::DrawBatchRegistry& drawBatches,
+            Scene::Scene& scene) :
+            m_input(input),
+            m_renderer(renderer),
+            m_frameGraph(frameGraph),
+            m_drawBatches(drawBatches),
+            m_scene(scene)
+        {}
 
 		virtual void onUpdate(float deltaSeconds) override
 		{
-			m_snapping = Input::instance().keyPressed(Input::LeftControl);
+            m_snapping = m_input.keyPressed(aegis::platform::Key::LeftControl);
 
-			if (!ImGuizmo::IsUsing())
+            if (!ImGuizmo::IsUsing())
 			{
-				if (Input::instance().keyPressed(Input::Q))
-					m_gizmoType = -1;
-				else if (Input::instance().keyPressed(Input::W))
-					m_gizmoType = ImGuizmo::OPERATION::TRANSLATE;
-				else if (Input::instance().keyPressed(Input::E))
-					m_gizmoType = ImGuizmo::OPERATION::ROTATE;
-				else if (Input::instance().keyPressed(Input::R))
-					m_gizmoType = ImGuizmo::OPERATION::SCALE;
+                if (m_input.keyPressed(aegis::platform::Key::Q))
+                    m_gizmoType = -1;
+                else if (m_input.keyPressed(aegis::platform::Key::W))
+                    m_gizmoType = ImGuizmo::OPERATION::TRANSLATE;
+                else if (m_input.keyPressed(aegis::platform::Key::E))
+                    m_gizmoType = ImGuizmo::OPERATION::ROTATE;
+                else if (m_input.keyPressed(aegis::platform::Key::R))
+                    m_gizmoType = ImGuizmo::OPERATION::SCALE;
 			}
 		}
 
@@ -43,18 +50,18 @@ export namespace Aegis::Editor
 			m_menuBarPanel.draw();
 
 			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Renderer))
-				m_rendererPanel.draw(m_renderer);
+                m_rendererPanel.draw(m_renderer, m_frameGraph);
 
-			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Scene))
+            if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Scene))
 				m_scenePanel.draw(m_scene);
 
 			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Statistics))
-				m_statisticsPanel.draw(m_scene.registry(), m_renderer.drawBatchRegistry());
+                m_statisticsPanel.draw(m_scene.registry(), m_drawBatches);
 
-			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Profiler))
-				m_profilerPanel.draw();
+            if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Profiler))
+                m_profilerPanel.draw(m_frameGraph);
 
-			if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Demo))
+            if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Demo))
 				m_demoPanel.draw();
 
 			if (m_gizmoType != -1)
@@ -99,8 +106,11 @@ export namespace Aegis::Editor
 			}
 		}
 
-		Graphics::Renderer& m_renderer;
-		Scene::Scene& m_scene;
+        aegis::platform::Input& m_input;
+        aegis::renderer::Renderer& m_renderer;
+        aegis::render_graph::FrameGraph& m_frameGraph;
+        aegis::render_graph::DrawBatchRegistry& m_drawBatches;
+        Scene::Scene& m_scene;
 		Editor::MenuBarPanel m_menuBarPanel{};
 		Editor::RendererPanel m_rendererPanel{};
 		Editor::ScenePanel m_scenePanel{};

@@ -2,6 +2,8 @@ module;
 
 #include "core/assert.h"
 
+#include <algorithm>
+
 export module Aegis.Physics.MotionDynamics;
 
 import Aegis.Math;
