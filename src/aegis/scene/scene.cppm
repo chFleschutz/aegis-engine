@@ -2,7 +2,10 @@ module;
 
 #include "core/assert.h"
 
-#include <entt/entt.hpp>
+// Only the ECS headers: entt.hpp pulls in entt::meta, which crashes clang -O3 against libstdc++
+#include <entt/entity/entity.hpp>
+#include <entt/entity/registry.hpp>
+#include <entt/entity/view.hpp>
 
 #include <concepts>
 #include <filesystem>

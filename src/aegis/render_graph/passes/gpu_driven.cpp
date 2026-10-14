@@ -9,7 +9,10 @@ module;
 #include <utility>
 #include <vector>
 
-#include <entt/entt.hpp>
+// Only the ECS headers: entt.hpp pulls in entt::meta, which crashes clang -O3 against libstdc++
+#include <entt/entity/entity.hpp>
+#include <entt/entity/registry.hpp>
+#include <entt/entity/view.hpp>
 
 module aegis.render_graph;
 import aegis.assets;
