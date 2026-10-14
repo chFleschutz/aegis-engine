@@ -40,7 +40,7 @@ The engine runs on **Windows** and **Linux**. Before building ensure you have th
 - [CMake](https://cmake.org/) 3.28 or newer and [Ninja](https://ninja-build.org/)
 - A C++23 compiler with C++20 modules support:
   - **Windows:** [Clang](https://releases.llvm.org/) with the MSVC standard library (the `windows-msvc-*` presets exist, but MSVC currently fails with internal compiler errors)
-  - **Linux:** Clang with libstdc++ 14 or newer
+  - **Linux:** Clang with libstdc++ 15 (Ubuntu 24.04's libstdc++ 14.2 fails to compile the modules; install `libstdc++-15-dev` from the `ppa:ubuntu-toolchain-r/test` PPA)
 - **Linux only:** the GLFW build dependencies, e.g. on Ubuntu `sudo apt install libwayland-dev libxkbcommon-dev xorg-dev`
 
 > [!IMPORTANT]
