@@ -6,6 +6,9 @@
   <a href="https://github.com/chFleschutz/aegis-engine/blob/main/LICENSE">
     <img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge">
   </a>
+  <a href="https://github.com/chFleschutz/aegis-engine/actions/workflows/build.yml">
+    <img alt="Build" src="https://img.shields.io/github/actions/workflow/status/chFleschutz/aegis-engine/build.yml?branch=main&style=for-the-badge&label=Build">
+  </a>
 </p>
 
 C++ render engine developed with Vulkan to explore low level graphics programming
