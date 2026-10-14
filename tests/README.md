@@ -41,7 +41,10 @@ build\windows-clang-debug\src\aegis\test\aegis-test.exe --headless --gpu-driven 
 the `examples/` targets run the same stack, but open a window and nothing fails them on an RHI
 regression. Debug builds enable core and synchronization validation; the harness exits non-zero on
 a failed check or any validation error. CTest runs the headless form (label `device`); the windowed
-form is the only check of surface, swapchain and present, so run it when those change.
+form is the only check of surface, swapchain and present, so run it when those change. The commands
+above use Windows paths and the `windows-clang-debug` preset; on Linux use `linux-clang-debug` and
+`build/linux-clang-debug/src/aegis/test/aegis-test`. The windowed run also checks `platform::Input`
+with synthetic key and mouse messages, on Windows only (other platforms skip that check).
 
 ## What we test
 

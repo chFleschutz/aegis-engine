@@ -2,7 +2,7 @@
 
 <p>
   <img alt="Language" src="https://img.shields.io/badge/Language-C%2B%2B23-blue?style=for-the-badge&logo=c%2B%2B">
-  <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows-blue?style=for-the-badge">
+  <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-blue?style=for-the-badge">
   <a href="https://github.com/chFleschutz/aegis-engine/blob/main/LICENSE">
     <img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge">
   </a>
@@ -20,32 +20,40 @@ C++ render engine developed with Vulkan to explore low level graphics programmin
 
 # Features
 
-- **Physically Based Rendering (PBR)** - Realistic lighting and materials 
-- **GLTF & OBJ Loading** - Loading of custom 3D models 
+- **Physically Based Rendering (PBR)** - Realistic lighting and materials, with image based lighting from HDR environments
+- **GLTF & OBJ Loading** - Loading of custom 3D models
 - **Immediate Mode Editor UI** - Editor tools using Dear ImGui and ImGuizmo
 - **Entity Component System (ECS)** - Efficient object management using EnTT
-- **Framegraph** - Multipass rendering with automatic renderpass sorting
+- **Render Graph** - Passes declare the resources they read and write; the graph orders them and places the barriers
+- **Bindless Resources** - Images and samplers in one descriptor heap, buffers through device addresses
 - **Deferred Rendering** - Improved lighting performance
 - **HDR Rendering and Tone Mapping** - Enables wider color range for more visible details
 - **Physically Based Bloom** - Realistic glow effect around bright areas created using convolution
-- **Screen Space Ambient Occlusion (SSAO)** - Enhanced depth perception
 - **Mesh Shaders Pipeline** - Modern geometry rendering
 - **GPU Driven Rendering** - Minimize CPU rendering overhead
+- **Headless Rendering** - Offscreen rendering without a window, used by the GPU integration tests
   
 ## Prerequisites <a name="prerequisites"></a>
 
-Before building ensure you have the following installed:
-- [Vulkan SDK](https://vulkan.lunarg.com/) - Install version **1.4.328.1** (see the version note below).
-- CMake - Used for building the project. Either install it manually or use an IDE with built-in CMake support (like Visual Studio)
-
-> Note: The engine currently only targets Windows.
+The engine runs on **Windows** and **Linux**. Before building ensure you have the following installed:
+- [Vulkan SDK](https://vulkan.lunarg.com/) - Install version **1.4.328.1** (see the version note below)
+- [CMake](https://cmake.org/) 3.28 or newer and [Ninja](https://ninja-build.org/)
+- A C++23 compiler with C++20 modules support:
+  - **Windows:** [Clang](https://releases.llvm.org/) with the MSVC standard library (the `windows-msvc-*` presets exist, but MSVC currently fails with internal compiler errors)
+  - **Linux:** Clang with libstdc++ 14 or newer
+- **Linux only:** the GLFW build dependencies, e.g. on Ubuntu `sudo apt install libwayland-dev libxkbcommon-dev xorg-dev`
 
 > [!IMPORTANT]
-> **Vulkan SDK version:** the modules-based build needs a Vulkan SDK that *guards* its C++ `std`
-> module behind a feature macro (e.g. **1.4.328.1**). Newer SDKs (~1.4.350 and later) hardcode
-> `export import std;`, which the toolchain can't build yet, so CMake **configure fails fast**
-> against them. If your `VULKAN_SDK` points at such a version, install 1.4.328.1 and point the
-> build at it, e.g. `cmake --preset windows-clang-debug -DVulkan_ROOT="C:/VulkanSDK/1.4.328.1"`.
+> **Vulkan SDK version:** the modules-based build needs a Vulkan SDK whose C++ module (`vulkan.cppm`)
+> *guards* its use of the C++ `std` module behind a feature macro, e.g. **1.4.328.1**. Newer SDKs
+> (~1.4.350 and later) hardcode `export import std;`, which the toolchain can't build yet, so CMake
+> **configure fails fast** against them. If your default SDK is such a version, install 1.4.328.1 next
+> to it and point the build at it:
+>
+> ```bash
+> cmake --preset windows-clang-debug --fresh -DVulkan_ROOT="C:/VulkanSDK/1.4.328.1"   # Windows
+> source ~/VulkanSDK/1.4.328.1/setup-env.sh && cmake --preset linux-clang-debug --fresh  # Linux
+> ```
 
 ## Getting Started <a name="getting-started"></a>
 
@@ -57,11 +65,17 @@ Follow these steps to get started:
     git clone --recurse-submodules https://github.com/chFleschutz/aegis-engine.git
     ```
 
-2. Open the folder in a CMake supported IDE (e.g. Visual Studio) or generate project files using CMake.
+2. Configure and build with a preset (`windows-clang-*` or `linux-clang-*`, each `-debug` or
+   `-release`), or open the folder in a CMake supported IDE:
 
-3. Build and Run one of the example projects.
+    ```bash
+    cmake --preset windows-clang-debug
+    cmake --build --preset windows-clang-debug
+    ```
 
-4. Optionally run the unit tests:
+3. Run one of the examples, e.g. `build/windows-clang-debug/examples/sponza/Sponza`.
+
+4. Optionally run the tests (the `device` tests need a Vulkan GPU; `-LE device` skips them):
 
     ```bash
     ctest --preset windows-clang-debug
@@ -73,12 +87,13 @@ Follow these steps to get started:
 ## Modules and External Libraries <a name="external-libraries"></a>
 
 This project is structured into several independent modules:
-- [aegis-assets](https://github.com/chFleschutz/aegis-assets) - Collection of sample assest
-- [aegis-gltf](https://github.com/chFleschutz/aegis-gltf) - GLTF 3D model loader
+- [aegis-assets](https://github.com/chFleschutz/aegis-assets) - Collection of sample assets
 - [aegis-log](https://github.com/chFleschutz/aegis-log) - Logging library
 
 The engine relies on the following external libraries:
+- [doctest](https://github.com/doctest/doctest) - Unit testing
 - [entt](https://github.com/skypjack/entt) - Entity component system (ECS)
+- [fastgltf](https://github.com/spnda/fastgltf) - GLTF 3D model loader
 - [glfw](https://github.com/glfw/glfw) - Window management
 - [glm](https://github.com/g-truc/glm) - Math library
 - [imgui](https://github.com/ocornut/imgui) - Immediate mode UI
@@ -86,7 +101,8 @@ The engine relies on the following external libraries:
 - [meshoptimizer](https://github.com/zeux/meshoptimizer) - Generating meshlets
 - [stb](https://github.com/nothings/stb) - Image loading
 - [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader) - OBJ 3D model loader
-- [Vulkan](https://www.vulkan.org/) - Graphics API
+- [Vulkan](https://www.vulkan.org/) - Graphics API, through [Vulkan-Hpp](https://github.com/KhronosGroup/Vulkan-Hpp)
+- [Slang](https://shader-slang.org/) - Shading language
 - [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) - Vulkan Memory Management
 
 ## Screenshots

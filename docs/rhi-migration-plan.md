@@ -737,6 +737,10 @@ editor and every example render through `aegis.rhi` / `renderer` / `platform` / 
 - A material template cannot choose its own shaders yet; the geometry passes draw the default PBR
   block (Phase 3).
 - SSAO is not ported (Phase 3 decision).
+- The GPU-driven path's buffers hold 65,536 static + 4,096 dynamic instances. Larger scenes overrun
+  them: Eval-Scene's 1M-cube `LowPolyHighObj` issues an indirect draw count of 1,000,001 against an
+  indirect buffer sized for 69,632 commands (validation error in debug; release draws a fraction of
+  the scene). The old stack handled it. Size the buffers from the scene or clamp the counts.
 - `src/aegis/ai/` is unbuilt dead code on the old input API.
 - The legacy modules still use the old code style (tabs, `Aegis::` namespaces, `AGX_ASSERT`).
 - Growing `aegis-test` into a device-level harness ("After the rework" under Testing strategy).
