@@ -79,6 +79,14 @@ public:
     auto write(ResourceHandle handle, std::uint32_t frameIndex, std::span<const std::byte> data,
         std::size_t offset = 0) const -> void;
 
+    /// @brief The size of one copy of the buffer (of one frame's copy, for a per-frame buffer).
+    [[nodiscard]] auto bufferSize(ResourceHandle handle) const -> std::size_t;
+    /// @brief Replaces the buffer with a new one of 'size' bytes per copy, with the same usage and
+    ///        memory. The handle stays valid; the old buffer is freed once the GPU is done with it, and
+    ///        its contents are not copied. Passes fetch buffers and addresses per frame, so the next
+    ///        lookup sees the new one; barriers on buffers are global, so they need no update.
+    [[nodiscard]] auto resizeBuffer(ResourceHandle handle, std::size_t size) -> std::expected<void, Error>;
+
 private:
     struct Reference
     {
@@ -102,8 +110,12 @@ private:
     {
         rhi::BufferHandle buffer;
         std::size_t stride; // Distance between per-frame copies; 0 when not per-frame
+        rhi::BufferUsage usage;
+        rhi::MemoryUsage memory;
     };
 
+    [[nodiscard]] auto createBuffer(const std::string& name, const BufferDesc& desc, rhi::BufferUsage usage,
+        rhi::MemoryUsage memory) const -> std::expected<CreatedBuffer, Error>;
     [[nodiscard]] auto resolveReferences() -> std::expected<void, Error>;
     [[nodiscard]] auto createResources() -> std::expected<void, Error>;
     [[nodiscard]] auto actual(ResourceHandle handle) const -> std::uint32_t;

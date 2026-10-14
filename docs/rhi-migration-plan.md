@@ -542,9 +542,11 @@ milestone). CTest runs both paths as `device` tests. Decisions and details:
   pulls vertices through BDA with the index buffer bound; the GPU path's mesh shader hands the instance ID
   to the fragment shader, which finds the material through it. The task shader is its own module: sharing
   one, the mesh stage declared the task stage's `DrawIndex`, which validation rejects.
-- **GPU-driven buffers** are sized by maxima (65536 static + 4096 dynamic instances, 256 draw batches)
-  instead of the scene's counts, so the graph does not depend on the scene loaded; culling dispatches the
-  counts `InstanceUpdatePass` actually wrote. Draw counts are cleared by their own pass
+- **GPU-driven buffers** start at 65536 static + 4096 dynamic instances (256 draw batches, fixed) and
+  grow to the draw batch registry's counts through `ResourcePool::resizeBuffer`, which swaps the buffer
+  behind a handle (so the graph's barriers are unaffected) and frees the old one once the GPU is done.
+  *Pre-merge fix: they used to be fixed maxima, which Eval-Scene's 1M cubes overran.* Culling
+  dispatches the counts `InstanceUpdatePass` actually wrote. Draw counts are cleared by their own pass
   (`ClearDrawCountsPass`), so the graph places the barrier between the fill and the culling writes.
 - **IBL** is `render_graph::Ibl` (GPU work; `assets` cannot depend on `render_graph`):
   `loadEnvironment(hdr)` builds an `assets::Environment`. `aegis-test` checks the BRDF LUT and irradiance
@@ -737,10 +739,6 @@ editor and every example render through `aegis.rhi` / `renderer` / `platform` / 
 - A material template cannot choose its own shaders yet; the geometry passes draw the default PBR
   block (Phase 3).
 - SSAO is not ported (Phase 3 decision).
-- The GPU-driven path's buffers hold 65,536 static + 4,096 dynamic instances. Larger scenes overrun
-  them: Eval-Scene's 1M-cube `LowPolyHighObj` issues an indirect draw count of 1,000,001 against an
-  indirect buffer sized for 69,632 commands (validation error in debug; release draws a fraction of
-  the scene). The old stack handled it. Size the buffers from the scene or clamp the counts.
 - `src/aegis/ai/` is unbuilt dead code on the old input API.
 - The legacy modules still use the old code style (tabs, `Aegis::` namespaces, `AGX_ASSERT`).
 - Growing `aegis-test` into a device-level harness ("After the rework" under Testing strategy).

@@ -1,5 +1,6 @@
 module;
 #include <array>
+#include <bit>
 #include <cstdint>
 #include <expected>
 #include <optional>
@@ -13,6 +14,19 @@ import :resource_pool;
 import aegis.rhi;
 import Aegis.Math;
 import Aegis.Scene;
+
+export namespace aegis::render_graph::detail
+{
+/// @brief The capacity a growable buffer moves to so that 'required' entries fit: 'current' when they
+///        already do, else the next power of two (or 'required' itself beyond 2^31). Never shrinks.
+[[nodiscard]] constexpr auto grownCapacity(std::uint32_t current, std::uint32_t required) noexcept -> std::uint32_t
+{
+    if (required <= current)
+        return current;
+    constexpr std::uint32_t largestPowerOfTwo{ 1u << 31 };
+    return required > largestPowerOfTwo ? required : std::bit_ceil(required);
+}
+}
 
 export namespace aegis::render_graph
 {
@@ -37,11 +51,13 @@ struct DrawBatchData
 
 /// @brief Writes "StaticInstances" once per scene, and "DynamicInstances" (DynamicTag entities) and
 ///        "DrawBatches" every frame. Instance IDs count static instances first, then dynamic ones.
+///        The instance buffers grow to the draw batch registry's counts (detail::grownCapacity).
 class InstanceUpdatePass : public RenderPass
 {
 public:
-    static constexpr std::uint32_t maxStaticInstances{ 65536 };
-    static constexpr std::uint32_t maxDynamicInstances{ 4096 };
+    /// @brief Instances the buffers hold before they first grow.
+    static constexpr std::uint32_t initialStaticCapacity{ 65536 };
+    static constexpr std::uint32_t initialDynamicCapacity{ 4096 };
 
     InstanceUpdatePass(ResourcePool& pool, const DrawBatchRegistry& drawBatches);
 
@@ -58,6 +74,8 @@ private:
     ResourceHandle m_staticInstances;
     ResourceHandle m_dynamicInstances;
     ResourceHandle m_drawBatchData;
+    std::uint32_t m_staticCapacity{ initialStaticCapacity };
+    std::uint32_t m_dynamicCapacity{ initialDynamicCapacity };
     std::uint32_t m_staticCount{ 0 };
     std::uint32_t m_dynamicCount{ 0 };
 };
@@ -76,7 +94,8 @@ private:
 };
 
 /// @brief Frustum-culls every instance on the GPU, appending the visible ones per draw batch to
-///        "VisibleInstances" with their "IndirectDrawCommands", and counting them.
+///        "VisibleInstances" with their "IndirectDrawCommands", and counting them. Both buffers hold
+///        one entry per instance the draw batch registry counts, and grow with it.
 class CullingPass : public RenderPass
 {
 public:
@@ -95,6 +114,8 @@ private:
     ResourceHandle m_visibility;
     ResourceHandle m_commands;
     ResourceHandle m_counts;
+    std::uint32_t m_visibilityCapacity;
+    std::uint32_t m_commandCapacity;
     std::optional<rhi::Pipeline> m_pipeline;
 };
 

@@ -137,6 +137,48 @@ auto ResourcePool::write(ResourceHandle handle, std::uint32_t frameIndex, std::s
     buffer(handle).write(data.data(), data.size(), bufferOffset(handle, frameIndex) + offset);
 }
 
+auto ResourcePool::bufferSize(ResourceHandle handle) const -> std::size_t
+{
+    const auto target = actual(handle);
+    const auto* desc = std::get_if<BufferDesc>(&m_entries[target].info);
+    assert(desc && "Frame graph resource is not a buffer");
+    return desc->size;
+}
+
+auto ResourcePool::resizeBuffer(ResourceHandle handle, std::size_t size) -> std::expected<void, Error>
+{
+    const auto target = actual(handle);
+    auto* desc = std::get_if<BufferDesc>(&m_entries[target].info);
+    auto* created = std::get_if<CreatedBuffer>(&m_created[target]);
+    assert(desc && created && "Frame graph resource is not a created buffer");
+
+    auto resized = createBuffer(m_entries[target].name, { .size = size, .perFrame = desc->perFrame },
+        created->usage, created->memory);
+    if (!resized)
+        return std::unexpected{ resized.error() };
+
+    m_device.free(created->buffer);
+    *created = *resized;
+    desc->size = size;
+    return {};
+}
+
+auto ResourcePool::createBuffer(const std::string& name, const BufferDesc& desc, rhi::BufferUsage usage,
+    rhi::MemoryUsage memory) const -> std::expected<CreatedBuffer, Error>
+{
+    constexpr auto frames = renderer::Renderer::maxFramesInFlight;
+    const auto stride = desc.perFrame ? rhi::utility::alignTo(desc.size, perFrameAlignment) : 0;
+    auto buffer = m_device.createBuffer({
+        .name = name,
+        .size = desc.perFrame ? stride * frames : desc.size,
+        .usage = usage,
+        .memory = memory,
+    });
+    if (!buffer)
+        return makeError(buffer.error(), std::format("Failed to create frame graph buffer '{}'", name));
+    return CreatedBuffer{ *buffer, stride, usage, memory };
+}
+
 auto ResourcePool::resolveReferences() -> std::expected<void, Error>
 {
     for (auto& entry : m_entries)
@@ -175,7 +217,6 @@ auto ResourcePool::createResources() -> std::expected<void, Error>
         hostWritten[target] = hostWritten[target] || m_entries[i].usage == Usage::HostWrite;
     }
 
-    constexpr auto frames = renderer::Renderer::maxFramesInFlight;
     m_created.resize(m_entries.size());
     for (std::uint32_t i = 0; i < m_entries.size(); ++i)
     {
@@ -199,16 +240,12 @@ auto ResourcePool::createResources() -> std::expected<void, Error>
         }
         else if (const auto* desc = std::get_if<BufferDesc>(&entry.info))
         {
-            const auto stride = desc->perFrame ? alignTo(desc->size, perFrameAlignment) : 0;
-            auto buffer = m_device.createBuffer({
-                .name = entry.name,
-                .size = desc->perFrame ? stride * frames : desc->size,
-                .usage = rhi::BufferUsage::Storage | rhi::BufferUsage::ShaderDeviceAddress | bufferUsage[i],
-                .memory = hostWritten[i] ? rhi::MemoryUsage::CpuWrite : rhi::MemoryUsage::GpuOnly,
-            });
+            auto buffer = createBuffer(entry.name, *desc,
+                rhi::BufferUsage::Storage | rhi::BufferUsage::ShaderDeviceAddress | bufferUsage[i],
+                hostWritten[i] ? rhi::MemoryUsage::CpuWrite : rhi::MemoryUsage::GpuOnly);
             if (!buffer)
-                return makeError(buffer.error(), std::format("Failed to create frame graph buffer '{}'", entry.name));
-            m_created[i] = CreatedBuffer{ *buffer, stride };
+                return std::unexpected{ buffer.error() };
+            m_created[i] = *buffer;
         }
     }
     return {};
