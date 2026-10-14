@@ -1,9 +1,13 @@
 module;
 #include <array>
+#include <cstdint>
 #include <expected>
 #include <format>
 #include <ranges>
+#include <span>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 module aegis.rhi;

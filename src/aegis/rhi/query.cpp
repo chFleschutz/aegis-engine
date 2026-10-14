@@ -2,6 +2,7 @@ module;
 #include <cassert>
 #include <cstdint>
 #include <expected>
+#include <utility>
 #include <vector>
 
 module aegis.rhi;

@@ -31,7 +31,7 @@ struct ResourceHandle
         assert(generation <= GenerationMask);
     }
 
-    auto operator<=>(const ResourceHandle&) const = default;
+    auto operator==(const ResourceHandle&) const -> bool = default;
 
     [[nodiscard]] auto isValid() const -> bool { return value != InvalidValue; }
     [[nodiscard]] auto index() const -> std::uint32_t { return value & IndexMask; }

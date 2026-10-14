@@ -1,5 +1,7 @@
 module;
 
+#include <concepts>
+#include <utility>
 #include <vector>
 
 export module Aegis.Scripting.ScriptManager;

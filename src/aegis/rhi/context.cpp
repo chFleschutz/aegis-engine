@@ -7,9 +7,13 @@ module;
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <expected>
+#include <memory>
 #include <print>
 #include <string>
+#include <string_view>
+#include <vector>
 
 module aegis.rhi;
 import :context;

@@ -8,6 +8,7 @@ module;
 #include <fstream>
 #include <span>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 module aegis.render_graph;

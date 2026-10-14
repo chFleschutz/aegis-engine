@@ -1,4 +1,5 @@
 module;
+#include <cstdint>
 #include <string_view>
 
 export module aegis.renderer:texture;

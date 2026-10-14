@@ -3,6 +3,7 @@ module;
 #include <bit>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <expected>
 #include <format>
 #include <utility>

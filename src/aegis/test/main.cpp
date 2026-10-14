@@ -1,10 +1,12 @@
-// Win32 only to synthesize input events for verifyInput; the harness is Windows-only like the engine.
+#ifdef _WIN32
+// Win32 only to synthesize input events for verifyInput; other platforms skip that check.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
+#endif
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb/stb_image_write.h>
@@ -513,8 +515,13 @@ public:
     // Posts synthetic Win32 key and mouse messages to the window and lets the real event loop process
     // them, so polling and key bindings are checked end to end without anyone at the keyboard.
     // Assumes no modifier key is physically held during the run: GLFW reads modifiers from the keyboard.
+    // Windows only: X11 and Wayland have no equivalent that reaches GLFW's event loop as reliably.
     auto verifyInput() -> std::expected<void, std::string>
     {
+#ifndef _WIN32
+        std::println("Input check skipped: synthetic input is only implemented for Win32");
+        return {};
+#else
         const auto hwnd = glfwGetWin32Window(m_window->glfwWindow());
         const auto postKey = [hwnd](UINT message, WPARAM virtualKey) {
             // GLFW identifies the key by the scancode in bits 16-23, then sets the state from the message.
@@ -562,6 +569,7 @@ public:
 
         std::println("Input verified: key state, key binding (press only, exact modifiers) and mouse button");
         return {};
+#endif
     }
 
     // Renderer textures must reach shaders through bindless, cover all their mips, and keep their

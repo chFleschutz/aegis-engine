@@ -2,6 +2,7 @@ module;
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <iterator>
@@ -9,6 +10,8 @@ module;
 #include <ranges>
 #include <span>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 module aegis.rhi;

@@ -1,3 +1,8 @@
+module;
+// MSVC needs <compare> wherever a defaulted operator<=> is instantiated, including Vulkan-Hpp's
+// vk::Flags reached through aegis.rhi.
+#include <compare>
+
 export module aegis.render_graph;
 export import :default_graph;
 export import :draw_batch_registry;

@@ -1,5 +1,6 @@
 module;
 
+#include <cstddef>
 #include <functional>
 
 export module Aegis.Utils;

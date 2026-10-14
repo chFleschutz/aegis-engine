@@ -1,6 +1,8 @@
 module;
 
+#include <concepts>
 #include <filesystem>
+#include <memory>
 
 export module Aegis.Core.Asset;
 

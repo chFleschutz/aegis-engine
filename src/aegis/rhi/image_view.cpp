@@ -1,6 +1,7 @@
 module;
 #include <expected>
 #include <optional>
+#include <utility>
 
 module aegis.rhi;
 import :image_view;

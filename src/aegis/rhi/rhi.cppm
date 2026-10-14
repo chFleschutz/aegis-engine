@@ -1,3 +1,8 @@
+module;
+// MSVC needs <compare> wherever a defaulted operator<=> is instantiated, including Vulkan-Hpp's
+// vk::Flags reached through the partitions below.
+#include <compare>
+
 export module aegis.rhi;
 export import :bindless_heap;
 export import :buffer;

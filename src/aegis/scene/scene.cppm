@@ -4,9 +4,11 @@ module;
 
 #include <entt/entt.hpp>
 
+#include <concepts>
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 export module Aegis.Scene;

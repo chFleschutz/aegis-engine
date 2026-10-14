@@ -1,6 +1,7 @@
 module;
 
 #include <algorithm>
+#include <limits>
 
 export module Aegis.Scripting.Movement.KinematicMovementController;
 

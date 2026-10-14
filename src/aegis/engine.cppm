@@ -8,6 +8,7 @@ module;
 #include <imgui_impl_glfw.h>
 
 #include <chrono>
+#include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <format>

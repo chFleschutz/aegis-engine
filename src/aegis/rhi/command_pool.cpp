@@ -1,5 +1,6 @@
 module;
 #include <expected>
+#include <utility>
 
 module aegis.rhi;
 import :command_pool;

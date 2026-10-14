@@ -4,6 +4,7 @@ module;
 #include <expected>
 #include <memory>
 #include <string_view>
+#include <utility>
 
 module aegis.assets;
 import aegis.rhi;

@@ -177,8 +177,11 @@ enum class BufferUsage : std::uint32_t
 };
 // clang-format on
 
+namespace utility
+{
 template<>
-constexpr auto utility::isFlagEnum<BufferUsage>{ true };
+constexpr auto isFlagEnum<BufferUsage>{ true };
+}
 
 /// @brief Dimensionality of an image. Cube is a 2D image whose array layers are cube faces (a multiple
 ///        of 6, square extent); it is what makes an image cube-compatible.
@@ -214,8 +217,11 @@ enum class ImageUsage : std::uint32_t
     TransferDst            = 1 << 5,
 };
 
+namespace utility
+{
 template<>
-constexpr auto utility::isFlagEnum<ImageUsage>{ true };
+constexpr auto isFlagEnum<ImageUsage>{ true };
+}
 
 enum class MemoryUsage
 {
@@ -278,7 +284,7 @@ struct Extent2D
     {
     }
 
-    constexpr auto operator<=>(const Extent2D&) const = default;
+    constexpr auto operator==(const Extent2D&) const -> bool = default;
 };
 
 struct Extent3D
@@ -301,7 +307,7 @@ struct Extent3D
     {
     }
 
-    constexpr auto operator<=>(const Extent3D&) const = default;
+    constexpr auto operator==(const Extent3D&) const -> bool = default;
 
     [[nodiscard]] constexpr auto toExtent2D() const noexcept -> Extent2D { return { x, y }; }
 };

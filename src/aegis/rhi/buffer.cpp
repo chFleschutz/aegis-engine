@@ -2,6 +2,8 @@ module;
 #include <vk_mem_alloc.h>
 
 #include <cassert>
+#include <cstddef>
+#include <cstring>
 #include <expected>
 #include <utility>
 

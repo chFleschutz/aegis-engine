@@ -5,6 +5,7 @@ module;
 #include <cstdint>
 #include <expected>
 #include <optional>
+#include <utility>
 
 module aegis.render_graph;
 import aegis.assets;

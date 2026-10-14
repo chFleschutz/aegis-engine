@@ -1,12 +1,16 @@
 module;
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <expected>
 #include <format>
+#include <memory>
 #include <optional>
 #include <ranges>
 #include <set>
 #include <span>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 module aegis.rhi;
@@ -442,7 +446,7 @@ auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::
             score += 1000;
 
         score += properties.limits.maxImageDimension2D;
-        candidates.emplace_back(score, i);
+        candidates.emplace_back(score, static_cast<uint32_t>(i));
     }
 
     std::ranges::sort(candidates); // Sorts highest score at the end

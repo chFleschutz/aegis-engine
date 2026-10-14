@@ -2,12 +2,15 @@ module;
 #include <array>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <expected>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
+#include <vector>
 
 export module aegis.rhi:device;
 import :buffer;

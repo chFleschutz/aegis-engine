@@ -28,7 +28,7 @@ constexpr auto toVulkan(Extent3D extent) noexcept -> vk::Extent3D;
 constexpr auto toVulkan(Format format) noexcept -> vk::Format;
 constexpr auto toVulkan(ShaderStage stage) noexcept -> vk::ShaderStageFlagBits;
 constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState;
-constexpr auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue;
+auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue; // Not constexpr: MSVC rejects building the union in one
 constexpr auto toVulkan(AttachmentLoadOp op) noexcept -> vk::AttachmentLoadOp;
 constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp;
 constexpr auto toVulkan(BufferUsage usage) noexcept -> vk::BufferUsageFlags;
@@ -280,7 +280,7 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState
     std::unreachable();
 }
 
-constexpr auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue
+inline auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue
 {
     return utility::match(clearValue,
         [](const ClearColor& value) -> vk::ClearValue {

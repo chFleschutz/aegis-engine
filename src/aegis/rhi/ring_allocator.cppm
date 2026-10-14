@@ -1,4 +1,5 @@
 module;
+#include <cstddef>
 #include <expected>
 
 export module aegis.rhi:ring_allocator;

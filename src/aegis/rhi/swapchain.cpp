@@ -4,9 +4,14 @@ module;
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstdint>
 #include <expected>
+#include <format>
+#include <initializer_list>
 #include <limits>
 #include <syncstream>
+#include <utility>
+#include <vector>
 
 module aegis.rhi;
 import :swapchain;
@@ -219,16 +224,18 @@ auto Swapchain::querySwapchainFormat(
         return makeError(ErrorCode::Unknown);
 
     // UNORM: frames arrive gamma encoded (post-processing applies it), and ImGui draws into them
-    // assuming an UNORM target. An sRGB format would encode a second time.
-    const auto it = std::ranges::find_if(*availableFormats,
-        [](const auto& format) {
-            return format.format == vk::Format::eB8G8R8A8Unorm &&
-                   format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear;
-        });
-
-    if (it == availableFormats->end())
-        return availableFormats->front();
-    return *it;
+    // assuming an UNORM target. An sRGB format would encode a second time. BGRA is what Windows
+    // drivers offer; some Linux drivers only offer RGBA.
+    for (const auto preferred : { vk::Format::eB8G8R8A8Unorm, vk::Format::eR8G8B8A8Unorm })
+    {
+        const auto it = std::ranges::find_if(*availableFormats,
+            [preferred](const auto& format) {
+                return format.format == preferred && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear;
+            });
+        if (it != availableFormats->end())
+            return *it;
+    }
+    return availableFormats->front();
 }
 
 auto Swapchain::createSwapchain(

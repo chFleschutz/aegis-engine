@@ -4,6 +4,7 @@ module;
 #include <cstdint>
 #include <expected>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include <entt/entt.hpp>

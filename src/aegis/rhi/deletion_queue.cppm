@@ -1,6 +1,7 @@
 module;
 #include <concepts>
 #include <functional>
+#include <utility>
 #include <vector>
 
 export module aegis.rhi:deletion_queue;

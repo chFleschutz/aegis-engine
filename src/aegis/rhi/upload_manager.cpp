@@ -1,5 +1,7 @@
 module;
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <expected>
 #include <optional>

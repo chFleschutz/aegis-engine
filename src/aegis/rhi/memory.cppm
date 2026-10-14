@@ -1,7 +1,9 @@
 module;
 #include <vk_mem_alloc.h>
 
+#include <cstddef>
 #include <expected>
+#include <utility>
 
 export module aegis.rhi:memory;
 import :common;

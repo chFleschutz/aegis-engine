@@ -4,6 +4,7 @@ module;
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 export module aegis.rhi:resource_pool;
@@ -44,7 +45,11 @@ public:
 
     [[nodiscard]] auto push(T resource) -> ResourceHandle<T>
     {
-        auto [index, slot] = fetchNextSlot();
+        // Not a structured binding: MSVC resolves std::pair's tuple protocol in the instantiating
+        // translation unit, which need not include <utility>.
+        const auto next = fetchNextSlot();
+        const auto index = next.first;
+        auto& slot = next.second;
         assert(index <= ResourceHandle<T>::IndexMask);
         assert(!slot.resource.has_value());
 

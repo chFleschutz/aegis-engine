@@ -106,7 +106,7 @@ public:
 			};
 		}
 
-        auto scifiHelmet = Engine::loadModel(Core::ASSETS_DIR / "SciFiHelmet/ScifiHelmet.gltf");
+        auto scifiHelmet = Engine::loadModel(Core::ASSETS_DIR / "SciFiHelmet/SciFiHelmet.gltf");
         registry.get<Transform>(scifiHelmet).location = { 2.0f, 0.0f, 2.0f };
 
 		Scene::Entity meshEntity = scifiHelmet;
