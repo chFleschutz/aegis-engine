@@ -31,11 +31,14 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Clang, Ninja and GLFW dependencies
+      # Ubuntu 24.04's libstdc++ 14.2 declares std::forward_like with a deduced return type, which
+      # clang rejects across module boundaries; libstdc++ 15 comes from the toolchain PPA.
+      - name: Install Clang, libstdc++ 15, Ninja and GLFW dependencies
         run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           wget -q https://apt.llvm.org/llvm.sh
           sudo bash llvm.sh "$LLVM_VERSION"
-          sudo apt-get install -y "clang-tools-$LLVM_VERSION" libstdc++-14-dev ninja-build \
+          sudo apt-get install -y "clang-tools-$LLVM_VERSION" libstdc++-15-dev ninja-build \
             libwayland-dev libxkbcommon-dev xorg-dev
           # Unversioned clang, clang++ and clang-scan-deps (module scanning) for the preset.
           echo "/usr/lib/llvm-$LLVM_VERSION/bin" >> "$GITHUB_PATH"
@@ -62,7 +65,9 @@ jobs:
           echo "$sdk/bin" >> "$GITHUB_PATH"
 
       - name: Configure
-        run: cmake --preset "$PRESET"
+        run: |
+          clang++ -v
+          cmake --preset "$PRESET"
 
       - name: Build
         run: cmake --build --preset "$PRESET"
