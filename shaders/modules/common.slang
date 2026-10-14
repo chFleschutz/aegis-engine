@@ -71,17 +71,30 @@ namespace common
     }
 
     /// assets::StaticMesh::GpuData: a whole mesh, reached through one address.
+    /// Struct pointers are stored as plain addresses and exposed as properties: slangc 2025.17
+    /// (Vulkan SDK 1.4.328) emits a duplicate OpTypeForwardPointer for a struct pointer member of a
+    /// struct that is itself reached through a pointer, which spirv-val rejects.
     public struct Mesh
     {
-        public Vertex* vertices;
+        uint64_t vertexAddress; // Vertex*
         public uint* indices;
-        public Meshlet* meshlets;
+        uint64_t meshletAddress; // Meshlet*
         public uint* meshletVertices;
         public uint8_t* meshletPrimitives;
         public uint vertexCount;
         public uint indexCount;
         public uint meshletCount;
         public BoundingSphere bounds;
+
+        public property Vertex* vertices
+        {
+            get { return (Vertex*)vertexAddress; }
+        }
+
+        public property Meshlet* meshlets
+        {
+            get { return (Meshlet*)meshletAddress; }
+        }
     }
 
     /// The default PBR material's parameter block (assets::DefaultAssets::pbrTemplate, in order).

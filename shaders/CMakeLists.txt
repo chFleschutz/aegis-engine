@@ -2,24 +2,12 @@
 
 set(SHADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-find_program(SLANGC_EXE slangc 
-    HINTS "$ENV{VULKAN_SDK}/bin" "$ENV{VULKAN_SDK}/Bin"
-    CACHE FILEPATH "Path to slangc compiler"
-    REQUIRED
-)
-if(NOT SLANGC_EXE)
-    message(FATAL_ERROR "slangc was not found. Make sure slangc is included in the Vulkan SDK")
-endif()
-
-message(STATUS "Using slangc: ${SLANGC_EXE}")
-
 set(SPIRV_FILES "")
 
 # Compile Slang shaders
 set(SLANG_CAPABILITIES
     spirv_1_6
     spvDerivativeControl
-    spvGroupNonUniform
     spvFragmentFullyCoveredEXT
     spvGroupNonUniformBallot
     spvImageGatherExtended
@@ -36,7 +24,9 @@ string(REPLACE ";" "+" SLANG_PROFILE_STR "${SLANG_CAPABILITIES}")
 file(GLOB_RECURSE SLANG_SOURCES CONFIGURE_DEPENDS
     "${SHADERS_DIR}/*.slang"
 )
-# Modules cant be compiled directly
+# Modules cant be compiled directly; every shader depends on all of them instead, so editing a module
+# recompiles the shaders that import it (slangc reports no per-file dependencies).
+file(GLOB_RECURSE SLANG_MODULES CONFIGURE_DEPENDS "${SHADERS_DIR}/modules/*.slang")
 list(FILTER SLANG_SOURCES EXCLUDE REGEX ".*/modules/.*")
 
 foreach(SLANG ${SLANG_SOURCES})
@@ -61,7 +51,7 @@ foreach(SLANG ${SLANG_SOURCES})
             -warnings-disable 39001
             $<$<CONFIG:Debug>:-O0> $<$<CONFIG:Release>:-O3>
             $<$<CONFIG:Debug>:-g>
-        DEPENDS ${SLANG}
+        DEPENDS ${SLANG} ${SLANG_MODULES}
         COMMENT "Compiling Slang Shader: ${REL_PATH}"
         VERBATIM
         COMMAND_EXPAND_LISTS

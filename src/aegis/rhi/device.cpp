@@ -620,11 +620,13 @@ auto Device::createFeatureChain(const Capabilities& capabilities) -> FeatureChai
     FeatureChain featureChain;
 
     // Storage images are read and written without a format: the bindless heap's storage binding
-    // holds images of any format.
+    // holds images of any format. Shaders hold some device addresses as 64-bit integers
+    // (shaders/modules/common.slang's Mesh).
     featureChain.get<vk::PhysicalDeviceFeatures2>()
         .features.setSamplerAnisotropy(true)
         .setShaderStorageImageReadWithoutFormat(true)
-        .setShaderStorageImageWriteWithoutFormat(true);
+        .setShaderStorageImageWriteWithoutFormat(true)
+        .setShaderInt64(true);
 
     featureChain
         .get<vk::PhysicalDeviceVulkan11Features>() //
