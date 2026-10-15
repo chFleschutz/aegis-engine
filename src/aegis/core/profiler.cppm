@@ -14,78 +14,78 @@ import Aegis.Utils.Timer;
 
 export namespace Aegis
 {
-	/// @brief Utility class for profiling code execution
-	/// @note Uses a rolling average over 'AVERAGE_FRAME_COUNT' frames
-	class Profiler
-	{
-	public:
-		static constexpr int AVERAGE_FRAME_COUNT = 50;
+/// @brief Utility class for profiling code execution
+/// @note Uses a rolling average over 'AVERAGE_FRAME_COUNT' frames
+class Profiler
+{
+public:
+    static constexpr int AVERAGE_FRAME_COUNT = 50;
 
-		using TimeMap = std::unordered_map<std::string, Utils::RollingAverage<AVERAGE_FRAME_COUNT>>;
+    using TimeMap = std::unordered_map<std::string, Utils::RollingAverage<AVERAGE_FRAME_COUNT>>;
 
-		Profiler(const Profiler&) = delete;
-		Profiler(Profiler&&) = delete;
-		~Profiler() = default;
+    Profiler(const Profiler&) = delete;
+    Profiler(Profiler&&) = delete;
+    ~Profiler() = default;
 
-		auto operator=(const Profiler&) -> Profiler & = delete;
-		auto operator=(Profiler&&) -> Profiler & = delete;
+    auto operator=(const Profiler&) -> Profiler& = delete;
+    auto operator=(Profiler&&) -> Profiler& = delete;
 
-		[[nodiscard]] static auto instance() -> Profiler&
-		{
-			static Profiler instance;
-			return instance;
-		}
+    [[nodiscard]] static auto instance() -> Profiler&
+    {
+        static Profiler instance;
+        return instance;
+    }
 
-		/// @brief Retrieve the average time for a given name or 0.0 if not found
-		[[nodiscard]] auto time(const std::string& name) const -> double
-		{
-			auto it = m_times.find(name);
-			if (it == m_times.end())
-				return 0.0;
-			return it->second.average();
-		}
+    /// @brief Retrieve the average time for a given name or 0.0 if not found
+    [[nodiscard]] auto time(const std::string& name) const -> double
+    {
+        auto it = m_times.find(name);
+        if (it == m_times.end())
+            return 0.0;
+        return it->second.average();
+    }
 
-		/// @brief Retrieve the last recorded time
-		[[nodiscard]] auto lastTime(const std::string& name) const -> double
-		{
-			auto it = m_times.find(name);
-			if (it == m_times.end())
-				return 0.0;
-			return it->second.last();
-		}
+    /// @brief Retrieve the last recorded time
+    [[nodiscard]] auto lastTime(const std::string& name) const -> double
+    {
+        auto it = m_times.find(name);
+        if (it == m_times.end())
+            return 0.0;
+        return it->second.last();
+    }
 
-		[[nodiscard]] auto times() const -> const TimeMap&
-		{
-			return m_times;
-		}
+    [[nodiscard]] auto times() const -> const TimeMap&
+    {
+        return m_times;
+    }
 
-		void addTime(const std::string& name, double time)
-		{
-			m_times[name].add(time);
-		}
+    void addTime(const std::string& name, double time)
+    {
+        m_times[name].add(time);
+    }
 
-	private:
-		Profiler() = default;
+private:
+    Profiler() = default;
 
-		TimeMap m_times;
-	};
+    TimeMap m_times;
+};
 
+/// @brief Times the current scope and adds the time to the profiler
+class ScopeProfiler
+{
+public:
+    ScopeProfiler(std::string_view name) :
+        m_name(name)
+    {
+    }
 
-	/// @brief Times the current scope and adds the time to the profiler
-	class ScopeProfiler
-	{
-	public:
-		ScopeProfiler(std::string_view name)
-			: m_name(name)
-		{}
+    ~ScopeProfiler()
+    {
+        Profiler::instance().addTime(m_name, m_timer.elapsedMillis());
+    }
 
-		~ScopeProfiler()
-		{
-			Profiler::instance().addTime(m_name, m_timer.elapsedMillis());
-		}
-
-	private:
-		Utils::Timer m_timer;
-		std::string m_name;
-	};
+private:
+    Utils::Timer m_timer;
+    std::string m_name;
+};
 }

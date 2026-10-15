@@ -13,27 +13,26 @@ export module Aegis.Core.Logging;
 
 export namespace Aegis
 {
-	class Logging
-	{
-	public:
-		Logging()
-		{
-			ALOG::init<ALOG::DEFAULT_LOGGER, ALOG::NO_THREAD>(ALOG::Severity::Trace)
-				.addSink<ALOG::ConsoleSink>();
-		}
+class Logging
+{
+public:
+    Logging()
+    {
+        ALOG::init<ALOG::DEFAULT_LOGGER, ALOG::NO_THREAD>(ALOG::Severity::Trace)
+            .addSink<ALOG::ConsoleSink>();
+    }
 
-		static void logo()
-		{
-			ALOG::info("\n\n\n"
-				"\t\t\t\t      ###   #######   ######   ####   ###### \n"
-				"\t\t\t\t     ## ##  ##       ##    ##   ##   ##    ##\n"
-				"\t\t\t\t    ##  ##  ##       ##         ##   ##      \n"
-				"\t\t\t\t   ##   ##  ######   ##         ##    ###### \n"
-				"\t\t\t\t  ########  ##       ##  ####   ##         ##\n"
-				"\t\t\t\t ##     ##  ##       ##    ##   ##   ##    ##\n"
-				"\t\t\t\t##      ##  #######   ######   ####   ###### \n"
-				"\n\n");
-
-		}
-	};
+    static void logo()
+    {
+        ALOG::info("\n\n\n"
+                   "\t\t\t\t      ###   #######   ######   ####   ###### \n"
+                   "\t\t\t\t     ## ##  ##       ##    ##   ##   ##    ##\n"
+                   "\t\t\t\t    ##  ##  ##       ##         ##   ##      \n"
+                   "\t\t\t\t   ##   ##  ######   ##         ##    ###### \n"
+                   "\t\t\t\t  ########  ##       ##  ####   ##         ##\n"
+                   "\t\t\t\t ##     ##  ##       ##    ##   ##   ##    ##\n"
+                   "\t\t\t\t##      ##  #######   ######   ####   ###### \n"
+                   "\n\n");
+    }
+};
 }

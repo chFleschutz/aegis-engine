@@ -5,52 +5,51 @@ import Aegis.Engine;
 class ColorChanger : public Aegis::Scripting::ScriptBase
 {
 public:
-	void update(float deltaSeconds) override
-	{
-		// Cycle through colors
-		constexpr float speed = 0.5f;
-		m_time += deltaSeconds * speed;
-		glm::vec3 color{
-			(std::sin(m_time + 0.0f) + 1.0f) / 2.0f,
-			(std::sin(m_time + 2.0f) + 1.0f) / 2.0f,
-			(std::sin(m_time + 4.0f) + 1.0f) / 2.0f
-		};
+    void update(float deltaSeconds) override
+    {
+        // Cycle through colors
+        constexpr float speed = 0.5f;
+        m_time += deltaSeconds * speed;
+        glm::vec3 color{
+            (std::sin(m_time + 0.0f) + 1.0f) / 2.0f,
+            (std::sin(m_time + 2.0f) + 1.0f) / 2.0f,
+            (std::sin(m_time + 4.0f) + 1.0f) / 2.0f
+        };
 
         auto& material = get<aegis::assets::Material>().instance;
         material->setParameter("albedo", color);
-	}
+    }
 
 private:
-	float m_time = 0.0f;
+    float m_time = 0.0f;
 };
-
 
 /// @brief Scene with two helmets
 class HelmetScene : public Aegis::SceneDescription
 {
 public:
-	void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
-	{
-		using namespace Aegis;
+    void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
+    {
+        using namespace Aegis;
 
-		auto& registry = scene.registry();
+        auto& registry = scene.registry();
 
-		// SKYBOX
+        // SKYBOX
         registry.get<aegis::assets::Environment>(scene.environment()) =
             Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
         // LIGHTS
-		registry.get<AmbientLight>(scene.ambientLight()).intensity = 1.0f;
-		registry.get<DirectionalLight>(scene.directionalLight()).intensity = 1.0f;
-		registry.get<Transform>(scene.directionalLight()).rotation = glm::radians(glm::vec3{ 60.0f, 0.0f, 135.0f });
+        registry.get<AmbientLight>(scene.ambientLight()).intensity = 1.0f;
+        registry.get<DirectionalLight>(scene.directionalLight()).intensity = 1.0f;
+        registry.get<Transform>(scene.directionalLight()).rotation = glm::radians(glm::vec3{ 60.0f, 0.0f, 135.0f });
 
-		// CAMERA
-		registry.get<Transform>(scene.mainCamera()) = Transform{
-			.location = { -3.0f, -6.0f, 3.0f},
-			.rotation = glm::radians(glm::vec3{ -8.0f, 0.0f, 335.0f })
-		};
-		
-		// ENTITIES
+        // CAMERA
+        registry.get<Transform>(scene.mainCamera()) = Transform{
+            .location = { -3.0f, -6.0f, 3.0f },
+            .rotation = glm::radians(glm::vec3{ -8.0f, 0.0f, 335.0f })
+        };
+
+        // ENTITIES
         auto spheres = Engine::loadModel(Core::ASSETS_DIR / "MetalRoughSpheres/MetalRoughSpheres.gltf");
         registry.get<Transform>(spheres).location = { 0.0f, 5.0f, 5.0f };
 
@@ -62,14 +61,14 @@ public:
 
         auto plane = Engine::loadModel(Core::ASSETS_DIR / "Misc/plane.obj");
         registry.get<Transform>(plane).scale = { 2.0f, 2.0f, 2.0f };
-		registry.add<DynamicTag>(plane);
-		scripts.addScript<ColorChanger>(plane);
-	}
+        registry.add<DynamicTag>(plane);
+        scripts.addScript<ColorChanger>(plane);
+    }
 };
 
 auto main() -> int
 {
-	Aegis::Engine engine;
-	engine.loadScene<HelmetScene>();
-	engine.run();
+    Aegis::Engine engine;
+    engine.loadScene<HelmetScene>();
+    engine.run();
 }
