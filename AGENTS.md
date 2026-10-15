@@ -2,9 +2,10 @@
 
 This file provides guidance to coding agents working with code in this repository.
 
-Aegis Engine is a cross-platform (Windows and Linux) C++23 Vulkan render engine. The build is **C++20/23 modules-only**
-(every subsystem ships `.cppm` module files) and treats **warnings as errors** — your edits must
-compile clean.
+Aegis Engine is a cross-platform (Windows and Linux) C++23 Vulkan render engine. The build is
+**C++20/23 modules-only** (every subsystem ships `.cppm` module files) and treats **warnings as
+errors** — your edits must compile clean. `src/aegis/ai/` (plain `.h`/`.cpp`) is the exception: it
+is kept unbuilt on purpose until it is ported, so leave it out of searches and refactors.
 
 ## Build & run
 
@@ -36,6 +37,13 @@ CMake ≥3.28 + Ninja via presets (`build/<preset>/`). Default preset: `windows-
 > `slangc` is taken from the same SDK. A configure that failed this check can make the next
 > `--fresh` fail once in compiler detection ("CMAKE_C_COMPILER not set"); run it again.
 
+**`import std` (gotcha):** the toolchain (Clang + MSVC STL) can't build the C++23 `import std`
+module yet, so the whole build stays on classic includes. The guarded `vulkan.cppm` (SDK ≤ 1.4.328)
+only imports std behind `__cpp_lib_modules` and `!VULKAN_HPP_NO_STD_MODULE`; the build defines the
+latter, so a standard library that advertises modules (libstdc++ 15) doesn't switch it on. Moving
+to newer SDKs means building `import std` and switching `import vulkan_hpp` to `import vulkan`.
+See `src/aegis/rhi/CMakeLists.txt`.
+
 ### Examples (visual smoke tests of the engine)
 Executable targets are the PascalCase `project()` names: `Simple-Scene`, `Sponza`, `Eval-Scene`,
 `Helmets`, `Template-Scene`; each lives in `examples/<lowercased-name>`. Build one and run its exe:
@@ -48,8 +56,8 @@ scenes need the `aegis-assets` submodule. Report whether it built clean (warning
 window rendered; on a build failure, surface the first real error, not the downstream cascade.
 
 The examples render through the `Engine` facade, but they open a window and have no pass/fail
-signal — validation errors only go to stderr. Verify RHI work with `aegis-test` first (see "Verifying
-device paths" under Unit tests).
+signal — validation errors only go to stderr. Verify RHI work with `aegis-test` first (see
+"Verifying device code").
 
 ### Shaders
 Shaders auto-compile on every engine build (`compile_shaders` target) with `slangc` from the same
@@ -67,7 +75,7 @@ renaming the source tree or the build dir breaks asset/shader loading — re-run
 The renderer was rewritten onto a new RHI; the code around it (engine, editor, scene, scripting, UI)
 still follows the older style. **Match the conventions of the code you are editing.**
 
-| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/`, `test/` | Legacy — everything else (`core/`, `editor/`, `scene/`, `scripting/`, `ui/`, `engine.cppm`, `examples/`) |
+| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/`, `test/` | Legacy — everything else (`core/`, `editor/`, `math/`, `scene/`, `scripting/`, `ui/`, `utils/`, `engine.cppm`, `scene_*.cppm`, `examples/`) |
 |---|---|---|
 | Namespace | `aegis::rhi` (lowercase) | `Aegis::Scene` (PascalCase) |
 | Vulkan | vulkan-hpp `vk::raii`, `import vulkan_hpp` | none — go through `aegis::rhi` and friends |
@@ -94,7 +102,8 @@ call a slot index a handle.
 RHI modules (the vulkan module is linked PRIVATE, so `vk::` types never cross their public API).
 
 ### Cross-platform rules
-Windows (Clang + MSVC STL, or MSVC) and Linux (Clang + libstdc++) must both build:
+Windows (Clang + MSVC STL, or MSVC) and Linux (Clang + **libstdc++ 15**; Ubuntu 24.04's 14.2 fails
+on the modules) must both build. CI proves the Linux build on every PR.
 
 - **Include every standard header you use, in each translation unit** (in a module unit's global
   module fragment). libstdc++ pulls in far fewer headers transitively than MSVC's STL, so a missing
@@ -102,34 +111,52 @@ Windows (Clang + MSVC STL, or MSVC) and Linux (Clang + libstdc++) must both buil
 - **Paths are case-sensitive on Linux**: asset paths must match the file names exactly.
 - **No platform headers outside a guard.** Windowing and input go through `aegis.platform` (GLFW);
   the only Win32 code is `aegis-test`'s synthetic-input check, behind `#ifdef _WIN32`.
-- **Checking Linux from Windows:** configure a scratch build with `clang++ --target=x86_64-w64-mingw32`
-  against a MinGW GCC (libstdc++) on PATH (e.g. WinLibs) and `-DCMAKE_EXE_LINKER_FLAGS=-pthread`.
-  It reproduces libstdc++'s missing-include errors for `rhi`, `renderer`, `platform`, `core` and the
-  unit tests; it can't get past `Aegis.Scene`, where clang crashes generating COFF code for
-  module initializers (a MinGW-only clang bug, not a code problem).
+- **Checking Linux from Windows before pushing (optional):** configure a scratch build with
+  `clang++ --target=x86_64-w64-mingw32` against a MinGW GCC (libstdc++) on PATH (e.g. WinLibs) and
+  `-DCMAKE_EXE_LINKER_FLAGS=-pthread`. It reproduces libstdc++'s missing-include errors for `rhi`,
+  `renderer`, `platform`, `core` and the unit tests; it can't get past `Aegis.Scene`, where clang
+  crashes generating COFF code for module initializers (a MinGW-only clang bug, not a code problem).
 
 ### Formatting (clang-format)
 One global root `.clang-format` (clang-format **22.x**), encoding the new-RHI style. It's a
 normalizer, not a reflow engine (`ColumnLimit: 0` keeps your line breaks). **Adopt diff-only** —
-format just what you changed with `git clang-format`; never `clang-format -i` whole files. Editing an
-legacy file nudges changed lines toward new-RHI style (intended). Guard deliberately hand-aligned
-blocks (e.g. enum tables — `AlignConsecutive*` is off) with `// clang-format off` / `on`.
+format just what you changed with `git clang-format`; don't `clang-format -i` whole files as part of
+other work. Editing a legacy file nudges changed lines toward new-RHI style (intended). A deliberate
+whole-file conversion goes in its own commit (see "Commits and pull requests"). Guard deliberately
+hand-aligned blocks (e.g. enum tables — `AlignConsecutive*` is off) with `// clang-format off` / `on`.
 
-## Commits
+## Commits and pull requests
 Keep messages short: one imperative subject line (e.g. `Add rhi sampler`), no body unless the why
-is non-obvious. **No `Co-Authored-By` or other agent/tool attribution trailers.**
+is non-obvious. **No `Co-Authored-By` or other agent/tool attribution trailers**, in commits or PR
+descriptions.
+
+**Code changes go through a PR** (anything under `src/`, `shaders/`, `tests/`, `examples/`, CMake or
+CI). Docs-only changes may be committed to `main` directly.
+
+1. **Branch** off an up-to-date `main` with a short descriptive name (e.g. `style/legacy-conversion`).
+2. **Commit in reviewable steps.** Keep mechanical changes (whole-file reformats, renames) in their
+   own commits, separate from logic changes.
+3. **Verify every commit locally before the next one:** it builds clean and the full `ctest` passes,
+   *including* the `device` tests. CI has no GPU and skips them (see "Verifying device code").
+4. **Push and open the PR** with `gh pr create`. CI (`.github/workflows/build.yml`) builds Linux and
+   Windows, debug and release, and runs `ctest -LE device`. It is the proof that Linux builds.
+5. **Wait for CI** with `gh pr checks --watch` and report the result. Fix failures with new commits;
+   don't force-push a PR under review.
+6. **Leave the merge to the owner.** PRs land as merge commits, not squash or rebase, so commit
+   hashes survive. After a whole-file reformat lands, add its hash to `.git-blame-ignore-revs`.
 
 ## Unit tests
 
-doctest covers **pure, GPU-independent logic** on the new RHI stack. One executable per module
-(`aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`, `aegis-tests-math`), each linking only that module's library. Layout,
-conventions, how to add a module, and the full rationale: **`tests/README.md`**.
+doctest covers **pure, GPU-independent logic** on the new RHI stack (plus `math`). One executable
+per module (`aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
+`aegis-tests-math`), each linking only that module's library. Layout, conventions, how to add a
+module, and the full rationale: **`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*
-    ctest --preset windows-clang-debug                    # runs every case, plus the device check
-    ctest --preset windows-clang-debug -LE device         # skips the device check (no GPU needed)
+    ctest --preset windows-clang-debug                    # runs every case, plus the device checks
+    ctest --preset windows-clang-debug -LE device         # skips the device checks (no GPU needed)
     cmake --build --preset windows-clang-debug --target aegis-tests-rhi   # iterate one module
-    ctest --preset windows-clang-debug -L rhi                # one module (by label; -R "rhi::" matches nothing)
+    ctest --preset windows-clang-debug -L rhi             # one module (by label; -R "rhi::" matches nothing)
 
 - **Scope:** only logic needing no live `rhi::Device`. Invariants guarded by `assert` (e.g.
   `ResourcePool` stale-handle rejection) abort rather than return — test around them, not the abort.
@@ -146,23 +173,19 @@ conventions, how to add a module, and the full rationale: **`tests/README.md`**.
   needs `export import` from the umbrella (`rhi.cppm`) — partition-level `export` alone is
   invisible; **(3)** check import direction before picking a home — `:utility` cannot host an
   `Extent3D` helper because `:common` already imports `:utility`.
-- **Verifying device paths:** green unit tests are *not* sufficient when device code changed.
-  `src/aegis/test/` (`aegis-test`) is the only `main()` that checks a real `rhi::Device` for
-  failures; `examples/` run the same stack but nothing fails them on a regression. Debug builds enable
-  core **and synchronization** validation, and `aegis-test` exits non-zero on any failed check or
-  validation error (messages go to stderr) — a run is only verified if it exits 0.
-  - `aegis-test --headless` renders offscreen: no window, no surface, no swapchain, and stops after
-    600 frames (or `--frames <n>`). `ctest` runs it as a `device`-labelled test. Use this by default.
-  - `--scene` / `--gpu-driven` render a loaded scene through `aegis.render_graph` (CPU- / GPU-driven
-    geometry) instead of the test triangle; `--screenshot <png>` saves the last headless frame — look at
-    it after render changes. `ctest` runs both paths too.
-  - Headless does not touch surface, swapchain, acquire or present. When that code changed, also run
-    `aegis-test --frames 600`: it opens a window briefly and exits by itself. On Windows it also checks
-    `platform::Input` with synthetic key and mouse messages, so run it when platform code changes too.
-- **`import std` / Vulkan SDK (gotcha):** the toolchain (Clang + MSVC STL) can't build the C++23
-  `import std` module yet, so the whole build stays on classic includes. The guarded `vulkan.cppm`
-  (SDK ≤ 1.4.328) only imports std behind `__cpp_lib_modules` and `!VULKAN_HPP_NO_STD_MODULE`; the
-  build defines the latter, so a standard library that advertises modules (libstdc++ 15) doesn't
-  switch it on. Newer SDKs hardcode `export import std;` and are rejected at configure (see Build &
-  run). Moving to them means building `import std` and switching `import vulkan_hpp` to
-  `import vulkan`. See `src/aegis/rhi/CMakeLists.txt`.
+
+## Verifying device code
+Green unit tests are *not* sufficient when device code changed. `src/aegis/test/` (`aegis-test`) is
+the only `main()` that checks a real `rhi::Device` for failures; `examples/` run the same stack but
+nothing fails them on a regression. Debug builds enable core **and synchronization** validation, and
+`aegis-test` exits non-zero on any failed check or validation error (messages go to stderr) — a run
+is only verified if it exits 0.
+
+- `aegis-test --headless` renders offscreen: no window, no surface, no swapchain, and stops after
+  600 frames (or `--frames <n>`). `ctest` runs it as a `device`-labelled test. Use this by default.
+- `--scene` / `--gpu-driven` render a loaded scene through `aegis.render_graph` (CPU- / GPU-driven
+  geometry) instead of the test triangle; `--screenshot <png>` saves the last headless frame — look
+  at it after render changes. `ctest` runs both paths too.
+- Headless does not touch surface, swapchain, acquire or present. When that code changed, also run
+  `aegis-test --frames 600`: it opens a window briefly and exits by itself. On Windows it also checks
+  `platform::Input` with synthetic key and mouse messages, so run it when platform code changes too.
