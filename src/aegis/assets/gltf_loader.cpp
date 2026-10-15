@@ -18,14 +18,14 @@ module;
 
 module aegis.assets;
 import aegis.rhi;
-import Aegis.Math;
-import Aegis.Scene.Registry;
+import aegis.math;
+import aegis.scene.registry;
 
 namespace aegis::assets
 {
 namespace
 {
-using Aegis::Scene::Entity;
+using aegis::scene::Entity;
 
 class GltfImport
 {
@@ -54,7 +54,7 @@ public:
         m_root = m_desc.scene.create(sceneName.empty() ? path.stem().string() : std::string{ sceneName });
 
         // glTF is Y-up; the engine is Z-up.
-        m_desc.scene.get<Aegis::Transform>(m_root).rotation = glm::quat{ glm::radians(glm::vec3{ 90.0f, 0.0f, 0.0f }) };
+        m_desc.scene.get<aegis::Transform>(m_root).rotation = glm::quat{ glm::radians(glm::vec3{ 90.0f, 0.0f, 0.0f }) };
 
         buildScene();
         return m_root;
@@ -249,7 +249,7 @@ private:
 
         for (const auto entity : entities)
         {
-            if (!scene.get<Aegis::Parent>(entity).entity)
+            if (!scene.get<aegis::Parent>(entity).entity)
                 scene.setParent(entity, m_root);
         }
     }
@@ -264,7 +264,7 @@ private:
 };
 }
 
-auto Loader::loadGltf(const Desc& desc, const std::filesystem::path& path) -> std::expected<Aegis::Scene::Entity, Error>
+auto Loader::loadGltf(const Desc& desc, const std::filesystem::path& path) -> std::expected<aegis::scene::Entity, Error>
 {
     auto data = fastgltf::GltfDataBuffer::FromPath(path);
     if (data.error() != fastgltf::Error::None)

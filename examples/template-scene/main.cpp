@@ -1,21 +1,20 @@
-import Aegis.Engine;
+import aegis.engine;
 
-class TemplateScene : public Aegis::SceneDescription
+class TemplateScene : public aegis::SceneDescription
 {
 public:
-	/// @brief All objects in a scene are created here
-	void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
-	{
-		using namespace Aegis;
+    /// @brief All objects in a scene are created here
+    void initialize(aegis::scene::Scene& scene, aegis::scripting::ScriptManager& scripts) override
+    {
+        using namespace aegis;
 
-		// Create your scene here 
-
-	}
+        // Create your scene here
+    }
 };
 
 auto main() -> int
 {
-	Aegis::Engine engine;
-	engine.loadScene<TemplateScene>();
-	engine.run();
+    aegis::Engine engine;
+    engine.loadScene<TemplateScene>();
+    engine.run();
 }

@@ -1,8 +1,8 @@
-export module Aegis.Editor.Panels;
+export module aegis.editor.panels;
 
-export import :DemoPanel;
-export import :MenuBarPanel;
-export import :ProfilerPanel;
-export import :RendererPanel;
-export import :ScenePanel;
-export import :StatisticsPanel;
+export import :demo_panel;
+export import :menu_bar_panel;
+export import :profiler_panel;
+export import :renderer_panel;
+export import :scene_panel;
+export import :statistics_panel;

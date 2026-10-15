@@ -77,13 +77,13 @@ still follows the older style. **Match the conventions of the code you are editi
 
 | | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/`, `test/` | Legacy — everything else (`core/`, `editor/`, `math/`, `scene/`, `scripting/`, `ui/`, `utils/`, `engine.cppm`, `scene_*.cppm`, `examples/`) |
 |---|---|---|
-| Namespace | `aegis::rhi` (lowercase) | `Aegis::Scene` (PascalCase) |
 | Vulkan | vulkan-hpp `vk::raii`, `import vulkan_hpp` | none — go through `aegis::rhi` and friends |
 | Errors | `std::expected<T, Error>` + `makeError`, never throw | `AGX_ASSERT*` |
-| Indent | 4 spaces; namespace body un-indented | tabs; namespace body indented |
-| Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm`, dotted PascalCase module names |
+| Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm` only, mostly dotted submodules (`aegis.scene.entity`) |
 
-Both styles: `m_`-prefixed camelCase members, Allman braces, `snake_case` filenames. New RHI also
+Both styles: lowercase `snake_case` namespaces (`aegis::rhi`, `aegis::scene`) and module names
+(`aegis.rhi`, `aegis.scene`), 4-space indent with un-indented namespace bodies, `m_`-prefixed
+camelCase members, Allman braces, `snake_case` filenames. New RHI also
 uses trailing return types, `[[nodiscard]]`, `Desc` nested config structs, and packed generational
 handles (`ResourceHandle<T>` / `BufferHandle` / `ImageHandle`) as the public currency instead of raw
 pointers. Descriptors are bindless with fixed slots; **buffers use buffer device address, not
@@ -114,15 +114,14 @@ on the modules) must both build. CI proves the Linux build on every PR.
 - **Checking Linux from Windows before pushing (optional):** configure a scratch build with
   `clang++ --target=x86_64-w64-mingw32` against a MinGW GCC (libstdc++) on PATH (e.g. WinLibs) and
   `-DCMAKE_EXE_LINKER_FLAGS=-pthread`. It reproduces libstdc++'s missing-include errors for `rhi`,
-  `renderer`, `platform`, `core` and the unit tests; it can't get past `Aegis.Scene`, where clang
+  `renderer`, `platform`, `core` and the unit tests; it can't get past `aegis.scene`, where clang
   crashes generating COFF code for module initializers (a MinGW-only clang bug, not a code problem).
 
 ### Formatting (clang-format)
 One global root `.clang-format` (clang-format **22.x**), encoding the new-RHI style. It's a
 normalizer, not a reflow engine (`ColumnLimit: 0` keeps your line breaks). **Adopt diff-only** —
 format just what you changed with `git clang-format`; don't `clang-format -i` whole files as part of
-other work. Editing a legacy file nudges changed lines toward new-RHI style (intended). A deliberate
-whole-file conversion goes in its own commit (see "Commits and pull requests"). Guard deliberately
+other work. A deliberate whole-file conversion goes in its own commit (see "Commits and pull requests"). Guard deliberately
 hand-aligned blocks (e.g. enum tables — `AlignConsecutive*` is off) with `// clang-format off` / `on`.
 
 ## Commits and pull requests

@@ -2,7 +2,7 @@ module;
 #include <array>
 
 export module aegis.render_graph:frustum;
-import Aegis.Math;
+import aegis.math;
 
 export namespace aegis::render_graph
 {

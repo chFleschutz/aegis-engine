@@ -2,17 +2,17 @@ module;
 
 #include <imgui.h>
 
-export module Aegis.Editor.Panels:DemoPanel;
+export module aegis.editor.panels:demo_panel;
 
-export namespace Aegis::Editor
+export namespace aegis::editor
 {
-	/// @brief A demo layer that shows the ImGui demo window
-	class DemoPanel
-	{
-	public:
-		void draw()
-		{
-			ImGui::ShowDemoWindow();
-		}
-	};
+/// @brief A demo layer that shows the ImGui demo window
+class DemoPanel
+{
+public:
+    void draw()
+    {
+        ImGui::ShowDemoWindow();
+    }
+};
 }

@@ -1,15 +1,15 @@
-export module Aegis.Core.Layer;
+export module aegis.core.layer;
 
-export namespace Aegis::Core
+export namespace aegis::core
 {
-	class Layer
-	{
-	public:
-		virtual ~Layer() = default;
+class Layer
+{
+public:
+    virtual ~Layer() = default;
 
-		virtual void onAttach() {}
-		virtual void onDetach() {}
-		virtual void onUpdate(float deltaSeconds) {}
-		virtual void onUIRender() {}
-	};
+    virtual void onAttach() {}
+    virtual void onDetach() {}
+    virtual void onUpdate(float deltaSeconds) {}
+    virtual void onUIRender() {}
+};
 }

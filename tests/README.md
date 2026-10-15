@@ -49,7 +49,7 @@ with synthetic key and mouse messages, on Windows only (other platforms skip tha
 ## What we test
 
 Pure logic that needs no live `rhi::Device`: ring/offset math, free lists, generational handles,
-`alignTo`, swapchain sizing policy, mip-chain arithmetic, and `Aegis::Math`.
+`alignTo`, swapchain sizing policy, mip-chain arithmetic, and `aegis::math`.
 
 Anything whose only constructor touches the GPU belongs in the device-level harness — or gets its
 pure part extracted (see below).

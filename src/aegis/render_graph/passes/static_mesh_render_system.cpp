@@ -6,8 +6,8 @@ module;
 module aegis.render_graph;
 import aegis.assets;
 import aegis.rhi;
-import Aegis.Math;
-import Aegis.Scene;
+import aegis.math;
+import aegis.scene;
 
 namespace aegis::render_graph
 {
@@ -39,7 +39,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
     cmd.bindPipeline(*m_pipeline);
 
     const assets::MaterialInstance* lastMaterial{ nullptr };
-    auto view = context.scene.registry().view<Aegis::GlobalTransform, assets::Mesh, assets::Material>();
+    auto view = context.scene.registry().view<aegis::GlobalTransform, assets::Mesh, assets::Material>();
     for (auto&& [entity, transform, mesh, material] : view.each())
     {
         if (!mesh.staticMesh || !material.instance || material.instance->materialTemplate()->type() != m_type)

@@ -11,7 +11,7 @@ module;
 
 module aegis.render_graph;
 import aegis.assets;
-import Aegis.Scene.Registry;
+import aegis.scene.registry;
 
 namespace aegis::render_graph
 {
@@ -20,7 +20,7 @@ DrawBatchRegistry::~DrawBatchRegistry()
     disconnect();
 }
 
-auto DrawBatchRegistry::connect(Aegis::Scene::Registry& registry) -> void
+auto DrawBatchRegistry::connect(aegis::scene::Registry& registry) -> void
 {
     disconnect();
     m_registry = &registry;
@@ -28,13 +28,13 @@ auto DrawBatchRegistry::connect(Aegis::Scene::Registry& registry) -> void
     for (auto&& [entity, material] : registry.view<assets::Material>().each())
     {
         if (material.instance)
-            addInstance(material.instance->materialTemplate(), registry.has<Aegis::DynamicTag>(Aegis::Scene::Entity{ entity }));
+            addInstance(material.instance->materialTemplate(), registry.has<aegis::DynamicTag>(aegis::scene::Entity{ entity }));
     }
 
     registry.onConstruct<assets::Material>().connect<&DrawBatchRegistry::onMaterialConstruct>(this);
     registry.onDestroy<assets::Material>().connect<&DrawBatchRegistry::onMaterialDestroy>(this);
-    registry.onConstruct<Aegis::DynamicTag>().connect<&DrawBatchRegistry::onDynamicConstruct>(this);
-    registry.onDestroy<Aegis::DynamicTag>().connect<&DrawBatchRegistry::onDynamicDestroy>(this);
+    registry.onConstruct<aegis::DynamicTag>().connect<&DrawBatchRegistry::onDynamicConstruct>(this);
+    registry.onDestroy<aegis::DynamicTag>().connect<&DrawBatchRegistry::onDynamicDestroy>(this);
 }
 
 auto DrawBatchRegistry::disconnect() -> void
@@ -44,8 +44,8 @@ auto DrawBatchRegistry::disconnect() -> void
 
     m_registry->onConstruct<assets::Material>().disconnect(this);
     m_registry->onDestroy<assets::Material>().disconnect(this);
-    m_registry->onConstruct<Aegis::DynamicTag>().disconnect(this);
-    m_registry->onDestroy<Aegis::DynamicTag>().disconnect(this);
+    m_registry->onConstruct<aegis::DynamicTag>().disconnect(this);
+    m_registry->onDestroy<aegis::DynamicTag>().disconnect(this);
     m_registry = nullptr;
 }
 
@@ -109,14 +109,14 @@ auto DrawBatchRegistry::onMaterialConstruct(entt::registry& registry, entt::enti
 {
     const auto& material = registry.get<assets::Material>(entity);
     if (material.instance)
-        addInstance(material.instance->materialTemplate(), registry.all_of<Aegis::DynamicTag>(entity));
+        addInstance(material.instance->materialTemplate(), registry.all_of<aegis::DynamicTag>(entity));
 }
 
 auto DrawBatchRegistry::onMaterialDestroy(entt::registry& registry, entt::entity entity) -> void
 {
     const auto& material = registry.get<assets::Material>(entity);
     if (material.instance)
-        removeInstance(*material.instance->materialTemplate(), registry.all_of<Aegis::DynamicTag>(entity));
+        removeInstance(*material.instance->materialTemplate(), registry.all_of<aegis::DynamicTag>(entity));
 }
 
 auto DrawBatchRegistry::onDynamicConstruct(entt::registry& registry, entt::entity entity) -> void

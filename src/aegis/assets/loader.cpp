@@ -4,11 +4,11 @@ module;
 #include <format>
 
 module aegis.assets;
-import Aegis.Scene.Registry;
+import aegis.scene.registry;
 
 namespace aegis::assets
 {
-auto Loader::load(const Desc& desc, const std::filesystem::path& path) -> std::expected<Aegis::Scene::Entity, Error>
+auto Loader::load(const Desc& desc, const std::filesystem::path& path) -> std::expected<aegis::scene::Entity, Error>
 {
     if (!std::filesystem::exists(path))
         return makeError(ErrorCode::FileNotFound, std::format("Model file does not exist: '{}'", path.string()));

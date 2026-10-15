@@ -86,7 +86,7 @@ private:
     std::vector<std::unique_ptr<RenderSystem>> m_renderSystems;
 };
 
-/// @brief Draws each Aegis::PointLight as a glowing, alpha-blended billboard.
+/// @brief Draws each aegis::PointLight as a glowing, alpha-blended billboard.
 class PointLightRenderSystem : public RenderSystem
 {
 public:

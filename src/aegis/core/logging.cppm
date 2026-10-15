@@ -9,31 +9,30 @@ module;
 #include <aegis-log/log.h>
 #include <aegis-log/sinks/console_sink.h>
 
-export module Aegis.Core.Logging;
+export module aegis.core.logging;
 
-export namespace Aegis
+export namespace aegis
 {
-	class Logging
-	{
-	public:
-		Logging()
-		{
-			ALOG::init<ALOG::DEFAULT_LOGGER, ALOG::NO_THREAD>(ALOG::Severity::Trace)
-				.addSink<ALOG::ConsoleSink>();
-		}
+class Logging
+{
+public:
+    Logging()
+    {
+        ALOG::init<ALOG::DEFAULT_LOGGER, ALOG::NO_THREAD>(ALOG::Severity::Trace)
+            .addSink<ALOG::ConsoleSink>();
+    }
 
-		static void logo()
-		{
-			ALOG::info("\n\n\n"
-				"\t\t\t\t      ###   #######   ######   ####   ###### \n"
-				"\t\t\t\t     ## ##  ##       ##    ##   ##   ##    ##\n"
-				"\t\t\t\t    ##  ##  ##       ##         ##   ##      \n"
-				"\t\t\t\t   ##   ##  ######   ##         ##    ###### \n"
-				"\t\t\t\t  ########  ##       ##  ####   ##         ##\n"
-				"\t\t\t\t ##     ##  ##       ##    ##   ##   ##    ##\n"
-				"\t\t\t\t##      ##  #######   ######   ####   ###### \n"
-				"\n\n");
-
-		}
-	};
+    static void logo()
+    {
+        ALOG::info("\n\n\n"
+                   "\t\t\t\t      ###   #######   ######   ####   ###### \n"
+                   "\t\t\t\t     ## ##  ##       ##    ##   ##   ##    ##\n"
+                   "\t\t\t\t    ##  ##  ##       ##         ##   ##      \n"
+                   "\t\t\t\t   ##   ##  ######   ##         ##    ###### \n"
+                   "\t\t\t\t  ########  ##       ##  ####   ##         ##\n"
+                   "\t\t\t\t ##     ##  ##       ##    ##   ##   ##    ##\n"
+                   "\t\t\t\t##      ##  #######   ######   ####   ###### \n"
+                   "\n\n");
+    }
+};
 }

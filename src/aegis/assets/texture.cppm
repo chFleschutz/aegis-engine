@@ -10,8 +10,8 @@ module;
 export module aegis.assets:texture;
 import :error;
 import aegis.rhi;
-import Aegis.Core.Asset;
-import Aegis.Math;
+import aegis.core.asset;
+import aegis.math;
 
 export namespace aegis::assets
 {
@@ -19,7 +19,7 @@ export namespace aegis::assets
 ///        sampledDescriptor() and samplerDescriptor(); the image is in ResourceState::ShaderRead
 ///        once its upload completes (with the next Device::flushUploads).
 /// @note Holds the Device and frees its resources on destruction (deferred until the GPU is done).
-class Texture : public Aegis::Core::Asset
+class Texture : public aegis::core::Asset
 {
 public:
     struct Desc

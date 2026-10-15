@@ -2,7 +2,7 @@
 
 Status: **proposal**, not implemented. Written after the RHI migration (see `rhi-migration-plan.md`).
 
-This document covers the application layer: `Aegis::Engine` and the code it holds together (window,
+This document covers the application layer: `aegis::Engine` and the code it holds together (window,
 GPU, assets, scene, scripting, editor, frame loop). The render stack beneath it (`aegis.rhi` →
 `aegis.renderer` → `aegis.render_graph`) is in good shape and is not in question. It uses `Desc`
 structs, `create()` returning `std::expected`, and dependencies passed in explicitly. The problem is
@@ -77,8 +77,8 @@ ImGui setup is spread over four places:
 
 ### 6. The new render code depends on the legacy scene code
 
-- `render_graph::FrameInfo` carries an `Aegis::Scene::Scene&`.
-- `aegis.assets` and `aegis.render_graph` import `Aegis.Scene` or `Aegis.Scene.Registry` about 18 times.
+- `render_graph::FrameInfo` carries an `aegis::scene::Scene&`.
+- `aegis.assets` and `aegis.render_graph` import `aegis.scene` or `aegis.scene.registry` about 18 times.
 - `DrawBatchRegistry` subscribes directly to entt's component signals.
 
 So render passes read ECS components directly, and the render graph can't be driven without a legacy
@@ -97,7 +97,7 @@ So render passes read ECS components directly, and the render graph can't be dri
 Use explicit objects, a `Desc`, `create() -> std::expected`, and pass dependencies in.
 
 ```
-aegis.app (new-style module, replaces Aegis.Engine)
+aegis.app (new-style module, replaces aegis.engine)
 ├─ AppDesc       title, extent, headless / frames / screenshot, gpuDriven {auto|on|off},
 │                fpsLimit, editor on/off — defaults, overridden from the command line
 ├─ Engine        Engine::create(desc) -> std::expected<std::unique_ptr<Engine>, Error>
@@ -183,7 +183,7 @@ gain:
 fills from the ECS. Static instances can be updated incrementally, as `DrawBatchRegistry` already does.
 
 - Why:
-  - It fixes the dependency direction: `render_graph` stops importing `Aegis.Scene`.
+  - It fixes the dependency direction: `render_graph` stops importing `aegis.scene`.
   - Render passes become testable without a scene, since `aegis-test` can hand them a `SceneView`
     directly.
   - It allows a separate extract step and render step, which could later run in parallel.
@@ -192,7 +192,7 @@ fills from the ECS. Static instances can be updated incrementally, as `DrawBatch
 ### What stays
 
 - The rhi → renderer → render_graph layering, and the frame graph with its declared resource usage.
-- The ECS (`Aegis::Scene`), systems, per-entity scripts, and the layer concept for app-level tools.
+- The ECS (`aegis::scene`), systems, per-entity scripts, and the layer concept for app-level tools.
 - Convenience asset helpers. They become member functions of `AssetLibrary` instead of static ones.
 
 ## Suggested order (one commit each)
@@ -206,7 +206,7 @@ fills from the ECS. Static instances can be updated incrementally, as `DrawBatch
 3. **World:** owns its scripts (`std::unique_ptr`), `reset()` really clears, scenes are named
    (Eval-Scene becomes selectable).
 4. **ImGui in one place:** move ImGui ownership into Presentation and make the editor optional.
-5. **Scene view:** add `SceneView` extraction, so `render_graph` no longer imports `Aegis.Scene`.
+5. **Scene view:** add `SceneView` extraction, so `render_graph` no longer imports `aegis.scene`.
 
 ## Open decisions
 

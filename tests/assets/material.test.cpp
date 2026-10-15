@@ -9,7 +9,7 @@
 #include <unordered_map>
 
 import aegis.assets;
-import Aegis.Math;
+import aegis.math;
 
 namespace
 {

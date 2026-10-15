@@ -12,8 +12,8 @@ import :render_pass;
 import :resource;
 import :resource_pool;
 import aegis.rhi;
-import Aegis.Math;
-import Aegis.Scene;
+import aegis.math;
+import aegis.scene;
 
 export namespace aegis::render_graph::detail
 {
@@ -62,7 +62,7 @@ public:
     InstanceUpdatePass(ResourcePool& pool, const DrawBatchRegistry& drawBatches);
 
     [[nodiscard]] auto info() const -> Info override;
-    auto sceneInitialized(ResourcePool& pool, Aegis::Scene::Scene& scene) -> void override;
+    auto sceneInitialized(ResourcePool& pool, aegis::scene::Scene& scene) -> void override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
     /// @brief The instances actually written: what culling dispatches over.

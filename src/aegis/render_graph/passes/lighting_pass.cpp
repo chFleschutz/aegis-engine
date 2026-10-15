@@ -12,8 +12,8 @@ module;
 module aegis.render_graph;
 import aegis.assets;
 import aegis.rhi;
-import Aegis.Math;
-import Aegis.Scene;
+import aegis.math;
+import aegis.scene;
 
 namespace aegis::render_graph
 {
@@ -96,22 +96,22 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
         .ambientOcclusionFactor = m_ambientOcclusionFactor,
         .viewMode = m_viewMode,
     };
-    if (const auto camera = scene.mainCamera(); camera && registry.has<Aegis::GlobalTransform>(camera))
-        uniforms.cameraPosition = glm::vec4{ registry.get<Aegis::GlobalTransform>(camera).location, 1.0f };
-    if (const auto ambient = scene.ambientLight(); ambient && registry.has<Aegis::AmbientLight>(ambient))
+    if (const auto camera = scene.mainCamera(); camera && registry.has<aegis::GlobalTransform>(camera))
+        uniforms.cameraPosition = glm::vec4{ registry.get<aegis::GlobalTransform>(camera).location, 1.0f };
+    if (const auto ambient = scene.ambientLight(); ambient && registry.has<aegis::AmbientLight>(ambient))
     {
-        const auto& light = registry.get<Aegis::AmbientLight>(ambient);
+        const auto& light = registry.get<aegis::AmbientLight>(ambient);
         uniforms.ambientColor = glm::vec4{ light.color, light.intensity };
     }
     if (const auto directional = scene.directionalLight();
-        directional && registry.has<Aegis::DirectionalLight, Aegis::GlobalTransform>(directional))
+        directional && registry.has<aegis::DirectionalLight, aegis::GlobalTransform>(directional))
     {
-        const auto& light = registry.get<Aegis::DirectionalLight>(directional);
+        const auto& light = registry.get<aegis::DirectionalLight>(directional);
         uniforms.directionalColor = glm::vec4{ light.color, light.intensity };
         uniforms.directionalDirection =
-            glm::vec4{ glm::normalize(registry.get<Aegis::GlobalTransform>(directional).forward()), 0.0f };
+            glm::vec4{ glm::normalize(registry.get<aegis::GlobalTransform>(directional).forward()), 0.0f };
     }
-    for (auto&& [entity, transform, light] : registry.view<Aegis::GlobalTransform, Aegis::PointLight>().each())
+    for (auto&& [entity, transform, light] : registry.view<aegis::GlobalTransform, aegis::PointLight>().each())
     {
         if (uniforms.pointLightCount == static_cast<std::int32_t>(maxPointLights))
             break;

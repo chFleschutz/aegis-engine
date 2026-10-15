@@ -10,7 +10,7 @@ import :error;
 import :render_system;
 import aegis.assets;
 import aegis.rhi;
-import Aegis.Math;
+import aegis.math;
 
 export namespace aegis::render_graph
 {

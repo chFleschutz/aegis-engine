@@ -6,7 +6,7 @@
 #include <vector>
 
 import aegis.assets;
-import Aegis.Math;
+import aegis.math;
 
 namespace
 {
