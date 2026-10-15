@@ -2,9 +2,9 @@ module;
 
 #include <imgui.h>
 
-export module Aegis.Editor.Panels:StatisticsPanel;
+export module aegis.editor.panels:statistics_panel;
 
-import Aegis.Scene.Registry;
+import aegis.scene.registry;
 import aegis.assets;
 import aegis.render_graph;
 

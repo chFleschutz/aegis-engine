@@ -1,7 +1,7 @@
 #include <cmath>
 #include <string>
 
-import Aegis.Engine;
+import aegis.engine;
 
 /// @brief Example script to rotate the entity around the up axis
 class Rotator : public Aegis::Scripting::ScriptBase

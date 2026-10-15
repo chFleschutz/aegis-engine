@@ -5,10 +5,10 @@ module;
 #include <cmath>
 #include <vector>
 
-export module Aegis.Math:PerlinNoise;
+export module aegis.math:perlin_noise;
 
-import :Random;
-import :Interpolation;
+import :random;
+import :interpolation;
 
 namespace Aegis::Math
 {

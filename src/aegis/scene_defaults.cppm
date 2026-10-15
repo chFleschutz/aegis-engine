@@ -2,13 +2,13 @@ module;
 
 #include <utility>
 
-export module Aegis.Defaults;
+export module aegis.defaults;
 
-import Aegis.Scene;
-import Aegis.Scene.Systems.CameraSystem;
-import Aegis.Scene.Systems.TransformSystem;
-import Aegis.Scripting.ScriptManager;
-import Aegis.Scripting.Movement.KinematicMovementController;
+import aegis.scene;
+import aegis.scene.systems.camera_system;
+import aegis.scene.systems.transform_system;
+import aegis.scripting.script_manager;
+import aegis.scripting.movement.kinematic_movement_controller;
 import aegis.assets;
 
 export namespace Aegis

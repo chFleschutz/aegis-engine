@@ -6,11 +6,11 @@ module;
 #include <utility>
 #include <vector>
 
-export module Aegis.Scene.Registry;
+export module aegis.scene.registry;
 
-export import Aegis.Math;
-export import Aegis.Scene.Entity;
-export import Aegis.Scene.Components;
+export import aegis.math;
+export import aegis.scene.entity;
+export import aegis.scene.components;
 
 export namespace Aegis::Scene
 {

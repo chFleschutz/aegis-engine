@@ -5,9 +5,9 @@ module;
 
 #include <vector>
 
-export module Aegis.UI;
+export module aegis.ui;
 
-import Aegis.Core.LayerStack;
+import aegis.core.layer_stack;
 
 export namespace Aegis::UI
 {

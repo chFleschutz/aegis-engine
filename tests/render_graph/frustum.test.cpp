@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 import aegis.render_graph;
-import Aegis.Math;
+import aegis.math;
 
 TEST_SUITE("render_graph::Frustum")
 {

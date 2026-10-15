@@ -2,7 +2,7 @@ module;
 
 #include <string>
 
-export module Aegis.Scene.ComponentTraits;
+export module aegis.scene.component_traits;
 
 export namespace Aegis
 {

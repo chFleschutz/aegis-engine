@@ -3,11 +3,11 @@ module;
 #include <cfloat>
 #include <algorithm>
 
-export module Aegis.Scripting.Movement.WorldBorder;
+export module aegis.scripting.movement.world_border;
 
-import Aegis.Math;
-import Aegis.Scripting.ScriptBase;
-import Aegis.Scene.Components;
+import aegis.math;
+import aegis.scripting.script_base;
+import aegis.scene.components;
 
 namespace Aegis::Scripting
 {

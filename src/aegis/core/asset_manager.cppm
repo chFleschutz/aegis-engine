@@ -7,9 +7,9 @@ module;
 #include <memory>
 #include <unordered_map>
 
-export module Aegis.Core.AssetManager;
+export module aegis.core.asset_manager;
 
-export import Aegis.Core.Asset;
+export import aegis.core.asset;
 
 export namespace Aegis::Core
 {

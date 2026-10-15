@@ -1,9 +1,9 @@
-export module Aegis.Scripting.Movement.DynamicMovementController;
+export module aegis.scripting.movement.dynamic_movement_controller;
 
-import Aegis.Scripting.ScriptBase;
-import Aegis.Physics.MotionDynamics;
+import aegis.scripting.script_base;
+import aegis.physics.motion_dynamics;
 import aegis.platform;
-import Aegis.Scene.Components;
+import aegis.scene.components;
 
 namespace Aegis::Scripting
 {

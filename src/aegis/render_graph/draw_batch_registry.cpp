@@ -11,7 +11,7 @@ module;
 
 module aegis.render_graph;
 import aegis.assets;
-import Aegis.Scene.Registry;
+import aegis.scene.registry;
 
 namespace aegis::render_graph
 {

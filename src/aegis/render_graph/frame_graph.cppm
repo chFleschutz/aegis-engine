@@ -16,7 +16,7 @@ import :resource_pool;
 import :schedule;
 import aegis.renderer;
 import aegis.rhi;
-import Aegis.Scene;
+import aegis.scene;
 
 export namespace aegis::render_graph
 {

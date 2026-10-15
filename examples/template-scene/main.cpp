@@ -1,4 +1,4 @@
-import Aegis.Engine;
+import aegis.engine;
 
 class TemplateScene : public Aegis::SceneDescription
 {

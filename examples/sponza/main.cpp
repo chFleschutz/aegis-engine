@@ -1,4 +1,4 @@
-import Aegis.Engine;
+import aegis.engine;
 
 class Sponza : public Aegis::SceneDescription
 {

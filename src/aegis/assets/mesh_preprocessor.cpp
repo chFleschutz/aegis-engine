@@ -10,7 +10,7 @@ module;
 #include <vector>
 
 module aegis.assets;
-import Aegis.Math;
+import aegis.math;
 
 namespace aegis::assets
 {

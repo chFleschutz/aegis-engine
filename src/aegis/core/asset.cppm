@@ -4,7 +4,7 @@ module;
 #include <filesystem>
 #include <memory>
 
-export module Aegis.Core.Asset;
+export module aegis.core.asset;
 
 export namespace Aegis::Core
 {

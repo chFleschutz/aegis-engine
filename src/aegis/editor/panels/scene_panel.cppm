@@ -14,11 +14,11 @@ module;
 #include <vector>
 #include <memory>
 
-export module Aegis.Editor.Panels:ScenePanel;
+export module aegis.editor.panels:scene_panel;
 
-import Aegis.Scene;
-import Aegis.Scene.Entity;
-import Aegis.Scene.Components;
+import aegis.scene;
+import aegis.scene.entity;
+import aegis.scene.components;
 import aegis.assets;
 
 export namespace Aegis::Editor

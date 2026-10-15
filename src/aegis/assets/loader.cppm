@@ -8,7 +8,7 @@ export module aegis.assets:loader;
 import :error;
 import :material;
 import aegis.rhi;
-import Aegis.Scene.Registry;
+import aegis.scene.registry;
 
 export namespace aegis::assets
 {

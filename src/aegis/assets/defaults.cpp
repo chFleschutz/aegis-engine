@@ -8,7 +8,7 @@ module;
 
 module aegis.assets;
 import aegis.rhi;
-import Aegis.Math;
+import aegis.math;
 
 namespace aegis::assets
 {

@@ -6,8 +6,8 @@ import :frustum;
 import :render_pass;
 import :resource;
 import :resource_pool;
-import Aegis.Math;
-import Aegis.Scene;
+import aegis.math;
+import aegis.scene;
 
 export namespace aegis::render_graph
 {

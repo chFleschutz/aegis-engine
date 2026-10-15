@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
 
-import Aegis.Math;
+import aegis.math;
 
 namespace
 {

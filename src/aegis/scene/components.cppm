@@ -2,11 +2,11 @@ module;
 
 #include <string>
 
-export module Aegis.Scene.Components;
+export module aegis.scene.components;
 
-export import Aegis.Math;
-export import Aegis.Scene.Entity;
-export import Aegis.Scene.ComponentTraits;
+export import aegis.math;
+export import aegis.scene.entity;
+export import aegis.scene.component_traits;
 
 export namespace Aegis
 {

@@ -1,6 +1,6 @@
 #include <cmath>
 
-import Aegis.Engine;
+import aegis.engine;
 
 class ColorChanger : public Aegis::Scripting::ScriptBase
 {

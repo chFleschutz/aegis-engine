@@ -12,7 +12,7 @@ module;
 
 export module aegis.render_graph:draw_batch_registry;
 import aegis.assets;
-import Aegis.Scene.Registry;
+import aegis.scene.registry;
 
 export namespace aegis::render_graph
 {

@@ -11,8 +11,8 @@ module;
 
 module aegis.assets;
 import aegis.rhi;
-import Aegis.Math;
-import Aegis.Scene.Registry;
+import aegis.math;
+import aegis.scene.registry;
 
 namespace aegis::assets
 {

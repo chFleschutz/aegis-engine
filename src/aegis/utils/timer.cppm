@@ -7,7 +7,7 @@ module;
 #include <string>
 #include <string_view>
 
-export module Aegis.Utils.Timer;
+export module aegis.utils.timer;
 
 export namespace Aegis::Utils
 {

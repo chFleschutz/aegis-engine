@@ -2,7 +2,7 @@ module;
 
 #include <array>
 
-export module Aegis.Utils.RollingAverage;
+export module aegis.utils.rolling_average;
 
 export namespace Aegis::Utils
 {

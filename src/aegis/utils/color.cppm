@@ -5,9 +5,9 @@ module;
 #include <string>
 #include <sstream>
 
-export module Aegis.Utils.Color;
+export module aegis.utils.color;
 
-import Aegis.Math;
+import aegis.math;
 
 namespace Aegis::Utils
 {

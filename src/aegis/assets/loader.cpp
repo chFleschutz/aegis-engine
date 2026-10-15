@@ -4,7 +4,7 @@ module;
 #include <format>
 
 module aegis.assets;
-import Aegis.Scene.Registry;
+import aegis.scene.registry;
 
 namespace aegis::assets
 {

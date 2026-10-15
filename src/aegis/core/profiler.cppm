@@ -4,10 +4,10 @@ module;
 #include <string_view>
 #include <unordered_map>
 
-export module Aegis.Core.Profiler;
+export module aegis.core.profiler;
 
-import Aegis.Utils.RollingAverage;
-import Aegis.Utils.Timer;
+import aegis.utils.rolling_average;
+import aegis.utils.timer;
 
 #define AGX_PROFILE_SCOPE(name) Aegis::ScopeProfiler profiler##__LINE__(name)
 #define AGX_PROFILE_FUNCTION() AGX_PROFILE_SCOPE(__FUNCTION__)

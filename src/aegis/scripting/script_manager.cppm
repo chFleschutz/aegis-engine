@@ -4,10 +4,10 @@ module;
 #include <utility>
 #include <vector>
 
-export module Aegis.Scripting.ScriptManager;
+export module aegis.scripting.script_manager;
 
-import Aegis.Scene;
-import Aegis.Scripting.ScriptBase;
+import aegis.scene;
+import aegis.scripting.script_base;
 import aegis.platform;
 
 export namespace Aegis::Scripting

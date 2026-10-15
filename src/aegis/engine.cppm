@@ -17,23 +17,23 @@ module;
 #include <string>
 #include <utility>
 
-export module Aegis.Engine;
+export module aegis.engine;
 
-export import Aegis.Math;
-export import Aegis.UI;
-export import Aegis.Editor;
-export import Aegis.Defaults;
-export import Aegis.SceneDescription;
-export import Aegis.Core.AssetManager;
-export import Aegis.Core.Globals;
-export import Aegis.Core.LayerStack;
-export import Aegis.Core.Logging;
-export import Aegis.Core.Profiler;
-export import Aegis.Scene;
-export import Aegis.Scene.Components;
-export import Aegis.Scene.System;
-export import Aegis.Scripting.ScriptBase;
-export import Aegis.Scripting.ScriptManager;
+export import aegis.math;
+export import aegis.ui;
+export import aegis.editor;
+export import aegis.defaults;
+export import aegis.scene_description;
+export import aegis.core.asset_manager;
+export import aegis.core.globals;
+export import aegis.core.layer_stack;
+export import aegis.core.logging;
+export import aegis.core.profiler;
+export import aegis.scene;
+export import aegis.scene.components;
+export import aegis.scene.system;
+export import aegis.scripting.script_base;
+export import aegis.scripting.script_manager;
 export import aegis.assets;
 export import aegis.platform;
 export import aegis.render_graph;

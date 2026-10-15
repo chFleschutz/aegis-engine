@@ -2,10 +2,10 @@ module;
 
 #include <concepts>
 
-export module Aegis.SceneDescription;
+export module aegis.scene_description;
 
-import Aegis.Scene;
-import Aegis.Scripting.ScriptManager;
+import aegis.scene;
+import aegis.scripting.script_manager;
 
 export namespace Aegis
 {

@@ -2,7 +2,7 @@ module;
 
 #include <imgui.h>
 
-export module Aegis.Editor.Panels:DemoPanel;
+export module aegis.editor.panels:demo_panel;
 
 export namespace Aegis::Editor
 {

@@ -4,7 +4,7 @@ module;
 #include <cmath>
 #include <random>
 
-export module Aegis.Math:Random;
+export module aegis.math:random;
 
 export namespace Aegis::Math
 {

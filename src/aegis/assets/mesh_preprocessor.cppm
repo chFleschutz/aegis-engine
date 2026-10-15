@@ -7,7 +7,7 @@ module;
 export module aegis.assets:mesh_preprocessor;
 import :error;
 import :mesh_data;
-import Aegis.Math;
+import aegis.math;
 
 export namespace aegis::assets
 {

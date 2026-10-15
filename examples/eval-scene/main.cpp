@@ -6,7 +6,7 @@
 #include <format>
 #include <filesystem>
 
-import Aegis.Engine;
+import aegis.engine;
 
 // 1. Crytek Sponza
 //      - baseline standard small scene

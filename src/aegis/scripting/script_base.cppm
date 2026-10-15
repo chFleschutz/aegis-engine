@@ -1,7 +1,7 @@
-export module Aegis.Scripting.ScriptBase;
+export module aegis.scripting.script_base;
 
-import Aegis.Scene.Entity;
-import Aegis.Scene.Registry;
+import aegis.scene.entity;
+import aegis.scene.registry;
 import aegis.platform;
 
 export namespace Aegis::Scripting

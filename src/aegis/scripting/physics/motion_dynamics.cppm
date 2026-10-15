@@ -4,11 +4,11 @@ module;
 
 #include <algorithm>
 
-export module Aegis.Physics.MotionDynamics;
+export module aegis.physics.motion_dynamics;
 
-import Aegis.Math;
-import Aegis.Scripting.ScriptBase;
-import Aegis.Scene.Components;
+import aegis.math;
+import aegis.scripting.script_base;
+import aegis.scene.components;
 
 export namespace Aegis::Physics
 {

@@ -10,7 +10,7 @@ import :error;
 import :resource;
 import :resource_pool;
 import aegis.rhi;
-import Aegis.Scene;
+import aegis.scene;
 
 export namespace aegis::render_graph
 {

@@ -3,7 +3,7 @@ module;
 #include <cstddef>
 #include <functional>
 
-export module Aegis.Utils;
+export module aegis.utils;
 
 namespace Aegis::Utils
 {

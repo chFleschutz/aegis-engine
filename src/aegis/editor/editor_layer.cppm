@@ -3,15 +3,15 @@ module;
 #include <imgui.h>
 #include <ImGuizmo.h>
 
-export module Aegis.Editor;
+export module aegis.editor;
 
-import Aegis.Math;
-import Aegis.Core.Layer;
-import Aegis.Editor.Panels;
+import aegis.math;
+import aegis.core.layer;
+import aegis.editor.panels;
 import aegis.platform;
 import aegis.render_graph;
 import aegis.renderer;
-import Aegis.Scene;
+import aegis.scene;
 
 export namespace Aegis::Editor
 {

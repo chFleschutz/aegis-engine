@@ -4,7 +4,7 @@ module;
 
 #include <cstdint>
 
-export module Aegis.Editor.Panels:MenuBarPanel;
+export module aegis.editor.panels:menu_bar_panel;
 
 export namespace Aegis::Editor
 {

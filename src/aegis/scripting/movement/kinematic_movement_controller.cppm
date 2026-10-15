@@ -3,12 +3,12 @@ module;
 #include <algorithm>
 #include <limits>
 
-export module Aegis.Scripting.Movement.KinematicMovementController;
+export module aegis.scripting.movement.kinematic_movement_controller;
 
-import Aegis.Scripting.ScriptBase;
-import Aegis.Math;
+import aegis.scripting.script_base;
+import aegis.math;
 import aegis.platform;
-import Aegis.Scene.Components;
+import aegis.scene.components;
 
 export namespace Aegis::Scripting
 {

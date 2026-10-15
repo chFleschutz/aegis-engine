@@ -4,9 +4,9 @@ module;
 
 #include <string>
 
-export module Aegis.Editor.Panels:ProfilerPanel;
+export module aegis.editor.panels:profiler_panel;
 
-import Aegis.Core.Profiler;
+import aegis.core.profiler;
 import aegis.render_graph;
 
 export namespace Aegis::Editor

@@ -6,7 +6,7 @@ module;
 export module aegis.render_graph:render_system;
 import :error;
 import aegis.rhi;
-import Aegis.Scene;
+import aegis.scene;
 
 export namespace aegis::render_graph
 {

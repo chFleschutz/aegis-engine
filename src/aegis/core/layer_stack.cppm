@@ -4,9 +4,9 @@ module;
 #include <utility>
 #include <vector>
 
-export module Aegis.Core.LayerStack;
+export module aegis.core.layer_stack;
 
-import Aegis.Core.Layer;
+import aegis.core.layer;
 
 export namespace Aegis::Core
 {

@@ -4,7 +4,7 @@ module;
 #include <fstream>
 #include <vector>
 
-export module Aegis.Utils.File;
+export module aegis.utils.file;
 
 export namespace Aegis::Utils::File
 {

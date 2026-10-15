@@ -2,7 +2,7 @@ module;
 
 #include <cmath>
 
-export module Aegis.Math:Interpolation;
+export module aegis.math:interpolation;
 
 export namespace Aegis::Math
 {

@@ -13,8 +13,8 @@ export module aegis.assets:material;
 import :error;
 import :texture;
 import aegis.rhi;
-import Aegis.Core.Asset;
-import Aegis.Math;
+import aegis.core.asset;
+import aegis.math;
 
 export namespace aegis::assets
 {

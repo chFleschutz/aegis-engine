@@ -2,9 +2,9 @@ module;
 
 #include <concepts>
 
-export module Aegis.Scene.System;
+export module aegis.scene.system;
 
-export import Aegis.Scene.Registry;
+export import aegis.scene.registry;
 
 export namespace Aegis::Scene
 {

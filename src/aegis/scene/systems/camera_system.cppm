@@ -5,13 +5,13 @@ module;
 #include <cmath>
 #include <limits>
 
-export module Aegis.Scene.Systems.CameraSystem;
+export module aegis.scene.systems.camera_system;
 
-import Aegis.Math;
-import Aegis.Scene.Registry;
-import Aegis.Scene.Entity;
-import Aegis.Scene.System;
-import Aegis.Scene.Components;
+import aegis.math;
+import aegis.scene.registry;
+import aegis.scene.entity;
+import aegis.scene.system;
+import aegis.scene.components;
 
 export namespace Aegis::Scene
 {

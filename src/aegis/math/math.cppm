@@ -14,10 +14,10 @@ module;
 
 #include <cmath>
 
-export module Aegis.Math;
-export import :Interpolation;
-export import :PerlinNoise;
-export import :Random;
+export module aegis.math;
+export import :interpolation;
+export import :perlin_noise;
+export import :random;
 
 export namespace glm
 {

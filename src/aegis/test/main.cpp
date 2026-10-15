@@ -38,11 +38,11 @@ import aegis.platform;
 import aegis.renderer;
 import aegis.render_graph;
 import aegis.rhi;
-import Aegis.Math;
-import Aegis.Scene;
-import Aegis.Scene.Registry;
-import Aegis.Scene.Systems.CameraSystem;
-import Aegis.Scene.Systems.TransformSystem;
+import aegis.math;
+import aegis.scene;
+import aegis.scene.registry;
+import aegis.scene.systems.camera_system;
+import aegis.scene.systems.transform_system;
 
 using SpirvBuffer = std::vector<uint32_t>;
 

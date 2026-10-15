@@ -1,4 +1,4 @@
-export module Aegis.Core.Layer;
+export module aegis.core.layer;
 
 export namespace Aegis::Core
 {

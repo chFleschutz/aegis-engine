@@ -9,7 +9,7 @@ export module aegis.assets:static_mesh;
 import :error;
 import :mesh_data;
 import aegis.rhi;
-import Aegis.Core.Asset;
+import aegis.core.asset;
 
 export namespace aegis::assets
 {

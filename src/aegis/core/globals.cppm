@@ -5,7 +5,7 @@ module;
 #include <filesystem>
 #include <limits>
 
-export module Aegis.Core.Globals;
+export module aegis.core.globals;
 
 export namespace Aegis::Core
 {

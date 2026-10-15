@@ -5,7 +5,7 @@ module;
 #include <string>
 #include <utility>
 
-export module Aegis.Editor.Panels:RendererPanel;
+export module aegis.editor.panels:renderer_panel;
 
 import aegis.render_graph;
 import aegis.renderer;

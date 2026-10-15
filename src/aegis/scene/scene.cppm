@@ -14,12 +14,12 @@ module;
 #include <utility>
 #include <vector>
 
-export module Aegis.Scene;
+export module aegis.scene;
 
-export import Aegis.Scene.Registry;
-import Aegis.Math;
-import Aegis.Core.Profiler;
-import Aegis.Scene.System;
+export import aegis.scene.registry;
+import aegis.math;
+import aegis.core.profiler;
+import aegis.scene.system;
 
 export namespace Aegis::Scene
 {

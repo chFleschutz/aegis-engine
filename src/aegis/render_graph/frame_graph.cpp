@@ -12,7 +12,7 @@ module;
 module aegis.render_graph;
 import aegis.renderer;
 import aegis.rhi;
-import Aegis.Scene;
+import aegis.scene;
 
 namespace aegis::render_graph
 {
