@@ -11,7 +11,7 @@ module;
 
 export module aegis.core.logging;
 
-export namespace Aegis
+export namespace aegis
 {
 class Logging
 {

@@ -10,9 +10,6 @@ Read that file first.
   `python "/c/Program Files/LLVM/bin/git-clang-format" --staged`.
 - **git-clang-format only sees staged changes.** Run `git add -A` first, or new files are skipped.
   After it reformats, re-add the files. One pass is enough.
-- **Legacy (tab) files come out mixed.** Only changed lines become spaces, so a function can end up
-  half tabs, half spaces. AGENTS.md calls this intended, but a large rewrite of a legacy file looks
-  half-converted. Do whole-file conversions as separate commits.
 - **Search with `git grep` or the Grep tool, not `grep -r`.** `build/` and `cmake-build-debug/` are
   gitignored but present, and `grep -r` returns thousands of hits from them.
 - **Every `git add` prints "LF will be replaced by CRLF"** (`core.autocrlf=true`, and tools write LF).
@@ -98,7 +95,7 @@ Read that file first.
    rendering regressions that validation never reports.
 3. **A Linux CI job** (GitHub Actions, Ubuntu + Clang + the LunarG SDK tarball) building everything
    and running `ctest -LE device`. Nothing else proves the Linux build; the MinGW proxy in AGENTS.md
-   stops at `Aegis.Scene`.
+   stops at `aegis.scene`.
 4. **Check in the missing-include scanner** used for the Linux audit (a Python script mapping `std`
    names to headers per translation unit), and run it from CI.
 5. **Remove stale `.spv` files at configure time:** delete outputs in `build/<preset>/shaders/` that
@@ -107,7 +104,8 @@ Read that file first.
    wrapper.
 7. **Check the capture script into the repo** (for example `tools/run-capture.ps1`) if windowed checks
    remain necessary after idea 1.
-8. **Convert the legacy modules** (`core`, `editor`, `scene`, `scripting`, `ui`) to the new style one
-   file per commit, to end the mixed-indentation state.
+8. **Finish converting the legacy modules** (`core`, `editor`, `scene`, `scripting`, `ui`). Formatting
+   and naming already match the new style; what remains is `AGX_ASSERT` → `std::expected` and
+   dotted submodules → partitions, best done as part of their redesign.
 9. **Port `src/aegis/ai/` when it's needed again.** It is kept unbuilt on purpose; until then, exclude
    it from straggler searches (it still uses the removed input API).

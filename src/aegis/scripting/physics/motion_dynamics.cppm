@@ -10,7 +10,7 @@ import aegis.math;
 import aegis.scripting.script_base;
 import aegis.scene.components;
 
-export namespace Aegis::Physics
+export namespace aegis::physics
 {
 /// @brief Represents a directional and angular force.
 struct Force
@@ -69,7 +69,7 @@ struct Force
 };
 
 /// @brief Adds motion dynamics to an object to update its position and rotation each frame.
-class MotionDynamics : public Scripting::ScriptBase
+class MotionDynamics : public scripting::ScriptBase
 {
 public:
     struct Properties

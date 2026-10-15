@@ -16,7 +16,7 @@ import aegis.scene.registry;
 
 namespace aegis::assets
 {
-auto Loader::loadObj(const Desc& desc, const std::filesystem::path& path) -> std::expected<Aegis::Scene::Entity, Error>
+auto Loader::loadObj(const Desc& desc, const std::filesystem::path& path) -> std::expected<aegis::scene::Entity, Error>
 {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;

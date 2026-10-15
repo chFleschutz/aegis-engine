@@ -6,7 +6,7 @@ module;
 
 export module aegis.core.asset;
 
-export namespace Aegis::Core
+export namespace aegis::core
 {
 class Asset
 {

@@ -6,7 +6,7 @@ module;
 
 export module aegis.math:random;
 
-export namespace Aegis::Math
+export namespace aegis::math
 {
 class Random
 {

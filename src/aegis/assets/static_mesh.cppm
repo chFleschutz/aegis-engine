@@ -15,7 +15,7 @@ export namespace aegis::assets
 {
 /// @brief A mesh in GPU buffers, reached by shaders through buffer device addresses.
 /// @note Holds the Device and frees its buffers on destruction (deferred until the GPU is done).
-class StaticMesh : public Aegis::Core::Asset
+class StaticMesh : public aegis::core::Asset
 {
 public:
     /// @brief What meshDataAddress() points at; the layout shaders read (scalar).

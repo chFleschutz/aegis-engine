@@ -1,11 +1,11 @@
 import aegis.engine;
 
-class Sponza : public Aegis::SceneDescription
+class Sponza : public aegis::SceneDescription
 {
 public:
-    void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
+    void initialize(aegis::scene::Scene& scene, aegis::scripting::ScriptManager& scripts) override
     {
-        using namespace Aegis;
+        using namespace aegis;
 
         auto& registry = scene.registry();
 
@@ -17,10 +17,10 @@ public:
 
         // SKYBOX
         registry.get<aegis::assets::Environment>(scene.environment()) =
-            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
+            Engine::loadEnvironment(core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
         // MODELS
-        Engine::loadModel(Core::ASSETS_DIR / "Sponza/Sponza.gltf");
+        Engine::loadModel(core::ASSETS_DIR / "Sponza/Sponza.gltf");
 
         // LIGHTS
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.5f;
@@ -30,7 +30,7 @@ public:
 
 auto main() -> int
 {
-    Aegis::Engine engine;
+    aegis::Engine engine;
     engine.loadScene<Sponza>();
     engine.run();
 }

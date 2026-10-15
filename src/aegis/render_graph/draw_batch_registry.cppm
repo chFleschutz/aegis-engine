@@ -41,7 +41,7 @@ public:
     auto operator=(DrawBatchRegistry&&) -> DrawBatchRegistry& = delete;
 
     /// @brief Counts the registry's existing materials and follows its later changes.
-    auto connect(Aegis::Scene::Registry& registry) -> void;
+    auto connect(aegis::scene::Registry& registry) -> void;
     auto disconnect() -> void;
 
     [[nodiscard]] auto batches() const noexcept -> const std::vector<DrawBatch>& { return m_batches; }
@@ -66,7 +66,7 @@ private:
     auto onDynamicDestroy(entt::registry& registry, entt::entity entity) -> void;
     auto updateOffsets() -> void;
 
-    Aegis::Scene::Registry* m_registry{ nullptr };
+    aegis::scene::Registry* m_registry{ nullptr };
     std::vector<DrawBatch> m_batches;
     std::unordered_map<const assets::MaterialTemplate*, std::uint32_t> m_batchIds;
     std::uint32_t m_staticCount{ 0 };

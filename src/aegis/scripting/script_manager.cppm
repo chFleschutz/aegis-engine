@@ -10,12 +10,12 @@ import aegis.scene;
 import aegis.scripting.script_base;
 import aegis.platform;
 
-export namespace Aegis::Scripting
+export namespace aegis::scripting
 {
 class ScriptManager
 {
 public:
-    ScriptManager(Scene::Scene& scene, aegis::platform::Input& input) :
+    ScriptManager(scene::Scene& scene, aegis::platform::Input& input) :
         m_scene(scene),
         m_input(input)
     {
@@ -39,7 +39,7 @@ public:
     /// @param script The script to add
     template<typename T, typename... Args>
         requires std::derived_from<T, ScriptBase> && std::constructible_from<T, Args...>
-    void addScript(Scene::Entity entity, Args&&... args)
+    void addScript(scene::Entity entity, Args&&... args)
     {
         T* script = new T(std::forward<Args>(args)...);
         m_newScripts.emplace_back(script);
@@ -69,7 +69,7 @@ private:
         m_newScripts.clear();
     }
 
-    Scene::Scene& m_scene;
+    scene::Scene& m_scene;
     aegis::platform::Input& m_input;
     std::vector<ScriptBase*> m_scripts;
     std::vector<ScriptBase*> m_newScripts;

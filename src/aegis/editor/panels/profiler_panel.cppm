@@ -9,7 +9,7 @@ export module aegis.editor.panels:profiler_panel;
 import aegis.core.profiler;
 import aegis.render_graph;
 
-export namespace Aegis::Editor
+export namespace aegis::editor
 {
 class ProfilerPanel
 {

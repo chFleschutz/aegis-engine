@@ -62,9 +62,9 @@ using glm::operator*;
 using glm::operator/;
 }
 
-export namespace Aegis::Math
+export namespace aegis::math
 {
-namespace World
+namespace world
 {
 constexpr glm::vec3 RIGHT = { 1.0f, 0.0f, 0.0f };
 constexpr glm::vec3 FORWARD = { 0.0f, 1.0f, 0.0f };
@@ -85,7 +85,7 @@ auto forward(const glm::vec3& rotation) -> glm::vec3
 
 auto forward(const glm::quat& rotation) -> glm::vec3
 {
-    return rotation * World::FORWARD;
+    return rotation * world::FORWARD;
 }
 
 /// @brief Returns the right direction of a rotation
@@ -100,7 +100,7 @@ auto right(const glm::vec3& rotation) -> glm::vec3
 
 auto right(const glm::quat& rotation) -> glm::vec3
 {
-    return rotation * World::RIGHT;
+    return rotation * world::RIGHT;
 }
 
 /// @brief Returns the up direction of a rotation
@@ -117,7 +117,7 @@ auto up(const glm::vec3& rotation) -> glm::vec3
 
 auto up(const glm::quat& rotation) -> glm::vec3
 {
-    return rotation * World::UP;
+    return rotation * world::UP;
 }
 
 /// @brief Composes a transformation matrix from location, rotation and scale

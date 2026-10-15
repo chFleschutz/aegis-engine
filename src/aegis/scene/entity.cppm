@@ -26,7 +26,7 @@ using entt::internal::operator!=;
 }
 }
 
-export namespace Aegis::Scene
+export namespace aegis::scene
 {
 /// @brief An entity represents any object in a scene
 /// @note This class is ment to be passed by value since its just an id

@@ -6,7 +6,7 @@ export module aegis.scene.system;
 
 export import aegis.scene.registry;
 
-export namespace Aegis::Scene
+export namespace aegis::scene
 {
 class System
 {

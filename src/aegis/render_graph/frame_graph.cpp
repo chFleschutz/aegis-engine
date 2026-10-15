@@ -122,7 +122,7 @@ auto FrameGraph::resized() -> std::expected<void, Error>
     return {};
 }
 
-auto FrameGraph::sceneInitialized(Aegis::Scene::Scene& scene) -> void
+auto FrameGraph::sceneInitialized(aegis::scene::Scene& scene) -> void
 {
     for (const auto index : m_order)
         m_passes[index]->sceneInitialized(m_pool, scene);

@@ -11,7 +11,7 @@ import aegis.render_graph;
 import aegis.renderer;
 import aegis.rhi;
 
-export namespace Aegis::Editor
+export namespace aegis::editor
 {
 class RendererPanel
 {

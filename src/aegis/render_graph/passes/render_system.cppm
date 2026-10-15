@@ -14,7 +14,7 @@ export namespace aegis::render_graph
 struct RenderContext
 {
     const rhi::CommandBuffer& cmd;
-    Aegis::Scene::Scene& scene;
+    aegis::scene::Scene& scene;
     std::uint32_t frameIndex;
     rhi::DeviceAddress camera; // This frame's CameraData
 };

@@ -6,7 +6,7 @@ module;
 
 export module aegis.editor.panels:menu_bar_panel;
 
-export namespace Aegis::Editor
+export namespace aegis::editor
 {
 /// @brief Shows the main menu bar of the application
 class MenuBarPanel

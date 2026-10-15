@@ -45,7 +45,7 @@ auto ensureCapacity(ResourcePool& pool, ResourceHandle buffer, std::uint32_t& ca
     return true;
 }
 
-auto makeInstance(const Aegis::GlobalTransform& transform, const assets::StaticMesh& mesh,
+auto makeInstance(const aegis::GlobalTransform& transform, const assets::StaticMesh& mesh,
     const assets::MaterialInstance& material, std::uint32_t frameIndex, std::uint32_t drawBatch) -> InstanceData
 {
     const auto model = transform.matrix();
@@ -102,13 +102,13 @@ auto InstanceUpdatePass::info() const -> Info
     return { .name = "Instance Update", .writes = { m_staticInstances, m_dynamicInstances, m_drawBatchData } };
 }
 
-auto InstanceUpdatePass::sceneInitialized(ResourcePool& pool, Aegis::Scene::Scene& scene) -> void
+auto InstanceUpdatePass::sceneInitialized(ResourcePool& pool, aegis::scene::Scene& scene) -> void
 {
     // Static instances never change, so their materials' frame 0 block serves every frame. Should the
     // buffer fail to grow, the instances that fit are drawn.
     std::ignore = ensureCapacity(pool, m_staticInstances, m_staticCapacity, m_drawBatches.staticInstanceCount(),
         sizeof(InstanceData));
-    auto view = scene.registry().view<Aegis::GlobalTransform, assets::Mesh, assets::Material>(entt::exclude<Aegis::DynamicTag>);
+    auto view = scene.registry().view<aegis::GlobalTransform, assets::Mesh, assets::Material>(entt::exclude<aegis::DynamicTag>);
     const auto instances = collectInstances(view, m_drawBatches, 0, m_staticCapacity);
     pool.write(m_staticInstances, 0, std::as_bytes(std::span{ instances }));
     m_staticCount = static_cast<std::uint32_t>(instances.size());
@@ -119,7 +119,7 @@ auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
     std::ignore = ensureCapacity(pool, m_dynamicInstances, m_dynamicCapacity, m_drawBatches.dynamicInstanceCount(),
         sizeof(InstanceData));
     // DynamicTag is empty, so the view's each() does not yield it.
-    auto view = frameInfo.scene.registry().view<Aegis::GlobalTransform, assets::Mesh, assets::Material, Aegis::DynamicTag>();
+    auto view = frameInfo.scene.registry().view<aegis::GlobalTransform, assets::Mesh, assets::Material, aegis::DynamicTag>();
     const auto instances = collectInstances(view, m_drawBatches, frameInfo.frameIndex, m_dynamicCapacity);
     pool.write(m_dynamicInstances, frameInfo.frameIndex, std::as_bytes(std::span{ instances }));
     m_dynamicCount = static_cast<std::uint32_t>(instances.size());

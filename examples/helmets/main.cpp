@@ -2,7 +2,7 @@
 
 import aegis.engine;
 
-class ColorChanger : public Aegis::Scripting::ScriptBase
+class ColorChanger : public aegis::scripting::ScriptBase
 {
 public:
     void update(float deltaSeconds) override
@@ -25,18 +25,18 @@ private:
 };
 
 /// @brief Scene with two helmets
-class HelmetScene : public Aegis::SceneDescription
+class HelmetScene : public aegis::SceneDescription
 {
 public:
-    void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
+    void initialize(aegis::scene::Scene& scene, aegis::scripting::ScriptManager& scripts) override
     {
-        using namespace Aegis;
+        using namespace aegis;
 
         auto& registry = scene.registry();
 
         // SKYBOX
         registry.get<aegis::assets::Environment>(scene.environment()) =
-            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
+            Engine::loadEnvironment(core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
         // LIGHTS
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 1.0f;
@@ -50,16 +50,16 @@ public:
         };
 
         // ENTITIES
-        auto spheres = Engine::loadModel(Core::ASSETS_DIR / "MetalRoughSpheres/MetalRoughSpheres.gltf");
+        auto spheres = Engine::loadModel(core::ASSETS_DIR / "MetalRoughSpheres/MetalRoughSpheres.gltf");
         registry.get<Transform>(spheres).location = { 0.0f, 5.0f, 5.0f };
 
-        auto damagedHelmet = Engine::loadModel(Core::ASSETS_DIR / "DamagedHelmet/DamagedHelmet.gltf");
+        auto damagedHelmet = Engine::loadModel(core::ASSETS_DIR / "DamagedHelmet/DamagedHelmet.gltf");
         registry.get<Transform>(damagedHelmet).location = { -2.0f, 0.0f, 2.0f };
 
-        auto scifiHelmet = Engine::loadModel(Core::ASSETS_DIR / "SciFiHelmet/SciFiHelmet.gltf");
+        auto scifiHelmet = Engine::loadModel(core::ASSETS_DIR / "SciFiHelmet/SciFiHelmet.gltf");
         registry.get<Transform>(scifiHelmet).location = { 2.0f, 0.0f, 2.0f };
 
-        auto plane = Engine::loadModel(Core::ASSETS_DIR / "Misc/plane.obj");
+        auto plane = Engine::loadModel(core::ASSETS_DIR / "Misc/plane.obj");
         registry.get<Transform>(plane).scale = { 2.0f, 2.0f, 2.0f };
         registry.add<DynamicTag>(plane);
         scripts.addScript<ColorChanger>(plane);
@@ -68,7 +68,7 @@ public:
 
 auto main() -> int
 {
-    Aegis::Engine engine;
+    aegis::Engine engine;
     engine.loadScene<HelmetScene>();
     engine.run();
 }

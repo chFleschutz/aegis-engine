@@ -1,6 +1,6 @@
 export module aegis.core.layer;
 
-export namespace Aegis::Core
+export namespace aegis::core
 {
 class Layer
 {

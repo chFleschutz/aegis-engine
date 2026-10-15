@@ -9,7 +9,7 @@ import aegis.math;
 import aegis.scripting.script_base;
 import aegis.scene.components;
 
-namespace Aegis::Scripting
+namespace aegis::scripting
 {
 /// @brief Limits the locaton of the entity to the given limits.
 /// @note Only clamps the location, the velocity is not affected.

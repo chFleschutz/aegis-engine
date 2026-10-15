@@ -4,7 +4,7 @@ module;
 
 export module aegis.scene.component_traits;
 
-export namespace Aegis
+export namespace aegis
 {
 template<typename T>
 struct ComponentTraits

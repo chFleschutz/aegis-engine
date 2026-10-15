@@ -275,7 +275,7 @@ auto PointLightRenderSystem::render(const RenderContext& context) -> void
     constexpr float pointLightScale{ 0.002f };
 
     context.cmd.bindPipeline(*m_pipeline);
-    for (auto&& [entity, transform, light] : context.scene.registry().view<Aegis::GlobalTransform, Aegis::PointLight>().each())
+    for (auto&& [entity, transform, light] : context.scene.registry().view<aegis::GlobalTransform, aegis::PointLight>().each())
     {
         context.cmd.pushConstants(PushConstants{
             .worldPosition = glm::vec4{ transform.location, 1.0f },

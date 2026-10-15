@@ -10,22 +10,22 @@ import aegis.engine;
 
 // 1. Crytek Sponza
 //      - baseline standard small scene
-class Sponza : public Aegis::SceneDescription
+class Sponza : public aegis::SceneDescription
 {
 public:
     /// @brief All objects in a scene are created here
-    void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
+    void initialize(aegis::scene::Scene& scene, aegis::scripting::ScriptManager& scripts) override
     {
-        using namespace Aegis;
+        using namespace aegis;
         auto& registry = scene.registry();
 
         registry.get<aegis::assets::Environment>(scene.environment()) =
-            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
+            Engine::loadEnvironment(core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-        Engine::loadModel(Core::ASSETS_DIR / "Sponza/Sponza.gltf");
+        Engine::loadModel(core::ASSETS_DIR / "Sponza/Sponza.gltf");
         registry.get<Transform>(scene.mainCamera()) = Transform{
             .location = { -9.75f, 1.2f, 5.25f },
             .rotation = glm::radians(glm::vec3{ -12.0f, 0.0f, 263.0f })
@@ -39,23 +39,23 @@ public:
 // NOTE: The Bistro scene is very large (~1.2 GB) and is not included in the repository.
 // It is originally available from NVIDIA's Orca collection as fbx: https://developer.nvidia.com/orca/amazon-lumberyard-bistro
 // A gltf version of the scene can be found here: https://github.com/zeux/niagara_bistro
-class Bistro : public Aegis::SceneDescription
+class Bistro : public aegis::SceneDescription
 {
 public:
     /// @brief All objects in a scene are created here
-    void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
+    void initialize(aegis::scene::Scene& scene, aegis::scripting::ScriptManager& scripts) override
     {
-        using namespace Aegis;
+        using namespace aegis;
         auto& registry = scene.registry();
 
         // Environment setup
         registry.get<aegis::assets::Environment>(scene.environment()) =
-            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
+            Engine::loadEnvironment(core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-        std::filesystem::path bistroPath = Core::ENGINE_DIR / "temp/Bistro/bistro.gltf";
+        std::filesystem::path bistroPath = core::ENGINE_DIR / "temp/Bistro/bistro.gltf";
         AGX_ASSERT_X(std::filesystem::exists(bistroPath),
             "Bistro scene not found! Please download the scene from 'https://github.com/zeux/niagara_bistro' and place it in the 'temp/Bistro' folder.");
 
@@ -69,7 +69,7 @@ public:
 
 // 3. Large Instanced Scene (100k of the same fairly large objects, like trees, rocks, etc)
 //    - test instancing on larger objects
-class HighPolyHighObj : public Aegis::SceneDescription
+class HighPolyHighObj : public aegis::SceneDescription
 {
 public:
     int cameraMode = 0; // 0 = inside instances, 1 = outside instances
@@ -79,14 +79,14 @@ public:
     }
 
     /// @brief All objects in a scene are created here
-    void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
+    void initialize(aegis::scene::Scene& scene, aegis::scripting::ScriptManager& scripts) override
     {
-        using namespace Aegis;
+        using namespace aegis;
         auto& registry = scene.registry();
 
         // Environment setup
         registry.get<aegis::assets::Environment>(scene.environment()) =
-            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
+            Engine::loadEnvironment(core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
@@ -107,10 +107,10 @@ public:
             };
         }
 
-        auto scifiHelmet = Engine::loadModel(Core::ASSETS_DIR / "SciFiHelmet/SciFiHelmet.gltf");
+        auto scifiHelmet = Engine::loadModel(core::ASSETS_DIR / "SciFiHelmet/SciFiHelmet.gltf");
         registry.get<Transform>(scifiHelmet).location = { 2.0f, 0.0f, 2.0f };
 
-        Scene::Entity meshEntity = scifiHelmet;
+        scene::Entity meshEntity = scifiHelmet;
         std::shared_ptr<aegis::assets::StaticMesh> mesh;
         std::shared_ptr<aegis::assets::MaterialInstance> materialInstance;
         while (!registry.has<aegis::assets::Mesh, aegis::assets::Material>(meshEntity))
@@ -135,19 +135,19 @@ public:
             registry.add<aegis::assets::Material>(instance, materialInstance);
             auto& transform = registry.get<Transform>(instance);
             transform.location = {
-                posDis(Math::Random::generator()),
-                posDis(Math::Random::generator()),
-                posDis(Math::Random::generator()) / 2.0f
+                posDis(math::Random::generator()),
+                posDis(math::Random::generator()),
+                posDis(math::Random::generator()) / 2.0f
             };
-            transform.rotation = glm::radians(glm::vec3{ 90.0f, 0.0f, rotDis(Math::Random::generator()) });
-            transform.scale = glm::vec3{ scaleDis(Math::Random::generator()) };
+            transform.rotation = glm::radians(glm::vec3{ 90.0f, 0.0f, rotDis(math::Random::generator()) });
+            transform.scale = glm::vec3{ scaleDis(math::Random::generator()) };
         }
     }
 };
 
 // 4. Extreme Instanced Scene (1 million+ of the same small objects, like grass blades, cubes, etc)
 //    - test limits of gpu driven rendering
-class LowPolyHighObj : public Aegis::SceneDescription
+class LowPolyHighObj : public aegis::SceneDescription
 {
 public:
     int cameraMode = 0; // 0 = inside instances, 1 = outside instances
@@ -157,14 +157,14 @@ public:
     }
 
     /// @brief All objects in a scene are created here
-    void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
+    void initialize(aegis::scene::Scene& scene, aegis::scripting::ScriptManager& scripts) override
     {
-        using namespace Aegis;
+        using namespace aegis;
         auto& registry = scene.registry();
 
         // Environment setup
         registry.get<aegis::assets::Environment>(scene.environment()) =
-            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
+            Engine::loadEnvironment(core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
@@ -186,7 +186,7 @@ public:
             };
         }
 
-        auto cube = Engine::loadModel(Core::ASSETS_DIR / "Misc/cube.obj");
+        auto cube = Engine::loadModel(core::ASSETS_DIR / "Misc/cube.obj");
         auto& cubeMesh = registry.get<aegis::assets::Mesh>(cube).staticMesh;
 
         constexpr int materialCount = 10;
@@ -196,13 +196,13 @@ public:
         {
             auto matInstance = Engine::createMaterial(pbrMatTemplate);
             glm::vec3 color{
-                Math::Random::uniformFloat(0.0f, 1.0f),
-                Math::Random::uniformFloat(0.0f, 1.0f),
-                Math::Random::uniformFloat(0.0f, 1.0f)
+                math::Random::uniformFloat(0.0f, 1.0f),
+                math::Random::uniformFloat(0.0f, 1.0f),
+                math::Random::uniformFloat(0.0f, 1.0f)
             };
             matInstance->setParameter("albedo", color);
-            matInstance->setParameter("metallic", Math::Random::uniformFloat(0.0f, 1.0f));
-            matInstance->setParameter("roughness", Math::Random::uniformFloat(0.0f, 1.0f));
+            matInstance->setParameter("metallic", math::Random::uniformFloat(0.0f, 1.0f));
+            matInstance->setParameter("roughness", math::Random::uniformFloat(0.0f, 1.0f));
             cubeMats.emplace_back(matInstance);
         }
 
@@ -216,15 +216,15 @@ public:
         for (int i = 0; i < cubeCount; i++)
         {
             glm::vec3 pos{
-                posDis(Math::Random::generator()),
-                posDis(Math::Random::generator()),
-                posDis(Math::Random::generator())
+                posDis(math::Random::generator()),
+                posDis(math::Random::generator()),
+                posDis(math::Random::generator())
             };
             glm::quat rot = glm::radians(glm::vec3{
-                rotDis(Math::Random::generator()),
-                rotDis(Math::Random::generator()),
-                rotDis(Math::Random::generator()) });
-            glm::vec3 scale{ scaleDis(Math::Random::generator()) };
+                rotDis(math::Random::generator()),
+                rotDis(math::Random::generator()),
+                rotDis(math::Random::generator()) });
+            glm::vec3 scale{ scaleDis(math::Random::generator()) };
 
             auto cubeInstance = registry.create(std::format("Cube {}", i), pos, rot, scale);
             registry.add<aegis::assets::Mesh>(cubeInstance, cubeMesh);
@@ -241,31 +241,31 @@ struct Rotatable
     float speed = 1.0f;
 };
 
-class RotationSystem : public Aegis::Scene::System
+class RotationSystem : public aegis::scene::System
 {
 public:
-    void onUpdate(Aegis::Scene::Registry& registry, float deltaSeconds) override
+    void onUpdate(aegis::scene::Registry& registry, float deltaSeconds) override
     {
-        auto view = registry.view<Aegis::Transform, Rotatable, Aegis::DynamicTag>();
+        auto view = registry.view<aegis::Transform, Rotatable, aegis::DynamicTag>();
         for (auto [entity, transform, rotatable] : view.each())
         {
-            transform.rotation *= glm::angleAxis(rotatable.speed * deltaSeconds, Aegis::Math::World::UP);
+            transform.rotation *= glm::angleAxis(rotatable.speed * deltaSeconds, aegis::math::world::UP);
         }
     }
 };
 
-class DynamicObjects : public Aegis::SceneDescription
+class DynamicObjects : public aegis::SceneDescription
 {
 public:
     /// @brief All objects in a scene are created here
-    void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
+    void initialize(aegis::scene::Scene& scene, aegis::scripting::ScriptManager& scripts) override
     {
-        using namespace Aegis;
+        using namespace aegis;
         auto& registry = scene.registry();
 
         // Environment setup
         registry.get<aegis::assets::Environment>(scene.environment()) =
-            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
+            Engine::loadEnvironment(core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
@@ -276,7 +276,7 @@ public:
 
         scene.addSystem<RotationSystem>();
 
-        auto cube = Engine::loadModel(Core::ASSETS_DIR / "Misc/cube.obj");
+        auto cube = Engine::loadModel(core::ASSETS_DIR / "Misc/cube.obj");
         auto& cubeMesh = registry.get<aegis::assets::Mesh>(cube).staticMesh;
         auto& cubeMat = registry.get<aegis::assets::Material>(cube).instance;
         cubeMat->setParameter("albedo", glm::vec3{ 0.8f, 0.1f, 0.1f });
@@ -291,20 +291,20 @@ public:
         for (int i = 0; i < cubeCount; i++)
         {
             glm::vec3 pos{
-                posDis(Math::Random::generator()),
-                posDis(Math::Random::generator()),
-                posDis(Math::Random::generator())
+                posDis(math::Random::generator()),
+                posDis(math::Random::generator()),
+                posDis(math::Random::generator())
             };
             glm::quat rot = glm::radians(glm::vec3{
-                rotDis(Math::Random::generator()),
-                rotDis(Math::Random::generator()),
-                rotDis(Math::Random::generator()) });
-            glm::vec3 scale{ scaleDis(Math::Random::generator()) };
+                rotDis(math::Random::generator()),
+                rotDis(math::Random::generator()),
+                rotDis(math::Random::generator()) });
+            glm::vec3 scale{ scaleDis(math::Random::generator()) };
 
             auto cubeInstance = registry.create(std::format("Cube {}", i), pos, rot, scale);
             registry.add<aegis::assets::Mesh>(cubeInstance, cubeMesh);
             registry.add<aegis::assets::Material>(cubeInstance, cubeMat);
-            registry.add<Rotatable>(cubeInstance, glm::radians(Math::Random::uniformFloat(10.0f, 90.0f)));
+            registry.add<Rotatable>(cubeInstance, glm::radians(math::Random::uniformFloat(10.0f, 90.0f)));
             registry.add<DynamicTag>(cubeInstance); // Mark dynamic, so its updated every frame
         }
     }
@@ -315,22 +315,22 @@ public:
 
 // NOTE: The model is very large and is not included in the repository.
 // It is originally available from the Stanford 3D Scanning Repository: https://graphics.stanford.edu/data/3Dscanrep/
-class Lucy : public Aegis::SceneDescription
+class Lucy : public aegis::SceneDescription
 {
 public:
     /// @brief All objects in a scene are created here
-    void initialize(Aegis::Scene::Scene& scene, Aegis::Scripting::ScriptManager& scripts) override
+    void initialize(aegis::scene::Scene& scene, aegis::scripting::ScriptManager& scripts) override
     {
-        using namespace Aegis;
+        using namespace aegis;
         auto& registry = scene.registry();
         // Environment setup
         registry.get<aegis::assets::Environment>(scene.environment()) =
-            Engine::loadEnvironment(Core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
+            Engine::loadEnvironment(core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-        std::filesystem::path bistroPath = Core::ENGINE_DIR / "temp/Lucy/lucy.gltf";
+        std::filesystem::path bistroPath = core::ENGINE_DIR / "temp/Lucy/lucy.gltf";
         AGX_ASSERT_X(std::filesystem::exists(bistroPath),
             "Lucy statue model not found! Please download the model from 'https://graphics.stanford.edu/data/3Dscanrep/' and place it in the 'temp/Lucy' folder.");
 
@@ -345,9 +345,9 @@ public:
 auto main() -> int
 {
     // Toggle between cpu/gpu driven by changing this constant:
-    // Aegis::Engine::ENABLE_GPU_DRIVEN_RENDERING
+    // aegis::Engine::ENABLE_GPU_DRIVEN_RENDERING
 
-    Aegis::Engine engine;
+    aegis::Engine engine;
     engine.loadScene<Sponza>();
     //engine.loadScene<Bistro>(); // NOTE: Bistro model not included
     //engine.loadScene<HighPolyHighObj>(0);

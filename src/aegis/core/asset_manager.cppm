@@ -11,7 +11,7 @@ export module aegis.core.asset_manager;
 
 export import aegis.core.asset;
 
-export namespace Aegis::Core
+export namespace aegis::core
 {
 using AssetID = uint64_t;
 

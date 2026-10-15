@@ -8,7 +8,7 @@ export module aegis.scene.systems.transform_system;
 import aegis.scene.registry;
 import aegis.scene.system;
 
-export namespace Aegis::Scene
+export namespace aegis::scene
 {
 class TransformSystem : public System
 {

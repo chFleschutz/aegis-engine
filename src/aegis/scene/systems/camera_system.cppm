@@ -13,7 +13,7 @@ import aegis.scene.entity;
 import aegis.scene.system;
 import aegis.scene.components;
 
-export namespace Aegis::Scene
+export namespace aegis::scene
 {
 class CameraSystem : public System
 {
@@ -36,7 +36,7 @@ private:
 
         // Vectors for the view coordinate system
         const glm::vec3 f(glm::normalize(transform.forward()));            // Forward
-        const glm::vec3 s(glm::normalize(glm::cross(f, Math::World::UP))); // Sideways
+        const glm::vec3 s(glm::normalize(glm::cross(f, math::world::UP))); // Sideways
         const glm::vec3 u(glm::cross(s, f));                               // Up
 
         glm::mat4 viewMatrix{ 1.0f };

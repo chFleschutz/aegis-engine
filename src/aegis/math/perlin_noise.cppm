@@ -10,7 +10,7 @@ export module aegis.math:perlin_noise;
 import :random;
 import :interpolation;
 
-namespace Aegis::Math
+namespace aegis::math
 {
 /// @brief 1D Perlin noise generator.
 class PerlinNoise1D
@@ -92,9 +92,9 @@ private:
 
             // Calculate the percentage where x is between the two signal values
             float chunkSize = 1.0f / (signalValues.size() - 1);
-            float percent = Math::percentage(x, leftIndex * chunkSize, rightIndex * chunkSize);
+            float percent = math::percentage(x, leftIndex * chunkSize, rightIndex * chunkSize);
 
-            return std::lerp(signalValues[leftIndex], signalValues[rightIndex], Math::tanh01(percent));
+            return std::lerp(signalValues[leftIndex], signalValues[rightIndex], math::tanh01(percent));
         }
 
         int rank;

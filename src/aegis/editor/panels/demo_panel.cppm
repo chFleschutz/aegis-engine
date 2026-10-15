@@ -4,7 +4,7 @@ module;
 
 export module aegis.editor.panels:demo_panel;
 
-export namespace Aegis::Editor
+export namespace aegis::editor
 {
 /// @brief A demo layer that shows the ImGui demo window
 class DemoPanel

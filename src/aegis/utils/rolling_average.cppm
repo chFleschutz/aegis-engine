@@ -4,7 +4,7 @@ module;
 
 export module aegis.utils.rolling_average;
 
-export namespace Aegis::Utils
+export namespace aegis::utils
 {
 /// @brief Rolling average over N values
 /// @tparam N Number of values to average (must be greater than zero)

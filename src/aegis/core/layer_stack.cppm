@@ -8,7 +8,7 @@ export module aegis.core.layer_stack;
 
 import aegis.core.layer;
 
-export namespace Aegis::Core
+export namespace aegis::core
 {
 class LayerStack
 {

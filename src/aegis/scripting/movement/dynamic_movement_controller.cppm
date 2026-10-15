@@ -5,7 +5,7 @@ import aegis.physics.motion_dynamics;
 import aegis.platform;
 import aegis.scene.components;
 
-namespace Aegis::Scripting
+namespace aegis::scripting
 {
 class DynamicMovementController : public ScriptBase
 {
@@ -21,7 +21,7 @@ public:
     virtual void update(float deltaSeconds) override
     {
         auto& transform = get<Transform>();
-        auto& dynamics = get<Physics::MotionDynamics>();
+        auto& dynamics = get<physics::MotionDynamics>();
 
         bool forwardPressed = input().keyPressed(m_keys.moveForward);
         bool backwardPressed = input().keyPressed(m_keys.moveBackward);

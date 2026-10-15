@@ -62,7 +62,7 @@ public:
     [[nodiscard]] auto resized() -> std::expected<void, Error>;
 
     /// @brief Tells every pass a scene was loaded (e.g. to upload static instance data).
-    auto sceneInitialized(Aegis::Scene::Scene& scene) -> void;
+    auto sceneInitialized(aegis::scene::Scene& scene) -> void;
 
     /// @brief Records every pass, in order, into frameInfo.cmd.
     auto execute(const FrameInfo& frameInfo) -> void;

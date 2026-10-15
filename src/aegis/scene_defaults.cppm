@@ -11,13 +11,13 @@ import aegis.scripting.script_manager;
 import aegis.scripting.movement.kinematic_movement_controller;
 import aegis.assets;
 
-export namespace Aegis
+export namespace aegis
 {
 /// @brief A camera (with movement controls), ambient and directional light, and 'environment' as the sky.
-void createDefaultScene(Scene::Scene& scene, Scripting::ScriptManager& scriptManager, aegis::assets::Environment environment)
+void createDefaultScene(scene::Scene& scene, scripting::ScriptManager& scriptManager, aegis::assets::Environment environment)
 {
-    scene.addSystem<Scene::CameraSystem>();
-    scene.addSystem<Scene::TransformSystem>();
+    scene.addSystem<scene::CameraSystem>();
+    scene.addSystem<scene::TransformSystem>();
 
     auto& registry = scene.registry();
 
@@ -29,7 +29,7 @@ void createDefaultScene(Scene::Scene& scene, Scripting::ScriptManager& scriptMan
         .rotation = glm::radians(glm::vec3{ -30.0f, 0.0f, 0.0f })
     };
     scene.setMainCamera(mainCamera);
-    scriptManager.addScript<Scripting::KinematicMovementController>(mainCamera);
+    scriptManager.addScript<scripting::KinematicMovementController>(mainCamera);
 
     auto ambientLight = registry.create("Ambient Light");
     registry.add<AmbientLight>(ambientLight);

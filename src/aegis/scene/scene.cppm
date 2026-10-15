@@ -21,7 +21,7 @@ import aegis.math;
 import aegis.core.profiler;
 import aegis.scene.system;
 
-export namespace Aegis::Scene
+export namespace aegis::scene
 {
 /// @brief Scene contains all entities and systems
 class Scene
@@ -63,7 +63,7 @@ public:
 
     void update(float deltaSeconds)
     {
-        Aegis::ScopeProfiler profiler("Scene Update");
+        aegis::ScopeProfiler profiler("Scene Update");
 
         for (auto& system : m_systems)
         {

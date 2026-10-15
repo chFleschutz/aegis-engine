@@ -9,14 +9,14 @@ export module aegis.ui;
 
 import aegis.core.layer_stack;
 
-export namespace Aegis::UI
+export namespace aegis::ui
 {
 /// @brief Manages all GUI Layers for displaying ImGui elements
 /// @note This class is a wrapper around ImGui
 class UI
 {
 public:
-    UI(Core::LayerStack& layerStack) :
+    UI(core::LayerStack& layerStack) :
         m_layerStack{ layerStack }
     {
         IMGUI_CHECKVERSION();
@@ -82,6 +82,6 @@ public:
     }
 
 private:
-    Core::LayerStack& m_layerStack;
+    core::LayerStack& m_layerStack;
 };
 }

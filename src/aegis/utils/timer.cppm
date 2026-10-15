@@ -9,7 +9,7 @@ module;
 
 export module aegis.utils.timer;
 
-export namespace Aegis::Utils
+export namespace aegis::utils
 {
 class Timer
 {

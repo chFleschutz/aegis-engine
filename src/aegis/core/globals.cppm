@@ -7,7 +7,7 @@ module;
 
 export module aegis.core.globals;
 
-export namespace Aegis::Core
+export namespace aegis::core
 {
 constexpr uint32_t DEFAULT_WIDTH{ 1920 };
 constexpr uint32_t DEFAULT_HEIGHT{ 1080 };

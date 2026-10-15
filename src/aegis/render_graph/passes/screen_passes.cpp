@@ -58,14 +58,14 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     auto& registry = frameInfo.scene.registry();
     const auto environment = frameInfo.scene.environment();
     const auto camera = frameInfo.scene.mainCamera();
-    if (!environment || !registry.has<assets::Environment>(environment) || !camera || !registry.has<Aegis::Camera>(camera))
+    if (!environment || !registry.has<assets::Environment>(environment) || !camera || !registry.has<aegis::Camera>(camera))
         return;
     const auto& skybox = registry.get<assets::Environment>(environment).skybox;
     if (!skybox)
         return;
 
     // Rotation only: the sky is infinitely far away.
-    const auto& cameraComponent = registry.get<Aegis::Camera>(camera);
+    const auto& cameraComponent = registry.get<aegis::Camera>(camera);
     const auto viewRotation = glm::mat4{ glm::mat3{ cameraComponent.viewMatrix } };
     struct PushConstants
     {

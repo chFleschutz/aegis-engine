@@ -8,12 +8,12 @@ import aegis.scene.registry;
 import aegis.assets;
 import aegis.render_graph;
 
-export namespace Aegis::Editor
+export namespace aegis::editor
 {
 class StatisticsPanel
 {
 public:
-    void draw(Scene::Registry& registry, const aegis::render_graph::DrawBatchRegistry& drawBatches)
+    void draw(scene::Registry& registry, const aegis::render_graph::DrawBatchRegistry& drawBatches)
     {
         ImGui::Begin("Scene Statistics");
         ImGui::Text("Entities: %d", static_cast<int>(registry.entityCount()));

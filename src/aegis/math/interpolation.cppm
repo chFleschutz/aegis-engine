@@ -4,7 +4,7 @@ module;
 
 export module aegis.math:interpolation;
 
-export namespace Aegis::Math
+export namespace aegis::math
 {
 template<typename T>
 T lerp(const T& a, const T& b, float t)

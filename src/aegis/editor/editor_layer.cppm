@@ -13,14 +13,14 @@ import aegis.render_graph;
 import aegis.renderer;
 import aegis.scene;
 
-export namespace Aegis::Editor
+export namespace aegis::editor
 {
-class EditorLayer : public Core::Layer
+class EditorLayer : public core::Layer
 {
 public:
     EditorLayer(aegis::platform::Input& input, aegis::renderer::Renderer& renderer,
         aegis::render_graph::FrameGraph& frameGraph, aegis::render_graph::DrawBatchRegistry& drawBatches,
-        Scene::Scene& scene) :
+        scene::Scene& scene) :
         m_input(input),
         m_renderer(renderer),
         m_frameGraph(frameGraph),
@@ -50,19 +50,19 @@ public:
     {
         m_menuBarPanel.draw();
 
-        if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Renderer))
+        if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Renderer))
             m_rendererPanel.draw(m_renderer, m_frameGraph);
 
-        if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Scene))
+        if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Scene))
             m_scenePanel.draw(m_scene);
 
-        if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Statistics))
+        if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Statistics))
             m_statisticsPanel.draw(m_scene.registry(), m_drawBatches);
 
-        if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Profiler))
+        if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Profiler))
             m_profilerPanel.draw(m_frameGraph);
 
-        if (m_menuBarPanel.flagActive(Editor::MenuBarPanel::Demo))
+        if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Demo))
             m_demoPanel.draw();
 
         if (m_gizmoType != -1)
@@ -70,7 +70,7 @@ public:
     }
 
 private:
-    void drawGizmo(Scene::Scene& scene)
+    void drawGizmo(scene::Scene& scene)
     {
         auto selected = m_scenePanel.selectedEntity();
         if (!selected)
@@ -103,7 +103,7 @@ private:
 
         if (ImGuizmo::IsUsing())
         {
-            Math::decomposeTRS(transformMatrix, transform.location, transform.rotation, transform.scale);
+            math::decomposeTRS(transformMatrix, transform.location, transform.rotation, transform.scale);
         }
     }
 
@@ -111,13 +111,13 @@ private:
     aegis::renderer::Renderer& m_renderer;
     aegis::render_graph::FrameGraph& m_frameGraph;
     aegis::render_graph::DrawBatchRegistry& m_drawBatches;
-    Scene::Scene& m_scene;
-    Editor::MenuBarPanel m_menuBarPanel{};
-    Editor::RendererPanel m_rendererPanel{};
-    Editor::ScenePanel m_scenePanel{};
-    Editor::StatisticsPanel m_statisticsPanel{};
-    Editor::ProfilerPanel m_profilerPanel{};
-    Editor::DemoPanel m_demoPanel{};
+    scene::Scene& m_scene;
+    editor::MenuBarPanel m_menuBarPanel{};
+    editor::RendererPanel m_rendererPanel{};
+    editor::ScenePanel m_scenePanel{};
+    editor::StatisticsPanel m_statisticsPanel{};
+    editor::ProfilerPanel m_profilerPanel{};
+    editor::DemoPanel m_demoPanel{};
     int m_gizmoType = -1;
     bool m_snapping = false;
 };

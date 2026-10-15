@@ -4,7 +4,7 @@ import aegis.scene.entity;
 import aegis.scene.registry;
 import aegis.platform;
 
-export namespace Aegis::Scripting
+export namespace aegis::scripting
 {
 class ScriptBase
 {
@@ -14,7 +14,7 @@ public:
     ScriptBase() = default;
     virtual ~ScriptBase() = default;
 
-    void init(Scene::Registry* reg, Scene::Entity entity, aegis::platform::Input& input)
+    void init(scene::Registry* reg, scene::Entity entity, aegis::platform::Input& input)
     {
         m_registry = reg;
         m_entity = entity;
@@ -51,14 +51,14 @@ public:
     //}
 
     /// @brief Returns the entity
-    auto entity() const -> Scene::Entity { return m_entity; }
+    auto entity() const -> scene::Entity { return m_entity; }
 
     /// @brief Returns the engine's keyboard and mouse input
     auto input() const -> aegis::platform::Input& { return *m_input; }
 
 private:
-    Scene::Registry* m_registry{ nullptr };
-    Scene::Entity m_entity;
+    scene::Registry* m_registry{ nullptr };
+    scene::Entity m_entity;
     aegis::platform::Input* m_input{ nullptr };
 };
 }

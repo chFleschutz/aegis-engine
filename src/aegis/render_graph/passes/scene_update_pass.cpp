@@ -22,11 +22,11 @@ auto SceneUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
 {
     auto& registry = frameInfo.scene.registry();
     const auto mainCamera = frameInfo.scene.mainCamera();
-    if (!mainCamera || !registry.has<Aegis::Camera, Aegis::GlobalTransform>(mainCamera))
+    if (!mainCamera || !registry.has<aegis::Camera, aegis::GlobalTransform>(mainCamera))
         return;
 
     // The camera system computes the projection on the next scene update, from this aspect.
-    auto& camera = registry.get<Aegis::Camera>(mainCamera);
+    auto& camera = registry.get<aegis::Camera>(mainCamera);
     camera.aspect = static_cast<float>(frameInfo.extent.x) / static_cast<float>(frameInfo.extent.y);
 
     const auto viewProjection = camera.projectionMatrix * camera.viewMatrix;
@@ -35,7 +35,7 @@ auto SceneUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
         .projection = glm::rowMajor4(camera.projectionMatrix),
         .viewProjection = glm::rowMajor4(viewProjection),
         .frustum = Frustum::extractFrom(viewProjection),
-        .position = registry.get<Aegis::GlobalTransform>(mainCamera).location,
+        .position = registry.get<aegis::GlobalTransform>(mainCamera).location,
     };
     pool.write(m_cameraData, frameInfo.frameIndex, std::as_bytes(std::span{ &data, 1 }));
 }

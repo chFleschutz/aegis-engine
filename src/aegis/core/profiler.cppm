@@ -9,10 +9,10 @@ export module aegis.core.profiler;
 import aegis.utils.rolling_average;
 import aegis.utils.timer;
 
-#define AGX_PROFILE_SCOPE(name) Aegis::ScopeProfiler profiler##__LINE__(name)
+#define AGX_PROFILE_SCOPE(name) aegis::ScopeProfiler profiler##__LINE__(name)
 #define AGX_PROFILE_FUNCTION() AGX_PROFILE_SCOPE(__FUNCTION__)
 
-export namespace Aegis
+export namespace aegis
 {
 /// @brief Utility class for profiling code execution
 /// @note Uses a rolling average over 'AVERAGE_FRAME_COUNT' frames
@@ -21,7 +21,7 @@ class Profiler
 public:
     static constexpr int AVERAGE_FRAME_COUNT = 50;
 
-    using TimeMap = std::unordered_map<std::string, Utils::RollingAverage<AVERAGE_FRAME_COUNT>>;
+    using TimeMap = std::unordered_map<std::string, utils::RollingAverage<AVERAGE_FRAME_COUNT>>;
 
     Profiler(const Profiler&) = delete;
     Profiler(Profiler&&) = delete;
@@ -85,7 +85,7 @@ public:
     }
 
 private:
-    Utils::Timer m_timer;
+    utils::Timer m_timer;
     std::string m_name;
 };
 }

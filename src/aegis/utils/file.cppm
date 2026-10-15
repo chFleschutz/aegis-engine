@@ -6,7 +6,7 @@ module;
 
 export module aegis.utils.file;
 
-export namespace Aegis::Utils::File
+export namespace aegis::utils::file
 {
 /// @brief Reads a binary file and returns the contents as a vector of chars
 /// @param filePath Path to the file to read

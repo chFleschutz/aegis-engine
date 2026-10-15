@@ -9,7 +9,7 @@ export module aegis.utils.color;
 
 import aegis.math;
 
-namespace Aegis::Utils
+namespace aegis::utils
 {
 class Color
 {
@@ -27,7 +27,7 @@ public:
     static glm::vec4 brown() { return glm::vec4{ 0.5f, 0.25f, 0.0f, 1.0f }; }
     static glm::vec4 random()
     {
-        return glm::vec4{ Math::Random::uniformFloat(), Math::Random::uniformFloat(), Math::Random::uniformFloat(), 1.0f };
+        return glm::vec4{ math::Random::uniformFloat(), math::Random::uniformFloat(), math::Random::uniformFloat(), 1.0f };
     }
 
     static glm::vec4 fromHex(const std::string& hex)

@@ -8,7 +8,7 @@ export import aegis.math;
 export import aegis.scene.entity;
 export import aegis.scene.component_traits;
 
-export namespace Aegis
+export namespace aegis
 {
 /// @brief Gives a name to the entity
 struct Name
@@ -23,10 +23,10 @@ struct Transform
     glm::quat rotation{ 1.0f, 0.0f, 0.0f, 0.0f };
     glm::vec3 scale{ 1.0f, 1.0f, 1.0f };
 
-    auto forward() const -> glm::vec3 { return Math::forward(rotation); }
-    auto right() const -> glm::vec3 { return Math::right(rotation); }
-    auto up() const -> glm::vec3 { return Math::up(rotation); }
-    auto matrix() const -> glm::mat4 { return Math::tranformationMatrix(location, rotation, scale); }
+    auto forward() const -> glm::vec3 { return math::forward(rotation); }
+    auto right() const -> glm::vec3 { return math::right(rotation); }
+    auto up() const -> glm::vec3 { return math::up(rotation); }
+    auto matrix() const -> glm::mat4 { return math::tranformationMatrix(location, rotation, scale); }
 };
 
 /// @brief Transformation of the entity in world space (including parent transforms)
@@ -36,25 +36,25 @@ struct GlobalTransform
     glm::quat rotation{ 1.0f, 0.0f, 0.0f, 0.0f };
     glm::vec3 scale{ 1.0f, 1.0f, 1.0f };
 
-    auto forward() const -> glm::vec3 { return Math::forward(rotation); }
-    auto right() const -> glm::vec3 { return Math::right(rotation); }
-    auto up() const -> glm::vec3 { return Math::up(rotation); }
-    auto matrix() const -> glm::mat4 { return Math::tranformationMatrix(location, rotation, scale); }
+    auto forward() const -> glm::vec3 { return math::forward(rotation); }
+    auto right() const -> glm::vec3 { return math::right(rotation); }
+    auto up() const -> glm::vec3 { return math::up(rotation); }
+    auto matrix() const -> glm::mat4 { return math::tranformationMatrix(location, rotation, scale); }
 };
 
 /// @brief Stores the parent entity
 /// @note Use Entity::setParent to set the parent of an entity
 struct Parent
 {
-    Scene::Entity entity{};
+    scene::Entity entity{};
 };
 
 /// @brief Stores the next and previous sibling of the entity (for linked list)
 /// @note Use Entity::addChild to add a child to an entity (siblings are automatically updated)
 struct Siblings
 {
-    Scene::Entity next{};
-    Scene::Entity prev{};
+    scene::Entity next{};
+    scene::Entity prev{};
 };
 
 /// @brief Stores the children entities as the first and last child of a linked list
@@ -64,30 +64,30 @@ struct Children
     // TODO: This is currentl broken because the entity does not have a pointer to the scene anymore
     //struct Iterator
     //{
-    //    Scene::Entity current{};
+    //    scene::Entity current{};
 
-    //    auto operator*() const -> Scene::Entity { return current; }
+    //    auto operator*() const -> scene::Entity { return current; }
     //    auto operator++() -> Iterator& { current = current.get<Siblings>().next; return *this; }
     //    auto operator==(const Iterator& other) const -> bool { return current == other.current; }
     //};
 
     //struct ReverseIterator
     //{
-    //    Scene::Entity current{};
+    //    scene::Entity current{};
 
-    //    auto operator*() const -> Scene::Entity { return current; }
+    //    auto operator*() const -> scene::Entity { return current; }
     //    auto operator++() -> ReverseIterator& { current = current.get<Siblings>().prev; return *this; }
     //    auto operator==(const ReverseIterator& other) const -> bool { return current == other.current; };
     //};
 
     std::size_t count = 0;
-    Scene::Entity first{};
-    Scene::Entity last{};
+    scene::Entity first{};
+    scene::Entity last{};
 
     //auto begin() const -> Children::Iterator { return { first }; }
-    //auto end() const -> Children::Iterator { return { Scene::Entity{} }; }
+    //auto end() const -> Children::Iterator { return { scene::Entity{} }; }
     //auto rbegin() const -> Children::ReverseIterator { return { last }; }
-    //auto rend() const -> Children::ReverseIterator { return { Scene::Entity{} }; }
+    //auto rend() const -> Children::ReverseIterator { return { scene::Entity{} }; }
 };
 
 struct DynamicTag

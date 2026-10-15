@@ -616,7 +616,7 @@ public:
         if (material.parameterAddress(0) == 0 || material.parameterAddress(1) == material.parameterAddress(0))
             return std::unexpected{ "Material parameter blocks are null or shared between frames" };
 
-        Aegis::Scene::Registry scene;
+        aegis::scene::Registry scene;
         const assets::Loader::Desc loaderDesc{
             .device = *m_device,
             .scene = scene,
@@ -779,29 +779,29 @@ public:
             return std::unexpected{ std::format("Default assets: {}", defaults.error().message) };
         m_defaults = std::move(*defaults);
 
-        m_scene = std::make_unique<Aegis::Scene::Scene>();
-        m_scene->addSystem<Aegis::Scene::TransformSystem>();
-        m_scene->addSystem<Aegis::Scene::CameraSystem>();
+        m_scene = std::make_unique<aegis::scene::Scene>();
+        m_scene->addSystem<aegis::scene::TransformSystem>();
+        m_scene->addSystem<aegis::scene::CameraSystem>();
         m_drawBatches = std::make_unique<render_graph::DrawBatchRegistry>();
         m_drawBatches->connect(m_scene->registry());
 
         auto& registry = m_scene->registry();
         const auto camera = registry.create("Camera", glm::vec3{ 0.0f, -3.0f, 0.0f });
-        registry.add<Aegis::Camera>(camera);
+        registry.add<aegis::Camera>(camera);
         m_scene->setMainCamera(camera);
 
         const auto ambient = registry.create("Ambient Light");
-        registry.add<Aegis::AmbientLight>(ambient).intensity = 1.0f;
+        registry.add<aegis::AmbientLight>(ambient).intensity = 1.0f;
         m_scene->setAmbientLight(ambient);
 
         const auto sun = registry.create("Directional Light");
-        registry.add<Aegis::DirectionalLight>(sun);
-        registry.get<Aegis::Transform>(sun).rotation = glm::quat{ glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }) };
+        registry.add<aegis::DirectionalLight>(sun);
+        registry.get<aegis::Transform>(sun).rotation = glm::quat{ glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }) };
         m_scene->setDirectionalLight(sun);
 
         // In view, off to the side of the helmet: drawn as a billboard by the transparent pass.
         const auto lamp = registry.create("Point Light", glm::vec3{ 1.2f, -1.0f, 0.6f });
-        registry.add<Aegis::PointLight>(lamp).color = glm::vec3{ 1.0f, 0.4f, 0.1f };
+        registry.add<aegis::PointLight>(lamp).color = glm::vec3{ 1.0f, 0.4f, 0.1f };
 
         auto ibl = render_graph::Ibl::create(*m_device);
         if (!ibl)
@@ -1459,7 +1459,7 @@ private:
 
     // --scene only. Declared last: destroyed first, while the device they free into still exists.
     std::optional<assets::DefaultAssets> m_defaults;
-    std::unique_ptr<Aegis::Scene::Scene> m_scene;
+    std::unique_ptr<aegis::scene::Scene> m_scene;
     std::unique_ptr<render_graph::DrawBatchRegistry> m_drawBatches; // Disconnects before the scene goes
     struct ImGuiContextDeleter
     {

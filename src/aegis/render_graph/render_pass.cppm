@@ -18,7 +18,7 @@ export namespace aegis::render_graph
 struct FrameInfo
 {
     const rhi::CommandBuffer& cmd;
-    Aegis::Scene::Scene& scene;
+    aegis::scene::Scene& scene;
     DrawBatchRegistry& drawBatches;
     std::uint32_t frameIndex;
     rhi::Extent2D extent;
@@ -58,7 +58,7 @@ public:
     [[nodiscard]] virtual auto resized(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
 
     /// @brief Called once a scene has been loaded, before its first frame.
-    virtual auto sceneInitialized(ResourcePool& /*pool*/, Aegis::Scene::Scene& /*scene*/) -> void {}
+    virtual auto sceneInitialized(ResourcePool& /*pool*/, aegis::scene::Scene& /*scene*/) -> void {}
 
     /// @brief Records the pass. The graph has already recorded the barriers its accesses need.
     virtual auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void = 0;

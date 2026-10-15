@@ -5,7 +5,7 @@ module;
 
 export module aegis.utils;
 
-namespace Aegis::Utils
+namespace aegis::utils
 {
 // from: https://stackoverflow.com/a/57595105
 template<typename T, typename... Rest>

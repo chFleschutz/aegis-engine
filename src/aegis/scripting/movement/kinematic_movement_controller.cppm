@@ -10,7 +10,7 @@ import aegis.math;
 import aegis.platform;
 import aegis.scene.components;
 
-export namespace Aegis::Scripting
+export namespace aegis::scripting
 {
 class KinematicMovementController : public ScriptBase
 {
@@ -111,7 +111,7 @@ private:
         auto& transform = get<Transform>();
         auto forwardDir = transform.forward();
         auto rightDir = transform.right();
-        auto upDir = Math::World::UP;
+        auto upDir = math::world::UP;
 
         // Speed modifiers
         if (input().keyPressed(m_keys.increaseSpeed))

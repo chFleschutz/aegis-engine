@@ -62,7 +62,7 @@ public:
     InstanceUpdatePass(ResourcePool& pool, const DrawBatchRegistry& drawBatches);
 
     [[nodiscard]] auto info() const -> Info override;
-    auto sceneInitialized(ResourcePool& pool, Aegis::Scene::Scene& scene) -> void override;
+    auto sceneInitialized(ResourcePool& pool, aegis::scene::Scene& scene) -> void override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
     /// @brief The instances actually written: what culling dispatches over.

@@ -12,7 +12,7 @@ export import aegis.math;
 export import aegis.scene.entity;
 export import aegis.scene.components;
 
-export namespace Aegis::Scene
+export namespace aegis::scene
 {
 class Registry
 {
@@ -27,7 +27,7 @@ public:
     [[nodiscard]] auto entityCount() const -> std::size_t { return m_registry.storage<entt::entity>()->size(); }
 
     /// @brief Creates an entity with a NameComponent and TransformComponent
-    /// @note Scene::Entity can be passed by value
+    /// @note scene::Entity can be passed by value
     auto create(const std::string& name = std::string{}, const glm::vec3& location = glm::vec3{ 0.0f },
         const glm::quat& rotation = glm::quat{ 1.0f, 0.0f, 0.0f, 0.0f }, const glm::vec3& scale = glm::vec3{ 1.0f }) -> Entity
     {

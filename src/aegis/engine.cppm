@@ -40,7 +40,7 @@ export import aegis.render_graph;
 export import aegis.renderer;
 export import aegis.rhi;
 
-export namespace Aegis
+export namespace aegis
 {
 class Engine
 {
@@ -57,7 +57,7 @@ public:
         createRenderer();
         loadDefaultAssets();
         createFrameGraph();
-        m_layerStack.push<Editor::EditorLayer>(m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_scene);
+        m_layerStack.push<editor::EditorLayer>(m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_scene);
 
         ALOG::info("Engine Initialized!");
         ALOG::info("Using {} Driven Rendering", useGpuDrivenRendering() ? "GPU" : "CPU");
@@ -86,15 +86,15 @@ public:
         return *s_instance;
     }
 
-    [[nodiscard]] static auto assets() -> Core::AssetManager& { return instance().m_assets; }
+    [[nodiscard]] static auto assets() -> core::AssetManager& { return instance().m_assets; }
     [[nodiscard]] static auto window() -> aegis::platform::Window& { return instance().m_window; }
     [[nodiscard]] static auto input() -> aegis::platform::Input& { return instance().m_input; }
     [[nodiscard]] static auto device() -> aegis::rhi::Device& { return *instance().m_device; }
     [[nodiscard]] static auto renderer() -> aegis::renderer::Renderer& { return *instance().m_renderer; }
     [[nodiscard]] static auto frameGraph() -> aegis::render_graph::FrameGraph& { return *instance().m_frameGraph; }
     [[nodiscard]] static auto drawBatches() -> aegis::render_graph::DrawBatchRegistry& { return instance().m_drawBatches; }
-    [[nodiscard]] static auto ui() -> UI::UI& { return instance().m_ui; }
-    [[nodiscard]] static auto scene() -> Scene::Scene& { return instance().m_scene; }
+    [[nodiscard]] static auto ui() -> ui::UI& { return instance().m_ui; }
+    [[nodiscard]] static auto scene() -> scene::Scene& { return instance().m_scene; }
     [[nodiscard]] static auto defaults() -> const aegis::assets::DefaultAssets& { return *instance().m_defaults; }
 
     [[nodiscard]] auto useGpuDrivenRendering() const -> bool
@@ -106,7 +106,7 @@ public:
     // Failures are logged and asserted, like the engine's other setup errors.
 
     /// @brief Loads a .gltf / .glb / .obj into the current scene; returns its root entity.
-    static auto loadModel(const std::filesystem::path& path) -> Scene::Entity
+    static auto loadModel(const std::filesystem::path& path) -> scene::Entity
     {
         auto& engine = instance();
         auto root = aegis::assets::Loader::load(
@@ -191,7 +191,7 @@ public:
     }
 
     /// @brief Creates a scene from a description
-    /// @tparam T Description of the scene (Derived from Scene::Description)
+    /// @tparam T Description of the scene (Derived from SceneDescription)
     template<SceneDescriptionDerived T, typename... Args>
     void loadScene(Args&&... args)
     {
@@ -304,11 +304,11 @@ private:
 
         ScopeProfiler frameBrake("Wait for FPS limit");
 
-        if constexpr (!Core::ENABLE_FPS_LIMIT)
+        if constexpr (!core::ENABLE_FPS_LIMIT)
             return;
 
         // Note: This has to be a busy wait since sleep_for is not accurate enough (especially on Windows)
-        while (duration<double, std::milli>(steady_clock::now() - frameBegin).count() < Core::TARGET_FRAME_TIME)
+        while (duration<double, std::milli>(steady_clock::now() - frameBegin).count() < core::TARGET_FRAME_TIME)
         {
             // busy wait
         }
@@ -319,20 +319,20 @@ private:
     // Order matters: members are destroyed bottom up, and everything holding GPU resources must go
     // before the device.
     Logging m_logging{};
-    Core::LayerStack m_layerStack{};
-    UI::UI m_ui{ m_layerStack };
-    aegis::platform::Window m_window{ { .title = "Aegis", .width = Core::DEFAULT_WIDTH, .height = Core::DEFAULT_HEIGHT } };
+    core::LayerStack m_layerStack{};
+    ui::UI m_ui{ m_layerStack };
+    aegis::platform::Window m_window{ { .title = "Aegis", .width = core::DEFAULT_WIDTH, .height = core::DEFAULT_HEIGHT } };
     // Before ImGui's GLFW backend installs its callbacks, which chain to the window's.
     aegis::platform::Input m_input{ m_window };
     std::unique_ptr<aegis::rhi::Context> m_context;
     std::unique_ptr<aegis::rhi::Device> m_device;
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
-    Core::AssetManager m_assets{};
+    core::AssetManager m_assets{};
     std::optional<aegis::assets::DefaultAssets> m_defaults;
     std::optional<aegis::render_graph::Ibl> m_ibl;
     std::shared_ptr<aegis::assets::Texture> m_brdfLut;
-    Scene::Scene m_scene;
-    Scripting::ScriptManager m_scriptManager{ m_scene, m_input };
+    scene::Scene m_scene;
+    scripting::ScriptManager m_scriptManager{ m_scene, m_input };
     aegis::render_graph::DrawBatchRegistry m_drawBatches; // Disconnects from the scene first
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
 };
