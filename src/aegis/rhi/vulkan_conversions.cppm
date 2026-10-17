@@ -285,10 +285,9 @@ inline auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue
         [](const ClearColor& value) -> vk::ClearValue {
             return vk::ClearColorValue{ value.r, value.g, value.b, value.a };
         },
-        [](const ClearDepthStencil& value)-> vk::ClearValue {
+        [](const ClearDepthStencil& value) -> vk::ClearValue {
             return vk::ClearDepthStencilValue{ value.depth, value.stencil };
-        }
-    );
+        });
 }
 
 constexpr auto toVulkan(AttachmentLoadOp op) noexcept -> vk::AttachmentLoadOp

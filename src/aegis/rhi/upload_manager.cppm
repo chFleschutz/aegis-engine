@@ -68,7 +68,7 @@ class UploadManager
 public:
     struct Desc
     {
-        std::uint64_t stagingBufferSize{ 64 * 1024 * 1024 };      // Default 64 MB
+        std::uint64_t stagingBufferSize{ 64 * 1024 * 1024 }; // Default 64 MB
         // Uploads larger than this bypass the ring: each gets a dedicated staging buffer, freed once
         // its batch has run. Keeps one large upload from monopolizing the ring, and makes uploads
         // larger than the whole ring possible at all. Must be less than stagingBufferSize.

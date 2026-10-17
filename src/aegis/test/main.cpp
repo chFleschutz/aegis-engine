@@ -48,7 +48,6 @@ auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, 
     return buffer;
 }
 
-
 namespace aegis
 {
 struct Options
@@ -1006,8 +1005,7 @@ public:
             .colorAttachments = colorAttachments,
             .depthAttachment = rhi::Attachment::depth(
                 m_depthTexture.view,
-                rhi::ClearDepthStencil{ 1.0f, 0 }
-            ),
+                rhi::ClearDepthStencil{ 1.0f, 0 }),
         });
         cmd.bindPipeline(*m_pipeline);
         cmd.setViewport(extent);

@@ -540,9 +540,9 @@ auto Device::createDevice(const vk::raii::PhysicalDevice& pd, const Capabilities
     auto extensions = queryExtensions(capabilities, presentation);
 
     auto deviceInfo = vk::DeviceCreateInfo{}
-        .setPNext(&features.get<vk::PhysicalDeviceFeatures2>())
-        .setQueueCreateInfos(queueCreateInfos)
-        .setPEnabledExtensionNames(extensions);
+                          .setPNext(&features.get<vk::PhysicalDeviceFeatures2>())
+                          .setQueueCreateInfos(queueCreateInfos)
+                          .setPEnabledExtensionNames(extensions);
 
     auto device = pd.createDevice(deviceInfo);
     if (!device.has_value())
