@@ -56,7 +56,7 @@ auto Queue::submit(const SubmitInfo& info) -> std::expected<TimelineValue, Error
         .pWaitSemaphoreInfos = &waitInfo,
         .commandBufferInfoCount = 1,
         .pCommandBufferInfos = &cmdInfo,
-        .signalSemaphoreInfoCount = static_cast<uint32_t>(signalInfos.size()),
+        .signalSemaphoreInfoCount = static_cast<std::uint32_t>(signalInfos.size()),
         .pSignalSemaphoreInfos = signalInfos.data(),
     };
 

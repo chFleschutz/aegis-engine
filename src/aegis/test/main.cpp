@@ -44,7 +44,7 @@ import aegis.scene.registry;
 import aegis.scene.systems.camera_system;
 import aegis.scene.systems.transform_system;
 
-using SpirvBuffer = std::vector<uint32_t>;
+using SpirvBuffer = std::vector<std::uint32_t>;
 
 auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, std::string>
 {

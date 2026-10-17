@@ -26,8 +26,8 @@ namespace aegis::rhi::detail
 auto chooseSwapchainExtent(Extent2D preferred, Extent2D minExtent, Extent2D maxExtent,
     Extent2D currentExtent) -> Extent2D
 {
-    if (currentExtent.x != std::numeric_limits<uint32_t>::max() &&
-        currentExtent.y != std::numeric_limits<uint32_t>::max())
+    if (currentExtent.x != std::numeric_limits<std::uint32_t>::max() &&
+        currentExtent.y != std::numeric_limits<std::uint32_t>::max())
         return currentExtent;
 
     return Extent2D{
@@ -51,7 +51,7 @@ namespace aegis::rhi
 auto Swapchain::acquireNextImage(const Semaphore& signalSemaphore)
     -> std::expected<AcquiredImage, Error>
 {
-    auto index = m_swapchain.acquireNextImage(std::numeric_limits<uint64_t>::max(), *signalSemaphore);
+    auto index = m_swapchain.acquireNextImage(std::numeric_limits<std::uint64_t>::max(), *signalSemaphore);
     if (index.result == vk::Result::eSuboptimalKHR)
     {
         // Swapchain needs to be recreated but ok to continue
@@ -288,7 +288,7 @@ auto Swapchain::createImages(const Device& device, const vk::raii::SwapchainKHR&
     if (!images.has_value())
         return makeError(toRHI(images.error()));
 
-    for (size_t i = 0; i < images->size(); ++i)
+    for (std::size_t i = 0; i < images->size(); ++i)
     {
         debug::setName(*device, images->at(i), std::format("SwapchainImage{}", i));
     }
@@ -309,7 +309,7 @@ auto Swapchain::createImageViews(
     std::vector<ImageViewHandle> imageViews;
     imageViews.reserve(images.size());
 
-    for (size_t i = 0; i < images.size(); ++i)
+    for (std::size_t i = 0; i < images.size(); ++i)
     {
         auto imageView = device.createImageView(images[i],
             ImageView::Desc{
@@ -346,9 +346,9 @@ auto Swapchain::createSemaphores(
     return semaphores;
 }
 
-auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> uint32_t
+auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> std::uint32_t
 {
-    constexpr uint32_t desiredImageCount{ 3 };
+    constexpr std::uint32_t desiredImageCount{ 3 };
     return detail::chooseImageCount(desiredImageCount, caps.minImageCount, caps.maxImageCount);
 }
 

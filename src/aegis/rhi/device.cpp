@@ -425,11 +425,11 @@ auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::
 
     const bool presentation = *surface != nullptr;
 
-    std::vector<std::pair<uint32_t, uint32_t>> candidates;
-    for (size_t i = 0; i < physicalDevices.size(); ++i)
+    std::vector<std::pair<std::uint32_t, std::uint32_t>> candidates;
+    for (std::size_t i = 0; i < physicalDevices.size(); ++i)
     {
         const auto& physicalDevice = physicalDevices[i];
-        uint32_t score{ 0 };
+        std::uint32_t score{ 0 };
 
         if (!queryQueueFamilies(physicalDevice, surface).isComplete(presentation))
             continue;
@@ -448,7 +448,7 @@ auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::
             score += 1000;
 
         score += properties.limits.maxImageDimension2D;
-        candidates.emplace_back(score, static_cast<uint32_t>(i));
+        candidates.emplace_back(score, static_cast<std::uint32_t>(i));
     }
 
     std::ranges::sort(candidates); // Sorts highest score at the end
@@ -466,7 +466,7 @@ auto Device::queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,
     QueueFamilyIndices indices;
 
     auto queueFamilies = physicalDevice.getQueueFamilyProperties();
-    for (uint32_t i = 0; i < queueFamilies.size(); ++i)
+    for (std::uint32_t i = 0; i < queueFamilies.size(); ++i)
     {
         const auto& props = queueFamilies[i];
         auto hasGraphics = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eGraphics);
@@ -541,7 +541,7 @@ auto Device::createDevice(const vk::raii::PhysicalDevice& pd, const Capabilities
 
     auto queuePriority = 1.0f;
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-    for (uint32_t family : uniqueQueueFamilies)
+    for (std::uint32_t family : uniqueQueueFamilies)
     {
         queueCreateInfos.emplace_back(
             vk::DeviceQueueCreateInfo{

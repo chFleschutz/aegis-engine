@@ -180,7 +180,7 @@ auto Pipeline::createGraphicsPipeline(
     vk::PipelineColorBlendStateCreateInfo colorBlendState{
         .logicOpEnable = vk::False,
         .logicOp = vk::LogicOp::eCopy,
-        .attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size()),
+        .attachmentCount = static_cast<std::uint32_t>(colorBlendAttachments.size()),
         .pAttachments = colorBlendAttachments.data(),
         .blendConstants = std::array{ 0.0f, 0.0f, 0.0f, 0.0f },
     };
@@ -196,7 +196,7 @@ auto Pipeline::createGraphicsPipeline(
     auto structureChain = vk::StructureChain{
         vk::PipelineRenderingCreateInfo{
             .viewMask = 0,
-            .colorAttachmentCount = static_cast<uint32_t>(formats.size()),
+            .colorAttachmentCount = static_cast<std::uint32_t>(formats.size()),
             .pColorAttachmentFormats = formats.data(),
             .depthAttachmentFormat = toVulkan(desc.depthAttachment),
             .stencilAttachmentFormat = toVulkan(desc.stencilAttachment),

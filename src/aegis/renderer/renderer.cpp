@@ -203,8 +203,8 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
     for (auto& [name, texture, desc, scaleFactor] : m_resDependent)
     {
         const auto extent = rhi::Extent3D{
-            static_cast<uint32_t>(m_extent.x * scaleFactor),
-            static_cast<uint32_t>(m_extent.y * scaleFactor),
+            static_cast<std::uint32_t>(m_extent.x * scaleFactor),
+            static_cast<std::uint32_t>(m_extent.y * scaleFactor),
             desc.extent.z,
         };
 
@@ -251,7 +251,7 @@ auto Renderer::createFrameContext(
     std::expected<std::vector<FrameContext>, Error> frameContext;
     frameContext.emplace();
     frameContext->reserve(maxFramesInFlight);
-    for (uint32_t i = 0; i < maxFramesInFlight; ++i)
+    for (std::uint32_t i = 0; i < maxFramesInFlight; ++i)
     {
         auto cmd = device.createCommandBuffer({
             .name = std::format("CmdBufferFrame{}", i),

@@ -198,10 +198,10 @@ private:
 
     struct QueueFamilyIndices
     {
-        uint32_t graphics{ vk::QueueFamilyIgnored };
-        uint32_t compute{ vk::QueueFamilyIgnored };
-        uint32_t transfer{ vk::QueueFamilyIgnored };
-        uint32_t present{ vk::QueueFamilyIgnored };
+        std::uint32_t graphics{ vk::QueueFamilyIgnored };
+        std::uint32_t compute{ vk::QueueFamilyIgnored };
+        std::uint32_t transfer{ vk::QueueFamilyIgnored };
+        std::uint32_t present{ vk::QueueFamilyIgnored };
 
         /// @param presentation Whether a present family is required (false when headless).
         [[nodiscard]] auto isComplete(bool presentation) const -> bool;

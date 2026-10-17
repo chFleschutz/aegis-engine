@@ -416,7 +416,7 @@ auto CommandBuffer::generateMipmaps(ImageHandle imageHandle, ResourceState curre
         },
     };
 
-    for (uint32_t i = 1; i < image.mipLevels(); ++i)
+    for (std::uint32_t i = 1; i < image.mipLevels(); ++i)
     {
         mipToTransferSrcBarrier.subresourceRange.baseMipLevel = i - 1;
         m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{

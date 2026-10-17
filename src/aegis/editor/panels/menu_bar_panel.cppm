@@ -53,6 +53,6 @@ public:
     }
 
 private:
-    uint32_t m_flags = MenuFlags::None;
+    std::uint32_t m_flags = MenuFlags::None;
 };
 }

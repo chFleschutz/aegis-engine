@@ -13,7 +13,7 @@ export import aegis.core.asset;
 
 export namespace aegis::core
 {
-using AssetID = uint64_t;
+using AssetID = std::uint64_t;
 
 class AssetManager
 {

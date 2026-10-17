@@ -21,7 +21,7 @@ public:
     {
         std::string_view name;
         ShaderStage stage;
-        std::span<uint32_t> code;
+        std::span<std::uint32_t> code;
         std::string_view entryPoint{ "main" };
     };
 

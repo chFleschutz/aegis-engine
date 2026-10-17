@@ -138,16 +138,16 @@ auto Context::createInstance(
         },
     };
     const vk::LayerSettingsCreateInfoEXT layerSettingsInfo{
-        .settingCount = static_cast<uint32_t>(layerSettings.size()),
+        .settingCount = static_cast<std::uint32_t>(layerSettings.size()),
         .pSettings = layerSettings.data(),
     };
 
     const vk::InstanceCreateInfo instanceInfo{
         .pNext = enableValidation ? &layerSettingsInfo : nullptr,
         .pApplicationInfo = &appInfo,
-        .enabledLayerCount = static_cast<uint32_t>(layers->size()),
+        .enabledLayerCount = static_cast<std::uint32_t>(layers->size()),
         .ppEnabledLayerNames = layers->data(),
-        .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+        .enabledExtensionCount = static_cast<std::uint32_t>(extensions.size()),
         .ppEnabledExtensionNames = extensions.data(),
     };
 
@@ -210,7 +210,7 @@ auto Context::findExtensions(const Desc& desc) -> std::vector<const char*>
     // Headless never touches GLFW: it may not even be initialized, since only a Window does that.
     if (desc.window)
     {
-        uint32_t glfwExtensionCount = 0;
+        std::uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
         extensions.assign(glfwExtensions, glfwExtensions + glfwExtensionCount);
     }

@@ -18,8 +18,8 @@ public:
     struct Desc
     {
         std::string_view title;
-        uint32_t width;
-        uint32_t height;
+        std::uint32_t width;
+        std::uint32_t height;
     };
 
     explicit Window(const Desc& desc);
@@ -31,9 +31,9 @@ public:
     auto operator=(Window&& other) noexcept -> Window&;
 
     [[nodiscard]] auto glfwWindow() const -> GLFWwindow* { return m_window; }
-    [[nodiscard]] auto width() const -> uint32_t { return m_width; }
-    [[nodiscard]] auto height() const -> uint32_t { return m_height; }
-    [[nodiscard]] auto extent() const -> std::pair<uint32_t, uint32_t> { return { m_width, m_height }; }
+    [[nodiscard]] auto width() const -> std::uint32_t { return m_width; }
+    [[nodiscard]] auto height() const -> std::uint32_t { return m_height; }
+    [[nodiscard]] auto extent() const -> std::pair<std::uint32_t, std::uint32_t> { return { m_width, m_height }; }
     [[nodiscard]] auto isMinimized() const -> bool { return m_width == 0 || m_height == 0; }
     [[nodiscard]] auto wasResized() const -> bool { return m_wasResized; }
     [[nodiscard]] auto shouldClose() const -> bool;
@@ -55,8 +55,8 @@ private:
     static auto onKey(GLFWwindow* glfwWindow, int key, int scancode, int action, int mods) -> void;
 
     GLFWwindow* m_window{ nullptr };
-    uint32_t m_width{ 0 };
-    uint32_t m_height{ 0 };
+    std::uint32_t m_width{ 0 };
+    std::uint32_t m_height{ 0 };
     bool m_wasResized{ false };
     std::function<void(int key, int action, int mods)> m_keyHandler;
 };

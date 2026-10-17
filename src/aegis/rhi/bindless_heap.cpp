@@ -183,14 +183,14 @@ auto BindlessHeap::createLayout(const vk::raii::Device& device,
                vk::DescriptorBindingFlagBits::eUpdateUnusedWhilePending);
 
     vk::DescriptorSetLayoutBindingFlagsCreateInfo flagsInfo{
-        .bindingCount = static_cast<uint32_t>(flags.size()),
+        .bindingCount = static_cast<std::uint32_t>(flags.size()),
         .pBindingFlags = flags.data(),
     };
 
     vk::DescriptorSetLayoutCreateInfo layoutInfo{
         .pNext = &flagsInfo,
         .flags = vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool,
-        .bindingCount = static_cast<uint32_t>(bindings.size()),
+        .bindingCount = static_cast<std::uint32_t>(bindings.size()),
         .pBindings = bindings.data(),
     };
 
@@ -222,7 +222,7 @@ auto BindlessHeap::createPool(const vk::raii::Device& device,
     vk::DescriptorPoolCreateInfo poolInfo{
         .flags = vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind,
         .maxSets = 1,
-        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+        .poolSizeCount = static_cast<std::uint32_t>(poolSizes.size()),
         .pPoolSizes = poolSizes.data(),
     };
 

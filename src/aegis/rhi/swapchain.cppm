@@ -142,7 +142,7 @@ private:
         -> std::expected<std::vector<Semaphore>, Error>;
 
     [[nodiscard]] static auto chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps)
-        -> uint32_t;
+        -> std::uint32_t;
 
     Swapchain(
         vk::raii::SwapchainKHR swapchain,
