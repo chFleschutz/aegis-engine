@@ -74,14 +74,21 @@ public:
         if (m_gltf.scenes.empty())
             return makeError(ErrorCode::InvalidData, std::format("glTF has no scenes: '{}'", path.string()));
 
+        // Only the default scene is instantiated (the first one if the file names none).
         const auto sceneIndex = m_gltf.defaultScene.value_or(0);
+        if (sceneIndex >= m_gltf.scenes.size())
+            return makeError(ErrorCode::InvalidData, std::format("glTF default scene {} does not exist: '{}'", sceneIndex, path.string()));
+        const auto walk = walkScene(sceneIndex);
+        if (!walk)
+            return std::unexpected{ Error{ walk.error().code, std::format("{}: '{}'", walk.error().message, path.string()) } };
+
         const auto& sceneName = m_gltf.scenes[sceneIndex].name;
         m_root = m_desc.scene.create(sceneName.empty() ? path.stem().string() : std::string{ sceneName });
 
         // glTF is Y-up; the engine is Z-up.
         m_desc.scene.get<aegis::Transform>(m_root).rotation = glm::quat{ glm::radians(glm::vec3{ 90.0f, 0.0f, 0.0f }) };
 
-        buildScene();
+        buildScene(*walk);
         return m_root;
     }
 
@@ -270,13 +277,55 @@ private:
         return primitive.materialIndex ? m_materials[*primitive.materialIndex] : m_desc.defaultMaterial;
     }
 
-    auto buildScene() -> void
+    struct SceneNode
+    {
+        std::size_t node;   // Index into the glTF nodes
+        std::size_t parent; // Position of the parent in the walk, or noParent for a scene root
+    };
+    static constexpr auto noParent = std::numeric_limits<std::size_t>::max();
+
+    /// @brief The nodes of one glTF scene in depth-first preorder, so every parent precedes its
+    ///        children. Nodes outside the scene are left out. glTF requires the nodes to form
+    ///        disjoint trees; a node reached twice (a cycle or a shared child) is InvalidData.
+    auto walkScene(std::size_t sceneIndex) const -> std::expected<std::vector<SceneNode>, Error>
+    {
+        std::vector<bool> reached(m_gltf.nodes.size(), false);
+        std::vector<SceneNode> walk;
+        std::vector<SceneNode> stack;
+        const auto& roots = m_gltf.scenes[sceneIndex].nodeIndices;
+        for (std::size_t i = roots.size(); i-- > 0;)
+            stack.push_back({ roots[i], noParent });
+
+        while (!stack.empty())
+        {
+            const auto current = stack.back();
+            stack.pop_back();
+            if (current.node >= m_gltf.nodes.size())
+                return makeError(ErrorCode::InvalidData, std::format("glTF scene {} references missing node {}", sceneIndex, current.node));
+            if (reached[current.node])
+            {
+                return makeError(ErrorCode::InvalidData,
+                    std::format("glTF node {} is reached twice in scene {}; nodes must form trees", current.node, sceneIndex));
+            }
+            reached[current.node] = true;
+
+            const auto position = walk.size();
+            walk.push_back(current);
+            const auto& children = m_gltf.nodes[current.node].children;
+            for (std::size_t i = children.size(); i-- > 0;)
+                stack.push_back({ children[i], position });
+        }
+        return walk;
+    }
+
+    auto buildScene(std::span<const SceneNode> walk) -> void
     {
         auto& scene = m_desc.scene;
 
-        std::vector<Entity> entities(m_gltf.nodes.size());
-        for (std::size_t i = 0; i < m_gltf.nodes.size(); ++i)
+        std::vector<Entity> entities(walk.size());
+        for (std::size_t position = 0; position < walk.size(); ++position)
         {
+            const auto i = walk[position].node;
             const auto& node = m_gltf.nodes[i];
             // Options::DecomposeNodeMatrices turns every matrix into TRS.
             const auto& trs = std::get<fastgltf::TRS>(node.transform);
@@ -286,7 +335,11 @@ private:
                 glm::vec3{ trs.translation.x(), trs.translation.y(), trs.translation.z() },
                 glm::quat{ trs.rotation.w(), trs.rotation.x(), trs.rotation.y(), trs.rotation.z() },
                 glm::vec3{ trs.scale.x(), trs.scale.y(), trs.scale.z() });
-            entities[i] = entity;
+            entities[position] = entity;
+            if (walk[position].parent == noParent)
+                scene.setParent(entity, m_root);
+            else
+                scene.addChild(entities[walk[position].parent], entity);
 
             if (!node.meshIndex)
                 continue;
@@ -307,18 +360,6 @@ private:
                 scene.add<Material>(child, materialFor(gltfMesh.primitives[sub]));
                 scene.addChild(entity, child);
             }
-        }
-
-        for (std::size_t i = 0; i < m_gltf.nodes.size(); ++i)
-        {
-            for (const auto child : m_gltf.nodes[i].children)
-                scene.addChild(entities[i], entities[child]);
-        }
-
-        for (const auto entity : entities)
-        {
-            if (!scene.get<aegis::Parent>(entity).entity)
-                scene.setParent(entity, m_root);
         }
     }
 
