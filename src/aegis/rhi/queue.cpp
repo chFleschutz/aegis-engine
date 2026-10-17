@@ -96,8 +96,8 @@ auto Queue::wait(TimelineValue timePoint) const -> bool
 
     vk::Semaphore waitSem = *m_timeline;
     auto waitInfo = vk::SemaphoreWaitInfo{}
-        .setSemaphores(waitSem)
-        .setValues(timePoint);
+                        .setSemaphores(waitSem)
+                        .setValues(timePoint);
 
     auto result = m_timeline->getDevice().waitSemaphores(waitInfo,
         std::numeric_limits<std::uint64_t>::max(),

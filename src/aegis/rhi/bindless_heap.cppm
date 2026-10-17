@@ -51,7 +51,6 @@ private:
     std::uint32_t m_capacity;
 };
 
-
 enum class BindlessError : std::uint32_t
 {
     OutOfMemory = 0,

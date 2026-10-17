@@ -59,7 +59,7 @@ TEST_SUITE("rhi::ResourcePool")
         auto handle = pool.push(10);
 
         CHECK(pool.replace(handle, 20) == 10);
-        CHECK(handle.generation() == 0);   // no generation bump
+        CHECK(handle.generation() == 0); // no generation bump
         CHECK(pool.get(handle) == 20);
     }
 

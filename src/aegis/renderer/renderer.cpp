@@ -246,13 +246,13 @@ auto Renderer::createFrameContext(
     {
         auto cmd = device.createCommandBuffer({
             .name = std::format("CmdBufferFrame{}", i),
-            .pool = pool
+            .pool = pool,
         });
         if (!cmd)
             return std::unexpected{ Error::RHIInitializationFailed };
 
         auto semaphore = device.createSemaphore({
-            .name = std::format("ImageAvailableSemaphoreFrame{}", i)
+            .name = std::format("ImageAvailableSemaphoreFrame{}", i),
         });
         if (!semaphore)
             return std::unexpected{ Error::RHIInitializationFailed };

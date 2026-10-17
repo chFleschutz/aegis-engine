@@ -90,26 +90,26 @@ auto Pipeline::createGraphicsPipeline(
             });
     }
 
-    auto vertexBindings = desc.vertexBindings
-                          | std::views::transform([](const auto& b) {
+    auto vertexBindings = desc.vertexBindings |
+                          std::views::transform([](const auto& b) {
                               return vk::VertexInputBindingDescription{
                                   .binding = b.binding,
                                   .stride = b.stride,
                                   .inputRate = vk::VertexInputRate::eVertex,
                               };
-                          })
-                          | std::ranges::to<std::vector>();
+                          }) |
+                          std::ranges::to<std::vector>();
 
-    auto vertexAttributes = desc.vertexAttributes
-                            | std::views::transform([](const auto& a) {
+    auto vertexAttributes = desc.vertexAttributes |
+                            std::views::transform([](const auto& a) {
                                 return vk::VertexInputAttributeDescription{
                                     .location = a.location,
                                     .binding = a.binding,
                                     .format = toVulkan(a.format),
                                     .offset = a.offset,
                                 };
-                            })
-                            | std::ranges::to<std::vector>();
+                            }) |
+                            std::ranges::to<std::vector>();
 
     vk::PipelineVertexInputStateCreateInfo vertexInputState{
         .vertexBindingDescriptionCount = static_cast<std::uint32_t>(vertexBindings.size()),

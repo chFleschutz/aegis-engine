@@ -6,8 +6,7 @@ import vulkan;
 export namespace aegis::rhi::debug
 {
 template<typename T>
-concept IsVulkanHandle = requires
-{
+concept IsVulkanHandle = requires {
     { T::objectType } -> std::convertible_to<vk::ObjectType>;
     typename T::CType;
 };
