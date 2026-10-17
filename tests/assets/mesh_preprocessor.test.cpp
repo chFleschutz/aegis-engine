@@ -25,6 +25,21 @@ auto quad() -> MeshPreprocessor::Input
     input.normals.assign(corners.size(), glm::vec3{ 0, 0, 1 });
     return input;
 }
+
+// Signed area (z of the cross product, halved) of each output triangle, in the XY plane.
+// Positive is counterclockwise seen from +Z.
+auto signedAreas(const aegis::assets::MeshData& mesh) -> std::vector<float>
+{
+    std::vector<float> areas;
+    for (std::size_t i = 0; i + 2 < mesh.indices.size(); i += 3)
+    {
+        const auto a = mesh.vertices[mesh.indices[i + 0]].position;
+        const auto b = mesh.vertices[mesh.indices[i + 1]].position;
+        const auto c = mesh.vertices[mesh.indices[i + 2]].position;
+        areas.push_back(0.5f * glm::cross(b - a, c - a).z);
+    }
+    return areas;
+}
 }
 
 TEST_SUITE("assets::MeshPreprocessor")
@@ -86,6 +101,45 @@ TEST_SUITE("assets::MeshPreprocessor")
         CHECK(mesh->indices.size() == 6);
     }
 
+    TEST_CASE("a triangle strip becomes a list with one winding")
+    {
+        // A 2x1 ribbon in strip order: 6 vertices, 4 clockwise triangles. Read as a list, the same
+        // indices would give 2 triangles of opposite winding.
+        MeshPreprocessor::Input input;
+        input.positions = { { 0, 0, 0 }, { 0, 1, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 2, 0, 0 }, { 2, 1, 0 } };
+        input.normals.assign(6, glm::vec3{ 0, 0, -1 });
+        input.topology = MeshPreprocessor::Topology::TriangleStrip;
+
+        SUBCASE("unindexed") {}
+        SUBCASE("indexed")
+        {
+            input.indices = { 0, 1, 2, 3, 4, 5 };
+        }
+
+        auto mesh = MeshPreprocessor::process(input);
+        REQUIRE(mesh.has_value());
+        const auto areas = signedAreas(*mesh);
+        CHECK(areas.size() == 4);
+        for (const auto area : areas)
+            CHECK(area == doctest::Approx(-0.5f));
+    }
+
+    TEST_CASE("a triangle fan becomes a list around its first vertex")
+    {
+        MeshPreprocessor::Input input;
+        input.positions = { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 0, 1, 0 }, { -1, 1, 0 } };
+        input.normals.assign(5, glm::vec3{ 0, 0, 1 });
+        input.indices = { 0, 1, 2, 3, 4 };
+        input.topology = MeshPreprocessor::Topology::TriangleFan;
+
+        auto mesh = MeshPreprocessor::process(input);
+        REQUIRE(mesh.has_value());
+        const auto areas = signedAreas(*mesh);
+        CHECK(areas.size() == 3);
+        for (const auto area : areas)
+            CHECK(area == doctest::Approx(0.5f));
+    }
+
     TEST_CASE("rejects input it cannot turn into triangles")
     {
         SUBCASE("no positions")
@@ -108,6 +162,16 @@ TEST_SUITE("assets::MeshPreprocessor")
         {
             auto input = quad();
             input.indices = { 0, 1, 2, 3 };
+            auto result = MeshPreprocessor::process(input);
+            REQUIRE(!result.has_value());
+            CHECK(result.error().code == ErrorCode::InvalidData);
+        }
+
+        SUBCASE("a strip with fewer than 3 indices")
+        {
+            auto input = quad();
+            input.indices = { 0, 1 };
+            input.topology = MeshPreprocessor::Topology::TriangleStrip;
             auto result = MeshPreprocessor::process(input);
             REQUIRE(!result.has_value());
             CHECK(result.error().code == ErrorCode::InvalidData);

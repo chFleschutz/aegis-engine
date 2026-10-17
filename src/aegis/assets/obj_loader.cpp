@@ -39,10 +39,11 @@ auto Loader::loadObj(const Desc& desc, const std::filesystem::path& path) -> std
             input.normals.emplace_back(attrib.normals[3 * normal + 0], attrib.normals[3 * normal + 1],
                 attrib.normals[3 * normal + 2]);
 
+            // OBJ's v runs up from the image's bottom row; the engine's (like glTF's) runs down from the top.
             const auto uv = index.texcoord_index;
             input.uvs.emplace_back(uv < 0 ? glm::vec2{ 0.0f }
                                           : glm::vec2{ attrib.texcoords[2 * static_cast<std::size_t>(uv) + 0],
-                                                attrib.texcoords[2 * static_cast<std::size_t>(uv) + 1] });
+                                                1.0f - attrib.texcoords[2 * static_cast<std::size_t>(uv) + 1] });
         }
     }
 
