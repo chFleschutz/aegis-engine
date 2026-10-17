@@ -4,6 +4,7 @@ module;
 
 #include <cmath>
 #include <limits>
+#include <tuple>
 
 export module aegis.scene.systems.camera_system;
 
