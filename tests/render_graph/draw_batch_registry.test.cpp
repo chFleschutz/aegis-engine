@@ -1,9 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <cstdint>
-#include <memory>
-#include <optional>
-
+import std;
 import aegis.assets;
 import aegis.render_graph;
 

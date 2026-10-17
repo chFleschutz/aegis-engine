@@ -1,8 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <cstdint>
-#include <limits>
-
+import std;
 import aegis.rhi;
 
 TEST_SUITE("rhi::swapchain policy")

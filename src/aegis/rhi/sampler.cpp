@@ -1,9 +1,5 @@
-module;
-#include <algorithm>
-#include <expected>
-#include <optional>
-
 module aegis.rhi;
+import std;
 import :sampler;
 import :debug;
 import :vulkan_conversions;

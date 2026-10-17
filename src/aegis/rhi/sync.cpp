@@ -1,10 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <limits>
-#include <utility>
-
 module aegis.rhi;
+import std;
 import :sync;
 import :device;
 import :debug;

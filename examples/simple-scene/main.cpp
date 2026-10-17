@@ -1,6 +1,4 @@
-#include <cmath>
-#include <string>
-
+import std;
 import aegis.engine;
 
 /// @brief Example script to rotate the entity around the up axis
@@ -51,8 +49,8 @@ public:
         constexpr float lightRadius = 10.0f;
         for (int i = 0; i < lightCount; i++)
         {
-            float x = lightRadius * cos(glm::radians(360.0f / lightCount * i));
-            float y = lightRadius * sin(glm::radians(360.0f / lightCount * i));
+            float x = lightRadius * std::cos(glm::radians(360.0f / lightCount * i));
+            float y = lightRadius * std::sin(glm::radians(360.0f / lightCount * i));
             auto light = registry.create("Light " + std::to_string(i), { x, y, 3.0f });
 
             float r = math::Random::uniformFloat(0.0f, 1.0f);

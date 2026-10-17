@@ -1,10 +1,5 @@
-module;
-#include <array>
-#include <cstdint>
-#include <expected>
-#include <vector>
-
 export module aegis.rhi:swapchain;
+import std;
 import :common;
 import :fwd;
 import :error;

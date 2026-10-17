@@ -1,10 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <memory>
-
 export module aegis.render_graph:ibl;
+import std;
 import :error;
 import aegis.assets;
 import aegis.rhi;

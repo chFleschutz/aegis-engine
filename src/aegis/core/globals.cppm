@@ -1,11 +1,6 @@
-module;
-
-#include <chrono>
-#include <cstdint>
-#include <filesystem>
-#include <limits>
-
 export module aegis.core.globals;
+
+import std;
 
 export namespace aegis::core
 {

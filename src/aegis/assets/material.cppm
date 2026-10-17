@@ -1,15 +1,5 @@
-module;
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <memory>
-#include <span>
-#include <string>
-#include <unordered_map>
-#include <variant>
-#include <vector>
-
 export module aegis.assets:material;
+import std;
 import :error;
 import :texture;
 import aegis.rhi;

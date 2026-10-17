@@ -1,11 +1,5 @@
-module;
-#include <array>
-#include <bit>
-#include <cstdint>
-#include <expected>
-#include <optional>
-
 export module aegis.render_graph:gpu_driven;
+import std;
 import :draw_batch_registry;
 import :error;
 import :render_pass;

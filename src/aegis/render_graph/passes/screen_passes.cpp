@@ -1,13 +1,8 @@
 module;
 #include <imgui.h>
 
-#include <array>
-#include <cstdint>
-#include <expected>
-#include <optional>
-#include <utility>
-
 module aegis.render_graph;
+import std;
 import aegis.assets;
 import aegis.rhi;
 import aegis.math;

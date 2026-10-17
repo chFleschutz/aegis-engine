@@ -1,10 +1,5 @@
-module;
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <vector>
-
 export module aegis.assets:mesh_preprocessor;
+import std;
 import :error;
 import :mesh_data;
 import aegis.math;

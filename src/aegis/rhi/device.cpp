@@ -1,19 +1,5 @@
-module;
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <format>
-#include <memory>
-#include <optional>
-#include <ranges>
-#include <set>
-#include <span>
-#include <string_view>
-#include <utility>
-#include <vector>
-
 module aegis.rhi;
+import std;
 import :device;
 import :context;
 import :debug;

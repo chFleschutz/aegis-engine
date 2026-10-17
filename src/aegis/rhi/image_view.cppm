@@ -1,11 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <optional>
-#include <string_view>
-#include <utility>
-
 export module aegis.rhi:image_view;
+import std;
 import :common;
 import :error;
 import :fwd;

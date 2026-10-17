@@ -1,15 +1,5 @@
-module;
-#include <concepts>
-#include <cstdint>
-#include <expected>
-#include <memory>
-#include <span>
-#include <string>
-#include <type_traits>
-#include <utility>
-#include <vector>
-
 export module aegis.render_graph:frame_graph;
+import std;
 import :error;
 import :render_pass;
 import :resource_pool;

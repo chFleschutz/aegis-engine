@@ -1,14 +1,5 @@
-module;
-#include <algorithm>
-#include <cstdint>
-#include <expected>
-#include <limits>
-#include <numeric>
-#include <string_view>
-#include <utility>
-#include <vector>
-
 export module aegis.rhi:image;
+import std;
 import :common;
 import :error;
 import :fwd;

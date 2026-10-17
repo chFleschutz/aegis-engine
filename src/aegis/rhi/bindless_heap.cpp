@@ -1,11 +1,5 @@
-module;
-#include <array>
-#include <cstdint>
-#include <expected>
-#include <optional>
-#include <utility>
-
 module aegis.rhi;
+import std;
 import :bindless_heap;
 import :device;
 import :vulkan_conversions;

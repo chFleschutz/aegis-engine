@@ -1,16 +1,8 @@
 module;
 // <compare>: MSVC needs it wherever Vulkan-Hpp's defaulted operator<=> is instantiated.
-#include <compare>
-#include <cstdint>
-#include <expected>
-#include <functional>
-#include <memory>
-#include <optional>
-#include <string>
-#include <string_view>
-#include <vector>
 
 export module aegis.renderer;
+import std;
 export import :texture;
 import aegis.rhi;
 import aegis.platform;

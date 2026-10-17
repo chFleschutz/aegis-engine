@@ -1,9 +1,6 @@
-module;
-
-#include <string>
-
 export module aegis.scene.components;
 
+import std;
 export import aegis.math;
 export import aegis.scene.entity;
 export import aegis.scene.component_traits;

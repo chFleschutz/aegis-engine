@@ -1,10 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <span>
-#include <string_view>
-
 export module aegis.rhi:pipeline;
+import std;
 import :error;
 import :common;
 import :fwd;

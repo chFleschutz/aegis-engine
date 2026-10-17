@@ -7,15 +7,9 @@ module;
 #include <entt/entity/registry.hpp>
 #include <entt/entity/view.hpp>
 
-#include <concepts>
-#include <filesystem>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-
 export module aegis.scene;
 
+import std;
 export import aegis.scene.registry;
 import aegis.math;
 import aegis.core.profiler;

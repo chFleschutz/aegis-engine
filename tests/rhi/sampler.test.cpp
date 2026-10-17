@@ -1,7 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <optional>
-
+import std;
 import aegis.rhi;
 
 TEST_SUITE("rhi::resolveAnisotropy")

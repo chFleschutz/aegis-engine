@@ -1,7 +1,5 @@
-module;
-#include <array>
-
 export module aegis.render_graph:frustum;
+import std;
 import aegis.math;
 
 export namespace aegis::render_graph

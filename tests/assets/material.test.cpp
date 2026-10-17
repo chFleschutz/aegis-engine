@@ -1,13 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <array>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <memory>
-#include <string>
-#include <unordered_map>
-
+import std;
 import aegis.assets;
 import aegis.math;
 

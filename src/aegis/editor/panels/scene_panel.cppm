@@ -6,16 +6,9 @@ module;
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
 
-#include <cstdint>
-#include <functional>
-#include <string>
-#include <utility>
-#include <variant>
-#include <vector>
-#include <memory>
-
 export module aegis.editor.panels:scene_panel;
 
+import std;
 import aegis.scene;
 import aegis.scene.entity;
 import aegis.scene.components;

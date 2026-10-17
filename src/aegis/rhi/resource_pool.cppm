@@ -1,13 +1,8 @@
 module;
-#include <array>
 #include <cassert>
-#include <cstdint>
-#include <memory>
-#include <optional>
-#include <utility>
-#include <vector>
 
 export module aegis.rhi:resource_pool;
+import std;
 import :fwd;
 import :resource_handle;
 

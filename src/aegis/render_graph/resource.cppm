@@ -1,9 +1,5 @@
-module;
-#include <cstddef>
-#include <cstdint>
-#include <limits>
-
 export module aegis.render_graph:resource;
+import std;
 import aegis.rhi;
 
 export namespace aegis::render_graph

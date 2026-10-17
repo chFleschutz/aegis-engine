@@ -13,26 +13,7 @@
 
 #include <imgui.h>
 
-#include <algorithm>
-#include <array>
-#include <charconv>
-#include <cmath>
-#include <limits>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <format>
-#include <fstream>
-#include <memory>
-#include <optional>
-#include <print>
-#include <span>
-#include <string>
-#include <string_view>
-#include <tuple>
-#include <vector>
-
+import std;
 import aegis.assets;
 import aegis.platform;
 import aegis.renderer;

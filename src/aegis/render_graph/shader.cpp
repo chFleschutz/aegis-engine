@@ -1,17 +1,5 @@
-module;
-#include <array>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <format>
-#include <fstream>
-#include <span>
-#include <string_view>
-#include <utility>
-#include <vector>
-
 module aegis.render_graph;
+import std;
 import aegis.rhi;
 
 namespace aegis::render_graph

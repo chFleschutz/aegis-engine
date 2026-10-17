@@ -2,11 +2,9 @@ module;
 
 #include "core/assert.h"
 
-#include <cmath>
-#include <vector>
-
 export module aegis.math:perlin_noise;
 
+import std;
 import :random;
 import :interpolation;
 

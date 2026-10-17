@@ -1,12 +1,5 @@
-module;
-#include <array>
-#include <concepts>
-#include <expected>
-#include <memory>
-#include <utility>
-#include <vector>
-
 export module aegis.render_graph:geometry_pass;
+import std;
 import :error;
 import :render_pass;
 import :render_system;

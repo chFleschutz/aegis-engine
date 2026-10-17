@@ -1,8 +1,5 @@
-module;
-#include <expected>
-#include <utility>
-
 module aegis.rhi;
+import std;
 import :command_pool;
 import :device;
 import :debug;

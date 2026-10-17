@@ -1,12 +1,5 @@
-module;
-#include <array>
-#include <cstdint>
-#include <expected>
-#include <memory>
-#include <string_view>
-#include <utility>
-
 module aegis.assets;
+import std;
 import aegis.rhi;
 import aegis.math;
 

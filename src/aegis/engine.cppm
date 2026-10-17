@@ -7,18 +7,9 @@ module;
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 
-#include <chrono>
-#include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <format>
-#include <memory>
-#include <optional>
-#include <string>
-#include <utility>
-
 export module aegis.engine;
 
+import std;
 export import aegis.math;
 export import aegis.ui;
 export import aegis.editor;

@@ -1,8 +1,5 @@
-module;
-#include <expected>
-#include <tuple>
-
 module aegis.assets:upload;
+import std;
 import aegis.rhi;
 
 namespace aegis::assets::detail

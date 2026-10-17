@@ -1,9 +1,5 @@
-module;
-#include <expected>
-#include <source_location>
-#include <utility>
-
 export module aegis.rhi:error;
+import std;
 import :common;
 
 export namespace aegis::rhi

@@ -1,8 +1,5 @@
 module;
 #include <cassert>
-#include <cstdint>
-#include <memory>
-#include <optional>
 
 // Only the ECS headers: entt.hpp pulls in entt::meta, which crashes clang -O3 against libstdc++
 #include <entt/entity/entity.hpp>
@@ -10,6 +7,7 @@ module;
 #include <entt/entity/view.hpp>
 
 module aegis.render_graph;
+import std;
 import aegis.assets;
 import aegis.scene.registry;
 

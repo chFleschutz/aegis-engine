@@ -1,9 +1,6 @@
-module;
-
-#include <concepts>
-
 export module aegis.scene.system;
 
+import std;
 export import aegis.scene.registry;
 
 export namespace aegis::scene

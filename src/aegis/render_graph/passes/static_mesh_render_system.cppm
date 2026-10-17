@@ -1,11 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <optional>
-#include <string>
-#include <string_view>
-
 export module aegis.render_graph:static_mesh_render_system;
+import std;
 import :error;
 import :render_system;
 import aegis.assets;

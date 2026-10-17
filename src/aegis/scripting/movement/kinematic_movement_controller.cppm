@@ -1,10 +1,6 @@
-module;
-
-#include <algorithm>
-#include <limits>
-
 export module aegis.scripting.movement.kinematic_movement_controller;
 
+import std;
 import aegis.scripting.script_base;
 import aegis.math;
 import aegis.platform;

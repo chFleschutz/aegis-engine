@@ -1,9 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <span>
-
 export module aegis.render_graph:render_system;
+import std;
 import :error;
 import aegis.rhi;
 import aegis.scene;

@@ -1,16 +1,5 @@
-module;
-#include <array>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <format>
-#include <memory>
-#include <span>
-#include <string>
-#include <string_view>
-#include <vector>
-
 module aegis.assets;
+import std;
 import :upload;
 import aegis.rhi;
 

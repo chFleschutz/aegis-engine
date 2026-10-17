@@ -1,9 +1,5 @@
-module;
-#include <expected>
-#include <optional>
-#include <utility>
-
 module aegis.rhi;
+import std;
 import :image_view;
 import :debug;
 import :vulkan_conversions;

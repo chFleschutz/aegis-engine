@@ -1,8 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <cstddef>
-#include <string_view>
-
+import std;
 import aegis.rhi;
 
 TEST_SUITE("rhi::utility::alignTo")

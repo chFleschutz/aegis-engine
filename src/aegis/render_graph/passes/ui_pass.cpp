@@ -4,13 +4,8 @@ module;
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 
-#include <array>
-#include <cstdlib>
-#include <expected>
-#include <functional>
-#include <utility>
-
 module aegis.render_graph;
+import std;
 import aegis.rhi;
 import vulkan;
 

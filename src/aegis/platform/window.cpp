@@ -2,12 +2,10 @@ module;
 #include "GLFW/glfw3.h"
 
 #include <cassert>
-#include <cstdint>
-#include <string>
-#include <string_view>
-#include <utility>
 
 module aegis.platform;
+
+import std;
 
 namespace aegis::platform
 {

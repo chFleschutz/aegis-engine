@@ -1,14 +1,5 @@
-module;
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <deque>
-#include <expected>
-#include <optional>
-#include <span>
-#include <vector>
-
 export module aegis.rhi:upload_manager;
+import std;
 import :buffer;
 import :command_buffer;
 import :command_pool;

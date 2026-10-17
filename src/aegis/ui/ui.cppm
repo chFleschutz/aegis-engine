@@ -3,10 +3,9 @@ module;
 #include <imgui.h>
 #include <ImGuizmo.h>
 
-#include <vector>
-
 export module aegis.ui;
 
+import std;
 import aegis.core.layer_stack;
 
 export namespace aegis::ui

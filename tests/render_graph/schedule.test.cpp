@@ -1,9 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <cstdint>
-#include <optional>
-#include <vector>
-
+import std;
 import aegis.render_graph;
 
 namespace

@@ -1,18 +1,9 @@
 module;
 #include <cassert>
-#include <cstdint>
-#include <expected>
-#include <format>
-#include <functional>
-#include <memory>
-#include <optional>
-#include <ostream>
-#include <print>
-#include <string>
-#include <utility>
-#include <vector>
 
 module aegis.renderer;
+
+import std;
 
 namespace aegis::renderer
 {

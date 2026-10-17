@@ -1,8 +1,5 @@
-module;
-#include <cstdint>
-#include <string_view>
-
 export module aegis.renderer:texture;
+import std;
 import aegis.rhi;
 
 export namespace aegis::renderer

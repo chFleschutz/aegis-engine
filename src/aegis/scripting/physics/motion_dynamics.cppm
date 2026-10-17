@@ -2,10 +2,9 @@ module;
 
 #include "core/assert.h"
 
-#include <algorithm>
-
 export module aegis.physics.motion_dynamics;
 
+import std;
 import aegis.math;
 import aegis.scripting.script_base;
 import aegis.scene.components;

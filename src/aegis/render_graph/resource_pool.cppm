@@ -1,15 +1,5 @@
-module;
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <optional>
-#include <span>
-#include <string>
-#include <string_view>
-#include <variant>
-#include <vector>
-
 export module aegis.render_graph:resource_pool;
+import std;
 import :error;
 import :resource;
 import aegis.renderer;

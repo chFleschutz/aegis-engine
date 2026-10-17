@@ -1,11 +1,5 @@
-module;
-#include <array>
-#include <cstdint>
-#include <expected>
-#include <memory>
-#include <string_view>
-
 export module aegis.assets:static_mesh;
+import std;
 import :error;
 import :mesh_data;
 import aegis.rhi;

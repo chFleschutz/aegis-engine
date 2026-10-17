@@ -1,11 +1,6 @@
-module;
-
-#include <string>
-#include <string_view>
-#include <unordered_map>
-
 export module aegis.core.profiler;
 
+import std;
 import aegis.utils.rolling_average;
 import aegis.utils.timer;
 

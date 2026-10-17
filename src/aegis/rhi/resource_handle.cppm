@@ -1,9 +1,8 @@
 module;
 #include <cassert>
-#include <cstdint>
-#include <limits>
 
 export module aegis.rhi:resource_handle;
+import std;
 import :fwd;
 
 export namespace aegis::rhi

@@ -1,15 +1,8 @@
 module;
 #include <meshoptimizer.h>
 
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <format>
-#include <utility>
-#include <vector>
-
 module aegis.assets;
+import std;
 import aegis.math;
 
 namespace aegis::assets

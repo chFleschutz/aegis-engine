@@ -1,13 +1,5 @@
-module;
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <memory>
-#include <span>
-#include <string_view>
-
 export module aegis.assets:texture;
+import std;
 import :error;
 import aegis.rhi;
 import aegis.core.asset;

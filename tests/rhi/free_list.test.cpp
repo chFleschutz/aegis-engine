@@ -1,8 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <cstdint>
-#include <optional>
-
+import std;
 import aegis.rhi;
 
 TEST_SUITE("rhi::FreeList")

@@ -1,8 +1,6 @@
-module;
-
-#include <string>
-
 export module aegis.scene.component_traits;
+
+import std;
 
 export namespace aegis
 {

@@ -1,11 +1,6 @@
-module;
-
-#include <memory>
-#include <utility>
-#include <vector>
-
 export module aegis.core.layer_stack;
 
+import std;
 import aegis.core.layer;
 
 export namespace aegis::core

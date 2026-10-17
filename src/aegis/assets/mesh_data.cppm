@@ -1,8 +1,5 @@
-module;
-#include <cstdint>
-#include <vector>
-
 export module aegis.assets:mesh_data;
+import std;
 import aegis.math;
 
 export namespace aegis::assets

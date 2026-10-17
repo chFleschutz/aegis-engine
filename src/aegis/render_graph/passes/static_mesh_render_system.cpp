@@ -1,9 +1,5 @@
-module;
-#include <expected>
-#include <string>
-#include <utility>
-
 module aegis.render_graph;
+import std;
 import aegis.assets;
 import aegis.rhi;
 import aegis.math;

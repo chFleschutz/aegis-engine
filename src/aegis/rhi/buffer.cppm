@@ -1,9 +1,5 @@
-module;
-#include <cstddef>
-#include <expected>
-#include <string_view>
-
 export module aegis.rhi:buffer;
+import std;
 import :common;
 import :fwd;
 import :memory;

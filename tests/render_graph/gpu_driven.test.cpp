@@ -1,7 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <cstdint>
-
+import std;
 import aegis.render_graph;
 
 TEST_SUITE("render_graph::detail::grownCapacity")

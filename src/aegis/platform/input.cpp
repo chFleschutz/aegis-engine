@@ -1,10 +1,9 @@
 module;
 #include "GLFW/glfw3.h"
 
-#include <functional>
-#include <utility>
-
 module aegis.platform;
+
+import std;
 
 namespace aegis::platform
 {

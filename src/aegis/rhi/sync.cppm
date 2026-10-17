@@ -1,8 +1,5 @@
-module;
-#include <expected>
-#include <string_view>
-
 export module aegis.rhi:sync;
+import std;
 import :error;
 import :fwd;
 import vulkan;

@@ -2,11 +2,9 @@ module;
 
 #include <imgui.h>
 
-#include <string>
-#include <utility>
-
 export module aegis.editor.panels:renderer_panel;
 
+import std;
 import aegis.render_graph;
 import aegis.renderer;
 import aegis.rhi;

@@ -1,10 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <memory>
-
 export module aegis.assets:loader;
+import std;
 import :error;
 import :material;
 import aegis.rhi;

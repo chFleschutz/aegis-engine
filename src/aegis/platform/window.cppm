@@ -1,12 +1,9 @@
 module;
 #include <GLFW/glfw3.h>
 
-#include <cstdint>
-#include <functional>
-#include <string_view>
-#include <utility>
-
 export module aegis.platform:window;
+
+import std;
 
 export namespace aegis::platform
 {

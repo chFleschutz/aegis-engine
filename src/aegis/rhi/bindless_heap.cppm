@@ -1,10 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <optional>
-#include <vector>
-
 export module aegis.rhi:bindless_heap;
+import std;
 import :common;
 import :error;
 import :fwd;

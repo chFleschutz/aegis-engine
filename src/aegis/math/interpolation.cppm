@@ -1,8 +1,6 @@
-module;
-
-#include <cmath>
-
 export module aegis.math:interpolation;
+
+import std;
 
 export namespace aegis::math
 {
