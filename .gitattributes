@@ -2,6 +2,9 @@
 # Set default behavior to automatically normalize line endings.
 ###############################################################################
 * text=auto
+
+# Shell scripts run in bash (Git Bash on Windows), which rejects CRLF line endings.
+*.sh text eol=lf
 ###############################################################################
 # Set default behavior for command prompt diff.
 #
