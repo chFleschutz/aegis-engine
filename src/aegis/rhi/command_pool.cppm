@@ -6,7 +6,7 @@ module;
 export module aegis.rhi:command_pool;
 import :error;
 import :fwd;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {

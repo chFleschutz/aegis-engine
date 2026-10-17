@@ -6,7 +6,7 @@ export module aegis.rhi:queue;
 import :common;
 import :fwd;
 import :sync;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {

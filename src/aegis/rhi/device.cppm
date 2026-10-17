@@ -29,7 +29,7 @@ import :sampler;
 import :swapchain;
 import :upload_manager;
 import aegis.platform;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {

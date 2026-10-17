@@ -21,7 +21,7 @@ import :error;
 import :upload_manager;
 import :utility;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {
@@ -414,9 +414,11 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
 auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface)
     -> std::expected<vk::raii::PhysicalDevice, Error>
 {
-    auto [result, physicalDevices] = instance.enumeratePhysicalDevices();
-    if (result != vk::Result::eSuccess)
-        return makeError(toRHI(result));
+    auto enumerated = instance.enumeratePhysicalDevices();
+    if (!enumerated.has_value())
+        return makeError(toRHI(enumerated.error()));
+
+    auto& physicalDevices = *enumerated;
 
     if (physicalDevices.empty())
         return makeError(ErrorCode::Unknown);
@@ -486,8 +488,8 @@ auto Device::queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,
         // Present queue - prefer one that matches graphics. Headless has no surface to present to.
         if (!*surface)
             continue;
-        auto [result, hasPresent] = physicalDevice.getSurfaceSupportKHR(i, *surface);
-        if (result == vk::Result::eSuccess && hasPresent)
+        auto hasPresent = physicalDevice.getSurfaceSupportKHR(i, *surface);
+        if (hasPresent.has_value() && *hasPresent)
         {
             if (indices.present == vk::QueueFamilyIgnored || i == indices.graphics)
                 indices.present = i;
@@ -558,7 +560,7 @@ auto Device::createDevice(const vk::raii::PhysicalDevice& pd, const Capabilities
 
     auto device = pd.createDevice(deviceInfo);
     if (!device.has_value())
-        return makeError(toRHI(device.result));
+        return makeError(toRHI(device.error()));
 
     return std::move(*device);
 }
@@ -701,7 +703,7 @@ auto Device::createPipelineLayout(const vk::raii::Device& device, const Bindless
         .pPushConstantRanges = &pushConstants,
     });
     if (!layout.has_value())
-        return makeError(toRHI(layout.result));
+        return makeError(toRHI(layout.error()));
 
     debug::setName(device, **layout, "SharedPipelineLayout");
     return std::move(*layout);

@@ -8,7 +8,7 @@ export module aegis.rhi:query;
 import :common;
 import :error;
 import :fwd;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi::detail
 {

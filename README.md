@@ -39,23 +39,22 @@ C++ render engine developed with Vulkan to explore low level graphics programmin
 ## Prerequisites <a name="prerequisites"></a>
 
 The engine runs on **Windows** and **Linux**. Before building ensure you have the following installed:
-- [Vulkan SDK](https://vulkan.lunarg.com/) - Install version **1.4.328.1** (see the version note below)
-- [CMake](https://cmake.org/) 3.28 or newer and [Ninja](https://ninja-build.org/)
+- [Vulkan SDK](https://vulkan.lunarg.com/) - Install version **1.4.363.0** (see the version note below)
+- [CMake](https://cmake.org/) **4.5** or newer (currently [4.5.0-rc1](https://github.com/Kitware/CMake/releases/tag/v4.5.0-rc1)) and [Ninja](https://ninja-build.org/). The build uses the C++23 `import std` module, which needs CMake 4.5
 - A C++23 compiler with C++20 modules support:
-  - **Windows:** [Clang](https://releases.llvm.org/) with the MSVC standard library (the `windows-msvc-*` presets exist, but MSVC currently fails with internal compiler errors)
-  - **Linux:** Clang with libstdc++ 15 (Ubuntu 24.04's libstdc++ 14.2 fails to compile the modules; install `libstdc++-15-dev` from the `ppa:ubuntu-toolchain-r/test` PPA)
+  - **Windows:** [Clang](https://releases.llvm.org/) 21 or newer with the MSVC standard library from Visual Studio 2022 17.6 or newer (the `windows-msvc-*` presets exist, but MSVC currently fails with internal compiler errors)
+  - **Linux:** Clang 21 or newer with libstdc++ 15. Ubuntu 26.04: `sudo apt install clang clang-tools libstdc++-15-dev`. Older Ubuntu releases don't work: libstdc++ 14 fails to compile the modules, and their libstdc++ 15 packages ship a broken `libstdc++.modules.json`, which `import std` needs
 - **Linux only:** the GLFW build dependencies, e.g. on Ubuntu `sudo apt install libwayland-dev libxkbcommon-dev xorg-dev`
 
 > [!IMPORTANT]
-> **Vulkan SDK version:** the modules-based build needs a Vulkan SDK whose C++ module (`vulkan.cppm`)
-> *guards* its use of the C++ `std` module behind a feature macro, e.g. **1.4.328.1**. Newer SDKs
-> (~1.4.350 and later) hardcode `export import std;`, which the toolchain can't build yet, so CMake
-> **configure fails fast** against them. If your default SDK is such a version, install 1.4.328.1 next
-> to it and point the build at it:
+> **Vulkan SDK version:** the engine imports the SDK's Vulkan-Hpp C++ module (`import vulkan`),
+> which still changes between SDK releases, so the build is pinned to **1.4.363.0**. Older SDKs
+> (1.4.328 and before) export a `vulkan_hpp` module instead, and CMake **configure fails fast**
+> against them. If several SDKs are installed, point the build at this one:
 >
 > ```bash
-> cmake --preset windows-clang-debug --fresh -DVulkan_ROOT="C:/VulkanSDK/1.4.328.1"   # Windows
-> source ~/VulkanSDK/1.4.328.1/setup-env.sh && cmake --preset linux-clang-debug --fresh  # Linux
+> cmake --preset windows-clang-debug --fresh -DVulkan_ROOT="C:/VulkanSDK/1.4.363.0"   # Windows
+> source ~/VulkanSDK/1.4.363.0/setup-env.sh && cmake --preset linux-clang-debug --fresh  # Linux
 > ```
 
 ## Getting Started <a name="getting-started"></a>

@@ -11,7 +11,7 @@ import :error;
 import :fwd;
 import :resource_pool;
 import :bindless_heap;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi::detail
 {

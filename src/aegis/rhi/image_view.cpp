@@ -7,7 +7,7 @@ module aegis.rhi;
 import :image_view;
 import :debug;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {
@@ -41,7 +41,7 @@ auto ImageView::create(const Device& device, ImageHandle image, const Desc& desc
 
     auto view = device->createImageView(viewInfo);
     if (!view.has_value())
-        return makeError(toRHI(view.result));
+        return makeError(toRHI(view.error()));
 
     debug::setName(*device, **view, desc.name);
 
@@ -74,7 +74,7 @@ auto ImageView::create(const Device& device, vk::Image imageSrc,
 
     auto view = device->createImageView(viewInfo);
     if (!view.has_value())
-        return makeError(toRHI(view.result));
+        return makeError(toRHI(view.error()));
 
     debug::setName(*device, **view, desc.name);
 

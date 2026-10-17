@@ -11,7 +11,7 @@ module aegis.rhi;
 import :queue;
 import :error;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {
@@ -60,8 +60,8 @@ auto Queue::submit(const SubmitInfo& info) -> std::expected<TimelineValue, Error
         .pSignalSemaphoreInfos = signalInfos.data(),
     };
 
-    if (auto result = m_queue.submit2(submitInfo); result != vk::Result::eSuccess)
-        return makeError(toRHI(result));
+    if (auto result = m_queue.submit2(submitInfo); !result.has_value())
+        return makeError(toRHI(result.error()));
 
     return std::expected<std::uint64_t, Error>{ m_currentValue };
 }
@@ -89,8 +89,8 @@ auto Queue::submit(const CommandBuffer& cmd) -> std::expected<TimelineValue, Err
         .pSignalSemaphoreInfos = &signalInfo,
     };
 
-    if (auto result = m_queue.submit2(submitInfo); result != vk::Result::eSuccess)
-        return makeError(toRHI(result));
+    if (auto result = m_queue.submit2(submitInfo); !result.has_value())
+        return makeError(toRHI(result.error()));
 
     return std::expected<TimelineValue, Error>{ m_currentValue };
 }

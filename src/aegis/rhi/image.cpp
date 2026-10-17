@@ -15,7 +15,7 @@ import :debug;
 import :error;
 import :utility;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi::detail
 {

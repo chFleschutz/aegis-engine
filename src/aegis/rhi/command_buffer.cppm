@@ -15,7 +15,7 @@ import :commands;
 import :common;
 import :fwd;
 import :resource_handle;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {

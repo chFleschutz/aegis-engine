@@ -8,7 +8,7 @@ module;
 export module aegis.rhi:memory;
 import :common;
 import :fwd;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {

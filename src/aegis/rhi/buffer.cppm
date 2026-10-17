@@ -7,7 +7,7 @@ export module aegis.rhi:buffer;
 import :common;
 import :fwd;
 import :memory;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {

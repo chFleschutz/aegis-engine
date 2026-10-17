@@ -1,9 +1,16 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 4.5)
 
 project(AegisEngine)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# `import std` (CMake 4.5+) builds the standard library module with the flags of each target that
+# imports it, warnings-as-errors included. Clang warns on the std module sources themselves (they
+# name a module `std` and include headers in its purview), so silence just those two.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Wno-reserved-module-identifier;-Wno-include-angled-in-module-purview>")
+endif()
 
 option(BUILD_EXAMPLES "Build example projects" ON)
 option(COMPILE_SHADERS "Compile shaders to SPIR-V" ON)

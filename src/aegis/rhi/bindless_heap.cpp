@@ -196,7 +196,7 @@ auto BindlessHeap::createLayout(const vk::raii::Device& device,
 
     auto layout = device.createDescriptorSetLayout(layoutInfo);
     if (!layout.has_value())
-        return makeError(toRHI(layout.result));
+        return makeError(toRHI(layout.error()));
 
     return std::move(*layout);
 }
@@ -228,7 +228,7 @@ auto BindlessHeap::createPool(const vk::raii::Device& device,
 
     auto pool = device.createDescriptorPool(poolInfo);
     if (!pool.has_value())
-        return makeError(toRHI(pool.result));
+        return makeError(toRHI(pool.error()));
 
     return std::move(*pool);
 }
@@ -244,7 +244,7 @@ auto BindlessHeap::createSet(const vk::raii::Device& device, vk::DescriptorPool 
 
     auto set = device.allocateDescriptorSets(allocInfo);
     if (!set.has_value() || set->empty())
-        return makeError(toRHI(set.result));
+        return makeError(toRHI(set.error()));
 
     return set->front().release();
 }

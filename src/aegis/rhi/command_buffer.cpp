@@ -22,7 +22,7 @@ import :debug;
 import :device;
 import :error;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {
@@ -74,13 +74,13 @@ auto CommandBuffer::begin(bool oneTimeSubmit) const -> void
                      ? vk::CommandBufferUsageFlagBits::eOneTimeSubmit
                      : vk::CommandBufferUsageFlags{},
     });
-    assert(result == vk::Result::eSuccess && "Failed to begin command buffer");
+    assert(result.has_value() && "Failed to begin command buffer");
 }
 
 auto CommandBuffer::end() const -> void
 {
     [[maybe_unused]] auto result = m_commandBuffer.end();
-    assert(result == vk::Result::eSuccess && "Failed to end command buffer");
+    assert(result.has_value() && "Failed to end command buffer");
 }
 
 auto CommandBuffer::beginRendering(const RenderingCmd& desc) const -> void
@@ -567,7 +567,7 @@ auto CommandBuffer::create(const Device& device, const Desc& desc) -> std::expec
 
     auto commandBuffer = device.device().allocateCommandBuffers(info);
     if (!commandBuffer.has_value())
-        return makeError(toRHI(commandBuffer.result));
+        return makeError(toRHI(commandBuffer.error()));
 
     debug::setName(*device, *commandBuffer->front(), desc.name);
 

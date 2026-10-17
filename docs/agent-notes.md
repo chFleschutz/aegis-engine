@@ -18,9 +18,10 @@ Read that file first.
   PowerShell for Windows-specific work: window capture and long-path deletes.
 - **Long paths:** `git worktree remove` on a worktree under the scratchpad fails with "Filename too
   long". Use `Remove-Item -LiteralPath "\\?\C:\..." -Recurse -Force`, then `git worktree prune`.
-- **Two Vulkan SDKs are installed** (1.4.328.1 and 1.4.350, with `VULKAN_SDK` pointing at the newer).
-  The build needs 1.4.328.1. `-DVulkan_ROOT=...` alone doesn't switch a configured build dir: the
-  headers path and `SLANGC_EXE` stay cached. Use `--fresh`.
+- **The build needs Vulkan SDK 1.4.363.0.** `-DVulkan_ROOT=...` alone doesn't switch a configured
+  build dir: the headers path and `SLANGC_EXE` stay cached. Use `--fresh`. A shell started before an
+  SDK install keeps the old `VULKAN_SDK`; configure then fails with "Could NOT find Vulkan". Pass
+  `-DVulkan_ROOT=` or export `VULKAN_SDK` explicitly.
 - **Backslashes in Bash heredocs get mangled:** a doubled backslash in a Python heredoc arrives as a
   single one (so `'\\'` becomes an unterminated string). Write scripts that need backslashes to a
   file in the scratchpad instead.

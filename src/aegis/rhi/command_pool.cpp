@@ -8,7 +8,7 @@ import :device;
 import :debug;
 import :error;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {
@@ -21,7 +21,7 @@ auto CommandPool::create(const Device& device, const Desc& desc) -> std::expecte
 
     auto commandPool = device.device().createCommandPool(poolInfo);
     if (!commandPool.has_value())
-        return makeError(toRHI(commandPool.result));
+        return makeError(toRHI(commandPool.error()));
 
     debug::setName(*device, **commandPool, desc.name);
 

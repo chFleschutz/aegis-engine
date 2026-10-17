@@ -10,7 +10,7 @@ import :fwd;
 import :error;
 import :image_view;
 import :sync;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi::detail
 {

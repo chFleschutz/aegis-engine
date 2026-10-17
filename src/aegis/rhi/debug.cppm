@@ -6,7 +6,7 @@ module;
 
 export module aegis.rhi:debug;
 import :context;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi::debug
 {

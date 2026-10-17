@@ -12,7 +12,7 @@ module;
 
 module aegis.render_graph;
 import aegis.rhi;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::render_graph
 {

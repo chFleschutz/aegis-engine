@@ -3,25 +3,23 @@
 
 find_package(Vulkan REQUIRED)
 
-# The toolchain can't build the C++23 std module yet, so the build needs a vulkan.cppm that guards its
-# `import std` behind __cpp_lib_modules / VULKAN_HPP_NO_STD_MODULE (module name `vulkan_hpp`, e.g.
-# SDK 1.4.328.1). Newer SDKs (~1.4.350+) export `vulkan` and hardcode `export import std;`, which
-# fails deep in the build; reject them here instead.
+# The RHI imports the SDK's Vulkan-Hpp module (`import vulkan`, SDK 1.4.363.0), which itself does
+# `import std`. Older SDKs ship a `vulkan.cppm` that exports `vulkan_hpp` instead; reject them here
+# rather than deep in the build.
 set(AEGIS_VULKAN_CPPM "${Vulkan_INCLUDE_DIR}/vulkan/vulkan.cppm")
 if(NOT EXISTS "${AEGIS_VULKAN_CPPM}")
     message(FATAL_ERROR
         "The Vulkan headers at ${Vulkan_INCLUDE_DIR} have no vulkan.cppm (the Vulkan-Hpp C++ module). "
-        "Install the Vulkan SDK 1.4.328.1 and point the build at it with -DVulkan_ROOT=<sdk> --fresh.")
+        "Install the Vulkan SDK 1.4.363.0 and point the build at it with -DVulkan_ROOT=<sdk> --fresh.")
 endif()
 file(STRINGS "${AEGIS_VULKAN_CPPM}" AEGIS_VULKAN_MODULE_NAME REGEX "^export module ")
-file(STRINGS "${AEGIS_VULKAN_CPPM}" AEGIS_VULKAN_STD_GUARD REGEX "VULKAN_HPP_NO_STD_MODULE")
 # (file(STRINGS) escapes the line's ';', the list separator, so the name is matched without it.)
-if(NOT AEGIS_VULKAN_MODULE_NAME MATCHES "^export module vulkan_hpp[^A-Za-z0-9_]" OR NOT AEGIS_VULKAN_STD_GUARD)
+if(NOT AEGIS_VULKAN_MODULE_NAME MATCHES "^export module vulkan[^A-Za-z0-9_]")
     message(FATAL_ERROR
-        "The Vulkan SDK ${Vulkan_VERSION} at ${Vulkan_INCLUDE_DIR} ships a vulkan.cppm that requires "
-        "`import std`, which this toolchain can't build yet (SDK ~1.4.350 and later). Install a guarded "
-        "SDK such as 1.4.328.1 and configure with -DVulkan_ROOT=<sdk> --fresh (--fresh drops the cached "
-        "headers path; without it the old SDK stays selected).")
+        "The Vulkan SDK ${Vulkan_VERSION} at ${Vulkan_INCLUDE_DIR} ships a vulkan.cppm that doesn't "
+        "export the `vulkan` module (SDK 1.4.328 and older export `vulkan_hpp`). Install the Vulkan SDK "
+        "1.4.363.0 and configure with -DVulkan_ROOT=<sdk> --fresh (--fresh drops the cached headers "
+        "path; without it the old SDK stays selected).")
 endif()
 
 add_library(vulkan-module STATIC)
@@ -42,7 +40,8 @@ target_compile_definitions(vulkan-module
         VULKAN_HPP_NO_SMART_HANDLE
         VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
         VULKAN_HPP_USE_STD_EXPECTED
-        VULKAN_HPP_NO_STD_MODULE # A standard library advertising __cpp_lib_modules must not switch it on
+    PRIVATE
+        VULKAN_HPP_CXX_MODULE_EXPERIMENTAL_WARNING # The module warns that it is experimental otherwise
 )
 
 #############

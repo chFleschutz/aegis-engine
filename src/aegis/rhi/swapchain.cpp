@@ -19,7 +19,7 @@ import :context;
 import :device;
 import :debug;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi::detail
 {
@@ -173,8 +173,8 @@ auto Swapchain::querySurfaceCapabilities(
 {
     auto surfaceCaps = physicalDevice.getSurfaceCapabilitiesKHR(surface);
     if (!surfaceCaps.has_value())
-        return makeError(toRHI(surfaceCaps.result));
-    return std::expected<vk::SurfaceCapabilitiesKHR, Error>{ surfaceCaps.value };
+        return makeError(toRHI(surfaceCaps.error()));
+    return std::expected<vk::SurfaceCapabilitiesKHR, Error>{ *surfaceCaps };
 }
 
 auto Swapchain::querySwapchainExtent(Extent2D preferred,
@@ -192,7 +192,7 @@ auto Swapchain::queryPresentMode(
 {
     auto presentModes = physicalDevice.getSurfacePresentModesKHR(surface);
     if (!presentModes.has_value())
-        return makeError(toRHI(presentModes.result));
+        return makeError(toRHI(presentModes.error()));
 
     // Prefer mailbox
     if (std::ranges::any_of(*presentModes,
@@ -218,7 +218,7 @@ auto Swapchain::querySwapchainFormat(
 {
     auto availableFormats = physicalDevice.getSurfaceFormatsKHR(surface);
     if (!availableFormats.has_value())
-        return makeError(toRHI(availableFormats.result));
+        return makeError(toRHI(availableFormats.error()));
 
     if (availableFormats->empty())
         return makeError(ErrorCode::Unknown);
@@ -276,7 +276,7 @@ auto Swapchain::createSwapchain(
 
     auto swapchain = device.createSwapchainKHR(createInfo);
     if (!swapchain.has_value())
-        return makeError(toRHI(swapchain.result));
+        return makeError(toRHI(swapchain.error()));
 
     return std::move(*swapchain);
 }
@@ -286,7 +286,7 @@ auto Swapchain::createImages(const Device& device, const vk::raii::SwapchainKHR&
 {
     auto images = swapchain.getImages();
     if (!images.has_value())
-        return makeError(toRHI(images.result));
+        return makeError(toRHI(images.error()));
 
     for (size_t i = 0; i < images->size(); ++i)
     {

@@ -153,7 +153,7 @@ auto Context::createInstance(
 
     auto instance = context.createInstance(instanceInfo);
     if (!instance.has_value())
-        return makeError(toRHI(instance.result));
+        return makeError(toRHI(instance.error()));
 
     return std::move(*instance);
 }
@@ -181,7 +181,7 @@ auto Context::createDebugMessenger(const vk::raii::Instance& instance)
 
     auto debugMessenger = instance.createDebugUtilsMessengerEXT(createInfo);
     if (!debugMessenger.has_value())
-        return makeError(toRHI(debugMessenger.result));
+        return makeError(toRHI(debugMessenger.error()));
 
     return std::move(*debugMessenger);
 }
@@ -234,7 +234,7 @@ auto Context::findLayers(const vk::raii::Context& context) -> std::expected<std:
 
     auto layerProps = context.enumerateInstanceLayerProperties();
     if (!layerProps.has_value())
-        return makeError(toRHI(layerProps.result));
+        return makeError(toRHI(layerProps.error()));
 
     const auto missingIt = std::ranges::find_if(layers,
         [&layerProps](std::string_view required) {

@@ -10,7 +10,7 @@ export module aegis.rhi:context;
 import :error;
 import :device;
 import aegis.platform;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {

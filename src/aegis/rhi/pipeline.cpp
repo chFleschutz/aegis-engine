@@ -14,7 +14,7 @@ module aegis.rhi;
 import :pipeline;
 import :debug;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {
@@ -64,9 +64,9 @@ auto Pipeline::createComputePipeline(
 
     auto pipeline = device.createComputePipeline(nullptr, createInfo);
     if (!pipeline.has_value())
-        return makeError(toRHI(pipeline.result));
+        return makeError(toRHI(pipeline.error()));
 
-    return std::move(pipeline.value);
+    return std::move(*pipeline);
 }
 
 auto Pipeline::createGraphicsPipeline(
@@ -225,9 +225,9 @@ auto Pipeline::createGraphicsPipeline(
 
     auto pipeline = device.createGraphicsPipeline(nullptr, createInfo);
     if (!pipeline.has_value())
-        return makeError(toRHI(pipeline.result));
+        return makeError(toRHI(pipeline.error()));
 
-    return std::move(pipeline.value);
+    return std::move(*pipeline);
 }
 
 auto Pipeline::createShaderModule(
@@ -243,11 +243,11 @@ auto Pipeline::createShaderModule(
 
     auto shaderModule = device.createShaderModule(shaderModuleCreateInfo);
     if (!shaderModule.has_value())
-        return makeError(toRHI(shaderModule.result));
+        return makeError(toRHI(shaderModule.error()));
 
     debug::setName(device, **shaderModule, name);
 
-    return std::move(shaderModule.value);
+    return std::move(*shaderModule);
 }
 
 Pipeline::Pipeline(vk::raii::Pipeline pipeline, vk::PipelineBindPoint bindPoint) :

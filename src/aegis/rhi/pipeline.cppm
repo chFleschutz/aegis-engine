@@ -8,7 +8,7 @@ export module aegis.rhi:pipeline;
 import :error;
 import :common;
 import :fwd;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {

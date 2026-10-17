@@ -10,7 +10,7 @@ export module aegis.rhi:vulkan_conversions;
 import :common;
 import :commands;
 import :utility;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {
