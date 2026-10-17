@@ -15,6 +15,43 @@ namespace
 {
 using aegis::scene::Entity;
 
+auto toTopology(fastgltf::PrimitiveType type) -> std::optional<MeshPreprocessor::Topology>
+{
+    switch (type)
+    {
+    case fastgltf::PrimitiveType::Triangles:
+        return MeshPreprocessor::Topology::TriangleList;
+    case fastgltf::PrimitiveType::TriangleStrip:
+        return MeshPreprocessor::Topology::TriangleStrip;
+    case fastgltf::PrimitiveType::TriangleFan:
+        return MeshPreprocessor::Topology::TriangleFan;
+    default:
+        return std::nullopt;
+    }
+}
+
+auto topologyName(fastgltf::PrimitiveType type) -> std::string_view
+{
+    switch (type)
+    {
+    case fastgltf::PrimitiveType::Points:
+        return "POINTS";
+    case fastgltf::PrimitiveType::Lines:
+        return "LINES";
+    case fastgltf::PrimitiveType::LineLoop:
+        return "LINE_LOOP";
+    case fastgltf::PrimitiveType::LineStrip:
+        return "LINE_STRIP";
+    case fastgltf::PrimitiveType::Triangles:
+        return "TRIANGLES";
+    case fastgltf::PrimitiveType::TriangleStrip:
+        return "TRIANGLE_STRIP";
+    case fastgltf::PrimitiveType::TriangleFan:
+        return "TRIANGLE_FAN";
+    }
+    return "unknown";
+}
+
 class GltfImport
 {
 public:
@@ -61,6 +98,15 @@ private:
                 const auto name = std::format("{}_{}", mesh.name, primitiveIndex);
 
                 MeshPreprocessor::Input input;
+                auto topology = toTopology(primitive.type);
+                if (!topology)
+                {
+                    return makeError(ErrorCode::UnsupportedFormat,
+                        std::format("glTF primitive '{}' has {} topology; only triangle lists, strips and fans are supported",
+                            name, topologyName(primitive.type)));
+                }
+                input.topology = *topology;
+
                 const auto* position = primitive.findAttribute("POSITION");
                 const auto* normal = primitive.findAttribute("NORMAL");
                 if (position == primitive.attributes.end() || normal == primitive.attributes.end())
