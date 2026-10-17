@@ -201,6 +201,7 @@ enum class ImageViewType
     CubeArray,
 };
 
+// clang-format off
 enum class ImageUsage : std::uint32_t
 {
     None                   = 0,
@@ -211,6 +212,7 @@ enum class ImageUsage : std::uint32_t
     TransferSrc            = 1 << 4,
     TransferDst            = 1 << 5,
 };
+// clang-format on
 
 namespace utility
 {
