@@ -72,7 +72,8 @@ func main(uint3 dispatchThreadID: SV_DispatchThreadID)
     float3 arm = bindless::storage2D(pc.arm)[pixel].xyz;
     float3 emissive = bindless::storage2D(pc.emissive)[pixel].xyz;
 
-    float ao = arm.x;
+    // The AO factor fades the material's ambient occlusion: 0 turns it off, 1 (default) applies it fully
+    float ao = lerp(1.0, arm.x, lighting->ambientOcclusionFactor);
     float roughness = arm.y;
     float metallic = arm.z;
 
