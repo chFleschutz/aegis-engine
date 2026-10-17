@@ -86,6 +86,27 @@ public:
     }
 
 private:
+    /// @brief Appends every element of an accessor to 'out', converted by 'convert'. fastgltf
+    ///        asserts that the accessor type matches T (and misreads in release), so a mismatch is
+    ///        checked here and returned as InvalidData.
+    template<typename T, typename Out, typename Convert>
+    auto readAccessor(std::size_t accessorIndex, std::string_view primitiveName, std::string_view semantic,
+        std::vector<Out>& out, Convert convert) const -> std::expected<void, Error>
+    {
+        const auto& accessor = m_gltf.accessors[accessorIndex];
+        constexpr auto wanted = fastgltf::ElementTraits<T>::type;
+        if (accessor.type != wanted)
+        {
+            return makeError(ErrorCode::InvalidData, std::format("glTF primitive '{}': {} accessor is {}, expected {}",
+                                                         primitiveName, semantic, fastgltf::getAccessorTypeName(accessor.type),
+                                                         fastgltf::getAccessorTypeName(wanted)));
+        }
+
+        out.reserve(out.size() + accessor.count);
+        fastgltf::iterateAccessor<T>(m_gltf, accessor, [&](T value) { out.emplace_back(convert(value)); });
+        return {};
+    }
+
     auto loadMeshes() -> std::expected<void, Error>
     {
         m_meshes.resize(m_gltf.meshes.size());
@@ -112,32 +133,35 @@ private:
                 if (position == primitive.attributes.end() || normal == primitive.attributes.end())
                     return makeError(ErrorCode::InvalidData, std::format("glTF primitive '{}' lacks POSITION or NORMAL", name));
 
-                const auto read3 = [&](const fastgltf::Attribute& attribute, std::vector<glm::vec3>& out) {
-                    const auto& accessor = m_gltf.accessors[attribute.accessorIndex];
-                    out.reserve(accessor.count);
-                    fastgltf::iterateAccessor<fastgltf::math::fvec3>(m_gltf, accessor,
-                        [&](fastgltf::math::fvec3 v) { out.emplace_back(v.x(), v.y(), v.z()); });
-                };
-                read3(*position, input.positions);
-                read3(*normal, input.normals);
+                const auto toVec3 = [](fastgltf::math::fvec3 v) { return glm::vec3{ v.x(), v.y(), v.z() }; };
+                if (auto read = readAccessor<fastgltf::math::fvec3>(position->accessorIndex, name, "POSITION", input.positions, toVec3); !read)
+                    return read;
+                if (auto read = readAccessor<fastgltf::math::fvec3>(normal->accessorIndex, name, "NORMAL", input.normals, toVec3); !read)
+                    return read;
 
                 if (const auto* uv = primitive.findAttribute("TEXCOORD_0"); uv != primitive.attributes.end())
                 {
-                    const auto& accessor = m_gltf.accessors[uv->accessorIndex];
-                    input.uvs.reserve(accessor.count);
-                    fastgltf::iterateAccessor<fastgltf::math::fvec2>(m_gltf, accessor,
-                        [&](fastgltf::math::fvec2 v) { input.uvs.emplace_back(v.x(), v.y()); });
+                    const auto toVec2 = [](fastgltf::math::fvec2 v) { return glm::vec2{ v.x(), v.y() }; };
+                    if (auto read = readAccessor<fastgltf::math::fvec2>(uv->accessorIndex, name, "TEXCOORD_0", input.uvs, toVec2); !read)
+                        return read;
                 }
 
+                // COLOR_0 is VEC3 or VEC4 (exporters usually write VEC4). Vertex colors are RGB, so
+                // alpha is dropped.
                 if (const auto* color = primitive.findAttribute("COLOR_0"); color != primitive.attributes.end())
-                    read3(*color, input.colors);
+                {
+                    auto read = m_gltf.accessors[color->accessorIndex].type == fastgltf::AccessorType::Vec4
+                                    ? readAccessor<fastgltf::math::fvec4>(color->accessorIndex, name, "COLOR_0", input.colors,
+                                          [](fastgltf::math::fvec4 v) { return glm::vec3{ v.x(), v.y(), v.z() }; })
+                                    : readAccessor<fastgltf::math::fvec3>(color->accessorIndex, name, "COLOR_0", input.colors, toVec3);
+                    if (!read)
+                        return read;
+                }
 
                 if (primitive.indicesAccessor)
                 {
-                    const auto& accessor = m_gltf.accessors[*primitive.indicesAccessor];
-                    input.indices.reserve(accessor.count);
-                    fastgltf::iterateAccessor<std::uint32_t>(m_gltf, accessor,
-                        [&](std::uint32_t index) { input.indices.emplace_back(index); });
+                    if (auto read = readAccessor<std::uint32_t>(*primitive.indicesAccessor, name, "indices", input.indices, std::identity{}); !read)
+                        return read;
                 }
 
                 auto data = MeshPreprocessor::process(std::move(input));
