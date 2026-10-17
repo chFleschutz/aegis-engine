@@ -198,30 +198,40 @@ private:
                 continue;
 
             const auto& image = m_gltf.images[*texture.imageIndex];
-            auto loaded = std::visit(
-                fastgltf::visitor{
-                    [&](const fastgltf::sources::URI& uri) {
-                        return Texture::loadFromFile(m_desc.device, m_basePath / uri.uri.fspath(), formats[i]);
-                    },
-                    [&](const fastgltf::sources::BufferView& view) -> std::expected<std::shared_ptr<Texture>, Error> {
-                        const auto& bufferView = m_gltf.bufferViews[view.bufferViewIndex];
-                        const auto* bytes = std::get_if<fastgltf::sources::Array>(&m_gltf.buffers[bufferView.bufferIndex].data);
-                        if (!bytes)
-                            return makeError(ErrorCode::UnsupportedFormat, "glTF image buffer is not loaded into memory");
-                        const std::span encoded{ bytes->bytes.data() + bufferView.byteOffset, bufferView.byteLength };
-                        return Texture::loadFromMemory(m_desc.device, encoded, formats[i], image.name);
-                    },
-                    [&](const auto&) -> std::expected<std::shared_ptr<Texture>, Error> {
-                        return makeError(ErrorCode::UnsupportedFormat,
-                            std::format("Unsupported glTF image source for image '{}'", image.name));
-                    },
-                },
-                image.data);
+            auto loaded = [&]() -> std::expected<std::shared_ptr<Texture>, Error> {
+                if (const auto* uri = std::get_if<fastgltf::sources::URI>(&image.data))
+                    return Texture::loadFromFile(m_desc.device, m_basePath / uri->uri.fspath(), formats[i]);
+
+                const auto encoded = encodedImage(image);
+                if (!encoded)
+                    return std::unexpected{ encoded.error() };
+                return Texture::loadFromMemory(m_desc.device, *encoded, formats[i], image.name);
+            }();
             if (!loaded)
                 return std::unexpected{ loaded.error() };
             m_textures[i] = std::move(*loaded);
         }
         return {};
+    }
+
+    /// @brief The encoded bytes of an image fastgltf holds in memory: a data URI (which fastgltf
+    ///        decodes into a sources::Array) or a buffer view (a GLB chunk or a loaded buffer).
+    auto encodedImage(const fastgltf::Image& image) const -> std::expected<std::span<const std::byte>, Error>
+    {
+        if (const auto* array = std::get_if<fastgltf::sources::Array>(&image.data))
+            return std::span{ array->bytes.data(), array->bytes.size() };
+
+        const auto* view = std::get_if<fastgltf::sources::BufferView>(&image.data);
+        if (!view)
+            return makeError(ErrorCode::UnsupportedFormat, std::format("Unsupported glTF image source for image '{}'", image.name));
+
+        const auto& bufferView = m_gltf.bufferViews[view->bufferViewIndex];
+        const auto* buffer = std::get_if<fastgltf::sources::Array>(&m_gltf.buffers[bufferView.bufferIndex].data);
+        if (!buffer)
+            return makeError(ErrorCode::UnsupportedFormat, std::format("glTF buffer for image '{}' is not loaded into memory", image.name));
+        if (bufferView.byteOffset + bufferView.byteLength > buffer->bytes.size())
+            return makeError(ErrorCode::InvalidData, std::format("glTF buffer view for image '{}' runs past its buffer", image.name));
+        return std::span{ buffer->bytes.data() + bufferView.byteOffset, bufferView.byteLength };
     }
 
     auto loadMaterials() -> std::expected<void, Error>
