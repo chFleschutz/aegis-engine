@@ -64,11 +64,14 @@ jobs:
           curl -sSfL "https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/linux/vulkansdk-linux-x86_64-$VULKAN_SDK_VERSION.tar.xz" \
             | tar -xJ -C ~/VulkanSDK
 
+      # What the SDK's setup-env.sh does. Since 1.4.363 the loader lives in lib/VulkanLoader, where
+      # FindVulkan only looks through CMAKE_PREFIX_PATH.
       - name: Set up Vulkan SDK environment
         run: |
           sdk="$HOME/VulkanSDK/$VULKAN_SDK_VERSION/x86_64"
           echo "VULKAN_SDK=$sdk" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$sdk/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$sdk:$sdk/lib/VulkanLoader" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$sdk/lib/VulkanLoader/lib:$sdk/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
           echo "$sdk/bin" >> "$GITHUB_PATH"
 
       - name: Configure
