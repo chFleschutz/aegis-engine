@@ -11,7 +11,8 @@ in batches on `main`, not in feature PRs. Issues: #34–#90 (labels `M1`–`M8`)
   A test marked *fails today* is written first, as the bug report.
 - **Size:** S = under 5 files or about a day, M = one module or a few days, L = crosses modules.
 - Baseline: commit `5c4b20d9`. Line numbers in the findings drift as PRs land; re-read the cited
-  code at the start of each PR.
+  code at the start of each PR. PR #91 (`import std`, CMake 4.5, Vulkan SDK 1.4.363) has since
+  touched 167 files, mostly includes, so expect most line numbers to be off.
 
 ## How to work an item
 
@@ -89,12 +90,24 @@ Future decisions (not blocking):
     D3 log policy as the target style (report §2.3).
   - Done when: every row of map.md "Where code and docs disagree" is fixed or marked as a goal.
 - [ ] **0.2 `.git-blame-ignore-revs`** · S
-  - Content: b5877948, 561096dc, 5c4b20d9, after `style/legacy-conversion` merges.
+  - Content: from PR #32, b5877948 (format), 561096dc and 5c4b20d9 (renames); from PR #91,
+    1800508e ("Qualify C standard type names with std::") and 7266617e ("Replace standard library
+    includes with import std"), after checking each is purely mechanical (no logic mixed in).
+  - Unblocked: both PRs have merged.
 
 ## M1. Independent bug fixes
 
 Parallel except where **Depends** says otherwise. 1.9, 1.10 and 1.11 all touch `engine.cppm`:
 merge in that order or rebase.
+
+Suggested lanes (parallel worktrees that don't edit the same central files):
+
+| Lane | Order |
+|---|---|
+| A, start here | 1.1 → 2.8 (reformat) → 1.8a → 1.8b → 1.8c |
+| B, render | 1.2 → 1.4 → 1.6 → 1.3 → 1.5 → 1.7 |
+| C, content and misc | 1.12 → 1.13 → 1.14 |
+| After lane A | 1.10 → 1.11 → 1.9 (all edit `engine.cppm`; 1.9 also needs 1.7) |
 
 - [ ] **1.1** `fix/test-case-semicolon` · S · #34
   - Closes: E-BUILD-01.
@@ -107,6 +120,9 @@ merge in that order or rebase.
     the compaction uses a groupshared counter, not wave ops; culling takes scale from columns;
     culling skips `drawID >= batch.count`; the AO factor is applied or removed from both sides;
     CPU and GPU-driven screenshots still match.
+  - Note: the audit disassembled SPIR-V from slangc 2025.17 (SDK 1.4.328). PR #91 moved to SDK
+    1.4.363 (slangc 2026.17). The shader source still has the bug, but redo the `spirv-dis` check
+    with the current compiler before and after the fix, and quote that output in the PR.
 - [ ] **1.3** `fix/depth-write-access` · S · #36
   - Closes: B-RENDER-09.
   - Done when: `DepthWrite` includes depth-attachment read access; device tests pass.
@@ -226,7 +242,8 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
     `render_graph::ResourceHandle` → `ResourceId`, the 3 test-suite outliers, shader `pc` → `push`.
 - [ ] **2.8** `style/format-tree` · S · #57
   - Decision: whole-tree formatting.
-  - Content: `tools/format.sh --all` over the 14 files the diff-only rule never touched (about 94
+  - Content: `tools/format.sh --all` over the 14 files the diff-only rule never touched (re-checked
+    after PR #91: still the same 14; about 94
     lines, mostly rhi; check whether the aligned `#define`s in `rhi/vma_impl.cpp` deserve a
     `// clang-format off` guard instead).
   - Done when: `tools/format.sh --all --check` passes; the commit is in `.git-blame-ignore-revs`.
@@ -397,8 +414,9 @@ Before the first terrain, vegetation or shadow pass.
     the triangle, `--scene` and `--gpu-driven` frames are generated on the dev GPU and stored in
     `tests/golden/`; they run locally under a `golden` label that CI excludes (no GPU there).
     Regenerate the references deliberately when a render change is intended.
-- [ ] **8.2** `ci/missing-include-scanner` · S · #89
-  - Done when: CI runs the std-header scanner (agent-notes idea 4).
+- [x] **8.2** `ci/missing-include-scanner` · #89 · **dropped**
+  - Obsolete since PR #91: `import std` gives both standard libraries the same module, so the
+    libstdc++ missing-include failures this scanner was meant to catch no longer happen.
 - [ ] **8.3** `ci/clang-format-check` · S (optional) · #90
   - Depends: 2.8.
   - Done when: CI runs `tools/format.sh --all --check` (clang-format 22.x).
