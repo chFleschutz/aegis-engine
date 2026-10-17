@@ -40,11 +40,26 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
 
 **`import std`:** CMake 4.5 makes `import std` available to every C++ target. It builds the
 standard library module (the MSVC STL's `std.ixx` on Windows, libstdc++'s `std.cc` on Linux) once
-per distinct set of compile flags, with the importing target's flags. The SDK's `vulkan.cppm`
-imports it; the rest of the engine still uses classic includes. Two rules:
+per distinct set of compile flags, with the importing target's flags. The engine and the SDK's
+`vulkan.cppm` use it instead of standard headers. Rules:
+- **`import std;` in every translation unit that uses the standard library**, as the first import
+  after the module declaration (plain `.cpp`: after its includes). Modules never re-export it, so
+  importing an engine module doesn't make `std` visible.
+- **Standard headers only for their macros.** `import std` exports no macros, so keep `#include
+  <cassert>` for `assert`, `<cfloat>` for `FLT_MAX`, `<cstdio>` for `stderr` and so on, in the
+  global module fragment. Nothing else.
+- **Qualify C names:** `import std` exports `std::uint32_t`, `std::size_t`, `std::sin`, not the
+  global `uint32_t`, `size_t` or `sin`.
 - **Includes before imports.** In a translation unit, `#include` every header (standard or
   third-party) *before* `import std;` or any module that imports it. The reverse order gives
   "redefinition" errors with the MSVC STL. A module unit's global module fragment satisfies this.
+- **Keep std-using headers out of interface fragments when a module will do.** If a module
+  interface *uses* a header's std-based code from its global module fragment (`core/assert.h`'s old
+  inline handler, entt templates), Clang hides standard concepts from that module's importers:
+  `missing '#include <concepts>'; 'derived_from' must be declared before it is used`, with a note
+  "declaration here is not visible". Import a module instead (entt names come from
+  `aegis.scene.entity`), move the code into a `.cpp`, or, as a last resort, `#include` the named
+  header in the failing file's global module fragment.
 - **Warnings-as-errors reaches the std module.** The std module sources trip Clang's
   `-Wreserved-module-identifier` and `-Winclude-angled-in-module-purview`; the root `CMakeLists.txt`
   silences just those two. A fresh build still prints about 110 `-Winclude-angled-in-module-purview`
@@ -119,17 +134,19 @@ RHI modules (the vulkan module is linked PRIVATE, so `vk::` types never cross th
 Windows (Clang + MSVC STL, or MSVC) and Linux (Clang + **libstdc++ 15**; Ubuntu 24.04's 14.2 fails
 on the modules) must both build. CI proves the Linux build on every PR.
 
-- **Include every standard header you use, in each translation unit** (in a module unit's global
-  module fragment). libstdc++ pulls in far fewer headers transitively than MSVC's STL, so a missing
-  `<cstdint>`, `<utility>` or `<cstddef>` builds on Windows and fails on Linux.
+- **`import std;` instead of standard headers** (see "`import std`"). It's the same module on both
+  standard libraries, which ends the libstdc++ missing-include failures that used to build on
+  Windows and break on Linux. The macro headers you still include must be included explicitly in
+  each translation unit.
 - **Paths are case-sensitive on Linux**: asset paths must match the file names exactly.
 - **No platform headers outside a guard.** Windowing and input go through `aegis.platform` (GLFW);
   the only Win32 code is `aegis-test`'s synthetic-input check, behind `#ifdef _WIN32`.
 - **Checking Linux from Windows before pushing (optional):** configure a scratch build with
   `clang++ --target=x86_64-w64-mingw32` against a MinGW GCC (libstdc++) on PATH (e.g. WinLibs) and
-  `-DCMAKE_EXE_LINKER_FLAGS=-pthread`. It reproduces libstdc++'s missing-include errors for `rhi`,
-  `renderer`, `platform`, `core` and the unit tests; it can't get past `aegis.scene`, where clang
-  crashes generating COFF code for module initializers (a MinGW-only clang bug, not a code problem).
+  `-DCMAKE_EXE_LINKER_FLAGS=-pthread`. It reproduced libstdc++'s missing-include errors for `rhi`,
+  `renderer`, `platform`, `core` and the unit tests (written before `import std`; not re-checked
+  since); it can't get past `aegis.scene`, where clang crashes generating COFF code for module
+  initializers (a MinGW-only clang bug, not a code problem).
 
 ### Formatting (clang-format)
 One global root `.clang-format` (clang-format **22.x**), encoding the new-RHI style. It's a

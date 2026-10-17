@@ -98,7 +98,8 @@ Read that file first.
    and running `ctest -LE device`. Nothing else proves the Linux build; the MinGW proxy in AGENTS.md
    stops at `aegis.scene`.
 4. **Check in the missing-include scanner** used for the Linux audit (a Python script mapping `std`
-   names to headers per translation unit), and run it from CI.
+   names to headers per translation unit), and run it from CI. Mostly moot since the engine moved to
+   `import std`: only the macro headers (`<cassert>`, `<cfloat>`, `<cstdio>`) are still included.
 5. **Remove stale `.spv` files at configure time:** delete outputs in `build/<preset>/shaders/` that
    no longer have a source.
 6. **Make `git clang-format` work:** disable the Store `python` alias, or add a `tools/format.sh`
