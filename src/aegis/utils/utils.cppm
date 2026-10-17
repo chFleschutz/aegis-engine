@@ -1,9 +1,6 @@
-module;
-
-#include <cstddef>
-#include <functional>
-
 export module aegis.utils;
+
+import std;
 
 namespace aegis::utils
 {

@@ -1,10 +1,6 @@
-module;
-
-#include <algorithm>
-#include <cmath>
-#include <random>
-
 export module aegis.math:random;
+
+import std;
 
 export namespace aegis::math
 {

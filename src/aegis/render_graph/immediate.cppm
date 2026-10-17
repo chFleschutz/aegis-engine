@@ -1,9 +1,5 @@
-module;
-#include <expected>
-#include <format>
-#include <string_view>
-
 export module aegis.render_graph:immediate;
+import std;
 import :error;
 import aegis.rhi;
 

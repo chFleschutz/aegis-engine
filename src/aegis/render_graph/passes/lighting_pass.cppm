@@ -1,10 +1,5 @@
-module;
-#include <array>
-#include <cstdint>
-#include <expected>
-#include <optional>
-
 export module aegis.render_graph:lighting_pass;
+import std;
 import :error;
 import :render_pass;
 import :resource;

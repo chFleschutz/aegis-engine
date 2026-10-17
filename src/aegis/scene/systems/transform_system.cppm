@@ -1,10 +1,6 @@
-module;
-
-#include <vector>
-#include <ranges>
-
 export module aegis.scene.systems.transform_system;
 
+import std;
 import aegis.scene.registry;
 import aegis.scene.system;
 

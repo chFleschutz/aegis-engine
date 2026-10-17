@@ -1,12 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <span>
-#include <string_view>
-#include <vector>
-
 export module aegis.render_graph:shader;
+import std;
 import :error;
 import aegis.rhi;
 

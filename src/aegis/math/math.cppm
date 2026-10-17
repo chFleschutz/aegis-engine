@@ -12,9 +12,8 @@ module;
 #include <glm/gtx/matrix_major_storage.hpp>
 #include <glm/gtx/vector_angle.hpp>
 
-#include <cmath>
-
 export module aegis.math;
+import std;
 export import :interpolation;
 export import :perlin_noise;
 export import :random;

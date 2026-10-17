@@ -2,9 +2,9 @@ module;
 
 #include <imgui.h>
 
-#include <cstdint>
-
 export module aegis.editor.panels:menu_bar_panel;
+
+import std;
 
 export namespace aegis::editor
 {
@@ -53,6 +53,6 @@ public:
     }
 
 private:
-    uint32_t m_flags = MenuFlags::None;
+    std::uint32_t m_flags = MenuFlags::None;
 };
 }

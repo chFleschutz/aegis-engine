@@ -1,7 +1,13 @@
+# AGX_ASSERT's failure handler (core/assert.h). A library of its own because aegis-math, below
+# aegis-core, asserts too.
+add_library(aegis-assert STATIC assert.cpp)
+target_include_directories(aegis-assert PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
 add_library(aegis-core STATIC)
 
 target_link_libraries(aegis-core 
 PUBLIC
+	aegis-assert
 	aegis-utils
 	imguizmo
 	Aegis::Log

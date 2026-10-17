@@ -2,12 +2,9 @@ module;
 
 #include "core/assert.h"
 
-#include <string>
-#include <utility>
-#include <vector>
-
 export module aegis.scene.registry;
 
+import std;
 export import aegis.math;
 export import aegis.scene.entity;
 export import aegis.scene.components;

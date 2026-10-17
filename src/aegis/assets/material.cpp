@@ -1,21 +1,8 @@
 module;
-#include <algorithm>
-#include <array>
 #include <cassert>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <expected>
-#include <format>
-#include <memory>
-#include <span>
-#include <string>
-#include <type_traits>
-#include <unordered_map>
-#include <variant>
-#include <vector>
 
 module aegis.assets;
+import std;
 import aegis.rhi;
 import aegis.math;
 

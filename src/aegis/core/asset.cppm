@@ -1,10 +1,6 @@
-module;
-
-#include <concepts>
-#include <filesystem>
-#include <memory>
-
 export module aegis.core.asset;
+
+import std;
 
 export namespace aegis::core
 {

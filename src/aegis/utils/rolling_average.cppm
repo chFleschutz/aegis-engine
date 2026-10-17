@@ -1,8 +1,6 @@
-module;
-
-#include <array>
-
 export module aegis.utils.rolling_average;
+
+import std;
 
 export namespace aegis::utils
 {

@@ -1,7 +1,5 @@
-module;
-#include <cstdint>
-
 export module aegis.render_graph:scene_update_pass;
+import std;
 import :frustum;
 import :render_pass;
 import :resource;

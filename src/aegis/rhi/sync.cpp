@@ -1,16 +1,11 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <limits>
-#include <utility>
-
 module aegis.rhi;
+import std;
 import :sync;
 import :device;
 import :debug;
 import :error;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {
@@ -27,7 +22,7 @@ auto Fence::wait() const noexcept -> bool
 auto Fence::reset() const noexcept -> bool
 {
     auto result = m_fence.getDevice().resetFences(*m_fence, *m_fence.getDispatcher());
-    return result == vk::Result::eSuccess;
+    return result.has_value();
 }
 
 auto Fence::create(const Device& device, const Desc& desc) -> std::expected<Fence, Error>
@@ -37,7 +32,7 @@ auto Fence::create(const Device& device, const Desc& desc) -> std::expected<Fenc
     };
     auto fence = device->createFence(fenceInfo);
     if (!fence.has_value())
-        return makeError(toRHI(fence.result));
+        return makeError(toRHI(fence.error()));
 
     debug::setName(*device, **fence, desc.name);
 
@@ -61,7 +56,7 @@ auto Semaphore::create(const vk::raii::Device& device, const Desc& desc) -> std:
 
     auto semaphore = device.createSemaphore(semaphoreInfo);
     if (!semaphore.has_value())
-        return makeError(toRHI(semaphore.result));
+        return makeError(toRHI(semaphore.error()));
 
     debug::setName(device, **semaphore, desc.name);
 

@@ -2,12 +2,10 @@ module;
 #include "GLFW/glfw3.h"
 
 #include <cassert>
-#include <cstdint>
-#include <string>
-#include <string_view>
-#include <utility>
 
 module aegis.platform;
+
+import std;
 
 namespace aegis::platform
 {
@@ -79,8 +77,8 @@ auto Window::update() -> void
 
     int width, height;
     glfwGetFramebufferSize(m_window, &width, &height);
-    m_width = static_cast<uint32_t>(width);
-    m_height = static_cast<uint32_t>(height);
+    m_width = static_cast<std::uint32_t>(width);
+    m_height = static_cast<std::uint32_t>(height);
 }
 
 auto Window::waitEvents() -> void
@@ -91,8 +89,8 @@ auto Window::waitEvents() -> void
 auto Window::onFramebufferResize(GLFWwindow* glfwWindow, int newWidth, int newHeight) -> void
 {
     const auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
-    window->m_width = static_cast<uint32_t>(newWidth);
-    window->m_height = static_cast<uint32_t>(newHeight);
+    window->m_width = static_cast<std::uint32_t>(newWidth);
+    window->m_height = static_cast<std::uint32_t>(newHeight);
     window->m_wasResized = true;
 }
 

@@ -1,15 +1,15 @@
 #pragma once
 
-#include <cstdlib>
-#include <cassert>
-#include <iostream>
-#include <format>
+// No standard headers: this header lands in many global module fragments, and std declarations
+// used from there break lookup of std concepts for importers of those modules (Clang, `import std`).
+// assertFailed is defined in assert.cpp.
 
 #ifdef _MSC_VER
 #define AGX_DEBUG_BREAK() __debugbreak()
 #elif defined(__GNUC__) || defined(__clang__)
 #define AGX_DEBUG_BREAK() __builtin_trap()
 #else
+#include <cstdlib>
 #define AGX_DEBUG_BREAK() std::abort()
 #endif
 
@@ -36,14 +36,5 @@
 
 namespace aegis
 {
-inline void assertFailed(const char* expr, const char* what, const char* file, int line, const char* function)
-{
-    // TODO: Replace this with logging
-    std::cout << std::format("Assertion failed: '{}'\n\tFile: {}, Line: {}, Function: {}\n\t{}\n",
-        expr, file, line, function, what);
-    assert(false && "Assertion failed!");
-
-    //ALOG::fatal("Assertion failed: '{}'\n\tFile: {}, Line: {}, Function: {}\n\t{}",
-    //    expr, file, line, function, what);
-}
+void assertFailed(const char* expr, const char* what, const char* file, int line, const char* function);
 }

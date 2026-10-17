@@ -88,6 +88,7 @@ Tests are ordinary `.cpp` TUs — the framework never touches module interfaces:
 ```cpp
 #include <doctest/doctest.h>
 
+import std;
 import aegis.rhi;
 
 TEST_SUITE("rhi::FreeList")

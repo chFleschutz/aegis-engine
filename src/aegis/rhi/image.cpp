@@ -1,21 +1,14 @@
 module;
-#include <algorithm>
-#include <bit>
 #include <cassert>
-#include <cmath>
-#include <cstdint>
-#include <expected>
-#include <format>
-#include <utility>
-#include <vector>
 
 module aegis.rhi;
+import std;
 import :image;
 import :debug;
 import :error;
 import :utility;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi::detail
 {

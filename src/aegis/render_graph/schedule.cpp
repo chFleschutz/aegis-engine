@@ -1,15 +1,6 @@
-module;
-#include <algorithm>
-#include <cstdint>
-#include <expected>
-#include <optional>
-#include <queue>
-#include <span>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
 module aegis.render_graph;
+
+import std;
 
 namespace aegis::render_graph::detail
 {

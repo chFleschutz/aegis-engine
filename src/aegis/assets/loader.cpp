@@ -1,9 +1,5 @@
-module;
-#include <expected>
-#include <filesystem>
-#include <format>
-
 module aegis.assets;
+import std;
 import aegis.scene.registry;
 
 namespace aegis::assets

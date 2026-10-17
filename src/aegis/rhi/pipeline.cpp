@@ -1,20 +1,9 @@
-module;
-#include <array>
-#include <cstdint>
-#include <expected>
-#include <format>
-#include <ranges>
-#include <span>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
-
 module aegis.rhi;
+import std;
 import :pipeline;
 import :debug;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {
@@ -64,9 +53,9 @@ auto Pipeline::createComputePipeline(
 
     auto pipeline = device.createComputePipeline(nullptr, createInfo);
     if (!pipeline.has_value())
-        return makeError(toRHI(pipeline.result));
+        return makeError(toRHI(pipeline.error()));
 
-    return std::move(pipeline.value);
+    return std::move(*pipeline);
 }
 
 auto Pipeline::createGraphicsPipeline(
@@ -180,7 +169,7 @@ auto Pipeline::createGraphicsPipeline(
     vk::PipelineColorBlendStateCreateInfo colorBlendState{
         .logicOpEnable = vk::False,
         .logicOp = vk::LogicOp::eCopy,
-        .attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size()),
+        .attachmentCount = static_cast<std::uint32_t>(colorBlendAttachments.size()),
         .pAttachments = colorBlendAttachments.data(),
         .blendConstants = std::array{ 0.0f, 0.0f, 0.0f, 0.0f },
     };
@@ -196,7 +185,7 @@ auto Pipeline::createGraphicsPipeline(
     auto structureChain = vk::StructureChain{
         vk::PipelineRenderingCreateInfo{
             .viewMask = 0,
-            .colorAttachmentCount = static_cast<uint32_t>(formats.size()),
+            .colorAttachmentCount = static_cast<std::uint32_t>(formats.size()),
             .pColorAttachmentFormats = formats.data(),
             .depthAttachmentFormat = toVulkan(desc.depthAttachment),
             .stencilAttachmentFormat = toVulkan(desc.stencilAttachment),
@@ -225,9 +214,9 @@ auto Pipeline::createGraphicsPipeline(
 
     auto pipeline = device.createGraphicsPipeline(nullptr, createInfo);
     if (!pipeline.has_value())
-        return makeError(toRHI(pipeline.result));
+        return makeError(toRHI(pipeline.error()));
 
-    return std::move(pipeline.value);
+    return std::move(*pipeline);
 }
 
 auto Pipeline::createShaderModule(
@@ -243,11 +232,11 @@ auto Pipeline::createShaderModule(
 
     auto shaderModule = device.createShaderModule(shaderModuleCreateInfo);
     if (!shaderModule.has_value())
-        return makeError(toRHI(shaderModule.result));
+        return makeError(toRHI(shaderModule.error()));
 
     debug::setName(device, **shaderModule, name);
 
-    return std::move(shaderModule.value);
+    return std::move(*shaderModule);
 }
 
 Pipeline::Pipeline(vk::raii::Pipeline pipeline, vk::PipelineBindPoint bindPoint) :

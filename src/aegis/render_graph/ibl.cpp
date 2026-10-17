@@ -1,15 +1,5 @@
-module;
-#include <algorithm>
-#include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <format>
-#include <memory>
-#include <string>
-#include <string_view>
-#include <vector>
-
 module aegis.render_graph;
+import std;
 import aegis.assets;
 import aegis.rhi;
 

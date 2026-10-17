@@ -1,19 +1,5 @@
-module;
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <format>
-#include <memory>
-#include <optional>
-#include <ranges>
-#include <set>
-#include <span>
-#include <string_view>
-#include <utility>
-#include <vector>
-
 module aegis.rhi;
+import std;
 import :device;
 import :context;
 import :debug;
@@ -21,7 +7,7 @@ import :error;
 import :upload_manager;
 import :utility;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {
@@ -414,20 +400,22 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
 auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface)
     -> std::expected<vk::raii::PhysicalDevice, Error>
 {
-    auto [result, physicalDevices] = instance.enumeratePhysicalDevices();
-    if (result != vk::Result::eSuccess)
-        return makeError(toRHI(result));
+    auto enumerated = instance.enumeratePhysicalDevices();
+    if (!enumerated.has_value())
+        return makeError(toRHI(enumerated.error()));
+
+    auto& physicalDevices = *enumerated;
 
     if (physicalDevices.empty())
         return makeError(ErrorCode::Unknown);
 
     const bool presentation = *surface != nullptr;
 
-    std::vector<std::pair<uint32_t, uint32_t>> candidates;
-    for (size_t i = 0; i < physicalDevices.size(); ++i)
+    std::vector<std::pair<std::uint32_t, std::uint32_t>> candidates;
+    for (std::size_t i = 0; i < physicalDevices.size(); ++i)
     {
         const auto& physicalDevice = physicalDevices[i];
-        uint32_t score{ 0 };
+        std::uint32_t score{ 0 };
 
         if (!queryQueueFamilies(physicalDevice, surface).isComplete(presentation))
             continue;
@@ -446,7 +434,7 @@ auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::
             score += 1000;
 
         score += properties.limits.maxImageDimension2D;
-        candidates.emplace_back(score, static_cast<uint32_t>(i));
+        candidates.emplace_back(score, static_cast<std::uint32_t>(i));
     }
 
     std::ranges::sort(candidates); // Sorts highest score at the end
@@ -464,7 +452,7 @@ auto Device::queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,
     QueueFamilyIndices indices;
 
     auto queueFamilies = physicalDevice.getQueueFamilyProperties();
-    for (uint32_t i = 0; i < queueFamilies.size(); ++i)
+    for (std::uint32_t i = 0; i < queueFamilies.size(); ++i)
     {
         const auto& props = queueFamilies[i];
         auto hasGraphics = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eGraphics);
@@ -486,8 +474,8 @@ auto Device::queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,
         // Present queue - prefer one that matches graphics. Headless has no surface to present to.
         if (!*surface)
             continue;
-        auto [result, hasPresent] = physicalDevice.getSurfaceSupportKHR(i, *surface);
-        if (result == vk::Result::eSuccess && hasPresent)
+        auto hasPresent = physicalDevice.getSurfaceSupportKHR(i, *surface);
+        if (hasPresent.has_value() && *hasPresent)
         {
             if (indices.present == vk::QueueFamilyIgnored || i == indices.graphics)
                 indices.present = i;
@@ -539,7 +527,7 @@ auto Device::createDevice(const vk::raii::PhysicalDevice& pd, const Capabilities
 
     auto queuePriority = 1.0f;
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-    for (uint32_t family : uniqueQueueFamilies)
+    for (std::uint32_t family : uniqueQueueFamilies)
     {
         queueCreateInfos.emplace_back(
             vk::DeviceQueueCreateInfo{
@@ -558,7 +546,7 @@ auto Device::createDevice(const vk::raii::PhysicalDevice& pd, const Capabilities
 
     auto device = pd.createDevice(deviceInfo);
     if (!device.has_value())
-        return makeError(toRHI(device.result));
+        return makeError(toRHI(device.error()));
 
     return std::move(*device);
 }
@@ -701,7 +689,7 @@ auto Device::createPipelineLayout(const vk::raii::Device& device, const Bindless
         .pPushConstantRanges = &pushConstants,
     });
     if (!layout.has_value())
-        return makeError(toRHI(layout.result));
+        return makeError(toRHI(layout.error()));
 
     debug::setName(device, **layout, "SharedPipelineLayout");
     return std::move(*layout);

@@ -1,11 +1,5 @@
-module;
-#include <array>
-#include <cstdint>
-#include <expected>
-#include <optional>
-#include <utility>
-
 module aegis.rhi;
+import std;
 import :bindless_heap;
 import :device;
 import :vulkan_conversions;
@@ -183,20 +177,20 @@ auto BindlessHeap::createLayout(const vk::raii::Device& device,
                vk::DescriptorBindingFlagBits::eUpdateUnusedWhilePending);
 
     vk::DescriptorSetLayoutBindingFlagsCreateInfo flagsInfo{
-        .bindingCount = static_cast<uint32_t>(flags.size()),
+        .bindingCount = static_cast<std::uint32_t>(flags.size()),
         .pBindingFlags = flags.data(),
     };
 
     vk::DescriptorSetLayoutCreateInfo layoutInfo{
         .pNext = &flagsInfo,
         .flags = vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool,
-        .bindingCount = static_cast<uint32_t>(bindings.size()),
+        .bindingCount = static_cast<std::uint32_t>(bindings.size()),
         .pBindings = bindings.data(),
     };
 
     auto layout = device.createDescriptorSetLayout(layoutInfo);
     if (!layout.has_value())
-        return makeError(toRHI(layout.result));
+        return makeError(toRHI(layout.error()));
 
     return std::move(*layout);
 }
@@ -222,13 +216,13 @@ auto BindlessHeap::createPool(const vk::raii::Device& device,
     vk::DescriptorPoolCreateInfo poolInfo{
         .flags = vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind,
         .maxSets = 1,
-        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+        .poolSizeCount = static_cast<std::uint32_t>(poolSizes.size()),
         .pPoolSizes = poolSizes.data(),
     };
 
     auto pool = device.createDescriptorPool(poolInfo);
     if (!pool.has_value())
-        return makeError(toRHI(pool.result));
+        return makeError(toRHI(pool.error()));
 
     return std::move(*pool);
 }
@@ -244,7 +238,7 @@ auto BindlessHeap::createSet(const vk::raii::Device& device, vk::DescriptorPool 
 
     auto set = device.allocateDescriptorSets(allocInfo);
     if (!set.has_value() || set->empty())
-        return makeError(toRHI(set.result));
+        return makeError(toRHI(set.error()));
 
     return set->front().release();
 }

@@ -1,11 +1,6 @@
-module;
-
-#include <concepts>
-#include <utility>
-#include <vector>
-
 export module aegis.scripting.script_manager;
 
+import std;
 import aegis.scene;
 import aegis.scripting.script_base;
 import aegis.platform;

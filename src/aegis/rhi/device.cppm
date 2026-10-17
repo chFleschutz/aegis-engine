@@ -1,18 +1,8 @@
 module;
-#include <array>
 #include <cassert>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <functional>
-#include <memory>
-#include <optional>
-#include <span>
-#include <string>
-#include <string_view>
-#include <vector>
 
 export module aegis.rhi:device;
+import std;
 import :buffer;
 import :command_buffer;
 import :command_pool;
@@ -29,7 +19,7 @@ import :sampler;
 import :swapchain;
 import :upload_manager;
 import aegis.platform;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {
@@ -198,10 +188,10 @@ private:
 
     struct QueueFamilyIndices
     {
-        uint32_t graphics{ vk::QueueFamilyIgnored };
-        uint32_t compute{ vk::QueueFamilyIgnored };
-        uint32_t transfer{ vk::QueueFamilyIgnored };
-        uint32_t present{ vk::QueueFamilyIgnored };
+        std::uint32_t graphics{ vk::QueueFamilyIgnored };
+        std::uint32_t compute{ vk::QueueFamilyIgnored };
+        std::uint32_t transfer{ vk::QueueFamilyIgnored };
+        std::uint32_t present{ vk::QueueFamilyIgnored };
 
         /// @param presentation Whether a present family is required (false when headless).
         [[nodiscard]] auto isComplete(bool presentation) const -> bool;

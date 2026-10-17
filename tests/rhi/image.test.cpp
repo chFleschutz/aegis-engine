@@ -1,9 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <array>
-#include <cstddef>
-#include <cstdint>
-
+import std;
 import aegis.rhi;
 
 TEST_SUITE("rhi::calcMipLevels")

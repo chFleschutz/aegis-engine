@@ -1,10 +1,10 @@
 module;
 
 #include <cfloat>
-#include <algorithm>
 
 export module aegis.scripting.movement.world_border;
 
+import std;
 import aegis.math;
 import aegis.scripting.script_base;
 import aegis.scene.components;

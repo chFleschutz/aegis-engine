@@ -13,26 +13,7 @@
 
 #include <imgui.h>
 
-#include <algorithm>
-#include <array>
-#include <charconv>
-#include <cmath>
-#include <limits>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <format>
-#include <fstream>
-#include <memory>
-#include <optional>
-#include <print>
-#include <span>
-#include <string>
-#include <string_view>
-#include <tuple>
-#include <vector>
-
+import std;
 import aegis.assets;
 import aegis.platform;
 import aegis.renderer;
@@ -44,7 +25,7 @@ import aegis.scene.registry;
 import aegis.scene.systems.camera_system;
 import aegis.scene.systems.transform_system;
 
-using SpirvBuffer = std::vector<uint32_t>;
+using SpirvBuffer = std::vector<std::uint32_t>;
 
 auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, std::string>
 {

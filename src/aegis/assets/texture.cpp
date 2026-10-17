@@ -1,19 +1,8 @@
 module;
 #include <stb/stb_image.h>
 
-#include <array>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <format>
-#include <memory>
-#include <optional>
-#include <span>
-#include <string>
-#include <string_view>
-
 module aegis.assets;
+import std;
 import :upload;
 import aegis.rhi;
 import aegis.math;

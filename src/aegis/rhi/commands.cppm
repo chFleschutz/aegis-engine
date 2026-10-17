@@ -1,10 +1,5 @@
-module;
-#include <cstdint>
-#include <optional>
-#include <span>
-#include <string_view>
-
 export module aegis.rhi:commands;
+import std;
 import :common;
 import :resource_handle;
 

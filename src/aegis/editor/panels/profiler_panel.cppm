@@ -2,10 +2,9 @@ module;
 
 #include <imgui.h>
 
-#include <string>
-
 export module aegis.editor.panels:profiler_panel;
 
+import std;
 import aegis.core.profiler;
 import aegis.render_graph;
 

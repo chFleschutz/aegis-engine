@@ -1,20 +1,8 @@
 module;
-#include <algorithm>
-#include <array>
 #include <cassert>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <iterator>
-#include <optional>
-#include <ranges>
-#include <span>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
 
 module aegis.rhi;
+import std;
 import :command_buffer;
 import :command_pool;
 import :context;
@@ -22,7 +10,7 @@ import :debug;
 import :device;
 import :error;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {
@@ -74,13 +62,13 @@ auto CommandBuffer::begin(bool oneTimeSubmit) const -> void
                      ? vk::CommandBufferUsageFlagBits::eOneTimeSubmit
                      : vk::CommandBufferUsageFlags{},
     });
-    assert(result == vk::Result::eSuccess && "Failed to begin command buffer");
+    assert(result.has_value() && "Failed to begin command buffer");
 }
 
 auto CommandBuffer::end() const -> void
 {
     [[maybe_unused]] auto result = m_commandBuffer.end();
-    assert(result == vk::Result::eSuccess && "Failed to end command buffer");
+    assert(result.has_value() && "Failed to end command buffer");
 }
 
 auto CommandBuffer::beginRendering(const RenderingCmd& desc) const -> void
@@ -416,7 +404,7 @@ auto CommandBuffer::generateMipmaps(ImageHandle imageHandle, ResourceState curre
         },
     };
 
-    for (uint32_t i = 1; i < image.mipLevels(); ++i)
+    for (std::uint32_t i = 1; i < image.mipLevels(); ++i)
     {
         mipToTransferSrcBarrier.subresourceRange.baseMipLevel = i - 1;
         m_commandBuffer.pipelineBarrier2(vk::DependencyInfo{
@@ -567,7 +555,7 @@ auto CommandBuffer::create(const Device& device, const Desc& desc) -> std::expec
 
     auto commandBuffer = device.device().allocateCommandBuffers(info);
     if (!commandBuffer.has_value())
-        return makeError(toRHI(commandBuffer.result));
+        return makeError(toRHI(commandBuffer.error()));
 
     debug::setName(*device, *commandBuffer->front(), desc.name);
 

@@ -1,33 +1,22 @@
 module;
 #include "GLFW/glfw3.h"
 
-#include <algorithm>
-#include <array>
-#include <cassert>
-#include <cstdint>
-#include <expected>
-#include <format>
-#include <initializer_list>
-#include <limits>
-#include <syncstream>
-#include <utility>
-#include <vector>
-
 module aegis.rhi;
+import std;
 import :swapchain;
 import :context;
 import :device;
 import :debug;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi::detail
 {
 auto chooseSwapchainExtent(Extent2D preferred, Extent2D minExtent, Extent2D maxExtent,
     Extent2D currentExtent) -> Extent2D
 {
-    if (currentExtent.x != std::numeric_limits<uint32_t>::max() &&
-        currentExtent.y != std::numeric_limits<uint32_t>::max())
+    if (currentExtent.x != std::numeric_limits<std::uint32_t>::max() &&
+        currentExtent.y != std::numeric_limits<std::uint32_t>::max())
         return currentExtent;
 
     return Extent2D{
@@ -51,7 +40,7 @@ namespace aegis::rhi
 auto Swapchain::acquireNextImage(const Semaphore& signalSemaphore)
     -> std::expected<AcquiredImage, Error>
 {
-    auto index = m_swapchain.acquireNextImage(std::numeric_limits<uint64_t>::max(), *signalSemaphore);
+    auto index = m_swapchain.acquireNextImage(std::numeric_limits<std::uint64_t>::max(), *signalSemaphore);
     if (index.result == vk::Result::eSuboptimalKHR)
     {
         // Swapchain needs to be recreated but ok to continue
@@ -173,8 +162,8 @@ auto Swapchain::querySurfaceCapabilities(
 {
     auto surfaceCaps = physicalDevice.getSurfaceCapabilitiesKHR(surface);
     if (!surfaceCaps.has_value())
-        return makeError(toRHI(surfaceCaps.result));
-    return std::expected<vk::SurfaceCapabilitiesKHR, Error>{ surfaceCaps.value };
+        return makeError(toRHI(surfaceCaps.error()));
+    return std::expected<vk::SurfaceCapabilitiesKHR, Error>{ *surfaceCaps };
 }
 
 auto Swapchain::querySwapchainExtent(Extent2D preferred,
@@ -192,7 +181,7 @@ auto Swapchain::queryPresentMode(
 {
     auto presentModes = physicalDevice.getSurfacePresentModesKHR(surface);
     if (!presentModes.has_value())
-        return makeError(toRHI(presentModes.result));
+        return makeError(toRHI(presentModes.error()));
 
     // Prefer mailbox
     if (std::ranges::any_of(*presentModes,
@@ -218,7 +207,7 @@ auto Swapchain::querySwapchainFormat(
 {
     auto availableFormats = physicalDevice.getSurfaceFormatsKHR(surface);
     if (!availableFormats.has_value())
-        return makeError(toRHI(availableFormats.result));
+        return makeError(toRHI(availableFormats.error()));
 
     if (availableFormats->empty())
         return makeError(ErrorCode::Unknown);
@@ -276,7 +265,7 @@ auto Swapchain::createSwapchain(
 
     auto swapchain = device.createSwapchainKHR(createInfo);
     if (!swapchain.has_value())
-        return makeError(toRHI(swapchain.result));
+        return makeError(toRHI(swapchain.error()));
 
     return std::move(*swapchain);
 }
@@ -286,9 +275,9 @@ auto Swapchain::createImages(const Device& device, const vk::raii::SwapchainKHR&
 {
     auto images = swapchain.getImages();
     if (!images.has_value())
-        return makeError(toRHI(images.result));
+        return makeError(toRHI(images.error()));
 
-    for (size_t i = 0; i < images->size(); ++i)
+    for (std::size_t i = 0; i < images->size(); ++i)
     {
         debug::setName(*device, images->at(i), std::format("SwapchainImage{}", i));
     }
@@ -309,7 +298,7 @@ auto Swapchain::createImageViews(
     std::vector<ImageViewHandle> imageViews;
     imageViews.reserve(images.size());
 
-    for (size_t i = 0; i < images.size(); ++i)
+    for (std::size_t i = 0; i < images.size(); ++i)
     {
         auto imageView = device.createImageView(images[i],
             ImageView::Desc{
@@ -346,9 +335,9 @@ auto Swapchain::createSemaphores(
     return semaphores;
 }
 
-auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> uint32_t
+auto Swapchain::chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps) -> std::uint32_t
 {
-    constexpr uint32_t desiredImageCount{ 3 };
+    constexpr std::uint32_t desiredImageCount{ 3 };
     return detail::chooseImageCount(desiredImageCount, caps.minImageCount, caps.maxImageCount);
 }
 

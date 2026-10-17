@@ -1,10 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <cstddef>
-#include <cstdint>
-#include <numeric>
-#include <vector>
-
+import std;
 import aegis.assets;
 import aegis.math;
 

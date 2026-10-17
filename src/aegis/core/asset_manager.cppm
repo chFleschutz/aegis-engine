@@ -2,18 +2,14 @@ module;
 
 #include "core/assert.h"
 
-#include <cstdint>
-#include <filesystem>
-#include <memory>
-#include <unordered_map>
-
 export module aegis.core.asset_manager;
 
+import std;
 export import aegis.core.asset;
 
 export namespace aegis::core
 {
-using AssetID = uint64_t;
+using AssetID = std::uint64_t;
 
 class AssetManager
 {

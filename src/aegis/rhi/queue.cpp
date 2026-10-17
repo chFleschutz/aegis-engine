@@ -1,17 +1,12 @@
 module;
-#include <array>
 #include <cassert>
-#include <cstdint>
-#include <expected>
-#include <limits>
-#include <ranges>
-#include <utility>
 
 module aegis.rhi;
+import std;
 import :queue;
 import :error;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {
@@ -56,12 +51,12 @@ auto Queue::submit(const SubmitInfo& info) -> std::expected<TimelineValue, Error
         .pWaitSemaphoreInfos = &waitInfo,
         .commandBufferInfoCount = 1,
         .pCommandBufferInfos = &cmdInfo,
-        .signalSemaphoreInfoCount = static_cast<uint32_t>(signalInfos.size()),
+        .signalSemaphoreInfoCount = static_cast<std::uint32_t>(signalInfos.size()),
         .pSignalSemaphoreInfos = signalInfos.data(),
     };
 
-    if (auto result = m_queue.submit2(submitInfo); result != vk::Result::eSuccess)
-        return makeError(toRHI(result));
+    if (auto result = m_queue.submit2(submitInfo); !result.has_value())
+        return makeError(toRHI(result.error()));
 
     return std::expected<std::uint64_t, Error>{ m_currentValue };
 }
@@ -89,8 +84,8 @@ auto Queue::submit(const CommandBuffer& cmd) -> std::expected<TimelineValue, Err
         .pSignalSemaphoreInfos = &signalInfo,
     };
 
-    if (auto result = m_queue.submit2(submitInfo); result != vk::Result::eSuccess)
-        return makeError(toRHI(result));
+    if (auto result = m_queue.submit2(submitInfo); !result.has_value())
+        return makeError(toRHI(result.error()));
 
     return std::expected<TimelineValue, Error>{ m_currentValue };
 }

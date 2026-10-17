@@ -2,11 +2,9 @@ module;
 
 #include "core/assert.h"
 
-#include <cmath>
-#include <limits>
-
 export module aegis.scene.systems.camera_system;
 
+import std;
 import aegis.math;
 import aegis.scene.registry;
 import aegis.scene.entity;

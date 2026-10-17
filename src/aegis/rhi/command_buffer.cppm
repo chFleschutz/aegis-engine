@@ -1,21 +1,11 @@
-module;
-#include <array>
-#include <concepts>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <optional>
-#include <span>
-#include <string_view>
-#include <type_traits>
-
 export module aegis.rhi:command_buffer;
+import std;
 import :error;
 import :commands;
 import :common;
 import :fwd;
 import :resource_handle;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {

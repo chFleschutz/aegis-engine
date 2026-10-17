@@ -1,10 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <string>
-#include <vector>
-
 export module aegis.render_graph:render_pass;
+import std;
 import :draw_batch_registry;
 import :error;
 import :resource;

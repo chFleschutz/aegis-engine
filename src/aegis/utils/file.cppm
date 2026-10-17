@@ -1,10 +1,6 @@
-module;
-
-#include <filesystem>
-#include <fstream>
-#include <vector>
-
 export module aegis.utils.file;
+
+import std;
 
 export namespace aegis::utils::file
 {

@@ -1,9 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <functional>
-
 export module aegis.render_graph:ui_pass;
+import std;
 import :error;
 import :render_pass;
 import :resource;

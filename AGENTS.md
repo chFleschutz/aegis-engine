@@ -9,7 +9,7 @@ is kept unbuilt on purpose until it is ported, so leave it out of searches and r
 
 ## Build & run
 
-CMake ≥3.28 + Ninja via presets (`build/<preset>/`). Default preset: `windows-clang-debug`; on Linux
+CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets (`build/<preset>/`). Default preset: `windows-clang-debug`; on Linux
 `linux-clang-debug`. Presets exist per platform and compiler: `windows-clang-*`, `windows-msvc-*`,
 `linux-clang-*` (each `-debug` / `-release`).
 
@@ -24,27 +24,52 @@ CMake ≥3.28 + Ninja via presets (`build/<preset>/`). Default preset: `windows-
   and resolves `std::pair` structured bindings in templates at the instantiating TU.
 - Requires `git clone --recurse-submodules` — assets live in the `aegis-assets` submodule.
 
-> **Vulkan SDK version matters — configure fails fast with the wrong one.** The build needs the
-> SDK's `vulkan.cppm` in its *guarded* form (module `vulkan_hpp`, `import std` only behind
-> `__cpp_lib_modules`), e.g. **1.4.328.1**. Newer SDKs (~1.4.350+) export `vulkan` with a hardcoded
-> `export import std;`, which the toolchain can't build; `src/aegis/rhi/CMakeLists.txt` rejects them
-> at configure. Point the build at the guarded SDK, with `--fresh` when the build dir already found
-> another one (the headers path is cached):
+> **Vulkan SDK version matters — configure fails fast with the wrong one.** The RHI imports the
+> SDK's Vulkan-Hpp module (`import vulkan`), which still changes between SDK releases, so the build
+> is pinned to **1.4.363.0** (CI uses the same). SDKs 1.4.328 and older export `vulkan_hpp` instead;
+> `src/aegis/rhi/CMakeLists.txt` rejects them at configure. Point the build at the pinned SDK, with
+> `--fresh` when the build dir already found another one (the headers path is cached):
 >
->     cmake --preset windows-clang-debug --fresh -DVulkan_ROOT="C:/VulkanSDK/1.4.328.1"
+>     cmake --preset windows-clang-debug --fresh -DVulkan_ROOT="C:/VulkanSDK/1.4.363.0"
 >
-> Easiest: set `Vulkan_ROOT` to the guarded SDK once in your user environment. CMake searches it
-> before `$VULKAN_SDK`, so it wins even when `VULKAN_SDK` points at a newer SDK, and fresh build
+> Easiest: set `Vulkan_ROOT` to the pinned SDK once in your user environment. CMake searches it
+> before `$VULKAN_SDK`, so it wins even when `VULKAN_SDK` points at another SDK, and fresh build
 > dirs (e.g. new worktrees) configure without flags. On Linux, `source <sdk>/setup-env.sh`.
 > `slangc` is taken from the same SDK. A configure that failed this check can make the next
 > `--fresh` fail once in compiler detection ("CMAKE_C_COMPILER not set"); run it again.
 
-**`import std` (gotcha):** the toolchain (Clang + MSVC STL) can't build the C++23 `import std`
-module yet, so the whole build stays on classic includes. The guarded `vulkan.cppm` (SDK ≤ 1.4.328)
-only imports std behind `__cpp_lib_modules` and `!VULKAN_HPP_NO_STD_MODULE`; the build defines the
-latter, so a standard library that advertises modules (libstdc++ 15) doesn't switch it on. Moving
-to newer SDKs means building `import std` and switching `import vulkan_hpp` to `import vulkan`.
-See `src/aegis/rhi/CMakeLists.txt`.
+**`import std`:** CMake 4.5 makes `import std` available to every C++ target. It builds the
+standard library module (the MSVC STL's `std.ixx` on Windows, libstdc++'s `std.cc` on Linux) once
+per distinct set of compile flags, with the importing target's flags. The engine and the SDK's
+`vulkan.cppm` use it instead of standard headers. Rules:
+- **`import std;` in every translation unit that uses the standard library**, as the first import
+  after the module declaration (plain `.cpp`: after its includes). Modules never re-export it, so
+  importing an engine module doesn't make `std` visible.
+- **Standard headers only for their macros.** `import std` exports no macros, so keep `#include
+  <cassert>` for `assert`, `<cfloat>` for `FLT_MAX`, `<cstdio>` for `stderr` and so on, in the
+  global module fragment. Nothing else.
+- **Qualify C names:** `import std` exports `std::uint32_t`, `std::size_t`, `std::sin`, not the
+  global `uint32_t`, `size_t` or `sin`.
+- **Includes before imports.** In a translation unit, `#include` every header (standard or
+  third-party) *before* `import std;` or any module that imports it. The reverse order gives
+  "redefinition" errors with the MSVC STL. A module unit's global module fragment satisfies this.
+- **Keep std-using headers out of interface fragments when a module will do.** If a module
+  interface *uses* a header's std-based code from its global module fragment (`core/assert.h`'s old
+  inline handler, entt templates), Clang hides standard concepts from that module's importers:
+  `missing '#include <concepts>'; 'derived_from' must be declared before it is used`, with a note
+  "declaration here is not visible". Import a module instead (entt names come from
+  `aegis.scene.entity`), move the code into a `.cpp`, or, as a last resort, `#include` the named
+  header in the failing file's global module fragment.
+- **Warnings-as-errors reaches the std module.** The std module sources trip Clang's
+  `-Wreserved-module-identifier` and `-Winclude-angled-in-module-purview`; the root `CMakeLists.txt`
+  silences just those two. A fresh build still prints about 110 `-Winclude-angled-in-module-purview`
+  warnings under "Diagnostics while scanning dependencies" for `std.ixx` and `vulkan.cppm`:
+  `clang-scan-deps` ignores warning flags. They come from the scan, not a compile, and don't fail
+  the build; ignore them.
+
+Vulkan-Hpp (no exceptions, `VULKAN_HPP_USE_STD_EXPECTED`) returns `std::expected` from calls with one
+success code: test `has_value()`, read `.error()` and `*result`. Calls with several success codes
+(`acquireNextImage`, `QueryPool::getResults`) still return `vk::ResultValue` (`.result`, `.value`).
 
 ### Examples (visual smoke tests of the engine)
 Executable targets are the PascalCase `project()` names: `Simple-Scene`, `Sponza`, `Eval-Scene`,
@@ -67,6 +92,8 @@ Vulkan SDK as the headers (falling back to `$VULKAN_SDK/bin`). Every shader depe
 `shaders/modules/*.slang`, so editing a module recompiles them. Output: `build/<preset>/shaders/*.spv`.
 SDK 1.4.328's slangc (2025.17) emits invalid SPIR-V for a struct-pointer member of a struct reached
 through a pointer; keep such members as `uint64_t` addresses behind properties (see `common::Mesh`).
+(Not re-checked with SDK 1.4.363's slangc 2026.17, whose output for the current shaders passes
+`spirv-val`.)
 
 ### Asset/shader paths (gotcha)
 `PROJECT_DIR`/`BUILD_DIR` are baked in as compile definitions, so assets and shaders load via
@@ -79,7 +106,7 @@ still follows the older style. **Match the conventions of the code you are editi
 
 | | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/`, `test/` | Legacy — everything else (`core/`, `editor/`, `math/`, `scene/`, `scripting/`, `ui/`, `utils/`, `engine.cppm`, `scene_*.cppm`, `examples/`) |
 |---|---|---|
-| Vulkan | vulkan-hpp `vk::raii`, `import vulkan_hpp` | none — go through `aegis::rhi` and friends |
+| Vulkan | vulkan-hpp `vk::raii`, `import vulkan` | none — go through `aegis::rhi` and friends |
 | Errors | `std::expected<T, Error>` + `makeError`, never throw | `AGX_ASSERT*` |
 | Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm` only, mostly dotted submodules (`aegis.scene.entity`) |
 
@@ -100,24 +127,26 @@ resource reference resolved through `Device::get` (`BufferHandle`, `ImageViewHan
 resource *owns* its descriptors (`ImageView::sampledDescriptor()`, `Sampler::descriptor()`). Never
 call a slot index a handle.
 
-**Never `#include <vulkan/vulkan.h>` directly** — use `import vulkan_hpp`, and only inside the new
+**Never `#include <vulkan/vulkan.h>` directly** — use `import vulkan`, and only inside the new
 RHI modules (the vulkan module is linked PRIVATE, so `vk::` types never cross their public API).
 
 ### Cross-platform rules
 Windows (Clang + MSVC STL, or MSVC) and Linux (Clang + **libstdc++ 15**; Ubuntu 24.04's 14.2 fails
 on the modules) must both build. CI proves the Linux build on every PR.
 
-- **Include every standard header you use, in each translation unit** (in a module unit's global
-  module fragment). libstdc++ pulls in far fewer headers transitively than MSVC's STL, so a missing
-  `<cstdint>`, `<utility>` or `<cstddef>` builds on Windows and fails on Linux.
+- **`import std;` instead of standard headers** (see "`import std`"). It's the same module on both
+  standard libraries, which ends the libstdc++ missing-include failures that used to build on
+  Windows and break on Linux. The macro headers you still include must be included explicitly in
+  each translation unit.
 - **Paths are case-sensitive on Linux**: asset paths must match the file names exactly.
 - **No platform headers outside a guard.** Windowing and input go through `aegis.platform` (GLFW);
   the only Win32 code is `aegis-test`'s synthetic-input check, behind `#ifdef _WIN32`.
 - **Checking Linux from Windows before pushing (optional):** configure a scratch build with
   `clang++ --target=x86_64-w64-mingw32` against a MinGW GCC (libstdc++) on PATH (e.g. WinLibs) and
-  `-DCMAKE_EXE_LINKER_FLAGS=-pthread`. It reproduces libstdc++'s missing-include errors for `rhi`,
-  `renderer`, `platform`, `core` and the unit tests; it can't get past `aegis.scene`, where clang
-  crashes generating COFF code for module initializers (a MinGW-only clang bug, not a code problem).
+  `-DCMAKE_EXE_LINKER_FLAGS=-pthread`. It reproduced libstdc++'s missing-include errors for `rhi`,
+  `renderer`, `platform`, `core` and the unit tests (written before `import std`; not re-checked
+  since); it can't get past `aegis.scene`, where clang crashes generating COFF code for module
+  initializers (a MinGW-only clang bug, not a code problem).
 
 ### Formatting (clang-format)
 One global root `.clang-format` (clang-format **22.x**), encoding the new-RHI style. It's a

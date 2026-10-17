@@ -3,20 +3,8 @@ module;
 #include <fastgltf/tools.hpp>
 #include <fastgltf/types.hpp>
 
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <filesystem>
-#include <format>
-#include <memory>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <variant>
-#include <vector>
-
 module aegis.assets;
+import std;
 import aegis.rhi;
 import aegis.math;
 import aegis.scene.registry;

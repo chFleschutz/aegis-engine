@@ -1,14 +1,9 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <string_view>
-#include <vector>
-
 export module aegis.rhi:query;
+import std;
 import :common;
 import :error;
 import :fwd;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi::detail
 {

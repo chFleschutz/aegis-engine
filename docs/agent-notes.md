@@ -18,9 +18,10 @@ Read that file first.
   PowerShell for Windows-specific work: window capture and long-path deletes.
 - **Long paths:** `git worktree remove` on a worktree under the scratchpad fails with "Filename too
   long". Use `Remove-Item -LiteralPath "\\?\C:\..." -Recurse -Force`, then `git worktree prune`.
-- **Two Vulkan SDKs are installed** (1.4.328.1 and 1.4.350, with `VULKAN_SDK` pointing at the newer).
-  The build needs 1.4.328.1. `-DVulkan_ROOT=...` alone doesn't switch a configured build dir: the
-  headers path and `SLANGC_EXE` stay cached. Use `--fresh`.
+- **The build needs Vulkan SDK 1.4.363.0.** `-DVulkan_ROOT=...` alone doesn't switch a configured
+  build dir: the headers path and `SLANGC_EXE` stay cached. Use `--fresh`. A shell started before an
+  SDK install keeps the old `VULKAN_SDK`; configure then fails with "Could NOT find Vulkan". Pass
+  `-DVulkan_ROOT=` or export `VULKAN_SDK` explicitly.
 - **Backslashes in Bash heredocs get mangled:** a doubled backslash in a Python heredoc arrives as a
   single one (so `'\\'` becomes an unterminated string). Write scripts that need backslashes to a
   file in the scratchpad instead.
@@ -97,7 +98,8 @@ Read that file first.
    and running `ctest -LE device`. Nothing else proves the Linux build; the MinGW proxy in AGENTS.md
    stops at `aegis.scene`.
 4. **Check in the missing-include scanner** used for the Linux audit (a Python script mapping `std`
-   names to headers per translation unit), and run it from CI.
+   names to headers per translation unit), and run it from CI. Mostly moot since the engine moved to
+   `import std`: only the macro headers (`<cassert>`, `<cfloat>`, `<cstdio>`) are still included.
 5. **Remove stale `.spv` files at configure time:** delete outputs in `build/<preset>/shaders/` that
    no longer have a source.
 6. **Make `git clang-format` work:** disable the Store `python` alias, or add a `tools/format.sh`

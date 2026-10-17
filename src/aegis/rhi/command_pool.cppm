@@ -1,12 +1,8 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <string_view>
-
 export module aegis.rhi:command_pool;
+import std;
 import :error;
 import :fwd;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {

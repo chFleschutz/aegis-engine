@@ -1,15 +1,8 @@
 module;
 #include <tiny_obj_loader.h>
 
-#include <cstddef>
-#include <expected>
-#include <filesystem>
-#include <format>
-#include <string>
-#include <utility>
-#include <vector>
-
 module aegis.assets;
+import std;
 import aegis.rhi;
 import aegis.math;
 import aegis.scene.registry;

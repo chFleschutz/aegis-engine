@@ -1,8 +1,5 @@
-module;
-#include <cstddef>
-#include <expected>
-
 export module aegis.rhi:ring_allocator;
+import std;
 import :utility;
 
 export namespace aegis::rhi

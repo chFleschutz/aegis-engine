@@ -4,18 +4,10 @@ module;
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <algorithm>
-#include <array>
-#include <atomic>
-#include <cstdint>
-#include <expected>
-#include <memory>
-#include <print>
-#include <string>
-#include <string_view>
-#include <vector>
+#include <cstdio>
 
 module aegis.rhi;
+import std;
 import :context;
 import :error;
 import :vulkan_conversions;
@@ -138,22 +130,22 @@ auto Context::createInstance(
         },
     };
     const vk::LayerSettingsCreateInfoEXT layerSettingsInfo{
-        .settingCount = static_cast<uint32_t>(layerSettings.size()),
+        .settingCount = static_cast<std::uint32_t>(layerSettings.size()),
         .pSettings = layerSettings.data(),
     };
 
     const vk::InstanceCreateInfo instanceInfo{
         .pNext = enableValidation ? &layerSettingsInfo : nullptr,
         .pApplicationInfo = &appInfo,
-        .enabledLayerCount = static_cast<uint32_t>(layers->size()),
+        .enabledLayerCount = static_cast<std::uint32_t>(layers->size()),
         .ppEnabledLayerNames = layers->data(),
-        .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+        .enabledExtensionCount = static_cast<std::uint32_t>(extensions.size()),
         .ppEnabledExtensionNames = extensions.data(),
     };
 
     auto instance = context.createInstance(instanceInfo);
     if (!instance.has_value())
-        return makeError(toRHI(instance.result));
+        return makeError(toRHI(instance.error()));
 
     return std::move(*instance);
 }
@@ -181,7 +173,7 @@ auto Context::createDebugMessenger(const vk::raii::Instance& instance)
 
     auto debugMessenger = instance.createDebugUtilsMessengerEXT(createInfo);
     if (!debugMessenger.has_value())
-        return makeError(toRHI(debugMessenger.result));
+        return makeError(toRHI(debugMessenger.error()));
 
     return std::move(*debugMessenger);
 }
@@ -210,7 +202,7 @@ auto Context::findExtensions(const Desc& desc) -> std::vector<const char*>
     // Headless never touches GLFW: it may not even be initialized, since only a Window does that.
     if (desc.window)
     {
-        uint32_t glfwExtensionCount = 0;
+        std::uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
         extensions.assign(glfwExtensions, glfwExtensions + glfwExtensionCount);
     }
@@ -234,7 +226,7 @@ auto Context::findLayers(const vk::raii::Context& context) -> std::expected<std:
 
     auto layerProps = context.enumerateInstanceLayerProperties();
     if (!layerProps.has_value())
-        return makeError(toRHI(layerProps.result));
+        return makeError(toRHI(layerProps.error()));
 
     const auto missingIt = std::ranges::find_if(layers,
         [&layerProps](std::string_view required) {

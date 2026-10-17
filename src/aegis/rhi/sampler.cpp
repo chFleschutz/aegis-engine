@@ -1,13 +1,9 @@
-module;
-#include <algorithm>
-#include <expected>
-#include <optional>
-
 module aegis.rhi;
+import std;
 import :sampler;
 import :debug;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi::detail
 {
@@ -46,7 +42,7 @@ auto Sampler::create(const Device& device, const Desc& desc) -> std::expected<Sa
 
     auto sampler = device->createSampler(samplerInfo);
     if (!sampler.has_value())
-        return makeError(toRHI(sampler.result));
+        return makeError(toRHI(sampler.error()));
 
     debug::setName(*device, **sampler, desc.name);
 

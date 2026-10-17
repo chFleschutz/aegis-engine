@@ -1,8 +1,5 @@
-module;
-#include <cstddef>
-#include <span>
-
 module aegis.render_graph;
+import std;
 import aegis.math;
 import aegis.scene;
 

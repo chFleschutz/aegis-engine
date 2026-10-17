@@ -1,17 +1,8 @@
 module;
 #include <cassert>
-#include <cstddef>
-#include <cstdint>
-#include <expected>
-#include <format>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <variant>
-#include <vector>
 
 module aegis.render_graph;
+import std;
 import aegis.renderer;
 import aegis.rhi;
 

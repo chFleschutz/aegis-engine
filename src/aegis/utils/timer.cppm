@@ -1,13 +1,6 @@
-module;
-
-#include <chrono>
-#include <format>
-#include <iostream>
-#include <ostream>
-#include <string>
-#include <string_view>
-
 export module aegis.utils.timer;
+
+import std;
 
 export namespace aegis::utils
 {

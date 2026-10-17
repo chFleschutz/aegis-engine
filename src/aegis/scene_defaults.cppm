@@ -1,9 +1,6 @@
-module;
-
-#include <utility>
-
 export module aegis.defaults;
 
+import std;
 import aegis.scene;
 import aegis.scene.systems.camera_system;
 import aegis.scene.systems.transform_system;

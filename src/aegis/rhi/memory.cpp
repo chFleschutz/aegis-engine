@@ -1,15 +1,12 @@
 module;
 #include <vk_mem_alloc.h>
 
-#include <cstddef>
-#include <expected>
-#include <utility>
-
 module aegis.rhi;
+import std;
 import :memory;
 import :context;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi
 {

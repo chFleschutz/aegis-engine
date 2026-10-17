@@ -1,8 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <cstdint>
-#include <vector> // ResourcePool<int> instantiates std::vector here; libstdc++ needs its operators visible
-
+import std;
 import aegis.rhi;
 
 TEST_SUITE("rhi::ResourcePool")

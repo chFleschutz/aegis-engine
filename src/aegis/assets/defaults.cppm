@@ -1,9 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <memory>
-
 export module aegis.assets:defaults;
+import std;
 import :error;
 import :material;
 import :texture;

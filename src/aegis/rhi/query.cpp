@@ -1,15 +1,12 @@
 module;
 #include <cassert>
-#include <cstdint>
-#include <expected>
-#include <utility>
-#include <vector>
 
 module aegis.rhi;
+import std;
 import :query;
 import :debug;
 import :vulkan_conversions;
-import vulkan_hpp;
+import vulkan;
 
 namespace aegis::rhi::detail
 {
@@ -56,7 +53,7 @@ auto QueryPool::create(const Device& device, const Desc& desc, std::uint32_t que
 
     auto pool = device->createQueryPool(poolInfo);
     if (!pool.has_value())
-        return makeError(toRHI(pool.result));
+        return makeError(toRHI(pool.error()));
 
     debug::setName(*device, **pool, desc.name);
 

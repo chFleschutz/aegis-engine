@@ -1,11 +1,8 @@
 module;
 #include <GLFW/glfw3.h>
 
-#include <functional>
-#include <unordered_map>
-#include <vector>
-
 export module aegis.platform:input;
+import std;
 import :window;
 
 export namespace aegis::platform

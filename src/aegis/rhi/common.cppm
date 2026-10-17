@@ -1,10 +1,5 @@
-module;
-#include <cstdint>
-#include <string_view>
-#include <utility>
-#include <variant>
-
 export module aegis.rhi:common;
+import std;
 import :utility;
 
 export namespace aegis::rhi

@@ -1,14 +1,9 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <span>
-#include <string_view>
-
 export module aegis.rhi:pipeline;
+import std;
 import :error;
 import :common;
 import :fwd;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {
@@ -21,7 +16,7 @@ public:
     {
         std::string_view name;
         ShaderStage stage;
-        std::span<uint32_t> code;
+        std::span<std::uint32_t> code;
         std::string_view entryPoint{ "main" };
     };
 

@@ -1,7 +1,6 @@
 #include <doctest/doctest.h>
 
-#include <cstddef>
-
+import std;
 import aegis.rhi;
 
 TEST_SUITE("rhi::RingAllocator")

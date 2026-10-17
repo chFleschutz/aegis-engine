@@ -11,15 +11,19 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # The build needs the guarded vulkan.cppm (module `vulkan_hpp`); newer SDKs are rejected at configure.
-  VULKAN_SDK_VERSION: 1.4.328.1
+  # `import std` needs CMake 4.5; the RHI imports the SDK's `vulkan` module (older SDKs are rejected
+  # at configure).
+  CMAKE_VERSION: 4.5.0-rc1
+  VULKAN_SDK_VERSION: 1.4.363.0
   LLVM_VERSION: 22
   LLVM_WINDOWS_VERSION: 22.1.4
 
 jobs:
   linux:
     name: Linux (${{ matrix.config }})
-    runs-on: ubuntu-24.04
+    # Ubuntu 26.04 ships Clang 22 and libstdc++ 15 with a working libstdc++.modules.json (earlier
+    # releases point it at the wrong std.cc path, which breaks `import std`). Public preview for now.
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -31,17 +35,20 @@ jobs:
         with:
           submodules: recursive
 
-      # Ubuntu 24.04's libstdc++ 14.2 declares std::forward_like with a deduced return type, which
-      # clang rejects across module boundaries; libstdc++ 15 comes from the toolchain PPA.
-      - name: Install Clang, libstdc++ 15, Ninja and GLFW dependencies
+      # libstdc++ 14 declares std::forward_like with a deduced return type, which clang rejects
+      # across module boundaries, so the build needs libstdc++ 15.
+      - name: Install Clang, libstdc++ 15, CMake, Ninja and GLFW dependencies
         run: |
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-          wget -q https://apt.llvm.org/llvm.sh
-          sudo bash llvm.sh "$LLVM_VERSION"
-          sudo apt-get install -y "clang-tools-$LLVM_VERSION" libstdc++-15-dev ninja-build \
-            libwayland-dev libxkbcommon-dev xorg-dev
+          sudo apt-get update
+          sudo apt-get install -y "clang-$LLVM_VERSION" "clang-tools-$LLVM_VERSION" libstdc++-15-dev \
+            ninja-build libwayland-dev libxkbcommon-dev xorg-dev
           # Unversioned clang, clang++ and clang-scan-deps (module scanning) for the preset.
           echo "/usr/lib/llvm-$LLVM_VERSION/bin" >> "$GITHUB_PATH"
+          # Clang picks the newest GCC installation; pin it to 15 in case the image carries a newer one.
+          echo "CXXFLAGS=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/15" >> "$GITHUB_ENV"
+          curl -sSfL "https://github.com/Kitware/CMake/releases/download/v$CMAKE_VERSION/cmake-$CMAKE_VERSION-linux-x86_64.tar.gz" \
+            | tar -xz -C "$HOME"
+          echo "$HOME/cmake-$CMAKE_VERSION-linux-x86_64/bin" >> "$GITHUB_PATH"
 
       - name: Cache Vulkan SDK
         id: cache-vulkan
@@ -57,16 +64,20 @@ jobs:
           curl -sSfL "https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/linux/vulkansdk-linux-x86_64-$VULKAN_SDK_VERSION.tar.xz" \
             | tar -xJ -C ~/VulkanSDK
 
+      # What the SDK's setup-env.sh does. Since 1.4.363 the loader lives in lib/VulkanLoader, where
+      # FindVulkan only looks through CMAKE_PREFIX_PATH.
       - name: Set up Vulkan SDK environment
         run: |
           sdk="$HOME/VulkanSDK/$VULKAN_SDK_VERSION/x86_64"
           echo "VULKAN_SDK=$sdk" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$sdk/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$sdk:$sdk/lib/VulkanLoader" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$sdk/lib/VulkanLoader/lib:$sdk/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
           echo "$sdk/bin" >> "$GITHUB_PATH"
 
       - name: Configure
         run: |
           clang++ -v
+          cmake --version
           cmake --preset "$PRESET"
 
       - name: Build
@@ -93,34 +104,40 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Cache LLVM and Vulkan SDK
+      - name: Cache LLVM, CMake and Vulkan SDK
         id: cache-tools
         uses: actions/cache@v4
         with:
           path: |
             C:\LLVM
+            C:\CMake
             C:\VulkanSDK
-          key: tools-windows-llvm-${{ env.LLVM_WINDOWS_VERSION }}-vulkan-${{ env.VULKAN_SDK_VERSION }}
+          key: tools-windows-llvm-${{ env.LLVM_WINDOWS_VERSION }}-cmake-${{ env.CMAKE_VERSION }}-vulkan-${{ env.VULKAN_SDK_VERSION }}
 
-      - name: Install LLVM and Vulkan SDK
+      - name: Install LLVM, CMake and Vulkan SDK
         if: steps.cache-tools.outputs.cache-hit != 'true'
         run: |
+          curl.exe -sSfL -o cmake.zip "https://github.com/Kitware/CMake/releases/download/v$env:CMAKE_VERSION/cmake-$env:CMAKE_VERSION-windows-x86_64.zip"
+          Expand-Archive cmake.zip -DestinationPath C:\
+          Rename-Item "C:\cmake-$env:CMAKE_VERSION-windows-x86_64" C:\CMake
           curl.exe -sSfL -o llvm.exe "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_WINDOWS_VERSION/LLVM-$env:LLVM_WINDOWS_VERSION-win64.exe"
           Start-Process -Wait -FilePath .\llvm.exe -ArgumentList '/S', '/D=C:\LLVM'
           curl.exe -sSfL -o vulkan.exe "https://sdk.lunarg.com/sdk/download/$env:VULKAN_SDK_VERSION/windows/vulkansdk-windows-X64-$env:VULKAN_SDK_VERSION.exe"
           Start-Process -Wait -FilePath .\vulkan.exe -ArgumentList '--root', "C:\VulkanSDK\$env:VULKAN_SDK_VERSION", '--accept-licenses', '--default-answer', '--confirm-command', 'install'
-          Remove-Item llvm.exe, vulkan.exe
+          Remove-Item cmake.zip, llvm.exe, vulkan.exe
 
       - name: Set up tool environment
         run: |
           choco install ninja -y --no-progress
           "C:\LLVM\bin" >> $env:GITHUB_PATH
+          "C:\CMake\bin" >> $env:GITHUB_PATH
           "C:\VulkanSDK\$env:VULKAN_SDK_VERSION\Bin" >> $env:GITHUB_PATH
           "VULKAN_SDK=C:\VulkanSDK\$env:VULKAN_SDK_VERSION" >> $env:GITHUB_ENV
 
       - name: Configure
         run: |
           clang++ --version
+          cmake --version
           cmake --preset $env:PRESET
 
       - name: Build

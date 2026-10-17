@@ -6,16 +6,9 @@ module;
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
 
-#include <cstdint>
-#include <functional>
-#include <string>
-#include <utility>
-#include <variant>
-#include <vector>
-#include <memory>
-
 export module aegis.editor.panels:scene_panel;
 
+import std;
 import aegis.scene;
 import aegis.scene.entity;
 import aegis.scene.components;
@@ -65,9 +58,9 @@ private:
             return;
         }
 
-        constexpr uint8_t NODE_OPENED = 1 << 0;
-        constexpr uint8_t VISITED = 1 << 1;
-        std::vector<std::pair<scene::Entity, uint8_t>> stack;
+        constexpr std::uint8_t NODE_OPENED = 1 << 0;
+        constexpr std::uint8_t VISITED = 1 << 1;
+        std::vector<std::pair<scene::Entity, std::uint8_t>> stack;
 
         auto& registry = scene.registry();
         auto view = registry.view<entt::entity>();
@@ -246,7 +239,7 @@ private:
         auto flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf;
         flags |= (m_selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
-        if (ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, "%s", name))
+        if (ImGui::TreeNodeEx((void*)(std::uint64_t)(std::uint32_t)entity, flags, "%s", name))
             ImGui::TreePop();
 
         if (ImGui::IsItemClicked())
@@ -261,7 +254,7 @@ private:
         flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
         flags |= (m_selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
-        auto isOpen = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, "%s", name);
+        auto isOpen = ImGui::TreeNodeEx((void*)(std::uint64_t)(std::uint32_t)entity, flags, "%s", name);
 
         if (ImGui::IsItemClicked())
             m_selectedEntity = entity;

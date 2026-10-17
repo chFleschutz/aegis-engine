@@ -1,16 +1,14 @@
 module;
 #include <cassert>
-#include <memory>
-#include <utility>
-#include <variant>
 
 #include "vk_mem_alloc.h"
 
 export module aegis.rhi:vulkan_conversions;
+import std;
 import :common;
 import :commands;
 import :utility;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi
 {

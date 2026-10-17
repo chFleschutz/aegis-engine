@@ -1,7 +1,5 @@
-module;
-#include <functional>
-
 export module aegis.render_graph:default_graph;
+import std;
 import :draw_batch_registry;
 import :frame_graph;
 import aegis.rhi;

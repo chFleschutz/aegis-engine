@@ -1,7 +1,5 @@
-module;
-#include <memory>
-
 export module aegis.assets:components;
+import std;
 import :material;
 import :static_mesh;
 import :texture;

@@ -1,12 +1,7 @@
-module;
-#include <concepts>
-#include <cstdint>
-#include <string>
-#include <string_view>
-
 export module aegis.rhi:debug;
+import std;
 import :context;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi::debug
 {

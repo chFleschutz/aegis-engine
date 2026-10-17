@@ -1,8 +1,5 @@
-module;
-#include <expected>
-#include <optional>
-
 export module aegis.render_graph:screen_passes;
+import std;
 import :error;
 import :render_pass;
 import :resource;

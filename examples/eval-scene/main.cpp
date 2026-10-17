@@ -1,11 +1,6 @@
 #include <aegis/core/assert.h>
 
-#include <random>
-#include <vector>
-#include <memory>
-#include <format>
-#include <filesystem>
-
+import std;
 import aegis.engine;
 
 // 1. Crytek Sponza

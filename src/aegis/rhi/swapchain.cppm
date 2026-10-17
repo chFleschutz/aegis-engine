@@ -1,16 +1,11 @@
-module;
-#include <array>
-#include <cstdint>
-#include <expected>
-#include <vector>
-
 export module aegis.rhi:swapchain;
+import std;
 import :common;
 import :fwd;
 import :error;
 import :image_view;
 import :sync;
-import vulkan_hpp;
+import vulkan;
 
 export namespace aegis::rhi::detail
 {
@@ -142,7 +137,7 @@ private:
         -> std::expected<std::vector<Semaphore>, Error>;
 
     [[nodiscard]] static auto chooseSwapImageCount(const vk::SurfaceCapabilitiesKHR& caps)
-        -> uint32_t;
+        -> std::uint32_t;
 
     Swapchain(
         vk::raii::SwapchainKHR swapchain,

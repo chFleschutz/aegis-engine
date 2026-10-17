@@ -1,9 +1,6 @@
-module;
-
-#include <concepts>
-
 export module aegis.scene_description;
 
+import std;
 import aegis.scene;
 import aegis.scripting.script_manager;
 

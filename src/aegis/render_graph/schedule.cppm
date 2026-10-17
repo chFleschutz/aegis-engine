@@ -1,12 +1,5 @@
-module;
-#include <cstdint>
-#include <expected>
-#include <optional>
-#include <span>
-#include <string>
-#include <vector>
-
 export module aegis.render_graph:schedule;
+import std;
 import :resource;
 
 // The frame graph's pure logic, separate from any GPU object so it can be unit tested.
