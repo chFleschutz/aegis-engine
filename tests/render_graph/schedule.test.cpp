@@ -85,16 +85,26 @@ TEST_SUITE("render_graph::planTransitions")
         CHECK(transitions[1][0] == Transition{ image, Usage::StorageWrite, Usage::SampledFragment });
     }
 
-    TEST_CASE("reads in the same layout need no barrier; a layout change does")
+    TEST_CASE("reads in the same layout need no barrier")
     {
         const std::vector<std::vector<Access>> passes{
             { { image, Usage::ColorAttachment } },
             { { image, Usage::SampledFragment } },
             { { image, Usage::SampledCompute } }, // Same read-only layout
-            { { image, Usage::StorageRead } },    // General layout
         };
         const auto transitions = planTransitions(passes, kinds);
         CHECK(transitions[2].empty());
+    }
+
+    TEST_CASE("a read in another layout needs a barrier")
+    {
+        const std::vector<std::vector<Access>> passes{
+            { { image, Usage::ColorAttachment } },
+            { { image, Usage::SampledFragment } },
+            { { image, Usage::SampledCompute } },
+            { { image, Usage::StorageRead } }, // General layout
+        };
+        const auto transitions = planTransitions(passes, kinds);
         REQUIRE(transitions[3].size() == 1);
         CHECK(transitions[3][0] == Transition{ image, Usage::SampledCompute, Usage::StorageRead });
     }
