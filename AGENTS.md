@@ -33,7 +33,9 @@ CMake ≥3.28 + Ninja via presets (`build/<preset>/`). Default preset: `windows-
 >
 >     cmake --preset windows-clang-debug --fresh -DVulkan_ROOT="C:/VulkanSDK/1.4.328.1"
 >
-> (or set `VULKAN_SDK` / `Vulkan_ROOT` in the environment; on Linux, `source <sdk>/setup-env.sh`).
+> Easiest: set `Vulkan_ROOT` to the guarded SDK once in your user environment. CMake searches it
+> before `$VULKAN_SDK`, so it wins even when `VULKAN_SDK` points at a newer SDK, and fresh build
+> dirs (e.g. new worktrees) configure without flags. On Linux, `source <sdk>/setup-env.sh`.
 > `slangc` is taken from the same SDK. A configure that failed this check can make the next
 > `--fresh` fail once in compiler detection ("CMAKE_C_COMPILER not set"); run it again.
 
@@ -119,30 +121,52 @@ on the modules) must both build. CI proves the Linux build on every PR.
 
 ### Formatting (clang-format)
 One global root `.clang-format` (clang-format **22.x**), encoding the new-RHI style. It's a
-normalizer, not a reflow engine (`ColumnLimit: 0` keeps your line breaks). **Adopt diff-only** —
-format just what you changed with `git clang-format`; don't `clang-format -i` whole files as part of
-other work. A deliberate whole-file conversion goes in its own commit (see "Commits and pull requests"). Guard deliberately
-hand-aligned blocks (e.g. enum tables — `AlignConsecutive*` is off) with `// clang-format off` / `on`.
+normalizer, not a reflow engine (`ColumnLimit: 0` keeps your line breaks). **The whole tree is
+formatted and stays that way:** run `tools/format.sh` before committing. It formats every source
+file changed on your branch (`--all` formats the tree, `--check` only reports). If it reformats
+lines you didn't touch, commit that as a separate formatting commit before your change. A tree-wide
+reformat (e.g. after a `.clang-format` change) goes in its own commit and into
+`.git-blame-ignore-revs`. Guard deliberately hand-aligned blocks (e.g. enum tables —
+`AlignConsecutive*` is off) with `// clang-format off` / `on`.
 
 ## Commits and pull requests
 Keep messages short: one imperative subject line (e.g. `Add rhi sampler`), no body unless the why
 is non-obvious. **No `Co-Authored-By` or other agent/tool attribution trailers**, in commits or PR
 descriptions.
 
-**Code changes go through a PR** (anything under `src/`, `shaders/`, `tests/`, `examples/`, CMake or
-CI). Docs-only changes may be committed to `main` directly.
+**Code changes go through a PR** (anything under `src/`, `shaders/`, `tests/`, `examples/`, `tools/`,
+CMake or CI). Docs-only changes may be committed to `main` directly.
 
-1. **Branch** off an up-to-date `main` with a short descriptive name (e.g. `style/legacy-conversion`).
-2. **Commit in reviewable steps.** Keep mechanical changes (whole-file reformats, renames) in their
-   own commits, separate from logic changes.
-3. **Verify every commit locally before the next one:** it builds clean and the full `ctest` passes,
-   *including* the `device` tests. CI has no GPU and skips them (see "Verifying device code").
-4. **Push and open the PR** with `gh pr create`. CI (`.github/workflows/build.yml`) builds Linux and
-   Windows, debug and release, and runs `ctest -LE device`. It is the proof that Linux builds.
-5. **Wait for CI** with `gh pr checks --watch` and report the result. Fix failures with new commits;
-   don't force-push a PR under review.
-6. **Leave the merge to the owner.** PRs land as merge commits, not squash or rebase, so commit
-   hashes survive. After a whole-file reformat lands, add its hash to `.git-blame-ignore-revs`.
+**Planned work:** `docs/audit/backlog.md` is the plan (order, dependencies, decisions, "done when"
+criteria); each entry has a GitHub issue that tracks its status. Before starting an item, read its
+entry and the finding IDs it lists (`docs/audit/findings-*.md`, corrected by `verify-*.md`), then
+re-check them against the current code. Feature PRs don't edit `backlog.md`.
+
+1. **One worktree per PR.** `tools/new-worktree.sh <branch> [base]` creates
+   `../aegis-engine.worktrees/<branch>` from `origin/main` with submodules, then configures and
+   builds it (about 3 minutes). Several agents can work in parallel, one worktree each. Name branches
+   by kind: `fix/`, `test/`, `refactor/`, `cleanup/`, `style/`, `build/`, `feat/`, `ci/`. After the
+   PR merges, `tools/remove-worktree.sh <branch> --delete-branch`. On Windows, run the `tools/*.sh`
+   scripts from Git Bash. In PowerShell, `bash` is usually the WSL launcher, so call Git's bash
+   explicitly: `& "C:\Program Files\Git\bin\bash.exe" tools/new-worktree.sh <branch>`.
+2. **Stack dependent PRs** instead of waiting: pass the unmerged branch as `base`, open the PR
+   against it (`gh pr create --base <that-branch>`), and retarget it once the base merges
+   (`gh pr edit --base main`). Keep stacks to two or three PRs.
+3. **Commit in reviewable steps.** Keep mechanical changes (whole-file reformats, renames, deletions,
+   signature churn) in their own commits, separate from logic changes.
+4. **Verify each commit:** it builds clean and `ctest -LE device` passes. **Before pushing**, and for
+   any change to device code, run the full `ctest` *including* the `device` tests (CI has no GPU and
+   skips them, see "Verifying device code"), and look at the `--screenshot` output after render
+   changes. Run device tests one at a time per machine, even with several worktrees.
+5. **Format** with `tools/format.sh` (see "Formatting").
+6. **Push and open the PR** with `gh pr create`; the body says `Closes #<issue>`. CI
+   (`.github/workflows/build.yml`) builds Linux and Windows, debug and release, and runs
+   `ctest -LE device`. It is the proof that Linux builds.
+7. **Check CI** with `gh pr checks` (`--watch` to block) and report the result; work on another
+   independent item meanwhile. Fix failures with new commits; don't force-push a PR under review.
+8. **Leave the merge to the owner.** PRs land as merge commits, not squash or rebase, so commit
+   hashes survive. After a PR with mechanical commits merges, add their hashes to
+   `.git-blame-ignore-revs` (docs-only commit on `main`).
 
 ## Unit tests
 
