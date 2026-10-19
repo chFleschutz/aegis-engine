@@ -88,12 +88,16 @@ signal — validation errors only go to stderr. Verify RHI work with `aegis-test
 
 ### Shaders
 Shaders auto-compile on every engine build (`compile_shaders` target) with `slangc` from the same
-Vulkan SDK as the headers (falling back to `$VULKAN_SDK/bin`). Every shader depends on all of
-`shaders/modules/*.slang`, so editing a module recompiles them. Output: `build/<preset>/shaders/*.spv`.
+Vulkan SDK as the headers (falling back to `$VULKAN_SDK/bin`) through `aegis_add_shaders`
+(`cmake/AegisShaders.cmake`), which `shaders/` and the `aegis-test` shader both use, so one flag set
+applies everywhere. Each `.spv` is then checked with the SDK's `spirv-val`; invalid SPIR-V fails the
+build (and CI). Editing a module recompiles only the shaders that import it (slangc `-depfile`, Ninja
+and Makefile generators; other generators rebuild every shader). Output: `build/<preset>/shaders/*.spv`;
+stale `.spv` are removed at configure.
 SDK 1.4.328's slangc (2025.17) emits invalid SPIR-V for a struct-pointer member of a struct reached
 through a pointer; keep such members as `uint64_t` addresses behind properties (see `common::Mesh`).
 (Not re-checked with SDK 1.4.363's slangc 2026.17, whose output for the current shaders passes
-`spirv-val`.)
+`spirv-val`, which now runs on every build.)
 
 ### Asset/shader paths (gotcha)
 `PROJECT_DIR`/`BUILD_DIR` are baked in as compile definitions, so assets and shaders load via

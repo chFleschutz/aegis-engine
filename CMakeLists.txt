@@ -29,6 +29,7 @@ find_program(SLANGC_EXE slangc
     HINTS "${AEGIS_VULKAN_SDK_DIR}/Bin" "${AEGIS_VULKAN_SDK_DIR}/bin" "$ENV{VULKAN_SDK}/bin" "$ENV{VULKAN_SDK}/Bin"
     REQUIRED
 )
+include(cmake/AegisShaders.cmake)
 
 set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
 set(BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -36,6 +37,11 @@ set(BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 add_subdirectory(external SYSTEM)
 add_subdirectory(modules)
 add_subdirectory(src)
+
+# Before tests/: the device tests register only when the shaders they load are built.
+if(COMPILE_SHADERS)
+    add_subdirectory(shaders)
+endif()
 
 target_compile_definitions(aegis-engine PUBLIC
     PROJECT_DIR="${CMAKE_SOURCE_DIR}"
@@ -50,10 +56,6 @@ endif()
 
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
-endif()
-
-if(COMPILE_SHADERS)
-    add_subdirectory(shaders)
 endif()
 
 # Print configuration

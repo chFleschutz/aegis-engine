@@ -83,7 +83,8 @@ jobs:
       - name: Build
         run: cmake --build --preset "$PRESET"
 
-      # The device tests need a GPU, which hosted runners lack.
+      # The device tests need a GPU, which hosted runners lack. The build runs spirv-val on every
+      # shader and fails on invalid SPIR-V; configure fails if CI finds no spirv-val in the SDK.
       - name: Test
         run: ctest --preset "$PRESET" -LE device
 
@@ -143,6 +144,7 @@ jobs:
       - name: Build
         run: cmake --build --preset $env:PRESET
 
-      # The device tests need a GPU, which hosted runners lack.
+      # The device tests need a GPU, which hosted runners lack. The build runs spirv-val on every
+      # shader and fails on invalid SPIR-V; configure fails if CI finds no spirv-val in the SDK.
       - name: Test
         run: ctest --preset $env:PRESET -LE device
