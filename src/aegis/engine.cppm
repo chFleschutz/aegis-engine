@@ -242,12 +242,12 @@ private:
     {
         auto context = aegis::rhi::Context::create({ .appName = "Aegis", .window = &m_window });
         if (!context)
-            fatalSetup(std::format("Failed to create the Vulkan context (rhi error {})", std::to_underlying(context.error().code)));
+            fatalSetup(std::format("Failed to create the Vulkan context ({})", aegis::rhi::describe(context.error())));
         m_context = std::move(*context);
 
         auto device = m_context->createDevice({});
         if (!device)
-            fatalSetup(std::format("Failed to create the Vulkan device (rhi error {})", std::to_underlying(device.error().code)));
+            fatalSetup(std::format("Failed to create the Vulkan device ({})", aegis::rhi::describe(device.error())));
         m_device = std::move(*device);
 
         auto renderer = aegis::renderer::Renderer::create({

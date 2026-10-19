@@ -161,12 +161,12 @@ public:
             .window = engine.m_window.get(),
         });
         if (!context)
-            return std::unexpected{ "Failed to create rhi context" };
+            return std::unexpected{ std::format("Failed to create rhi context: {}", rhi::describe(context.error())) };
         engine.m_context = std::move(*context);
 
         auto device = engine.m_context->createDevice({});
         if (!device)
-            return std::unexpected{ "Failed to create rhi device" };
+            return std::unexpected{ std::format("Failed to create rhi device: {}", rhi::describe(device.error())) };
         if (options.gpuDriven && !(*device)->capabilities().meshShaders)
             return std::unexpected{ std::string{ skipMeshShaders } };
         engine.m_device = std::move(*device);
