@@ -226,7 +226,7 @@ private:
     {
         if (!result)
         {
-            // describe() names the code and the rhi cause; errors without one still print their message.
+            // Module errors with a describe() print their code and rhi cause too.
             if constexpr (requires { describe(result.error()); })
                 fatalSetup(std::format("Failed to {}: {}", what, describe(result.error())));
             else

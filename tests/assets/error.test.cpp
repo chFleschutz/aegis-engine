@@ -50,3 +50,20 @@ TEST_SUITE("assets::describe")
         CHECK_FALSE(contains(assets::describe(error), "caused by"));
     }
 }
+
+TEST_SUITE("assets::makeError")
+{
+    TEST_CASE("keeps the given code and the rhi cause")
+    {
+        auto error = assets::makeError(assets::ErrorCode::UnsupportedFormat, "msg", rhi::makeError(rhi::ErrorCode::FormatNotSupported).error()).error();
+        CHECK(error.code == assets::ErrorCode::UnsupportedFormat);
+        REQUIRE(error.rhi.has_value());
+        CHECK(error.rhi->code == rhi::ErrorCode::FormatNotSupported);
+    }
+
+    TEST_CASE("describe omits an empty message")
+    {
+        auto error = assets::makeError(assets::ErrorCode::InvalidData, "").error();
+        CHECK(assets::describe(error) == "InvalidData");
+    }
+}

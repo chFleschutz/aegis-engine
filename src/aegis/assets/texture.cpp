@@ -90,9 +90,8 @@ auto Texture::create(rhi::Device& device, const Desc& desc, std::span<const std:
     {
         if (plan.error().code == rhi::ErrorCode::FormatNotSupported)
         {
-            return std::unexpected{ Error{ .code = ErrorCode::UnsupportedFormat,
-                .message = std::format("Texture '{}' has a format that cannot be uploaded", desc.name),
-                .rhi = plan.error() } };
+            return makeError(ErrorCode::UnsupportedFormat,
+                std::format("Texture '{}' has a format that cannot be uploaded", desc.name), plan.error());
         }
         return std::unexpected{ Error{ .code = ErrorCode::InvalidArgument,
             .message = std::format("Mip 0 of texture '{}' ({} bytes) does not match its extent, format and layers",
