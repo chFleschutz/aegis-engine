@@ -13,14 +13,14 @@ template<typename Record>
 auto submitImmediate(rhi::Device& device, std::string_view name, Record&& record) -> std::expected<void, Error>
 {
     if (auto flushed = device.flushUploads(); !flushed)
-        return makeError(ErrorCode::SubmitFailed, flushed.error(), std::format("{}: failed to flush uploads", name));
+        return makeError(ErrorCode::SubmitFailed, std::format("{}: failed to flush uploads", name), flushed.error());
 
     auto pool = device.createCommandPool({ .name = name, .queueFamily = device.graphicsQueue().family() });
     if (!pool)
-        return makeError(ErrorCode::SubmitFailed, pool.error(), std::format("{}: failed to create command pool", name));
+        return makeError(ErrorCode::SubmitFailed, std::format("{}: failed to create command pool", name), pool.error());
     auto cmd = device.createCommandBuffer({ .name = name, .pool = *pool });
     if (!cmd)
-        return makeError(ErrorCode::SubmitFailed, cmd.error(), std::format("{}: failed to create command buffer", name));
+        return makeError(ErrorCode::SubmitFailed, std::format("{}: failed to create command buffer", name), cmd.error());
 
     cmd->begin(true);
     cmd->beginLabel(name);
@@ -30,7 +30,7 @@ auto submitImmediate(rhi::Device& device, std::string_view name, Record&& record
 
     auto submitted = device.graphicsQueue().submit(*cmd);
     if (!submitted)
-        return makeError(ErrorCode::SubmitFailed, submitted.error(), std::format("{}: failed to submit", name));
+        return makeError(ErrorCode::SubmitFailed, std::format("{}: failed to submit", name), submitted.error());
     if (!device.graphicsQueue().wait(*submitted))
         return makeError(ErrorCode::SubmitFailed, std::format("{}: failed to wait for completion", name));
     return {};

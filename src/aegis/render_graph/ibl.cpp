@@ -113,7 +113,7 @@ auto Ibl::storageView(const assets::Texture& texture, std::uint32_t mipLevel) ->
             .usage = rhi::ImageUsage::Storage,
         });
     if (!view)
-        return makeError(ErrorCode::ResourceCreationFailed, view.error(), "Failed to create IBL storage view");
+        return makeError(ErrorCode::ResourceCreationFailed, "Failed to create IBL storage view", view.error());
     return *view;
 }
 

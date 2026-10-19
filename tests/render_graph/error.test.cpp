@@ -43,7 +43,7 @@ TEST_SUITE("render_graph::Error")
         CHECK(wrapped.rhi->code == aegis::rhi::ErrorCode::OutOfDeviceMemory);
 
         const auto specific =
-            makeError(ErrorCode::ShaderLoadFailed, aegis::rhi::makeError(aegis::rhi::ErrorCode::InvalidArgument).error(), "no pipeline").error();
+            makeError(ErrorCode::ShaderLoadFailed, "no pipeline", aegis::rhi::makeError(aegis::rhi::ErrorCode::InvalidArgument).error()).error();
         CHECK(specific.code == ErrorCode::ShaderLoadFailed);
         REQUIRE(specific.rhi.has_value());
         CHECK(specific.rhi->code == aegis::rhi::ErrorCode::InvalidArgument);
@@ -53,6 +53,7 @@ TEST_SUITE("render_graph::Error")
     {
         const auto error = makeError(ErrorCode::InvalidGraph, "cycle").error();
         CHECK(describe(error) == "InvalidGraph: cycle");
+        CHECK(describe(makeError(ErrorCode::Unsupported, "").error()) == "Unsupported");
     }
 
     TEST_CASE("describe appends the rhi cause")

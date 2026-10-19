@@ -41,7 +41,7 @@ auto createComputePipeline(rhi::Device& device, std::string_view name, std::stri
         .shader = { .name = name, .stage = rhi::ShaderStage::Compute, .code = *code, .entryPoint = entryPoint },
     });
     if (!pipeline)
-        return makeError(ErrorCode::ShaderLoadFailed, pipeline.error(), std::format("Failed to create pipeline '{}'", name));
+        return makeError(ErrorCode::ShaderLoadFailed, std::format("Failed to create pipeline '{}'", name), pipeline.error());
     return std::move(*pipeline);
 }
 
@@ -65,7 +65,7 @@ auto createGraphicsPipeline(rhi::Device& device, rhi::Pipeline::GraphicsDesc des
 
     auto pipeline = device.createPipeline(desc);
     if (!pipeline)
-        return makeError(ErrorCode::ShaderLoadFailed, pipeline.error(), std::format("Failed to create pipeline '{}'", desc.name));
+        return makeError(ErrorCode::ShaderLoadFailed, std::format("Failed to create pipeline '{}'", desc.name), pipeline.error());
     return std::move(*pipeline);
 }
 

@@ -36,7 +36,7 @@ struct Error
 }
 
 /// @brief Wraps a failed rhi call under a more specific code than ErrorCode::RhiFailed.
-[[nodiscard]] inline auto makeError(ErrorCode code, const rhi::Error& error, std::string message) -> std::unexpected<Error>
+[[nodiscard]] inline auto makeError(ErrorCode code, std::string message, const rhi::Error& error) -> std::unexpected<Error>
 {
     return std::unexpected{ Error{ .code = code, .message = std::move(message), .rhi = error } };
 }
@@ -62,9 +62,11 @@ struct Error
 /// @brief One-line text for logs: "<code>: <message>", then " (caused by <rhi error>)" if an rhi call failed.
 [[nodiscard]] inline auto describe(const Error& error) -> std::string
 {
-    auto text = std::format("{}: {}", errorCodeName(error.code), error.message);
+    std::string text{ errorCodeName(error.code) };
+    if (!error.message.empty())
+        text += std::format(": {}", error.message);
     if (error.rhi)
-        text += std::format(" (caused by {})", rhi::describe(*error.rhi));
+        text += std::format("{}(caused by {})", text.empty() ? "" : " ", rhi::describe(*error.rhi));
     return text;
 }
 }

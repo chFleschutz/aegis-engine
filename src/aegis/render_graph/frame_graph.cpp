@@ -78,7 +78,7 @@ auto FrameGraph::compile() -> std::expected<void, Error>
     {
         auto pool = m_pool.device().createQueryPool({ .name = "FrameGraphTimestamps", .count = queryCount });
         if (!pool)
-            return makeError(ErrorCode::ResourceCreationFailed, pool.error(), "Failed to create the frame graph's timestamp queries");
+            return makeError(ErrorCode::ResourceCreationFailed, "Failed to create the frame graph's timestamp queries", pool.error());
         m_timers.push_back({ .pool = std::move(*pool) });
     }
     return {};

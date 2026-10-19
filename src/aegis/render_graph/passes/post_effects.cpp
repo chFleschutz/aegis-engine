@@ -52,7 +52,7 @@ auto BloomPass::createResources(ResourcePool& pool) -> std::expected<void, Error
         .maxAnisotropy = 1.0f,
     });
     if (!sampler)
-        return makeError(ErrorCode::ResourceCreationFailed, sampler.error(), "Failed to create the bloom sampler");
+        return makeError(ErrorCode::ResourceCreationFailed, "Failed to create the bloom sampler", sampler.error());
     m_sampler = *sampler;
 
     return createMipViews(pool);
@@ -80,7 +80,7 @@ auto BloomPass::createMipViews(ResourcePool& pool) -> std::expected<void, Error>
                 .usage = rhi::ImageUsage::Storage | rhi::ImageUsage::Sampled,
             });
         if (!view)
-            return makeError(ErrorCode::ResourceCreationFailed, view.error(), "Failed to create a bloom mip view");
+            return makeError(ErrorCode::ResourceCreationFailed, "Failed to create a bloom mip view", view.error());
         m_mipViews.push_back(*view);
     }
     return {};
