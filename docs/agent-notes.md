@@ -109,5 +109,3 @@ Read that file first.
 8. **Finish converting the legacy modules** (`core`, `editor`, `scene`, `scripting`, `ui`). Formatting
    and naming already match the new style; what remains is `AGX_ASSERT` → `std::expected` and
    dotted submodules → partitions, best done as part of their redesign.
-9. **Port `src/aegis/ai/` when it's needed again.** It is kept unbuilt on purpose; until then, exclude
-   it from straggler searches (it still uses the removed input API).

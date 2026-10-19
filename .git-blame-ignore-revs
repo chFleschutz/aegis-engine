@@ -18,3 +18,9 @@ b58779487067189d35e3ccd7405119df0855ae8d
 cb7f1839507a77b22da73403aed1714886cd8a88
 # Delete unused vec3 Euler math, normalMatrix, make_mat4 and inFOV (PR #105)
 08f491606a61ab2e361efa532e61b7ebbd2fd57f
+# Delete unused utils::Color, hashCombine, readBinary and ScopeTimer (PR #110)
+1612d345953f3f33988011fa39bc4295f8d82737
+# Move Timer and RollingAverage into core profiler, delete aegis-utils (PR #110)
+6f2f868e07297f6977fe2b07c9d65f2eef9945de
+# Remove dead scripting modules and src/aegis/ai (PR #107)
+95c4d4d3a789e8352125a8f6fee74cf3e86552fb

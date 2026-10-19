@@ -110,8 +110,8 @@ Future decisions (not blocking):
     clang-formatted; format whole files"; the D2 static/dynamic rule; the D1 error shape and the
     D3 log policy as the target style (report §2.3).
   - Done when: every row of map.md "Where code and docs disagree" is fixed or marked as a goal.
-- [x] **0.2 `.git-blame-ignore-revs`** · S · committed to `main` in 1c072de3, 2.2's commits added in
-  742e5790 (pending: 2.3's 95c4d4d3 and 2.1's 1612d345, 6f2f868e once PRs #107 and #110 merge)
+- [x] **0.2 `.git-blame-ignore-revs`** · S · committed to `main` in 1c072de3, later M2 commits added
+  as their PRs merged (2.2, 2.1, 2.3)
   - Content: from PR #32, b5877948 (format), 561096dc and 5c4b20d9 (renames); from PR #91,
     1800508e ("Qualify C standard type names with std::") and 7266617e ("Replace standard library
     includes with import std"), after checking each is purely mechanical (no logic mixed in);
@@ -163,7 +163,7 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
   - Closes: E-RENDER-06, B-RENDER-05.
   - Done when: tests 11 (*fails today*) and 12 pass; the 257th template returns an error instead
     of asserting.
-- [x] **1.7** `fix/gpu-driven-static-set` · M · #40 · PR #112, not merged
+- [x] **1.7** `fix/gpu-driven-static-set` · M · #40 · merged in PR #112
   - Closes: B-RENDER-04 (A-RENDER-01, B-APP-06, A-APP-01 parts 3–4).
   - Depends: 1.2, 1.6.
   - Design (D2): a static-set version, bumped by the entt construct/destroy signals for entities,
@@ -204,7 +204,7 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
   - Done when: game input is gated on ImGui `WantCapture*`; mouse look is not scaled by dt;
     Transform runs before Camera and the aspect is set before the scene update; dt is reset after
     a minimize and clamped. Typing in the inspector no longer moves the camera.
-- [x] **1.11** `fix/release-setup` · S · #46 · PR #111, not merged
+- [x] **1.11** `fix/release-setup` · S · #46 · merged in PR #111
   - Closes: B-APP-12 (C-01, D-27) stopgap, B-FOUND-02.
   - Done when: a failed context/device/renderer/IBL creation logs its cause and exits instead of
     dereferencing; `assertFailed` writes to stderr and traps at the call site (check with stdout
@@ -232,7 +232,7 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
 Own PRs, blame-ignored. Follow the dead-code verdicts in `verify-conventions.md` §3. Parallel with
 M1, except 2.4 after 1.11 and 2.7 after M1.
 
-- [x] **2.1** `cleanup/dead-utils` · S · #50 · PR #110, not merged
+- [x] **2.1** `cleanup/dead-utils` · S · #50 · merged in PR #110
   - Closes: A-FOUND-06 (E-FOUND-03, D-12, D-20), B-FOUND-12, B-FOUND-13.
   - Content: delete `utils::Color`, `hashCombine`, `file::readBinary`, `ScopeTimer`, the
     `aegis.utils` primary; fold `Timer`/`RollingAverage` into `core/profiler`; delete the
@@ -242,7 +242,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
   - Content: delete `perlin_noise` and `interpolation` together (incl. `math.cppm:18-19`), both
     `normalMatrix` overloads, the vec3 Euler overloads, `make_mat4`, `inFOV` and its tests,
     `math::Random` (examples get a local `std::mt19937`). Keep `row`, `angleAxis`.
-- [x] **2.3** `cleanup/dead-scripting-and-ai` · S · #52 · PR #107, not merged
+- [x] **2.3** `cleanup/dead-scripting-and-ai` · S · #52 · merged in PR #107
   - Closes: A-APP-13 (D-14), the `ai/` verdict.
   - Content: delete `dynamic_movement_controller`, `world_border`, `physics/motion_dynamics`
     (3 CMake lines) and `src/aegis/ai/`; remove the `ai/` exception from AGENTS.md.
@@ -256,7 +256,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
   - Closes: A-BUILD-09 (D-15).
   - Content: remove the **git submodule** `modules/aegis-gltf`: `.gitmodules` entry, gitlink,
     `add_subdirectory`.
-- [x] **2.6** `cleanup/unused-queue-accessors` · S · #55 · PR #108, not merged
+- [x] **2.6** `cleanup/unused-queue-accessors` · S · #55 · merged in PR #108
   - Closes: A-RENDER-09 NOW part (D-18 part).
   - Content: delete `Device::computeQueue()`/`transferQueue()`; keep the queues.
 - [ ] **2.7** `style/renames` · S · #56
@@ -321,7 +321,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
 
 ## M4. Render-graph authoring
 
-- [x] **4.1** `fix/schedule-order` · S · #67 · PR #113, not merged
+- [x] **4.1** `fix/schedule-order` · S · #67 · merged in PR #113
   - Closes: E-RENDER-05, A-RENDER-05 b (B-RENDER-08), E-RENDER-03.
   - Done when: tests 8 and 9 (*fail today*) and 10 pass; no `default:` in the four `Usage` tables.
 - [ ] **4.2** `refactor/graph-declarations` · M · #68
@@ -342,7 +342,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
   - Depends: 4.1 (parallel with 4.2).
   - Done when: `detail::gatherLighting`, `makeCameraData`, `instanceTransform` exist with tests;
     the `camera.aspect` write-back in `SceneUpdatePass` is gone.
-- [x] **4.5** `refactor/descriptor-writes` · S · #71 · PR #109, not merged
+- [x] **4.5** `refactor/descriptor-writes` · S · #71 · merged in PR #109
   - Closes: A-RENDER-11 (B-RENDER-10, D-02).
   - Done when: one private descriptor-write helper; partial failure frees earlier slots;
     `ErrorCode::OutOfDescriptors`.
@@ -517,7 +517,7 @@ Before the first terrain, vegetation or shadow pass.
 - [x] **8.2** `ci/missing-include-scanner` · #89 · **dropped**
   - Obsolete since PR #91: `import std` gives both standard libraries the same module, so the
     libstdc++ missing-include failures this scanner was meant to catch no longer happen.
-- [x] **8.3** `ci/clang-format-check` · S (optional) · #90 · PR #106, not merged
+- [x] **8.3** `ci/clang-format-check` · S (optional) · #90 · merged in PR #106
   - Depends: 2.8.
   - Done when: CI runs `tools/format.sh --all --check` (clang-format 22.x).
 
