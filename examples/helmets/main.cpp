@@ -38,7 +38,7 @@ public:
 
         // SKYBOX
         registry.get<aegis::assets::Environment>(scene.environment()) =
-            Engine::loadEnvironment(core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
+            Engine::loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         // LIGHTS
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 1.0f;
@@ -52,16 +52,16 @@ public:
         };
 
         // ENTITIES
-        auto spheres = Engine::loadModel(core::ASSETS_DIR / "MetalRoughSpheres/MetalRoughSpheres.gltf");
+        auto spheres = Engine::loadModel(paths::assets() / "MetalRoughSpheres/MetalRoughSpheres.gltf");
         registry.get<Transform>(spheres).location = { 0.0f, 5.0f, 5.0f };
 
-        auto damagedHelmet = Engine::loadModel(core::ASSETS_DIR / "DamagedHelmet/DamagedHelmet.gltf");
+        auto damagedHelmet = Engine::loadModel(paths::assets() / "DamagedHelmet/DamagedHelmet.gltf");
         registry.get<Transform>(damagedHelmet).location = { -2.0f, 0.0f, 2.0f };
 
-        auto scifiHelmet = Engine::loadModel(core::ASSETS_DIR / "SciFiHelmet/SciFiHelmet.gltf");
+        auto scifiHelmet = Engine::loadModel(paths::assets() / "SciFiHelmet/SciFiHelmet.gltf");
         registry.get<Transform>(scifiHelmet).location = { 2.0f, 0.0f, 2.0f };
 
-        auto plane = Engine::loadModel(core::ASSETS_DIR / "Misc/plane.obj");
+        auto plane = Engine::loadModel(paths::assets() / "Misc/plane.obj");
         registry.get<Transform>(plane).scale = { 2.0f, 2.0f, 2.0f };
         registry.add<DynamicTag>(plane);
         scripts.addScript<ColorChanger>(plane);

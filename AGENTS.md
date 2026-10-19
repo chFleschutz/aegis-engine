@@ -100,11 +100,16 @@ through a pointer; keep such members as `uint64_t` addresses behind properties (
 `spirv-val`, which now runs on every build.)
 
 ### Asset/shader paths (gotcha)
-`PROJECT_DIR`/`BUILD_DIR` are baked in as compile definitions, so assets and shaders load via
-**absolute paths fixed at configure time**. `render_graph` finds shaders through its own
-`AEGIS_SHADER_DIR` and `aegis-test` has its own `SHADER_PATH`/`ASSETS_DIR`; `core::SHADER_DIR` is
-unused. Running the exe from any cwd is fine, but moving or
-renaming the source tree or the build dir breaks asset/shader loading — re-run configure instead.
+The `aegis.paths` module (`src/aegis/paths/`) is the one reader of the build-tree locations:
+`aegis::paths::shaders()` (`<build>/shaders`) and `aegis::paths::assets()`
+(`<source>/modules/aegis-assets`). They are PRIVATE compile definitions `AEGIS_SHADER_DIR` and
+`AEGIS_ASSETS_DIR` of `aegis-paths`, read only in `paths.cpp`, so they are **absolute paths fixed at
+configure time**, derived from `PROJECT_BINARY_DIR`/`PROJECT_SOURCE_DIR` so the engine also works as an
+`add_subdirectory()` of another project. Running the exe from any cwd is fine, but moving or renaming
+the source tree or the build dir breaks asset/shader loading unless you re-run configure or set the
+environment variables `AEGIS_SHADER_DIR` / `AEGIS_ASSETS_DIR`, which override the baked-in values at
+run time. Use `paths::assets() / "..."` for assets in examples; never add another `-D` path.
+`aegis-test` still has its own `AEGIS_TEST_SHADER_PATH` for its fixture shader (built next to it).
 
 ## Two code styles (most important)
 The renderer was rewritten onto a new RHI; the code around it (engine, editor, scene, scripting, UI)

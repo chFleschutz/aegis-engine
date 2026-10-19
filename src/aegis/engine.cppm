@@ -17,6 +17,7 @@ export import aegis.defaults;
 export import aegis.scene_description;
 export import aegis.core.globals;
 export import aegis.core.layer_stack;
+export import aegis.paths;
 export import aegis.base;
 export import aegis.scene;
 export import aegis.scene.components;
