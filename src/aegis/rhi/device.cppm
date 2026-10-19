@@ -21,6 +21,71 @@ import :upload_manager;
 import aegis.platform;
 import vulkan;
 
+export namespace aegis::rhi::detail
+{
+/// @brief The kind of a physical device, in the order device selection prefers (best first).
+enum class DeviceKind : std::uint8_t
+{
+    Discrete,
+    Integrated,
+    Virtual,
+    Cpu,
+    Other,
+};
+
+/// @brief What device selection knows about a physical device. Plain values, so a test TU can build one.
+struct DeviceCandidate
+{
+    DeviceKind kind{ DeviceKind::Other };
+    std::uint32_t apiVersion{ 0 };
+    std::uint32_t maxImageDimension2D{ 0 };
+    bool queuesComplete{ false };
+    bool extensionsSupported{ false };
+};
+
+/// @brief The lowest Vulkan version the engine runs on (1.3.0, as vk::makeApiVersion(0, 1, 3, 0)).
+inline constexpr std::uint32_t minApiVersion{ (1u << 22) | (3u << 12) };
+
+/// @brief Scores a physical device; the highest score wins.
+/// @return std::nullopt if the device cannot run the engine (API below 1.3, missing extensions or
+///         queue families). The device kind dominates (discrete > integrated > virtual > CPU > other);
+///         maxImageDimension2D only breaks ties within a kind.
+[[nodiscard]] auto rankPhysicalDevice(const DeviceCandidate& candidate) -> std::optional<std::uint64_t>;
+
+/// @brief Whether 'deviceName' contains 'filter', ignoring case. An empty filter matches every name.
+[[nodiscard]] auto matchesDeviceName(std::string_view deviceName, std::string_view filter) -> bool;
+
+/// @brief What one queue family can do.
+struct QueueFamilyInfo
+{
+    bool graphics{ false };
+    bool compute{ false };
+    bool transfer{ false };
+    bool present{ false }; // Can present to the surface; always false when headless
+};
+
+inline constexpr std::uint32_t noQueueFamily{ std::numeric_limits<std::uint32_t>::max() };
+
+/// @brief The queue family index chosen for each role, or noQueueFamily.
+struct QueueFamilySelection
+{
+    std::uint32_t graphics{ noQueueFamily };
+    std::uint32_t compute{ noQueueFamily };
+    std::uint32_t transfer{ noQueueFamily };
+    std::uint32_t present{ noQueueFamily };
+
+    /// @param presentation Whether a present family is required (false when headless).
+    [[nodiscard]] auto isComplete(bool presentation) const -> bool;
+};
+
+/// @brief Assigns queue families to roles. Compute and transfer prefer a dedicated family and fall
+///        back to the graphics family; present prefers the graphics family and never falls back
+///        (a family that cannot present to the surface must not be used for it).
+/// @param presentation Whether a surface exists. Without one, 'present' stays noQueueFamily.
+[[nodiscard]] auto pickQueueFamilies(std::span<const QueueFamilyInfo> families, bool presentation)
+    -> QueueFamilySelection;
+}
+
 export namespace aegis::rhi
 {
 class Device
@@ -30,6 +95,9 @@ class Device
 public:
     struct Desc
     {
+        /// @brief If not empty, only a device whose name contains this (case-insensitive) is used, and
+        ///        creation fails if none does. Empty picks the best device (detail::rankPhysicalDevice).
+        std::string deviceName;
     };
 
     struct Properties
@@ -188,23 +256,14 @@ private:
         vk::PhysicalDeviceVulkan13Features,
         vk::PhysicalDeviceMeshShaderFeaturesEXT>;
 
-    struct QueueFamilyIndices
-    {
-        std::uint32_t graphics{ vk::QueueFamilyIgnored };
-        std::uint32_t compute{ vk::QueueFamilyIgnored };
-        std::uint32_t transfer{ vk::QueueFamilyIgnored };
-        std::uint32_t present{ vk::QueueFamilyIgnored };
-
-        /// @param presentation Whether a present family is required (false when headless).
-        [[nodiscard]] auto isComplete(bool presentation) const -> bool;
-    };
+    using QueueFamilyIndices = detail::QueueFamilySelection;
 
     [[nodiscard]] static auto create(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface,
         const Desc& desc)
         -> std::expected<std::unique_ptr<Device>, Error>;
 
     [[nodiscard]] static auto createPhysicalDevice(const vk::raii::Instance& instance,
-        const vk::raii::SurfaceKHR& surface)
+        const vk::raii::SurfaceKHR& surface, std::string_view deviceName)
         -> std::expected<vk::raii::PhysicalDevice, Error>;
 
     [[nodiscard]] static auto queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,

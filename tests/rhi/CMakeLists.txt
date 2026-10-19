@@ -1,6 +1,7 @@
 aegis_add_test(rhi
     SOURCES
         deletion_queue.test.cpp
+        device.test.cpp
         free_list.test.cpp
         query.test.cpp
         image.test.cpp
