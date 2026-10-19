@@ -8,6 +8,7 @@ module;
 module aegis.render_graph;
 import std;
 import aegis.assets;
+import aegis.base;
 import aegis.renderer;
 import aegis.rhi;
 import aegis.math;
@@ -30,7 +31,7 @@ auto ensureCapacity(ResourcePool& pool, ResourceHandle buffer, std::uint32_t& ca
         return true;
     if (auto resized = pool.resizeBuffer(buffer, elementSize * grown); !resized)
     {
-        std::println("{}: {} instances need {}, it holds {}", resized.error().message, required,
+        log::warn("{}: {} instances need {}, it holds {}", describe(resized.error()), required,
             elementSize * grown, elementSize * capacity);
         return false;
     }
@@ -114,7 +115,7 @@ auto InstanceUpdatePass::rebuildStatic(ResourcePool& pool, aegis::scene::Scene& 
     const auto capacity = detail::grownCapacity(m_staticCapacity, m_drawBatches.staticInstanceCount());
     if (auto fresh = pool.resizeBuffer(m_staticInstances, sizeof(InstanceData) * capacity); !fresh)
     {
-        std::println("{}: {} static instances need {} bytes per frame", fresh.error().message,
+        log::warn("{}: {} static instances need {} bytes per frame", describe(fresh.error()),
             m_drawBatches.staticInstanceCount(), sizeof(InstanceData) * capacity);
         return;
     }
@@ -285,7 +286,7 @@ auto GpuDrivenGeometryPass::info() const -> Info
 auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
     if (!pool.device().capabilities().meshShaders)
-        return makeError("The GPU-driven path needs mesh shaders, which this device lacks");
+        return makeError(ErrorCode::Unsupported, "The GPU-driven path needs mesh shaders, which this device lacks");
 
     std::array<rhi::Pipeline::ColorAttachment, GeometryPass::gBufferFormats.size()> attachments;
     for (std::size_t i = 0; i < attachments.size(); ++i)

@@ -172,7 +172,7 @@ auto ResourcePool::createBuffer(const std::string& name, const BufferDesc& desc,
         .memory = memory,
     });
     if (!buffer)
-        return makeError(buffer.error(), std::format("Failed to create frame graph buffer '{}'", name));
+        return makeError(ErrorCode::ResourceCreationFailed, std::format("Failed to create frame graph buffer '{}'", name), buffer.error());
     return CreatedBuffer{ *buffer, stride, usage, memory };
 }
 
@@ -193,7 +193,7 @@ auto ResourcePool::resolveReferences() -> std::expected<void, Error>
             }
         }
         if (!reference->target)
-            return makeError(std::format("Frame graph resource '{}' is referenced but never created", entry.name));
+            return makeError(ErrorCode::InvalidGraph, std::format("Frame graph resource '{}' is referenced but never created", entry.name));
     }
     return {};
 }
@@ -230,7 +230,7 @@ auto ResourcePool::createResources() -> std::expected<void, Error>
             auto texture = resolutionDependent ? m_renderer.createResolutionDependentTexture(textureDesc)
                                                : m_renderer.createTexture(textureDesc);
             if (!texture)
-                return makeError(texture.error(), std::format("Failed to create frame graph texture '{}'", entry.name));
+                return makeError(ErrorCode::ResourceCreationFailed, std::format("Failed to create frame graph texture '{}'", entry.name), texture.error());
             m_created[i] = CreatedTexture{ *texture, !resolutionDependent };
         }
         else if (const auto* desc = std::get_if<BufferDesc>(&entry.info))

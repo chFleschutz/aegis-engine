@@ -700,10 +700,10 @@ public:
     {
         auto ibl = render_graph::Ibl::create(*m_device);
         if (!ibl)
-            return std::unexpected{ std::format("IBL pipelines: {}", ibl.error().message) };
+            return std::unexpected{ std::format("IBL pipelines: {}", describe(ibl.error())) };
         auto environment = ibl->loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
         if (!environment)
-            return std::unexpected{ std::format("IBL environment: {}", environment.error().message) };
+            return std::unexpected{ std::format("IBL environment: {}", describe(environment.error())) };
 
         const auto check = [&](const auto& texture, std::uint32_t size, std::uint32_t mips, std::uint32_t layers,
                                std::string_view what) -> std::expected<void, std::string> {
@@ -831,10 +831,10 @@ public:
 
         auto ibl = render_graph::Ibl::create(*m_device);
         if (!ibl)
-            return std::unexpected{ std::format("IBL: {}", ibl.error().message) };
+            return std::unexpected{ std::format("IBL: {}", describe(ibl.error())) };
         auto environment = ibl->loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
         if (!environment)
-            return std::unexpected{ std::format("Environment: {}", environment.error().message) };
+            return std::unexpected{ std::format("Environment: {}", describe(environment.error())) };
         const auto sky = registry.create("Sky");
         registry.add<assets::Environment>(sky, std::move(*environment));
         m_scene->setEnvironment(sky);
@@ -866,7 +866,7 @@ public:
                 .context = m_context.get(),
             });
         if (auto compiled = m_frameGraph->compile(); !compiled)
-            return std::unexpected{ std::format("Frame graph: {}", compiled.error().message) };
+            return std::unexpected{ std::format("Frame graph: {}", describe(compiled.error())) };
 
         m_scene->begin();
         m_frameGraph->sceneInitialized(*m_scene);
@@ -1050,7 +1050,7 @@ public:
                     if (m_frameGraph)
                     {
                         if (auto resized = m_frameGraph->resized(); !resized)
-                            std::println("Frame graph resize failed: {}", resized.error().message);
+                            std::println("Frame graph resize failed: {}", describe(resized.error()));
                     }
                 }
             }
@@ -1087,7 +1087,7 @@ public:
                 }
                 if (auto resized = m_frameGraph->resized(); !resized)
                 {
-                    std::println("Frame graph resize failed: {}", resized.error().message);
+                    std::println("Frame graph resize failed: {}", describe(resized.error()));
                     return 1;
                 }
             }

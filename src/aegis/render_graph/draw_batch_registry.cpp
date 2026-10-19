@@ -9,6 +9,7 @@ module;
 module aegis.render_graph;
 import std;
 import aegis.assets;
+import aegis.base;
 import aegis.scene.registry;
 
 namespace aegis::render_graph
@@ -73,7 +74,7 @@ auto DrawBatchRegistry::track(entt::entity entity, const std::shared_ptr<const a
     else
     {
         if (m_batches.size() >= maxDrawBatches)
-            return makeError("Too many material templates: at most " + std::to_string(maxDrawBatches) + " draw batches");
+            return makeError(ErrorCode::LimitExceeded, "Too many material templates: at most " + std::to_string(maxDrawBatches) + " draw batches");
 
         m_batchIds.emplace(materialTemplate.get(), id);
         m_batches.push_back({ .id = id, .firstInstance = 0, .instanceCount = 0, .materialTemplate = materialTemplate });
@@ -135,7 +136,7 @@ auto DrawBatchRegistry::trackMaterial(entt::entity entity, const assets::Materia
         return;
 
     if (const auto tracked = track(entity, material.instance->materialTemplate(), dynamic); !tracked)
-        std::println("DrawBatchRegistry: {}", tracked.error().message);
+        log::warn("DrawBatchRegistry: {} not drawn on the GPU-driven path: {}", static_cast<std::uint32_t>(entity), describe(tracked.error()));
 }
 
 auto DrawBatchRegistry::markStatic(entt::registry& registry, entt::entity entity) -> void

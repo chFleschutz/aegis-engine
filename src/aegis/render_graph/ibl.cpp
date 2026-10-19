@@ -7,6 +7,14 @@ namespace aegis::render_graph
 {
 namespace
 {
+// An assets failure keeps its rhi cause.
+auto fromAssets(const assets::Error& error, std::string_view context) -> std::unexpected<Error>
+{
+    return std::unexpected{ Error{ .code = ErrorCode::InitializationFailed,
+        .message = std::format("{}: {}", context, error.message),
+        .rhi = error.rhi } };
+}
+
 auto groups(std::uint32_t size) -> std::uint32_t
 {
     return groupCount(size, computeGroupSize);
@@ -62,7 +70,7 @@ auto Ibl::loadEnvironment(const std::filesystem::path& hdr) -> std::expected<ass
 {
     auto equirect = assets::Texture::loadEquirectangular(*m_device, hdr);
     if (!equirect)
-        return makeError(std::format("Failed to load environment: {}", equirect.error().message));
+        return fromAssets(equirect.error(), "Failed to load environment");
 
     auto cube = cubeFromEquirectangular(**equirect);
     if (!cube)
@@ -105,7 +113,7 @@ auto Ibl::storageView(const assets::Texture& texture, std::uint32_t mipLevel) ->
             .usage = rhi::ImageUsage::Storage,
         });
     if (!view)
-        return makeError(view.error(), "Failed to create IBL storage view");
+        return makeError(ErrorCode::ResourceCreationFailed, "Failed to create IBL storage view", view.error());
     return *view;
 }
 
@@ -115,7 +123,7 @@ auto Ibl::cubeFromEquirectangular(const assets::Texture& equirect) -> std::expec
     const auto size = m_device->get(equirect.image()).extent().x / 4;
     auto cube = assets::Texture::create(*m_device, cubeDesc("EnvironmentCube", size, rhi::Image::fullMipChain));
     if (!cube)
-        return makeError(std::format("Failed to create environment cube: {}", cube.error().message));
+        return fromAssets(cube.error(), "Failed to create environment cube");
     auto target = storageView(**cube, 0);
     if (!target)
         return std::unexpected{ target.error() };
@@ -141,7 +149,7 @@ auto Ibl::irradiance(const assets::Texture& cube) -> std::expected<std::shared_p
 {
     auto map = assets::Texture::create(*m_device, cubeDesc("Irradiance", irradianceSize, 1));
     if (!map)
-        return makeError(std::format("Failed to create irradiance map: {}", map.error().message));
+        return fromAssets(map.error(), "Failed to create irradiance map");
     auto target = storageView(**map, 0);
     if (!target)
         return std::unexpected{ target.error() };
@@ -166,7 +174,7 @@ auto Ibl::prefiltered(const assets::Texture& cube) -> std::expected<std::shared_
 {
     auto map = assets::Texture::create(*m_device, cubeDesc("Prefiltered", prefilteredSize, prefilteredMipLevels));
     if (!map)
-        return makeError(std::format("Failed to create prefiltered map: {}", map.error().message));
+        return fromAssets(map.error(), "Failed to create prefiltered map");
 
     std::vector<rhi::ImageViewHandle> targets;
     const auto freeTargets = [&] {
@@ -221,7 +229,7 @@ auto Ibl::brdfLut() -> std::expected<std::shared_ptr<assets::Texture>, Error>
             .usage = rhi::ImageUsage::Storage,
         });
     if (!lut)
-        return makeError(std::format("Failed to create BRDF LUT: {}", lut.error().message));
+        return fromAssets(lut.error(), "Failed to create BRDF LUT");
     auto target = storageView(**lut, 0);
     if (!target)
         return std::unexpected{ target.error() };

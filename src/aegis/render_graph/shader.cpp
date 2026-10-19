@@ -15,17 +15,17 @@ auto loadShader(std::string_view relativePath) -> std::expected<std::vector<std:
     const auto path = shaderDirectory() / relativePath;
     std::ifstream file{ path, std::ios::binary | std::ios::ate };
     if (!file)
-        return makeError(std::format("Failed to open shader '{}'", path.string()));
+        return makeError(ErrorCode::ShaderLoadFailed, std::format("Failed to open shader '{}'", path.string()));
 
     const auto size = static_cast<std::size_t>(file.tellg());
     if (size == 0 || size % sizeof(std::uint32_t) != 0)
-        return makeError(std::format("Shader '{}' is not SPIR-V (size {})", path.string(), size));
+        return makeError(ErrorCode::ShaderLoadFailed, std::format("Shader '{}' is not SPIR-V (size {})", path.string(), size));
 
     std::vector<std::uint32_t> code(size / sizeof(std::uint32_t));
     file.seekg(0);
     file.read(reinterpret_cast<char*>(code.data()), static_cast<std::streamsize>(size));
     if (!file)
-        return makeError(std::format("Failed to read shader '{}'", path.string()));
+        return makeError(ErrorCode::ShaderLoadFailed, std::format("Failed to read shader '{}'", path.string()));
     return code;
 }
 
@@ -41,7 +41,7 @@ auto createComputePipeline(rhi::Device& device, std::string_view name, std::stri
         .shader = { .name = name, .stage = rhi::ShaderStage::Compute, .code = *code, .entryPoint = entryPoint },
     });
     if (!pipeline)
-        return makeError(pipeline.error(), std::format("Failed to create pipeline '{}'", name));
+        return makeError(ErrorCode::ShaderLoadFailed, std::format("Failed to create pipeline '{}'", name), pipeline.error());
     return std::move(*pipeline);
 }
 
@@ -65,7 +65,7 @@ auto createGraphicsPipeline(rhi::Device& device, rhi::Pipeline::GraphicsDesc des
 
     auto pipeline = device.createPipeline(desc);
     if (!pipeline)
-        return makeError(pipeline.error(), std::format("Failed to create pipeline '{}'", desc.name));
+        return makeError(ErrorCode::ShaderLoadFailed, std::format("Failed to create pipeline '{}'", desc.name), pipeline.error());
     return std::move(*pipeline);
 }
 
