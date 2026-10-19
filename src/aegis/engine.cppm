@@ -4,6 +4,8 @@ module;
 
 #include <aegis-log/log.h>
 
+#include <cstdlib>
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 
@@ -200,21 +202,28 @@ private:
     {
         if (!result)
         {
-            ALOG::fatal("Failed to {}: {}", what, result.error().message);
-            AGX_ASSERT_X(false, "Engine setup failed (see log)");
-            return T{};
+            fatalSetup(std::format("Failed to {}: {}", what, result.error().message));
         }
         return std::move(*result);
+    }
+
+    // Setup failures log their cause and exit; the engine can't carry on without a device.
+    [[noreturn]] static void fatalSetup(const std::string& message)
+    {
+        ALOG::fatal("{}", message);
+        std::exit(EXIT_FAILURE);
     }
 
     void createRenderer()
     {
         auto context = aegis::rhi::Context::create({ .appName = "Aegis", .window = &m_window });
-        AGX_ASSERT_X(context, "Failed to create the Vulkan context");
+        if (!context)
+            fatalSetup(std::format("Failed to create the Vulkan context (rhi error {})", std::to_underlying(context.error().code)));
         m_context = std::move(*context);
 
         auto device = m_context->createDevice({});
-        AGX_ASSERT_X(device, "Failed to create the Vulkan device");
+        if (!device)
+            fatalSetup(std::format("Failed to create the Vulkan device (rhi error {})", std::to_underlying(device.error().code)));
         m_device = std::move(*device);
 
         auto renderer = aegis::renderer::Renderer::create({
@@ -222,7 +231,8 @@ private:
             .device = *m_device,
             .window = &m_window,
         });
-        AGX_ASSERT_X(renderer, "Failed to create the renderer");
+        if (!renderer)
+            fatalSetup(std::format("Failed to create the renderer (renderer error {})", std::to_underlying(renderer.error())));
         m_renderer = std::move(*renderer);
     }
 
@@ -231,8 +241,7 @@ private:
         m_defaults = check(aegis::assets::DefaultAssets::create(*m_device, FRAMES_IN_FLIGHT), "create the default assets");
         auto ibl = aegis::render_graph::Ibl::create(*m_device);
         if (!ibl)
-            ALOG::fatal("Failed to create the IBL pipelines: {}", ibl.error().message);
-        AGX_ASSERT_X(ibl, "Failed to create the IBL pipelines");
+            fatalSetup(std::format("Failed to create the IBL pipelines: {}", ibl.error().message));
         m_ibl.emplace(std::move(*ibl));
         m_brdfLut = check(m_ibl->brdfLut(), "compute the BRDF lookup table");
 
