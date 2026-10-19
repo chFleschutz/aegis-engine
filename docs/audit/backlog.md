@@ -92,7 +92,8 @@ Future decisions (not blocking):
 - [ ] **0.2 `.git-blame-ignore-revs`** · S
   - Content: from PR #32, b5877948 (format), 561096dc and 5c4b20d9 (renames); from PR #91,
     1800508e ("Qualify C standard type names with std::") and 7266617e ("Replace standard library
-    includes with import std"), after checking each is purely mechanical (no logic mixed in).
+    includes with import std"), after checking each is purely mechanical (no logic mixed in);
+    from PR #94 (2.8), 6edb9f11 ("Format the whole tree with clang-format").
   - Unblocked: both PRs have merged.
 
 ## M1. Independent bug fixes
@@ -109,11 +110,11 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
 | C, content and misc | 1.12 → 1.13 → 1.14 |
 | After lane A | 1.10 → 1.11 → 1.9 (all edit `engine.cppm`; 1.9 also needs 1.7) |
 
-- [ ] **1.1** `fix/test-case-semicolon` · S · #34
+- [x] **1.1** `fix/test-case-semicolon` · S · #34 · merged in PR #92
   - Closes: E-BUILD-01.
   - Done when: ctest lists "reads in the same layout need no barrier…" as one or two real cases,
     each running its assertions (today both halves run 0 cases and pass).
-- [ ] **1.2** `fix/gpu-driven-shaders` · S · #35
+- [x] **1.2** `fix/gpu-driven-shaders` · S · #35 · PR #93, not merged
   - Closes: B-BUILD-01, B-BUILD-02 (A-BUILD-03), B-BUILD-03, B-BUILD-04, culling bound check
     (B-RENDER-04 part a).
   - Done when: `spirv-dis` of `task.slang.spv` shows `OpEmitMeshTasksEXT` outside any branch and
@@ -126,7 +127,7 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
 - [ ] **1.3** `fix/depth-write-access` · S · #36
   - Closes: B-RENDER-09.
   - Done when: `DepthWrite` includes depth-attachment read access; device tests pass.
-- [ ] **1.4** `fix/resource-pool-stable-storage` · S · #37
+- [x] **1.4** `fix/resource-pool-stable-storage` · S · #37 · PR #96, not merged
   - Closes: A-RENDER-02.
   - Done when: test 13 passes ("a returned reference keeps its address while the pool grows").
 - [ ] **1.5** `fix/renderer-error-paths` · S–M · #38
@@ -150,7 +151,7 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
   - Done when: a new `aegis-test --scene --gpu-driven` check that destroys a static mesh entity
     at frame 60 and loads a model after scene load runs clean under validation and renders both
     changes; static material edits reach the GPU.
-- [ ] **1.8a** `test/scene-target` · S · #41
+- [x] **1.8a** `test/scene-target` · S · #41 · PR #97, not merged
   - Closes: B-APP-03 (A-APP-03, E-APP-02, E-APP-03), E-APP-09, A-APP-10 (E-APP-01), link
     visibility in `scene/CMakeLists.txt` (A-BUILD-08 polish).
   - Done when: `aegis-tests-scene` exists; tests 1–3 pass (1 and 3 *fail today*); cycles are rejected.
@@ -186,14 +187,14 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
   - Done when: a failed context/device/renderer/IBL creation logs its cause and exits instead of
     dereferencing; `assertFailed` writes to stderr and traps at the call site (check with stdout
     redirected to a file).
-- [ ] **1.12** `fix/gltf-import-bugs` · S · #47
+- [x] **1.12** `fix/gltf-import-bugs` · S · #47 · merged in PR #95
   - Closes: B-CONTENT-02, B-CONTENT-03, B-CONTENT-05, B-CONTENT-06 (E-CONTENT-06); check
     E-CONTENT-05 (unverified).
   - Done when: VEC4 `COLOR_0` loads in debug; data-URI images load; non-triangle topology is
     rejected with a clear error (or converted); only the default scene's nodes are instantiated.
     Unit tests follow in 5.2 (test 18). For E-CONTENT-05, take a Simple-Scene screenshot and flip
     OBJ v only if the painting is mirrored.
-- [ ] **1.13** `fix/material-and-texture-validation` · S · #48
+- [x] **1.13** `fix/material-and-texture-validation` · S · #48 · PR #98, not merged
   - Closes: B-CONTENT-01 (E-CONTENT-03, A-CONTENT-09 half), B-CONTENT-12 (E-RENDER-07, E-CONTENT-09).
   - Done when: tests 16 and 17 pass; `setParameter`/`addParameter` return `expected`;
     `detail::planImageUpload` exists and `Texture::create(desc, mip0)` rejects a wrong size with
@@ -240,7 +241,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
   - Closes: D-25 (rename part only; keep `Settings`), C row 20, C-11 naming, M10.
   - Content: `tranformationMatrix` → `transformMatrix`, `m_Layers` → `m_layers`,
     `render_graph::ResourceHandle` → `ResourceId`, the 3 test-suite outliers, shader `pc` → `push`.
-- [ ] **2.8** `style/format-tree` · S · #57
+- [x] **2.8** `style/format-tree` · S · #57 · merged in PR #94 (blame-ignore entry pending, see 0.2)
   - Decision: whole-tree formatting.
   - Content: `tools/format.sh --all` over the 14 files the diff-only rule never touched (re-checked
     after PR #91: still the same 14; about 94
