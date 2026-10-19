@@ -1,6 +1,7 @@
 export module aegis.render_graph:lighting_pass;
 import std;
 import :error;
+import :gpu_types;
 import :render_pass;
 import :resource;
 import :resource_pool;
@@ -9,41 +10,12 @@ import aegis.math;
 
 export namespace aegis::render_graph
 {
-enum class LightingViewMode : std::int32_t
-{
-    SceneColor = 0,
-    Albedo = 1,
-    AmbientOcclusion = 2,
-    Roughness = 3,
-    Metallic = 4,
-    Emissive = 5,
-};
-
 /// @brief Deferred PBR lighting: G-buffer + the scene's lights and environment (assets::Environment
 ///        on Scene::environment()) -> "SceneColor" (RGBA16F).
 class LightingPass : public RenderPass
 {
 public:
-    static constexpr std::uint32_t maxPointLights{ 128 };
-
-    /// @brief lighting.slang's Lighting block.
-    struct Uniforms
-    {
-        struct PointLight
-        {
-            glm::vec4 position;
-            glm::vec4 color; // rgb, intensity
-        };
-
-        glm::vec4 cameraPosition{ 0.0f };
-        glm::vec4 ambientColor{ 0.0f }; // rgb, intensity
-        glm::vec4 directionalDirection{ 0.0f, 0.0f, 1.0f, 0.0f };
-        glm::vec4 directionalColor{ 0.0f }; // rgb, intensity
-        std::array<PointLight, maxPointLights> pointLights{};
-        std::int32_t pointLightCount{ 0 };
-        float ambientOcclusionFactor{ 1.0f };
-        LightingViewMode viewMode{ LightingViewMode::SceneColor };
-    };
+    static constexpr std::uint32_t maxPointLights{ render_graph::maxPointLights };
 
     explicit LightingPass(ResourcePool& pool);
 

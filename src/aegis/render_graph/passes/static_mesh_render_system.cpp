@@ -47,14 +47,12 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
             lastMaterial = material.instance.get();
         }
 
-        // Row-major for the shader; the normal matrix's transpose is implied by the row layout.
-        const auto model = transform.matrix();
-        const auto normalMatrix = glm::inverse(glm::mat3{ model });
-        cmd.pushConstants(PushConstants{
-            .model = glm::mat3x4{ glm::rowMajor4(model) },
-            .normalRow0 = normalMatrix[0],
-            .normalRow1 = normalMatrix[1],
-            .normalRow2 = normalMatrix[2],
+        const auto gpuTransform = detail::toGpuTransform(transform.matrix());
+        cmd.pushConstants(StaticMeshConstants{
+            .model = gpuTransform.model,
+            .normalRow0 = gpuTransform.normalRow0,
+            .normalRow1 = gpuTransform.normalRow1,
+            .normalRow2 = gpuTransform.normalRow2,
             .camera = context.camera,
             .mesh = mesh.staticMesh->meshDataAddress(),
             .material = material.instance->parameterAddress(context.frameIndex),

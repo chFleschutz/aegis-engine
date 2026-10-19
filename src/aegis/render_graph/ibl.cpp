@@ -9,20 +9,11 @@ namespace
 {
 auto groups(std::uint32_t size) -> std::uint32_t
 {
-    return groupCount(size, 16);
+    return groupCount(size, computeGroupSize);
 }
 
-// Mirrors bindless::TextureDescriptor: image index, then sampler index.
-struct TextureDescriptor
-{
-    std::uint32_t image;
-    std::uint32_t sampler;
-};
-
-auto descriptorOf(const assets::Texture& texture) -> TextureDescriptor
-{
-    return { texture.sampledDescriptor().index, texture.samplerDescriptor().index };
-}
+// lighting.slang reads the last mip of the prefiltered map as the roughest reflection.
+static_assert(maxReflectionLod == static_cast<float>(Ibl::prefilteredMipLevels - 1));
 
 auto cubeDesc(std::string_view name, std::uint32_t size, std::uint32_t mipLevels) -> assets::Texture::Desc
 {
@@ -129,12 +120,7 @@ auto Ibl::cubeFromEquirectangular(const assets::Texture& equirect) -> std::expec
     if (!target)
         return std::unexpected{ target.error() };
 
-    struct PushConstants
-    {
-        TextureDescriptor equirect;
-        std::uint32_t cube;
-    };
-    const PushConstants constants{ descriptorOf(equirect), m_device->get(*target).storageDescriptor()->index };
+    const EquirectToCubeConstants constants{ equirect.descriptor(), *m_device->get(*target).storageDescriptor() };
 
     const auto image = (*cube)->image();
     auto submitted = submitImmediate(*m_device, "EquirectangularToCube", [&](const rhi::CommandBuffer& cmd) {
@@ -160,12 +146,7 @@ auto Ibl::irradiance(const assets::Texture& cube) -> std::expected<std::shared_p
     if (!target)
         return std::unexpected{ target.error() };
 
-    struct PushConstants
-    {
-        TextureDescriptor environment;
-        std::uint32_t irradiance;
-    };
-    const PushConstants constants{ descriptorOf(cube), m_device->get(*target).storageDescriptor()->index };
+    const IrradianceConstants constants{ cube.descriptor(), *m_device->get(*target).storageDescriptor() };
 
     const auto image = (*map)->image();
     auto submitted = submitImmediate(*m_device, "IrradianceConvolution", [&](const rhi::CommandBuffer& cmd) {
@@ -203,13 +184,6 @@ auto Ibl::prefiltered(const assets::Texture& cube) -> std::expected<std::shared_
         targets.push_back(*target);
     }
 
-    struct PushConstants
-    {
-        TextureDescriptor environment;
-        std::uint32_t prefiltered;
-        float roughness;
-        float envResolution;
-    };
     const auto environmentSize = static_cast<float>(m_device->get(cube.image()).extent().x);
 
     const auto image = (*map)->image();
@@ -218,9 +192,9 @@ auto Ibl::prefiltered(const assets::Texture& cube) -> std::expected<std::shared_
         cmd.bindPipeline(m_prefilter);
         for (std::uint32_t mip = 0; mip < prefilteredMipLevels; ++mip)
         {
-            cmd.pushConstants(PushConstants{
-                .environment = descriptorOf(cube),
-                .prefiltered = m_device->get(targets[mip]).storageDescriptor()->index,
+            cmd.pushConstants(PrefilterConstants{
+                .environment = cube.descriptor(),
+                .prefiltered = *m_device->get(targets[mip]).storageDescriptor(),
                 .roughness = static_cast<float>(mip) / static_cast<float>(prefilteredMipLevels - 1),
                 .envResolution = environmentSize,
             });
@@ -252,12 +226,12 @@ auto Ibl::brdfLut() -> std::expected<std::shared_ptr<assets::Texture>, Error>
     if (!target)
         return std::unexpected{ target.error() };
 
-    const auto lutDescriptor = m_device->get(*target).storageDescriptor()->index;
+    const BrdfLutConstants constants{ *m_device->get(*target).storageDescriptor() };
     const auto image = (*lut)->image();
     auto submitted = submitImmediate(*m_device, "BrdfLut", [&](const rhi::CommandBuffer& cmd) {
         cmd.transitionImageLayout(image, rhi::ResourceState::Unknown, rhi::ResourceState::ComputeStorage);
         cmd.bindPipeline(m_brdfLut);
-        cmd.pushConstants(lutDescriptor);
+        cmd.pushConstants(constants);
         cmd.dispatch(groups(brdfLutSize), groups(brdfLutSize), 1);
         cmd.transitionImageLayout(image, rhi::ResourceState::ComputeStorage, rhi::ResourceState::ShaderRead);
     });

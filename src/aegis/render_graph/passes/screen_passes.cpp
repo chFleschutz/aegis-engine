@@ -10,14 +10,6 @@ import aegis.scene;
 
 namespace aegis::render_graph
 {
-namespace
-{
-auto storageIndex(const ResourcePool& pool, ResourceHandle handle) -> std::uint32_t
-{
-    return pool.device().get(pool.texture(handle).view).storageDescriptor()->index;
-}
-}
-
 // Sky box -------------------------------------------------------------------------------------------
 
 SkyBoxPass::SkyBoxPass(ResourcePool& pool) :
@@ -62,13 +54,6 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     // Rotation only: the sky is infinitely far away.
     const auto& cameraComponent = registry.get<aegis::Camera>(camera);
     const auto viewRotation = glm::mat4{ glm::mat3{ cameraComponent.viewMatrix } };
-    struct PushConstants
-    {
-        glm::mat4 viewProjection;
-        std::uint32_t skyboxImage;
-        std::uint32_t skyboxSampler;
-    };
-
     const auto& cmd = frameInfo.cmd;
     std::array colorAttachments{ rhi::Attachment::colorLoad(pool.texture(m_sceneColor).view) };
     cmd.beginRendering({
@@ -78,10 +63,9 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     cmd.setViewport(frameInfo.extent);
     cmd.setScissor(frameInfo.extent);
     cmd.bindPipeline(*m_pipeline);
-    cmd.pushConstants(PushConstants{
+    cmd.pushConstants(SkyBoxConstants{
         .viewProjection = glm::rowMajor4(cameraComponent.projectionMatrix * viewRotation),
-        .skyboxImage = skybox->sampledDescriptor().index,
-        .skyboxSampler = skybox->samplerDescriptor().index,
+        .skybox = skybox->descriptor(),
     });
     cmd.draw(36);
     cmd.endRendering();
@@ -116,34 +100,23 @@ auto PostProcessingPass::createResources(ResourcePool& pool) -> std::expected<vo
 
 auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    struct PushConstants
-    {
-        std::uint32_t final;
-        std::uint32_t sceneColor;
-        std::uint32_t bloom;
-        ToneMapping toneMapping;
-        float bloomIntensity;
-        float exposure;
-        float gamma;
-    };
-
     // An sRGB target (the swapchain prefers one) encodes on write; gamma here would apply it twice.
     const auto targetFormat = pool.device().get(frameInfo.target).format();
     const bool targetEncodes = targetFormat == rhi::Format::BGRA8_SRGB || targetFormat == rhi::Format::RGBA8_SRGB;
 
-    const auto sceneColor = storageIndex(pool, m_sceneColor);
+    const auto sceneColor = pool.storageDescriptor(m_sceneColor);
     const auto& cmd = frameInfo.cmd;
     cmd.bindPipeline(*m_pipeline);
-    cmd.pushConstants(PushConstants{
-        .final = storageIndex(pool, m_final),
+    cmd.pushConstants(PostProcessConstants{
+        .final = pool.storageDescriptor(m_final),
         .sceneColor = sceneColor,
-        .bloom = m_bloom ? storageIndex(pool, *m_bloom) : sceneColor,
+        .bloom = m_bloom ? pool.storageDescriptor(*m_bloom) : sceneColor,
         .toneMapping = m_settings.toneMapping,
         .bloomIntensity = m_bloom ? m_settings.bloomIntensity : 0.0f,
         .exposure = m_settings.exposure,
         .gamma = targetEncodes ? 1.0f : m_settings.gamma,
     });
-    cmd.dispatch(groupCount(frameInfo.extent.x, 16), groupCount(frameInfo.extent.y, 16));
+    cmd.dispatch(groupCount(frameInfo.extent.x, computeGroupSize), groupCount(frameInfo.extent.y, computeGroupSize));
 }
 
 auto PostProcessingPass::drawUI() -> void

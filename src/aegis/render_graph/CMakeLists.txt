@@ -25,6 +25,7 @@ target_sources(aegis-render-graph
     error.cppm
     frame_graph.cppm
     frustum.cppm
+    gpu_types.cppm
     ibl.cppm
     immediate.cppm
     render_pass.cppm
