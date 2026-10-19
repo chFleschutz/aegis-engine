@@ -12,6 +12,7 @@ import aegis.platform;
 import aegis.render_graph;
 import aegis.renderer;
 import aegis.scene;
+import aegis.scene.systems.transform_system;
 
 export namespace aegis::editor
 {
@@ -86,8 +87,9 @@ private:
         glm::mat4 projectionMatrix = camera.projectionMatrix;
         projectionMatrix[1][1] *= -1.0f; // Flip y-axis
 
+        // The gizmo works in world space; the result is converted back to the local transform
         auto& transform = registry.get<Transform>(selected);
-        glm::mat4 transformMatrix = transform.matrix();
+        glm::mat4 transformMatrix = registry.get<GlobalTransform>(selected).matrix();
 
         float snapValue = 0.5f;
         if (m_gizmoType == ImGuizmo::OPERATION::SCALE)
@@ -103,7 +105,12 @@ private:
 
         if (ImGuizmo::IsUsing())
         {
-            math::decomposeTRS(transformMatrix, transform.location, transform.rotation, transform.scale);
+            GlobalTransform parentGlobal{};
+            auto parent = registry.get<Parent>(selected).entity;
+            if (parent && registry.has<GlobalTransform>(parent))
+                parentGlobal = registry.get<GlobalTransform>(parent);
+
+            transform = scene::detail::toLocal(parentGlobal, transformMatrix);
         }
     }
 

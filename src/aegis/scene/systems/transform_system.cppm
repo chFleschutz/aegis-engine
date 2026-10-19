@@ -4,6 +4,27 @@ import std;
 import aegis.scene.registry;
 import aegis.scene.system;
 
+export namespace aegis::scene::detail
+{
+/// @brief Composes the global transform of a child from its parent's global transform and its own local transform
+/// @note Goes through matrices, so the parent's rotation and scale apply to the child's location. A non-uniform
+/// parent scale combined with a child rotation introduces shear, which TRS cannot represent (it is dropped).
+[[nodiscard]] inline auto compose(const GlobalTransform& parentGlobal, const Transform& local) -> GlobalTransform
+{
+    GlobalTransform global;
+    math::decomposeTRS(parentGlobal.matrix() * local.matrix(), global.location, global.rotation, global.scale);
+    return global;
+}
+
+/// @brief Converts a world matrix into the local transform of an entity below the given parent (inverse of compose)
+[[nodiscard]] inline auto toLocal(const GlobalTransform& parentGlobal, const glm::mat4& world) -> Transform
+{
+    Transform local;
+    math::decomposeTRS(glm::inverse(parentGlobal.matrix()) * world, local.location, local.rotation, local.scale);
+    return local;
+}
+}
+
 export namespace aegis::scene
 {
 class TransformSystem : public System
@@ -31,10 +52,7 @@ public:
             globalTransform = GlobalTransform{};
             for (auto e : std::ranges::views::reverse(hierarchy))
             {
-                auto& localTransform = registry.get<Transform>(e);
-                globalTransform.location = globalTransform.location + localTransform.location;
-                globalTransform.rotation = globalTransform.rotation * localTransform.rotation;
-                globalTransform.scale = globalTransform.scale * localTransform.scale;
+                globalTransform = detail::compose(globalTransform, registry.get<Transform>(e));
             }
         }
     }
@@ -54,9 +72,7 @@ public:
             }
 
             auto& parentGlobal = registry.get<GlobalTransform>(parent.entity);
-            globalTransform.location = parentGlobal.location + transform.location;
-            globalTransform.rotation = parentGlobal.rotation * transform.rotation;
-            globalTransform.scale = parentGlobal.scale * transform.scale;
+            globalTransform = detail::compose(parentGlobal, transform);
         }
     }
 };
