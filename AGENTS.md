@@ -4,8 +4,7 @@ This file provides guidance to coding agents working with code in this repositor
 
 Aegis Engine is a cross-platform (Windows and Linux) C++23 Vulkan render engine. The build is
 **C++20/23 modules-only** (every subsystem ships `.cppm` module files) and treats **warnings as
-errors** — your edits must compile clean. `src/aegis/ai/` (plain `.h`/`.cpp`) is the exception: it
-is kept unbuilt on purpose until it is ported, so leave it out of searches and refactors.
+errors** — your edits must compile clean.
 
 ## Build & run
 

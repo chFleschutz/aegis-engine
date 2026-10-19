@@ -34,8 +34,7 @@ fi
 
 cd "$(git rev-parse --show-toplevel)"
 pathspec=(src tests examples)
-# src/aegis/ai/ is unbuilt and slated for deletion; leave it alone.
-is_source() { grep -E '^(src|tests|examples)/.*\.(cppm|cpp|h|hpp)$' | grep -v '^src/aegis/ai/' || true; }
+is_source() { grep -E '^(src|tests|examples)/.*\.(cppm|cpp|h|hpp)$' || true; }
 
 if [[ $all -eq 1 ]]; then
     files=$(git ls-files -- "${pathspec[@]}" | is_source)
