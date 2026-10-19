@@ -252,20 +252,32 @@ private:
 
             auto& instance = **material;
             instance.setPath(std::string{ gltfMaterial.name });
-            instance.setParameter("albedo", glm::make_vec3(gltfMaterial.pbrData.baseColorFactor.data()));
-            instance.setParameter("metallic", static_cast<float>(gltfMaterial.pbrData.metallicFactor));
-            instance.setParameter("roughness", static_cast<float>(gltfMaterial.pbrData.roughnessFactor));
-            instance.setParameter("emissive", glm::make_vec3(gltfMaterial.emissiveFactor.data()));
-
-            const auto setTexture = [&](const char* parameter, const auto& textureInfo) {
-                if (textureInfo && m_textures[textureInfo->textureIndex])
-                    instance.setParameter(parameter, m_textures[textureInfo->textureIndex]);
+            struct Override
+            {
+                const char* name;
+                MaterialValue value;
             };
-            setTexture("albedoMap", gltfMaterial.pbrData.baseColorTexture);
-            setTexture("metalRoughnessMap", gltfMaterial.pbrData.metallicRoughnessTexture);
-            setTexture("normalMap", gltfMaterial.normalTexture);
-            setTexture("ambientOcclusionMap", gltfMaterial.occlusionTexture);
-            setTexture("emissiveMap", gltfMaterial.emissiveTexture);
+            std::vector<Override> overrides{
+                { "albedo", glm::make_vec3(gltfMaterial.pbrData.baseColorFactor.data()) },
+                { "metallic", static_cast<float>(gltfMaterial.pbrData.metallicFactor) },
+                { "roughness", static_cast<float>(gltfMaterial.pbrData.roughnessFactor) },
+                { "emissive", glm::make_vec3(gltfMaterial.emissiveFactor.data()) },
+            };
+            const auto addTexture = [&](const char* parameter, const auto& textureInfo) {
+                if (textureInfo && m_textures[textureInfo->textureIndex])
+                    overrides.push_back(Override{ parameter, m_textures[textureInfo->textureIndex] });
+            };
+            addTexture("albedoMap", gltfMaterial.pbrData.baseColorTexture);
+            addTexture("metalRoughnessMap", gltfMaterial.pbrData.metallicRoughnessTexture);
+            addTexture("normalMap", gltfMaterial.normalTexture);
+            addTexture("ambientOcclusionMap", gltfMaterial.occlusionTexture);
+            addTexture("emissiveMap", gltfMaterial.emissiveTexture);
+
+            for (auto& [name, value] : overrides)
+            {
+                if (auto set = instance.setParameter(name, std::move(value)); !set)
+                    return std::unexpected{ set.error() };
+            }
 
             m_materials.emplace_back(std::move(*material));
         }

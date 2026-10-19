@@ -10,6 +10,7 @@ enum class ErrorCode
     DecodeFailed,      // The file exists, but its contents could not be parsed
     UnsupportedFormat, // Parsed, but this format or feature is not supported (yet)
     InvalidData,       // Parsed, but required data is missing or inconsistent
+    InvalidArgument,   // A caller bug, e.g. an unknown material parameter or data that does not match its Desc
     GpuFailure,        // An rhi call failed; Error::rhi holds its error
 };
 

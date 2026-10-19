@@ -9,6 +9,7 @@ aegis_add_test(rhi
         ring_allocator.test.cpp
         sampler.test.cpp
         swapchain.test.cpp
+        upload_manager.test.cpp
         utility.test.cpp
     LIBS aegis-rhi
 )

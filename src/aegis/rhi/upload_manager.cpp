@@ -14,6 +14,49 @@ import :error;
 import :image;
 import :resource_handle;
 
+namespace aegis::rhi::detail
+{
+auto planImageUpload(Extent3D extent, Format format, std::uint32_t mipLevels, std::uint32_t arrayLayers,
+    bool generateMips, std::size_t dataSize) -> std::expected<ImageUploadPlan, Error>
+{
+    // Caller bugs, not backpressure: NotReady would send a retrying caller into an endless
+    // flush-and-retry loop.
+    if (bytesPerTexel(format) == 0)
+        return makeError(ErrorCode::FormatNotSupported); // Depth/stencil and unknown formats
+    if (mipLevels == 0 || arrayLayers == 0)
+        return makeError(ErrorCode::InvalidArgument);
+
+    // With generateMips the caller supplies mip 0 only; the rest are blitted after the copy.
+    const auto sourceMips = generateMips ? std::uint32_t{ 1 } : mipLevels;
+    auto footprints = subresourceFootprints(extent, format, sourceMips, arrayLayers);
+    const auto& last = footprints.back();
+    if (dataSize != last.sourceOffset + last.size)
+        return makeError(ErrorCode::InvalidArgument); // Too little would over-read, too much is not this image
+
+    std::vector<BufferImageCopy> regions;
+    regions.reserve(footprints.size());
+    for (const auto& footprint : footprints)
+    {
+        regions.emplace_back(BufferImageCopy{
+            .bufferOffset = footprint.stagingOffset,
+            .mipLevel = footprint.mipLevel,
+            .baseArrayLayer = 0,
+            .arrayLayerCount = footprint.arrayLayerCount,
+            .extent = footprint.extent,
+        });
+    }
+
+    const auto stagingSize = last.stagingOffset + last.size;
+    return ImageUploadPlan{
+        .footprints = std::move(footprints),
+        .stagingSize = stagingSize,
+        .stagingAlignment = copyAlignment(format),
+        .regions = std::move(regions),
+        .generateMips = generateMips && mipLevels > 1,
+    };
+}
+}
+
 namespace aegis::rhi
 {
 StagingBuffer::StagingBuffer(StagingBuffer&& other) noexcept :
@@ -129,60 +172,38 @@ auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, boo
     std::optional<ResourceState> finalState) -> std::expected<void, Error>
 {
     const auto& image = m_device->get(dst);
+    auto plan = detail::planImageUpload(image.extent(), image.format(), image.mipLevels(), image.arrayLayers(),
+        generateMips, data.size());
+    if (!plan)
+        return std::unexpected{ plan.error() };
 
-    // With generateMips the caller supplies mip 0 only; the rest are blitted below.
-    const auto sourceMips = generateMips ? std::uint32_t{ 1 } : image.mipLevels();
-    const auto footprints = detail::subresourceFootprints(image.extent(), image.format(), sourceMips,
-        image.arrayLayers());
-    if (footprints.empty())
-    {
-        assert(false && "Image format cannot be uploaded from a linear buffer");
-        return makeError(ErrorCode::Unknown);
-    }
-
-    if (generateMips && image.mipLevels() > 1 && !m_device->supportsMipGeneration(image.format()))
+    if (plan->generateMips && !m_device->supportsMipGeneration(image.format()))
         return makeError(ErrorCode::FormatNotSupported);
 
-    const auto& last = footprints.back();
-    // A size mismatch is a caller bug, not backpressure: reporting NotReady would send a retrying
-    // caller into an infinite flush-and-retry loop, so trap it instead.
-    assert(data.size() == last.sourceOffset + last.size && "Upload data does not match image layout");
-
-    auto staging = stage(last.stagingOffset + last.size, detail::copyAlignment(image.format()));
+    auto staging = stage(plan->stagingSize, plan->stagingAlignment);
     if (!staging)
         return std::unexpected{ staging.error() };
 
     // Mip by mip rather than one memcpy: staging pads each mip up to the copy alignment, the
     // caller's data does not.
-    for (const auto& footprint : footprints)
+    for (const auto& footprint : plan->footprints)
     {
         std::memcpy(staging->data + footprint.stagingOffset, data.data() + footprint.sourceOffset,
             footprint.size);
     }
 
-    std::vector<BufferImageCopy> regions;
-    regions.reserve(footprints.size());
-    for (const auto& footprint : footprints)
-    {
-        regions.emplace_back(BufferImageCopy{
-            .bufferOffset = staging->offset + footprint.stagingOffset,
-            .mipLevel = footprint.mipLevel,
-            .baseArrayLayer = 0,
-            .arrayLayerCount = footprint.arrayLayerCount,
-            .extent = footprint.extent,
-        });
-    }
+    for (auto& region : plan->regions)
+        region.bufferOffset += staging->offset;
 
     auto& cmd = openBatch();
     cmd.transitionImageLayout(dst, ResourceState::Unknown, ResourceState::CopyDst);
-    cmd.copyBufferToImage(staging->buffer, dst, regions);
+    cmd.copyBufferToImage(staging->buffer, dst, plan->regions);
 
-    const bool mipsGenerated = generateMips && image.mipLevels() > 1;
-    if (mipsGenerated)
+    if (plan->generateMips)
         cmd.generateMipmaps(dst, ResourceState::CopyDst);
 
     if (finalState)
-        cmd.transitionImageLayout(dst, mipsGenerated ? ResourceState::CopySrc : ResourceState::CopyDst, *finalState);
+        cmd.transitionImageLayout(dst, plan->generateMips ? ResourceState::CopySrc : ResourceState::CopyDst, *finalState);
 
     return {};
 }

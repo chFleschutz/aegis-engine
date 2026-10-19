@@ -30,6 +30,7 @@ public:
     };
 
     /// @param mip0 Mip 0 of every array layer, tightly packed, layers in order.
+    /// @return ErrorCode::InvalidArgument, before anything is created, if 'mip0' has the wrong size.
     [[nodiscard]] static auto create(rhi::Device& device, const Desc& desc, std::span<const std::byte> mip0)
         -> std::expected<std::shared_ptr<Texture>, Error>;
 

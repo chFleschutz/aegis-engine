@@ -1,3 +1,5 @@
+#include <aegis/core/assert.h>
+
 import std;
 import aegis.engine;
 
@@ -16,7 +18,8 @@ public:
         };
 
         auto& material = get<aegis::assets::Material>().instance;
-        material->setParameter("albedo", color);
+        [[maybe_unused]] auto set = material->setParameter("albedo", color);
+        AGX_ASSERT_X(set, "Failed to set the material's albedo");
     }
 
 private:

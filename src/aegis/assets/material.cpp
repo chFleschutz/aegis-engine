@@ -8,6 +8,23 @@ import aegis.math;
 
 namespace aegis::assets
 {
+namespace
+{
+auto typeName(const MaterialValue& value) -> std::string_view
+{
+    // In MaterialValue's alternative order.
+    constexpr std::array names{ "int32", "uint32", "float", "vec2", "vec3", "vec4", "texture" };
+    static_assert(names.size() == std::variant_size_v<MaterialValue>);
+    return names[value.index()];
+}
+
+auto isNullTexture(const MaterialValue& value) -> bool
+{
+    const auto* texture = std::get_if<std::shared_ptr<Texture>>(&value);
+    return texture && !*texture;
+}
+}
+
 namespace detail
 {
 auto scalarAlignment(const MaterialValue& /*value*/) -> std::size_t
@@ -60,23 +77,39 @@ auto writeParameters(const MaterialTemplate& materialTemplate,
 }
 }
 
-auto MaterialTemplate::addParameter(const std::string& name, MaterialValue defaultValue) -> void
+auto MaterialTemplate::addParameter(const std::string& name, MaterialValue defaultValue) -> std::expected<void, Error>
 {
-    assert(!m_parameters.contains(name) && "Material parameter already exists");
-    assert((!std::holds_alternative<std::shared_ptr<Texture>>(defaultValue) ||
-               std::get<std::shared_ptr<Texture>>(defaultValue)) &&
-           "A texture parameter needs a default texture");
+    if (m_parameters.contains(name))
+        return makeError(ErrorCode::InvalidArgument, std::format("Material parameter '{}' already exists", name));
+    if (isNullTexture(defaultValue))
+        return makeError(ErrorCode::InvalidArgument, std::format("Material parameter '{}' needs a default texture", name));
 
     const auto offset = rhi::utility::alignTo(m_parameterSize, detail::scalarAlignment(defaultValue));
     const auto size = detail::scalarSize(defaultValue);
     m_parameterSize = offset + size;
     m_parameters.emplace(name, MaterialParameter{ .offset = offset, .size = size, .defaultValue = std::move(defaultValue) });
+    return {};
 }
 
 auto MaterialTemplate::parameter(const std::string& name) const -> const MaterialParameter*
 {
     const auto found = m_parameters.find(name);
     return found != m_parameters.end() ? &found->second : nullptr;
+}
+
+auto MaterialTemplate::check(const std::string& name, const MaterialValue& value) const -> std::expected<void, Error>
+{
+    const auto* parameter = this->parameter(name);
+    if (!parameter)
+        return makeError(ErrorCode::InvalidArgument, std::format("Material has no parameter '{}'", name));
+    if (parameter->defaultValue.index() != value.index())
+    {
+        return makeError(ErrorCode::InvalidArgument, std::format("Material parameter '{}' is a {}, not a {}", name,
+                                                         typeName(parameter->defaultValue), typeName(value)));
+    }
+    if (isNullTexture(value))
+        return makeError(ErrorCode::InvalidArgument, std::format("Material parameter '{}' needs a texture, not null", name));
+    return {};
 }
 
 auto MaterialInstance::create(rhi::Device& device, std::shared_ptr<const MaterialTemplate> materialTemplate,
@@ -116,24 +149,23 @@ MaterialInstance::~MaterialInstance()
     m_device.free(m_buffer);
 }
 
-auto MaterialInstance::setParameter(const std::string& name, MaterialValue value) -> void
+auto MaterialInstance::setParameter(const std::string& name, MaterialValue value) -> std::expected<void, Error>
 {
-    [[maybe_unused]] const auto* parameter = m_template->parameter(name);
-    assert(parameter && "Material parameter not found");
-    assert(parameter->defaultValue.index() == value.index() && "Material parameter type mismatch");
+    if (auto valid = m_template->check(name, value); !valid)
+        return valid;
 
     m_overrides.insert_or_assign(name, std::move(value));
     std::ranges::fill(m_dirty, true);
+    return {};
 }
 
-auto MaterialInstance::parameter(const std::string& name) const -> const MaterialValue&
+auto MaterialInstance::parameter(const std::string& name) const -> const MaterialValue*
 {
     if (const auto found = m_overrides.find(name); found != m_overrides.end())
-        return found->second;
+        return &found->second;
 
     const auto* parameter = m_template->parameter(name);
-    assert(parameter && "Material parameter not found");
-    return parameter->defaultValue;
+    return parameter ? &parameter->defaultValue : nullptr;
 }
 
 auto MaterialInstance::update(std::uint32_t frameIndex) -> void

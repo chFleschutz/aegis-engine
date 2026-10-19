@@ -18,6 +18,7 @@ enum class ErrorCode
     InitializationFailed,
     NotReady,
     FormatNotSupported,
+    InvalidArgument, // A caller bug, e.g. upload data that does not match the image; retrying cannot help
 };
 
 enum class Format

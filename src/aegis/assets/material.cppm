@@ -37,9 +37,9 @@ public:
     {
     }
 
-    /// @brief Appends a parameter after the existing ones. Names must be unique; a texture default
-    ///        must not be null.
-    auto addParameter(const std::string& name, MaterialValue defaultValue) -> void;
+    /// @brief Appends a parameter after the existing ones.
+    /// @return ErrorCode::InvalidArgument if 'name' exists or a texture default is null.
+    [[nodiscard]] auto addParameter(const std::string& name, MaterialValue defaultValue) -> std::expected<void, Error>;
 
     [[nodiscard]] auto type() const noexcept -> MaterialType { return m_type; }
     [[nodiscard]] auto parameterSize() const noexcept -> std::size_t { return m_parameterSize; }
@@ -47,6 +47,11 @@ public:
 
     /// @return nullptr if the template has no parameter 'name'.
     [[nodiscard]] auto parameter(const std::string& name) const -> const MaterialParameter*;
+
+    /// @brief Whether 'value' may override parameter 'name': the parameter exists, 'value' holds the
+    ///        type of its default, and a texture is not null.
+    /// @return ErrorCode::InvalidArgument otherwise.
+    [[nodiscard]] auto check(const std::string& name, const MaterialValue& value) const -> std::expected<void, Error>;
 
     [[nodiscard]] auto parameters() const noexcept -> const std::unordered_map<std::string, MaterialParameter>&
     {
@@ -82,16 +87,21 @@ public:
         return m_template;
     }
 
-    /// @brief Overrides the template's default. 'value' must hold the same type as the default.
-    auto setParameter(const std::string& name, MaterialValue value) -> void;
+    /// @brief Overrides the template's default.
+    /// @return ErrorCode::InvalidArgument, leaving the material unchanged, if MaterialTemplate::check
+    ///         rejects 'value'.
+    [[nodiscard]] auto setParameter(const std::string& name, MaterialValue value) -> std::expected<void, Error>;
 
     /// @brief The override if set, otherwise the template's default.
-    [[nodiscard]] auto parameter(const std::string& name) const -> const MaterialValue&;
+    /// @return nullptr if the template has no parameter 'name'.
+    [[nodiscard]] auto parameter(const std::string& name) const -> const MaterialValue*;
 
+    /// @return nullptr if the template has no parameter 'name', or it does not hold a T.
     template<typename T>
-    [[nodiscard]] auto parameter(const std::string& name) const -> const T&
+    [[nodiscard]] auto parameter(const std::string& name) const -> const T*
     {
-        return std::get<T>(parameter(name));
+        const auto* value = parameter(name);
+        return value ? std::get_if<T>(value) : nullptr;
     }
 
     /// @brief Rewrites the block of frame slot 'frameIndex' if parameters changed since that slot was
