@@ -47,4 +47,8 @@ if(TARGET compile_shaders)
     # The same harness rendering a loaded scene through the render graph (aegis.render_graph).
     aegis_add_device_test(aegis-test-scene ARGS --headless --scene --frames 120)
     aegis_add_device_test(aegis-test-scene-gpu-driven ARGS --headless --gpu-driven --frames 120 LABELS mesh-shaders)
+
+    # The scene changes while frames are in flight: a model loaded, one destroyed, materials edited.
+    aegis_add_device_test(aegis-test-scene-mutation ARGS --headless --scene --mutate-scene --frames 150)
+    aegis_add_device_test(aegis-test-scene-gpu-driven-mutation ARGS --headless --gpu-driven --mutate-scene --frames 150 LABELS mesh-shaders)
 endif()
