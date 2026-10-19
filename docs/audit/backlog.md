@@ -152,7 +152,7 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
 - [x] **1.4** `fix/resource-pool-stable-storage` · S · #37 · merged in PR #96
   - Closes: A-RENDER-02.
   - Done when: test 13 passes ("a returned reference keeps its address while the pool grows").
-- [ ] **1.5** `fix/renderer-error-paths` · S–M · #38
+- [x] **1.5** `fix/renderer-error-paths` · S–M · #38 · PR #119, not merged
   - Closes: B-RENDER-01, B-RENDER-03 (a, b; ImGui `ImageCount` residue), B-RENDER-02 (E-RENDER-12).
   - Done when: the new swapchain is created before old views are freed and a failed recreate is
     fatal; `renderFrame` and `resize` return `expected` and callers stop on error; a failed submit
@@ -182,7 +182,8 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
   - Depends: 1.8a.
   - Done when: tests 4 (*fails today*) and 5 pass, plus a `toLocal` inverse test; the gizmo
     manipulates the world matrix; bundled scene screenshots unchanged.
-- [ ] **1.8c** `fix/camera-and-decompose-math` · S · #43
+- [x] **1.8c** `fix/camera-and-decompose-math` · S · #43 · PR #116, not merged; the front-face flip
+  for mirrored instances is still open (see Polish)
   - Closes: A-FOUND-08, B-FOUND-01 (E-FOUND-02).
   - Depends: 1.8a.
   - Design (D6): preserve mirrored transforms. On a negative determinant negate one scale axis
@@ -246,7 +247,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
   - Closes: A-APP-13 (D-14), the `ai/` verdict.
   - Content: delete `dynamic_movement_controller`, `world_border`, `physics/motion_dynamics`
     (3 CMake lines) and `src/aegis/ai/`; remove the `ai/` exception from AGENTS.md.
-- [ ] **2.4** `cleanup/dead-core` · S · #53
+- [x] **2.4** `cleanup/dead-core` · S · #53 · PR #114, not merged
   - Closes: D-16, D-17, B-APP-13, B-FOUND-14 (C-09), D-21.
   - Depends: 1.11.
   - Content: delete `core::SHADER_DIR`, `INVALID_HANDLE` (then the `BUILD_DIR` definition),
@@ -314,7 +315,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
     environment override and `u8` paths; all paths derive from `PROJECT_SOURCE_DIR` /
     `PROJECT_BINARY_DIR`, so reader and writer agree when built as a subproject (check with a
     two-line wrapper project). Install rules come with the export step (D7).
-- [ ] **3.6** `build/link-visibility` · S · #66
+- [x] **3.6** `build/link-visibility` · S · #66 · PR #115, not merged
   - Closes: A-BUILD-08 rest (E-APP-13).
   - Done when: scripting and assets link PUBLIC what their `.cppm` import; EnTT dropped from
     assets, imguizmo from core; the rule is in AGENTS.md.
@@ -401,7 +402,7 @@ so the numbers are not sequential. 6.8–6.12 are new and have no issue yet (iss
     re-export (A-APP-12).
   - `World` (today's `Scene`) is a plain object with no global state, so several can exist at once:
     the editor's edit world plus a play copy, or a menu plus a level.
-- [ ] **6.8** `feat/type-registry` · M · issue: TBD
+- [x] **6.8** `feat/type-registry` · M · issue: TBD · PR #118, not merged
   - Closes: A-APP-09 (the component table; the editor half is 6.12).
   - D7. Pure logic, so it can run in parallel with 6.1 and 6.2.
   - A new-style module (working name `aegis.reflect`) with a `TypeRegistry`:
@@ -507,7 +508,7 @@ Before the first terrain, vegetation or shadow pass.
 
 ## M8. Verification tiers (P9)
 
-- [ ] **8.1** `feat/reference-images` · S–M · #88
+- [x] **8.1** `feat/reference-images` · S–M · #88 · PR #117, not merged
   - Closes: E-RENDER-13 (A-BUILD-10) image part.
   - Depends: 1.2.
   - Done when: `aegis-test --compare <png> --tolerance` (diff image on failure); references for
@@ -535,6 +536,10 @@ No PR of their own. Pick them up when a PR already edits the file.
 - [ ] E-RENDER-10: `static_assert` invariants in `:vulkan_conversions`.
 - [ ] A-CONTENT-04 dedupe of images shared by several glTF textures (with the asset cache).
 - [ ] C-05: one native-handle accessor spelling (needs the formatting/naming decision).
+- [ ] Mirrored instances render inside out on both paths (left over from 1.8c, D6): both pipelines
+  cull back faces with a fixed front face. Needs the determinant sign in the instance data, plus a
+  second pipeline on the CPU path and reversed winding or shader culling on the GPU path. Do it
+  with 3.4 or 7.1, which reshape the instance data.
 
 ## After the foundation
 
