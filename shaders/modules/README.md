@@ -37,7 +37,7 @@ struct DrawConstants
     bindless::TextureDescriptor albedo;  // assets::Texture's image and sampler indices
 }
 
-[[vk::push_constant]] ConstantBuffer<DrawConstants> constants;
+[[vk::push_constant]] ConstantBuffer<DrawConstants> push;
 ```
 
 On the C++ side, mirror the struct with `rhi::DeviceAddress` for pointers and `std::uint32_t` for
@@ -46,7 +46,7 @@ typed `pushConstants` checks at compile time.
 
 ## Layout: scalar, so C++ structs match
 
-Every shader compiles with `-fvk-use-scalar-layout` (see `shaders/CMakeLists.txt`): push constants
+Every shader compiles with `-fvk-use-scalar-layout` (see `cmake/AegisShaders.cmake`, which every shader goes through): push constants
 and everything read through a pointer are packed like C++ structs, with each member aligned to its
 component type (a `float3` takes 12 bytes, aligned to 4). So a C++ struct of `glm::vec3`, `float` and
 `rhi::DeviceAddress` matches the Slang struct member for member — `assets::Vertex`, `StaticMesh::GpuData`

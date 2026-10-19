@@ -1,15 +1,15 @@
 # Tests
 
-Unit tests for the new RHI stack (`aegis.rhi` / `renderer` / `platform`, later `render_graph` /
-`assets`), plus `aegis.math` and `aegis.scene`. Scope is intentionally narrow: **pure, GPU-independent logic** that survives the
-migration. Device-level integration stays in the harness (`../src/aegis/test/`), which CTest also
-runs headless as the one `device`-labelled test.
+Unit tests for **pure, GPU-independent logic** in any module (`rhi`, `assets`, `render_graph`, `math`,
+`scene`). Scope is intentionally narrow: logic that survives the migration. Device-level integration
+stays in the harness (`../src/aegis/test/`), which CTest also runs headless as three
+`device`-labelled tests (triangle, CPU- and GPU-driven scene).
 
 ## Quick start
 
 ```
 cmake --build --preset windows-clang-debug   # builds all aegis-tests-* targets
-ctest --preset windows-clang-debug           # runs every discovered case, plus the device check
+ctest --preset windows-clang-debug           # runs every discovered case, plus the device checks
 ctest --preset windows-clang-debug -LE device # everything that needs no GPU
 ```
 
@@ -67,10 +67,7 @@ flattening of `src/aegis/` never moves them.
 tests/
   CMakeLists.txt       # aegis_add_test helper + shared doctest main
   test_main.cpp        # DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN only, no tests
-  rhi/
-    CMakeLists.txt
-    *.test.cpp
-  math/
+  <module>/            # rhi, math, assets, render_graph, scene
     CMakeLists.txt
     *.test.cpp
 ```
@@ -80,9 +77,12 @@ tests/
 | Executable   | `aegis-tests-<module>`                                | `aegis-tests-rhi`                |
 | File         | `<unit_under_test>.test.cpp`, named after the class   | `free_list.test.cpp`             |
 | Subfolder    | mirrors the owning module                             | `tests/rhi/`                     |
-| `TEST_SUITE` | namespace-qualified type, one block per file          | `TEST_SUITE("rhi::FreeList")`    |
-| `TEST_CASE`  | behavior as a present-tense sentence                  | `"hands out sequential indices"` |
+| `TEST_SUITE` | `<module>::<Type or function>`, no `aegis::`; several per file allowed | `TEST_SUITE("rhi::FreeList")`    |
+| `TEST_CASE`  | behavior as a present-tense sentence, **no `;`** (see below) | `"hands out sequential indices"` |
 | `SUBCASE`    | a variation sharing the case's setup                  | `"reuses a freed index"`         |
+
+Never put a `;` in a `TEST_CASE` name: CTest discovery splits the list on it, so both halves run zero
+cases while showing green. Split the case instead.
 
 Tests are ordinary `.cpp` TUs — the framework never touches module interfaces:
 
@@ -185,8 +185,8 @@ instead. Check the existing import direction before choosing a home for an extra
   purpose.
 - **A new test can double as a bug report — or a clean bill of health.** `FreeList::pop()` was
   suspected of being inverted; the first test pinned it as *correct* and closed the question.
-- **Mirror new modules as they land.** When `render_graph` / `assets` arrive, add
-  `tests/<module>/` with its own `CMakeLists.txt` in the same shape.
+- **Mirror new modules as they land.** Add `tests/<module>/` with its own `CMakeLists.txt` in the
+  same shape (see "A new module" above).
 
 ## Design notes
 

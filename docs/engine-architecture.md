@@ -15,7 +15,7 @@ the layer above it.
 `Engine` (`src/aegis/engine.cppm`) registers itself in `s_instance`. It exposes `instance()` plus 10
 static accessors (`Engine::device()`, `Engine::scene()`, `Engine::renderer()`, …). The asset helpers
 (`Engine::loadModel`, `loadTexture`, `loadEnvironment`, `createMaterial`) also go through the global.
-Two more singletons exist alongside it: `Core::AssetManager` (asserts there is only one) and
+Two more singletons exist alongside it: `core::AssetManager` (asserts there is only one) and
 `Profiler::instance()`.
 
 Why it hurts:
@@ -43,8 +43,8 @@ at the top.
 These are all constants:
 
 - `Engine::ENABLE_GPU_DRIVEN_RENDERING`
-- `Core::DEFAULT_WIDTH` / `DEFAULT_HEIGHT`
-- `Core::ENABLE_FPS_LIMIT`
+- `core::DEFAULT_WIDTH` / `DEFAULT_HEIGHT`
+- `core::ENABLE_FPS_LIMIT`
 - the window title
 
 Eval-Scene chooses its scene by commenting lines in and out. The renderer already supports headless
@@ -86,9 +86,9 @@ So render passes read ECS components directly, and the render graph can't be dri
 
 ### 7. Leftovers
 
-- `Core::AssetManager` stores the default assets under their old `default/...` names, and nothing reads
+- `core::AssetManager` stores the default assets under their old `default/...` names, and nothing reads
   them.
-- The `Core::Asset` base class ties `aegis.assets` to the legacy `aegis-core`.
+- The `core::Asset` base class ties `aegis.assets` to the legacy `aegis-core`.
 - There are two profilers: the CPU `Profiler` singleton and `FrameGraph::timings()`.
 - The whole engine is inline in the module interface `engine.cppm`, so any edit rebuilds every example.
 
@@ -201,7 +201,7 @@ fills from the ECS. Static instances can be updated incrementally, as `DrawBatch
    std::expected`, and `main` returning an exit code. Register the examples as `device` CTests.
    Small change, biggest payoff.
 2. **Remove the globals:** replace the static accessors with services passed to scene functions.
-   Delete `AssetManager` and `Core::Asset`. Move the implementation out of the module interface into
+   Delete `AssetManager` and `core::Asset`. Move the implementation out of the module interface into
    `engine.cpp`.
 3. **World:** owns its scripts (`std::unique_ptr`), `reset()` really clears, scenes are named
    (Eval-Scene becomes selectable).

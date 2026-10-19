@@ -87,12 +87,13 @@ signal — validation errors only go to stderr. Verify RHI work with `aegis-test
 "Verifying device code").
 
 ### Shaders
-Shaders auto-compile on every engine build (`compile_shaders` target) with `slangc` from the same
+Shaders compile on every build of `aegis-engine` or `aegis-render-graph` (the `compile_shaders`
+target they depend on) while `COMPILE_SHADERS` is ON, the default, with `slangc` from the same
 Vulkan SDK as the headers (falling back to `$VULKAN_SDK/bin`) through `aegis_add_shaders`
 (`cmake/AegisShaders.cmake`), which `shaders/` and the `aegis-test` shader both use, so one flag set
 applies everywhere. Each `.spv` is then checked with the SDK's `spirv-val`; invalid SPIR-V fails the
 build (and CI). Editing a module recompiles only the shaders that import it (slangc `-depfile`, Ninja
-and Makefile generators; other generators rebuild every shader). Output: `build/<preset>/shaders/*.spv`;
+and Makefile generators; other generators rebuild every shader). Output: `build/<preset>/shaders/<path>.slang.spv`, mirroring the source path;
 stale `.spv` are removed at configure.
 SDK 1.4.328's slangc (2025.17) emits invalid SPIR-V for a struct-pointer member of a struct reached
 through a pointer; keep such members as `uint64_t` addresses behind properties (see `common::Mesh`).
@@ -101,7 +102,9 @@ through a pointer; keep such members as `uint64_t` addresses behind properties (
 
 ### Asset/shader paths (gotcha)
 `PROJECT_DIR`/`BUILD_DIR` are baked in as compile definitions, so assets and shaders load via
-**absolute paths fixed at configure time**. Running the exe from any cwd is fine, but moving or
+**absolute paths fixed at configure time**. `render_graph` finds shaders through its own
+`AEGIS_SHADER_DIR` and `aegis-test` has its own `SHADER_PATH`/`ASSETS_DIR`; `core::SHADER_DIR` is
+unused. Running the exe from any cwd is fine, but moving or
 renaming the source tree or the build dir breaks asset/shader loading — re-run configure instead.
 
 ## Two code styles (most important)
@@ -112,7 +115,7 @@ still follows the older style. **Match the conventions of the code you are editi
 |---|---|---|
 | Vulkan | vulkan-hpp `vk::raii`, `import vulkan` | none — go through `aegis::rhi` and friends |
 | Errors | `std::expected<T, Error>` + `makeError`, never throw | `AGX_ASSERT*` |
-| Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm` only, mostly dotted submodules (`aegis.scene.entity`) |
+| Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm` only, dotted submodules (`aegis.scene.entity`, `aegis.utils.timer`); `math` is one module |
 
 Both styles: lowercase `snake_case` namespaces (`aegis::rhi`, `aegis::scene`) and module names
 (`aegis.rhi`, `aegis.scene`), 4-space indent with un-indented namespace bodies, `m_`-prefixed
@@ -129,10 +132,34 @@ resource reference resolved through `Device::get` (`BufferHandle`, `ImageViewHan
 `SamplerHandle`). `…Descriptor` always means a bindless slot index a shader consumes
 (`Descriptor<T>`: `SampledImageDescriptor`, `StorageImageDescriptor`, `SamplerDescriptor`). A
 resource *owns* its descriptors (`ImageView::sampledDescriptor()`, `Sampler::descriptor()`). Never
-call a slot index a handle.
+call a slot index a handle. The rule covers GPU resources; CPU assets are shared through
+`shared_ptr`. `render_graph::ResourceHandle` is a plain vector index that shares its name with
+`rhi::ResourceHandle<T>` (goal: `…Id`, a plain index).
 
 **Never `#include <vulkan/vulkan.h>` directly** — use `import vulkan`, and only inside the new
-RHI modules (the vulkan module is linked PRIVATE, so `vk::` types never cross their public API).
+RHI modules. rhi classes expose native `vk::` handles for interop (`Device::device()`,
+`Buffer::vk()`, ...); the vulkan module is linked PRIVATE, so code outside rhi cannot name `vk::`
+types, except `render_graph/passes/ui_pass.cpp`, which imports it for the ImGui backend.
+
+**Known deviations (current state):** the `Error` types differ per module (rhi struct `{code}`,
+`renderer` enum, `render_graph` `{message, rhi?}`, `assets` struct) and `platform::Window` asserts
+instead of returning one; `render_graph` imports `aegis.scene` and holds `Scene&`;
+`LayerStack::m_Layers` is PascalCase; components, `Logging`, `Profiler` and `Engine` sit directly in
+`aegis`; `Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
+
+**Target style (decided, not yet the current state):**
+- *Errors:* one shape per module, `{ErrorCode code; std::string message; std::optional<rhi::Error>
+  rhi}` (rhi keeps `{code, debug location}`), built with `makeError(code, msg)` /
+  `makeError(lowerError, msg)` and printed only through the module's `describe(const Error&)`. A
+  layer adds context and copies the cause; it never re-stringifies.
+- *Logging:* `aegis::log::{warn,error}` (stderr with a severity tag, one `setSink` for tests)
+  replaces the `aegis-log` dependency. Library code logs only degraded behaviour that carries on;
+  errors are returned and only the top level logs them. `std::print` stays in `aegis-test`,
+  examples and tools.
+- *Static/dynamic entities:* static entities stay frozen after `begin`. Entity create/destroy and
+  `Mesh`/`Material` add/remove bump a static-set version through the entt signals and the static set
+  is rebuilt. Moving a static entity is explicit: the editor calls `markStaticDirty(entity)` after
+  gizmo/inspector edits, and scripts that move their entity use `DynamicTag`.
 
 ### Cross-platform rules
 Windows (Clang + MSVC STL, or MSVC) and Linux (Clang + **libstdc++ 15**; Ubuntu 24.04's 14.2 fails
@@ -203,7 +230,7 @@ re-check them against the current code. Feature PRs don't edit `backlog.md`.
 
 ## Unit tests
 
-doctest covers **pure, GPU-independent logic** on the new RHI stack (plus `math` and `scene`). One
+doctest covers **pure, GPU-independent logic** in any module. One
 executable per module (`aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
 `aegis-tests-math`, `aegis-tests-scene`), each linking only that module's library. Layout, conventions, how to add a
 module, and the full rationale: **`tests/README.md`**.
@@ -216,8 +243,9 @@ module, and the full rationale: **`tests/README.md`**.
 
 - **Scope:** only logic needing no live `rhi::Device`. Invariants guarded by `assert` (e.g.
   `ResourcePool` stale-handle rejection) abort rather than return — test around them, not the abort.
-- **Naming:** `<unit>.test.cpp`; `TEST_SUITE("<ns>::<Type>")`; `TEST_CASE` as a present-tense
-  behavior; prefer `CHECK` over `REQUIRE`.
+- **Naming:** `<unit>.test.cpp`; `TEST_SUITE("<module>::<Type or function>")`; `TEST_CASE` as a
+  present-tense behavior, with **no `;` in its name** (CTest discovery splits on it and both halves
+  run zero cases while showing green; split the case instead); prefer `CHECK` over `REQUIRE`.
 - **Extract rather than mock:** when pure logic sits behind a GPU-owning type, lift it out and leave
   a thin adapter at the Vulkan call site. A **stateful type** earns its own partition; a **stateless
   helper** goes in `aegis::rhi::detail` inside its owner's partition, keeping it out of the public
@@ -234,8 +262,9 @@ module, and the full rationale: **`tests/README.md`**.
 Green unit tests are *not* sufficient when device code changed. `src/aegis/test/` (`aegis-test`) is
 the only `main()` that checks a real `rhi::Device` for failures; `examples/` run the same stack but
 nothing fails them on a regression. Debug builds enable core **and synchronization** validation, and
-`aegis-test` exits non-zero on any failed check or validation error (messages go to stderr) — a run
-is only verified if it exits 0.
+`aegis-test` exits non-zero on any failed check or validation error of severity *error* (messages go
+to stderr; warnings print but don't fail, and the count is process-wide) — a run is only verified if
+it exits 0.
 
 - `aegis-test --headless` renders offscreen: no window, no surface, no swapchain, and stops after
   600 frames (or `--frames <n>`). `ctest` runs it as a `device`-labelled test. Use this by default.
