@@ -62,6 +62,20 @@ Taken 2026-10-17 (report §8 lists the original questions).
   key and the masked variant. → moved to "After the foundation".
 - [x] **D6. Preserve mirrored transforms.** `decomposeTRS` keeps negative scale; check winding of
   mirrored instances in the same PR. → 1.8c.
+- [x] **D7. Game-usage model: the engine hosts the game** (2026-10-19, see
+  `docs/editor-runtime-split.md`).
+  - **Executables:** Aegis owns `main()`. `aegis_add_game` builds one engine-owned launcher into
+    `<Game>` (runtime) and `<Game>-Editor`, and only the editor executable links `aegis-editor`.
+  - **A game** is a C++ game module (`AEGIS_GAME_MODULE`, one registration function, statically
+    linked) plus a project folder of data. A DLL/hot-reload build can come later through the same
+    entry point.
+  - **Data:** scenes are files, loaded through a type registry that engine and game register into
+    alike. Entities and assets are referenced by stable ID.
+  - **Scripting language:** planned for (scripts attached by name, state in registered fields, fixed
+    hooks), not built.
+  - Why: the editor stays out of shipped games, a game needs no `main()` of its own, and scenes
+    become savable and editable. Save games need the same serializer anyway.
+  - → M6 (6.1–6.12), export step. Decides F1.
 
 Smaller decisions:
 - [x] **Subproject use:** make paths subproject-safe now (3.5). How a game consumes the engine
@@ -75,8 +89,14 @@ Smaller decisions:
 - [x] **Commit trailers:** keep the AGENTS.md rule, no `Co-Authored-By` on any commit.
 
 Future decisions (not blocking):
-- [ ] **F1. How a game uses the engine:** subproject, installed package, or engine-as-host. Decides
-  install rules, asset/shader location at runtime, and whether `aegis.app` owns `main`.
+- [x] **F1. How a game uses the engine:** decided by D7: engine-as-host, and `aegis.app` owns `main`.
+  Asset and shader lookup at runtime is part of 6.11; install rules are part of the export step
+  ("After the foundation"). That step also settles how a game outside this repo consumes the engine:
+  as a subproject (3.5 makes that safe) or as an installed package.
+- [ ] **F2. Asset system design (not finalized):** file formats, `.meta` sidecars or an asset
+  database, import settings, the cooked format, packaging, streaming. Already fixed by D7: scenes and
+  components reference assets only by stable ID, one serializer serves scenes and save games, and
+  export has a cook step. Blocks 6.9 and the export step.
 
 ---
 
@@ -293,7 +313,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
   - Done when: one `AEGIS_`-prefixed shader/asset path value, PRIVATE, read in one TU, with an
     environment override and `u8` paths; all paths derive from `PROJECT_SOURCE_DIR` /
     `PROJECT_BINARY_DIR`, so reader and writer agree when built as a subproject (check with a
-    two-line wrapper project). Install rules wait for F1.
+    two-line wrapper project). Install rules come with the export step (D7).
 - [ ] **3.6** `build/link-visibility` · S · #66
   - Closes: A-BUILD-08 rest (E-APP-13).
   - Done when: scripting and assets link PUBLIC what their `.cppm` import; EnTT dropped from
@@ -363,29 +383,106 @@ Parallel with M4, after 3.2d.
   - Closes: A-CONTENT-11 (B-CONTENT-10, E-CONTENT-13), A-CONTENT-12 part.
   - Done when: `Window::create -> expected`; GLFW initialized once with an error callback; move
     assignment deleted; "no display" reports GLFW's reason.
+
 ## M6. `aegis.app` (P7)
 
 Depends on M3 and 5.6/5.7. One PR per step; examples port one per commit.
 
+Reworked 2026-10-19 for D7 (`docs/editor-runtime-split.md`). The items are listed in working order,
+so the numbers are not sequential. 6.8–6.12 are new and have no issue yet (issue: TBD). Issues #79,
+#81, #83 and #84 predate the rework, and their text needs updating to match these entries.
+
 - [ ] **6.1** `feat/app-create-headless` · M · #79
   - AppDesc, CLI (reuse `aegis-test` options), `Engine::create -> expected`, headless mode, exit
-    codes, `aegis_add_example`; every example runs as a `device` CTest.
+    codes; every example runs as a `device` CTest through a plain `add_test`. The per-game CMake
+    helper is `aegis_add_game` (6.11); there is no `aegis_add_example`.
 - [ ] **6.2** `refactor/app-services` · M · #80
   - Remove the singleton and static accessors; `engine.cpp`; plain service structs; narrow
     re-export (A-APP-12).
+  - `World` (today's `Scene`) is a plain object with no global state, so several can exist at once:
+    the editor's edit world plus a play copy, or a menu plus a level.
+- [ ] **6.8** `feat/type-registry` · M · issue: TBD
+  - Closes: A-APP-09 (the component table; the editor half is 6.12).
+  - D7. Pure logic, so it can run in parallel with 6.1 and 6.2.
+  - A new-style module (working name `aegis.reflect`) with a `TypeRegistry`:
+    - components and scripts registered by name;
+    - fields with by-name get/set, through a per-type conversion trait;
+    - an API that can later describe functions too (for a scripting VM).
+  - The built-in components register through the same API a game uses.
+  - Not `entt::meta`: it crashes Clang `-O3` against libstdc++ (comments in `scene.cppm`).
+  - Field lists are written by hand. Automatic field lists (Boost.PFR, reflect-cpp, C++26
+    reflection) are out of scope; the API must not prevent them.
+  - Done when: `aegis-tests-reflect` covers registering, finding by name and by type, get/set
+    and a text round-trip for every field type, and rejecting duplicate names.
 - [ ] **6.3** `refactor/world-lifecycle` · M · #81
   - Closes: A-APP-08, B-APP-05 proper, C-03, A-APP-04 slots.
+  - Depends: 6.2, 6.8.
   - Scripts component + `ScriptSystem`, real `reset`, slots become components, opt-in default
-    helpers, named scenes (`--scene`).
+    helpers.
+  - Scripts are attached by registered name and have fixed hooks (`onCreate`, `onUpdate`,
+    `onDestroy`). Their persistent state lives in registered fields. They reach the engine only
+    through a narrow `ScriptContext`.
+  - Every entity gets a stable ID component, because `entt::entity` indices are reused and can't
+    be stored in a file.
+  - Scene selection moves to scene files (6.10, 6.11): no named scene functions.
 - [ ] **6.4** `feat/frame-phases` · M · #82
   - Closes: A-APP-07, B-APP-10/11 proper.
   - Phases, `FrameClock` (clamp or fixed step), `InputState` with capture, editor safe point.
+  - A game adds its systems to a phase from its module's startup hook.
+- [ ] **6.9** `feat/asset-ids` · M · issue: TBD · **design not finalized (F2)**
+  - D7, F2. Depends: F2, 5.2.
+  - Stable asset IDs and an asset database that maps each ID to its source. The mapping could be to
+    5.2's `{relative path, subIndex}` key, depending on the F2 design. Loading by ID returns a
+    reference-counted handle.
+  - Scenes, materials and components store IDs only; paths stay inside the database. The absolute
+    `PROJECT_DIR` asset paths go away.
+  - Done when: settled by F2. At minimum: tests for ID ↔ source lookup and for rejecting duplicate
+    IDs, and every built-in component that references an asset stores an asset ID.
+- [ ] **6.10** `feat/scene-files` · M–L · issue: TBD
+  - D7. Depends: 6.3, 6.8, 6.9.
+  - A generic serializer that works only through the registry, so it saves game types it doesn't
+    know. One format serves scene files, save games and play-in-editor (copying a world).
+  - Settle the text format first: JSON (e.g. glaze), YAML, or our own. A binary form for cooked data
+    and save games can come later.
+  - World time is part of the saved state; the prototype jumped when a loaded save restarted the
+    clock at zero.
+  - Done when: save → load → save gives identical output for built-in types and for types that a
+    test registers; unknown types and fields fail with the line number; Simple-Scene's content loads
+    from a scene file.
+- [ ] **6.11** `feat/game-launcher` · M–L · issue: TBD
+  - D7. Depends: 6.1, 6.10.
+  - An engine-owned launcher with the only `main()`, in two flavors, runtime and editor;
+    `AEGIS_GAME_MODULE` in a small header (macros don't cross module boundaries).
+  - `aegis_add_game(<Name> SOURCES … PROJECT …)` builds the game's sources once into an OBJECT
+    library, then `<Name>` and `<Name>-Editor`.
+  - Runtime lookup order for data: `--project`, then next to the executable, then the configure-time
+    path in development builds only. Shaders are found the same way.
+  - The examples become one game: Simple, Sponza, Helmets and Eval become scene files, Template
+    becomes an empty project, and procedural content (Simple-Scene's lights) becomes a script.
+  - Done when: no example has its own `main()`; every scene runs as a `device` CTest with
+    `--headless --scene <name>`; the runtime executable does not link `aegis-editor` (until 6.5, the
+    editor flavor runs the existing editor layer).
 - [ ] **6.5** `refactor/presentation-and-editor` · M · #83
   - Closes: A-APP-11, A-APP-14, B-APP-14.
-  - ImGui owned by Presentation; optional editor with `Panel`/`EditorContext`.
+  - Depends: 6.11.
+  - ImGui owned by Presentation. The editor becomes a library on top of the runtime:
+    `aegis-engine` no longer links `aegis-editor` or re-exports `aegis.editor`, and only the
+    `<Game>-Editor` launcher pushes the editor layer. `Panel`/`EditorContext`.
+- [ ] **6.12** `feat/editor-inspector` · M · issue: TBD
+  - Closes: A-APP-09 rest (the inspector and the Add menu, today two hand-written lists, come from
+    the registry; `ComponentTraits` goes away).
+  - D7. Depends: 6.5, 6.10.
+  - An inspector and "Add component" menu generated from the registry, so new types need no UI code.
+  - Undo of field edits, recorded as (entity, type, field, old value).
+  - Play-in-editor: copy the edit world, run the copy, then discard it.
+  - Saving the scene file.
+  - Done when: a game type registered in a test project shows up in the inspector and the Add
+    menu with no editor code; a play session leaves the edit world byte-identical on save.
 - [ ] **6.6** `refactor/aegis-test-on-app` · M · #84
   - Closes: D-05, C-08, E-RENDER-13 granularity part.
-  - `aegis-test --scene` through `app::Engine::create`; `test/main.cpp` split into `checks/*.cpp`.
+  - Depends: 6.11.
+  - `aegis-test --scene` loads a scene file through `app::Engine::create`; `test/main.cpp` split
+    into `checks/*.cpp`.
 - [ ] **6.7** `style/rename-base-to-core` · S (mechanical) · #85
   - Decision D4.
   - Depends: the legacy core is gone (2.4, 3.1, 5.4, 6.5 and the last `AGX_ASSERT`/`globals`
@@ -435,8 +532,6 @@ No PR of their own. Pick them up when a PR already edits the file.
 - [ ] B-CONTENT-14: RGBA32F textures linear-filtered without a format-feature check.
 - [ ] B-APP-15 (E-APP-08, B-FOUND-06): camera inspector accepts degenerate FOV/near/far; vacuous
   aspect assert.
-- [ ] A-APP-09 (dead "Name"/"Transform" Add-menu entries); component table itself waits for editor
-  growth.
 - [ ] E-RENDER-10: `static_assert` invariants in `:vulkan_conversions`.
 - [ ] A-CONTENT-04 dedupe of images shared by several glTF textures (with the asset cache).
 - [ ] C-05: one native-handle accessor spelling (needs the formatting/naming decision).
@@ -452,9 +547,19 @@ Not part of the foundation work.
     cull mode; Sponza's MASK/doubleSided materials render correctly (reference image).
 - [ ] **lavapipe device tests in CI** (not a priority): a Linux debug job running
   `ctest -L device -LE mesh-shaders` on lavapipe. Depends on 1.2, 1.14, 3.3.
-- [ ] **F1 follow-up:** install rules and runtime asset/shader lookup once the game-usage model is
-  decided.
+- [ ] **Export a game** (D7, F1). Depends on F2 and 6.11. See `docs/editor-runtime-split.md`
+  "Exporting a game".
+  - A cook step, `<Name>-Editor --cook <out>`, which links the game module because scenes contain
+    game types:
+    - importers run at cook time, so the runtime loads only cooked formats;
+    - the `ID → file` lookup becomes an `ID → pak offset` table behind the same interface;
+    - what to cook: the manifest's scenes, followed through `AssetId` fields found via the
+      registry, plus an "always include" list for assets that only code loads.
+  - `install()` and CPack in `aegis_add_game`; a shipping define (no validation layers, no developer
+    overrides); the GUI subsystem on Windows; save games in the user's data folder.
+  - Decide whether a game outside this repo uses the engine as a subproject or an installed package.
 
 Deferred until the feature (report §3): persistent and imported graph images, pooled pipelines and
-`ShaderLibrary`, multi-queue submit, asset cache and streaming, component table with serialization
-and undo, job system, transient aliasing.
+`ShaderLibrary`, multi-queue submit, asset cache and streaming, job system, transient aliasing.
+From D7: prefabs and the entity hierarchy's file format, automatic field lists for the type
+registry, a DLL/hot-reload game build, a scripting language.
