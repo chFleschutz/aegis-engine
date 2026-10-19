@@ -64,9 +64,16 @@ export namespace aegis::render_graph::detail
     case Usage::TransferDst:
     case Usage::HostWrite:
         return true;
-    default:
+    case Usage::DepthRead:
+    case Usage::SampledFragment:
+    case Usage::SampledCompute:
+    case Usage::StorageRead:
+    case Usage::ShaderRead:
+    case Usage::IndirectRead:
+    case Usage::TransferSrc:
         return false;
     }
+    return false;
 }
 
 /// @brief The image layout a usage needs, as a class; equal classes need no layout transition.
@@ -98,9 +105,12 @@ enum class LayoutClass
         return LayoutClass::TransferSrc;
     case Usage::TransferDst:
         return LayoutClass::TransferDst;
-    default:
+    case Usage::ShaderRead:
+    case Usage::IndirectRead:
+    case Usage::HostWrite:
         return LayoutClass::None;
     }
+    return LayoutClass::None;
 }
 
 [[nodiscard]] constexpr auto toResourceState(Usage usage) noexcept -> rhi::ResourceState
@@ -136,8 +146,11 @@ enum class LayoutClass
     case Usage::StorageWrite: return rhi::ImageUsage::Storage;
     case Usage::TransferSrc: return rhi::ImageUsage::TransferSrc;
     case Usage::TransferDst: return rhi::ImageUsage::TransferDst;
-    default: return rhi::ImageUsage::None;
+    case Usage::ShaderRead:
+    case Usage::IndirectRead:
+    case Usage::HostWrite: return rhi::ImageUsage::None;
     }
+    return rhi::ImageUsage::None;
 }
 
 [[nodiscard]] constexpr auto toBufferUsage(Usage usage) noexcept -> rhi::BufferUsage
@@ -147,7 +160,16 @@ enum class LayoutClass
     case Usage::IndirectRead: return rhi::BufferUsage::Indirect;
     case Usage::TransferSrc: return rhi::BufferUsage::TransferSrc;
     case Usage::TransferDst: return rhi::BufferUsage::TransferDst;
-    default: return rhi::BufferUsage::None;
+    case Usage::ColorAttachment:
+    case Usage::DepthAttachment:
+    case Usage::DepthRead:
+    case Usage::SampledFragment:
+    case Usage::SampledCompute:
+    case Usage::StorageRead:
+    case Usage::StorageWrite:
+    case Usage::ShaderRead:
+    case Usage::HostWrite: return rhi::BufferUsage::None;
     }
+    return rhi::BufferUsage::None;
 }
 }
