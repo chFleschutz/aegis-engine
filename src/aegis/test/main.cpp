@@ -9,6 +9,7 @@
 #endif
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image.h>
 #include <stb/stb_image_write.h>
 
 #include <imgui.h>
@@ -62,6 +63,9 @@ struct Options
     bool gpuDriven{ false };   // With --scene: the GPU-driven (mesh shader) geometry path
     bool mutateScene{ false }; // With --scene: change the loaded scene while frames are in flight (see mutateScene())
     std::string screenshot;    // Headless: save the last frame here as PNG
+    std::string compare;       // Headless: fail unless the last frame matches this reference PNG (see compareToReference())
+    int tolerance{ 0 };        // With --compare: the largest per-channel difference (0-255) a pixel may have
+    bool noOverlay{ false };   // With --scene: leave the stats window out, its per-frame timings change every run
 };
 
 auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
@@ -92,6 +96,21 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         {
             options.screenshot = args[++i];
         }
+        else if (arg == "--compare" && i + 1 < args.size())
+        {
+            options.compare = args[++i];
+        }
+        else if (arg == "--tolerance" && i + 1 < args.size())
+        {
+            const std::string_view value{ args[++i] };
+            const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), options.tolerance);
+            if (error != std::errc{} || end != value.data() + value.size() || options.tolerance < 0 || options.tolerance > 255)
+                return std::unexpected{ std::format("--tolerance needs an integer from 0 to 255, got '{}'", value) };
+        }
+        else if (arg == "--no-overlay")
+        {
+            options.noOverlay = true;
+        }
         else if (arg == "--frames" && i + 1 < args.size())
         {
             const std::string_view value{ args[++i] };
@@ -104,6 +123,9 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
             return std::unexpected{ std::format("Unknown argument '{}'", arg) };
         }
     }
+
+    if (!options.compare.empty() && !options.headless)
+        return std::unexpected{ "--compare needs --headless" };
 
     // Headless has no window to close, so it always stops by itself.
     if (options.headless && options.frames == 0)
@@ -845,7 +867,7 @@ public:
                 .gpuDriven = m_options.gpuDriven,
                 .drawBatches = *m_drawBatches,
                 // Not 'this': the Engine is moved after create(). Renderer and graph live on the heap.
-                .buildUi = [renderer = m_renderer.get(), graph = m_frameGraph.get()] { buildUi(*renderer, *graph); },
+                .buildUi = [renderer = m_renderer.get(), graph = m_frameGraph.get(), overlay = !m_options.noOverlay] { buildUi(*renderer, *graph, overlay); },
                 .context = m_context.get(),
             });
         if (auto compiled = m_frameGraph->compile(); !compiled)
@@ -862,12 +884,14 @@ public:
     }
 
     // The UI pass's input: one window, so a screenshot shows ImGui drawn over the scene.
-    static auto buildUi(const renderer::Renderer& renderer, const render_graph::FrameGraph& frameGraph) -> void
+    static auto buildUi(const renderer::Renderer& renderer, const render_graph::FrameGraph& frameGraph, bool overlay) -> void
     {
         auto& io = ImGui::GetIO();
         const auto extent = renderer.extent();
         io.DisplaySize = ImVec2{ static_cast<float>(extent.x), static_cast<float>(extent.y) };
         ImGui::NewFrame();
+        if (!overlay)
+            return;
         ImGui::SetNextWindowPos(ImVec2{ 10.0f, 10.0f });
         ImGui::Begin("aegis-test", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Text("Frame graph: %d passes", static_cast<int>(frameGraph.passes().size()));
@@ -1191,6 +1215,55 @@ private:
 
     Engine() = default;
 
+    // --compare: the last frame against a reference PNG from the dev GPU (tests/golden, see tests/README.md). Passes
+    // when no channel of any pixel is off by more than --tolerance; otherwise writes a diff image (the differing
+    // pixels amplified, the rest dimmed) next to --screenshot, or into the working directory, and fails.
+    auto compareToReference(const std::vector<std::byte>& pixels, rhi::Extent2D extent) const -> std::expected<void, std::string>
+    {
+        int width{ 0 };
+        int height{ 0 };
+        int channels{ 0 };
+        const std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> reference{
+            stbi_load(m_options.compare.c_str(), &width, &height, &channels, 4), &stbi_image_free
+        };
+        if (!reference)
+            return std::unexpected{ std::format("failed to read reference '{}'", m_options.compare) };
+        if (std::cmp_not_equal(width, extent.x) || std::cmp_not_equal(height, extent.y))
+            return std::unexpected{ std::format("reference is {}x{}, the frame {}x{}", width, height, extent.x, extent.y) };
+
+        std::vector<stbi_uc> diff(pixels.size());
+        std::size_t differing{ 0 };
+        int maxDelta{ 0 };
+        for (std::size_t i = 0; i < pixels.size(); i += 4)
+        {
+            int pixelDelta{ 0 };
+            for (std::size_t c = 0; c < 4; ++c)
+                pixelDelta = std::max(pixelDelta, std::abs(std::to_integer<int>(pixels[i + c]) - int{ reference.get()[i + c] }));
+            maxDelta = std::max(maxDelta, pixelDelta);
+            const bool over = pixelDelta > m_options.tolerance;
+            differing += over;
+            const auto gray = static_cast<stbi_uc>(reference.get()[i] / 4);
+            diff[i] = over ? static_cast<stbi_uc>(std::min(255, 128 + pixelDelta * 4)) : gray;
+            diff[i + 1] = over ? 0 : gray;
+            diff[i + 2] = over ? 0 : gray;
+            diff[i + 3] = 255;
+        }
+
+        if (differing == 0)
+        {
+            std::println("Matches reference {} (max channel difference {}, tolerance {})", m_options.compare, maxDelta, m_options.tolerance);
+            return {};
+        }
+
+        auto diffPath = m_options.screenshot.empty() ? std::filesystem::path{ m_options.compare }.filename() : std::filesystem::path{ m_options.screenshot };
+        diffPath.replace_extension(".diff.png");
+        std::string note;
+        if (stbi_write_png(diffPath.string().c_str(), width, height, 4, diff.data(), width * 4))
+            note = std::format(", diff image: {}", diffPath.string());
+        return std::unexpected{ std::format("frame differs from reference {}: {} pixels over tolerance {} (max channel difference {}){}",
+            m_options.compare, differing, m_options.tolerance, maxDelta, note) };
+    }
+
     // The only proof that offscreen frames are drawn at all: read a target back and look for the
     // triangle (its centre is covered and opaque, a corner only cleared, alpha 0), or in scene mode
     // for an image that is not one flat color. Saves it with --screenshot.
@@ -1232,6 +1305,12 @@ private:
                     pixels.data(), stride))
                 return std::unexpected{ std::format("failed to write screenshot '{}'", m_options.screenshot) };
             std::println("Screenshot saved: {}", m_options.screenshot);
+        }
+
+        if (!m_options.compare.empty())
+        {
+            if (auto matched = compareToReference(pixels, extent); !matched)
+                return matched;
         }
 
         if (m_scene)
@@ -1591,7 +1670,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--mutate-scene] [--screenshot <png>]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--mutate-scene] [--no-overlay] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 

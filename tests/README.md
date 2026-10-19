@@ -46,6 +46,21 @@ above use Windows paths and the `windows-clang-debug` preset; on Linux use `linu
 `build/linux-clang-debug/src/aegis/test/aegis-test`. The windowed run also checks `platform::Input`
 with synthetic key and mouse messages, on Windows only (other platforms skip that check).
 
+### Reference images
+
+`aegis-test --headless --compare <png> [--tolerance <0-255>]` compares the last frame with a reference
+and exits non-zero on a mismatch, writing `<name>.diff.png` (differing pixels in red) next to
+`--screenshot`, or into the working directory. The references in `tests/golden/` (triangle, `--scene`,
+`--gpu-driven`) come from the dev GPU and run locally as `golden`-labelled device tests
+(`ctest --preset windows-clang-debug -L golden`); CI has no GPU and skips them with `-LE device`. Other
+GPUs or drivers may differ slightly, so raise `--tolerance` there rather than committing new images.
+The scene runs use `--no-overlay`, since the stats window shows timings that change every run. When
+a render change is intended, regenerate the affected reference with the same arguments the test uses
+plus `--screenshot` (arguments are in `tests/CMakeLists.txt`), for example
+`aegis-test --headless --scene --frames 120 --no-overlay --screenshot tests/golden/scene.png`
+(triangle: `--headless --frames 120`; GPU-driven: `--headless --gpu-driven --frames 120 --no-overlay`),
+look at the image, and commit it with the change.
+
 ## What we test
 
 Pure logic that needs no live `rhi::Device`: ring/offset math, free lists, generational handles,
