@@ -14,7 +14,6 @@ module;
 
 export module aegis.math;
 import std;
-export import :random;
 
 export namespace glm
 {

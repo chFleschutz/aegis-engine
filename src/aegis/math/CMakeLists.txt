@@ -14,7 +14,6 @@ PUBLIC
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
 		math.cppm
-		random.cppm
 )
 
 # TODO: remove this once everything is a module
