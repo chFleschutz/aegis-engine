@@ -1,6 +1,8 @@
 # Engine application architecture: review and proposal
 
 Status: **proposal**, not implemented. Written after the RHI migration (see `rhi-migration-plan.md`).
+`editor-runtime-split.md` builds on it and replaces its scene definitions (named functions become scene
+files) and the `main()` per example (one engine-owned launcher per game).
 
 This document covers the application layer: `aegis::Engine` and the code it holds together (window,
 GPU, assets, scene, scripting, editor, frame loop). The render stack beneath it (`aegis.rhi` →
