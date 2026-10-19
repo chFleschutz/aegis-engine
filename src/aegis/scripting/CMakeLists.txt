@@ -7,7 +7,6 @@ PRIVATE
 	aegis-core
 	aegis-math
 	aegis-scene
-	aegis-utils
 	Aegis::Log
 )
 
