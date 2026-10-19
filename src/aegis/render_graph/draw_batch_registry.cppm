@@ -2,6 +2,7 @@ export module aegis.render_graph:draw_batch_registry;
 import std;
 import aegis.assets;
 import aegis.scene.registry;
+import :error;
 
 export namespace aegis::render_graph
 {
@@ -29,7 +30,8 @@ public:
     auto operator=(const DrawBatchRegistry&) -> DrawBatchRegistry& = delete;
     auto operator=(DrawBatchRegistry&&) -> DrawBatchRegistry& = delete;
 
-    /// @brief Counts the registry's existing materials and follows its later changes.
+    /// @brief Counts the registry's existing materials and follows its later changes. Forgets everything
+    ///        counted before, so a second connect never double-counts.
     auto connect(aegis::scene::Registry& registry) -> void;
     auto disconnect() -> void;
 
@@ -42,22 +44,36 @@ public:
     /// @return nullopt if no instance of 'materialTemplate' was ever added.
     [[nodiscard]] auto batchId(const assets::MaterialTemplate& materialTemplate) const -> std::optional<std::uint32_t>;
 
-    /// @brief Counts one instance of 'materialTemplate', creating its batch on first use.
-    auto addInstance(const std::shared_ptr<const assets::MaterialTemplate>& materialTemplate, bool dynamic) -> void;
-    auto removeInstance(const assets::MaterialTemplate& materialTemplate, bool dynamic) -> void;
-    /// @brief An instance moved between the static and dynamic sets (DynamicTag added or removed).
-    auto setDynamic(bool dynamic) -> void;
+    /// @brief Counts the instance of 'entity', creating the batch of its template on first use.
+    ///        An entity that is already tracked is untracked first, so it moves instead of counting twice.
+    /// @return An error if a new template would exceed maxDrawBatches; nothing is counted then.
+    [[nodiscard]] auto track(entt::entity entity, const std::shared_ptr<const assets::MaterialTemplate>& materialTemplate,
+        bool dynamic) -> std::expected<void, Error>;
+    /// @brief Stops counting the instance of 'entity'. Does nothing for an entity that is not tracked.
+    auto untrack(entt::entity entity) -> void;
+    /// @brief The instance of 'entity' moved between the static and dynamic sets (DynamicTag added or
+    ///        removed). Does nothing for an entity that is not tracked.
+    auto setDynamic(entt::entity entity, bool dynamic) -> void;
 
 private:
     auto onMaterialConstruct(entt::registry& registry, entt::entity entity) -> void;
     auto onMaterialDestroy(entt::registry& registry, entt::entity entity) -> void;
     auto onDynamicConstruct(entt::registry& registry, entt::entity entity) -> void;
     auto onDynamicDestroy(entt::registry& registry, entt::entity entity) -> void;
+    auto trackMaterial(entt::entity entity, const assets::Material& material, bool dynamic) -> void;
     auto updateOffsets() -> void;
+    auto clear() -> void;
+
+    struct Tracked
+    {
+        const assets::MaterialTemplate* materialTemplate;
+        bool dynamic;
+    };
 
     aegis::scene::Registry* m_registry{ nullptr };
     std::vector<DrawBatch> m_batches;
     std::unordered_map<const assets::MaterialTemplate*, std::uint32_t> m_batchIds;
+    std::unordered_map<entt::entity, Tracked> m_tracked;
     std::uint32_t m_staticCount{ 0 };
     std::uint32_t m_dynamicCount{ 0 };
 };

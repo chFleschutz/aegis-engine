@@ -21,12 +21,12 @@ DrawBatchRegistry::~DrawBatchRegistry()
 auto DrawBatchRegistry::connect(aegis::scene::Registry& registry) -> void
 {
     disconnect();
+    clear();
     m_registry = &registry;
 
     for (auto&& [entity, material] : registry.view<assets::Material>().each())
     {
-        if (material.instance)
-            addInstance(material.instance->materialTemplate(), registry.has<aegis::DynamicTag>(aegis::scene::Entity{ entity }));
+        trackMaterial(entity, material, registry.has<aegis::DynamicTag>(aegis::scene::Entity{ entity }));
     }
 
     registry.onConstruct<assets::Material>().connect<&DrawBatchRegistry::onMaterialConstruct>(this);
@@ -53,44 +53,65 @@ auto DrawBatchRegistry::batchId(const assets::MaterialTemplate& materialTemplate
     return found != m_batchIds.end() ? std::optional{ found->second } : std::nullopt;
 }
 
-auto DrawBatchRegistry::addInstance(const std::shared_ptr<const assets::MaterialTemplate>& materialTemplate,
-    bool dynamic) -> void
+auto DrawBatchRegistry::track(entt::entity entity, const std::shared_ptr<const assets::MaterialTemplate>& materialTemplate,
+    bool dynamic) -> std::expected<void, Error>
 {
     assert(materialTemplate);
-    auto [found, inserted] = m_batchIds.try_emplace(materialTemplate.get(), static_cast<std::uint32_t>(m_batches.size()));
-    if (inserted)
+    untrack(entity);
+
+    auto id = static_cast<std::uint32_t>(m_batches.size());
+    const auto found = m_batchIds.find(materialTemplate.get());
+    if (found != m_batchIds.end())
     {
-        assert(m_batches.size() < maxDrawBatches && "Too many draw batches");
-        m_batches.push_back({ .id = found->second, .firstInstance = 0, .instanceCount = 0, .materialTemplate = materialTemplate });
+        id = found->second;
+    }
+    else
+    {
+        if (m_batches.size() >= maxDrawBatches)
+            return makeError("Too many material templates: at most " + std::to_string(maxDrawBatches) + " draw batches");
+
+        m_batchIds.emplace(materialTemplate.get(), id);
+        m_batches.push_back({ .id = id, .firstInstance = 0, .instanceCount = 0, .materialTemplate = materialTemplate });
     }
 
-    ++m_batches[found->second].instanceCount;
+    ++m_batches[id].instanceCount;
     ++(dynamic ? m_dynamicCount : m_staticCount);
+    m_tracked.emplace(entity, Tracked{ .materialTemplate = materialTemplate.get(), .dynamic = dynamic });
     updateOffsets();
+    return {};
 }
 
-auto DrawBatchRegistry::removeInstance(const assets::MaterialTemplate& materialTemplate, bool dynamic) -> void
+auto DrawBatchRegistry::untrack(entt::entity entity) -> void
 {
-    const auto id = batchId(materialTemplate);
-    assert(id && m_batches[*id].instanceCount > 0 && "Removing an instance that was never added");
+    const auto found = m_tracked.find(entity);
+    if (found == m_tracked.end())
+        return;
 
-    --m_batches[*id].instanceCount;
+    const auto [materialTemplate, dynamic] = found->second;
+    m_tracked.erase(found);
+    --m_batches[m_batchIds.at(materialTemplate)].instanceCount;
     --(dynamic ? m_dynamicCount : m_staticCount);
     updateOffsets();
 }
 
-auto DrawBatchRegistry::setDynamic(bool dynamic) -> void
+auto DrawBatchRegistry::setDynamic(entt::entity entity, bool dynamic) -> void
 {
-    if (dynamic)
-    {
-        --m_staticCount;
-        ++m_dynamicCount;
-    }
-    else
-    {
-        ++m_staticCount;
-        --m_dynamicCount;
-    }
+    const auto found = m_tracked.find(entity);
+    if (found == m_tracked.end() || found->second.dynamic == dynamic)
+        return;
+
+    found->second.dynamic = dynamic;
+    --(dynamic ? m_staticCount : m_dynamicCount);
+    ++(dynamic ? m_dynamicCount : m_staticCount);
+}
+
+auto DrawBatchRegistry::clear() -> void
+{
+    m_batches.clear();
+    m_batchIds.clear();
+    m_tracked.clear();
+    m_staticCount = 0;
+    m_dynamicCount = 0;
 }
 
 auto DrawBatchRegistry::updateOffsets() -> void
@@ -103,29 +124,32 @@ auto DrawBatchRegistry::updateOffsets() -> void
     }
 }
 
+auto DrawBatchRegistry::trackMaterial(entt::entity entity, const assets::Material& material, bool dynamic) -> void
+{
+    if (!material.instance)
+        return;
+
+    if (const auto tracked = track(entity, material.instance->materialTemplate(), dynamic); !tracked)
+        std::println("DrawBatchRegistry: {}", tracked.error().message);
+}
+
 auto DrawBatchRegistry::onMaterialConstruct(entt::registry& registry, entt::entity entity) -> void
 {
-    const auto& material = registry.get<assets::Material>(entity);
-    if (material.instance)
-        addInstance(material.instance->materialTemplate(), registry.all_of<aegis::DynamicTag>(entity));
+    trackMaterial(entity, registry.get<assets::Material>(entity), registry.all_of<aegis::DynamicTag>(entity));
 }
 
-auto DrawBatchRegistry::onMaterialDestroy(entt::registry& registry, entt::entity entity) -> void
+auto DrawBatchRegistry::onMaterialDestroy(entt::registry&, entt::entity entity) -> void
 {
-    const auto& material = registry.get<assets::Material>(entity);
-    if (material.instance)
-        removeInstance(*material.instance->materialTemplate(), registry.all_of<aegis::DynamicTag>(entity));
+    untrack(entity);
 }
 
-auto DrawBatchRegistry::onDynamicConstruct(entt::registry& registry, entt::entity entity) -> void
+auto DrawBatchRegistry::onDynamicConstruct(entt::registry&, entt::entity entity) -> void
 {
-    if (registry.all_of<assets::Material>(entity))
-        setDynamic(true);
+    setDynamic(entity, true);
 }
 
-auto DrawBatchRegistry::onDynamicDestroy(entt::registry& registry, entt::entity entity) -> void
+auto DrawBatchRegistry::onDynamicDestroy(entt::registry&, entt::entity entity) -> void
 {
-    if (registry.all_of<assets::Material>(entity))
-        setDynamic(false);
+    setDynamic(entity, false);
 }
 }
