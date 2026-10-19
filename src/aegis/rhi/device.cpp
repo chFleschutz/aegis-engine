@@ -11,6 +11,22 @@ import vulkan;
 
 namespace aegis::rhi
 {
+namespace
+{
+auto toDeviceKind(vk::PhysicalDeviceType type) -> detail::DeviceKind
+{
+    switch (type)
+    {
+    case vk::PhysicalDeviceType::eDiscreteGpu: return detail::DeviceKind::Discrete;
+    case vk::PhysicalDeviceType::eIntegratedGpu: return detail::DeviceKind::Integrated;
+    case vk::PhysicalDeviceType::eVirtualGpu: return detail::DeviceKind::Virtual;
+    case vk::PhysicalDeviceType::eCpu: return detail::DeviceKind::Cpu;
+    case vk::PhysicalDeviceType::eOther: return detail::DeviceKind::Other;
+    }
+    return detail::DeviceKind::Other;
+}
+}
+
 Device::Device(
     vk::raii::PhysicalDevice pd,
     vk::raii::Device device,
@@ -302,16 +318,71 @@ auto Device::waitIdle() const noexcept -> void
     std::ignore = m_device.waitIdle();
 }
 
-auto Device::QueueFamilyIndices::isComplete(bool presentation) const -> bool
+namespace detail
 {
-    return graphics != vk::QueueFamilyIgnored && (!presentation || present != vk::QueueFamilyIgnored) &&
-           compute != vk::QueueFamilyIgnored && transfer != vk::QueueFamilyIgnored;
+auto QueueFamilySelection::isComplete(bool presentation) const -> bool
+{
+    return graphics != noQueueFamily && (!presentation || present != noQueueFamily) &&
+           compute != noQueueFamily && transfer != noQueueFamily;
+}
+
+auto rankPhysicalDevice(const DeviceCandidate& candidate) -> std::optional<std::uint64_t>
+{
+    if (!candidate.queuesComplete || !candidate.extensionsSupported || candidate.apiVersion < minApiVersion)
+        return std::nullopt;
+
+    // Better kinds have lower enum values; invert so the kind outweighs any image limit.
+    const auto kindScore = static_cast<std::uint64_t>(DeviceKind::Other) - static_cast<std::uint64_t>(candidate.kind);
+    return (kindScore << 32) | candidate.maxImageDimension2D;
+}
+
+auto matchesDeviceName(std::string_view deviceName, std::string_view filter) -> bool
+{
+    if (filter.empty())
+        return true;
+    const auto lower = [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); };
+    return !std::ranges::search(deviceName, filter, {}, lower, lower).empty();
+}
+
+auto pickQueueFamilies(std::span<const QueueFamilyInfo> families, bool presentation) -> QueueFamilySelection
+{
+    QueueFamilySelection selection;
+    for (std::uint32_t i = 0; i < families.size(); ++i)
+    {
+        const auto& family = families[i];
+
+        // Graphics queue (required)
+        if (family.graphics && selection.graphics == noQueueFamily)
+            selection.graphics = i;
+
+        // Dedicated compute queue
+        if (family.compute && !family.graphics && selection.compute == noQueueFamily)
+            selection.compute = i;
+
+        // Dedicated transfer queue
+        if (family.transfer && !family.graphics && !family.compute && selection.transfer == noQueueFamily)
+            selection.transfer = i;
+
+        // Present queue: prefer the graphics family. Headless has no surface to present to.
+        if (presentation && family.present && (selection.present == noQueueFamily || i == selection.graphics))
+            selection.present = i;
+    }
+
+    // Fallback: graphics for compute/transfer if no dedicated family exists.
+    if (selection.compute == noQueueFamily)
+        selection.compute = selection.graphics;
+    if (selection.transfer == noQueueFamily)
+        selection.transfer = selection.graphics;
+
+    // No fallback for present, so the selection stays incomplete without a present-capable family.
+    return selection;
+}
 }
 
 auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface, const Desc& desc)
     -> std::expected<std::unique_ptr<Device>, Error>
 {
-    auto physicalDevice = createPhysicalDevice(instance, surface);
+    auto physicalDevice = createPhysicalDevice(instance, surface, desc.deviceName);
     if (!physicalDevice)
         return std::unexpected{ physicalDevice.error() };
 
@@ -397,7 +468,8 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
     return result;
 }
 
-auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface)
+auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface,
+    std::string_view deviceName)
     -> std::expected<vk::raii::PhysicalDevice, Error>
 {
     auto enumerated = instance.enumeratePhysicalDevices();
@@ -411,87 +483,62 @@ auto Device::createPhysicalDevice(const vk::raii::Instance& instance, const vk::
 
     const bool presentation = *surface != nullptr;
 
-    std::vector<std::pair<std::uint32_t, std::uint32_t>> candidates;
+    // Ties go to the earlier device, so enumeration order is only the last resort.
+    std::optional<std::size_t> best;
+    std::uint64_t bestScore{ 0 };
     for (std::size_t i = 0; i < physicalDevices.size(); ++i)
     {
         const auto& physicalDevice = physicalDevices[i];
-        std::uint32_t score{ 0 };
-
-        if (!queryQueueFamilies(physicalDevice, surface).isComplete(presentation))
+        const auto properties = physicalDevice.getProperties();
+        if (!detail::matchesDeviceName(properties.deviceName.data(), deviceName))
             continue;
 
         // TODO: handle missing capabilities
         // auto capabilities = queryCapabilities(physicalDevice);
 
-        if (!supportsExtensions(physicalDevice, presentation))
-            continue;
-
-        const auto properties = physicalDevice.getProperties();
-        if (properties.apiVersion < vk::ApiVersion13)
-            continue;
-
-        if (properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
-            score += 1000;
-
-        score += properties.limits.maxImageDimension2D;
-        candidates.emplace_back(score, static_cast<std::uint32_t>(i));
+        const auto score = detail::rankPhysicalDevice({
+            .kind = toDeviceKind(properties.deviceType),
+            .apiVersion = properties.apiVersion,
+            .maxImageDimension2D = properties.limits.maxImageDimension2D,
+            .queuesComplete = queryQueueFamilies(physicalDevice, surface).isComplete(presentation),
+            .extensionsSupported = supportsExtensions(physicalDevice, presentation),
+        });
+        if (score && (!best || *score > bestScore))
+        {
+            best = i;
+            bestScore = *score;
+        }
     }
 
-    std::ranges::sort(candidates); // Sorts highest score at the end
-    if (candidates.empty() || candidates.back().first == 0)
+    if (!best)
         return makeError(ErrorCode::Unknown);
-
-    const auto& [_, index] = candidates.back();
-    return physicalDevices[index];
+    return physicalDevices[*best];
 }
 
 auto Device::queryQueueFamilies(const vk::raii::PhysicalDevice& physicalDevice,
     const vk::raii::SurfaceKHR& surface)
     -> QueueFamilyIndices
 {
-    QueueFamilyIndices indices;
-
-    auto queueFamilies = physicalDevice.getQueueFamilyProperties();
-    for (std::uint32_t i = 0; i < queueFamilies.size(); ++i)
+    const auto properties = physicalDevice.getQueueFamilyProperties();
+    std::vector<detail::QueueFamilyInfo> families;
+    families.reserve(properties.size());
+    for (std::uint32_t i = 0; i < properties.size(); ++i)
     {
-        const auto& props = queueFamilies[i];
-        auto hasGraphics = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eGraphics);
-        auto hasCompute = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eCompute);
-        auto hasTransfer = static_cast<bool>(props.queueFlags & vk::QueueFlagBits::eTransfer);
-
-        // Graphics queue (required)
-        if (hasGraphics && indices.graphics == vk::QueueFamilyIgnored)
-            indices.graphics = i;
-
-        // Dedicated Compute Queue
-        if (hasCompute && !hasGraphics && indices.compute == vk::QueueFamilyIgnored)
-            indices.compute = i;
-
-        // Dedicated Transfer Queue
-        if (hasTransfer && !hasGraphics && !hasCompute && indices.transfer == vk::QueueFamilyIgnored)
-            indices.transfer = i;
-
-        // Present queue - prefer one that matches graphics. Headless has no surface to present to.
-        if (!*surface)
-            continue;
-        auto hasPresent = physicalDevice.getSurfaceSupportKHR(i, *surface);
-        if (hasPresent.has_value() && *hasPresent)
+        const auto flags = properties[i].queueFlags;
+        bool canPresent{ false };
+        if (*surface)
         {
-            if (indices.present == vk::QueueFamilyIgnored || i == indices.graphics)
-                indices.present = i;
+            auto support = physicalDevice.getSurfaceSupportKHR(i, *surface);
+            canPresent = support.has_value() && *support;
         }
+        families.push_back({
+            .graphics = static_cast<bool>(flags & vk::QueueFlagBits::eGraphics),
+            .compute = static_cast<bool>(flags & vk::QueueFlagBits::eCompute),
+            .transfer = static_cast<bool>(flags & vk::QueueFlagBits::eTransfer),
+            .present = canPresent,
+        });
     }
-
-    // Fallback: use graphics queue for compute/transfer if no dedicated queues found
-    if (indices.compute == vk::QueueFamilyIgnored)
-        indices.compute = indices.graphics;
-    if (indices.transfer == vk::QueueFamilyIgnored)
-        indices.transfer = indices.graphics;
-
-    // No fallback for present: a family that cannot present to the surface must not be used for it.
-    // Indices stay incomplete without graphics or (with a surface) present support; createPhysicalDevice
-    // skips those.
-    return indices;
+    return detail::pickQueueFamilies(families, *surface != nullptr);
 }
 
 auto Device::createQueue(const vk::raii::Device& device, std::string_view name, std::uint32_t queueFamily)
