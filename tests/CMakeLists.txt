@@ -20,6 +20,7 @@ endfunction()
 
 add_subdirectory(assets)
 add_subdirectory(math)
+add_subdirectory(reflect)
 add_subdirectory(render_graph)
 add_subdirectory(rhi)
 add_subdirectory(scene)

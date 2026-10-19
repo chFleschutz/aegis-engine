@@ -8,6 +8,7 @@ add_subdirectory(platform)
 add_subdirectory(rhi)
 add_subdirectory(renderer)
 add_subdirectory(assets)
+add_subdirectory(reflect)
 add_subdirectory(render_graph)
 add_subdirectory(test)
 
@@ -34,6 +35,7 @@ PUBLIC
 	aegis-assets
 	aegis-core
 	aegis-platform
+	aegis-reflect
 	aegis-render-graph
 	aegis-renderer
 	aegis-rhi
