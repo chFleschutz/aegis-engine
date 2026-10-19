@@ -211,10 +211,12 @@ descriptions.
 **Code changes go through a PR** (anything under `src/`, `shaders/`, `tests/`, `examples/`, `tools/`,
 CMake or CI). Docs-only changes may be committed to `main` directly.
 
-**Planned work:** `docs/audit/backlog.md` is the plan (order, dependencies, decisions, "done when"
-criteria); each entry has a GitHub issue that tracks its status. Before starting an item, read its
-entry and the finding IDs it lists (`docs/audit/findings-*.md`, corrected by `verify-*.md`), then
-re-check them against the current code. Feature PRs don't edit `backlog.md`.
+**Planned work:** GitHub issues are the work items (branch, size, finding IDs, "done when",
+status), grouped into milestones `M1`–`M8`, with dependencies as "Blocked by" relations.
+`docs/audit/backlog.md` keeps the decisions (D1–D7, F1/F2) and each milestone's goal and working
+order. Before starting an item, read its issue (`gh issue view <n>`) and the finding IDs it lists
+(`docs/audit/findings-*.md`, corrected by `verify-*.md`), then re-check them against the current
+code. Feature PRs don't edit `backlog.md`.
 
 1. **One worktree per PR.** `tools/new-worktree.sh <branch> [base]` creates
    `../aegis-engine.worktrees/<branch>` from `origin/main` with submodules, then configures and
