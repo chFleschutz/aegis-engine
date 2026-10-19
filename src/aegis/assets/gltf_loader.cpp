@@ -258,20 +258,20 @@ private:
                 MaterialValue value;
             };
             std::vector<Override> overrides{
-                { "albedo", glm::make_vec3(gltfMaterial.pbrData.baseColorFactor.data()) },
-                { "metallic", static_cast<float>(gltfMaterial.pbrData.metallicFactor) },
-                { "roughness", static_cast<float>(gltfMaterial.pbrData.roughnessFactor) },
-                { "emissive", glm::make_vec3(gltfMaterial.emissiveFactor.data()) },
+                { pbr::albedo, glm::make_vec3(gltfMaterial.pbrData.baseColorFactor.data()) },
+                { pbr::metallic, static_cast<float>(gltfMaterial.pbrData.metallicFactor) },
+                { pbr::roughness, static_cast<float>(gltfMaterial.pbrData.roughnessFactor) },
+                { pbr::emissive, glm::make_vec3(gltfMaterial.emissiveFactor.data()) },
             };
             const auto addTexture = [&](const char* parameter, const auto& textureInfo) {
                 if (textureInfo && m_textures[textureInfo->textureIndex])
                     overrides.push_back(Override{ parameter, m_textures[textureInfo->textureIndex] });
             };
-            addTexture("albedoMap", gltfMaterial.pbrData.baseColorTexture);
-            addTexture("metalRoughnessMap", gltfMaterial.pbrData.metallicRoughnessTexture);
-            addTexture("normalMap", gltfMaterial.normalTexture);
-            addTexture("ambientOcclusionMap", gltfMaterial.occlusionTexture);
-            addTexture("emissiveMap", gltfMaterial.emissiveTexture);
+            addTexture(pbr::albedoMap, gltfMaterial.pbrData.baseColorTexture);
+            addTexture(pbr::metalRoughnessMap, gltfMaterial.pbrData.metallicRoughnessTexture);
+            addTexture(pbr::normalMap, gltfMaterial.normalTexture);
+            addTexture(pbr::ambientOcclusionMap, gltfMaterial.occlusionTexture);
+            addTexture(pbr::emissiveMap, gltfMaterial.emissiveTexture);
 
             for (auto& [name, value] : overrides)
             {
