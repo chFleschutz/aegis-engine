@@ -208,7 +208,8 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState
             .layout = vk::ImageLayout::eAttachmentOptimal,
             .stageMask = vk::PipelineStageFlagBits2::eEarlyFragmentTests |
                          vk::PipelineStageFlagBits2::eLateFragmentTests,
-            .accessMask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
+            .accessMask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite |
+                          vk::AccessFlagBits2::eDepthStencilAttachmentRead,
         };
     case ResourceState::DepthRead:
         return VulkanState{
