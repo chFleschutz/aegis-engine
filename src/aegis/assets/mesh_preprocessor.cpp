@@ -33,8 +33,10 @@ auto validate(const MeshPreprocessor::Input& input) -> std::expected<void, Error
     }
 
     const auto indexCount = input.indices.empty() ? input.positions.size() : input.indices.size();
-    if (indexCount % 3 != 0)
+    if (input.topology == MeshPreprocessor::Topology::TriangleList && indexCount % 3 != 0)
         return makeError(ErrorCode::InvalidData, std::format("Mesh index count {} is not a multiple of 3", indexCount));
+    if (input.topology != MeshPreprocessor::Topology::TriangleList && indexCount < 3)
+        return makeError(ErrorCode::InvalidData, std::format("Mesh strip or fan has {} indices, fewer than 3", indexCount));
 
     const auto outOfRange = std::ranges::find_if(input.indices,
         [count = input.positions.size()](std::uint32_t index) { return index >= count; });
@@ -45,12 +47,43 @@ auto validate(const MeshPreprocessor::Input& input) -> std::expected<void, Error
     }
     return {};
 }
+
+// Expands a strip or fan of at least 3 indices into a list, with glTF's winding: strip triangle i
+// is {v[i], v[i + 1 + i % 2], v[i + 2 - i % 2]}, fan triangle i is {v[i + 1], v[i + 2], v[0]}.
+auto toTriangleList(const MeshPreprocessor::Input& input) -> std::vector<std::uint32_t>
+{
+    std::vector<std::uint32_t> sequential;
+    if (input.indices.empty())
+    {
+        sequential.resize(input.positions.size());
+        std::ranges::iota(sequential, 0u);
+    }
+    const auto& v = input.indices.empty() ? sequential : input.indices;
+
+    const auto triangleCount = v.size() - 2;
+    std::vector<std::uint32_t> list;
+    list.reserve(3 * triangleCount);
+    for (std::size_t i = 0; i < triangleCount; ++i)
+    {
+        if (input.topology == MeshPreprocessor::Topology::TriangleStrip)
+            list.insert(list.end(), { v[i], v[i + 1 + i % 2], v[i + 2 - i % 2] });
+        else
+            list.insert(list.end(), { v[i + 1], v[i + 2], v[0] });
+    }
+    return list;
+}
 }
 
 auto MeshPreprocessor::process(Input input) -> std::expected<MeshData, Error>
 {
     if (auto valid = validate(input); !valid)
         return std::unexpected{ valid.error() };
+
+    if (input.topology != Topology::TriangleList)
+    {
+        input.indices = toTriangleList(input);
+        input.topology = Topology::TriangleList;
+    }
 
     auto vertices = interleave(input);
     const auto initialVertexCount = vertices.size();
