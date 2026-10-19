@@ -17,10 +17,7 @@ PUBLIC
 	FILES
 		script_base.cppm
 		script_manager.cppm
-		movement/dynamic_movement_controller.cppm
 		movement/kinematic_movement_controller.cppm
-		movement/world_border.cppm
-		physics/motion_dynamics.cppm
 )
 
 target_include_directories(aegis-scripting PRIVATE
