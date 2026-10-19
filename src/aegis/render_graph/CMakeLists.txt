@@ -4,6 +4,7 @@ target_link_libraries(aegis-render-graph
     PUBLIC
         aegis-assets
         aegis-math
+        aegis-paths
         aegis-renderer
         aegis-rhi
         aegis-scene
@@ -12,9 +13,6 @@ target_link_libraries(aegis-render-graph
         imgui
         vulkan-module # The UI pass hands raw Vulkan handles to ImGui's backend
 )
-
-# Compiled shaders are loaded at run time from the build tree (see shaders/CMakeLists.txt).
-target_compile_definitions(aegis-render-graph PRIVATE AEGIS_SHADER_DIR="${CMAKE_BINARY_DIR}/shaders")
 
 target_sources(aegis-render-graph
     PUBLIC

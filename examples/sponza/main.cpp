@@ -17,10 +17,10 @@ public:
 
         // SKYBOX
         registry.get<aegis::assets::Environment>(scene.environment()) =
-            Engine::loadEnvironment(core::ASSETS_DIR / "Environments/KloppenheimSky.hdr");
+            Engine::loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         // MODELS
-        Engine::loadModel(core::ASSETS_DIR / "Sponza/Sponza.gltf");
+        Engine::loadModel(paths::assets() / "Sponza/Sponza.gltf");
 
         // LIGHTS
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.5f;

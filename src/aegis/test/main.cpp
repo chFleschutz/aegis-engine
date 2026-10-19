@@ -16,6 +16,7 @@
 
 import std;
 import aegis.assets;
+import aegis.paths;
 import aegis.platform;
 import aegis.renderer;
 import aegis.render_graph;
@@ -180,9 +181,9 @@ public:
             return std::unexpected{ "Failed to create renderer" };
         engine.m_renderer = std::move(*renderer);
 
-        auto shader = loadSPIRV(SHADER_PATH);
+        auto shader = loadSPIRV(AEGIS_TEST_SHADER_PATH);
         if (!shader)
-            return std::unexpected{ std::format("Failed to load shader from {}", SHADER_PATH) };
+            return std::unexpected{ std::format("Failed to load shader from {}", AEGIS_TEST_SHADER_PATH) };
 
         auto colorAttachments = std::array{ rhi::Pipeline::ColorAttachment{ engine.m_renderer->targetFormat() } };
         auto shaders = std::array{
@@ -462,7 +463,7 @@ public:
         if (!src || !dst || !readback)
             return std::unexpected{ "Failed to create compute test buffers" };
 
-        auto shader = loadSPIRV(SHADER_PATH);
+        auto shader = loadSPIRV(AEGIS_TEST_SHADER_PATH);
         if (!shader)
             return std::unexpected{ shader.error() };
         auto pipeline = m_device->createPipeline(rhi::Pipeline::ComputeDesc{
@@ -654,7 +655,7 @@ public:
         };
         for (const auto* model : { "DamagedHelmet/DamagedHelmet.gltf", "Misc/cube.obj" })
         {
-            auto root = assets::Loader::load(loaderDesc, std::filesystem::path{ ASSETS_DIR } / model);
+            auto root = assets::Loader::load(loaderDesc, paths::assets() / model);
             if (!root)
                 return std::unexpected{ std::format("Loading {}: {}", model, root.error().message) };
         }
@@ -706,7 +707,7 @@ public:
         auto ibl = render_graph::Ibl::create(*m_device);
         if (!ibl)
             return std::unexpected{ std::format("IBL pipelines: {}", ibl.error().message) };
-        auto environment = ibl->loadEnvironment(std::filesystem::path{ ASSETS_DIR } / "Environments/KloppenheimSky.hdr");
+        auto environment = ibl->loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
         if (!environment)
             return std::unexpected{ std::format("IBL environment: {}", environment.error().message) };
 
@@ -837,7 +838,7 @@ public:
         auto ibl = render_graph::Ibl::create(*m_device);
         if (!ibl)
             return std::unexpected{ std::format("IBL: {}", ibl.error().message) };
-        auto environment = ibl->loadEnvironment(std::filesystem::path{ ASSETS_DIR } / "Environments/KloppenheimSky.hdr");
+        auto environment = ibl->loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
         if (!environment)
             return std::unexpected{ std::format("Environment: {}", environment.error().message) };
         const auto sky = registry.create("Sky");
@@ -852,7 +853,7 @@ public:
                 .defaultMaterial = m_defaults->pbrMaterial,
                 .framesInFlight = framesInFlight,
             },
-            std::filesystem::path{ ASSETS_DIR } / "DamagedHelmet/DamagedHelmet.gltf");
+            paths::assets() / "DamagedHelmet/DamagedHelmet.gltf");
         if (!helmet)
             return std::unexpected{ std::format("Loading the helmet: {}", helmet.error().message) };
         m_helmet = *helmet;
@@ -987,7 +988,7 @@ public:
                     .defaultMaterial = m_defaults->pbrMaterial,
                     .framesInFlight = renderer::Renderer::maxFramesInFlight,
                 },
-                std::filesystem::path{ ASSETS_DIR } / "SciFiHelmet/SciFiHelmet.gltf");
+                paths::assets() / "SciFiHelmet/SciFiHelmet.gltf");
             if (!model)
                 return std::unexpected{ std::format("Loading the second model: {}", model.error().message) };
             m_addedModel = *model;

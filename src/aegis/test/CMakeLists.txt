@@ -4,6 +4,7 @@ target_link_libraries(aegis-test
     PRIVATE
         aegis-assets
         aegis-math
+        aegis-paths
         aegis-platform
         aegis-render-graph
         aegis-renderer
@@ -16,7 +17,7 @@ target_link_libraries(aegis-test
 aegis_add_shaders(test-shaders SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/shader.slang)
 set(SHADER_SPIRV "${CMAKE_CURRENT_BINARY_DIR}/shader.slang.spv")
 add_dependencies(aegis-test test-shaders)
-target_compile_definitions(aegis-test PUBLIC
-    SHADER_PATH="${SHADER_SPIRV}"
-    ASSETS_DIR="${PROJECT_SOURCE_DIR}/modules/aegis-assets"
+# The test's own fixture shader, built next to it (not an engine shader, see aegis.paths).
+target_compile_definitions(aegis-test PRIVATE
+    AEGIS_TEST_SHADER_PATH="${SHADER_SPIRV}"
 )

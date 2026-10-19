@@ -1,12 +1,13 @@
 module aegis.render_graph;
 import std;
+import aegis.paths;
 import aegis.rhi;
 
 namespace aegis::render_graph
 {
 auto shaderDirectory() -> std::filesystem::path
 {
-    return std::filesystem::path{ AEGIS_SHADER_DIR };
+    return paths::shaders();
 }
 
 auto loadShader(std::string_view relativePath) -> std::expected<std::vector<std::uint32_t>, Error>

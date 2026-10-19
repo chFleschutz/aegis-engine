@@ -4,6 +4,7 @@ set(AEGIS_MODULE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 add_library(aegis-engine STATIC)
 add_library(Aegis::Engine ALIAS aegis-engine)
 
+add_subdirectory(paths)
 add_subdirectory(platform)
 add_subdirectory(rhi)
 add_subdirectory(renderer)
@@ -34,6 +35,7 @@ target_link_libraries(aegis-engine
 PUBLIC 
 	aegis-assets
 	aegis-core
+	aegis-paths
 	aegis-platform
 	aegis-reflect
 	aegis-render-graph
