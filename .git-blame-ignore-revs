@@ -24,3 +24,9 @@ cb7f1839507a77b22da73403aed1714886cd8a88
 6f2f868e07297f6977fe2b07c9d65f2eef9945de
 # Remove dead scripting modules and src/aegis/ai (PR #107)
 95c4d4d3a789e8352125a8f6fee74cf3e86552fb
+# Remove core::SHADER_DIR, INVALID_HANDLE and the BUILD_DIR definition (PR #114)
+d61d5c23e8eed9ffb6be1bf61300c8124561c0fe
+# Remove AssetManager and Engine::assets() (PR #114)
+cc65adafc891c62e3b3fb57991fb1616e1772be5
+# Remove the AGX_PROFILE macros and IsLoadable (PR #114)
+e588750ce05ee09a1d338d048dae61d6611e65c4

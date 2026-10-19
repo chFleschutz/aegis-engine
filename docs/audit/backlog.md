@@ -111,7 +111,7 @@ Future decisions (not blocking):
     D3 log policy as the target style (report §2.3).
   - Done when: every row of map.md "Where code and docs disagree" is fixed or marked as a goal.
 - [x] **0.2 `.git-blame-ignore-revs`** · S · committed to `main` in 1c072de3, later M2 commits added
-  as their PRs merged (2.2, 2.1, 2.3)
+  as their PRs merged (2.2, 2.1, 2.3, 2.4)
   - Content: from PR #32, b5877948 (format), 561096dc and 5c4b20d9 (renames); from PR #91,
     1800508e ("Qualify C standard type names with std::") and 7266617e ("Replace standard library
     includes with import std"), after checking each is purely mechanical (no logic mixed in);
@@ -152,7 +152,7 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
 - [x] **1.4** `fix/resource-pool-stable-storage` · S · #37 · merged in PR #96
   - Closes: A-RENDER-02.
   - Done when: test 13 passes ("a returned reference keeps its address while the pool grows").
-- [x] **1.5** `fix/renderer-error-paths` · S–M · #38 · PR #119, not merged
+- [x] **1.5** `fix/renderer-error-paths` · S–M · #38 · merged in PR #119
   - Closes: B-RENDER-01, B-RENDER-03 (a, b; ImGui `ImageCount` residue), B-RENDER-02 (E-RENDER-12).
   - Done when: the new swapchain is created before old views are freed and a failed recreate is
     fatal; `renderFrame` and `resize` return `expected` and callers stop on error; a failed submit
@@ -182,7 +182,7 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
   - Depends: 1.8a.
   - Done when: tests 4 (*fails today*) and 5 pass, plus a `toLocal` inverse test; the gizmo
     manipulates the world matrix; bundled scene screenshots unchanged.
-- [x] **1.8c** `fix/camera-and-decompose-math` · S · #43 · PR #116, not merged; the front-face flip
+- [x] **1.8c** `fix/camera-and-decompose-math` · S · #43 · merged in PR #116; the front-face flip
   for mirrored instances is still open (see Polish)
   - Closes: A-FOUND-08, B-FOUND-01 (E-FOUND-02).
   - Depends: 1.8a.
@@ -247,7 +247,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
   - Closes: A-APP-13 (D-14), the `ai/` verdict.
   - Content: delete `dynamic_movement_controller`, `world_border`, `physics/motion_dynamics`
     (3 CMake lines) and `src/aegis/ai/`; remove the `ai/` exception from AGENTS.md.
-- [x] **2.4** `cleanup/dead-core` · S · #53 · PR #114, not merged
+- [x] **2.4** `cleanup/dead-core` · S · #53 · merged in PR #114
   - Closes: D-16, D-17, B-APP-13, B-FOUND-14 (C-09), D-21.
   - Depends: 1.11.
   - Content: delete `core::SHADER_DIR`, `INVALID_HANDLE` (then the `BUILD_DIR` definition),
@@ -315,7 +315,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
     environment override and `u8` paths; all paths derive from `PROJECT_SOURCE_DIR` /
     `PROJECT_BINARY_DIR`, so reader and writer agree when built as a subproject (check with a
     two-line wrapper project). Install rules come with the export step (D7).
-- [x] **3.6** `build/link-visibility` · S · #66 · PR #115, not merged
+- [x] **3.6** `build/link-visibility` · S · #66 · merged in PR #115
   - Closes: A-BUILD-08 rest (E-APP-13).
   - Done when: scripting and assets link PUBLIC what their `.cppm` import; EnTT dropped from
     assets, imguizmo from core; the rule is in AGENTS.md.
@@ -402,7 +402,7 @@ so the numbers are not sequential. 6.8–6.12 are new and have no issue yet (iss
     re-export (A-APP-12).
   - `World` (today's `Scene`) is a plain object with no global state, so several can exist at once:
     the editor's edit world plus a play copy, or a menu plus a level.
-- [x] **6.8** `feat/type-registry` · M · issue: TBD · PR #118, not merged
+- [x] **6.8** `feat/type-registry` · M · issue: TBD · merged in PR #118
   - Closes: A-APP-09 (the component table; the editor half is 6.12).
   - D7. Pure logic, so it can run in parallel with 6.1 and 6.2.
   - A new-style module (working name `aegis.reflect`) with a `TypeRegistry`:
@@ -508,7 +508,7 @@ Before the first terrain, vegetation or shadow pass.
 
 ## M8. Verification tiers (P9)
 
-- [x] **8.1** `feat/reference-images` · S–M · #88 · PR #117, not merged
+- [x] **8.1** `feat/reference-images` · S–M · #88 · merged in PR #117
   - Closes: E-RENDER-13 (A-BUILD-10) image part.
   - Depends: 1.2.
   - Done when: `aegis-test --compare <png> --tolerance` (diff image on failure); references for
