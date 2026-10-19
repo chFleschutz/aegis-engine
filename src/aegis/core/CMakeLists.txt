@@ -18,7 +18,6 @@ PUBLIC
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
 		asset.cppm
-		asset_manager.cppm
 		globals.cppm
 		layer.cppm
 		layer_stack.cppm
