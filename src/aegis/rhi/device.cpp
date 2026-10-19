@@ -84,21 +84,8 @@ auto Device::createImageView(ImageHandle image, const ImageView::Desc& desc)
 {
     return ImageView::create(*this, image, desc)
         .and_then([&](auto&& view) -> std::expected<ImageViewHandle, Error> {
-            if (utility::hasFlag(desc.usage, ImageUsage::Sampled))
-            {
-                auto descriptor = m_bindlessHeap.writeSampledImage(*this, view);
-                if (!descriptor)
-                    return makeError(ErrorCode::InitializationFailed);
-                view.setSampledDescriptor(*descriptor);
-            }
-
-            if (utility::hasFlag(desc.usage, ImageUsage::Storage))
-            {
-                auto descriptor = m_bindlessHeap.writeStorageImage(*this, view);
-                if (!descriptor)
-                    return makeError(ErrorCode::InitializationFailed);
-                view.setStorageDescriptor(*descriptor);
-            }
+            if (auto written = m_bindlessHeap.writeImageView(*this, view, desc.usage); !written)
+                return std::unexpected{ written.error() };
 
             return m_imageViews.push(std::move(view));
         });
@@ -109,21 +96,8 @@ auto Device::createImageView(vk::Image imageSrc, const ImageView::Desc& desc)
 {
     return ImageView::create(*this, imageSrc, desc)
         .and_then([&](auto&& view) -> std::expected<ImageViewHandle, Error> {
-            if (utility::hasFlag(desc.usage, ImageUsage::Sampled))
-            {
-                auto descriptor = m_bindlessHeap.writeSampledImage(*this, view);
-                if (!descriptor)
-                    return makeError(ErrorCode::InitializationFailed);
-                view.setSampledDescriptor(*descriptor);
-            }
-
-            if (utility::hasFlag(desc.usage, ImageUsage::Storage))
-            {
-                auto descriptor = m_bindlessHeap.writeStorageImage(*this, view);
-                if (!descriptor)
-                    return makeError(ErrorCode::InitializationFailed);
-                view.setStorageDescriptor(*descriptor);
-            }
+            if (auto written = m_bindlessHeap.writeImageView(*this, view, desc.usage); !written)
+                return std::unexpected{ written.error() };
 
             return m_imageViews.push(std::move(view));
         });
@@ -135,7 +109,7 @@ auto Device::createSampler(const Sampler::Desc& desc) -> std::expected<SamplerHa
         .and_then([&](auto&& sampler) -> std::expected<SamplerHandle, Error> {
             auto descriptor = m_bindlessHeap.writeSampler(*this, sampler.vk());
             if (!descriptor)
-                return makeError(ErrorCode::InitializationFailed);
+                return std::unexpected{ descriptor.error() };
             sampler.m_descriptor = *descriptor;
 
             return m_samplers.push(std::move(sampler));
@@ -170,20 +144,20 @@ auto Device::replace(ImageViewHandle view, ImageHandle image, const ImageView::D
     return ImageView::create(*this, image, desc)
         .and_then([&](auto&& imageView) -> std::expected<ImageViewHandle, Error> {
             auto& oldView = m_imageViews.get(view);
-            if (utility::hasFlag(desc.usage, ImageUsage::Sampled))
-            {
-                auto descriptor = m_bindlessHeap.writeSampledImage(*this, imageView, oldView.sampledDescriptor());
-                if (!descriptor)
-                    return makeError(ErrorCode::InitializationFailed);
-                imageView.setSampledDescriptor(*descriptor);
-            }
+            if (auto written = m_bindlessHeap.writeImageView(*this, imageView, desc.usage, &oldView); !written)
+                return std::unexpected{ written.error() };
 
-            if (utility::hasFlag(desc.usage, ImageUsage::Storage))
+            // A usage bit the new view drops leaves its old slot unused: return it once the GPU is done.
+            const auto droppedSampled = imageView.sampledDescriptor() ? std::nullopt : oldView.sampledDescriptor();
+            const auto droppedStorage = imageView.storageDescriptor() ? std::nullopt : oldView.storageDescriptor();
+            if (droppedSampled || droppedStorage)
             {
-                auto descriptor = m_bindlessHeap.writeStorageImage(*this, imageView, oldView.storageDescriptor());
-                if (!descriptor)
-                    return makeError(ErrorCode::InitializationFailed);
-                imageView.setStorageDescriptor(*descriptor);
+                m_deletionQueue.defer(retireValue(), [this, droppedSampled, droppedStorage] {
+                    if (droppedSampled)
+                        m_bindlessHeap.freeSampledImage(*droppedSampled);
+                    if (droppedStorage)
+                        m_bindlessHeap.freeStorageImage(*droppedStorage);
+                });
             }
 
             m_deletionQueue.push(retireValue(), m_imageViews.replace(view, std::move(imageView)));

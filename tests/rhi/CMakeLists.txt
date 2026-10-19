@@ -1,5 +1,6 @@
 aegis_add_test(rhi
     SOURCES
+        bindless_slots.test.cpp
         deletion_queue.test.cpp
         device.test.cpp
         free_list.test.cpp

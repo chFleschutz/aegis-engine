@@ -43,82 +43,61 @@ auto BindlessHeap::binding(DescriptorType type) -> std::uint32_t
     std::unreachable();
 }
 
-auto BindlessHeap::writeSampledImage(const Device& device, const ImageView& view,
-    std::optional<SampledImageDescriptor> oldDescriptor)
-    -> std::expected<SampledImageDescriptor, BindlessError>
+auto BindlessHeap::writeImageView(const Device& device, ImageView& view, ImageUsage usage,
+    const ImageView* old) -> std::expected<void, Error>
 {
-    SampledImageDescriptor descriptor;
-    if (oldDescriptor)
-    {
-        descriptor = *oldDescriptor;
-    }
-    else
-    {
-        auto index = m_freeSampledImages.pop();
-        if (!index)
-            return std::unexpected{ BindlessError::OutOfMemory };
+    const bool sampled = utility::hasFlag(usage, ImageUsage::Sampled);
+    const bool storage = utility::hasFlag(usage, ImageUsage::Storage);
 
-        descriptor = SampledImageDescriptor{ *index };
-    }
+    auto slots = detail::acquireImageSlots(m_freeSampledImages, m_freeStorageImages, sampled, storage,
+        old ? old->sampledDescriptor() : std::nullopt,
+        old ? old->storageDescriptor() : std::nullopt);
+    if (!slots)
+        return std::unexpected{ slots.error() };
 
+    if (slots->sampled)
+    {
+        writeSampledImage(device, view, *slots->sampled);
+        view.setSampledDescriptor(*slots->sampled);
+    }
+    if (slots->storage)
+    {
+        writeStorageImage(device, view, *slots->storage);
+        view.setStorageDescriptor(*slots->storage);
+    }
+    return {};
+}
+
+auto BindlessHeap::writeSampler(const Device& device, vk::Sampler sampler)
+    -> std::expected<SamplerDescriptor, Error>
+{
+    auto index = m_freeSamplers.pop();
+    if (!index)
+        return makeError(ErrorCode::OutOfDescriptors);
+
+    SamplerDescriptor descriptor{ *index };
+    updateDescriptorSet(device, DescriptorType::Sampler, descriptor.index, vk::DescriptorImageInfo{ .sampler = sampler });
+    return descriptor;
+}
+
+auto BindlessHeap::writeSampledImage(const Device& device, const ImageView& view,
+    SampledImageDescriptor descriptor) const -> void
+{
     updateDescriptorSet(device,
         DescriptorType::SampledImage,
         descriptor.index,
         vk::DescriptorImageInfo{
             .imageView = view.vk(),
             .imageLayout = vk::ImageLayout::eReadOnlyOptimal });
-
-    return descriptor;
 }
 
 auto BindlessHeap::writeStorageImage(const Device& device, const ImageView& view,
-    std::optional<StorageImageDescriptor> oldDescriptor)
-    -> std::expected<StorageImageDescriptor, BindlessError>
+    StorageImageDescriptor descriptor) const -> void
 {
-    StorageImageDescriptor descriptor;
-    if (oldDescriptor)
-    {
-        descriptor = *oldDescriptor;
-    }
-    else
-    {
-        auto index = m_freeStorageImages.pop();
-        if (!index)
-            return std::unexpected{ BindlessError::OutOfMemory };
-        descriptor = StorageImageDescriptor{ *index };
-    }
-
     updateDescriptorSet(device,
         DescriptorType::StorageImage,
         descriptor.index,
         vk::DescriptorImageInfo{ .imageView = view.vk(), .imageLayout = vk::ImageLayout::eGeneral });
-
-    return descriptor;
-}
-
-auto BindlessHeap::writeSampler(const Device& device, vk::Sampler sampler,
-    std::optional<SamplerDescriptor> oldDescriptor)
-    -> std::expected<SamplerDescriptor, BindlessError>
-{
-    SamplerDescriptor descriptor;
-    if (oldDescriptor)
-    {
-        descriptor = *oldDescriptor;
-    }
-    else
-    {
-        auto index = m_freeSamplers.pop();
-        if (!index)
-            return std::unexpected{ BindlessError::OutOfMemory };
-        descriptor = SamplerDescriptor{ *index };
-    }
-
-    updateDescriptorSet(device,
-        DescriptorType::Sampler,
-        descriptor.index,
-        vk::DescriptorImageInfo{ .sampler = sampler });
-
-    return descriptor;
 }
 
 auto BindlessHeap::freeSampledImage(SampledImageDescriptor descriptor) -> void

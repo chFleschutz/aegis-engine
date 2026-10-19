@@ -51,10 +51,63 @@ private:
     std::uint32_t m_capacity;
 };
 
-enum class BindlessError : std::uint32_t
+namespace detail
 {
-    OutOfMemory = 0,
+struct ImageSlots
+{
+    std::optional<SampledImageDescriptor> sampled;
+    std::optional<StorageImageDescriptor> storage;
 };
+
+// Picks the slots for an image view: the old descriptor when there is one (a replaced view keeps its
+// slot), else a fresh slot from the free list. All or nothing: when the storage slot cannot be
+// allocated, a sampled slot allocated by this call goes back to its free list, so a failed view
+// creation never leaks a slot. Exhaustion reports ErrorCode::OutOfDescriptors.
+[[nodiscard]] inline auto acquireImageSlots(FreeList& sampledSlots, FreeList& storageSlots, bool wantSampled,
+    bool wantStorage, std::optional<SampledImageDescriptor> oldSampled,
+    std::optional<StorageImageDescriptor> oldStorage) -> std::expected<ImageSlots, Error>
+{
+    ImageSlots slots;
+    bool freshSampled = false;
+
+    if (wantSampled)
+    {
+        if (oldSampled)
+        {
+            slots.sampled = oldSampled;
+        }
+        else
+        {
+            auto index = sampledSlots.pop();
+            if (!index)
+                return makeError(ErrorCode::OutOfDescriptors);
+            slots.sampled = SampledImageDescriptor{ *index };
+            freshSampled = true;
+        }
+    }
+
+    if (wantStorage)
+    {
+        if (oldStorage)
+        {
+            slots.storage = oldStorage;
+        }
+        else
+        {
+            auto index = storageSlots.pop();
+            if (!index)
+            {
+                if (freshSampled)
+                    sampledSlots.push(slots.sampled->index);
+                return makeError(ErrorCode::OutOfDescriptors);
+            }
+            slots.storage = StorageImageDescriptor{ *index };
+        }
+    }
+
+    return slots;
+}
+}
 
 class BindlessHeap
 {
@@ -78,17 +131,14 @@ public:
     [[nodiscard]] auto set() const -> vk::DescriptorSet { return m_set; }
     [[nodiscard]] auto layout() const -> vk::DescriptorSetLayout { return *m_layout; }
 
-    [[nodiscard]] auto writeSampledImage(const Device& device, const ImageView& view,
-        std::optional<SampledImageDescriptor> oldDescriptor = std::nullopt)
-        -> std::expected<SampledImageDescriptor, BindlessError>;
+    // Allocates the descriptors a view needs and writes them (the one place that does so). With
+    // `old`, descriptors it already holds are reused and rewritten for the new view. On failure
+    // nothing stays allocated and the view is unchanged.
+    [[nodiscard]] auto writeImageView(const Device& device, ImageView& view, ImageUsage usage,
+        const ImageView* old = nullptr) -> std::expected<void, Error>;
 
-    [[nodiscard]] auto writeStorageImage(const Device& device, const ImageView& view,
-        std::optional<StorageImageDescriptor> oldDescriptor = std::nullopt)
-        -> std::expected<StorageImageDescriptor, BindlessError>;
-
-    [[nodiscard]] auto writeSampler(const Device& device, vk::Sampler sampler,
-        std::optional<SamplerDescriptor> oldDescriptor = std::nullopt)
-        -> std::expected<SamplerDescriptor, BindlessError>;
+    [[nodiscard]] auto writeSampler(const Device& device, vk::Sampler sampler)
+        -> std::expected<SamplerDescriptor, Error>;
 
     auto freeSampledImage(SampledImageDescriptor descriptor) -> void;
     auto freeStorageImage(StorageImageDescriptor descriptor) -> void;
@@ -107,6 +157,9 @@ private:
     [[nodiscard]] static auto createSet(const vk::raii::Device& device, vk::DescriptorPool pool,
         vk::DescriptorSetLayout layout)
         -> std::expected<vk::DescriptorSet, Error>;
+
+    auto writeSampledImage(const Device& device, const ImageView& view, SampledImageDescriptor descriptor) const -> void;
+    auto writeStorageImage(const Device& device, const ImageView& view, StorageImageDescriptor descriptor) const -> void;
 
     auto updateDescriptorSet(const Device& device, DescriptorType type, std::uint32_t index,
         const vk::DescriptorImageInfo& info) const -> void;
