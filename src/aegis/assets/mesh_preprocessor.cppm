@@ -1,6 +1,7 @@
 export module aegis.assets:mesh_preprocessor;
 import std;
 import :error;
+import :gpu_types;
 import :mesh_data;
 import aegis.math;
 
@@ -29,16 +30,19 @@ public:
         Topology topology{ Topology::TriangleList };
 
         float overdrawThreshold{ 1.05f };
-        std::size_t maxVerticesPerMeshlet{ 64 };
-        std::size_t maxTrianglesPerMeshlet{ 126 };
+        /// Meshlet limits, at most meshletMaxVertices and meshletMaxPrimitives (the mesh shader's output
+        /// arrays); process rejects larger ones, and fewer than 3 vertices or 1 triangle.
+        std::size_t maxVerticesPerMeshlet{ meshletMaxVertices };
+        std::size_t maxTrianglesPerMeshlet{ meshletMaxPrimitives };
         float coneWeight{ 0.0f };
     };
 
     /// @brief Deduplicates vertices, optimizes for vertex cache / overdraw / fetch, computes bounds,
     ///        and builds meshlets.
     /// @return ErrorCode::InvalidData for missing positions, mismatched normals, an out-of-range
-    ///         index, or a vertex or index count that is not a whole number of triangles (a list
-    ///         count not a multiple of 3, a strip or fan with fewer than 3).
+    ///         index, a vertex or index count that is not a whole number of triangles (a list
+    ///         count not a multiple of 3, a strip or fan with fewer than 3), or meshlet limits the
+    ///         mesh shader cannot hold.
     [[nodiscard]] static auto process(Input input) -> std::expected<MeshData, Error>;
 };
 }

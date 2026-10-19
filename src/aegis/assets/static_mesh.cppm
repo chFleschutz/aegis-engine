@@ -1,6 +1,7 @@
 export module aegis.assets:static_mesh;
 import std;
 import :error;
+import :gpu_types;
 import :mesh_data;
 import aegis.rhi;
 import aegis.core.asset;
@@ -13,18 +14,7 @@ class StaticMesh : public aegis::core::Asset
 {
 public:
     /// @brief What meshDataAddress() points at; the layout shaders read (scalar).
-    struct GpuData
-    {
-        rhi::DeviceAddress vertices;
-        rhi::DeviceAddress indices;
-        rhi::DeviceAddress meshlets;
-        rhi::DeviceAddress meshletVertices;
-        rhi::DeviceAddress meshletPrimitives;
-        std::uint32_t vertexCount;
-        std::uint32_t indexCount;
-        std::uint32_t meshletCount;
-        BoundingSphere bounds;
-    };
+    using GpuData = MeshGpuData;
 
     /// @brief Creates the buffers and queues their uploads; usable once the next
     ///        Device::flushUploads has completed.

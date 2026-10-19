@@ -140,6 +140,41 @@ TEST_SUITE("assets::MeshPreprocessor")
             CHECK(area == doctest::Approx(0.5f));
     }
 
+    TEST_CASE("rejects meshlet limits the mesh shader cannot hold")
+    {
+        // The mesh shader declares at most 64 vertices and 126 primitives per meshlet; a larger meshlet
+        // would be undefined behavior on the GPU, and a count above 255 would wrap in the uint8 fields.
+        const auto rejects = [](std::size_t maxVertices, std::size_t maxTriangles) {
+            auto input = quad();
+            input.maxVerticesPerMeshlet = maxVertices;
+            input.maxTrianglesPerMeshlet = maxTriangles;
+            auto result = MeshPreprocessor::process(input);
+            return !result.has_value() && result.error().code == ErrorCode::InvalidData;
+        };
+
+        CHECK(rejects(64, 128)); // meshoptimizer's usual 128 triangles
+        CHECK(rejects(64, 127));
+        CHECK(rejects(65, 126));
+        CHECK(rejects(256, 126));
+        CHECK(rejects(64, 0));
+        CHECK(rejects(0, 126));
+        CHECK(rejects(2, 126)); // meshoptimizer needs room for a triangle's 3 vertices
+    }
+
+    TEST_CASE("accepts smaller meshlet limits")
+    {
+        auto input = quad();
+        input.maxVerticesPerMeshlet = 32;
+        input.maxTrianglesPerMeshlet = 32;
+        auto mesh = MeshPreprocessor::process(input);
+        REQUIRE(mesh.has_value());
+        for (const auto& meshlet : mesh->meshlets)
+        {
+            CHECK(meshlet.vertexCount <= 32);
+            CHECK(meshlet.primitiveCount <= 32);
+        }
+    }
+
     TEST_CASE("rejects input it cannot turn into triangles")
     {
         SUBCASE("no positions")
