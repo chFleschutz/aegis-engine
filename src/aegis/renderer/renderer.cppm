@@ -16,6 +16,8 @@ enum class Error
     FrameBeginFailed,
     QueueSubmitFailed,
     SwapchainPresentFailed,
+    SwapchainRecreateFailed,
+    ResourceRecreateFailed,
 };
 
 class Renderer
@@ -94,10 +96,14 @@ public:
     [[nodiscard]] auto createResolutionDependentTexture(const Texture::Desc& desc)
         -> std::expected<Texture, rhi::Error>;
 
-    auto renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept -> void;
+    /// @brief Renders and presents one frame. A frame skipped because the swapchain is out of date is
+    ///        not an error (needsResize() is then true); any error returned is fatal: stop rendering.
+    [[nodiscard]] auto renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept
+        -> std::expected<void, Error>;
 
     /// @brief Recreates the swapchain (offscreen: the targets) and every resolution-dependent texture.
-    auto resize(rhi::Extent2D newSize) -> void;
+    /// @note An error leaves the swapchain or the textures half replaced: it is fatal.
+    [[nodiscard]] auto resize(rhi::Extent2D newSize) -> std::expected<void, Error>;
 
 private:
     [[nodiscard]] static auto createFrameContext(
@@ -108,7 +114,7 @@ private:
     auto createOffscreenTargets() -> std::expected<void, Error>;
 
     auto beginFrame() noexcept -> std::expected<FrameInfo, Error>;
-    auto endFrame() noexcept -> void;
+    auto endFrame() noexcept -> std::expected<void, Error>;
 
     rhi::Context& m_context;
     rhi::Device& m_device;
@@ -121,5 +127,6 @@ private:
     std::vector<ResolutionDependentResource> m_resDependent;
     std::uint32_t m_currentFrame{ 0 };
     bool m_needsResize{ false };
+    bool m_zeroExtent{ false }; // The last resize() was to a zero extent: renderFrame skips
 };
 }

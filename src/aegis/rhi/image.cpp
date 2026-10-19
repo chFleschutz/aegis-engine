@@ -18,6 +18,11 @@ auto calcMipLevels(Extent3D extent) -> std::uint32_t
     return static_cast<std::uint32_t>(std::floor(std::log2(maxDim))) + 1;
 }
 
+auto clampMipLevels(std::uint32_t requested, Extent3D extent) -> std::uint32_t
+{
+    return std::clamp(requested, 1u, calcMipLevels(extent));
+}
+
 auto subresourceFootprints(Extent3D extent, Format format, std::uint32_t mipLevels,
     std::uint32_t arrayLayers) -> std::vector<SubresourceFootprint>
 {
@@ -65,9 +70,8 @@ auto Image::create(const Device& device, const Desc& desc) -> std::expected<Imag
     assert((desc.type != ImageType::Cube || (desc.arrayLayers % 6 == 0 && desc.extent.x == desc.extent.y)) &&
            "A cube image needs square faces and a multiple of 6 array layers");
 
-    std::uint32_t mipLevels = desc.mipLevels == Image::fullMipChain
-                                  ? detail::calcMipLevels(desc.extent)
-                                  : desc.mipLevels;
+    // Also clamps an explicit count: a fixed count (bloom's) is invalid once a resize shrinks the extent.
+    const auto mipLevels = detail::clampMipLevels(desc.mipLevels, desc.extent);
 
     vk::ImageCreateInfo imageInfo{
         .flags = deriveImageCreateFlags(desc.type),

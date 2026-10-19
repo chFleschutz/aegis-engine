@@ -130,11 +130,21 @@ auto Renderer::createResolutionDependentTexture(
         });
 }
 
-auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept -> void
+auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept
+    -> std::expected<void, Error>
 {
+    // Minimized: there is no surface to draw to, and resize() keeps needsResize() set until it is back.
+    if (m_zeroExtent)
+        return {};
+
     auto frameInfo = beginFrame();
     if (!frameInfo)
-        return;
+    {
+        // An out-of-date swapchain only skips the frame: the caller resizes before the next one.
+        if (frameInfo.error() == Error::SwapchainOutOfDate)
+            return {};
+        return std::unexpected{ frameInfo.error() };
+    }
 
     const auto& cmd = frameInfo->cmd;
     cmd.begin();
@@ -157,16 +167,24 @@ auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc
     cmd.endLabel();
     cmd.end();
 
-    endFrame();
+    return endFrame();
 }
 
-auto Renderer::resize(rhi::Extent2D newSize) -> void
+auto Renderer::resize(rhi::Extent2D newSize) -> std::expected<void, Error>
 {
     // Note: Resources need to be replaced immediately as the swapchain size changed.
     // The full sync point is required to ensure GPU is not using any resources anymore.
     // The resize happens before the frame-begin where resources are deleted, by enqueuing the resource
     // with the current frames timeline value before the actual frame-begins; the deletion happens this frame.
     // This is the intended behavior but worth noting anyway.
+
+    // A zero extent (minimized) cannot hold images or a swapchain: skip frames until a real size arrives.
+    m_zeroExtent = newSize.x == 0 || newSize.y == 0;
+    if (m_zeroExtent)
+    {
+        m_needsResize = true;
+        return {};
+    }
 
     std::ignore = m_device->waitIdle();
 
@@ -180,7 +198,7 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
         if (!swapchain)
         {
             std::println("Failed to recreate swapchain");
-            return;
+            return std::unexpected{ Error::SwapchainRecreateFailed };
         }
         m_swapchain = std::move(*swapchain);
         m_extent = m_swapchain->extent();
@@ -212,7 +230,7 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
         if (!newImage)
         {
             std::println("Failed to recreate resolution dependent image '{}'", name);
-            continue;
+            return std::unexpected{ Error::ResourceRecreateFailed };
         }
 
         auto newView = m_device.replace(texture.view,
@@ -228,10 +246,14 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
                 .usage = desc.usage,
             });
         if (!newView)
+        {
             std::println("Failed to recreate resolution dependent view '{}'", name);
+            return std::unexpected{ Error::ResourceRecreateFailed };
+        }
     }
 
     m_needsResize = false;
+    return {};
 }
 
 auto Renderer::createFrameContext(
@@ -322,7 +344,7 @@ auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
     };
 }
 
-auto Renderer::endFrame() noexcept -> void
+auto Renderer::endFrame() noexcept -> std::expected<void, Error>
 {
     auto& [cmd, imageAvailable, timePoint] = m_frameContext[m_currentFrame];
 
@@ -338,20 +360,29 @@ auto Renderer::endFrame() noexcept -> void
     if (!newSubmitTime)
     {
         std::println("Failed to submit to queue");
-        return;
+        // The acquire already signalled imageAvailable and nothing will wait on it, so the slot's next
+        // acquire would signal an already signalled semaphore (VUID-vkAcquireNextImageKHR-semaphore-01286).
+        // A semaphore cannot be unsignalled: replace it once the GPU is idle.
+        if (m_swapchain)
+        {
+            m_device.waitIdle();
+            if (auto semaphore = m_device.createSemaphore({ .name = std::format("ImageAvailableSemaphoreFrame{}", m_currentFrame) }))
+                imageAvailable = std::move(*semaphore);
+        }
+        return std::unexpected{ Error::QueueSubmitFailed };
     }
     timePoint = *newSubmitTime;
 
-    if (m_swapchain)
-    {
-        auto result = m_swapchain->present(m_device.presentQueue());
-        if (!result)
-        {
-            std::println("Failed to present to queue");
-            return;
-        }
-    }
-
+    // The frame was submitted, so its slot is used up even if the present fails: staying on it would
+    // wait on its own timeline value and let ImGui's per-frame buffers drift out of phase.
+    const auto presented = m_swapchain ? m_swapchain->present(m_device.presentQueue())
+                                       : std::expected<void, rhi::Error>{};
     m_currentFrame = (m_currentFrame + 1) % m_frameContext.size();
+    if (!presented)
+    {
+        std::println("Failed to present to queue");
+        return std::unexpected{ Error::SwapchainPresentFailed };
+    }
+    return {};
 }
 }

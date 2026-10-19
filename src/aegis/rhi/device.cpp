@@ -280,11 +280,16 @@ auto Device::createSwapchain(const Swapchain::Desc& desc) -> std::expected<Swapc
 
 auto Device::createSwapchain(const Swapchain::RecreateDesc& desc) -> std::expected<Swapchain, Error>
 {
+    // Create first: if it fails, the old swapchain stays whole and its views are not freed (twice, on a retry).
+    auto swapchain = Swapchain::create(*this, desc);
+    if (!swapchain)
+        return swapchain;
+
     for (const auto imageView : desc.oldSwapchain.imageViews())
     {
         free(imageView);
     }
-    return Swapchain::create(*this, desc);
+    return swapchain;
 }
 
 auto Device::waitIdle() const noexcept -> void

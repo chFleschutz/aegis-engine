@@ -157,7 +157,10 @@ public:
                 continue;
             }
             if (m_window.wasResized() || m_renderer->needsResize())
-                resize();
+            {
+                if (!resize())
+                    break;
+            }
 
             // Update
             m_scene.update(frameTimeSec);
@@ -166,7 +169,7 @@ public:
 
             // Rendering: uploads queued this frame (or while loading) go first, on the same queue.
             std::ignore = m_device->flushUploads();
-            m_renderer->renderFrame([this](const aegis::renderer::Renderer::FrameInfo& frame) {
+            auto rendered = m_renderer->renderFrame([this](const aegis::renderer::Renderer::FrameInfo& frame) {
                 m_frameGraph->execute({
                     .cmd = frame.cmd,
                     .scene = m_scene,
@@ -176,6 +179,11 @@ public:
                     .target = frame.target,
                 });
             });
+            if (!rendered)
+            {
+                ALOG::fatal("Failed to render a frame (renderer error {})", std::to_underlying(rendered.error()));
+                break;
+            }
 
             applyFrameBrake(currentFrameBegin);
         }
@@ -290,12 +298,18 @@ private:
         };
     }
 
-    void resize()
+    /// @return false after a fatal error, which is logged: the loop stops.
+    bool resize()
     {
-        m_renderer->resize(aegis::rhi::Extent2D{ m_window.extent() });
+        if (auto resized = m_renderer->resize(aegis::rhi::Extent2D{ m_window.extent() }); !resized)
+        {
+            ALOG::fatal("Failed to resize the renderer (renderer error {})", std::to_underlying(resized.error()));
+            return false;
+        }
         m_window.resetResized();
         if (auto resized = m_frameGraph->resized(); !resized)
             ALOG::fatal("Failed to resize the frame graph: {}", resized.error().message);
+        return true;
     }
 
     void applyFrameBrake(std::chrono::steady_clock::time_point frameBegin)

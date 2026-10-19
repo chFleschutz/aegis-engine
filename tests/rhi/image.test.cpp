@@ -39,6 +39,34 @@ TEST_SUITE("rhi::calcMipLevels")
     }
 }
 
+TEST_SUITE("rhi::clampMipLevels")
+{
+    using aegis::rhi::Extent3D;
+    using aegis::rhi::detail::clampMipLevels;
+
+    TEST_CASE("a request within the chain is kept")
+    {
+        CHECK(clampMipLevels(3, Extent3D{ 256, 256, 1 }) == std::uint32_t{ 3 });
+        CHECK(clampMipLevels(9, Extent3D{ 256, 256, 1 }) == std::uint32_t{ 9 });
+    }
+
+    TEST_CASE("a request beyond the extent is clamped to the full chain")
+    {
+        CHECK(clampMipLevels(6, Extent3D{ 20, 20, 1 }) == std::uint32_t{ 5 });
+        CHECK(clampMipLevels(6, Extent3D{ 1, 1, 1 }) == std::uint32_t{ 1 });
+    }
+
+    TEST_CASE("the full chain sentinel resolves to the full chain")
+    {
+        CHECK(clampMipLevels(std::numeric_limits<std::uint32_t>::max(), Extent3D{ 100, 100, 1 }) == std::uint32_t{ 7 });
+    }
+
+    TEST_CASE("at least one level remains")
+    {
+        CHECK(clampMipLevels(0, Extent3D{ 64, 64, 1 }) == std::uint32_t{ 1 });
+    }
+}
+
 TEST_SUITE("rhi::bytesPerTexel")
 {
     using aegis::rhi::Format;
