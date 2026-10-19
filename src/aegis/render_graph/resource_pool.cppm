@@ -58,6 +58,9 @@ public:
 
     [[nodiscard]] auto texture(ResourceHandle handle) const -> const renderer::Texture&;
     [[nodiscard]] auto extent(ResourceHandle handle) const -> rhi::Extent2D;
+    /// @brief The storage image slot of the texture's view, for a texture some pass declares with a storage
+    ///        usage (Usage::StorageRead or StorageWrite).
+    [[nodiscard]] auto storageDescriptor(ResourceHandle handle) const -> rhi::StorageImageDescriptor;
     [[nodiscard]] auto buffer(ResourceHandle handle) const -> const rhi::Buffer&;
 
     /// @brief The address of the buffer, or of frame 'frameIndex's copy of a per-frame buffer.

@@ -75,6 +75,8 @@ public:
 
     [[nodiscard]] auto sampledDescriptor() const -> rhi::SampledImageDescriptor;
     [[nodiscard]] auto samplerDescriptor() const -> rhi::SamplerDescriptor;
+    /// @brief Both, as shaders take a texture (bindless::TextureDescriptor).
+    [[nodiscard]] auto descriptor() const -> rhi::TextureDescriptor;
 
 private:
     Texture(rhi::Device& device, rhi::ImageHandle image, rhi::ImageViewHandle view, rhi::SamplerHandle sampler);

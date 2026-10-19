@@ -26,4 +26,3 @@ export import :sampler;
 export import :swapchain;
 export import :sync;
 export import :upload_manager;
-export import :utility;

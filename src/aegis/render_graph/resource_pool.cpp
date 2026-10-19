@@ -4,6 +4,7 @@ module;
 module aegis.render_graph;
 import std;
 import aegis.renderer;
+import aegis.base;
 import aegis.rhi;
 
 namespace aegis::render_graph
@@ -96,6 +97,11 @@ auto ResourcePool::texture(ResourceHandle handle) const -> const renderer::Textu
     return created->texture;
 }
 
+auto ResourcePool::storageDescriptor(ResourceHandle handle) const -> rhi::StorageImageDescriptor
+{
+    return *m_device.get(texture(handle).view).storageDescriptor();
+}
+
 auto ResourcePool::extent(ResourceHandle handle) const -> rhi::Extent2D
 {
     return m_device.get(texture(handle).image).extent().toExtent2D();
@@ -158,7 +164,7 @@ auto ResourcePool::createBuffer(const std::string& name, const BufferDesc& desc,
     rhi::MemoryUsage memory) const -> std::expected<CreatedBuffer, Error>
 {
     constexpr auto frames = renderer::Renderer::maxFramesInFlight;
-    const auto stride = desc.perFrame ? rhi::utility::alignTo(desc.size, perFrameAlignment) : 0;
+    const auto stride = desc.perFrame ? base::alignTo(desc.size, perFrameAlignment) : 0;
     auto buffer = m_device.createBuffer({
         .name = name,
         .size = desc.perFrame ? stride * frames : desc.size,
@@ -194,8 +200,6 @@ auto ResourcePool::resolveReferences() -> std::expected<void, Error>
 
 auto ResourcePool::createResources() -> std::expected<void, Error>
 {
-    using namespace rhi::utility;
-
     // Every access contributes usage flags to the resource it touches.
     std::vector<rhi::ImageUsage> imageUsage(m_entries.size(), rhi::ImageUsage::None);
     std::vector<rhi::BufferUsage> bufferUsage(m_entries.size(), rhi::BufferUsage::None);

@@ -19,6 +19,7 @@ function(aegis_add_test module)
 endfunction()
 
 add_subdirectory(assets)
+add_subdirectory(base)
 add_subdirectory(math)
 add_subdirectory(reflect)
 add_subdirectory(render_graph)

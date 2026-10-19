@@ -8,8 +8,8 @@ import modules.tbn;
 // kept (one task group per 32 meshlets of a visible instance).
 
 static const uint MESH_GROUP_SIZE = 32;
-static const uint MAX_VERTICES = 64;
-static const uint MAX_PRIMITIVES = 126;
+
+[[vk::push_constant]] ConstantBuffer<indirectDraw::GeometryConstants> pc;
 
 struct MSOut
 {
@@ -27,11 +27,10 @@ func meshMain(
     uint3 groupID : SV_GroupID,
     uint3 threadID : SV_GroupThreadID,
     in payload TaskPayload inPayload,
-    out vertices MSOut meshVertices[MAX_VERTICES],
-    out indices uint3 meshPrimitives[MAX_PRIMITIVES])
+    out vertices MSOut meshVertices[MESHLET_MAX_VERTICES],
+    out indices uint3 meshPrimitives[MESHLET_MAX_PRIMITIVES])
 {
-    let pc = indirectDraw::pc;
-    let instance = indirectDraw::getInstance(inPayload.instanceID);
+    let instance = pc.getInstance(inPayload.instanceID);
     let mesh = instance.mesh;
     let meshlet = mesh->meshlets[inPayload.groupMeshletOffset + inPayload.meshletIDs[groupID.x]];
 
@@ -61,7 +60,7 @@ func meshMain(
 [shader("fragment")]
 func fragmentMain(MSOut input, out common::GBuffer output)
 {
-    let material = indirectDraw::getInstance(input.instanceID).material;
+    let material = pc.getInstance(input.instanceID).material;
 
     float3 albedo = material->albedoMap.sample(input.uv).rgb * material->albedo;
     float3 normal = material->normalMap.sample(input.uv).rgb * 2.0 - 1.0;

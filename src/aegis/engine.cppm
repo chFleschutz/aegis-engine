@@ -2,8 +2,6 @@ module;
 
 #include "core/assert.h"
 
-#include <aegis-log/log.h>
-
 #include <cstdlib>
 
 #include <imgui.h>
@@ -22,6 +20,7 @@ export import aegis.core.layer_stack;
 export import aegis.core.logging;
 export import aegis.core.profiler;
 export import aegis.paths;
+export import aegis.base;
 export import aegis.scene;
 export import aegis.scene.components;
 export import aegis.scene.system;
@@ -52,9 +51,17 @@ public:
         createFrameGraph();
         m_layerStack.push<editor::EditorLayer>(m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_scene);
 
-        ALOG::info("Engine Initialized!");
-        ALOG::info("Using {} Driven Rendering", useGpuDrivenRendering() ? "GPU" : "CPU");
-        Logging::logo();
+        log::info("Engine Initialized!");
+        log::info("Using {} Driven Rendering", useGpuDrivenRendering() ? "GPU" : "CPU");
+        log::info("\n\n\n"
+                  "\t\t\t\t      ###   #######   ######   ####   ###### \n"
+                  "\t\t\t\t     ## ##  ##       ##    ##   ##   ##    ##\n"
+                  "\t\t\t\t    ##  ##  ##       ##         ##   ##      \n"
+                  "\t\t\t\t   ##   ##  ######   ##         ##    ###### \n"
+                  "\t\t\t\t  ########  ##       ##  ####   ##         ##\n"
+                  "\t\t\t\t ##     ##  ##       ##    ##   ##   ##    ##\n"
+                  "\t\t\t\t##      ##  #######   ######   ####   ###### \n"
+                  "\n\n");
     }
 
     Engine(const Engine&) = delete;
@@ -148,11 +155,14 @@ public:
             auto currentFrameBegin = std::chrono::steady_clock::now();
             float frameTimeSec = std::chrono::duration<float, std::chrono::seconds::period>(currentFrameBegin - lastFrameBegin).count();
             lastFrameBegin = currentFrameBegin;
+            // After a long frame (a breakpoint, a load), don't hand scripts and systems the whole stall
+            frameTimeSec = std::min(frameTimeSec, MAX_FRAME_DELTA_SEC);
 
             m_window.update();
             if (m_window.isMinimized())
             {
                 m_window.waitEvents();
+                lastFrameBegin = std::chrono::steady_clock::now(); // Not part of the next frame's delta
                 continue;
             }
             if (m_window.wasResized() || m_renderer->needsResize())
@@ -161,9 +171,14 @@ public:
                     break;
             }
 
-            // Update
-            m_scene.update(frameTimeSec);
+            // Update: scripts write the transforms, the systems derive from them (camera matrices
+            // included), then the editor reads the result.
+            // ImGui's flags are from the previous frame's UI; they gate the game input.
+            const auto& io = ImGui::GetIO();
+            m_input.setCaptured(io.WantCaptureKeyboard, io.WantCaptureMouse);
+            updateCameraAspect();
             m_scriptManager.update(frameTimeSec);
+            m_scene.update(frameTimeSec);
             m_layerStack.update(frameTimeSec);
 
             // Rendering: uploads queued this frame (or while loading) go first, on the same queue.
@@ -180,7 +195,7 @@ public:
             });
             if (!rendered)
             {
-                ALOG::fatal("Failed to render a frame (renderer error {})", std::to_underlying(rendered.error()));
+                log::fatal("Failed to render a frame (renderer error {})", std::to_underlying(rendered.error()));
                 break;
             }
 
@@ -217,7 +232,7 @@ private:
     // Setup failures log their cause and exit; the engine can't carry on without a device.
     [[noreturn]] static void fatalSetup(const std::string& message)
     {
-        ALOG::fatal("{}", message);
+        log::fatal("{}", message);
         std::exit(EXIT_FAILURE);
     }
 
@@ -272,7 +287,7 @@ private:
             });
         if (auto compiled = m_frameGraph->compile(); !compiled)
         {
-            ALOG::fatal("Failed to compile the frame graph: {}", compiled.error().message);
+            log::fatal("Failed to compile the frame graph: {}", compiled.error().message);
             AGX_ASSERT_X(false, "Failed to compile the frame graph");
         }
     }
@@ -293,13 +308,24 @@ private:
     {
         if (auto resized = m_renderer->resize(aegis::rhi::Extent2D{ m_window.extent() }); !resized)
         {
-            ALOG::fatal("Failed to resize the renderer (renderer error {})", std::to_underlying(resized.error()));
+            log::fatal("Failed to resize the renderer (renderer error {})", std::to_underlying(resized.error()));
             return false;
         }
         m_window.resetResized();
         if (auto resized = m_frameGraph->resized(); !resized)
-            ALOG::fatal("Failed to resize the frame graph: {}", resized.error().message);
+            log::fatal("Failed to resize the frame graph: {}", resized.error().message);
         return true;
+    }
+
+    /// @brief Sets the main camera's aspect from the window, before the systems build its projection.
+    void updateCameraAspect()
+    {
+        const auto [width, height] = m_window.extent();
+        auto& registry = m_scene.registry();
+        const auto mainCamera = m_scene.mainCamera();
+        if (height == 0 || !mainCamera || !registry.has<Camera>(mainCamera))
+            return;
+        registry.get<Camera>(mainCamera).aspect = static_cast<float>(width) / static_cast<float>(height);
     }
 
     void applyFrameBrake(std::chrono::steady_clock::time_point frameBegin)
@@ -320,9 +346,11 @@ private:
 
     inline static Engine* s_instance{ nullptr };
 
+    /// @brief Longest frame time the scene and scripts see.
+    static constexpr float MAX_FRAME_DELTA_SEC{ 0.1f };
+
     // Order matters: members are destroyed bottom up, and everything holding GPU resources must go
     // before the device.
-    Logging m_logging{};
     core::LayerStack m_layerStack{};
     ui::UI m_ui{ m_layerStack };
     aegis::platform::Window m_window{ { .title = "Aegis", .width = core::DEFAULT_WIDTH, .height = core::DEFAULT_HEIGHT } };

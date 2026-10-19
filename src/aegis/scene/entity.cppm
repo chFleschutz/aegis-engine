@@ -42,7 +42,7 @@ public:
     auto operator==(const Entity&) const -> bool = default;
     auto operator!=(const Entity&) const -> bool = default;
 
-    operator bool() const { return m_id != entt::null; }
+    explicit operator bool() const { return m_id != entt::null; }
 
     [[nodiscard]] auto id() const -> entt::entity { return m_id; }
 

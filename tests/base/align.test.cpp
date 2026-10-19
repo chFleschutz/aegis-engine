@@ -1,11 +1,11 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.rhi;
+import aegis.base;
 
-TEST_SUITE("rhi::utility::alignTo")
+TEST_SUITE("base::alignTo")
 {
-    using aegis::rhi::utility::alignTo;
+    using aegis::base::alignTo;
 
     TEST_CASE("rounds up to the next multiple of a power-of-two alignment")
     {
@@ -32,9 +32,9 @@ TEST_SUITE("rhi::utility::alignTo")
     }
 }
 
-TEST_SUITE("rhi::utility::roundUpTo")
+TEST_SUITE("base::roundUpTo")
 {
-    using aegis::rhi::utility::roundUpTo;
+    using aegis::base::roundUpTo;
 
     TEST_CASE("rounds up to the next multiple of a non-power-of-two")
     {
@@ -47,7 +47,7 @@ TEST_SUITE("rhi::utility::roundUpTo")
 
     TEST_CASE("agrees with alignTo on power-of-two alignments")
     {
-        using aegis::rhi::utility::alignTo;
+        using aegis::base::alignTo;
         for (std::size_t size = 0; size < 40; ++size)
         {
             CHECK(roundUpTo(size, 4) == alignTo(size, 4));
@@ -59,15 +59,5 @@ TEST_SUITE("rhi::utility::roundUpTo")
     {
         CHECK(roundUpTo(0, 1) == 0);
         CHECK(roundUpTo(1234, 1) == 1234);
-    }
-}
-
-TEST_SUITE("rhi::formatName")
-{
-    TEST_CASE("names a format after its enumerator")
-    {
-        CHECK(aegis::rhi::formatName(aegis::rhi::Format::RGBA16_SFLOAT) == std::string_view{ "RGBA16_SFLOAT" });
-        CHECK(aegis::rhi::formatName(aegis::rhi::Format::D32_SFLOAT) == std::string_view{ "D32_SFLOAT" });
-        CHECK(aegis::rhi::formatName(aegis::rhi::Format::Unknown) == std::string_view{ "Unknown" });
     }
 }

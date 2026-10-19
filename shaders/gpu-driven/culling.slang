@@ -34,13 +34,6 @@ struct PushConstants
 
 [[vk::push_constant]] ConstantBuffer<PushConstants> pc;
 
-func getInstance(uint index) -> indirectDraw::Instance
-{
-    if (index < pc.staticCount)
-        return pc.staticInstances[index];
-    return pc.dynamicInstances[index - pc.staticCount];
-}
-
 [shader("compute")]
 [numthreads(64, 1, 1)]
 func main(uint3 dispatchThreadID : SV_DispatchThreadID)
@@ -49,7 +42,7 @@ func main(uint3 dispatchThreadID : SV_DispatchThreadID)
     if (instanceID >= pc.staticCount + pc.dynamicCount)
         return;
 
-    let instance = getInstance(instanceID);
+    let instance = indirectDraw::getInstance(pc.staticInstances, pc.dynamicInstances, pc.staticCount, instanceID);
     let mesh = instance.mesh;
 
     let worldBounds = mesh->bounds.transform(instance.modelMatrix);

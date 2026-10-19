@@ -51,6 +51,7 @@ add_library(aegis-rhi)
 
 target_link_libraries(aegis-rhi
     PUBLIC
+        aegis-base
         aegis-platform
     PRIVATE
         vulkan-module
@@ -86,7 +87,6 @@ target_sources(aegis-rhi
         swapchain.cppm
         sync.cppm
         upload_manager.cppm
-        utility.cppm
         vulkan_conversions.cppm
     PRIVATE
         bindless_heap.cpp

@@ -32,7 +32,6 @@ find_program(SLANGC_EXE slangc
 include(cmake/AegisShaders.cmake)
 
 add_subdirectory(external SYSTEM)
-add_subdirectory(modules)
 add_subdirectory(src)
 
 # Before tests/: the device tests register only when the shaders they load are built.

@@ -4,6 +4,7 @@ module;
 module aegis.assets;
 import std;
 import :upload;
+import aegis.base;
 import aegis.rhi;
 import aegis.math;
 
@@ -39,8 +40,6 @@ auto createFromRgba8(rhi::Device& device, const StbiPixels& pixels, int width, i
 
 auto Texture::create(rhi::Device& device, const Desc& desc) -> std::expected<std::shared_ptr<Texture>, Error>
 {
-    using namespace rhi::utility;
-
     auto image = device.createImage(rhi::Image::Desc{
         .name = desc.name,
         .type = desc.type,
@@ -251,5 +250,10 @@ auto Texture::sampledDescriptor() const -> rhi::SampledImageDescriptor
 auto Texture::samplerDescriptor() const -> rhi::SamplerDescriptor
 {
     return m_device.get(m_sampler).descriptor();
+}
+
+auto Texture::descriptor() const -> rhi::TextureDescriptor
+{
+    return { sampledDescriptor(), samplerDescriptor() };
 }
 }

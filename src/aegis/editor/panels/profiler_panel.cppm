@@ -5,7 +5,7 @@ module;
 export module aegis.editor.panels:profiler_panel;
 
 import std;
-import aegis.core.profiler;
+import aegis.base;
 import aegis.render_graph;
 
 export namespace aegis::editor
@@ -26,7 +26,7 @@ public:
         double frameTime = profiler.time("Frame Time");
 
         ImGui::Text("Frame Time: %.3f ms", frameTime);
-        ImGui::Text("FPS: %.1f", 1000.0 / frameTime);
+        ImGui::Text("FPS: %.1f", frameTime > 0.0 ? 1000.0 / frameTime : 0.0);
 
         ImGui::Spacing();
 
@@ -48,7 +48,7 @@ public:
                 ImGui::TableSetColumnIndex(1);
                 ImGui::Text("%7.3f", rolling.average());
                 ImGui::TableSetColumnIndex(2);
-                ImGui::Text("%7.2f", rolling.average() / frameTime * 100.0);
+                ImGui::Text("%7.2f", frameTime > 0.0 ? rolling.average() / frameTime * 100.0 : 0.0);
             }
 
             ImGui::EndTable();
@@ -72,7 +72,7 @@ public:
                 ImGui::TableSetColumnIndex(1);
                 ImGui::Text("%7.3f", timing.gpuMs);
                 ImGui::TableSetColumnIndex(2);
-                ImGui::Text("%7.2f", timing.gpuMs / frameTime * 100.0);
+                ImGui::Text("%7.2f", frameTime > 0.0 ? timing.gpuMs / frameTime * 100.0 : 0.0);
             }
             ImGui::EndTable();
         }

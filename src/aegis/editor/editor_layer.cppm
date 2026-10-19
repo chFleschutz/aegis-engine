@@ -73,8 +73,12 @@ public:
 private:
     void drawGizmo(scene::Scene& scene)
     {
-        auto selected = m_scenePanel.selectedEntity();
-        if (!selected)
+        auto& registry = scene.registry();
+        const auto selected = m_scenePanel.selectedEntity();
+        const auto mainCamera = scene.mainCamera();
+        if (!registry.valid(selected) || !registry.has<Transform, GlobalTransform, Parent>(selected))
+            return;
+        if (!registry.has<Camera>(mainCamera)) // Null or without a camera
             return;
 
         ImGuizmo::SetOrthographic(false);
@@ -82,8 +86,7 @@ private:
         ImGuiIO& io = ImGui::GetIO();
         ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
 
-        auto& registry = scene.registry();
-        auto& camera = registry.get<Camera>(scene.mainCamera());
+        auto& camera = registry.get<Camera>(mainCamera);
         glm::mat4 projectionMatrix = camera.projectionMatrix;
         projectionMatrix[1][1] *= -1.0f; // Flip y-axis
 
@@ -111,6 +114,8 @@ private:
                 parentGlobal = registry.get<GlobalTransform>(parent);
 
             transform = scene::detail::toLocal(parentGlobal, transformMatrix);
+            if (!registry.has<DynamicTag>(selected))
+                registry.markStaticDirty(selected); // Static entities only move when told to
         }
     }
 

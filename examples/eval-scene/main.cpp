@@ -207,9 +207,9 @@ public:
             };
             const float metallic = uniformFloat(0.0f, 1.0f);
             const float roughness = uniformFloat(0.0f, 1.0f);
-            [[maybe_unused]] auto set = matInstance->setParameter("albedo", color)
-                                            .and_then([&] { return matInstance->setParameter("metallic", metallic); })
-                                            .and_then([&] { return matInstance->setParameter("roughness", roughness); });
+            [[maybe_unused]] auto set = matInstance->setParameter(assets::pbr::albedo, color)
+                                            .and_then([&] { return matInstance->setParameter(assets::pbr::metallic, metallic); })
+                                            .and_then([&] { return matInstance->setParameter(assets::pbr::roughness, roughness); });
             AGX_ASSERT_X(set, "Failed to set the cube material's parameters");
             cubeMats.emplace_back(matInstance);
         }
@@ -287,9 +287,9 @@ public:
         auto cube = Engine::loadModel(paths::assets() / "Misc/cube.obj");
         auto& cubeMesh = registry.get<aegis::assets::Mesh>(cube).staticMesh;
         auto& cubeMat = registry.get<aegis::assets::Material>(cube).instance;
-        [[maybe_unused]] auto set = cubeMat->setParameter("albedo", glm::vec3{ 0.8f, 0.1f, 0.1f })
-                                        .and_then([&] { return cubeMat->setParameter("metallic", 1.0f); })
-                                        .and_then([&] { return cubeMat->setParameter("roughness", 0.5f); });
+        [[maybe_unused]] auto set = cubeMat->setParameter(assets::pbr::albedo, glm::vec3{ 0.8f, 0.1f, 0.1f })
+                                        .and_then([&] { return cubeMat->setParameter(assets::pbr::metallic, 1.0f); })
+                                        .and_then([&] { return cubeMat->setParameter(assets::pbr::roughness, 0.5f); });
         AGX_ASSERT_X(set, "Failed to set the cube material's parameters");
 
         constexpr int cubeCount = 10'000;

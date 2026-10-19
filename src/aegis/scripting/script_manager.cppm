@@ -41,15 +41,17 @@ public:
         requires std::derived_from<T, ScriptBase> && std::constructible_from<T, Args...>
     void addScript(scene::Entity entity, Args&&... args)
     {
-        T* script = new T(std::forward<Args>(args)...);
-        m_newScripts.emplace_back(script);
+        auto script = std::make_unique<T>(std::forward<Args>(args)...);
         script->init(&m_scene.registry(), entity, m_input);
+        m_newScripts.emplace_back(std::move(script));
     }
 
     /// @brief Calls the update function of each script
+    /// @note Scripts whose entity was destroyed are ended and removed first
     void update(float deltaSeconds)
     {
         handleNewScripts();
+        removeOrphanedScripts();
 
         for (auto& script : m_scripts)
         {
@@ -64,14 +66,26 @@ private:
         for (auto& script : m_newScripts)
         {
             script->begin();
-            m_scripts.emplace_back(script);
+            m_scripts.emplace_back(std::move(script));
         }
         m_newScripts.clear();
     }
 
+    /// @brief Ends and removes the scripts whose entity no longer exists
+    void removeOrphanedScripts()
+    {
+        const auto& registry = m_scene.registry();
+        std::erase_if(m_scripts, [&registry](const std::unique_ptr<ScriptBase>& script) {
+            if (registry.valid(script->entity()))
+                return false;
+            script->end();
+            return true;
+        });
+    }
+
     scene::Scene& m_scene;
     aegis::platform::Input& m_input;
-    std::vector<ScriptBase*> m_scripts;
-    std::vector<ScriptBase*> m_newScripts;
+    std::vector<std::unique_ptr<ScriptBase>> m_scripts;
+    std::vector<std::unique_ptr<ScriptBase>> m_newScripts;
 };
 }

@@ -1,32 +1,33 @@
-export module aegis.core.profiler;
+export module aegis.base:profiler;
 
 import std;
 
+// Stays in namespace aegis (not aegis::base): the engine and the scene use these names unqualified.
 export namespace aegis
 {
+/// @brief Stopwatch on the monotonic clock.
 class Timer
 {
 public:
+    using Clock = std::chrono::steady_clock;
+
     Timer() :
-        m_start{ std::chrono::high_resolution_clock::now() }
+        m_start{ Clock::now() }
     {
     }
-    ~Timer() = default;
 
-    void reStart() { m_start = std::chrono::high_resolution_clock::now(); }
+    void reStart() { m_start = Clock::now(); }
 
     template<typename Unit>
     auto elapsed() const -> Unit
     {
-        const auto end = std::chrono::high_resolution_clock::now();
-        return std::chrono::duration_cast<Unit>(end - m_start);
+        return std::chrono::duration_cast<Unit>(Clock::now() - m_start);
     }
 
     template<typename T, typename Unit>
     auto elapsed() const -> T
     {
-        const auto end = std::chrono::high_resolution_clock::now();
-        return std::chrono::duration<T, Unit>(end - m_start).count();
+        return std::chrono::duration<T, Unit>(Clock::now() - m_start).count();
     }
 
     auto elapsedNanos() const -> double { return elapsed<double, std::nano>(); }
@@ -35,24 +36,16 @@ public:
     auto elapsedSeconds() const -> double { return elapsed<double, std::ratio<1>>(); }
 
 private:
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_start;
+    Clock::time_point m_start;
 };
 
-/// @brief Rolling average over N values
+/// @brief Rolling average over the last N values
 /// @tparam N Number of values to average (must be greater than zero)
 template<std::size_t N>
     requires(N > 0)
 class RollingAverage
 {
 public:
-    RollingAverage() = default;
-    RollingAverage(const RollingAverage&) = default;
-    RollingAverage(RollingAverage&&) = default;
-    ~RollingAverage() = default;
-
-    RollingAverage& operator=(const RollingAverage&) = default;
-    RollingAverage& operator=(RollingAverage&&) = default;
-
     operator double() const { return average(); }
     void operator+=(double value) { add(value); }
 
@@ -63,43 +56,43 @@ public:
         m_values[m_index] = value;
         m_sum += value;
         m_index = (m_index + 1) % N;
+        m_count = std::min(m_count + 1, N);
     }
 
-    /// @brief Get the average of the N values
-    /// @note Average is dirty for the first N-1 values
+    /// @brief Average of the values added so far, at most the last N; 0 when there are none
     auto average() const -> double
     {
-        return m_sum / N;
+        return m_count == 0 ? 0.0 : m_sum / static_cast<double>(m_count);
     }
 
+    /// @brief The most recently added value (0 when there is none)
     auto last() const -> double
     {
         std::size_t lastIndex = (m_index + N - 1) % N;
         return m_values[lastIndex];
     }
 
+    /// @brief Number of values the average covers (up to N)
+    auto count() const -> std::size_t { return m_count; }
+
 private:
     std::array<double, N> m_values{};
     double m_sum = 0.0;
     std::size_t m_index = 0;
+    std::size_t m_count = 0;
 };
 
 /// @brief Utility class for profiling code execution
-/// @note Uses a rolling average over 'AVERAGE_FRAME_COUNT' frames
+/// @note Uses a rolling average over 'AVERAGE_FRAME_COUNT' frames. The engine records into the
+///       one default instance, instance(); tests and tools can create their own.
 class Profiler
 {
 public:
-    static constexpr int AVERAGE_FRAME_COUNT = 50;
+    static constexpr std::size_t AVERAGE_FRAME_COUNT = 50;
 
     using TimeMap = std::unordered_map<std::string, RollingAverage<AVERAGE_FRAME_COUNT>>;
 
-    Profiler(const Profiler&) = delete;
-    Profiler(Profiler&&) = delete;
-    ~Profiler() = default;
-
-    auto operator=(const Profiler&) -> Profiler& = delete;
-    auto operator=(Profiler&&) -> Profiler& = delete;
-
+    /// @brief The default instance, shared by everything that does not pass its own.
     [[nodiscard]] static auto instance() -> Profiler&
     {
         static Profiler instance;
@@ -135,27 +128,30 @@ public:
     }
 
 private:
-    Profiler() = default;
-
     TimeMap m_times;
 };
 
-/// @brief Times the current scope and adds the time to the profiler
+/// @brief Times the current scope and adds the time (in ms) to a profiler
 class ScopeProfiler
 {
 public:
-    ScopeProfiler(std::string_view name) :
-        m_name(name)
+    explicit ScopeProfiler(std::string_view name, Profiler& profiler = Profiler::instance()) :
+        m_name(name),
+        m_profiler{ profiler }
     {
     }
 
+    ScopeProfiler(const ScopeProfiler&) = delete;
+    auto operator=(const ScopeProfiler&) -> ScopeProfiler& = delete;
+
     ~ScopeProfiler()
     {
-        Profiler::instance().addTime(m_name, m_timer.elapsedMillis());
+        m_profiler.addTime(m_name, m_timer.elapsedMillis());
     }
 
 private:
     Timer m_timer;
     std::string m_name;
+    Profiler& m_profiler;
 };
 }

@@ -148,18 +148,24 @@ types, except `render_graph/passes/ui_pass.cpp`, which imports it for the ImGui 
 **Known deviations (current state):** the `Error` types differ per module (rhi struct `{code}`,
 `renderer` enum, `render_graph` `{message, rhi?}`, `assets` struct) and `platform::Window` asserts
 instead of returning one; `render_graph` imports `aegis.scene` and holds `Scene&`;
-`LayerStack::m_Layers` is PascalCase; components, `Logging`, `Profiler` and `Engine` sit directly in
+`LayerStack::m_Layers` is PascalCase; components, `Profiler` and `Engine` sit directly in
 `aegis`; `Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
+
+**Foundation (`aegis.base`, `src/aegis/base/`):** logging, flag enums, alignment, `match` and the
+profiler; any module may import it (renamed `aegis.core` once the legacy core is gone).
+- *Logging:* `aegis::log::{info,warn,error,fatal}` take a `std::format_string`, work with no setup
+  and write `[warn] ...` to stderr under one mutex; `log::setSink` redirects them (tests capture
+  output with it). Library code logs only degraded behaviour that carries on; errors are returned
+  and only the top level logs them. `std::print` stays in `aegis-test`, examples and tools.
+- *Flag enums:* opt in with `AEGIS_FLAGS(Enum)` (`#include "aegis/base/flags.h"`) directly after the
+  enum, inside its namespace, so ADL finds the operators with no using-directive; an enum without
+  it has no `|`. `base::hasFlag` tests bits.
 
 **Target style (decided, not yet the current state):**
 - *Errors:* one shape per module, `{ErrorCode code; std::string message; std::optional<rhi::Error>
   rhi}` (rhi keeps `{code, debug location}`), built with `makeError(code, msg)` /
   `makeError(lowerError, msg)` and printed only through the module's `describe(const Error&)`. A
   layer adds context and copies the cause; it never re-stringifies.
-- *Logging:* `aegis::log::{warn,error}` (stderr with a severity tag, one `setSink` for tests)
-  replaces the `aegis-log` dependency. Library code logs only degraded behaviour that carries on;
-  errors are returned and only the top level logs them. `std::print` stays in `aegis-test`,
-  examples and tools.
 - *Static/dynamic entities:* static entities stay frozen after `begin`. Entity create/destroy and
   `Mesh`/`Material` add/remove bump a static-set version through the entt signals and the static set
   is rebuilt. Moving a static entity is explicit: the editor calls `markStaticDirty(entity)` after
@@ -239,7 +245,7 @@ re-check them against the current code. Feature PRs don't edit `backlog.md`.
 ## Unit tests
 
 doctest covers **pure, GPU-independent logic** in any module. One
-executable per module (`aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
+executable per module (`aegis-tests-base`, `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
 `aegis-tests-math`, `aegis-tests-scene`), each linking only that module's library. Layout, conventions, how to add a
 module, and the full rationale: **`tests/README.md`**.
 

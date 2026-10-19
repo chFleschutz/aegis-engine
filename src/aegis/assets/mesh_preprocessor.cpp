@@ -24,6 +24,19 @@ auto interleave(const MeshPreprocessor::Input& input) -> std::vector<Vertex>
 
 auto validate(const MeshPreprocessor::Input& input) -> std::expected<void, Error>
 {
+    // The mesh shader's output arrays hold meshletMaxVertices / meshletMaxPrimitives, and meshoptimizer
+    // needs room for one triangle. Larger meshlets would be undefined behavior on the GPU.
+    if (input.maxVerticesPerMeshlet < 3 || input.maxVerticesPerMeshlet > meshletMaxVertices)
+    {
+        return makeError(ErrorCode::InvalidData, std::format("Meshlet vertex limit {} is outside [3, {}]",
+                                                     input.maxVerticesPerMeshlet, meshletMaxVertices));
+    }
+    if (input.maxTrianglesPerMeshlet < 1 || input.maxTrianglesPerMeshlet > meshletMaxPrimitives)
+    {
+        return makeError(ErrorCode::InvalidData, std::format("Meshlet triangle limit {} is outside [1, {}]",
+                                                     input.maxTrianglesPerMeshlet, meshletMaxPrimitives));
+    }
+
     if (input.positions.empty())
         return makeError(ErrorCode::InvalidData, "Mesh has no positions");
     if (input.normals.size() != input.positions.size())

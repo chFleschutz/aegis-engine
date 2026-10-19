@@ -1,6 +1,8 @@
 module;
 #include <GLFW/glfw3.h>
 
+#include "aegis/base/flags.h"
+
 export module aegis.platform:input;
 import std;
 import :window;
@@ -133,15 +135,7 @@ enum class Modifiers : int
 };
 // clang-format on
 
-[[nodiscard]] constexpr auto operator|(Modifiers lhs, Modifiers rhs) noexcept -> Modifiers
-{
-    return static_cast<Modifiers>(static_cast<int>(lhs) | static_cast<int>(rhs));
-}
-
-[[nodiscard]] constexpr auto operator&(Modifiers lhs, Modifiers rhs) noexcept -> Modifiers
-{
-    return static_cast<Modifiers>(static_cast<int>(lhs) & static_cast<int>(rhs));
-}
+AEGIS_FLAGS(Modifiers)
 
 enum class CursorMode
 {
@@ -175,6 +169,14 @@ public:
 
     auto setCursorMode(CursorMode mode) -> void;
 
+    /// @brief While captured (e.g. by a UI that has the focus), keyPressed and mouseButtonPressed report
+    ///        nothing pressed. Bindings and the cursor position are not affected.
+    auto setCaptured(bool keyboard, bool mouse) -> void
+    {
+        m_keyboardCaptured = keyboard;
+        m_mouseCaptured = mouse;
+    }
+
     /// @brief Calls 'callback' whenever 'key' sees 'action' while exactly 'modifiers' are held.
     /// @note Callbacks run inside Window::update, which processes the events.
     auto bind(Key key, std::function<void()> callback, KeyAction action = KeyAction::Press,
@@ -192,5 +194,7 @@ private:
 
     Window& m_window;
     std::unordered_map<Key, std::vector<Binding>> m_bindings;
+    bool m_keyboardCaptured{ false };
+    bool m_mouseCaptured{ false };
 };
 }

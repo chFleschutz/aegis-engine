@@ -1,7 +1,8 @@
 add_library(aegis-platform STATIC)
 
-# PUBLIC: the module interfaces include GLFW (window handle, key codes).
+# PUBLIC: the module interfaces include GLFW (window handle, key codes) and aegis/base/flags.h.
 target_link_libraries(aegis-platform PUBLIC
+    aegis-base
     glfw
 )
 

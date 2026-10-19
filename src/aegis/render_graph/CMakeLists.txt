@@ -3,6 +3,7 @@ add_library(aegis-render-graph STATIC)
 target_link_libraries(aegis-render-graph
     PUBLIC
         aegis-assets
+        aegis-base
         aegis-math
         aegis-paths
         aegis-renderer
@@ -23,6 +24,7 @@ target_sources(aegis-render-graph
     error.cppm
     frame_graph.cppm
     frustum.cppm
+    gpu_types.cppm
     ibl.cppm
     immediate.cppm
     render_pass.cppm

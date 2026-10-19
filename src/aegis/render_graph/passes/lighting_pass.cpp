@@ -10,37 +10,6 @@ import aegis.scene;
 
 namespace aegis::render_graph
 {
-namespace
-{
-struct TextureDescriptor
-{
-    std::uint32_t image;
-    std::uint32_t sampler;
-};
-
-auto descriptorOf(const assets::Texture& texture) -> TextureDescriptor
-{
-    return { texture.sampledDescriptor().index, texture.samplerDescriptor().index };
-}
-
-// lighting.slang's push constants.
-struct PushConstants
-{
-    rhi::DeviceAddress lighting;
-    std::uint32_t sceneColor;
-    std::array<std::uint32_t, 5> gBuffer; // Position, Normal, Albedo, ARM, Emissive
-    TextureDescriptor irradiance;
-    TextureDescriptor prefiltered;
-    TextureDescriptor brdfLut;
-};
-static_assert(sizeof(PushConstants) <= rhi::CommandBuffer::maxPushConstantSize);
-
-auto storageIndex(const ResourcePool& pool, ResourceHandle handle) -> std::uint32_t
-{
-    return pool.device().get(pool.texture(handle).view).storageDescriptor()->index;
-}
-}
-
 LightingPass::LightingPass(ResourcePool& pool) :
     m_gBuffer{
         pool.addReference("Position", Usage::StorageRead),
@@ -50,7 +19,7 @@ LightingPass::LightingPass(ResourcePool& pool) :
         pool.addReference("Emissive", Usage::StorageRead),
     },
     m_sceneColor{ pool.addTexture("SceneColor", Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) },
-    m_uniforms{ pool.addBuffer("LightingUniforms", Usage::HostWrite, { .size = sizeof(Uniforms), .perFrame = true }) }
+    m_uniforms{ pool.addBuffer("LightingUniforms", Usage::HostWrite, { .size = sizeof(LightingUniforms), .perFrame = true }) }
 {
 }
 
@@ -85,7 +54,7 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     }
     const auto& environment = registry.get<assets::Environment>(environmentEntity);
 
-    Uniforms uniforms{
+    LightingUniforms uniforms{
         .ambientOcclusionFactor = m_ambientOcclusionFactor,
         .viewMode = m_viewMode,
     };
@@ -115,25 +84,25 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     }
     pool.write(m_uniforms, frameInfo.frameIndex, std::as_bytes(std::span{ &uniforms, 1 }));
 
-    const PushConstants constants{
+    const LightingConstants constants{
         .lighting = pool.bufferAddress(m_uniforms, frameInfo.frameIndex),
-        .sceneColor = storageIndex(pool, m_sceneColor),
+        .sceneColor = pool.storageDescriptor(m_sceneColor),
         .gBuffer = {
-            storageIndex(pool, m_gBuffer[0]),
-            storageIndex(pool, m_gBuffer[1]),
-            storageIndex(pool, m_gBuffer[2]),
-            storageIndex(pool, m_gBuffer[3]),
-            storageIndex(pool, m_gBuffer[4]),
+            pool.storageDescriptor(m_gBuffer[0]),
+            pool.storageDescriptor(m_gBuffer[1]),
+            pool.storageDescriptor(m_gBuffer[2]),
+            pool.storageDescriptor(m_gBuffer[3]),
+            pool.storageDescriptor(m_gBuffer[4]),
         },
-        .irradiance = descriptorOf(*environment.irradiance),
-        .prefiltered = descriptorOf(*environment.prefiltered),
-        .brdfLut = descriptorOf(*environment.brdfLUT),
+        .irradiance = environment.irradiance->descriptor(),
+        .prefiltered = environment.prefiltered->descriptor(),
+        .brdfLut = environment.brdfLUT->descriptor(),
     };
 
     const auto& cmd = frameInfo.cmd;
     cmd.bindPipeline(*m_pipeline);
     cmd.pushConstants(constants);
-    cmd.dispatch(groupCount(frameInfo.extent.x, 16), groupCount(frameInfo.extent.y, 16));
+    cmd.dispatch(groupCount(frameInfo.extent.x, computeGroupSize), groupCount(frameInfo.extent.y, computeGroupSize));
 }
 
 auto LightingPass::drawUI() -> void

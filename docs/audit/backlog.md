@@ -192,14 +192,14 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
   - Done when: tests 6 and 7 pass; camera math lives in `aegis.math` and `CameraSystem` calls it;
     a mirrored glTF node (or inspector scale x = -1) renders with correct winding on both paths
     (if back faces get culled, add the front-face flip for mirrored instances in this PR).
-- [ ] **1.9** `fix/editor-safety` · S · #44
+- [x] **1.9** `fix/editor-safety` · S · #44 · PR #123 (stacked on #120), not merged
   - Closes: B-APP-07, B-APP-05 (A-APP-04) guards, B-APP-01 (A-APP-01 parts 1–2, E-APP-05) stopgap.
   - Depends: 1.7 for the static-version part.
   - Done when: `Entity::operator bool` is `explicit` and tree nodes use the entity id; destroying
     Main Camera or the teapot in Simple-Scene neither asserts nor leaves scripts running; the
     teapot has `DynamicTag` and rotates on screen; gizmo and inspector edits on static entities
     call `markStaticDirty` and are visible; the D2 rule is documented at `DynamicTag`.
-- [ ] **1.10** `fix/camera-input` · S · #45
+- [x] **1.10** `fix/camera-input` · S · #45 · PR #120, not merged
   - Closes: B-APP-08 (A-APP-06, B-CONTENT-07), B-APP-09 (E-APP-07, B-CONTENT-08), B-APP-10
     (E-APP-10 b), B-APP-11 (E-APP-10 a).
   - Done when: game input is gated on ImGui `WantCapture*`; mouse look is not scaled by dt;
@@ -275,7 +275,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
 
 ## M3. Foundation policy
 
-- [ ] **3.1** `feat/aegis-base` · M · #58
+- [x] **3.1** `feat/aegis-base` · M · #58 · PR #122, not merged
   - Closes: A-FOUND-02, A-FOUND-03 (B-FOUND-04, D-23), A-FOUND-05, B-FOUND-05 (E-FOUND-05),
     B-FOUND-07 (D-10), E-FOUND-06 (E-APP-11).
   - Depends: 2.1, 2.4.
@@ -300,7 +300,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
     tries `DEPFILE`; device tests register only with shaders; the GPU-driven test has a
     `mesh-shaders` label and skip code; orphaned `.spv` are cleaned at configure; CI fails on
     invalid SPIR-V.
-- [ ] **3.4** `refactor/gpu-contract` · M · #64
+- [x] **3.4** `refactor/gpu-contract` · M · #64 · PR #124, not merged
   - Closes: A-BUILD-01 (E-BUILD-02, D-03), A-BUILD-02 (B-BUILD-08, B-CONTENT-13, E-BUILD-04),
     B-BUILD-06, E-BUILD-03, E-CONTENT-02, A-FOUND-11 (D-06).
   - Depends: 3.3.
@@ -308,7 +308,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
     live in `:gpu_types` with `sizeof`/`offsetof` tests; `addPbrParameters` and PBR name constants
     are tested against `PbrMaterial`; meshlet limits are one constant checked by
     `MeshPreprocessor`; push constants are declared in entry-point files only.
-- [ ] **3.5** `build/paths` · S · #65
+- [x] **3.5** `build/paths` · S · #65 · PR #121, not merged
   - Closes: A-BUILD-05 (D-16 rest), B-BUILD-05, B-BUILD-09.
   - Depends: 2.4.
   - Done when: one `AEGIS_`-prefixed shader/asset path value, PRIVATE, read in one TU, with an
@@ -538,8 +538,10 @@ No PR of their own. Pick them up when a PR already edits the file.
 - [ ] C-05: one native-handle accessor spelling (needs the formatting/naming decision).
 - [ ] Mirrored instances render inside out on both paths (left over from 1.8c, D6): both pipelines
   cull back faces with a fixed front face. Needs the determinant sign in the instance data, plus a
-  second pipeline on the CPU path and reversed winding or shader culling on the GPU path. Do it
-  with 3.4 or 7.1, which reshape the instance data.
+  second pipeline on the CPU path and reversed winding or shader culling on the GPU path. After
+  3.4 (PR #124): a flags word fits in `InstanceData`'s 4 padding bytes after `drawBatch`, set from
+  `determinant(mat3(model)) < 0` in `detail::toGpuTransform`; the mesh shader swaps two indices per
+  primitive; `StaticMeshConstants` has 16 spare bytes for the CPU path. Do it with 7.1 at the latest.
 
 ## After the foundation
 

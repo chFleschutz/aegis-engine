@@ -3,6 +3,7 @@ module;
 
 module aegis.assets;
 import std;
+import aegis.base;
 import aegis.rhi;
 import aegis.math;
 
@@ -38,7 +39,7 @@ auto scalarSize(const MaterialValue& value) -> std::size_t
     return std::visit(
         []<typename T>(const T&) -> std::size_t {
             if constexpr (std::is_same_v<T, std::shared_ptr<Texture>>)
-                return 2 * sizeof(std::uint32_t);
+                return sizeof(rhi::TextureDescriptor);
             else
                 return sizeof(T);
         },
@@ -61,11 +62,8 @@ auto writeParameters(const MaterialTemplate& materialTemplate,
                 if constexpr (std::is_same_v<T, std::shared_ptr<Texture>>)
                 {
                     constexpr auto invalid = ~std::uint32_t{ 0 };
-                    const std::array indices{
-                        v ? v->sampledDescriptor().index : invalid,
-                        v ? v->samplerDescriptor().index : invalid,
-                    };
-                    std::memcpy(dst, indices.data(), sizeof(indices));
+                    const auto descriptor = v ? v->descriptor() : rhi::TextureDescriptor{ { invalid }, { invalid } };
+                    std::memcpy(dst, &descriptor, sizeof(descriptor));
                 }
                 else
                 {
@@ -84,7 +82,7 @@ auto MaterialTemplate::addParameter(const std::string& name, MaterialValue defau
     if (isNullTexture(defaultValue))
         return makeError(ErrorCode::InvalidArgument, std::format("Material parameter '{}' needs a default texture", name));
 
-    const auto offset = rhi::utility::alignTo(m_parameterSize, detail::scalarAlignment(defaultValue));
+    const auto offset = base::alignTo(m_parameterSize, detail::scalarAlignment(defaultValue));
     const auto size = detail::scalarSize(defaultValue);
     m_parameterSize = offset + size;
     m_parameters.emplace(name, MaterialParameter{ .offset = offset, .size = size, .defaultValue = std::move(defaultValue) });
@@ -115,11 +113,10 @@ auto MaterialTemplate::check(const std::string& name, const MaterialValue& value
 auto MaterialInstance::create(rhi::Device& device, std::shared_ptr<const MaterialTemplate> materialTemplate,
     std::uint32_t framesInFlight) -> std::expected<std::shared_ptr<MaterialInstance>, Error>
 {
-    using namespace rhi::utility;
     assert(materialTemplate && framesInFlight > 0);
 
     // 16-byte blocks: every frame's block starts at least as aligned as any member needs.
-    const auto blockStride = alignTo(std::max<std::size_t>(materialTemplate->parameterSize(), 16), 16);
+    const auto blockStride = base::alignTo(std::max<std::size_t>(materialTemplate->parameterSize(), 16), 16);
     auto buffer = device.createBuffer({
         .name = "MaterialParameters",
         .size = blockStride * framesInFlight,

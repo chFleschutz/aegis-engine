@@ -13,19 +13,6 @@ export namespace aegis::render_graph
 class StaticMeshRenderSystem : public RenderSystem
 {
 public:
-    /// @brief cpu-driven/geometry.slang's push constants.
-    struct PushConstants
-    {
-        glm::mat3x4 model; // Top three rows
-        glm::vec3 normalRow0;
-        glm::vec3 normalRow1;
-        glm::vec3 normalRow2;
-        rhi::DeviceAddress camera;
-        rhi::DeviceAddress mesh;
-        rhi::DeviceAddress material;
-    };
-    static_assert(sizeof(PushConstants) <= rhi::CommandBuffer::maxPushConstantSize);
-
     explicit StaticMeshRenderSystem(assets::MaterialType type = assets::MaterialType::Opaque,
         std::string shader = "cpu-driven/geometry.slang.spv");
 
