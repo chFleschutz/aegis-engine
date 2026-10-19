@@ -14,3 +14,7 @@ b58779487067189d35e3ccd7405119df0855ae8d
 7266617e6b64a275caf2522859adc205d6dce81e
 # Format the whole tree with clang-format (PR #94)
 6edb9f115b1d962924c938e2392a259b8d9d1654
+# Delete unused perlin noise and interpolation (PR #105)
+cb7f1839507a77b22da73403aed1714886cd8a88
+# Delete unused vec3 Euler math, normalMatrix, make_mat4 and inFOV (PR #105)
+08f491606a61ab2e361efa532e61b7ebbd2fd57f
