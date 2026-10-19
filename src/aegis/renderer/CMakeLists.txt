@@ -7,6 +7,7 @@ PUBLIC
 
 target_sources(aegis-renderer
     PUBLIC FILE_SET CXX_MODULES FILES
+        error.cppm
         renderer.cppm
         texture.cppm
     PRIVATE

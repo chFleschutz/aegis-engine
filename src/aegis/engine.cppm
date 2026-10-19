@@ -197,7 +197,7 @@ public:
             });
             if (!rendered)
             {
-                log::fatal("Failed to render a frame (renderer error {})", std::to_underlying(rendered.error()));
+                log::fatal("Failed to render a frame: {}", aegis::renderer::describe(rendered.error()));
                 break;
             }
 
@@ -256,7 +256,7 @@ private:
             .window = &m_window,
         });
         if (!renderer)
-            fatalSetup(std::format("Failed to create the renderer (renderer error {})", std::to_underlying(renderer.error())));
+            fatalSetup(std::format("Failed to create the renderer: {}", aegis::renderer::describe(renderer.error())));
         m_renderer = std::move(*renderer);
     }
 
@@ -310,7 +310,7 @@ private:
     {
         if (auto resized = m_renderer->resize(aegis::rhi::Extent2D{ m_window.extent() }); !resized)
         {
-            log::fatal("Failed to resize the renderer (renderer error {})", std::to_underlying(resized.error()));
+            log::fatal("Failed to resize the renderer: {}", aegis::renderer::describe(resized.error()));
             return false;
         }
         m_window.resetResized();
