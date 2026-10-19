@@ -38,12 +38,12 @@ public:
 
         auto pbrMatTemplate = Engine::defaults().pbrTemplate;
         auto paintingMat = Engine::createMaterial(pbrMatTemplate);
-        [[maybe_unused]] auto paintingSet = paintingMat->setParameter("albedoMap", paintingTexture);
+        [[maybe_unused]] auto paintingSet = paintingMat->setParameter(assets::pbr::albedoMap, paintingTexture);
         AGX_ASSERT_X(paintingSet, "Failed to set the painting material's parameters");
 
         auto metalMat = Engine::createMaterial(pbrMatTemplate);
-        [[maybe_unused]] auto metalSet = metalMat->setParameter("albedoMap", metalTexture).and_then([&] {
-            return metalMat->setParameter("metallic", 1.0f);
+        [[maybe_unused]] auto metalSet = metalMat->setParameter(assets::pbr::albedoMap, metalTexture).and_then([&] {
+            return metalMat->setParameter(assets::pbr::metallic, 1.0f);
         });
         AGX_ASSERT_X(metalSet, "Failed to set the metal material's parameters");
 

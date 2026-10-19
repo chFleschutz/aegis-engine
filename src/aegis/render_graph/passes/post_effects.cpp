@@ -97,33 +97,21 @@ auto BloomPass::freeMipViews() -> void
 
 auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    struct TextureDescriptor
-    {
-        std::uint32_t image;
-        std::uint32_t sampler;
-    };
-    const auto storage = [&](rhi::ImageViewHandle view) { return m_device->get(view).storageDescriptor()->index; };
+    const auto storage = [&](rhi::ImageViewHandle view) { return *m_device->get(view).storageDescriptor(); };
     const auto sampled = [&](rhi::ImageViewHandle view) {
-        return TextureDescriptor{ m_device->get(view).sampledDescriptor()->index, m_device->get(*m_sampler).descriptor().index };
+        return rhi::TextureDescriptor{ *m_device->get(view).sampledDescriptor(), m_device->get(*m_sampler).descriptor() };
     };
     const auto mipExtent = [&](std::uint32_t mip) { return m_device->get(m_mipViews[mip]).extent(); };
     const auto dispatchMip = [&](std::uint32_t mip) {
-        frameInfo.cmd.dispatch(groupCount(mipExtent(mip).x, 16), groupCount(mipExtent(mip).y, 16));
+        frameInfo.cmd.dispatch(groupCount(mipExtent(mip).x, computeGroupSize), groupCount(mipExtent(mip).y, computeGroupSize));
     };
 
     const auto& cmd = frameInfo.cmd;
 
     // Bright regions into mip 0. The graph left every mip in ComputeStorage.
-    struct ThresholdConstants
-    {
-        std::uint32_t input;
-        std::uint32_t output;
-        float threshold;
-        float softThreshold;
-    };
     cmd.bindPipeline(*m_threshold);
-    cmd.pushConstants(ThresholdConstants{
-        .input = m_device->get(pool.texture(m_sceneColor).view).storageDescriptor()->index,
+    cmd.pushConstants(BloomThresholdConstants{
+        .input = pool.storageDescriptor(m_sceneColor),
         .output = storage(m_mipViews[0]),
         .threshold = m_settings.threshold,
         .softThreshold = m_settings.softThreshold,
@@ -131,19 +119,12 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     dispatchMip(0);
 
     // Down the chain: each mip is read (sampled) once the next one is written from it.
-    struct DownsampleConstants
-    {
-        std::uint32_t output;
-        TextureDescriptor input;
-        std::int32_t mipLevel;
-        float filterScale;
-    };
     cmd.bindPipeline(*m_downsample);
     const auto mipCount = static_cast<std::uint32_t>(m_mipViews.size());
     for (std::uint32_t mip = 1; mip < mipCount; ++mip)
     {
         cmd.transitionImageLayout(m_mipViews[mip - 1], rhi::ResourceState::ComputeStorage, rhi::ResourceState::ShaderReadCompute);
-        cmd.pushConstants(DownsampleConstants{
+        cmd.pushConstants(BloomDownsampleConstants{
             .output = storage(m_mipViews[mip]),
             .input = sampled(m_mipViews[mip - 1]),
             .mipLevel = static_cast<std::int32_t>(mip - 1),
@@ -155,17 +136,11 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
         rhi::ResourceState::ShaderReadCompute);
 
     // Back up: each mip is rewritten from the one below.
-    struct UpsampleConstants
-    {
-        std::uint32_t output;
-        TextureDescriptor input;
-        float filterScale;
-    };
     cmd.bindPipeline(*m_upsample);
     for (auto mip = mipCount - 1; mip > 0; --mip)
     {
         cmd.transitionImageLayout(m_mipViews[mip - 1], rhi::ResourceState::ShaderReadCompute, rhi::ResourceState::ComputeStorage);
-        cmd.pushConstants(UpsampleConstants{
+        cmd.pushConstants(BloomUpsampleConstants{
             .output = storage(m_mipViews[mip - 1]),
             .input = sampled(m_mipViews[mip]),
             .filterScale = m_settings.upsampleScale,
@@ -260,19 +235,12 @@ auto PointLightRenderSystem::createResources(rhi::Device& device, const RenderTa
 
 auto PointLightRenderSystem::render(const RenderContext& context) -> void
 {
-    struct PushConstants
-    {
-        glm::vec4 worldPosition;
-        glm::vec4 color;
-        float radius;
-        rhi::DeviceAddress camera;
-    };
     constexpr float pointLightScale{ 0.002f };
 
     context.cmd.bindPipeline(*m_pipeline);
     for (auto&& [entity, transform, light] : context.scene.registry().view<aegis::GlobalTransform, aegis::PointLight>().each())
     {
-        context.cmd.pushConstants(PushConstants{
+        context.cmd.pushConstants(PointLightConstants{
             .worldPosition = glm::vec4{ transform.location, 1.0f },
             .color = glm::vec4{ light.color, 1.0f },
             .radius = light.intensity * transform.scale.x * pointLightScale,

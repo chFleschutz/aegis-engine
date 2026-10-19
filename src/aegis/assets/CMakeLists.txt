@@ -20,6 +20,7 @@ target_sources(aegis-assets
     components.cppm
     defaults.cppm
     error.cppm
+    gpu_types.cppm
     loader.cppm
     material.cppm
     mesh_data.cppm

@@ -17,6 +17,15 @@ using SampledImageDescriptor = Descriptor<DescriptorType::SampledImage>;
 using StorageImageDescriptor = Descriptor<DescriptorType::StorageImage>;
 using SamplerDescriptor = Descriptor<DescriptorType::Sampler>;
 
+/// @brief A sampled image plus the sampler to read it with: bindless::TextureDescriptor in Slang, 8 bytes
+///        (image index, then sampler index). How an assets::Texture reaches a shader, and the layout of
+///        a texture parameter in a material's block.
+struct TextureDescriptor
+{
+    SampledImageDescriptor image;
+    SamplerDescriptor sampler;
+};
+
 class FreeList
 {
 public:

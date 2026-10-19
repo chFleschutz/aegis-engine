@@ -40,9 +40,19 @@ struct DrawConstants
 [[vk::push_constant]] ConstantBuffer<DrawConstants> push;
 ```
 
-On the C++ side, mirror the struct with `rhi::DeviceAddress` for pointers and `std::uint32_t` for
-indices, and record it with `cmd.pushConstants(value)`. The struct must fit in 128 bytes, which the
-typed `pushConstants` checks at compile time.
+On the C++ side, mirror the struct with `rhi::DeviceAddress` for pointers and the typed
+`rhi::*Descriptor` structs for descriptor indices, and record it with `cmd.pushConstants(value)`. The
+struct must fit in 128 bytes, which the typed `pushConstants` checks at compile time. The render graph's
+mirrors live in `src/aegis/render_graph/gpu_types.cppm`, named after their Slang twins, with their
+`sizeof`/`offsetof` pinned in `tests/render_graph/gpu_types.test.cpp`; asset mirrors (`Vertex`,
+`Meshlet`, `PbrMaterial`) are in `src/aegis/assets/gpu_types.cppm`.
+
+**Declare the push constant variable in the entry-point file, never in a module.** A module may define
+the push constant *struct* (`indirectDraw::GeometryConstants`), but each entry point's file declares the
+`[[vk::push_constant]]` variable. A variable at module scope is visible to every importer: an entry
+point that also declares its own would statically use two, which Vulkan forbids (spirv-val reports
+VUID-StandaloneSpirv-OpEntryPoint-06674), and the module's helpers would read the wrong layout. Module
+helpers take what they need as parameters instead (`indirectDraw::getInstance(staticInstances, ...)`).
 
 ## Layout: scalar, so C++ structs match
 

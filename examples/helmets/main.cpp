@@ -18,7 +18,7 @@ public:
         };
 
         auto& material = get<aegis::assets::Material>().instance;
-        [[maybe_unused]] auto set = material->setParameter("albedo", color);
+        [[maybe_unused]] auto set = material->setParameter(aegis::assets::pbr::albedo, color);
         AGX_ASSERT_X(set, "Failed to set the material's albedo");
     }
 

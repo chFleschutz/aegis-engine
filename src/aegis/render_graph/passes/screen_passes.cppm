@@ -1,6 +1,7 @@
 export module aegis.render_graph:screen_passes;
 import std;
 import :error;
+import :gpu_types;
 import :render_pass;
 import :resource;
 import :resource_pool;
@@ -29,11 +30,7 @@ private:
 class PostProcessingPass : public RenderPass
 {
 public:
-    enum class ToneMapping : int
-    {
-        Reinhard,
-        Aces,
-    };
+    using ToneMapping = render_graph::ToneMapping;
 
     struct Settings
     {

@@ -41,13 +41,12 @@ auto ensureCapacity(ResourcePool& pool, ResourceHandle buffer, std::uint32_t& ca
 auto makeInstance(const aegis::GlobalTransform& transform, const assets::StaticMesh& mesh,
     const assets::MaterialInstance& material, std::uint32_t frameIndex, std::uint32_t drawBatch) -> InstanceData
 {
-    const auto model = transform.matrix();
-    const auto normalMatrix = glm::inverse(glm::mat3{ model });
+    const auto gpuTransform = detail::toGpuTransform(transform.matrix());
     return {
-        .model = glm::mat3x4{ glm::rowMajor4(model) },
-        .normalRow0 = normalMatrix[0],
-        .normalRow1 = normalMatrix[1],
-        .normalRow2 = normalMatrix[2],
+        .model = gpuTransform.model,
+        .normalRow0 = gpuTransform.normalRow0,
+        .normalRow1 = gpuTransform.normalRow1,
+        .normalRow2 = gpuTransform.normalRow2,
         .mesh = mesh.meshDataAddress(),
         .material = material.parameterAddress(frameIndex),
         .drawBatch = drawBatch,
@@ -222,19 +221,6 @@ auto CullingPass::createResources(ResourcePool& pool) -> std::expected<void, Err
 
 auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    struct PushConstants
-    {
-        rhi::DeviceAddress camera;
-        rhi::DeviceAddress staticInstances;
-        rhi::DeviceAddress dynamicInstances;
-        rhi::DeviceAddress drawBatches;
-        rhi::DeviceAddress visibility;
-        rhi::DeviceAddress commands;
-        rhi::DeviceAddress counts;
-        std::uint32_t staticCount;
-        std::uint32_t dynamicCount;
-    };
-
     // Culling appends each batch's visible instances at its registry offset, so both buffers need an
     // entry per registered instance. Should they fail to grow, nothing is culled: the counts stay zero
     // and nothing is drawn.
@@ -250,7 +236,7 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
     const auto frame = frameInfo.frameIndex;
     const auto& cmd = frameInfo.cmd;
     cmd.bindPipeline(*m_pipeline);
-    cmd.pushConstants(PushConstants{
+    cmd.pushConstants(CullingConstants{
         .camera = pool.bufferAddress(m_cameraData, frame),
         .staticInstances = pool.bufferAddress(m_staticInstances, frame),
         .dynamicInstances = pool.bufferAddress(m_dynamicInstances, frame),
@@ -261,7 +247,7 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
         .staticCount = m_instances.staticCount(),
         .dynamicCount = m_instances.dynamicCount(),
     });
-    cmd.dispatch(groupCount(instanceCount, 64));
+    cmd.dispatch(groupCount(instanceCount, cullingGroupSize));
 }
 
 // GPU-driven geometry --------------------------------------------------------------------------------
@@ -327,18 +313,6 @@ auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected
 
 auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    struct PushConstants
-    {
-        rhi::DeviceAddress camera;
-        rhi::DeviceAddress staticInstances;
-        rhi::DeviceAddress dynamicInstances;
-        rhi::DeviceAddress visibility;
-        std::uint32_t batchFirst;
-        std::uint32_t batchSize;
-        std::uint32_t staticCount;
-        std::uint32_t dynamicCount;
-    };
-
     std::array<rhi::Attachment, GeometryPass::gBufferFormats.size()> colorAttachments;
     for (std::size_t i = 0; i < m_gBuffer.size(); ++i)
         colorAttachments[i] = rhi::Attachment::color(pool.texture(m_gBuffer[i]).view, rhi::ClearColor{});
@@ -362,7 +336,7 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
     {
         if (batch.instanceCount == 0 || std::size_t{ batch.firstInstance } + batch.instanceCount > commandCapacity)
             continue;
-        cmd.pushConstants(PushConstants{
+        cmd.pushConstants(GpuDrivenGeometryConstants{
             .camera = pool.bufferAddress(m_cameraData, frame),
             .staticInstances = pool.bufferAddress(m_staticInstances, frame),
             .dynamicInstances = pool.bufferAddress(m_dynamicInstances, frame),

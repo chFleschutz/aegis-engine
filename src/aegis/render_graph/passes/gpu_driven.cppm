@@ -2,6 +2,7 @@ export module aegis.render_graph:gpu_driven;
 import std;
 import :draw_batch_registry;
 import :error;
+import :gpu_types;
 import :render_pass;
 import :resource;
 import :resource_pool;
@@ -25,25 +26,6 @@ export namespace aegis::render_graph::detail
 
 export namespace aegis::render_graph
 {
-/// @brief One drawable instance as the GPU-driven shaders read it (indirectDraw::Instance).
-struct InstanceData
-{
-    glm::mat3x4 model; // Top three rows of the model matrix
-    glm::vec3 normalRow0;
-    glm::vec3 normalRow1;
-    glm::vec3 normalRow2;
-    rhi::DeviceAddress mesh;     // assets::StaticMesh::GpuData
-    rhi::DeviceAddress material; // assets::MaterialInstance parameter block
-    std::uint32_t drawBatch;
-};
-
-/// @brief Where a draw batch's instances live in the visibility and indirect command buffers.
-struct DrawBatchData
-{
-    std::uint32_t offset;
-    std::uint32_t count;
-};
-
 /// @brief Writes "StaticInstances" whenever the scene registry's static version changes, and
 ///        "DynamicInstances" (DynamicTag entities) and "DrawBatches" every frame. Instance IDs count static
 ///        instances first, then dynamic ones. The instance buffers grow to the draw batch registry's counts

@@ -3,7 +3,9 @@ module indirect_draw;
 import modules.common;
 
 // The GPU-driven path's instance data (render_graph::InstanceData) and the push constants its
-// geometry stages share (render_graph::GpuDrivenGeometryPass).
+// geometry stages share (render_graph::GpuDrivenGeometryConstants). This module declares no push
+// constant variable: each entry-point file declares its own, and a module's variable would make every
+// importer's entry point use two (see shaders/modules/README.md).
 
 namespace indirectDraw
 {
@@ -28,7 +30,9 @@ namespace indirectDraw
         }
     }
 
-    public struct PushConstants
+    /// The push constants of the task, mesh and fragment stages; their files declare
+    /// [[vk::push_constant]] ConstantBuffer<indirectDraw::GeometryConstants> pc.
+    public struct GeometryConstants
     {
         public common::Camera* camera;
         public Instance* staticInstances;
@@ -38,15 +42,18 @@ namespace indirectDraw
         public uint batchSize;
         public uint staticCount;
         public uint dynamicCount;
+
+        public func getInstance(uint id) -> Instance
+        {
+            return indirectDraw::getInstance(staticInstances, dynamicInstances, staticCount, id);
+        }
     }
 
-    public [[vk::push_constant]] ConstantBuffer<PushConstants> pc;
-
     /// Instance IDs count the static instances first, then the dynamic ones.
-    public func getInstance(uint id) -> Instance
+    public func getInstance(Instance* staticInstances, Instance* dynamicInstances, uint staticCount, uint id) -> Instance
     {
-        if (id < pc.staticCount)
-            return pc.staticInstances[id];
-        return pc.dynamicInstances[id - pc.staticCount];
+        if (id < staticCount)
+            return staticInstances[id];
+        return dynamicInstances[id - staticCount];
     }
 }

@@ -252,4 +252,9 @@ auto Texture::samplerDescriptor() const -> rhi::SamplerDescriptor
 {
     return m_device.get(m_sampler).descriptor();
 }
+
+auto Texture::descriptor() const -> rhi::TextureDescriptor
+{
+    return { sampledDescriptor(), samplerDescriptor() };
+}
 }
