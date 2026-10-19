@@ -82,6 +82,27 @@ Taken 2026-10-17 (report §8 lists the original questions).
   - Why: the editor stays out of shipped games, a game needs no `main()` of its own, and scenes
     become savable and editable. Save games need the same serializer anyway.
   - → [M6][m6] (6.1–6.12), export ([#134]). Decides F1.
+- **D8. Asset system: sources in the project, imported data in a cache** (2026-10-19, see
+  [`docs/asset-system.md`](../asset-system.md)).
+  - **Identity:** `AssetId = {64-bit random id, subId}`, found through an index (scanned in
+    development, a pak table when shipped). Foreign source files (glTF, OBJ, PNG, HDR) get a
+    `<file>.<ext>.meta` sidecar with the ID, import settings and an assigned sub-asset table;
+    native files (scenes, materials) carry their ID in a common `{type, id, version}` header.
+  - **Import cache:** `<project>/.aegis/cache/`, git-ignored, keyed by a hash of source, settings,
+    importer version and platform. Its format is the cooked format, so cooking packs the cache.
+  - **Runtime:** `AssetLibrary::load<T>(AssetId)` returns an `AssetRef<T>` (a shared slot with a load
+    state), deduplicated by ID. Components store `AssetRef`s; the serializer writes only IDs.
+  - **Scenes and worlds:** a `World` is the live object, a `Scene` the asset. Prefabs are scenes, not
+    a type; `instantiate(world, scene, parent)` serves levels, prefabs and imported models. Scene
+    files store local entity IDs, and world IDs derive from instance and local ID. "Level" is not an
+    engine type. `scene::Scene` becomes `World` and `aegis.scene` becomes `aegis.world`.
+  - **Asset types:** `Texture`, `StaticMesh`, `Material` (was `MaterialInstance`),
+    `MaterialTemplate` (built-in), `Environment`, `Scene`. The `Mesh` and `Material` components merge
+    into `MeshRenderer`, and the `Environment` component becomes `Sky`.
+  - Why: source stays authoritative and reimports itself; imported data, which depends on importer
+    version and shader-pinned layouts, is never committed, so a layout change needs no migration.
+    Sidecars survive moves and git merges, unlike paths or one database file.
+  - → 6.9 ([#130]), 6.10 ([#131]), export ([#134]); a new item for the import cache. Decides F2.
 
 Smaller decisions:
 - **Subproject use:** make paths subproject-safe now (3.5, [#65]). How a game consumes the engine
@@ -99,10 +120,9 @@ Future decisions (not blocking):
   Asset and shader lookup at runtime is part of 6.11 ([#132]); install rules are part of the export
   step ([#134]). That step also settles how a game outside this repo consumes the engine: as a
   subproject (3.5 makes that safe) or as an installed package.
-- **F2. Asset system design (open, not finalized):** file formats, `.meta` sidecars or an asset
-  database, import settings, the cooked format, packaging, streaming. Already fixed by D7: scenes and
-  components reference assets only by stable ID, one serializer serves scenes and save games, and
-  export has a cook step. Blocks 6.9 ([#130]) and the export step ([#134]).
+- **F2. Asset system design (decided by D8):** sidecars, import cache, `AssetRef`, scenes as prefabs.
+  Still open, none blocking 6.9: the text format (with 6.10), the cooked blob layout, texture
+  compression, `.blend` import, overrides, hot reload and streaming (`docs/asset-system.md`, "Open").
 
 ---
 
@@ -136,7 +156,7 @@ chains: 5.1 ([#72]) → 5.2 ([#73]) → 5.3 ([#74]) → 5.4 ([#75]), and 5.5 ([#
 **[M6. `aegis.app`][m6]** (P7) makes the engine host the game (D7, reworked 2026-10-19 after
 [`docs/editor-runtime-split.md`](../editor-runtime-split.md)). One PR per step; examples port one
 per commit. Working order, so the numbers are not sequential: 6.1 ([#79]) and 6.2 ([#80]), the type
-registry 6.8 ([#129], done), then 6.3 ([#81]) and 6.4 ([#82]); asset IDs 6.9 ([#130], waits for F2)
+registry 6.8 ([#129], done), then 6.3 ([#81]) and 6.4 ([#82]); asset IDs 6.9 ([#130], design in D8)
 and scene files 6.10 ([#131]); the game launcher 6.11 ([#132]); then the editor on top, 6.5
 ([#83]) and 6.12 ([#133]), and `aegis-test` on the app, 6.6 ([#84]). The rename to `aegis.core`,
 6.7 ([#85]), comes last, once the legacy core is gone.

@@ -4,11 +4,10 @@ Status: **proposal**, not implemented. It builds on `engine-architecture.md` (se
 -> std::expected`, runtime configuration, no singleton) and replaces two of its choices: scenes as
 named C++ functions, and a `main()` per example.
 
-> **The asset system design is not finalized.** This document fixes the *boundaries* the asset system
-> has to fit (assets referenced only by stable ID, one serializer for scenes and save games, a cook step
-> for export). The concrete design is still open: file formats, the sidecar or database layout, import
-> settings, the cooked format, packaging and streaming. Treat every asset detail below as a placeholder
-> that shows where things plug in, not as a decision.
+> **The asset system is designed in [`asset-system.md`](asset-system.md)** (D8): sidecars, the import
+> cache, `AssetRef`, cooking, and the World/Scene terminology with scenes as prefabs. This document
+> fixes the boundaries it fits: assets referenced only by stable ID, one serializer for scenes and save
+> games, a cook step for export.
 
 ## Problem
 
@@ -41,7 +40,7 @@ Engine (libraries)                                   Game
 ──────────────────────────────────────────────       ─────────────────────────────
 aegis-launch    main(), CLI, startup/shutdown        game module (C++):
 aegis-app       Engine, services, frame phases         components, scripts, systems
-aegis-scene     World, entities, built-in components   one registration function
+aegis-world     World, entities, built-in components   one registration function
 aegis-reflect   TypeRegistry                         project folder (data):
 aegis-assets    asset IDs, loading, serialization      manifest, scenes, materials,
 aegis-script    C++ script host (later: a VM)          imported assets
@@ -85,15 +84,15 @@ The API should be able to describe functions too, not only fields, so a VM can g
 from it. Don't build it on `entt::meta`: it crashes Clang `-O3` with libstdc++ (see the comments in
 `scene.cppm`).
 
-**Assets (design open, see the note at the top).** Fixed boundaries:
+**Assets ([`asset-system.md`](asset-system.md)).** Fixed boundaries:
 
 - Scenes, materials and scripts reference assets **only by ID**, never by path. Paths exist only
   inside the asset database. This also removes the absolute `PROJECT_DIR` paths.
-- Importers turn source files (glTF, OBJ, PNG, HDR) into runtime assets.
-- Loading is by ID and returns reference-counted handles.
+- Importers turn source files (glTF, OBJ, PNG, HDR) into runtime assets, cached per project.
+- Loading is by ID and returns reference-counted `AssetRef`s.
 
-The prototype used a `.meta` sidecar per source file holding its UUID (the Unity/Godot model, which
-survives moves and merges cleanly in git). That is one candidate, not a decision.
+Each source file gets a `.meta` sidecar holding its asset ID and import settings (the Unity/Godot model,
+which the prototype used and which survives moves and merges cleanly in git).
 
 **Serializer.** It is generic and works only through the registry, so it saves game types it has
 never heard of. A single format serves scene files (written by the editor), save games (the running
@@ -154,8 +153,8 @@ present. Systems register into a phase, and the editor gets a safe point between
    because macros don't cross module boundaries. Static linking makes it an ordinary function; a later
    hot-reload build would export it from a DLL, and game code wouldn't change.
 
-3. **A project folder**, mostly written by the editor: a manifest (name, startup scene, settings),
-   `scenes/`, `materials/` and `assets/`.
+3. **A project folder**, mostly written by the editor: a manifest, the project file
+   `<Name>.aegis` (name, startup scene, settings), plus `scenes/` and `assets/`.
 
 **Rules for game code:**
 - no `main`, no Vulkan, no globals
@@ -257,12 +256,12 @@ Suggested order:
 
 ## Open decisions
 
-- **The asset system:** formats, sidecar or database, import settings, cooked format, packaging,
-  streaming (see the note at the top).
-- **Text format for scenes:** JSON (for example with glaze), YAML, or our own. A binary form for cooked
-  data and save games?
+- **Text format for scenes** (and materials and sidecars): JSON (for example with glaze), YAML, or our
+  own. A binary form for cooked data and save games? The rest of the asset system's open points are in
+  [`asset-system.md`](asset-system.md), "Open".
 - **Reflection backend** for automatic field lists: none, Boost.PFR, reflect-cpp, or wait for C++26.
 - **Shape of script state:** fields directly on the script class, or a nested aggregate (needed for
   library-based reflection).
-- **Entity hierarchy and prefabs:** how they serialize, and how a prefab instance stores overrides.
+- **Entity hierarchy and prefab overrides:** prefabs are scenes and instances get derived entity IDs
+  (`asset-system.md`); how the hierarchy serializes and how an instance stores overrides is open.
 - **When to add** the DLL and hot-reload build, and a scripting language.
