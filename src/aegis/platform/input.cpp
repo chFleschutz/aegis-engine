@@ -24,12 +24,12 @@ Input::~Input()
 
 auto Input::keyPressed(Key key) const -> bool
 {
-    return glfwGetKey(m_window.glfwWindow(), static_cast<int>(key)) == GLFW_PRESS;
+    return !m_keyboardCaptured && glfwGetKey(m_window.glfwWindow(), static_cast<int>(key)) == GLFW_PRESS;
 }
 
 auto Input::mouseButtonPressed(MouseButton button) const -> bool
 {
-    return glfwGetMouseButton(m_window.glfwWindow(), static_cast<int>(button)) == GLFW_PRESS;
+    return !m_mouseCaptured && glfwGetMouseButton(m_window.glfwWindow(), static_cast<int>(button)) == GLFW_PRESS;
 }
 
 auto Input::cursorPosition() const -> CursorPosition

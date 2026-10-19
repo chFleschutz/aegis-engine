@@ -55,7 +55,7 @@ public:
     void setMoveSpeed(float speed) { m_moveSpeed = speed; }
     /// @brief Sets new overall look speed
     void setLookSpeed(float speed) { m_lookSpeed = speed; }
-    /// @brief Sets speed for looking with the mouse
+    /// @brief Sets the mouse look speed in radians per pixel of cursor movement
     void setMouseSensitivity(float sensitivity) { m_mouseSensitivity = sensitivity; }
 
 private:
@@ -69,7 +69,7 @@ private:
     {
         auto& transform = get<Transform>();
 
-        // Key input rotation
+        // Key input rotation (a rate: scaled by the frame time)
         glm::vec3 rotate{ 0.0f };
         if (input().keyPressed(m_keys.lookRight))
             rotate.z -= m_lookSpeed;
@@ -79,8 +79,9 @@ private:
             rotate.x += m_lookSpeed;
         if (input().keyPressed(m_keys.lookDown))
             rotate.x -= m_lookSpeed;
+        rotate *= deltaSeconds;
 
-        // Mouse input rotation
+        // Mouse input rotation (a displacement: independent of the frame time)
         toggleMouseRotate(input().mouseButtonPressed(m_keys.mouseRotate));
         if (m_mouseRotateEnabled)
         {
@@ -92,8 +93,6 @@ private:
 
         if (glm::length(rotate) > std::numeric_limits<float>::epsilon())
         {
-            rotate *= deltaSeconds;
-
             glm::vec3 rotation = glm::eulerAngles(transform.rotation);
             rotation.x = glm::clamp(rotation.x + rotate.x, -1.5f, 1.5f);
             rotation.z = glm::mod(rotation.z + rotate.z, glm::two_pi<float>());
@@ -148,15 +147,14 @@ private:
         toogleMousePan(input().mouseButtonPressed(m_keys.mousePan));
         if (m_mousePanEnabled)
         {
+            // A displacement like the mouse look: independent of the frame time
             auto cursorPos = cursorPosition();
-            moveDir -= rightDir * (cursorPos.x - m_previousCursorPos.x);
-            moveDir += upDir * (cursorPos.y - m_previousCursorPos.y);
+            glm::vec3 panDir{ 0.0f };
+            panDir -= rightDir * (cursorPos.x - m_previousCursorPos.x);
+            panDir += upDir * (cursorPos.y - m_previousCursorPos.y);
             m_previousCursorPos = cursorPos;
 
-            if (glm::length(moveDir) > std::numeric_limits<float>::epsilon())
-            {
-                transform.location += moveDir * deltaSeconds;
-            }
+            transform.location += panDir * m_mousePanSpeed;
         }
     }
 
@@ -199,7 +197,8 @@ private:
     KeyMappings m_keys{};
     float m_moveSpeed{ DEFAULT_MOVE_SPEED };
     float m_lookSpeed{ 1.5f };
-    float m_mouseSensitivity{ 0.25f };
+    float m_mouseSensitivity{ 0.004f }; // Radians per pixel
+    float m_mousePanSpeed{ 0.02f };     // World units per pixel
     bool m_mouseRotateEnabled{ false };
     bool m_mousePanEnabled{ false };
 
