@@ -8,17 +8,15 @@ import :resource_handle;
 
 export namespace aegis::rhi
 {
+/// @brief Generational slot storage. Slots live in fixed-size chunks that never move, so a reference
+///        returned by get() stays valid while the pool grows, until its resource is popped or replaced.
 template<typename T>
 class ResourcePool
 {
 public:
-    static constexpr std::size_t DefaultCapacity{ 256 };
+    static constexpr std::uint32_t ChunkSize{ 256 };
 
-    ResourcePool()
-    {
-        m_slots.reserve(DefaultCapacity);
-        m_freeSlots.reserve(DefaultCapacity);
-    }
+    ResourcePool() { m_freeSlots.reserve(ChunkSize); }
 
     [[nodiscard]] auto get(ResourceHandle<T> handle) -> T&
     {
@@ -83,37 +81,47 @@ private:
         std::uint32_t generation{ 0 };
     };
 
+    using Chunk = std::array<Slot, ChunkSize>;
+
     auto getSlot(ResourceHandle<T> handle) -> Slot&
     {
         assert(handle.isValid());
-        assert(handle.index() < static_cast<std::uint32_t>(m_slots.size()));
+        assert(handle.index() < m_slotCount);
 
-        return m_slots[handle.index()];
+        return slotAt(handle.index());
     }
 
     auto getSlot(ResourceHandle<T> handle) const -> const Slot&
     {
         assert(handle.isValid());
-        assert(handle.index() < static_cast<std::uint32_t>(m_slots.size()));
+        assert(handle.index() < m_slotCount);
 
-        return m_slots[handle.index()];
+        return slotAt(handle.index());
     }
+
+    auto slotAt(std::uint32_t index) -> Slot& { return (*m_chunks[index / ChunkSize])[index % ChunkSize]; }
+    auto slotAt(std::uint32_t index) const -> const Slot& { return (*m_chunks[index / ChunkSize])[index % ChunkSize]; }
 
     auto fetchNextSlot() -> std::pair<std::uint32_t, Slot&>
     {
         if (m_freeSlots.empty())
         {
-            auto index = static_cast<std::uint32_t>(m_slots.size());
-            auto& slot = m_slots.emplace_back();
-            return { index, slot };
+            auto index = m_slotCount;
+            if (index % ChunkSize == 0)
+                m_chunks.push_back(std::make_unique<Chunk>());
+
+            ++m_slotCount;
+            return { index, slotAt(index) };
         }
 
         auto index = m_freeSlots.back();
         m_freeSlots.pop_back();
-        return { index, m_slots[index] };
+        return { index, slotAt(index) };
     }
 
-    std::vector<Slot> m_slots{};
+    // Growing appends a chunk; existing chunks, and the slots in them, never move.
+    std::vector<std::unique_ptr<Chunk>> m_chunks{};
+    std::uint32_t m_slotCount{ 0 };
     std::vector<std::uint32_t> m_freeSlots{};
 };
 }
