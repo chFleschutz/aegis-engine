@@ -2,9 +2,6 @@ export module aegis.core.profiler;
 
 import std;
 
-#define AGX_PROFILE_SCOPE(name) aegis::ScopeProfiler profiler##__LINE__(name)
-#define AGX_PROFILE_FUNCTION() AGX_PROFILE_SCOPE(__FUNCTION__)
-
 export namespace aegis
 {
 class Timer
