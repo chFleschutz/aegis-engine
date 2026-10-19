@@ -89,7 +89,8 @@ Future decisions (not blocking):
     clang-formatted; format whole files"; the D2 static/dynamic rule; the D1 error shape and the
     D3 log policy as the target style (report §2.3).
   - Done when: every row of map.md "Where code and docs disagree" is fixed or marked as a goal.
-- [ ] **0.2 `.git-blame-ignore-revs`** · S
+- [x] **0.2 `.git-blame-ignore-revs`** · S · committed to `main` in 1c072de3 (add 2.2's mechanical
+  commits cb7f1839 and 08f49160 once PR #105 merges)
   - Content: from PR #32, b5877948 (format), 561096dc and 5c4b20d9 (renames); from PR #91,
     1800508e ("Qualify C standard type names with std::") and 7266617e ("Replace standard library
     includes with import std"), after checking each is purely mechanical (no logic mixed in);
@@ -114,7 +115,7 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
   - Closes: E-BUILD-01.
   - Done when: ctest lists "reads in the same layout need no barrier…" as one or two real cases,
     each running its assertions (today both halves run 0 cases and pass).
-- [x] **1.2** `fix/gpu-driven-shaders` · S · #35 · PR #93, not merged
+- [x] **1.2** `fix/gpu-driven-shaders` · S · #35 · merged in PR #93
   - Closes: B-BUILD-01, B-BUILD-02 (A-BUILD-03), B-BUILD-03, B-BUILD-04, culling bound check
     (B-RENDER-04 part a).
   - Done when: `spirv-dis` of `task.slang.spv` shows `OpEmitMeshTasksEXT` outside any branch and
@@ -124,10 +125,10 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
   - Note: the audit disassembled SPIR-V from slangc 2025.17 (SDK 1.4.328). PR #91 moved to SDK
     1.4.363 (slangc 2026.17). The shader source still has the bug, but redo the `spirv-dis` check
     with the current compiler before and after the fix, and quote that output in the PR.
-- [ ] **1.3** `fix/depth-write-access` · S · #36
+- [x] **1.3** `fix/depth-write-access` · S · #36 · merged in PR #100
   - Closes: B-RENDER-09.
   - Done when: `DepthWrite` includes depth-attachment read access; device tests pass.
-- [x] **1.4** `fix/resource-pool-stable-storage` · S · #37 · PR #96, not merged
+- [x] **1.4** `fix/resource-pool-stable-storage` · S · #37 · merged in PR #96
   - Closes: A-RENDER-02.
   - Done when: test 13 passes ("a returned reference keeps its address while the pool grows").
 - [ ] **1.5** `fix/renderer-error-paths` · S–M · #38
@@ -137,7 +138,7 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
     recreates `imageAvailable`; ImGui gets `maxFramesInFlight`; mip counts are clamped to the
     extent (pure `detail` helper with a test); a zero extent skips the frame. Headless and windowed
     `--frames 600` pass.
-- [ ] **1.6** `fix/draw-batch-registry` · S · #39
+- [x] **1.6** `fix/draw-batch-registry` · S · #39 · merged in PR #101
   - Closes: E-RENDER-06, B-RENDER-05.
   - Done when: tests 11 (*fails today*) and 12 pass; the 257th template returns an error instead
     of asserting.
@@ -151,11 +152,11 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
   - Done when: a new `aegis-test --scene --gpu-driven` check that destroys a static mesh entity
     at frame 60 and loads a model after scene load runs clean under validation and renders both
     changes; static material edits reach the GPU.
-- [x] **1.8a** `test/scene-target` · S · #41 · PR #97, not merged
+- [x] **1.8a** `test/scene-target` · S · #41 · merged in PR #97
   - Closes: B-APP-03 (A-APP-03, E-APP-02, E-APP-03), E-APP-09, A-APP-10 (E-APP-01), link
     visibility in `scene/CMakeLists.txt` (A-BUILD-08 polish).
   - Done when: `aegis-tests-scene` exists; tests 1–3 pass (1 and 3 *fail today*); cycles are rejected.
-- [ ] **1.8b** `fix/transform-composition` · S · #42
+- [x] **1.8b** `fix/transform-composition` · S · #42 · merged in PR #103
   - Closes: B-APP-02 (A-APP-02, E-APP-04), B-APP-04 (A-APP-05, E-APP-12).
   - Depends: 1.8a.
   - Done when: tests 4 (*fails today*) and 5 pass, plus a `toLocal` inverse test; the gizmo
@@ -194,12 +195,12 @@ Suggested lanes (parallel worktrees that don't edit the same central files):
     rejected with a clear error (or converted); only the default scene's nodes are instantiated.
     Unit tests follow in 5.2 (test 18). For E-CONTENT-05, take a Simple-Scene screenshot and flip
     OBJ v only if the painting is mirrored.
-- [x] **1.13** `fix/material-and-texture-validation` · S · #48 · PR #98, not merged
+- [x] **1.13** `fix/material-and-texture-validation` · S · #48 · merged in PR #98
   - Closes: B-CONTENT-01 (E-CONTENT-03, A-CONTENT-09 half), B-CONTENT-12 (E-RENDER-07, E-CONTENT-09).
   - Done when: tests 16 and 17 pass; `setParameter`/`addParameter` return `expected`;
     `detail::planImageUpload` exists and `Texture::create(desc, mip0)` rejects a wrong size with
     `ErrorCode::InvalidArgument`.
-- [ ] **1.14** `fix/device-ranking` · S · #49
+- [x] **1.14** `fix/device-ranking` · S · #49 · merged in PR #102
   - Closes: E-RENDER-09 (unverified).
   - Done when: `detail::rankPhysicalDevice` and `detail::pickQueueFamilies` take plain values and
     have tests (integrated beats CPU at equal limits; compute/transfer fall back to graphics,
@@ -215,7 +216,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
   - Content: delete `utils::Color`, `hashCombine`, `file::readBinary`, `ScopeTimer`, the
     `aegis.utils` primary; fold `Timer`/`RollingAverage` into `core/profiler`; delete the
     `aegis-utils` target and the unused link at `scripting/CMakeLists.txt:10`.
-- [ ] **2.2** `cleanup/dead-math` · S · #51
+- [x] **2.2** `cleanup/dead-math` · S · #51 · PR #105, not merged
   - Closes: A-FOUND-07 (B-FOUND-03, E-FOUND-01), A-FOUND-09 (E-FOUND-04), D-13, B-FOUND-08..11.
   - Content: delete `perlin_noise` and `interpolation` together (incl. `math.cppm:18-19`), both
     `normalMatrix` overloads, the vec3 Euler overloads, `make_mat4`, `inFOV` and its tests,
@@ -230,7 +231,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
   - Content: delete `core::SHADER_DIR`, `INVALID_HANDLE` (then the `BUILD_DIR` definition),
     `AssetManager`, `Engine::assets()`, `m_assets`, `IsLoadable`, the `AGX_PROFILE_*` macros,
     the commented blocks. **Keep** `TARGET_FPS`, `ENGINE_DIR`, `core::Asset`.
-- [ ] **2.5** `cleanup/remove-aegis-gltf` · S · #54
+- [x] **2.5** `cleanup/remove-aegis-gltf` · S · #54 · merged in PR #99
   - Closes: A-BUILD-09 (D-15).
   - Content: remove the **git submodule** `modules/aegis-gltf`: `.gitmodules` entry, gitlink,
     `add_subdirectory`.
@@ -241,7 +242,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
   - Closes: D-25 (rename part only; keep `Settings`), C row 20, C-11 naming, M10.
   - Content: `tranformationMatrix` → `transformMatrix`, `m_Layers` → `m_layers`,
     `render_graph::ResourceHandle` → `ResourceId`, the 3 test-suite outliers, shader `pc` → `push`.
-- [x] **2.8** `style/format-tree` · S · #57 · merged in PR #94 (blame-ignore entry pending, see 0.2)
+- [x] **2.8** `style/format-tree` · S · #57 · merged in PR #94
   - Decision: whole-tree formatting.
   - Content: `tools/format.sh --all` over the 14 files the diff-only rule never touched (re-checked
     after PR #91: still the same 14; about 94
@@ -270,7 +271,7 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
   - Done when: each module's `Error` has the D1 shape and a tested `describe()`; the
     `println` sites become returns or `log::warn`; `flushUploads` propagates; validation messages
     go through `log::error`.
-- [ ] **3.3** `build/shader-helper-spirv-val` · S · #63
+- [x] **3.3** `build/shader-helper-spirv-val` · S · #63 · merged in PR #104
   - Closes: A-BUILD-06 (E-BUILD-05, B-BUILD-10, B-BUILD-07), A-BUILD-10 NOW part, B-BUILD-11
     (spirv-val part), A-BUILD-11.
   - Done when: `aegis_add_shaders` compiles both `shaders/` and the test shader, runs `spirv-val`,
