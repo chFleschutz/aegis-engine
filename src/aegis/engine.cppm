@@ -147,11 +147,14 @@ public:
             auto currentFrameBegin = std::chrono::steady_clock::now();
             float frameTimeSec = std::chrono::duration<float, std::chrono::seconds::period>(currentFrameBegin - lastFrameBegin).count();
             lastFrameBegin = currentFrameBegin;
+            // After a long frame (a breakpoint, a load), don't hand scripts and systems the whole stall
+            frameTimeSec = std::min(frameTimeSec, MAX_FRAME_DELTA_SEC);
 
             m_window.update();
             if (m_window.isMinimized())
             {
                 m_window.waitEvents();
+                lastFrameBegin = std::chrono::steady_clock::now(); // Not part of the next frame's delta
                 continue;
             }
             if (m_window.wasResized() || m_renderer->needsResize())
@@ -160,9 +163,14 @@ public:
                     break;
             }
 
-            // Update
-            m_scene.update(frameTimeSec);
+            // Update: scripts write the transforms, the systems derive from them (camera matrices
+            // included), then the editor reads the result.
+            // ImGui's flags are from the previous frame's UI; they gate the game input.
+            const auto& io = ImGui::GetIO();
+            m_input.setCaptured(io.WantCaptureKeyboard, io.WantCaptureMouse);
+            updateCameraAspect();
             m_scriptManager.update(frameTimeSec);
+            m_scene.update(frameTimeSec);
             m_layerStack.update(frameTimeSec);
 
             // Rendering: uploads queued this frame (or while loading) go first, on the same queue.
@@ -301,6 +309,17 @@ private:
         return true;
     }
 
+    /// @brief Sets the main camera's aspect from the window, before the systems build its projection.
+    void updateCameraAspect()
+    {
+        const auto [width, height] = m_window.extent();
+        auto& registry = m_scene.registry();
+        const auto mainCamera = m_scene.mainCamera();
+        if (height == 0 || !mainCamera || !registry.has<Camera>(mainCamera))
+            return;
+        registry.get<Camera>(mainCamera).aspect = static_cast<float>(width) / static_cast<float>(height);
+    }
+
     void applyFrameBrake(std::chrono::steady_clock::time_point frameBegin)
     {
         using namespace std::chrono;
@@ -318,6 +337,9 @@ private:
     }
 
     inline static Engine* s_instance{ nullptr };
+
+    /// @brief Longest frame time the scene and scripts see.
+    static constexpr float MAX_FRAME_DELTA_SEC{ 0.1f };
 
     // Order matters: members are destroyed bottom up, and everything holding GPU resources must go
     // before the device.

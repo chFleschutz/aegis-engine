@@ -13,8 +13,9 @@ export namespace aegis
 /// @brief A camera (with movement controls), ambient and directional light, and 'environment' as the sky.
 void createDefaultScene(scene::Scene& scene, scripting::ScriptManager& scriptManager, aegis::assets::Environment environment)
 {
-    scene.addSystem<scene::CameraSystem>();
+    // The camera reads the global transforms, so transforms go first.
     scene.addSystem<scene::TransformSystem>();
+    scene.addSystem<scene::CameraSystem>();
 
     auto& registry = scene.registry();
 
