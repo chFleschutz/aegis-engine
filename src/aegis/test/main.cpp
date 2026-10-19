@@ -596,13 +596,19 @@ public:
         if (material.parameterAddress(0) == 0 || material.parameterAddress(1) == material.parameterAddress(0))
             return std::unexpected{ "Material parameter blocks are null or shared between frames" };
 
-        // Caller bugs come back as errors instead of corrupting a parameter block.
+        // Caller bugs come back as errors instead of corrupting a parameter block or over-reading.
         const auto rejected = [](const auto& result) {
             return !result && result.error().code == assets::ErrorCode::InvalidArgument;
         };
         if (!rejected(material.setParameter("roughness", 1)) ||
             !rejected(material.setParameter("albedoMap", std::shared_ptr<assets::Texture>{})))
             return std::unexpected{ "A material accepted a value of the wrong type or a null texture" };
+        const std::array<float, 4> oneTexel{};
+        const auto wrongSize = assets::Texture::create(*m_device,
+            { .name = "WrongSize", .extent = { 2, 2, 1 }, .format = rhi::Format::RGBA32_SFLOAT, .mipLevels = 1 },
+            std::as_bytes(std::span{ oneTexel }));
+        if (!rejected(wrongSize))
+            return std::unexpected{ "Texture::create accepted 16 bytes as mip 0 of a 2x2 RGBA32_SFLOAT texture" };
 
         aegis::scene::Registry scene;
         const assets::Loader::Desc loaderDesc{
@@ -654,7 +660,7 @@ public:
         }
 
         std::println("Assets verified: defaults (white texture read back), material blocks, invalid parameters "
-                     "rejected, glTF + OBJ loaded ({} meshes)",
+                     "and mip 0 sizes rejected, glTF + OBJ loaded ({} meshes)",
             meshes);
         return {};
     }

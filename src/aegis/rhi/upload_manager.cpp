@@ -17,21 +17,21 @@ import :resource_handle;
 namespace aegis::rhi::detail
 {
 auto planImageUpload(Extent3D extent, Format format, std::uint32_t mipLevels, std::uint32_t arrayLayers,
-    bool generateMips, [[maybe_unused]] std::size_t dataSize) -> std::expected<ImageUploadPlan, Error>
+    bool generateMips, std::size_t dataSize) -> std::expected<ImageUploadPlan, Error>
 {
+    // Caller bugs, not backpressure: NotReady would send a retrying caller into an endless
+    // flush-and-retry loop.
+    if (bytesPerTexel(format) == 0)
+        return makeError(ErrorCode::FormatNotSupported); // Depth/stencil and unknown formats
+    if (mipLevels == 0 || arrayLayers == 0)
+        return makeError(ErrorCode::InvalidArgument);
+
     // With generateMips the caller supplies mip 0 only; the rest are blitted after the copy.
     const auto sourceMips = generateMips ? std::uint32_t{ 1 } : mipLevels;
     auto footprints = subresourceFootprints(extent, format, sourceMips, arrayLayers);
-    if (footprints.empty())
-    {
-        assert(false && "Image format cannot be uploaded from a linear buffer");
-        return makeError(ErrorCode::Unknown);
-    }
-
     const auto& last = footprints.back();
-    // A size mismatch is a caller bug, not backpressure: reporting NotReady would send a retrying
-    // caller into an infinite flush-and-retry loop, so trap it instead.
-    assert(dataSize == last.sourceOffset + last.size && "Upload data does not match image layout");
+    if (dataSize != last.sourceOffset + last.size)
+        return makeError(ErrorCode::InvalidArgument); // Too little would over-read, too much is not this image
 
     std::vector<BufferImageCopy> regions;
     regions.reserve(footprints.size());

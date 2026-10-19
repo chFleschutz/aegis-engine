@@ -105,6 +105,7 @@ public:
     ///       also what establishes the real execution dependency: generateMipmaps ends with
     ///       dstStageMask = eNone.
     /// @return Same contract as the buffer overload: ErrorCode::NotReady means flush and retry.
+    ///         ErrorCode::InvalidArgument if 'data' does not match the image (detail::planImageUpload).
     [[nodiscard]] auto upload(ImageHandle dst, std::span<const std::byte> data, bool generateMips = false,
         std::optional<ResourceState> finalState = std::nullopt) -> std::expected<void, Error>;
 
@@ -162,6 +163,9 @@ struct ImageUploadPlan
 /// @brief Plans an upload of 'dataSize' bytes into an image, without a Device.
 /// @param mipLevels The image's mip count (resolved, not Image::fullMipChain).
 /// @param generateMips The caller supplies mip 0 only, the rest are blitted.
+/// @return ErrorCode::InvalidArgument if 'dataSize' does not match the mips the caller supplies
+///         (laid out as subresourceFootprints describes) or there are no mips or layers;
+///         ErrorCode::FormatNotSupported if 'format' cannot be copied from a buffer.
 [[nodiscard]] auto planImageUpload(Extent3D extent, Format format, std::uint32_t mipLevels,
     std::uint32_t arrayLayers, bool generateMips, std::size_t dataSize) -> std::expected<ImageUploadPlan, Error>;
 }
