@@ -51,4 +51,16 @@ if(TARGET compile_shaders)
     # The scene changes while frames are in flight: a model loaded, one destroyed, materials edited.
     aegis_add_device_test(aegis-test-scene-mutation ARGS --headless --scene --mutate-scene --frames 150)
     aegis_add_device_test(aegis-test-scene-gpu-driven-mutation ARGS --headless --gpu-driven --mutate-scene --frames 150 LABELS mesh-shaders)
+
+    # Reference images: the last frame against tests/golden, generated on the dev GPU (see tests/README.md). Local
+    # only: CI excludes them with -LE device. The stats window is left out, its timings change every run.
+    aegis_add_device_test(aegis-test-golden-triangle
+        ARGS --headless --frames 120 --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/triangle.png --tolerance 0
+        LABELS golden)
+    aegis_add_device_test(aegis-test-golden-scene
+        ARGS --headless --scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene.png --tolerance 0
+        LABELS golden)
+    aegis_add_device_test(aegis-test-golden-scene-gpu-driven
+        ARGS --headless --gpu-driven --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-gpu-driven.png --tolerance 0
+        LABELS golden mesh-shaders)
 endif()
