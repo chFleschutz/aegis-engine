@@ -84,3 +84,20 @@ TEST_SUITE("rhi::detail::acquireImageSlots")
         CHECK(sampled.pop() == std::nullopt);
     }
 }
+
+TEST_SUITE("rhi::TextureDescriptor")
+{
+    using namespace aegis::rhi;
+
+    TEST_CASE("is the image index then the sampler index, 8 bytes like bindless::TextureDescriptor")
+    {
+        static_assert(sizeof(SampledImageDescriptor) == 4 && sizeof(SamplerDescriptor) == 4);
+        CHECK(sizeof(TextureDescriptor) == 8);
+
+        const TextureDescriptor descriptor{ SampledImageDescriptor{ 3 }, SamplerDescriptor{ 7 } };
+        std::array<std::uint32_t, 2> words{};
+        std::memcpy(words.data(), &descriptor, sizeof(descriptor));
+        CHECK(words[0] == 3);
+        CHECK(words[1] == 7);
+    }
+}

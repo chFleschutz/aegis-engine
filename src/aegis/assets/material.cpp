@@ -38,7 +38,7 @@ auto scalarSize(const MaterialValue& value) -> std::size_t
     return std::visit(
         []<typename T>(const T&) -> std::size_t {
             if constexpr (std::is_same_v<T, std::shared_ptr<Texture>>)
-                return 2 * sizeof(std::uint32_t);
+                return sizeof(rhi::TextureDescriptor);
             else
                 return sizeof(T);
         },
@@ -61,11 +61,8 @@ auto writeParameters(const MaterialTemplate& materialTemplate,
                 if constexpr (std::is_same_v<T, std::shared_ptr<Texture>>)
                 {
                     constexpr auto invalid = ~std::uint32_t{ 0 };
-                    const std::array indices{
-                        v ? v->sampledDescriptor().index : invalid,
-                        v ? v->samplerDescriptor().index : invalid,
-                    };
-                    std::memcpy(dst, indices.data(), sizeof(indices));
+                    const auto descriptor = v ? v->descriptor() : rhi::TextureDescriptor{ { invalid }, { invalid } };
+                    std::memcpy(dst, &descriptor, sizeof(descriptor));
                 }
                 else
                 {

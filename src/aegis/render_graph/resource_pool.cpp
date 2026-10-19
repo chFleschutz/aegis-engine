@@ -96,6 +96,11 @@ auto ResourcePool::texture(ResourceHandle handle) const -> const renderer::Textu
     return created->texture;
 }
 
+auto ResourcePool::storageDescriptor(ResourceHandle handle) const -> rhi::StorageImageDescriptor
+{
+    return *m_device.get(texture(handle).view).storageDescriptor();
+}
+
 auto ResourcePool::extent(ResourceHandle handle) const -> rhi::Extent2D
 {
     return m_device.get(texture(handle).image).extent().toExtent2D();
