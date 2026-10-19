@@ -87,13 +87,20 @@ struct Children
     //auto rend() const -> Children::ReverseIterator { return { scene::Entity{} }; }
 };
 
+/// @brief Tags an entity as dynamic: its global transform is recomputed every frame.
+///
+/// The static/dynamic rule: an entity without this tag is static and stays frozen after Scene::begin,
+/// so editing its Transform changes nothing on screen by itself.
+///  - Anything that moves its entity every frame (a script, an animation) must tag it, and
+///    only while the scene is set up: adding or removing the tag later is not supported yet.
+///  - A one-off edit of a static entity (the editor's gizmo and inspector) calls
+///    Registry::markStaticDirty(entity) after changing its Transform.
+///  - Creating or destroying entities and adding or removing Mesh/Material need nothing: the
+///    Registry's static-set version tracks them.
+/// The tag does not pass down the hierarchy: tag each entity that moves on its own (descendants
+/// of a moving entity follow it only if they are tagged too).
 struct DynamicTag
 {
-    // Used to tag an entity as dynamic (updated every frame)
-    // IMPORTANT: This component can ONLY be added/removed during scene initialization
-    //
-    // TODO: Add runtime moving of objects between static and dynamic instance buffers
-    // TODO: Handle fragmentation of instance buffers when moving objects
 };
 
 /// @brief Marks a static entity whose global transform must be recomputed (Registry::markStaticDirty).

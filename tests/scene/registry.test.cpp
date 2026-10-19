@@ -240,6 +240,19 @@ TEST_SUITE("scene::Registry")
         CHECK(registry.entityCount() == 3);
     }
 
+    TEST_CASE("valid is true only for live entities")
+    {
+        Registry registry;
+        const auto entity = registry.create();
+        CHECK(registry.valid(entity));
+        CHECK(!registry.valid(Entity{}));
+
+        registry.destroy(entity);
+        CHECK(!registry.valid(entity));
+        registry.create(); // Recycles the id with a new version
+        CHECK(!registry.valid(entity));
+    }
+
     TEST_CASE("markStaticDirty tags the entity and moves the static version")
     {
         Registry registry;

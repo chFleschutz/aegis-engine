@@ -42,13 +42,16 @@ public:
 
     void destroy(Entity entity)
     {
-        // TODO: Destroy all scripts attached to the entity
+        // Scripts of the entity stop when the ScriptManager next updates (it checks valid())
 
         removeParent(entity);
         removeChildren(entity);
 
         m_registry.destroy(entity.id());
     }
+
+    /// @brief Checks that the entity is alive: not null, not destroyed (also when its id was recycled)
+    [[nodiscard]] auto valid(Entity entity) const -> bool { return entity && m_registry.valid(entity.id()); }
 
     /// @brief Checks if the entity has all components of type T...
     template<typename... T>
@@ -243,7 +246,7 @@ public:
     ///        descendants' are recomputed by the TransformSystem, and the static set is invalidated.
     auto markStaticDirty(Entity entity) -> void
     {
-        if (!entity || !m_registry.valid(entity.id()))
+        if (!valid(entity))
             return;
 
         m_registry.get_or_emplace<StaticDirtyTag>(entity.id());
