@@ -133,6 +133,10 @@ auto Renderer::createResolutionDependentTexture(
 auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept
     -> std::expected<void, Error>
 {
+    // Minimized: there is no surface to draw to, and resize() keeps needsResize() set until it is back.
+    if (m_zeroExtent)
+        return {};
+
     auto frameInfo = beginFrame();
     if (!frameInfo)
     {
@@ -173,6 +177,14 @@ auto Renderer::resize(rhi::Extent2D newSize) -> std::expected<void, Error>
     // The resize happens before the frame-begin where resources are deleted, by enqueuing the resource
     // with the current frames timeline value before the actual frame-begins; the deletion happens this frame.
     // This is the intended behavior but worth noting anyway.
+
+    // A zero extent (minimized) cannot hold images or a swapchain: skip frames until a real size arrives.
+    m_zeroExtent = newSize.x == 0 || newSize.y == 0;
+    if (m_zeroExtent)
+    {
+        m_needsResize = true;
+        return {};
+    }
 
     std::ignore = m_device->waitIdle();
 

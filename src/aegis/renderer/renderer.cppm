@@ -127,5 +127,6 @@ private:
     std::vector<ResolutionDependentResource> m_resDependent;
     std::uint32_t m_currentFrame{ 0 };
     bool m_needsResize{ false };
+    bool m_zeroExtent{ false }; // The last resize() was to a zero extent: renderFrame skips
 };
 }
