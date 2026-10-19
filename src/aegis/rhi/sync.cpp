@@ -14,8 +14,7 @@ auto Fence::wait() const noexcept -> bool
     auto result = m_fence.getDevice().waitForFences(*m_fence,
         vk::True,
         std::numeric_limits<std::uint64_t>::max(),
-        *m_fence.getDispatcher()
-    );
+        *m_fence.getDispatcher());
     return result == vk::Result::eSuccess;
 }
 
