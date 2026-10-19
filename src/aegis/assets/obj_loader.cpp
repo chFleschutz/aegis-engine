@@ -49,7 +49,11 @@ auto Loader::loadObj(const Desc& desc, const std::filesystem::path& path) -> std
 
     auto data = MeshPreprocessor::process(std::move(input));
     if (!data)
-        return std::unexpected{ Error{ data.error().code, std::format("OBJ '{}': {}", path.string(), data.error().message) } };
+    {
+        auto error = data.error();
+        error.message = std::format("OBJ '{}': {}", path.string(), error.message);
+        return std::unexpected{ std::move(error) };
+    }
 
     const auto name = path.stem().string();
     auto mesh = StaticMesh::create(desc.device, *data, name);

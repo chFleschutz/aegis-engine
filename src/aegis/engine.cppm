@@ -226,7 +226,11 @@ private:
     {
         if (!result)
         {
-            fatalSetup(std::format("Failed to {}: {}", what, result.error().message));
+            // Module errors with a describe() print their code and rhi cause too.
+            if constexpr (requires { describe(result.error()); })
+                fatalSetup(std::format("Failed to {}: {}", what, describe(result.error())));
+            else
+                fatalSetup(std::format("Failed to {}: {}", what, result.error().message));
         }
         return std::move(*result);
     }

@@ -1,6 +1,7 @@
 aegis_add_test(assets
     SOURCES
         defaults.test.cpp
+        error.test.cpp
         gpu_types.test.cpp
         material.test.cpp
         mesh_preprocessor.test.cpp

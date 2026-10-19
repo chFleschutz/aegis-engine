@@ -80,7 +80,11 @@ public:
             return makeError(ErrorCode::InvalidData, std::format("glTF default scene {} does not exist: '{}'", sceneIndex, path.string()));
         const auto walk = walkScene(sceneIndex);
         if (!walk)
-            return std::unexpected{ Error{ walk.error().code, std::format("{}: '{}'", walk.error().message, path.string()) } };
+        {
+            auto error = walk.error();
+            error.message = std::format("{}: '{}'", error.message, path.string());
+            return std::unexpected{ std::move(error) };
+        }
 
         const auto& sceneName = m_gltf.scenes[sceneIndex].name;
         m_root = m_desc.scene.create(sceneName.empty() ? path.stem().string() : std::string{ sceneName });
@@ -173,7 +177,11 @@ private:
 
                 auto data = MeshPreprocessor::process(std::move(input));
                 if (!data)
-                    return std::unexpected{ Error{ data.error().code, std::format("glTF primitive '{}': {}", name, data.error().message) } };
+                {
+                    auto error = data.error();
+                    error.message = std::format("glTF primitive '{}': {}", name, error.message);
+                    return std::unexpected{ std::move(error) };
+                }
 
                 auto staticMesh = StaticMesh::create(m_desc.device, *data, name);
                 if (!staticMesh)
