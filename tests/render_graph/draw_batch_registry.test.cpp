@@ -143,4 +143,72 @@ TEST_SUITE("render_graph::DrawBatchRegistry")
         // An existing template still accepts instances
         CHECK(registry.track(entity(1000), templates.front(), false).has_value());
     }
+
+    TEST_CASE("the static version moves when meshes and materials come and go")
+    {
+        aegis::scene::Registry scene;
+        DrawBatchRegistry registry;
+        registry.connect(scene);
+        const auto entity = scene.create();
+
+        auto version = scene.staticVersion();
+        scene.add<aegis::assets::Mesh>(entity);
+        CHECK(scene.staticVersion() != version);
+
+        version = scene.staticVersion();
+        scene.add<aegis::assets::Material>(entity);
+        CHECK(scene.staticVersion() != version);
+
+        version = scene.staticVersion();
+        scene.remove<aegis::assets::Mesh>(entity);
+        CHECK(scene.staticVersion() != version);
+
+        version = scene.staticVersion();
+        scene.destroy(entity);
+        CHECK(scene.staticVersion() != version);
+    }
+
+    TEST_CASE("the static version moves when an entity changes between static and dynamic")
+    {
+        aegis::scene::Registry scene;
+        DrawBatchRegistry registry;
+        registry.connect(scene);
+        const auto entity = scene.create();
+
+        auto version = scene.staticVersion();
+        scene.add<aegis::DynamicTag>(entity);
+        CHECK(scene.staticVersion() != version);
+
+        version = scene.staticVersion();
+        scene.remove<aegis::DynamicTag>(entity);
+        CHECK(scene.staticVersion() != version);
+    }
+
+    TEST_CASE("a new static instance is marked for a transform update, a dynamic one is not")
+    {
+        aegis::scene::Registry scene;
+        DrawBatchRegistry registry;
+        registry.connect(scene);
+
+        const auto fixed = scene.create();
+        scene.add<aegis::assets::Mesh>(fixed);
+        CHECK(scene.has<aegis::StaticDirtyTag>(fixed));
+
+        const auto moving = scene.create();
+        scene.add<aegis::DynamicTag>(moving);
+        scene.add<aegis::assets::Mesh>(moving);
+        CHECK(!scene.has<aegis::StaticDirtyTag>(moving));
+    }
+
+    TEST_CASE("a disconnected registry no longer reports changes")
+    {
+        aegis::scene::Registry scene;
+        DrawBatchRegistry registry;
+        registry.connect(scene);
+        registry.disconnect();
+
+        const auto before = scene.staticVersion();
+        scene.add<aegis::assets::Mesh>(scene.create());
+        CHECK(scene.staticVersion() == before);
+    }
 }

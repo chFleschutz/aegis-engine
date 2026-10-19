@@ -59,6 +59,8 @@ public:
 
     void onUpdate(Registry& registry, float deltaSeconds) override
     {
+        updateStaticDirty(registry);
+
         // Note: This lags 1 frame per parent behind the actual local transform (but this is fine :)
         auto view = registry.view<Transform, GlobalTransform, Parent, DynamicTag>();
         for (auto&& [entity, transform, globalTransform, parent] : view.each())
@@ -74,6 +76,40 @@ public:
             auto& parentGlobal = registry.get<GlobalTransform>(parent.entity);
             globalTransform = detail::compose(parentGlobal, transform);
         }
+    }
+
+private:
+    // Recomputes the global transforms of the entities marked with Registry::markStaticDirty and of
+    // their descendants from their parents' current ones, then invalidates the static set once more:
+    // a consumer may have rebuilt it from the old values after the mark.
+    static void updateStaticDirty(Registry& registry)
+    {
+        std::vector<Entity> dirty;
+        for (auto&& [entity] : registry.view<StaticDirtyTag>().each())
+            dirty.emplace_back(Entity{ entity });
+        if (dirty.empty())
+            return;
+
+        for (const auto entity : dirty)
+        {
+            updateSubtree(registry, entity);
+            registry.remove<StaticDirtyTag>(entity);
+        }
+        registry.invalidateStatic();
+    }
+
+    static void updateSubtree(Registry& registry, Entity entity)
+    {
+        if (!registry.has<Transform, GlobalTransform, Parent, Children>(entity))
+            return;
+
+        const Entity parent = registry.get<Parent>(entity).entity;
+        const GlobalTransform parentGlobal =
+            parent && registry.has<GlobalTransform>(parent) ? registry.get<GlobalTransform>(parent) : GlobalTransform{};
+        registry.get<GlobalTransform>(entity) = detail::compose(parentGlobal, registry.get<Transform>(entity));
+
+        for (Entity child = registry.get<Children>(entity).first; child; child = registry.get<Siblings>(child).next)
+            updateSubtree(registry, child);
     }
 };
 }

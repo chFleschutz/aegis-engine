@@ -33,6 +33,9 @@ auto DrawBatchRegistry::connect(aegis::scene::Registry& registry) -> void
     registry.onDestroy<assets::Material>().connect<&DrawBatchRegistry::onMaterialDestroy>(this);
     registry.onConstruct<aegis::DynamicTag>().connect<&DrawBatchRegistry::onDynamicConstruct>(this);
     registry.onDestroy<aegis::DynamicTag>().connect<&DrawBatchRegistry::onDynamicDestroy>(this);
+    registry.onConstruct<assets::Mesh>().connect<&DrawBatchRegistry::onMeshConstruct>(this);
+    registry.onDestroy<assets::Mesh>().connect<&DrawBatchRegistry::onMeshDestroy>(this);
+    registry.invalidateStatic();
 }
 
 auto DrawBatchRegistry::disconnect() -> void
@@ -44,6 +47,8 @@ auto DrawBatchRegistry::disconnect() -> void
     m_registry->onDestroy<assets::Material>().disconnect(this);
     m_registry->onConstruct<aegis::DynamicTag>().disconnect(this);
     m_registry->onDestroy<aegis::DynamicTag>().disconnect(this);
+    m_registry->onConstruct<assets::Mesh>().disconnect(this);
+    m_registry->onDestroy<assets::Mesh>().disconnect(this);
     m_registry = nullptr;
 }
 
@@ -133,23 +138,45 @@ auto DrawBatchRegistry::trackMaterial(entt::entity entity, const assets::Materia
         std::println("DrawBatchRegistry: {}", tracked.error().message);
 }
 
+auto DrawBatchRegistry::markStatic(entt::registry& registry, entt::entity entity) -> void
+{
+    if (registry.all_of<aegis::DynamicTag>(entity))
+        m_registry->invalidateStatic();
+    else
+        m_registry->markStaticDirty(aegis::scene::Entity{ entity });
+}
+
 auto DrawBatchRegistry::onMaterialConstruct(entt::registry& registry, entt::entity entity) -> void
 {
     trackMaterial(entity, registry.get<assets::Material>(entity), registry.all_of<aegis::DynamicTag>(entity));
+    markStatic(registry, entity);
 }
 
 auto DrawBatchRegistry::onMaterialDestroy(entt::registry&, entt::entity entity) -> void
 {
     untrack(entity);
+    m_registry->invalidateStatic();
 }
 
 auto DrawBatchRegistry::onDynamicConstruct(entt::registry&, entt::entity entity) -> void
 {
     setDynamic(entity, true);
+    m_registry->invalidateStatic();
 }
 
 auto DrawBatchRegistry::onDynamicDestroy(entt::registry&, entt::entity entity) -> void
 {
     setDynamic(entity, false);
+    m_registry->invalidateStatic();
+}
+
+auto DrawBatchRegistry::onMeshConstruct(entt::registry& registry, entt::entity entity) -> void
+{
+    markStatic(registry, entity);
+}
+
+auto DrawBatchRegistry::onMeshDestroy(entt::registry&, entt::entity) -> void
+{
+    m_registry->invalidateStatic();
 }
 }

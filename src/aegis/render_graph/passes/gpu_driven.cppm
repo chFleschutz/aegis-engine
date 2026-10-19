@@ -5,6 +5,7 @@ import :error;
 import :render_pass;
 import :resource;
 import :resource_pool;
+import aegis.assets;
 import aegis.rhi;
 import aegis.math;
 import aegis.scene;
@@ -43,9 +44,14 @@ struct DrawBatchData
     std::uint32_t count;
 };
 
-/// @brief Writes "StaticInstances" once per scene, and "DynamicInstances" (DynamicTag entities) and
-///        "DrawBatches" every frame. Instance IDs count static instances first, then dynamic ones.
-///        The instance buffers grow to the draw batch registry's counts (detail::grownCapacity).
+/// @brief Writes "StaticInstances" whenever the scene registry's static version changes, and
+///        "DynamicInstances" (DynamicTag entities) and "DrawBatches" every frame. Instance IDs count static
+///        instances first, then dynamic ones. The instance buffers grow to the draw batch registry's counts
+///        (detail::grownCapacity).
+///
+///        A static rebuild writes into a new buffer, so frames in flight keep reading the old one, which is
+///        freed once they are done. "StaticInstances" has a copy per frame in flight that differ only in the
+///        material blocks they address; each frame updates the static materials' block for that frame.
 class InstanceUpdatePass : public RenderPass
 {
 public:
@@ -64,6 +70,8 @@ public:
     [[nodiscard]] auto dynamicCount() const noexcept -> std::uint32_t { return m_dynamicCount; }
 
 private:
+    auto rebuildStatic(ResourcePool& pool, aegis::scene::Scene& scene) -> void;
+
     const DrawBatchRegistry& m_drawBatches;
     ResourceHandle m_staticInstances;
     ResourceHandle m_dynamicInstances;
@@ -72,6 +80,8 @@ private:
     std::uint32_t m_dynamicCapacity{ initialDynamicCapacity };
     std::uint32_t m_staticCount{ 0 };
     std::uint32_t m_dynamicCount{ 0 };
+    std::optional<std::uint64_t> m_builtVersion; // The static version the static instances were built for
+    std::vector<std::shared_ptr<assets::MaterialInstance>> m_staticMaterials; // Distinct, in the static instances
 };
 
 /// @brief Zeroes "IndirectDrawCounts" (one counter per draw batch) before culling counts into it.

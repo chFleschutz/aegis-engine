@@ -17,6 +17,9 @@ struct DrawBatch
 
 /// @brief Groups scene instances into draw batches by material template and keeps the counts the
 ///        GPU-driven path sizes its buffers by. Follows assets::Material components as they come and go.
+///        It also reports every change to the static set (instances and meshes coming and going, entities
+///        moving between static and dynamic) to the scene registry's static version, and marks new static
+///        entities dirty so the TransformSystem computes their global transforms.
 class DrawBatchRegistry
 {
 public:
@@ -60,6 +63,9 @@ private:
     auto onMaterialDestroy(entt::registry& registry, entt::entity entity) -> void;
     auto onDynamicConstruct(entt::registry& registry, entt::entity entity) -> void;
     auto onDynamicDestroy(entt::registry& registry, entt::entity entity) -> void;
+    auto onMeshConstruct(entt::registry& registry, entt::entity entity) -> void;
+    auto onMeshDestroy(entt::registry& registry, entt::entity entity) -> void;
+    auto markStatic(entt::registry& registry, entt::entity entity) -> void;
     auto trackMaterial(entt::entity entity, const assets::Material& material, bool dynamic) -> void;
     auto updateOffsets() -> void;
     auto clear() -> void;

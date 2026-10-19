@@ -96,6 +96,12 @@ struct DynamicTag
     // TODO: Handle fragmentation of instance buffers when moving objects
 };
 
+/// @brief Marks a static entity whose global transform must be recomputed (Registry::markStaticDirty).
+///        The TransformSystem recomputes it with its descendants and removes the tag.
+struct StaticDirtyTag
+{
+};
+
 struct AmbientLight
 {
     glm::vec3 color = { 1.0f, 1.0f, 1.0f };
