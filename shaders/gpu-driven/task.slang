@@ -6,6 +6,8 @@ import modules.visibility;
 // GPU-driven G-buffer pass, task stage: one indirect mesh-task draw per visible instance of a draw
 // batch. Culls the instance's meshlets (frustum and normal cone) and launches mesh groups for the rest.
 
+[[vk::push_constant]] ConstantBuffer<indirectDraw::GeometryConstants> pc;
+
 groupshared TaskPayload sharedPayload;
 groupshared uint visibleCount;
 
@@ -23,11 +25,10 @@ func taskMain(
 
     // drawID is the same for the whole group, so the group either culls or emits no mesh groups.
     // No early return: every invocation must reach DispatchMesh exactly once.
-    let pc = indirectDraw::pc;
     if (drawID < pc.batchSize)
     {
         let instanceID = pc.visibility[pc.batchFirst + drawID];
-        let instance = indirectDraw::getInstance(instanceID);
+        let instance = pc.getInstance(instanceID);
         let mesh = instance.mesh;
 
         if (dispatchThreadID.x < mesh->meshletCount)
