@@ -224,4 +224,19 @@ TEST_SUITE("scene::Registry")
             checkChildren(registry, child, {});
         }
     }
+
+    TEST_CASE("does not count destroyed entities")
+    {
+        Registry registry;
+        const auto first = registry.create();
+        registry.create();
+        registry.create();
+        CHECK(registry.entityCount() == 3);
+
+        registry.destroy(first);
+        CHECK(registry.entityCount() == 2);
+
+        registry.create(); // Recycles the destroyed id
+        CHECK(registry.entityCount() == 3);
+    }
 }

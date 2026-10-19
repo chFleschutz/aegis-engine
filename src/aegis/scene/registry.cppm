@@ -21,7 +21,9 @@ public:
     auto operator=(const Registry&) -> Registry& = delete;
     auto operator=(Registry&&) -> Registry& = delete;
 
-    [[nodiscard]] auto entityCount() const -> std::size_t { return m_registry.storage<entt::entity>()->size(); }
+    /// @brief Number of live entities
+    /// @note The entity storage keeps destroyed ids for reuse, its free list marks where the live ones end
+    [[nodiscard]] auto entityCount() const -> std::size_t { return m_registry.storage<entt::entity>()->free_list(); }
 
     /// @brief Creates an entity with a NameComponent and TransformComponent
     /// @note scene::Entity can be passed by value
