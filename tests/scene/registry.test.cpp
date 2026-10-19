@@ -239,4 +239,39 @@ TEST_SUITE("scene::Registry")
         registry.create(); // Recycles the destroyed id
         CHECK(registry.entityCount() == 3);
     }
+
+    TEST_CASE("markStaticDirty tags the entity and moves the static version")
+    {
+        Registry registry;
+        const auto entity = registry.create();
+        const auto before = registry.staticVersion();
+
+        registry.markStaticDirty(entity);
+        CHECK(registry.staticVersion() != before);
+        CHECK(registry.has<aegis::StaticDirtyTag>(entity));
+
+        const auto marked = registry.staticVersion();
+        registry.markStaticDirty(entity); // Marking again is fine and still moves the version
+        CHECK(registry.staticVersion() != marked);
+    }
+
+    TEST_CASE("markStaticDirty ignores a null or destroyed entity")
+    {
+        Registry registry;
+        const auto entity = registry.create();
+        registry.destroy(entity);
+        const auto before = registry.staticVersion();
+
+        registry.markStaticDirty(Entity{});
+        registry.markStaticDirty(entity);
+        CHECK(registry.staticVersion() == before);
+    }
+
+    TEST_CASE("invalidateStatic moves the static version")
+    {
+        Registry registry;
+        const auto before = registry.staticVersion();
+        registry.invalidateStatic();
+        CHECK(registry.staticVersion() != before);
+    }
 }

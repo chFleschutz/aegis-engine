@@ -60,6 +60,7 @@ struct Options
     std::uint32_t frames{ 0 }; // 0: until the window is closed
     bool scene{ false };       // Render a loaded scene through the render graph instead of the triangle
     bool gpuDriven{ false };   // With --scene: the GPU-driven (mesh shader) geometry path
+    bool mutateScene{ false }; // With --scene: change the loaded scene while frames are in flight (see mutateScene())
     std::string screenshot;    // Headless: save the last frame here as PNG
 };
 
@@ -81,6 +82,11 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         {
             options.scene = true;
             options.gpuDriven = true;
+        }
+        else if (arg == "--mutate-scene")
+        {
+            options.scene = true;
+            options.mutateScene = true;
         }
         else if (arg == "--screenshot" && i + 1 < args.size())
         {
@@ -827,6 +833,7 @@ public:
             std::filesystem::path{ ASSETS_DIR } / "DamagedHelmet/DamagedHelmet.gltf");
         if (!helmet)
             return std::unexpected{ std::format("Loading the helmet: {}", helmet.error().message) };
+        m_helmet = *helmet;
 
         // No platform backend: the UI is drawn, not interacted with.
         m_imgui = ImGuiContextHandle{ ImGui::CreateContext() };
@@ -903,6 +910,99 @@ public:
         return {};
     }
 
+    // --mutate-scene: changes the scene the way an editor or gameplay code would, while frames are in
+    // flight, and checks that the GPU-driven path follows. Called once per frame before it is recorded.
+    // Frame 30 loads a second model, 60 destroys the first one, 90 edits the second one's materials.
+    // The frame after each change, the instance pass must have written as many static instances as
+    // the scene holds. The last frame (--screenshot) shows the second model only, in red.
+    auto mutateScene(std::uint32_t frame) -> std::expected<void, std::string>
+    {
+        constexpr std::uint32_t loadFrame{ 30 };
+        constexpr std::uint32_t destroyFrame{ 60 };
+        constexpr std::uint32_t editFrame{ 90 };
+        auto& registry = m_scene->registry();
+
+        const auto drawableStatic = [&] {
+            std::uint32_t count{ 0 };
+            for (auto&& [entity, mesh, material] : registry.view<assets::Mesh, assets::Material>().each())
+            {
+                if (mesh.staticMesh && material.instance && !registry.has<aegis::DynamicTag>(aegis::scene::Entity{ entity }))
+                    ++count;
+            }
+            return count;
+        };
+        const auto writtenStatic = [&]() -> std::optional<std::uint32_t> {
+            for (auto* pass : m_frameGraph->passes())
+            {
+                if (const auto* instances = dynamic_cast<render_graph::InstanceUpdatePass*>(pass))
+                    return instances->staticCount();
+            }
+            return std::nullopt; // The CPU-driven path has no instance pass
+        };
+        // The frame after a change: the instances written for it match the scene.
+        const auto verifyWritten = [&](std::string_view what, bool grew) -> std::expected<void, std::string> {
+            const auto expected = drawableStatic();
+            if (grew ? expected <= m_staticDrawn : expected >= m_staticDrawn)
+                return std::unexpected{ std::format("{} did not change the scene's static instances ({} before, {} after)", what, m_staticDrawn, expected) };
+            if (const auto written = writtenStatic(); written && *written != expected)
+                return std::unexpected{ std::format("after {}: {} static instances written, the scene has {}", what, *written, expected) };
+            std::println("Scene change verified: {} -> {} static instances after {}", m_staticDrawn, expected, what);
+            m_staticDrawn = expected;
+            return {};
+        };
+
+        if (frame == loadFrame)
+        {
+            m_staticDrawn = drawableStatic();
+            auto model = assets::Loader::load(
+                {
+                    .device = *m_device,
+                    .scene = registry,
+                    .pbrTemplate = m_defaults->pbrTemplate,
+                    .defaultMaterial = m_defaults->pbrMaterial,
+                    .framesInFlight = renderer::Renderer::maxFramesInFlight,
+                },
+                std::filesystem::path{ ASSETS_DIR } / "SciFiHelmet/SciFiHelmet.gltf");
+            if (!model)
+                return std::unexpected{ std::format("Loading the second model: {}", model.error().message) };
+            m_addedModel = *model;
+            registry.get<aegis::Transform>(m_addedModel).location = glm::vec3{ 0.9f, 0.0f, 0.0f };
+            registry.markStaticDirty(m_addedModel);
+        }
+        else if (frame == loadFrame + 1)
+        {
+            return verifyWritten("loading a model", true);
+        }
+        else if (frame == destroyFrame)
+        {
+            std::vector<aegis::scene::Entity> doomed{ m_helmet };
+            for (std::size_t i = 0; i < doomed.size(); ++i)
+            {
+                for (auto child = registry.get<aegis::Children>(doomed[i]).first; child;
+                    child = registry.get<aegis::Siblings>(child).next)
+                    doomed.push_back(child);
+            }
+            for (const auto entity : doomed)
+                registry.destroy(entity);
+        }
+        else if (frame == destroyFrame + 1)
+        {
+            return verifyWritten("destroying a model", false);
+        }
+        else if (frame == editFrame)
+        {
+            std::uint32_t edited{ 0 };
+            for (auto&& [entity, material] : registry.view<assets::Material>().each())
+            {
+                if (material.instance && material.instance->setParameter("albedo", glm::vec3{ 1.0f, 0.1f, 0.1f }))
+                    ++edited;
+            }
+            if (edited == 0)
+                return std::unexpected{ "no material to edit" };
+        }
+        return {};
+    }
+
     auto run() -> int
     {
         std::uint32_t frames{ 0 };
@@ -937,6 +1037,16 @@ public:
 
             if (m_scene)
                 m_scene->update(1.0f / 60.0f);
+
+            if (m_options.mutateScene)
+            {
+                if (auto mutated = mutateScene(frames); !mutated)
+                {
+                    std::println("Scene change failed: {}", mutated.error());
+                    m_device->waitIdle();
+                    return 1;
+                }
+            }
 
             // Headless scene runs resize halfway, so the graph's resolution-dependent textures and the
             // views passes derive from them are recreated under validation.
@@ -1462,6 +1572,9 @@ private:
     // --scene only. Declared last: destroyed first, while the device they free into still exists.
     std::optional<assets::DefaultAssets> m_defaults;
     std::unique_ptr<aegis::scene::Scene> m_scene;
+    aegis::scene::Entity m_helmet;                                  // The root of the model loaded with the scene
+    aegis::scene::Entity m_addedModel;                              // --mutate-scene: the root of the model loaded later
+    std::uint32_t m_staticDrawn{ 0 };                               // --mutate-scene: drawable static entities before the last change
     std::unique_ptr<render_graph::DrawBatchRegistry> m_drawBatches; // Disconnects before the scene goes
     struct ImGuiContextDeleter
     {
@@ -1478,7 +1591,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--screenshot <png>]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--mutate-scene] [--screenshot <png>]", options.error());
         return 2;
     }
 

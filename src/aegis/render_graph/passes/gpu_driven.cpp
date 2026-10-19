@@ -8,6 +8,7 @@ module;
 module aegis.render_graph;
 import std;
 import aegis.assets;
+import aegis.renderer;
 import aegis.rhi;
 import aegis.math;
 import aegis.scene;
@@ -53,10 +54,12 @@ auto makeInstance(const aegis::GlobalTransform& transform, const assets::StaticM
     };
 }
 
-// Appends the instances of entities with (without) a DynamicTag, up to 'limit'.
+// The instances of the entities in 'view' that can be drawn, up to 'limit', addressing the material
+// blocks of frame 'frameIndex'. 'updateMaterials' writes that block first, which is only safe for the
+// frame being recorded.
 template<typename View>
-auto collectInstances(View view, const DrawBatchRegistry& drawBatches, std::uint32_t frameIndex, std::uint32_t limit)
-    -> std::vector<InstanceData>
+auto collectInstances(View view, const DrawBatchRegistry& drawBatches, std::uint32_t frameIndex, std::uint32_t limit,
+    bool updateMaterials) -> std::vector<InstanceData>
 {
     std::vector<InstanceData> instances;
     for (auto&& [entity, transform, mesh, material] : view.each())
@@ -69,7 +72,8 @@ auto collectInstances(View view, const DrawBatchRegistry& drawBatches, std::uint
         if (!batch)
             continue;
 
-        material.instance->update(frameIndex);
+        if (updateMaterials)
+            material.instance->update(frameIndex);
         instances.push_back(makeInstance(transform, *mesh.staticMesh, *material.instance, frameIndex, *batch));
     }
     return instances;
@@ -81,7 +85,7 @@ auto collectInstances(View view, const DrawBatchRegistry& drawBatches, std::uint
 InstanceUpdatePass::InstanceUpdatePass(ResourcePool& pool, const DrawBatchRegistry& drawBatches) :
     m_drawBatches{ drawBatches },
     m_staticInstances{ pool.addBuffer("StaticInstances", Usage::HostWrite,
-        { .size = sizeof(InstanceData) * initialStaticCapacity }) },
+        { .size = sizeof(InstanceData) * initialStaticCapacity, .perFrame = true }) },
     m_dynamicInstances{ pool.addBuffer("DynamicInstances", Usage::HostWrite,
         { .size = sizeof(InstanceData) * initialDynamicCapacity, .perFrame = true }) },
     m_drawBatchData{ pool.addBuffer("DrawBatches", Usage::HostWrite,
@@ -94,25 +98,65 @@ auto InstanceUpdatePass::info() const -> Info
     return { .name = "Instance Update", .writes = { m_staticInstances, m_dynamicInstances, m_drawBatchData } };
 }
 
-auto InstanceUpdatePass::sceneInitialized(ResourcePool& pool, aegis::scene::Scene& scene) -> void
+auto InstanceUpdatePass::sceneInitialized(ResourcePool&, aegis::scene::Scene&) -> void
 {
-    // Static instances never change, so their materials' frame 0 block serves every frame. Should the
-    // buffer fail to grow, the instances that fit are drawn.
-    std::ignore = ensureCapacity(pool, m_staticInstances, m_staticCapacity, m_drawBatches.staticInstanceCount(),
-        sizeof(InstanceData));
+    // The scene may be a different one, with its own static version: build for it on the next frame.
+    m_builtVersion.reset();
+}
+
+// Rewrites every frame's copy of the static instances into a new buffer, which frames still in flight
+// do not read. Should it not be created, nothing static is drawn until the static set changes again.
+auto InstanceUpdatePass::rebuildStatic(ResourcePool& pool, aegis::scene::Scene& scene) -> void
+{
+    constexpr auto frames = renderer::Renderer::maxFramesInFlight;
+    m_staticCount = 0;
+    m_staticMaterials.clear();
+
+    const auto capacity = detail::grownCapacity(m_staticCapacity, m_drawBatches.staticInstanceCount());
+    if (auto fresh = pool.resizeBuffer(m_staticInstances, sizeof(InstanceData) * capacity); !fresh)
+    {
+        std::println("{}: {} static instances need {} bytes per frame", fresh.error().message,
+            m_drawBatches.staticInstanceCount(), sizeof(InstanceData) * capacity);
+        return;
+    }
+    m_staticCapacity = capacity;
+
     auto view = scene.registry().view<aegis::GlobalTransform, assets::Mesh, assets::Material>(entt::exclude<aegis::DynamicTag>);
-    const auto instances = collectInstances(view, m_drawBatches, 0, m_staticCapacity);
-    pool.write(m_staticInstances, 0, std::as_bytes(std::span{ instances }));
-    m_staticCount = static_cast<std::uint32_t>(instances.size());
+    for (std::uint32_t frame = 0; frame < frames; ++frame)
+    {
+        const auto instances = collectInstances(view, m_drawBatches, frame, m_staticCapacity, false);
+        pool.write(m_staticInstances, frame, std::as_bytes(std::span{ instances }));
+        m_staticCount = static_cast<std::uint32_t>(instances.size());
+    }
+
+    // Their materials: kept alive for as long as the instances address them, and updated every frame.
+    std::unordered_set<const assets::MaterialInstance*> seen;
+    for (auto&& [entity, transform, mesh, material] : view.each())
+    {
+        if (mesh.staticMesh && material.instance && m_drawBatches.batchId(*material.instance->materialTemplate()) &&
+            seen.insert(material.instance.get()).second)
+            m_staticMaterials.push_back(material.instance);
+    }
 }
 
 auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
+    const auto version = frameInfo.scene.registry().staticVersion();
+    if (m_builtVersion != version)
+    {
+        m_builtVersion = version;
+        rebuildStatic(pool, frameInfo.scene);
+    }
+    // Edits to a static material reach the GPU through its block for this frame, which no frame in
+    // flight reads any more.
+    for (const auto& material : m_staticMaterials)
+        material->update(frameInfo.frameIndex);
+
     std::ignore = ensureCapacity(pool, m_dynamicInstances, m_dynamicCapacity, m_drawBatches.dynamicInstanceCount(),
         sizeof(InstanceData));
     // DynamicTag is empty, so the view's each() does not yield it.
     auto view = frameInfo.scene.registry().view<aegis::GlobalTransform, assets::Mesh, assets::Material, aegis::DynamicTag>();
-    const auto instances = collectInstances(view, m_drawBatches, frameInfo.frameIndex, m_dynamicCapacity);
+    const auto instances = collectInstances(view, m_drawBatches, frameInfo.frameIndex, m_dynamicCapacity, true);
     pool.write(m_dynamicInstances, frameInfo.frameIndex, std::as_bytes(std::span{ instances }));
     m_dynamicCount = static_cast<std::uint32_t>(instances.size());
 
@@ -208,7 +252,7 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
     cmd.bindPipeline(*m_pipeline);
     cmd.pushConstants(PushConstants{
         .camera = pool.bufferAddress(m_cameraData, frame),
-        .staticInstances = pool.bufferAddress(m_staticInstances),
+        .staticInstances = pool.bufferAddress(m_staticInstances, frame),
         .dynamicInstances = pool.bufferAddress(m_dynamicInstances, frame),
         .drawBatches = pool.bufferAddress(m_drawBatchData, frame),
         .visibility = pool.bufferAddress(m_visibility),
@@ -320,7 +364,7 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
             continue;
         cmd.pushConstants(PushConstants{
             .camera = pool.bufferAddress(m_cameraData, frame),
-            .staticInstances = pool.bufferAddress(m_staticInstances),
+            .staticInstances = pool.bufferAddress(m_staticInstances, frame),
             .dynamicInstances = pool.bufferAddress(m_dynamicInstances, frame),
             .visibility = pool.bufferAddress(m_visibility),
             .batchFirst = batch.firstInstance,

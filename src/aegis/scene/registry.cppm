@@ -231,6 +231,25 @@ public:
         }
     }
 
+    /// @brief Counts the changes to the set of static entities: it grows with every invalidateStatic()
+    ///        and markStaticDirty(). Consumers that cache the static set (the GPU-driven instance buffers)
+    ///        rebuild it when the version differs from the one they built.
+    [[nodiscard]] auto staticVersion() const noexcept -> std::uint64_t { return m_staticVersion; }
+
+    /// @brief The static set changed (an instance came or went, or moved between static and dynamic).
+    auto invalidateStatic() noexcept -> void { ++m_staticVersion; }
+
+    /// @brief A static entity's Transform (or its ancestors') was edited. Its global transform and its
+    ///        descendants' are recomputed by the TransformSystem, and the static set is invalidated.
+    auto markStaticDirty(Entity entity) -> void
+    {
+        if (!entity || !m_registry.valid(entity.id()))
+            return;
+
+        m_registry.get_or_emplace<StaticDirtyTag>(entity.id());
+        invalidateStatic();
+    }
+
     template<typename Component>
     auto onConstruct()
     {
@@ -245,5 +264,6 @@ public:
 
 private:
     entt::registry m_registry;
+    std::uint64_t m_staticVersion{ 0 };
 };
 }

@@ -89,6 +89,44 @@ TEST_SUITE("scene::TransformSystem")
     }
 }
 
+TEST_SUITE("scene::TransformSystem static dirty")
+{
+    TEST_CASE("recomputes a marked static entity and its descendants, then clears the mark")
+    {
+        Registry registry;
+        const auto parent = registry.create("parent");
+        const auto child = registry.create("child", { 1.0f, 0.0f, 0.0f });
+        registry.setParent(child, parent);
+
+        TransformSystem system;
+        system.onBegin(registry);
+        CHECK(near(registry.get<GlobalTransform>(child).location, { 1.0f, 0.0f, 0.0f }));
+
+        registry.get<Transform>(parent).location = { 0.0f, 5.0f, 0.0f };
+        system.onUpdate(registry, 0.0f);
+        CHECK(near(registry.get<GlobalTransform>(child).location, { 1.0f, 0.0f, 0.0f })); // Static: frozen
+
+        registry.markStaticDirty(parent);
+        const auto marked = registry.staticVersion();
+        system.onUpdate(registry, 0.0f);
+
+        CHECK(near(registry.get<GlobalTransform>(parent).location, { 0.0f, 5.0f, 0.0f }));
+        CHECK(near(registry.get<GlobalTransform>(child).location, { 1.0f, 5.0f, 0.0f }));
+        CHECK(!registry.has<aegis::StaticDirtyTag>(parent));
+        CHECK(registry.staticVersion() != marked); // Whoever rebuilt after the mark rebuilds again
+    }
+
+    TEST_CASE("leaves the static version alone when nothing is marked")
+    {
+        Registry registry;
+        registry.create();
+        TransformSystem system;
+        const auto before = registry.staticVersion();
+        system.onUpdate(registry, 0.0f);
+        CHECK(registry.staticVersion() == before);
+    }
+}
+
 TEST_SUITE("scene::detail::toLocal")
 {
     TEST_CASE("is the inverse of compose")
