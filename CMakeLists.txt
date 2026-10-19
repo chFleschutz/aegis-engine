@@ -32,7 +32,6 @@ find_program(SLANGC_EXE slangc
 include(cmake/AegisShaders.cmake)
 
 set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
-set(BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_subdirectory(external SYSTEM)
 add_subdirectory(modules)
@@ -45,7 +44,6 @@ endif()
 
 target_compile_definitions(aegis-engine PUBLIC
     PROJECT_DIR="${CMAKE_SOURCE_DIR}"
-    BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}"
 )
 
 option(AEGIS_BUILD_TESTS "Build unit tests" ${PROJECT_IS_TOP_LEVEL})
