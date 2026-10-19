@@ -178,7 +178,7 @@ public:
             .offscreen = { .extent = { 640, 480 } },
         });
         if (!renderer)
-            return std::unexpected{ "Failed to create renderer" };
+            return std::unexpected{ std::format("Failed to create renderer: {}", renderer::describe(renderer.error())) };
         engine.m_renderer = std::move(*renderer);
 
         auto shader = loadSPIRV(AEGIS_TEST_SHADER_PATH);
@@ -1042,7 +1042,7 @@ public:
                 {
                     if (auto resized = m_renderer->resize(rhi::Extent2D{ m_window->extent() }); !resized)
                     {
-                        std::println("Renderer resize failed (renderer error {})", std::to_underlying(resized.error()));
+                        std::println("Renderer resize failed: {}", renderer::describe(resized.error()));
                         m_device->waitIdle();
                         return 1;
                     }
@@ -1077,7 +1077,7 @@ public:
             {
                 if (auto resized = m_renderer->resize({ 800, 600 }); !resized)
                 {
-                    std::println("Renderer resize failed (renderer error {})", std::to_underlying(resized.error()));
+                    std::println("Renderer resize failed: {}", renderer::describe(resized.error()));
                     return 1;
                 }
                 if (auto resized = m_frameGraph->resized(); !resized)
@@ -1089,7 +1089,7 @@ public:
 
             if (auto rendered = m_renderer->renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); }); !rendered)
             {
-                std::println("Rendering a frame failed (renderer error {})", std::to_underlying(rendered.error()));
+                std::println("Rendering a frame failed: {}", renderer::describe(rendered.error()));
                 m_device->waitIdle();
                 return 1;
             }

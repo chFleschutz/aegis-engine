@@ -3,23 +3,13 @@ module;
 
 export module aegis.renderer;
 import std;
+export import :error;
 export import :texture;
 import aegis.rhi;
 import aegis.platform;
 
 export namespace aegis::renderer
 {
-enum class Error
-{
-    RHIInitializationFailed,
-    SwapchainOutOfDate,
-    FrameBeginFailed,
-    QueueSubmitFailed,
-    SwapchainPresentFailed,
-    SwapchainRecreateFailed,
-    ResourceRecreateFailed,
-};
-
 class Renderer
 {
 public:

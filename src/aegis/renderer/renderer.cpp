@@ -19,7 +19,7 @@ auto Renderer::create(const Desc& desc) -> std::expected<std::unique_ptr<Rendere
             .preferredExtent = rhi::Extent2D{ desc.window->extent() },
         });
         if (!created)
-            return std::unexpected{ Error::RHIInitializationFailed };
+            return makeError(ErrorCode::RHIInitializationFailed, "Failed to create the swapchain", created.error());
 
         extent = created->extent();
         format = created->surfaceFormat();
@@ -31,11 +31,11 @@ auto Renderer::create(const Desc& desc) -> std::expected<std::unique_ptr<Rendere
         .queueFamily = desc.device.graphicsQueue().family(),
     });
     if (!commandPool)
-        return std::unexpected{ Error::RHIInitializationFailed };
+        return makeError(ErrorCode::RHIInitializationFailed, "Failed to create the frame command pool", commandPool.error());
 
     auto frameContext = createFrameContext(desc.device, *commandPool);
     if (!frameContext)
-        return std::unexpected{ Error::RHIInitializationFailed };
+        return std::unexpected{ std::move(frameContext.error()) };
 
     auto renderer = std::make_unique<Renderer>(
         desc.context,
@@ -141,9 +141,9 @@ auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc
     if (!frameInfo)
     {
         // An out-of-date swapchain only skips the frame: the caller resizes before the next one.
-        if (frameInfo.error() == Error::SwapchainOutOfDate)
+        if (frameInfo.error().code == ErrorCode::SwapchainOutOfDate)
             return {};
-        return std::unexpected{ frameInfo.error() };
+        return std::unexpected{ std::move(frameInfo.error()) };
     }
 
     const auto& cmd = frameInfo->cmd;
@@ -197,8 +197,7 @@ auto Renderer::resize(rhi::Extent2D newSize) -> std::expected<void, Error>
 
         if (!swapchain)
         {
-            std::println("Failed to recreate swapchain");
-            return std::unexpected{ Error::SwapchainRecreateFailed };
+            return makeError(ErrorCode::SwapchainRecreateFailed, "Failed to recreate the swapchain", swapchain.error());
         }
         m_swapchain = std::move(*swapchain);
         m_extent = m_swapchain->extent();
@@ -229,8 +228,9 @@ auto Renderer::resize(rhi::Extent2D newSize) -> std::expected<void, Error>
             });
         if (!newImage)
         {
-            std::println("Failed to recreate resolution dependent image '{}'", name);
-            return std::unexpected{ Error::ResourceRecreateFailed };
+            return makeError(ErrorCode::ResourceRecreateFailed,
+                std::format("Failed to recreate resolution dependent image '{}'", name),
+                newImage.error());
         }
 
         auto newView = m_device.replace(texture.view,
@@ -247,8 +247,9 @@ auto Renderer::resize(rhi::Extent2D newSize) -> std::expected<void, Error>
             });
         if (!newView)
         {
-            std::println("Failed to recreate resolution dependent view '{}'", name);
-            return std::unexpected{ Error::ResourceRecreateFailed };
+            return makeError(ErrorCode::ResourceRecreateFailed,
+                std::format("Failed to recreate resolution dependent view '{}'", name),
+                newView.error());
         }
     }
 
@@ -271,13 +272,13 @@ auto Renderer::createFrameContext(
             .pool = pool,
         });
         if (!cmd)
-            return std::unexpected{ Error::RHIInitializationFailed };
+            return makeError(ErrorCode::RHIInitializationFailed, std::format("Failed to create CmdBufferFrame{}", i), cmd.error());
 
         auto semaphore = device.createSemaphore({
             .name = std::format("ImageAvailableSemaphoreFrame{}", i),
         });
         if (!semaphore)
-            return std::unexpected{ Error::RHIInitializationFailed };
+            return makeError(ErrorCode::RHIInitializationFailed, std::format("Failed to create ImageAvailableSemaphoreFrame{}", i), semaphore.error());
 
         frameContext->emplace_back(FrameContext{ std::move(*cmd), std::move(*semaphore) });
     }
@@ -299,7 +300,7 @@ auto Renderer::createOffscreenTargets() -> std::expected<void, Error>
                      rhi::ImageUsage::TransferSrc | rhi::ImageUsage::TransferDst,
         });
         if (!target)
-            return std::unexpected{ Error::RHIInitializationFailed };
+            return makeError(ErrorCode::RHIInitializationFailed, std::format("Failed to create OffscreenTarget{}", i), target.error());
         m_offscreenTargets.emplace_back(*target);
     }
     return {};
@@ -309,7 +310,7 @@ auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
 {
     auto& [cmd, imageAvailable, timePoint] = m_frameContext[m_currentFrame];
     if (!m_device.graphicsQueue().wait(timePoint))
-        return std::unexpected{ Error::FrameBeginFailed };
+        return makeError(ErrorCode::FrameBeginFailed, "Failed to wait for the frame's previous submission");
 
     m_device.setFrameCompleted(timePoint);
 
@@ -328,10 +329,10 @@ auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
     if (!acquiredImage && acquiredImage.error().code == rhi::ErrorCode::OutOfDate)
     {
         m_needsResize = true;
-        return std::unexpected{ Error::SwapchainOutOfDate };
+        return makeError(ErrorCode::SwapchainOutOfDate);
     }
     if (!acquiredImage)
-        return std::unexpected{ Error::FrameBeginFailed };
+        return makeError(ErrorCode::FrameBeginFailed, "Failed to acquire a swapchain image", acquiredImage.error());
 
     return std::expected<FrameInfo, Error>{
         std::in_place,
@@ -357,7 +358,6 @@ auto Renderer::endFrame() noexcept -> std::expected<void, Error>
                              : m_device.graphicsQueue().submit(cmd);
     if (!newSubmitTime)
     {
-        std::println("Failed to submit to queue");
         // The acquire already signalled imageAvailable and nothing will wait on it, so the slot's next
         // acquire would signal an already signalled semaphore (VUID-vkAcquireNextImageKHR-semaphore-01286).
         // A semaphore cannot be unsignalled: replace it once the GPU is idle.
@@ -367,7 +367,7 @@ auto Renderer::endFrame() noexcept -> std::expected<void, Error>
             if (auto semaphore = m_device.createSemaphore({ .name = std::format("ImageAvailableSemaphoreFrame{}", m_currentFrame) }))
                 imageAvailable = std::move(*semaphore);
         }
-        return std::unexpected{ Error::QueueSubmitFailed };
+        return makeError(ErrorCode::QueueSubmitFailed, "Failed to submit to the graphics queue", newSubmitTime.error());
     }
     timePoint = *newSubmitTime;
 
@@ -378,8 +378,7 @@ auto Renderer::endFrame() noexcept -> std::expected<void, Error>
     m_currentFrame = (m_currentFrame + 1) % m_frameContext.size();
     if (!presented)
     {
-        std::println("Failed to present to queue");
-        return std::unexpected{ Error::SwapchainPresentFailed };
+        return makeError(ErrorCode::SwapchainPresentFailed, "Failed to present to the queue", presented.error());
     }
     return {};
 }
