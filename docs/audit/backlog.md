@@ -102,7 +102,8 @@ Taken 2026-10-17 (report §8 lists the original questions).
   - Why: source stays authoritative and reimports itself; imported data, which depends on importer
     version and shader-pinned layouts, is never committed, so a layout change needs no migration.
     Sidecars survive moves and git merges, unlike paths or one database file.
-  - → 6.9 ([#130]), 6.10 ([#131]), export ([#134]); a new item for the import cache. Decides F2.
+  - → 6.9 ([#130]), 6.10 ([#131]), 6.13–6.16 ([#137]–[#140]), export ([#134]); later material
+    files ([#141]), prefab overrides ([#142]) and hot reload ([#143]). Decides F2.
 
 Smaller decisions:
 - **Subproject use:** make paths subproject-safe now (3.5, [#65]). How a game consumes the engine
@@ -156,8 +157,10 @@ chains: 5.1 ([#72]) → 5.2 ([#73]) → 5.3 ([#74]) → 5.4 ([#75]), and 5.5 ([#
 **[M6. `aegis.app`][m6]** (P7) makes the engine host the game (D7, reworked 2026-10-19 after
 [`docs/editor-runtime-split.md`](../editor-runtime-split.md)). One PR per step; examples port one
 per commit. Working order, so the numbers are not sequential: 6.1 ([#79]) and 6.2 ([#80]), the type
-registry 6.8 ([#129], done), then 6.3 ([#81]) and 6.4 ([#82]); asset IDs 6.9 ([#130], design in D8)
-and scene files 6.10 ([#131]); the game launcher 6.11 ([#132]); then the editor on top, 6.5
+registry 6.8 ([#129], done), then 6.3 ([#81]) and 6.4 ([#82]). The asset chain (D8): the `World`
+rename 6.14 ([#138], right after 6.2) and the asset-type renames 6.15 ([#139], after 5.3), then asset
+IDs 6.9 ([#130]), the import cache 6.13 ([#137]) and scene files 6.10 ([#131]), then scene instances
+6.16 ([#140]). Then the game launcher 6.11 ([#132]); then the editor on top, 6.5
 ([#83]) and 6.12 ([#133]), and `aegis-test` on the app, 6.6 ([#84]). The rename to `aegis.core`,
 6.7 ([#85]), comes last, once the legacy core is gone.
 
@@ -173,7 +176,9 @@ standard libraries the same module, so the failures it was meant to catch no lon
 
 **[After the foundation][later]** holds the features that build on it: the material system's
 alpha-mask and double-sided materials ([#135], D5), lavapipe device tests in CI ([#136], not a
-priority), and exporting a game ([#134], D7/F1, waits for F2 and 6.11).
+priority), exporting a game ([#134], D7/F1/D8, waits for 6.9, 6.11 and 6.13), and the later asset
+features (D8): native material files ([#141]), prefab overrides and unpacking ([#142]), and asset
+hot reload ([#143]).
 
 ---
 
@@ -250,3 +255,10 @@ game build, a scripting language.
 [#134]: https://github.com/chFleschutz/aegis-engine/issues/134
 [#135]: https://github.com/chFleschutz/aegis-engine/issues/135
 [#136]: https://github.com/chFleschutz/aegis-engine/issues/136
+[#137]: https://github.com/chFleschutz/aegis-engine/issues/137
+[#138]: https://github.com/chFleschutz/aegis-engine/issues/138
+[#139]: https://github.com/chFleschutz/aegis-engine/issues/139
+[#140]: https://github.com/chFleschutz/aegis-engine/issues/140
+[#141]: https://github.com/chFleschutz/aegis-engine/issues/141
+[#142]: https://github.com/chFleschutz/aegis-engine/issues/142
+[#143]: https://github.com/chFleschutz/aegis-engine/issues/143

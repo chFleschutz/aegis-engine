@@ -183,23 +183,24 @@ the defaults while pending), implemented synchronously first; the slot lets hot 
 ## Changes and order
 
 Renames:
-- `scene::Scene` → `World`, and `aegis.scene` → `aegis.world`, mechanical, with 6.2 (#80). `Scene`
-  becomes the serializer's asset type (6.10, #131).
-- The `Mesh` and `Material` components merge into
-  `MeshRenderer { AssetRef<StaticMesh> mesh; AssetRef<Material> material; }`. Every pass views both
-  anyway, and D2's signals then watch one component.
-- `MaterialInstance` → `Material`.
-- The `Environment` component → `Sky { AssetRef<Environment> environment; }`.
-- `Engine::loadModel` / `loadTexture` / `loadEnvironment` → `AssetLibrary` calls by ID;
+- `scene::Scene` → `World`, and `aegis.scene` → `aegis.world`, mechanical, right after 6.2 (#80):
+  6.14 (#138). `Scene` becomes the serializer's asset type (6.10, #131).
+- 6.15 (#139): the `Mesh` and `Material` components merge into
+  `MeshRenderer { AssetRef<StaticMesh> mesh; AssetRef<Material> material; }` (every pass views both
+  anyway, and D2's signals then watch one component); `MaterialInstance` → `Material`; the
+  `Environment` component → `Sky { AssetRef<Environment> environment; }`, without the BRDF LUT.
+- `Engine::loadModel` / `loadTexture` / `loadEnvironment` → `AssetLibrary` calls by ID (#130);
   `core::Asset` goes (#75).
 
 Order:
-1. #72 → #73 (defines the sub-asset keys) → #74 → #75.
+1. #72 → #73 (defines the sub-asset keys) → #74 → #75; #138 after #80; #139 after #74.
 2. 6.9 (#130): sidecars, database, `AssetId`, `AssetRef`, the library cache (closes A-CONTENT-04).
-3. The import cache (new item).
-4. 6.10 (#131): scene files with local IDs and instances.
-5. Export (#134): cook and pak.
-6. Later: material files and "extract material", overrides, hot reload.
+3. 6.13 (#137): the import cache.
+4. 6.10 (#131): scene files.
+5. 6.16 (#140): scene instances with local and derived entity IDs; models load as scenes.
+6. Export (#134): cook and pak.
+7. Later: material files and "Extract material" (#141), overrides and unpacking (#142), hot reload
+   (#143).
 
 ## Open
 
