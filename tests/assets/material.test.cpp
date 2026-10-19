@@ -23,11 +23,11 @@ TEST_SUITE("assets::MaterialTemplate")
     TEST_CASE("packs parameters with scalar alignment, like the C++ structs shaders mirror")
     {
         MaterialTemplate pbr;
-        pbr.addParameter("metallic", 0.0f);             // 0
-        pbr.addParameter("albedo", glm::vec3{ 1.0f });  // 4: a vec3 aligns like a float
-        pbr.addParameter("roughness", 1.0f);            // 16
-        pbr.addParameter("uvScale", glm::vec2{ 1.0f }); // 20
-        pbr.addParameter("layer", std::uint32_t{ 0 });  // 28
+        CHECK(pbr.addParameter("metallic", 0.0f).has_value());             // 0
+        CHECK(pbr.addParameter("albedo", glm::vec3{ 1.0f }).has_value());  // 4: a vec3 aligns like a float
+        CHECK(pbr.addParameter("roughness", 1.0f).has_value());            // 16
+        CHECK(pbr.addParameter("uvScale", glm::vec2{ 1.0f }).has_value()); // 20
+        CHECK(pbr.addParameter("layer", std::uint32_t{ 0 }).has_value());  // 28
 
         CHECK(pbr.parameter("metallic")->offset == 0);
         CHECK(pbr.parameter("albedo")->offset == 4);
@@ -75,8 +75,8 @@ TEST_SUITE("assets::detail::writeParameters")
     TEST_CASE("writes defaults, and overrides where given")
     {
         MaterialTemplate pbr;
-        pbr.addParameter("metallic", 0.25f);
-        pbr.addParameter("albedo", glm::vec3{ 1.0f, 2.0f, 3.0f });
+        CHECK(pbr.addParameter("metallic", 0.25f).has_value());
+        CHECK(pbr.addParameter("albedo", glm::vec3{ 1.0f, 2.0f, 3.0f }).has_value());
 
         std::array<std::byte, 64> block{};
         writeParameters(pbr, {}, block);

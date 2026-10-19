@@ -60,7 +60,7 @@ auto writeParameters(const MaterialTemplate& materialTemplate,
 }
 }
 
-auto MaterialTemplate::addParameter(const std::string& name, MaterialValue defaultValue) -> void
+auto MaterialTemplate::addParameter(const std::string& name, MaterialValue defaultValue) -> std::expected<void, Error>
 {
     assert(!m_parameters.contains(name) && "Material parameter already exists");
     assert((!std::holds_alternative<std::shared_ptr<Texture>>(defaultValue) ||
@@ -71,6 +71,7 @@ auto MaterialTemplate::addParameter(const std::string& name, MaterialValue defau
     const auto size = detail::scalarSize(defaultValue);
     m_parameterSize = offset + size;
     m_parameters.emplace(name, MaterialParameter{ .offset = offset, .size = size, .defaultValue = std::move(defaultValue) });
+    return {};
 }
 
 auto MaterialTemplate::parameter(const std::string& name) const -> const MaterialParameter*
@@ -116,7 +117,7 @@ MaterialInstance::~MaterialInstance()
     m_device.free(m_buffer);
 }
 
-auto MaterialInstance::setParameter(const std::string& name, MaterialValue value) -> void
+auto MaterialInstance::setParameter(const std::string& name, MaterialValue value) -> std::expected<void, Error>
 {
     [[maybe_unused]] const auto* parameter = m_template->parameter(name);
     assert(parameter && "Material parameter not found");
@@ -124,16 +125,16 @@ auto MaterialInstance::setParameter(const std::string& name, MaterialValue value
 
     m_overrides.insert_or_assign(name, std::move(value));
     std::ranges::fill(m_dirty, true);
+    return {};
 }
 
-auto MaterialInstance::parameter(const std::string& name) const -> const MaterialValue&
+auto MaterialInstance::parameter(const std::string& name) const -> const MaterialValue*
 {
     if (const auto found = m_overrides.find(name); found != m_overrides.end())
-        return found->second;
+        return &found->second;
 
     const auto* parameter = m_template->parameter(name);
-    assert(parameter && "Material parameter not found");
-    return parameter->defaultValue;
+    return parameter ? &parameter->defaultValue : nullptr;
 }
 
 auto MaterialInstance::update(std::uint32_t frameIndex) -> void

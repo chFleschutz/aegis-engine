@@ -621,7 +621,10 @@ public:
                 return std::unexpected{ "A loaded mesh is empty or has no device address" };
             if (!material.instance)
                 return std::unexpected{ "A loaded mesh has no material" };
-            const auto& albedo = material.instance->parameter<std::shared_ptr<assets::Texture>>("albedoMap");
+            const auto* albedoMap = material.instance->parameter<std::shared_ptr<assets::Texture>>("albedoMap");
+            if (!albedoMap || !*albedoMap)
+                return std::unexpected{ "A loaded material has no albedo map" };
+            const auto& albedo = *albedoMap;
             if (albedo != defaults->white)
             {
                 // The helmet's albedo: decoded at full size, with GPU-generated mips.

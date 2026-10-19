@@ -39,7 +39,7 @@ public:
 
     /// @brief Appends a parameter after the existing ones. Names must be unique; a texture default
     ///        must not be null.
-    auto addParameter(const std::string& name, MaterialValue defaultValue) -> void;
+    [[nodiscard]] auto addParameter(const std::string& name, MaterialValue defaultValue) -> std::expected<void, Error>;
 
     [[nodiscard]] auto type() const noexcept -> MaterialType { return m_type; }
     [[nodiscard]] auto parameterSize() const noexcept -> std::size_t { return m_parameterSize; }
@@ -83,15 +83,18 @@ public:
     }
 
     /// @brief Overrides the template's default. 'value' must hold the same type as the default.
-    auto setParameter(const std::string& name, MaterialValue value) -> void;
+    [[nodiscard]] auto setParameter(const std::string& name, MaterialValue value) -> std::expected<void, Error>;
 
     /// @brief The override if set, otherwise the template's default.
-    [[nodiscard]] auto parameter(const std::string& name) const -> const MaterialValue&;
+    /// @return nullptr if the template has no parameter 'name'.
+    [[nodiscard]] auto parameter(const std::string& name) const -> const MaterialValue*;
 
+    /// @return nullptr if the template has no parameter 'name', or it does not hold a T.
     template<typename T>
-    [[nodiscard]] auto parameter(const std::string& name) const -> const T&
+    [[nodiscard]] auto parameter(const std::string& name) const -> const T*
     {
-        return std::get<T>(parameter(name));
+        const auto* value = parameter(name);
+        return value ? std::get_if<T>(value) : nullptr;
     }
 
     /// @brief Rewrites the block of frame slot 'frameIndex' if parameters changed since that slot was

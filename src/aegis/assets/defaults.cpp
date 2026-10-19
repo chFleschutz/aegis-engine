@@ -32,23 +32,35 @@ auto DefaultAssets::create(rhi::Device& device, std::uint32_t framesInFlight) ->
     }
 
     defaults.pbrTemplate = std::make_shared<MaterialTemplate>();
-    auto& pbr = *defaults.pbrTemplate;
-    pbr.addParameter("albedo", glm::vec3{ 1.0f, 1.0f, 1.0f });
-    pbr.addParameter("emissive", glm::vec3{ 0.0f, 0.0f, 0.0f });
-    pbr.addParameter("metallic", 0.0f);
-    pbr.addParameter("roughness", 1.0f);
-    pbr.addParameter("ambientOcclusion", 1.0f);
-    pbr.addParameter("albedoMap", defaults.white);
-    pbr.addParameter("normalMap", defaults.normal);
-    pbr.addParameter("metalRoughnessMap", defaults.white);
-    pbr.addParameter("ambientOcclusionMap", defaults.white);
-    pbr.addParameter("emissiveMap", defaults.white);
+    struct Parameter
+    {
+        const char* name;
+        MaterialValue defaultValue;
+    };
+    const std::array pbrParameters{
+        Parameter{ "albedo", glm::vec3{ 1.0f, 1.0f, 1.0f } },
+        Parameter{ "emissive", glm::vec3{ 0.0f, 0.0f, 0.0f } },
+        Parameter{ "metallic", 0.0f },
+        Parameter{ "roughness", 1.0f },
+        Parameter{ "ambientOcclusion", 1.0f },
+        Parameter{ "albedoMap", defaults.white },
+        Parameter{ "normalMap", defaults.normal },
+        Parameter{ "metalRoughnessMap", defaults.white },
+        Parameter{ "ambientOcclusionMap", defaults.white },
+        Parameter{ "emissiveMap", defaults.white },
+    };
+    for (const auto& [name, defaultValue] : pbrParameters)
+    {
+        if (auto added = defaults.pbrTemplate->addParameter(name, defaultValue); !added)
+            return std::unexpected{ added.error() };
+    }
 
     auto material = MaterialInstance::create(device, defaults.pbrTemplate, framesInFlight);
     if (!material)
         return std::unexpected{ material.error() };
     defaults.pbrMaterial = std::move(*material);
-    defaults.pbrMaterial->setParameter("albedo", glm::vec3{ 0.8f, 0.8f, 0.9f });
+    if (auto set = defaults.pbrMaterial->setParameter("albedo", glm::vec3{ 0.8f, 0.8f, 0.9f }); !set)
+        return std::unexpected{ set.error() };
 
     return defaults;
 }
