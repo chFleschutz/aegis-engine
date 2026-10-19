@@ -3,8 +3,11 @@ import std;
 import :buffer;
 import :command_buffer;
 import :command_pool;
+import :commands;
 import :common;
+import :error;
 import :fwd;
+import :image;
 import :queue;
 import :resource_handle;
 import :ring_allocator;
@@ -142,4 +145,23 @@ private:
     bool m_batchOpen{ false };
     std::size_t m_pendingEndOffset{ 0 };
 };
+}
+
+export namespace aegis::rhi::detail
+{
+/// @brief What UploadManager::upload(ImageHandle, ...) stages and records for one image upload.
+struct ImageUploadPlan
+{
+    std::vector<SubresourceFootprint> footprints; //< One per mip level the caller supplies.
+    std::size_t stagingSize;                      //< Bytes to stage, including padding between mips.
+    std::size_t stagingAlignment;                 //< Of the staging allocation (copyAlignment).
+    std::vector<BufferImageCopy> regions;         //< bufferOffset relative to the staging allocation.
+    bool generateMips;                            //< Blit mips 1+ from mip 0 after the copy.
+};
+
+/// @brief Plans an upload of 'dataSize' bytes into an image, without a Device.
+/// @param mipLevels The image's mip count (resolved, not Image::fullMipChain).
+/// @param generateMips The caller supplies mip 0 only, the rest are blitted.
+[[nodiscard]] auto planImageUpload(Extent3D extent, Format format, std::uint32_t mipLevels,
+    std::uint32_t arrayLayers, bool generateMips, std::size_t dataSize) -> std::expected<ImageUploadPlan, Error>;
 }
