@@ -34,6 +34,7 @@ PRIVATE
 target_link_libraries(aegis-engine 
 PUBLIC 
 	aegis-assets
+	aegis-base
 	aegis-core
 	aegis-platform
 	aegis-reflect

@@ -23,6 +23,7 @@ target_include_directories(aegis-scene PRIVATE
 # PUBLIC: the module interfaces import aegis.math and aegis.core and export EnTT's names.
 target_link_libraries(aegis-scene
 PUBLIC
+	aegis-base
 	aegis-core
 	aegis-math
 	EnTT::EnTT

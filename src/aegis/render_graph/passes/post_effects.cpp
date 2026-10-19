@@ -67,8 +67,6 @@ auto BloomPass::resized(ResourcePool& pool) -> std::expected<void, Error>
 
 auto BloomPass::createMipViews(ResourcePool& pool) -> std::expected<void, Error>
 {
-    using namespace rhi::utility;
-
     // The image has fewer mips than requested when the window is tiny.
     const auto& image = m_device->get(pool.texture(m_bloom).image);
     for (std::uint32_t mip = 0; mip < image.mipLevels(); ++mip)

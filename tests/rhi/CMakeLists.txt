@@ -3,6 +3,7 @@ aegis_add_test(rhi
         bindless_slots.test.cpp
         deletion_queue.test.cpp
         device.test.cpp
+        format.test.cpp
         free_list.test.cpp
         query.test.cpp
         image.test.cpp
@@ -12,6 +13,5 @@ aegis_add_test(rhi
         sampler.test.cpp
         swapchain.test.cpp
         upload_manager.test.cpp
-        utility.test.cpp
     LIBS aegis-rhi
 )

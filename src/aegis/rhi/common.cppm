@@ -1,6 +1,8 @@
+module;
+#include "aegis/base/flags.h"
+
 export module aegis.rhi:common;
 import std;
-import :utility;
 
 export namespace aegis::rhi
 {
@@ -174,11 +176,7 @@ enum class BufferUsage : std::uint32_t
 };
 // clang-format on
 
-namespace utility
-{
-template<>
-constexpr auto isFlagEnum<BufferUsage>{ true };
-}
+AEGIS_FLAGS(BufferUsage)
 
 /// @brief Dimensionality of an image. Cube is a 2D image whose array layers are cube faces (a multiple
 ///        of 6, square extent); it is what makes an image cube-compatible.
@@ -216,11 +214,7 @@ enum class ImageUsage : std::uint32_t
 };
 // clang-format on
 
-namespace utility
-{
-template<>
-constexpr auto isFlagEnum<ImageUsage>{ true };
-}
+AEGIS_FLAGS(ImageUsage)
 
 enum class MemoryUsage
 {

@@ -5,7 +5,6 @@ import :context;
 import :debug;
 import :error;
 import :upload_manager;
-import :utility;
 import :vulkan_conversions;
 import vulkan;
 
