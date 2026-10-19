@@ -4,13 +4,12 @@ module;
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <cstdio>
-
 module aegis.rhi;
 import std;
 import :context;
 import :error;
 import :vulkan_conversions;
+import aegis.base;
 import aegis.platform;
 
 namespace aegis::rhi
@@ -43,13 +42,10 @@ VKAPI_ATTR auto VKAPI_CALL debugCallback(
     if (isError)
         ++g_validationErrors;
 
-    const auto* severityStr = isError ? "Error" : "Warning";
-    std::println(
-        stderr,
-        "Vulkan {} {}: \n{}\n",
-        trimmedType,
-        severityStr,
-        pCallbackData->pMessage);
+    if (isError)
+        log::error("Vulkan {}: {}", trimmedType, pCallbackData->pMessage);
+    else
+        log::warn("Vulkan {}: {}", trimmedType, pCallbackData->pMessage);
     return vk::False;
 }
 

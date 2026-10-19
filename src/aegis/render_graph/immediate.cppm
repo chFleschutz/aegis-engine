@@ -12,7 +12,8 @@ export namespace aegis::render_graph
 template<typename Record>
 auto submitImmediate(rhi::Device& device, std::string_view name, Record&& record) -> std::expected<void, Error>
 {
-    std::ignore = device.flushUploads();
+    if (auto flushed = device.flushUploads(); !flushed)
+        return makeError(flushed.error(), std::format("{}: failed to flush uploads", name));
 
     auto pool = device.createCommandPool({ .name = name, .queueFamily = device.graphicsQueue().family() });
     if (!pool)

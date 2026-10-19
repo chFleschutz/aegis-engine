@@ -161,12 +161,12 @@ public:
             .window = engine.m_window.get(),
         });
         if (!context)
-            return std::unexpected{ "Failed to create rhi context" };
+            return std::unexpected{ std::format("Failed to create rhi context: {}", rhi::describe(context.error())) };
         engine.m_context = std::move(*context);
 
         auto device = engine.m_context->createDevice({});
         if (!device)
-            return std::unexpected{ "Failed to create rhi device" };
+            return std::unexpected{ std::format("Failed to create rhi device: {}", rhi::describe(device.error())) };
         if (options.gpuDriven && !(*device)->capabilities().meshShaders)
             return std::unexpected{ std::string{ skipMeshShaders } };
         engine.m_device = std::move(*device);
@@ -1056,7 +1056,12 @@ public:
             }
 
             // Nothing queues uploads per frame yet; drain anyway so the path stays exercised.
-            std::ignore = m_device->flushUploads();
+            if (auto flushed = m_device->flushUploads(); !flushed)
+            {
+                std::println("Flushing uploads failed: {}", rhi::describe(flushed.error()));
+                m_device->waitIdle();
+                return 1;
+            }
 
             if (m_scene)
                 m_scene->update(1.0f / 60.0f);
@@ -1373,10 +1378,12 @@ private:
     // Drains the open upload batch and blocks until the GPU has consumed it.
     auto flushAndWait() -> std::expected<void, std::string>
     {
-        auto timeline = m_device->flushUploads();
-        if (!timeline)
+        auto flushed = m_device->flushUploads();
+        if (!flushed)
+            return std::unexpected{ std::format("flushUploads failed: {}", rhi::describe(flushed.error())) };
+        if (!*flushed)
             return std::unexpected{ "flushUploads did not submit a batch" };
-        m_device->graphicsQueue().wait(*timeline);
+        m_device->graphicsQueue().wait(**flushed);
         return {};
     }
 
