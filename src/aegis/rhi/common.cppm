@@ -18,7 +18,8 @@ enum class ErrorCode
     InitializationFailed,
     NotReady,
     FormatNotSupported,
-    InvalidArgument, // A caller bug, e.g. upload data that does not match the image; retrying cannot help
+    OutOfDescriptors, // A bindless slot pool is exhausted; free views or samplers first, retrying alone cannot help
+    InvalidArgument,  // A caller bug, e.g. upload data that does not match the image; retrying cannot help
 };
 
 enum class Format
