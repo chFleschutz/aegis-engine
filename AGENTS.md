@@ -199,9 +199,9 @@ re-check them against the current code. Feature PRs don't edit `backlog.md`.
 
 ## Unit tests
 
-doctest covers **pure, GPU-independent logic** on the new RHI stack (plus `math`). One executable
-per module (`aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
-`aegis-tests-math`), each linking only that module's library. Layout, conventions, how to add a
+doctest covers **pure, GPU-independent logic** on the new RHI stack (plus `math` and `scene`). One
+executable per module (`aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
+`aegis-tests-math`, `aegis-tests-scene`), each linking only that module's library. Layout, conventions, how to add a
 module, and the full rationale: **`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*

@@ -22,6 +22,7 @@ add_subdirectory(assets)
 add_subdirectory(math)
 add_subdirectory(render_graph)
 add_subdirectory(rhi)
+add_subdirectory(scene)
 
 # Device-level check: the aegis-test harness, headless for a fixed number of frames. It exits non-zero
 # on any failed check or validation error. Needs a GPU with a Vulkan driver; `ctest -LE device` skips it.

@@ -1,7 +1,7 @@
 # Tests
 
 Unit tests for the new RHI stack (`aegis.rhi` / `renderer` / `platform`, later `render_graph` /
-`assets`). Scope is intentionally narrow: **pure, GPU-independent logic** that survives the
+`assets`), plus `aegis.math` and `aegis.scene`. Scope is intentionally narrow: **pure, GPU-independent logic** that survives the
 migration. Device-level integration stays in the harness (`../src/aegis/test/`), which CTest also
 runs headless as the one `device`-labelled test.
 
@@ -23,8 +23,8 @@ ctest --preset windows-clang-debug -L rhi
 `-L` filters by the per-module label. `-R "rhi::"` does **not** work: CTest registers each case under
 its `TEST_CASE` name, so a `TEST_SUITE` filter silently reports "No tests were found".
 
-Currently 104 cases across `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph` and
-`aegis-tests-math`, plus three `device`-labelled `aegis-test` runs (triangle, CPU- and GPU-driven scene).
+Currently 117 cases across `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
+`aegis-tests-math` and `aegis-tests-scene`, plus three `device`-labelled `aegis-test` runs (triangle, CPU- and GPU-driven scene).
 
 ### Device-level check
 
@@ -49,7 +49,8 @@ with synthetic key and mouse messages, on Windows only (other platforms skip tha
 ## What we test
 
 Pure logic that needs no live `rhi::Device`: ring/offset math, free lists, generational handles,
-`alignTo`, swapchain sizing policy, mip-chain arithmetic, and `aegis::math`.
+`alignTo`, swapchain sizing policy, mip-chain arithmetic, `aegis::math`, and the
+scene hierarchy (`scene::Registry`).
 
 Anything whose only constructor touches the GPU belongs in the device-level harness — or gets its
 pure part extracted (see below).
