@@ -287,7 +287,8 @@ M1, except 2.4 after 1.11 and 2.7 after M1.
     `Format | Format` no longer compiles; the 13 using-directives and `Modifiers` operators are
     gone), `:align`, `:match`, the profiler (public ctor, `steady_clock`); `tests/base` covers
     flags, the log sink and `RollingAverage` before the window fills.
-- [ ] **3.2a–d** `refactor/errors-{rhi,renderer,render-graph,assets}` · M (four PRs) · #59, #60, #61, #62
+- [x] **3.2a–d** `refactor/errors-{rhi,renderer,render-graph,assets}` · M (four PRs) · #59, #60, #61, #62
+  · PRs #125 (rhi), #126, #127, #128 (stacked on #125), not merged
   - Closes: A-FOUND-01 (C-02, D-07, D-22), A-FOUND-04 (C-10), B-RENDER-06 (lost batch error).
   - Depends: 3.1.
   - Done when: each module's `Error` has the D1 shape and a tested `describe()`; the
