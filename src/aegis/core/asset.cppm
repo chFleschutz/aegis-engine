@@ -18,9 +18,4 @@ protected:
 
 template<typename T>
 concept IsAsset = std::derived_from<T, Asset>;
-
-template<typename T>
-concept IsLoadable = requires(const std::filesystem::path& path) {
-    { T::load(path) } -> std::same_as<std::shared_ptr<T>>;
-};
 }

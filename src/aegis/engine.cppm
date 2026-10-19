@@ -17,7 +17,6 @@ export import aegis.ui;
 export import aegis.editor;
 export import aegis.defaults;
 export import aegis.scene_description;
-export import aegis.core.asset_manager;
 export import aegis.core.globals;
 export import aegis.core.layer_stack;
 export import aegis.core.logging;
@@ -79,7 +78,6 @@ public:
         return *s_instance;
     }
 
-    [[nodiscard]] static auto assets() -> core::AssetManager& { return instance().m_assets; }
     [[nodiscard]] static auto window() -> aegis::platform::Window& { return instance().m_window; }
     [[nodiscard]] static auto input() -> aegis::platform::Input& { return instance().m_input; }
     [[nodiscard]] static auto device() -> aegis::rhi::Device& { return *instance().m_device; }
@@ -252,15 +250,6 @@ private:
             fatalSetup(std::format("Failed to create the IBL pipelines: {}", ibl.error().message));
         m_ibl.emplace(std::move(*ibl));
         m_brdfLut = check(m_ibl->brdfLut(), "compute the BRDF lookup table");
-
-        // Under the names the old renderer used, for code that looks them up.
-        m_assets.add("default/texture_black", m_defaults->black);
-        m_assets.add("default/texture_white", m_defaults->white);
-        m_assets.add("default/texture_normal", m_defaults->normal);
-        m_assets.add("default/cubemap_black", m_defaults->blackCube);
-        m_assets.add("default/cubemap_white", m_defaults->whiteCube);
-        m_assets.add("default/PBR_template", m_defaults->pbrTemplate);
-        m_assets.add("default/PBR_instance", m_defaults->pbrMaterial);
     }
 
     void createFrameGraph()
@@ -341,7 +330,6 @@ private:
     std::unique_ptr<aegis::rhi::Context> m_context;
     std::unique_ptr<aegis::rhi::Device> m_device;
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
-    core::AssetManager m_assets{};
     std::optional<aegis::assets::DefaultAssets> m_defaults;
     std::optional<aegis::render_graph::Ibl> m_ibl;
     std::shared_ptr<aegis::assets::Texture> m_brdfLut;

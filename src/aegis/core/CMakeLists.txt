@@ -17,7 +17,6 @@ PUBLIC
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
 		asset.cppm
-		asset_manager.cppm
 		globals.cppm
 		layer.cppm
 		layer_stack.cppm
@@ -27,7 +26,6 @@ PUBLIC
 
 target_compile_definitions(aegis-core PUBLIC
     PROJECT_DIR="${PROJECT_DIR}"
-    BUILD_DIR="${BUILD_DIR}"
 )
 
 # TODO: remove this once everything is a module
