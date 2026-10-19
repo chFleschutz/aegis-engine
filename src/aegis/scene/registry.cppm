@@ -102,13 +102,14 @@ public:
         return m_registry.view<Components...>(exclusion);
     }
 
-    void setParent(Entity entity, Entity parent)
+    /// @brief Makes the entity the last child of parent, detaching it from its previous parent
+    /// @return False (and changes nothing) if parent is the entity itself or one of its descendants
+    auto setParent(Entity entity, Entity parent) -> bool
     {
         AGX_ASSERT_X(entity, "Cannot set parent: Entity is null");
         AGX_ASSERT_X(parent, "Cannot set parent: Parent entity is null");
-        AGX_ASSERT_X(parent != entity, "Cannot set parent: Entity cannot be its own parent");
 
-        addChild(parent, entity);
+        return addChild(parent, entity);
     }
 
     void removeParent(Entity entity)
@@ -116,30 +117,43 @@ public:
         AGX_ASSERT_X(entity, "Cannot remove parent: Entity is null");
         AGX_ASSERT_X(has<Parent>(entity), "Cannot remove parent: Entity does not have a parent");
 
-        auto& parent = get<Parent>(entity);
-        if (!parent.entity)
-            return;
-
-        removeChild(parent.entity, entity);
-        parent.entity = Entity{};
+        const Entity parent = get<Parent>(entity).entity;
+        if (parent)
+            removeChild(parent, entity);
     }
 
-    void addChild(Entity entity, Entity child)
+    /// @brief Checks if the entity is root or one of root's descendants
+    [[nodiscard]] auto isInSubtree(Entity entity, Entity root) const -> bool
+    {
+        for (Entity current = entity; current; current = m_registry.get<Parent>(current.id()).entity)
+        {
+            if (current == root)
+                return true;
+        }
+        return false;
+    }
+
+    /// @brief Makes child the last child of the entity, detaching it from its previous parent
+    /// @return False (and changes nothing) if the entity is child itself or one of its descendants
+    auto addChild(Entity entity, Entity child) -> bool
     {
         AGX_ASSERT_X(entity, "Cannot add child: Entity is null");
         AGX_ASSERT_X(child, "Cannot add child: Child entity is null");
 
-        auto& parent = get<Parent>(child);
-        if (parent.entity == entity) // Already added as a child
-            return;
+        if (isInSubtree(entity, child)) // Would create a cycle
+            return false;
 
-        parent.entity = entity;
+        if (get<Parent>(child).entity == entity) // Already added as a child
+            return true;
+
+        removeParent(child);
 
         auto& children = get<Children>(entity);
-        if (children.first)
+        get<Parent>(child).entity = entity;
+        get<Siblings>(child) = Siblings{ .next = Entity{}, .prev = children.last };
+        if (children.last)
         {
             get<Siblings>(children.last).next = child;
-            get<Siblings>(child).prev = children.last;
         }
         else // No children yet
         {
@@ -147,6 +161,7 @@ public:
         }
         children.last = child;
         children.count++;
+        return true;
     }
 
     void removeChild(Entity entity, Entity child)
@@ -183,8 +198,9 @@ public:
             children.last = siblings.prev;
         }
 
-        // Remove parent at the end
+        // Detach the child at the end
         get<Parent>(child) = Parent{};
+        get<Siblings>(child) = Siblings{};
     }
 
     void removeChildren(Entity entity)

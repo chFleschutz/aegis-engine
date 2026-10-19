@@ -99,4 +99,129 @@ TEST_SUITE("scene::Registry")
         checkDetached(registry, first);
         checkDetached(registry, second);
     }
+
+    TEST_CASE("unlinks a removed child and keeps its siblings linked")
+    {
+        Registry registry;
+        const auto parent = registry.create("parent");
+        const auto other = registry.create("other");
+        const std::vector children{ registry.create("first"), registry.create("middle"), registry.create("last") };
+        for (auto child : children)
+        {
+            registry.setParent(child, parent);
+        }
+
+        auto removeAndCheck = [&](std::size_t index) {
+            const auto removed = children[index];
+            auto remaining = children;
+            remaining.erase(remaining.begin() + static_cast<std::ptrdiff_t>(index));
+
+            registry.removeParent(removed);
+            checkChildren(registry, parent, remaining);
+            checkDetached(registry, removed);
+
+            // The removed child carries no stale sibling into its next parent's list.
+            registry.setParent(removed, other);
+            checkChildren(registry, other, { removed });
+            checkChildren(registry, parent, remaining);
+        };
+
+        SUBCASE("first")
+        {
+            removeAndCheck(0);
+        }
+        SUBCASE("middle")
+        {
+            removeAndCheck(1);
+        }
+        SUBCASE("last")
+        {
+            removeAndCheck(2);
+        }
+    }
+
+    TEST_CASE("keeps both child lists consistent when a child is reparented")
+    {
+        Registry registry;
+        const auto oldParent = registry.create("old parent");
+        const auto newParent = registry.create("new parent");
+        const auto child = registry.create("child");
+        const auto oldSibling = registry.create("old sibling");
+        const auto newSibling = registry.create("new sibling");
+
+        SUBCASE("an only child")
+        {
+            registry.setParent(child, oldParent);
+            CHECK(registry.setParent(child, newParent));
+            registry.setParent(newSibling, newParent);
+
+            checkChildren(registry, oldParent, {});
+            checkChildren(registry, newParent, { child, newSibling });
+        }
+
+        SUBCASE("a child between siblings")
+        {
+            const auto lastSibling = registry.create("last sibling");
+            registry.setParent(oldSibling, oldParent);
+            registry.setParent(child, oldParent);
+            registry.setParent(lastSibling, oldParent);
+            registry.setParent(newSibling, newParent);
+
+            CHECK(registry.addChild(newParent, child));
+
+            checkChildren(registry, oldParent, { oldSibling, lastSibling });
+            checkChildren(registry, newParent, { newSibling, child });
+        }
+
+        SUBCASE("then the old parent is destroyed")
+        {
+            registry.setParent(child, oldParent);
+            registry.setParent(oldSibling, oldParent);
+            registry.setParent(child, newParent);
+            registry.setParent(newSibling, newParent);
+
+            registry.destroy(oldParent);
+
+            checkDetached(registry, oldSibling);
+            checkChildren(registry, newParent, { child, newSibling });
+        }
+    }
+
+    TEST_CASE("rejects a parent that is the entity itself or one of its descendants")
+    {
+        Registry registry;
+        const auto root = registry.create("root");
+        const auto child = registry.create("child");
+        const auto grandchild = registry.create("grandchild");
+        registry.setParent(child, root);
+        registry.setParent(grandchild, child);
+
+        SUBCASE("itself")
+        {
+            CHECK_FALSE(registry.setParent(root, root));
+            CHECK_FALSE(registry.addChild(child, child));
+        }
+        SUBCASE("a child")
+        {
+            CHECK_FALSE(registry.setParent(root, child));
+        }
+        SUBCASE("a grandchild")
+        {
+            CHECK_FALSE(registry.setParent(root, grandchild));
+            CHECK_FALSE(registry.addChild(grandchild, root));
+        }
+
+        // The hierarchy is unchanged.
+        checkDetached(registry, root);
+        checkChildren(registry, root, { child });
+        checkChildren(registry, child, { grandchild });
+        checkChildren(registry, grandchild, {});
+
+        SUBCASE("but accepts an ancestor that is not a descendant")
+        {
+            CHECK(registry.setParent(grandchild, root));
+            checkChildren(registry, root, { child, grandchild });
+            checkChildren(registry, child, {});
+        }
+    }
 }
