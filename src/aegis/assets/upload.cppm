@@ -19,7 +19,8 @@ auto uploadBlocking(rhi::Device& device, Handle dst, const Args&... args) -> std
         auto result = device.upload(dst, args...);
         if (result || result.error().code != rhi::ErrorCode::NotReady || attempt == maxAttempts)
             return result;
-        std::ignore = device.flushUploads();
+        if (auto flushed = device.flushUploads(); !flushed)
+            return std::unexpected{ flushed.error() };
     }
 }
 }

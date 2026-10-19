@@ -208,8 +208,7 @@ auto UploadManager::upload(ImageHandle dst, std::span<const std::byte> data, boo
     return {};
 }
 
-auto UploadManager::flushPending(Queue& queue) -> std::optional<TimelineValue>
-
+auto UploadManager::flushPending(Queue& queue) -> std::expected<std::optional<TimelineValue>, Error>
 {
     if (!m_batchOpen)
     {
@@ -236,7 +235,7 @@ auto UploadManager::flushPending(Queue& queue) -> std::optional<TimelineValue>
     m_overflowBuffers.clear();
 
     if (!timelineValue)
-        return std::nullopt;
+        return std::unexpected{ timelineValue.error() };
 
     m_inFlight.emplace_back(InFlight{
         .completeTime = *timelineValue,
@@ -250,7 +249,7 @@ auto UploadManager::flushPending(Queue& queue) -> std::optional<TimelineValue>
     while (m_inFlight.size() >= m_cmds.size())
         reclaimFront(queue);
 
-    return *timelineValue;
+    return std::optional{ *timelineValue };
 }
 
 UploadManager::UploadManager(Device& device, CommandPool cmdPool, std::vector<CommandBuffer> cmds,

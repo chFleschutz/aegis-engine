@@ -111,7 +111,8 @@ public:
 
     /// @brief Submits the currently open batch and reclaims completed staging memory.
     /// @return The timeline value the submitted batch signals, or nullopt if nothing was submitted.
-    auto flushPending(Queue& queue) -> std::optional<TimelineValue>;
+    ///         The queue's submit error if the submission failed; the batch is dropped then.
+    [[nodiscard]] auto flushPending(Queue& queue) -> std::expected<std::optional<TimelineValue>, Error>;
 
 private:
     struct InFlight
