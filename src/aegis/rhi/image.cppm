@@ -13,6 +13,10 @@ export namespace aegis::rhi::detail
 ///       image, which also keeps it unit-testable.
 [[nodiscard]] auto calcMipLevels(Extent3D extent) -> std::uint32_t;
 
+/// @brief 'requested' mip levels limited to what an image of 'extent' can have (at least 1).
+/// @note Image::fullMipChain clamps to the full chain, so it needs no special case.
+[[nodiscard]] auto clampMipLevels(std::uint32_t requested, Extent3D extent) -> std::uint32_t;
+
 /// @brief Size in bytes of one texel of 'format'.
 /// @return 0 for formats that cannot be copied from a linear buffer: Unknown, and the combined
 ///         depth/stencil formats (those need one copy region per aspect, which is not supported).

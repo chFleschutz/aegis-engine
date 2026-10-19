@@ -69,8 +69,9 @@ auto BloomPass::createMipViews(ResourcePool& pool) -> std::expected<void, Error>
 {
     using namespace rhi::utility;
 
+    // The image has fewer mips than requested when the window is tiny.
     const auto& image = m_device->get(pool.texture(m_bloom).image);
-    for (std::uint32_t mip = 0; mip < mipLevels; ++mip)
+    for (std::uint32_t mip = 0; mip < image.mipLevels(); ++mip)
     {
         auto view = m_device->createImageView(pool.texture(m_bloom).image,
             rhi::ImageView::Desc{
@@ -138,7 +139,8 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
         float filterScale;
     };
     cmd.bindPipeline(*m_downsample);
-    for (std::uint32_t mip = 1; mip < mipLevels; ++mip)
+    const auto mipCount = static_cast<std::uint32_t>(m_mipViews.size());
+    for (std::uint32_t mip = 1; mip < mipCount; ++mip)
     {
         cmd.transitionImageLayout(m_mipViews[mip - 1], rhi::ResourceState::ComputeStorage, rhi::ResourceState::ShaderReadCompute);
         cmd.pushConstants(DownsampleConstants{
@@ -149,7 +151,7 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
         });
         dispatchMip(mip);
     }
-    cmd.transitionImageLayout(m_mipViews[mipLevels - 1], rhi::ResourceState::ComputeStorage,
+    cmd.transitionImageLayout(m_mipViews[mipCount - 1], rhi::ResourceState::ComputeStorage,
         rhi::ResourceState::ShaderReadCompute);
 
     // Back up: each mip is rewritten from the one below.
@@ -160,7 +162,7 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
         float filterScale;
     };
     cmd.bindPipeline(*m_upsample);
-    for (auto mip = mipLevels - 1; mip > 0; --mip)
+    for (auto mip = mipCount - 1; mip > 0; --mip)
     {
         cmd.transitionImageLayout(m_mipViews[mip - 1], rhi::ResourceState::ShaderReadCompute, rhi::ResourceState::ComputeStorage);
         cmd.pushConstants(UpsampleConstants{
