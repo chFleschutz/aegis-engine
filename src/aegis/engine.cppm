@@ -222,7 +222,11 @@ private:
     {
         if (!result)
         {
-            fatalSetup(std::format("Failed to {}: {}", what, result.error().message));
+            // Module errors with a describe() print their code and rhi cause too.
+            if constexpr (requires { describe(result.error()); })
+                fatalSetup(std::format("Failed to {}: {}", what, describe(result.error())));
+            else
+                fatalSetup(std::format("Failed to {}: {}", what, result.error().message));
         }
         return std::move(*result);
     }
@@ -261,7 +265,7 @@ private:
         m_defaults = check(aegis::assets::DefaultAssets::create(*m_device, FRAMES_IN_FLIGHT), "create the default assets");
         auto ibl = aegis::render_graph::Ibl::create(*m_device);
         if (!ibl)
-            fatalSetup(std::format("Failed to create the IBL pipelines: {}", ibl.error().message));
+            fatalSetup(std::format("Failed to create the IBL pipelines: {}", describe(ibl.error())));
         m_ibl.emplace(std::move(*ibl));
         m_brdfLut = check(m_ibl->brdfLut(), "compute the BRDF lookup table");
     }
@@ -285,7 +289,7 @@ private:
             });
         if (auto compiled = m_frameGraph->compile(); !compiled)
         {
-            log::fatal("Failed to compile the frame graph: {}", compiled.error().message);
+            log::fatal("Failed to compile the frame graph: {}", describe(compiled.error()));
             AGX_ASSERT_X(false, "Failed to compile the frame graph");
         }
     }
@@ -311,7 +315,7 @@ private:
         }
         m_window.resetResized();
         if (auto resized = m_frameGraph->resized(); !resized)
-            log::fatal("Failed to resize the frame graph: {}", resized.error().message);
+            log::fatal("Failed to resize the frame graph: {}", describe(resized.error()));
         return true;
     }
 

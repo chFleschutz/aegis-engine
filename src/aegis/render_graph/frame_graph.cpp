@@ -43,7 +43,7 @@ auto FrameGraph::compile() -> std::expected<void, Error>
 
     auto order = detail::sortPasses(passDecls, entryDecls);
     if (!order)
-        return makeError(order.error());
+        return makeError(ErrorCode::InvalidGraph, order.error());
     m_order = std::move(*order);
 
     if (auto created = m_pool.createResources(); !created)
@@ -78,7 +78,7 @@ auto FrameGraph::compile() -> std::expected<void, Error>
     {
         auto pool = m_pool.device().createQueryPool({ .name = "FrameGraphTimestamps", .count = queryCount });
         if (!pool)
-            return makeError(pool.error(), "Failed to create the frame graph's timestamp queries");
+            return makeError(ErrorCode::ResourceCreationFailed, pool.error(), "Failed to create the frame graph's timestamp queries");
         m_timers.push_back({ .pool = std::move(*pool) });
     }
     return {};

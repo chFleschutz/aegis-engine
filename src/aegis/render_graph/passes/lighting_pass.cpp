@@ -4,6 +4,7 @@ module;
 module aegis.render_graph;
 import std;
 import aegis.assets;
+import aegis.base;
 import aegis.rhi;
 import aegis.math;
 import aegis.scene;
@@ -49,7 +50,7 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     {
         static bool reported{ false };
         if (!std::exchange(reported, true))
-            std::println("Lighting: the scene has no assets::Environment; skipping lighting");
+            log::warn("Lighting: the scene has no assets::Environment; skipping lighting");
         return;
     }
     const auto& environment = registry.get<assets::Environment>(environmentEntity);

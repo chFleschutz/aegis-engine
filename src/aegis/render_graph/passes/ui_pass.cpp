@@ -78,7 +78,7 @@ auto UiPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
             const auto function = getInstanceProcAddr(instance, name);
             return function ? function : reinterpret_cast<PFN_vkVoidFunction>(&unavailable); }, &loader);
     if (!loaded || !ImGui_ImplVulkan_Init(&initInfo))
-        return makeError("Failed to initialize ImGui's Vulkan backend");
+        return makeError(ErrorCode::InitializationFailed, "Failed to initialize ImGui's Vulkan backend");
     m_initialized = true;
     return {};
 }
