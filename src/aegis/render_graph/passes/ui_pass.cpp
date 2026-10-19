@@ -6,6 +6,7 @@ module;
 
 module aegis.render_graph;
 import std;
+import aegis.renderer;
 import aegis.rhi;
 import vulkan;
 
@@ -53,7 +54,8 @@ auto UiPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
         .Queue = static_cast<VkQueue>(*device.graphicsQueue()),
         .DescriptorPoolSize = descriptorPoolSize,
         .MinImageCount = 2,
-        .ImageCount = 2,
+        // One set of ImGui's vertex and index buffers per frame in flight; it cycles them on its own counter.
+        .ImageCount = renderer::Renderer::maxFramesInFlight,
         .PipelineInfoMain = {
             .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
             .PipelineRenderingCreateInfo = {
