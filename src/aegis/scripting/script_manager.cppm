@@ -1,3 +1,8 @@
+module;
+
+// Keeps std::derived_from and std::constructible_from visible to this interface (see AGENTS.md, import std)
+#include <concepts>
+
 export module aegis.scripting.script_manager;
 
 import std;

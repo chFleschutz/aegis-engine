@@ -1,3 +1,8 @@
+module;
+
+// Keeps std::derived_from visible to this interface (see AGENTS.md, import std)
+#include <concepts>
+
 export module aegis.scene_description;
 
 import std;
