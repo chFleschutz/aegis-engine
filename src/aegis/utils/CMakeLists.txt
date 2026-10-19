@@ -11,11 +11,8 @@ PUBLIC
 	FILE_SET CXX_MODULES 
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
-		color.cppm
-		file.cppm
 		rolling_average.cppm
 		timer.cppm
-		utils.cppm
 )
 
 # TODO: remove this once everything is a module

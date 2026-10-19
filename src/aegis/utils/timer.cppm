@@ -37,21 +37,4 @@ public:
 private:
     std::chrono::time_point<std::chrono::high_resolution_clock> m_start;
 };
-
-template<typename Unit = std::chrono::microseconds>
-class ScopeTimer
-{
-public:
-    ScopeTimer(std::string_view name = "Duration", std::ostream& os = std::cout) :
-        m_name{ name },
-        m_os{ os }
-    {
-    }
-    ~ScopeTimer() { m_os << std::format("{}: {:>8}\n", m_name, m_timer.elapsed<Unit>()); }
-
-private:
-    Timer m_timer;
-    std::string m_name;
-    std::ostream& m_os;
-};
 }
