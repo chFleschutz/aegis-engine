@@ -17,8 +17,22 @@ env:
   VULKAN_SDK_VERSION: 1.4.363.0
   LLVM_VERSION: 22
   LLVM_WINDOWS_VERSION: 22.1.4
+  CLANG_FORMAT_VERSION: 22.1.8
 
 jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # tools/format.sh requires clang-format 22.x; pin the exact release so formatting can't drift.
+      - name: Install clang-format
+        run: pip install "clang-format==$CLANG_FORMAT_VERSION"
+
+      - name: Check formatting
+        run: tools/format.sh --all --check
+
   linux:
     name: Linux (${{ matrix.config }})
     # Ubuntu 26.04 ships Clang 22 and libstdc++ 15 with a working libstdc++.modules.json (earlier
