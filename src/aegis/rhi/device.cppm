@@ -91,6 +91,8 @@ public:
     ///        CommandBuffer::maxPushConstantSize bytes of push constants visible to all stages.
     [[nodiscard]] auto pipelineLayout() const noexcept -> vk::PipelineLayout { return *m_pipelineLayout; }
 
+    /// @note A returned reference stays valid until the resource is freed or replaced; creating other
+    ///       resources never moves it.
     [[nodiscard]] auto get(BufferHandle handle) const -> const Buffer& { return m_buffers.get(handle); }
     [[nodiscard]] auto get(ImageHandle handle) const -> const Image& { return m_images.get(handle); }
 

@@ -63,6 +63,23 @@ TEST_SUITE("rhi::ResourcePool")
         CHECK(pool.get(handle) == 20);
     }
 
+    TEST_CASE("a returned reference keeps its address while the pool grows")
+    {
+        ResourcePool<int> pool;
+        auto handle = pool.push(42);
+        const int* address = &pool.get(handle);
+
+        // Far past the initial capacity, with no freed slot to reuse, so the pool has to grow.
+        for (int i = 0; i < 1000; ++i)
+        {
+            static_cast<void>(pool.push(i));
+        }
+
+        // Compare addresses only: reading through a dangling reference would be undefined.
+        CHECK(&pool.get(handle) == address);
+        CHECK(pool.get(handle) == 42);
+    }
+
     TEST_CASE("generation wraps around its bit field")
     {
         ResourcePool<int> pool;
