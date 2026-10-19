@@ -9,33 +9,31 @@ auto sortPasses(std::span<const PassDecl> passes, std::span<const EntryDecl> ent
 {
     // dependencies[p] lists the passes p must run after.
     std::vector<std::vector<std::uint32_t>> dependencies(passes.size());
-    std::unordered_map<std::uint32_t, std::uint32_t> producers; // Created entry -> latest producing pass
 
+    // Per created entry: its creator, and the state in declaration order (the pass that wrote it last
+    // and the readers since that write). Passes declared before the creator still run after it.
+    struct Chain
+    {
+        std::uint32_t creator{ 0 };
+        std::uint32_t lastWriter{ 0 };
+        std::vector<std::uint32_t> readers;
+    };
+    std::unordered_map<std::uint32_t, Chain> chains;
     for (std::uint32_t p = 0; p < passes.size(); ++p)
     {
         for (const auto write : passes[p].writes)
         {
             if (!entries[write].referenceTo)
-                producers[write] = p;
+                chains[write] = Chain{ .creator = p, .lastWriter = p };
         }
     }
 
-    // Writes through a reference chain behind the previous producer, in declaration order.
-    for (std::uint32_t p = 0; p < passes.size(); ++p)
-    {
-        for (const auto write : passes[p].writes)
-        {
-            const auto& target = entries[write].referenceTo;
-            if (!target)
-                continue;
-            const auto producer = producers.find(*target);
-            if (producer == producers.end() || producer->second == p)
-                continue;
-            dependencies[p].push_back(producer->second);
-            producer->second = p;
-        }
-    }
+    const auto dependOn = [&](std::uint32_t pass, std::uint32_t other) {
+        if (pass != other)
+            dependencies[pass].push_back(other);
+    };
 
+    // A reader runs after the writer before it in declaration order and before the next writer.
     for (std::uint32_t p = 0; p < passes.size(); ++p)
     {
         for (const auto read : passes[p].reads)
@@ -43,24 +41,44 @@ auto sortPasses(std::span<const PassDecl> passes, std::span<const EntryDecl> ent
             const auto& target = entries[read].referenceTo;
             if (!target)
                 continue;
-            const auto producer = producers.find(*target);
-            if (producer != producers.end() && producer->second != p)
-                dependencies[p].push_back(producer->second);
+            const auto chain = chains.find(*target);
+            if (chain == chains.end())
+                continue;
+            dependOn(p, chain->second.lastWriter);
+            chain->second.readers.push_back(p);
+        }
+
+        for (const auto write : passes[p].writes)
+        {
+            const auto& target = entries[write].referenceTo;
+            if (!target)
+                continue;
+            const auto chain = chains.find(*target);
+            if (chain == chains.end())
+                continue;
+            dependOn(p, chain->second.lastWriter);
+            for (const auto reader : chain->second.readers)
+                dependOn(p, reader);
+            chain->second.lastWriter = p;
+            chain->second.readers.clear();
         }
     }
 
-    // Kahn's algorithm over the reversed edges, then reversed: dependencies come first.
-    std::vector<std::uint32_t> dependents(passes.size(), 0);
-    for (const auto& edges : dependencies)
-    {
-        for (const auto target : edges)
-            ++dependents[target];
-    }
-
-    std::queue<std::uint32_t> ready;
+    // Kahn's algorithm, always taking the lowest pass index among the ready passes: independent
+    // passes keep their add order.
+    std::vector<std::uint32_t> pending(passes.size(), 0);
+    std::vector<std::vector<std::uint32_t>> dependents(passes.size());
     for (std::uint32_t p = 0; p < passes.size(); ++p)
     {
-        if (dependents[p] == 0)
+        pending[p] = static_cast<std::uint32_t>(dependencies[p].size());
+        for (const auto dependency : dependencies[p])
+            dependents[dependency].push_back(p);
+    }
+
+    std::priority_queue<std::uint32_t, std::vector<std::uint32_t>, std::greater<>> ready;
+    for (std::uint32_t p = 0; p < passes.size(); ++p)
+    {
+        if (pending[p] == 0)
             ready.push(p);
     }
 
@@ -68,20 +86,19 @@ auto sortPasses(std::span<const PassDecl> passes, std::span<const EntryDecl> ent
     order.reserve(passes.size());
     while (!ready.empty())
     {
-        const auto p = ready.front();
+        const auto p = ready.top();
         ready.pop();
         order.push_back(p);
-        for (const auto dependency : dependencies[p])
+        for (const auto dependent : dependents[p])
         {
-            if (--dependents[dependency] == 0)
-                ready.push(dependency);
+            if (--pending[dependent] == 0)
+                ready.push(dependent);
         }
     }
 
     if (order.size() != passes.size())
         return std::unexpected{ std::string{ "The frame graph has a dependency cycle" } };
 
-    std::ranges::reverse(order);
     return order;
 }
 

@@ -19,9 +19,10 @@ struct EntryDecl
     std::optional<std::uint32_t> referenceTo; // The created entry this reference resolved to
 };
 
-/// @brief Orders passes so every pass runs after the passes producing what it reads or overwrites.
-///        A pass creating a resource produces it; a later pass writing a reference to it becomes its
-///        producer from then on (in declaration order), and readers depend on the last producer.
+/// @brief Orders passes by their resource accesses, following declaration order. A pass creating a
+///        resource produces it first, wherever it is declared. After that, in declaration order, a
+///        reader runs after the previous writer and before the next one, and a writer after the
+///        previous writer. Passes without such a relation keep their add order.
 /// @return Pass indices in execution order, or an error naming a dependency cycle.
 [[nodiscard]] auto sortPasses(std::span<const PassDecl> passes, std::span<const EntryDecl> entries)
     -> std::expected<std::vector<std::uint32_t>, std::string>;

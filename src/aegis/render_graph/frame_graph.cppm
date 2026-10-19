@@ -31,8 +31,9 @@ public:
     auto operator=(const FrameGraph&) -> FrameGraph& = delete;
     auto operator=(FrameGraph&&) -> FrameGraph& = delete;
 
-    /// @brief Adds a pass constructed as T(ResourcePool&, args...). Order only matters among passes
-    ///        writing the same resource; compile() sorts the rest.
+    /// @brief Adds a pass constructed as T(ResourcePool&, args...). Order matters among passes accessing
+    ///        the same resource (a reader runs before a writer declared after it); compile() sorts the
+    ///        rest and independent passes keep their add order.
     template<typename T, typename... Args>
         requires std::derived_from<T, RenderPass> && std::constructible_from<T, ResourcePool&, Args...>
     auto add(Args&&... args) -> T&

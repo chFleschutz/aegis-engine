@@ -32,20 +32,67 @@ TEST_SUITE("render_graph::sortPasses")
         CHECK(*order == std::vector<std::uint32_t>{ 1, 0 });
     }
 
-    TEST_CASE("writers through references chain in add order, and readers follow the last one")
+    TEST_CASE("writers through references chain in add order, and later readers follow the last one")
     {
         // 0 creates the resource; 1 and 2 write it through references; 3 reads it.
         const std::vector entries{ created(), referenceTo(0), referenceTo(0), referenceTo(0) };
         const std::vector<PassDecl> passes{
-            { .reads = { 3 } },  // Added first, still runs last
             { .writes = { 0 } }, // Creator
             { .writes = { 1 } },
             { .writes = { 2 } },
+            { .reads = { 3 } },
         };
 
         const auto order = sortPasses(passes, entries);
         REQUIRE(order.has_value());
-        CHECK(*order == std::vector<std::uint32_t>{ 1, 2, 3, 0 });
+        CHECK(*order == std::vector<std::uint32_t>{ 0, 1, 2, 3 });
+    }
+
+    TEST_CASE("writers declared out of creation order still run after the creator")
+    {
+        const std::vector entries{ created(), referenceTo(0) };
+        const std::vector<PassDecl> passes{ { .writes = { 1 } }, { .writes = { 0 } } };
+
+        const auto order = sortPasses(passes, entries);
+        REQUIRE(order.has_value());
+        CHECK(*order == std::vector<std::uint32_t>{ 1, 0 });
+    }
+
+    TEST_CASE("independent passes keep their add order")
+    {
+        const std::vector entries{ created(), created(), created() };
+        const std::vector<PassDecl> passes{ { .writes = { 0 } }, { .writes = { 1 } }, { .writes = { 2 } } };
+
+        const auto order = sortPasses(passes, entries);
+        REQUIRE(order.has_value());
+        CHECK(*order == std::vector<std::uint32_t>{ 0, 1, 2 });
+    }
+
+    TEST_CASE("a reader declared before a writer runs before it")
+    {
+        // A (0) creates X, B (1) reads it, C (2) writes it in place.
+        const std::vector entries{ created(), referenceTo(0), referenceTo(0) };
+        const std::vector<PassDecl> passes{ { .writes = { 0 } }, { .reads = { 1 } }, { .writes = { 2 } } };
+
+        const auto order = sortPasses(passes, entries);
+        REQUIRE(order.has_value());
+        CHECK(*order == std::vector<std::uint32_t>{ 0, 1, 2 });
+    }
+
+    TEST_CASE("a pass reading and writing a resource follows earlier readers and writers")
+    {
+        // 0 creates X; 1 reads it; 2 reads and writes it; 3 reads the result.
+        const std::vector entries{ created(), referenceTo(0), referenceTo(0), referenceTo(0) };
+        const std::vector<PassDecl> passes{
+            { .reads = { 3 } },
+            { .writes = { 0 } },
+            { .reads = { 1 }, .writes = { 2 } },
+            { .reads = { 3 } },
+        };
+
+        const auto order = sortPasses(passes, entries);
+        REQUIRE(order.has_value());
+        CHECK(*order == std::vector<std::uint32_t>{ 1, 0, 2, 3 });
     }
 
     TEST_CASE("reports a dependency cycle")
