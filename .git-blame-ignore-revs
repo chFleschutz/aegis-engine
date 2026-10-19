@@ -1,0 +1,16 @@
+# Commits that only reformat or mechanically rewrite code. Used by:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub honors this file automatically.)
+
+# Format legacy code with clang-format (PR #32)
+b58779487067189d35e3ccd7405119df0855ae8d
+# Rename legacy modules to lowercase snake_case (PR #32)
+561096dc2c3421f6b3bb30e2273832d4d642aeff
+# Rename legacy namespaces to lowercase snake_case (PR #32)
+5c4b20d9af69866256d76ee08efbef2af41de3ce
+# Qualify C standard type names with std:: (PR #91)
+1800508e6a3fb73be1b730eb1f54011c89e03923
+# Replace standard library includes with import std (PR #91)
+7266617e6b64a275caf2522859adc205d6dce81e
+# Format the whole tree with clang-format (PR #94)
+6edb9f115b1d962924c938e2392a259b8d9d1654
