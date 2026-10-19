@@ -141,8 +141,6 @@ public:
     [[nodiscard]] auto device() const noexcept -> const vk::raii::Device& { return m_device; }
     [[nodiscard]] auto allocator() const noexcept -> const Allocator& { return m_allocator; }
     [[nodiscard]] auto graphicsQueue() noexcept -> Queue& { return m_graphicsQueue; }
-    [[nodiscard]] auto computeQueue() noexcept -> Queue& { return m_computeQueue; }
-    [[nodiscard]] auto transferQueue() noexcept -> Queue& { return m_transferQueue; };
     [[nodiscard]] auto presentQueue() noexcept -> Queue&
     {
         assert(m_presentQueue && "A headless device has no present queue");
