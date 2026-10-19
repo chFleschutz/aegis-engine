@@ -34,7 +34,6 @@ include(cmake/AegisShaders.cmake)
 set(PROJECT_DIR "${CMAKE_SOURCE_DIR}")
 
 add_subdirectory(external SYSTEM)
-add_subdirectory(modules)
 add_subdirectory(src)
 
 # Before tests/: the device tests register only when the shaders they load are built.
