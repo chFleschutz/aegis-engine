@@ -59,7 +59,12 @@ func main(uint3 dispatchThreadID : SV_DispatchThreadID)
     uint drawID;
     InterlockedAdd(pc.counts[instance.drawBatch], 1, drawID);
 
+    // The batch holds slots for the instances the registry counts. Should the instance buffers hold
+    // more for this batch, the extra ones would write into the next batch's slots.
     let batch = pc.drawBatches[instance.drawBatch];
+    if (drawID >= batch.count)
+        return;
+
     pc.visibility[batch.offset + drawID] = instanceID;
 
     let groupCountX = (mesh->meshletCount + TASK_GROUP_SIZE - 1) / TASK_GROUP_SIZE;

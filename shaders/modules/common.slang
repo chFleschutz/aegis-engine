@@ -36,9 +36,14 @@ namespace common
         public float3 center;
         public float radius;
 
+        /// The radius grows by the largest axis scale: the length of the longest basis vector, a
+        /// column of the matrix (mat[i] is row i).
         public func transform(float4x4 mat) -> BoundingSphere
         {
-            let maxScale = max(length(mat[0].xyz), max(length(mat[1].xyz), length(mat[2].xyz)));
+            let scaleX = length(float3(mat[0][0], mat[1][0], mat[2][0]));
+            let scaleY = length(float3(mat[0][1], mat[1][1], mat[2][1]));
+            let scaleZ = length(float3(mat[0][2], mat[1][2], mat[2][2]));
+            let maxScale = max(scaleX, max(scaleY, scaleZ));
             return BoundingSphere(mul(mat, float4(center, 1.0)).xyz, radius * maxScale);
         }
     }
