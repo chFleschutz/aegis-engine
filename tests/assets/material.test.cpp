@@ -6,6 +6,7 @@ import aegis.math;
 
 namespace
 {
+using aegis::assets::ErrorCode;
 using aegis::assets::MaterialTemplate;
 using aegis::assets::MaterialValue;
 
@@ -42,6 +43,57 @@ TEST_SUITE("assets::MaterialTemplate")
         MaterialTemplate empty;
         CHECK(!empty.hasParameter("albedo"));
         CHECK(empty.parameter("albedo") == nullptr);
+    }
+
+    TEST_CASE("rejects a value whose type differs from the parameter's default")
+    {
+        MaterialTemplate pbr;
+        REQUIRE(pbr.addParameter("albedo", glm::vec3{ 1.0f }).has_value());
+        REQUIRE(pbr.addParameter("roughness", 1.0f).has_value());
+
+        CHECK(pbr.check("albedo", glm::vec3{ 0.5f }).has_value());
+        CHECK(pbr.check("roughness", 0.5f).has_value());
+
+        // A vec4 would write 16 bytes into a 12-byte slot; an int literal selects std::int32_t and
+        // would write integer bits where the shader reads a float.
+        const auto vec4 = pbr.check("albedo", glm::vec4{ 1.0f });
+        REQUIRE(!vec4.has_value());
+        CHECK(vec4.error().code == ErrorCode::InvalidArgument);
+        const auto intLiteral = pbr.check("roughness", 1);
+        REQUIRE(!intLiteral.has_value());
+        CHECK(intLiteral.error().code == ErrorCode::InvalidArgument);
+    }
+
+    TEST_CASE("rejects a name it has no parameter for")
+    {
+        MaterialTemplate pbr;
+        REQUIRE(pbr.addParameter("albedo", glm::vec3{ 1.0f }).has_value());
+
+        const auto typo = pbr.check("albedoo", glm::vec3{ 1.0f });
+        REQUIRE(!typo.has_value());
+        CHECK(typo.error().code == ErrorCode::InvalidArgument);
+    }
+
+    TEST_CASE("rejects a duplicate name and keeps the first parameter's layout")
+    {
+        MaterialTemplate pbr;
+        REQUIRE(pbr.addParameter("metallic", 0.0f).has_value());
+
+        const auto duplicate = pbr.addParameter("metallic", glm::vec4{ 1.0f });
+        REQUIRE(!duplicate.has_value());
+        CHECK(duplicate.error().code == ErrorCode::InvalidArgument);
+        CHECK(pbr.parameterSize() == 4);
+        CHECK(std::holds_alternative<float>(pbr.parameter("metallic")->defaultValue));
+    }
+
+    TEST_CASE("rejects a null default texture")
+    {
+        MaterialTemplate pbr;
+        const auto added = pbr.addParameter("albedoMap", std::shared_ptr<aegis::assets::Texture>{});
+        REQUIRE(!added.has_value());
+        CHECK(added.error().code == ErrorCode::InvalidArgument);
+        CHECK(!pbr.hasParameter("albedoMap"));
+        CHECK(pbr.parameterSize() == 0);
     }
 }
 

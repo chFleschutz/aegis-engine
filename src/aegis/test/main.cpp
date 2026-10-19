@@ -596,6 +596,14 @@ public:
         if (material.parameterAddress(0) == 0 || material.parameterAddress(1) == material.parameterAddress(0))
             return std::unexpected{ "Material parameter blocks are null or shared between frames" };
 
+        // Caller bugs come back as errors instead of corrupting a parameter block.
+        const auto rejected = [](const auto& result) {
+            return !result && result.error().code == assets::ErrorCode::InvalidArgument;
+        };
+        if (!rejected(material.setParameter("roughness", 1)) ||
+            !rejected(material.setParameter("albedoMap", std::shared_ptr<assets::Texture>{})))
+            return std::unexpected{ "A material accepted a value of the wrong type or a null texture" };
+
         aegis::scene::Registry scene;
         const assets::Loader::Desc loaderDesc{
             .device = *m_device,
@@ -645,8 +653,8 @@ public:
             };
         }
 
-        std::println("Assets verified: defaults (white texture read back), material blocks, glTF + OBJ loaded "
-                     "({} meshes)",
+        std::println("Assets verified: defaults (white texture read back), material blocks, invalid parameters "
+                     "rejected, glTF + OBJ loaded ({} meshes)",
             meshes);
         return {};
     }
