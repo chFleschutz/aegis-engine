@@ -7,7 +7,6 @@ target_link_libraries(aegis-assets
         aegis-math
         aegis-scene # The loaders populate a Scene::Registry
     PRIVATE
-        EnTT::EnTT
         fastgltf
         meshoptimizer
         stb

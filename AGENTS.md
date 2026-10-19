@@ -160,6 +160,10 @@ instead of returning one; `render_graph` imports `aegis.scene` and holds `Scene&
   is rebuilt. Moving a static entity is explicit: the editor calls `markStaticDirty(entity)` after
   gizmo/inspector edits, and scripts that move their entity use `DynamicTag`.
 
+**Link visibility:** link a library `PUBLIC` when its `.cppm` module interfaces import it (or export
+its names, like EnTT from `aegis-scene`), `PRIVATE` when only `.cpp` implementation units use it.
+Linux fails on a missing transitive link that Windows hides, so declare what you import yourself.
+
 ### Cross-platform rules
 Windows (Clang + MSVC STL, or MSVC) and Linux (Clang + **libstdc++ 15**; Ubuntu 24.04's 14.2 fails
 on the modules) must both build. CI proves the Linux build on every PR.

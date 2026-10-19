@@ -1,12 +1,14 @@
 add_library(aegis-scripting STATIC)
 
+# PUBLIC: the module interfaces import aegis.math, aegis.platform and aegis.scene.
+
 target_link_libraries(aegis-scripting 
 PUBLIC
+	aegis-math
 	aegis-platform
+	aegis-scene
 PRIVATE
 	aegis-core
-	aegis-math
-	aegis-scene
 	Aegis::Log
 )
 
