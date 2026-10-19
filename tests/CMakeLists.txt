@@ -24,13 +24,27 @@ add_subdirectory(render_graph)
 add_subdirectory(rhi)
 add_subdirectory(scene)
 
-# Device-level check: the aegis-test harness, headless for a fixed number of frames. It exits non-zero
-# on any failed check or validation error. Needs a GPU with a Vulkan driver; `ctest -LE device` skips it.
-add_test(NAME aegis-test-headless COMMAND aegis-test --headless --frames 600)
-set_tests_properties(aegis-test-headless PROPERTIES LABELS device TIMEOUT 300)
+# aegis_add_device_test(<name> ARGS <aegis-test args> ... [LABELS <label> ...])
+# Registers an aegis-test run that needs a GPU with a Vulkan driver (`ctest -LE device` skips it). It
+# exits non-zero on any failed check or validation error. aegis-test returns 77 when the device lacks a
+# feature the run needs, which CTest reports as skipped. Extra LABELS name that feature (`mesh-shaders`).
+set(AEGIS_TEST_SKIP_RETURN_CODE 77) # Keep in step with src/aegis/test/main.cpp
+function(aegis_add_device_test name)
+    cmake_parse_arguments(T "" "" "ARGS;LABELS" ${ARGN})
+    add_test(NAME ${name} COMMAND aegis-test ${T_ARGS})
+    set_tests_properties(${name} PROPERTIES
+        LABELS "device;${T_LABELS}"
+        TIMEOUT 300
+        SKIP_RETURN_CODE ${AEGIS_TEST_SKIP_RETURN_CODE})
+endfunction()
 
-# The same harness rendering a loaded scene through the render graph (aegis.render_graph).
-add_test(NAME aegis-test-scene COMMAND aegis-test --headless --scene --frames 120)
-set_tests_properties(aegis-test-scene PROPERTIES LABELS device TIMEOUT 300)
-add_test(NAME aegis-test-scene-gpu-driven COMMAND aegis-test --headless --gpu-driven --frames 120)
-set_tests_properties(aegis-test-scene-gpu-driven PROPERTIES LABELS device TIMEOUT 300)
+# The device tests load compiled shaders, so they exist only when the shaders are built
+# (-DCOMPILE_SHADERS=OFF registers none).
+if(TARGET compile_shaders)
+    # The harness headless for a fixed number of frames.
+    aegis_add_device_test(aegis-test-headless ARGS --headless --frames 600)
+
+    # The same harness rendering a loaded scene through the render graph (aegis.render_graph).
+    aegis_add_device_test(aegis-test-scene ARGS --headless --scene --frames 120)
+    aegis_add_device_test(aegis-test-scene-gpu-driven ARGS --headless --gpu-driven --frames 120 LABELS mesh-shaders)
+endif()

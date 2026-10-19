@@ -27,6 +27,10 @@ import aegis.scene.systems.transform_system;
 
 using SpirvBuffer = std::vector<std::uint32_t>;
 
+// Exit code and error text for a run the device can't do (CTest SKIP_RETURN_CODE in tests/CMakeLists.txt).
+constexpr int skipExitCode{ 77 };
+constexpr std::string_view skipMeshShaders{ "Skipped: --gpu-driven needs mesh shaders, which this device lacks" };
+
 auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, std::string>
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -134,6 +138,8 @@ public:
         auto device = engine.m_context->createDevice({});
         if (!device)
             return std::unexpected{ "Failed to create rhi device" };
+        if (options.gpuDriven && !(*device)->capabilities().meshShaders)
+            return std::unexpected{ std::string{ skipMeshShaders } };
         engine.m_device = std::move(*device);
 
         auto renderer = renderer::Renderer::create({
@@ -1479,6 +1485,11 @@ auto main(int argc, char** argv) -> int
     auto engine = aegis::Engine::create(*options);
     if (!engine)
     {
+        if (engine.error() == skipMeshShaders)
+        {
+            std::println("{}", engine.error());
+            return skipExitCode;
+        }
         std::println("Failed to create engine \n{}", engine.error());
         return 1;
     }
