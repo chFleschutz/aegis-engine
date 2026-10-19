@@ -590,7 +590,7 @@ public:
         constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
         auto defaults = assets::DefaultAssets::create(*m_device, framesInFlight);
         if (!defaults)
-            return std::unexpected{ std::format("Default assets: {}", defaults.error().message) };
+            return std::unexpected{ std::format("Default assets: {}", assets::describe(defaults.error())) };
         if (auto result = flushAndWait(); !result)
             return result;
 
@@ -651,7 +651,7 @@ public:
         {
             auto root = assets::Loader::load(loaderDesc, paths::assets() / model);
             if (!root)
-                return std::unexpected{ std::format("Loading {}: {}", model, root.error().message) };
+                return std::unexpected{ std::format("Loading {}: {}", model, assets::describe(root.error())) };
         }
         if (auto result = flushAndWait(); !result)
             return result;
@@ -802,7 +802,7 @@ public:
         constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
         auto defaults = assets::DefaultAssets::create(*m_device, framesInFlight);
         if (!defaults)
-            return std::unexpected{ std::format("Default assets: {}", defaults.error().message) };
+            return std::unexpected{ std::format("Default assets: {}", assets::describe(defaults.error())) };
         m_defaults = std::move(*defaults);
 
         m_scene = std::make_unique<aegis::scene::Scene>();
@@ -849,7 +849,7 @@ public:
             },
             paths::assets() / "DamagedHelmet/DamagedHelmet.gltf");
         if (!helmet)
-            return std::unexpected{ std::format("Loading the helmet: {}", helmet.error().message) };
+            return std::unexpected{ std::format("Loading the helmet: {}", assets::describe(helmet.error())) };
         m_helmet = *helmet;
 
         // No platform backend: the UI is drawn, not interacted with.
@@ -982,7 +982,7 @@ public:
                 },
                 paths::assets() / "SciFiHelmet/SciFiHelmet.gltf");
             if (!model)
-                return std::unexpected{ std::format("Loading the second model: {}", model.error().message) };
+                return std::unexpected{ std::format("Loading the second model: {}", assets::describe(model.error())) };
             m_addedModel = *model;
             registry.get<aegis::Transform>(m_addedModel).location = glm::vec3{ 0.9f, 0.0f, 0.0f };
             registry.markStaticDirty(m_addedModel);

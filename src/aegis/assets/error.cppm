@@ -30,4 +30,27 @@ struct Error
 {
     return std::unexpected{ Error{ .code = ErrorCode::GpuFailure, .message = std::move(message), .rhi = error } };
 }
+
+/// @brief Name of an error code as written by describe(), e.g. "FileNotFound".
+[[nodiscard]] constexpr auto errorCodeName(ErrorCode code) noexcept -> std::string_view
+{
+    switch (code)
+    {
+    case ErrorCode::FileNotFound: return "FileNotFound";
+    case ErrorCode::DecodeFailed: return "DecodeFailed";
+    case ErrorCode::UnsupportedFormat: return "UnsupportedFormat";
+    case ErrorCode::InvalidData: return "InvalidData";
+    case ErrorCode::InvalidArgument: return "InvalidArgument";
+    case ErrorCode::GpuFailure: return "GpuFailure";
+    }
+    return "Unknown";
+}
+
+/// @brief Text for logs: "<code>: <message>", plus "(caused by <rhi::describe>)" when an rhi call failed.
+[[nodiscard]] inline auto describe(const Error& error) -> std::string
+{
+    if (error.rhi)
+        return std::format("{}: {} (caused by {})", errorCodeName(error.code), error.message, rhi::describe(*error.rhi));
+    return std::format("{}: {}", errorCodeName(error.code), error.message);
+}
 }
