@@ -348,21 +348,29 @@ auto Renderer::endFrame() noexcept -> std::expected<void, Error>
     if (!newSubmitTime)
     {
         std::println("Failed to submit to queue");
+        // The acquire already signalled imageAvailable and nothing will wait on it, so the slot's next
+        // acquire would signal an already signalled semaphore (VUID-vkAcquireNextImageKHR-semaphore-01286).
+        // A semaphore cannot be unsignalled: replace it once the GPU is idle.
+        if (m_swapchain)
+        {
+            m_device.waitIdle();
+            if (auto semaphore = m_device.createSemaphore({ .name = std::format("ImageAvailableSemaphoreFrame{}", m_currentFrame) }))
+                imageAvailable = std::move(*semaphore);
+        }
         return std::unexpected{ Error::QueueSubmitFailed };
     }
     timePoint = *newSubmitTime;
 
-    if (m_swapchain)
-    {
-        auto result = m_swapchain->present(m_device.presentQueue());
-        if (!result)
-        {
-            std::println("Failed to present to queue");
-            return std::unexpected{ Error::SwapchainPresentFailed };
-        }
-    }
-
+    // The frame was submitted, so its slot is used up even if the present fails: staying on it would
+    // wait on its own timeline value and let ImGui's per-frame buffers drift out of phase.
+    const auto presented = m_swapchain ? m_swapchain->present(m_device.presentQueue())
+                                       : std::expected<void, rhi::Error>{};
     m_currentFrame = (m_currentFrame + 1) % m_frameContext.size();
+    if (!presented)
+    {
+        std::println("Failed to present to queue");
+        return std::unexpected{ Error::SwapchainPresentFailed };
+    }
     return {};
 }
 }
