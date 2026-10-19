@@ -2,8 +2,6 @@ module;
 
 #include "core/assert.h"
 
-#include <aegis-log/log.h>
-
 #include <cstdlib>
 
 #include <imgui.h>
@@ -19,7 +17,6 @@ export import aegis.defaults;
 export import aegis.scene_description;
 export import aegis.core.globals;
 export import aegis.core.layer_stack;
-export import aegis.core.logging;
 export import aegis.base;
 export import aegis.scene;
 export import aegis.scene.components;
@@ -51,9 +48,17 @@ public:
         createFrameGraph();
         m_layerStack.push<editor::EditorLayer>(m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_scene);
 
-        ALOG::info("Engine Initialized!");
-        ALOG::info("Using {} Driven Rendering", useGpuDrivenRendering() ? "GPU" : "CPU");
-        Logging::logo();
+        log::info("Engine Initialized!");
+        log::info("Using {} Driven Rendering", useGpuDrivenRendering() ? "GPU" : "CPU");
+        log::info("\n\n\n"
+                  "\t\t\t\t      ###   #######   ######   ####   ###### \n"
+                  "\t\t\t\t     ## ##  ##       ##    ##   ##   ##    ##\n"
+                  "\t\t\t\t    ##  ##  ##       ##         ##   ##      \n"
+                  "\t\t\t\t   ##   ##  ######   ##         ##    ###### \n"
+                  "\t\t\t\t  ########  ##       ##  ####   ##         ##\n"
+                  "\t\t\t\t ##     ##  ##       ##    ##   ##   ##    ##\n"
+                  "\t\t\t\t##      ##  #######   ######   ####   ###### \n"
+                  "\n\n");
     }
 
     Engine(const Engine&) = delete;
@@ -179,7 +184,7 @@ public:
             });
             if (!rendered)
             {
-                ALOG::fatal("Failed to render a frame (renderer error {})", std::to_underlying(rendered.error()));
+                log::fatal("Failed to render a frame (renderer error {})", std::to_underlying(rendered.error()));
                 break;
             }
 
@@ -216,7 +221,7 @@ private:
     // Setup failures log their cause and exit; the engine can't carry on without a device.
     [[noreturn]] static void fatalSetup(const std::string& message)
     {
-        ALOG::fatal("{}", message);
+        log::fatal("{}", message);
         std::exit(EXIT_FAILURE);
     }
 
@@ -271,7 +276,7 @@ private:
             });
         if (auto compiled = m_frameGraph->compile(); !compiled)
         {
-            ALOG::fatal("Failed to compile the frame graph: {}", compiled.error().message);
+            log::fatal("Failed to compile the frame graph: {}", compiled.error().message);
             AGX_ASSERT_X(false, "Failed to compile the frame graph");
         }
     }
@@ -292,12 +297,12 @@ private:
     {
         if (auto resized = m_renderer->resize(aegis::rhi::Extent2D{ m_window.extent() }); !resized)
         {
-            ALOG::fatal("Failed to resize the renderer (renderer error {})", std::to_underlying(resized.error()));
+            log::fatal("Failed to resize the renderer (renderer error {})", std::to_underlying(resized.error()));
             return false;
         }
         m_window.resetResized();
         if (auto resized = m_frameGraph->resized(); !resized)
-            ALOG::fatal("Failed to resize the frame graph: {}", resized.error().message);
+            log::fatal("Failed to resize the frame graph: {}", resized.error().message);
         return true;
     }
 
@@ -321,7 +326,6 @@ private:
 
     // Order matters: members are destroyed bottom up, and everything holding GPU resources must go
     // before the device.
-    Logging m_logging{};
     core::LayerStack m_layerStack{};
     ui::UI m_ui{ m_layerStack };
     aegis::platform::Window m_window{ { .title = "Aegis", .width = core::DEFAULT_WIDTH, .height = core::DEFAULT_HEIGHT } };
