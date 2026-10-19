@@ -1,6 +1,8 @@
 module;
 #include <GLFW/glfw3.h>
 
+#include "aegis/base/flags.h"
+
 export module aegis.platform:input;
 import std;
 import :window;
@@ -133,15 +135,7 @@ enum class Modifiers : int
 };
 // clang-format on
 
-[[nodiscard]] constexpr auto operator|(Modifiers lhs, Modifiers rhs) noexcept -> Modifiers
-{
-    return static_cast<Modifiers>(static_cast<int>(lhs) | static_cast<int>(rhs));
-}
-
-[[nodiscard]] constexpr auto operator&(Modifiers lhs, Modifiers rhs) noexcept -> Modifiers
-{
-    return static_cast<Modifiers>(static_cast<int>(lhs) & static_cast<int>(rhs));
-}
+AEGIS_FLAGS(Modifiers)
 
 enum class CursorMode
 {

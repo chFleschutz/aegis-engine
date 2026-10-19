@@ -12,7 +12,7 @@ export module aegis.scene;
 import std;
 export import aegis.scene.registry;
 import aegis.math;
-import aegis.core.profiler;
+import aegis.base;
 import aegis.scene.system;
 
 export namespace aegis::scene

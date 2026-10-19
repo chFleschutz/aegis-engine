@@ -3,6 +3,7 @@ add_library(aegis-editor STATIC)
 target_link_libraries(aegis-editor
 PUBLIC
 	aegis-assets
+	aegis-base
 	aegis-core
 	aegis-platform
 	aegis-render-graph

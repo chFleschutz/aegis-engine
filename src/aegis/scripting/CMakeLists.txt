@@ -9,7 +9,6 @@ PUBLIC
 	aegis-scene
 PRIVATE
 	aegis-core
-	Aegis::Log
 )
 
 target_sources(aegis-scripting 

@@ -5,6 +5,7 @@ module;
 
 module aegis.rhi;
 import std;
+import aegis.base;
 import :buffer;
 import :debug;
 import :error;
@@ -56,7 +57,7 @@ auto Buffer::create(const Device& device, const Desc& desc) -> std::expected<Buf
     debug::setName(*device, *bufferAlloc->first, desc.name);
 
     DeviceAddress deviceAddress{ 0 };
-    if (utility::hasFlag(desc.usage, BufferUsage::ShaderDeviceAddress))
+    if (base::hasFlag(desc.usage, BufferUsage::ShaderDeviceAddress))
         deviceAddress = device->getBufferAddress(vk::BufferDeviceAddressInfo{ .buffer = *bufferAlloc->first });
 
     return Buffer{

@@ -1,5 +1,6 @@
 module aegis.rhi;
 import std;
+import aegis.base;
 import :bindless_heap;
 import :device;
 import :vulkan_conversions;
@@ -46,8 +47,8 @@ auto BindlessHeap::binding(DescriptorType type) -> std::uint32_t
 auto BindlessHeap::writeImageView(const Device& device, ImageView& view, ImageUsage usage,
     const ImageView* old) -> std::expected<void, Error>
 {
-    const bool sampled = utility::hasFlag(usage, ImageUsage::Sampled);
-    const bool storage = utility::hasFlag(usage, ImageUsage::Storage);
+    const bool sampled = base::hasFlag(usage, ImageUsage::Sampled);
+    const bool storage = base::hasFlag(usage, ImageUsage::Storage);
 
     auto slots = detail::acquireImageSlots(m_freeSampledImages, m_freeStorageImages, sampled, storage,
         old ? old->sampledDescriptor() : std::nullopt,

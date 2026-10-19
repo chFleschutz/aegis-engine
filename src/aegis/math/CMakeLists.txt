@@ -5,7 +5,6 @@ PUBLIC
 	aegis-assert
 PRIVATE
 	glm::glm
-	Aegis::Log
 )
 
 target_sources(aegis-math 

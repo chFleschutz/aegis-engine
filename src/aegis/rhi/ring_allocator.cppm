@@ -1,6 +1,6 @@
 export module aegis.rhi:ring_allocator;
 import std;
-import :utility;
+import aegis.base;
 
 export namespace aegis::rhi
 {
@@ -37,7 +37,7 @@ public:
         if (size > m_size)
             return std::unexpected{ AllocError::RingSizeExceeded };
 
-        const auto alignedHead = utility::roundUpTo(m_head, alignment);
+        const auto alignedHead = base::roundUpTo(m_head, alignment);
         if (alignedHead + size <= m_size)
         {
             // Fits before capacity -> no wrap-around

@@ -90,7 +90,6 @@ Follow these steps to get started:
 
 This project is structured into several independent modules:
 - [aegis-assets](https://github.com/chFleschutz/aegis-assets) - Collection of sample assets
-- [aegis-log](https://github.com/chFleschutz/aegis-log) - Logging library
 
 The engine relies on the following external libraries:
 - [doctest](https://github.com/doctest/doctest) - Unit testing

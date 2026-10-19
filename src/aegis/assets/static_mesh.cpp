@@ -1,6 +1,7 @@
 module aegis.assets;
 import std;
 import :upload;
+import aegis.base;
 import aegis.rhi;
 
 namespace aegis::assets
@@ -18,8 +19,6 @@ struct BufferSource
 auto StaticMesh::create(rhi::Device& device, const MeshData& data, std::string_view name)
     -> std::expected<std::shared_ptr<StaticMesh>, Error>
 {
-    using namespace rhi::utility;
-
     if (data.vertices.empty() || data.indices.empty() || data.meshlets.empty())
         return makeError(ErrorCode::InvalidData, std::format("Mesh '{}' has no vertices, indices or meshlets", name));
 
@@ -43,7 +42,7 @@ auto StaticMesh::create(rhi::Device& device, const MeshData& data, std::string_v
     for (; created < BufferCount; ++created)
     {
         const auto& source = sources[created];
-        const auto size = created == MeshDataBlock ? sizeof(GpuData) : alignTo(source.bytes.size(), 4);
+        const auto size = created == MeshDataBlock ? sizeof(GpuData) : base::alignTo(source.bytes.size(), 4);
         auto buffer = device.createBuffer({
             .name = std::format("{}{}", name, source.label),
             .size = size,
@@ -80,7 +79,7 @@ auto StaticMesh::create(rhi::Device& device, const MeshData& data, std::string_v
         if (bytes.size() % 4 != 0)
         {
             padded.assign(bytes.begin(), bytes.end());
-            padded.resize(alignTo(bytes.size(), 4));
+            padded.resize(base::alignTo(bytes.size(), 4));
             bytes = padded;
         }
 

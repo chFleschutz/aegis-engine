@@ -292,8 +292,6 @@ public:
     // and one that cannot be blitted (depth) must be refused up front rather than recorded.
     auto verifyMipGeneration() -> std::expected<void, std::string>
     {
-        using namespace rhi::utility;
-
         constexpr auto extent = rhi::Extent3D{ 4, 4, 1 };
         auto color = m_device->createImage({
             .name = "MipGenTestColor",
@@ -399,8 +397,6 @@ public:
     // covers a shader actually reading and writing through the addresses.
     auto verifyBufferDeviceAddress() -> std::expected<void, std::string>
     {
-        using namespace rhi::utility;
-
         constexpr rhi::Buffer::Desc desc{
             .name = "DeviceAddressTest",
             .size = 256,
@@ -430,8 +426,6 @@ public:
     // shared pipeline layout, pushConstants, dispatch and BDA, end to end.
     auto verifyComputeRoundTrip() -> std::expected<void, std::string>
     {
-        using namespace rhi::utility;
-
         constexpr std::uint32_t count{ 1000 }; // Not a multiple of the group size: the bounds check matters
         constexpr std::uint32_t groupSize{ 64 };
         constexpr auto byteSize = count * sizeof(std::uint32_t);
@@ -902,8 +896,6 @@ public:
 
     auto verifyRendererTextures() -> std::expected<void, std::string>
     {
-        using namespace rhi::utility;
-
         auto texture = m_renderer->createResolutionDependentTexture({
             .name = std::format("RendererTest{}", "Texture"),
             .extent = rhi::Extent3D{ m_renderer->extent() },
@@ -1389,8 +1381,6 @@ private:
 
     auto verifyBufferUpload() -> std::expected<void, std::string>
     {
-        using namespace rhi::utility;
-
         constexpr std::array<std::uint32_t, 4> srcData{
             0xDEADBEEF, 0x12345678, 0xCAFEBABE, 0x0BADF00D
         };
@@ -1442,8 +1432,6 @@ private:
     // and the documented flush-and-retry response looped forever.
     auto verifyOverflowUpload() -> std::expected<void, std::string>
     {
-        using namespace rhi::utility;
-
         constexpr std::size_t count{ 20 * 1024 * 1024 };
         constexpr auto byteSize = count * sizeof(std::uint32_t);
         std::vector<std::uint32_t> srcData(count);
@@ -1541,8 +1529,6 @@ private:
         rhi::Format format, std::uint32_t mipLevels, std::uint32_t arrayLayers, auto&& fillFor)
         -> std::expected<void, std::string>
     {
-        using namespace rhi::utility;
-
         const auto footprints = rhi::detail::subresourceFootprints(extent, format, mipLevels,
             arrayLayers);
         if (footprints.empty())

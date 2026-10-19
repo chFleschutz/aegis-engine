@@ -8,7 +8,7 @@ add_library(aegis-core STATIC)
 target_link_libraries(aegis-core 
 PUBLIC
 	aegis-assert
-	Aegis::Log
+	aegis-base
 )
 
 target_sources(aegis-core
@@ -20,8 +20,6 @@ PUBLIC
 		globals.cppm
 		layer.cppm
 		layer_stack.cppm
-		logging.cppm
-		profiler.cppm
 )
 
 target_compile_definitions(aegis-core PUBLIC

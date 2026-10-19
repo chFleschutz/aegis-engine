@@ -286,8 +286,6 @@ auto Renderer::createFrameContext(
 
 auto Renderer::createOffscreenTargets() -> std::expected<void, Error>
 {
-    using namespace rhi::utility;
-
     // One per frame in flight, like swapchain images: a frame never draws into a target that the
     // previous, possibly still running, frame draws into. TransferSrc allows reading a frame back,
     // TransferDst blitting one in, as onto a swapchain image.
