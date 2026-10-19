@@ -897,7 +897,8 @@ public:
         if (m_device->get(texture->view).range().mipLevelCount != mipLevels)
             return std::unexpected{ "Renderer texture view does not cover the image's mips" };
 
-        m_renderer->resize(m_renderer->extent());
+        if (auto resized = m_renderer->resize(m_renderer->extent()); !resized)
+            return std::unexpected{ "Failed to resize the renderer" };
 
         const auto after = m_device->get(texture->view).sampledDescriptor();
         if (!after || after->index != before->index)
@@ -1022,7 +1023,12 @@ public:
 
                 if (m_window->wasResized() || m_renderer->needsResize())
                 {
-                    m_renderer->resize(rhi::Extent2D{ m_window->extent() });
+                    if (auto resized = m_renderer->resize(rhi::Extent2D{ m_window->extent() }); !resized)
+                    {
+                        std::println("Renderer resize failed (renderer error {})", std::to_underlying(resized.error()));
+                        m_device->waitIdle();
+                        return 1;
+                    }
                     m_window->resetResized();
                     if (m_frameGraph)
                     {
@@ -1052,7 +1058,11 @@ public:
             // views passes derive from them are recreated under validation.
             if (m_frameGraph && m_renderer->offscreen() && frames == m_options.frames / 2)
             {
-                m_renderer->resize({ 800, 600 });
+                if (auto resized = m_renderer->resize({ 800, 600 }); !resized)
+                {
+                    std::println("Renderer resize failed (renderer error {})", std::to_underlying(resized.error()));
+                    return 1;
+                }
                 if (auto resized = m_frameGraph->resized(); !resized)
                 {
                     std::println("Frame graph resize failed: {}", resized.error().message);
@@ -1060,7 +1070,12 @@ public:
                 }
             }
 
-            m_renderer->renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); });
+            if (auto rendered = m_renderer->renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); }); !rendered)
+            {
+                std::println("Rendering a frame failed (renderer error {})", std::to_underlying(rendered.error()));
+                m_device->waitIdle();
+                return 1;
+            }
             ++frames;
         }
 

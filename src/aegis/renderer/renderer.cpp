@@ -130,11 +130,17 @@ auto Renderer::createResolutionDependentTexture(
         });
 }
 
-auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept -> void
+auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept
+    -> std::expected<void, Error>
 {
     auto frameInfo = beginFrame();
     if (!frameInfo)
-        return;
+    {
+        // An out-of-date swapchain only skips the frame: the caller resizes before the next one.
+        if (frameInfo.error() == Error::SwapchainOutOfDate)
+            return {};
+        return std::unexpected{ frameInfo.error() };
+    }
 
     const auto& cmd = frameInfo->cmd;
     cmd.begin();
@@ -157,10 +163,10 @@ auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc
     cmd.endLabel();
     cmd.end();
 
-    endFrame();
+    return endFrame();
 }
 
-auto Renderer::resize(rhi::Extent2D newSize) -> void
+auto Renderer::resize(rhi::Extent2D newSize) -> std::expected<void, Error>
 {
     // Note: Resources need to be replaced immediately as the swapchain size changed.
     // The full sync point is required to ensure GPU is not using any resources anymore.
@@ -180,7 +186,7 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
         if (!swapchain)
         {
             std::println("Failed to recreate swapchain");
-            return;
+            return std::unexpected{ Error::SwapchainRecreateFailed };
         }
         m_swapchain = std::move(*swapchain);
         m_extent = m_swapchain->extent();
@@ -212,7 +218,7 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
         if (!newImage)
         {
             std::println("Failed to recreate resolution dependent image '{}'", name);
-            continue;
+            return std::unexpected{ Error::ResourceRecreateFailed };
         }
 
         auto newView = m_device.replace(texture.view,
@@ -228,10 +234,14 @@ auto Renderer::resize(rhi::Extent2D newSize) -> void
                 .usage = desc.usage,
             });
         if (!newView)
+        {
             std::println("Failed to recreate resolution dependent view '{}'", name);
+            return std::unexpected{ Error::ResourceRecreateFailed };
+        }
     }
 
     m_needsResize = false;
+    return {};
 }
 
 auto Renderer::createFrameContext(
@@ -322,7 +332,7 @@ auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
     };
 }
 
-auto Renderer::endFrame() noexcept -> void
+auto Renderer::endFrame() noexcept -> std::expected<void, Error>
 {
     auto& [cmd, imageAvailable, timePoint] = m_frameContext[m_currentFrame];
 
@@ -338,7 +348,7 @@ auto Renderer::endFrame() noexcept -> void
     if (!newSubmitTime)
     {
         std::println("Failed to submit to queue");
-        return;
+        return std::unexpected{ Error::QueueSubmitFailed };
     }
     timePoint = *newSubmitTime;
 
@@ -348,10 +358,11 @@ auto Renderer::endFrame() noexcept -> void
         if (!result)
         {
             std::println("Failed to present to queue");
-            return;
+            return std::unexpected{ Error::SwapchainPresentFailed };
         }
     }
 
     m_currentFrame = (m_currentFrame + 1) % m_frameContext.size();
+    return {};
 }
 }
