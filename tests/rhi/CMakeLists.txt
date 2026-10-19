@@ -3,6 +3,7 @@ aegis_add_test(rhi
         bindless_slots.test.cpp
         deletion_queue.test.cpp
         device.test.cpp
+        error.test.cpp
         format.test.cpp
         free_list.test.cpp
         query.test.cpp

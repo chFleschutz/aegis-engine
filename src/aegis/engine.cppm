@@ -180,7 +180,11 @@ public:
             m_layerStack.update(frameTimeSec);
 
             // Rendering: uploads queued this frame (or while loading) go first, on the same queue.
-            std::ignore = m_device->flushUploads();
+            if (auto flushed = m_device->flushUploads(); !flushed)
+            {
+                log::fatal("Failed to flush uploads: {}", rhi::describe(flushed.error()));
+                break;
+            }
             auto rendered = m_renderer->renderFrame([this](const aegis::renderer::Renderer::FrameInfo& frame) {
                 m_frameGraph->execute({
                     .cmd = frame.cmd,
@@ -238,12 +242,12 @@ private:
     {
         auto context = aegis::rhi::Context::create({ .appName = "Aegis", .window = &m_window });
         if (!context)
-            fatalSetup(std::format("Failed to create the Vulkan context (rhi error {})", std::to_underlying(context.error().code)));
+            fatalSetup(std::format("Failed to create the Vulkan context ({})", aegis::rhi::describe(context.error())));
         m_context = std::move(*context);
 
         auto device = m_context->createDevice({});
         if (!device)
-            fatalSetup(std::format("Failed to create the Vulkan device (rhi error {})", std::to_underlying(device.error().code)));
+            fatalSetup(std::format("Failed to create the Vulkan device ({})", aegis::rhi::describe(device.error())));
         m_device = std::move(*device);
 
         auto renderer = aegis::renderer::Renderer::create({
