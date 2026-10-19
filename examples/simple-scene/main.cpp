@@ -57,6 +57,7 @@ public:
         auto teapot = Engine::loadModel(core::ASSETS_DIR / "Misc/teapot.obj");
         registry.get<Transform>(teapot).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
         registry.get<aegis::assets::Material>(teapot).instance = metalMat;
+        registry.add<DynamicTag>(teapot); // The Rotator moves it every frame
         scripts.addScript<Rotator>(teapot);
 
         // LIGHTS

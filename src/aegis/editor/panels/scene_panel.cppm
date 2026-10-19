@@ -155,6 +155,9 @@ private:
 
     void drawEntityProperties(scene::Registry& registry)
     {
+        if (!registry.valid(m_selectedEntity))
+            m_selectedEntity = {};
+
         if (!ImGui::Begin("Properties") || !m_selectedEntity)
         {
             ImGui::End();
@@ -167,14 +170,21 @@ private:
             });
 
         drawComponent<Transform>(registry, "Transform", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
-            [](Transform& transform) {
-                ImGui::DragFloat3("Location", &transform.location.x, 0.1f);
+            [&](Transform& transform) {
+                bool edited = ImGui::DragFloat3("Location", &transform.location.x, 0.1f);
 
                 glm::vec3 eulerDeg = glm::degrees(glm::eulerAngles(transform.rotation));
                 if (ImGui::DragFloat3("Rotation", &eulerDeg.x, 0.5f))
+                {
                     transform.rotation = glm::quat(glm::radians(eulerDeg));
+                    edited = true;
+                }
 
-                ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f);
+                edited |= ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f);
+
+                // Static entities only move when told to (see DynamicTag)
+                if (edited && !registry.has<DynamicTag>(m_selectedEntity))
+                    registry.markStaticDirty(m_selectedEntity);
             });
 
         drawComponent<aegis::assets::Mesh>(registry, "Mesh", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
@@ -235,11 +245,14 @@ private:
 
     void drawSingleEntity(scene::Registry& registry, scene::Entity entity)
     {
+        if (!entity) // The scene's slot is empty (its entity was destroyed)
+            return;
+
         auto name = registry.has<Name>(entity) ? registry.get<Name>(entity).name.c_str() : "Entity";
         auto flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf;
         flags |= (m_selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
-        if (ImGui::TreeNodeEx((void*)(std::uint64_t)(std::uint32_t)entity, flags, "%s", name))
+        if (ImGui::TreeNodeEx(reinterpret_cast<void*>(static_cast<std::uintptr_t>(static_cast<std::uint32_t>(entity.id()))), flags, "%s", name))
             ImGui::TreePop();
 
         if (ImGui::IsItemClicked())
@@ -254,7 +267,7 @@ private:
         flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
         flags |= (m_selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
-        auto isOpen = ImGui::TreeNodeEx((void*)(std::uint64_t)(std::uint32_t)entity, flags, "%s", name);
+        auto isOpen = ImGui::TreeNodeEx(reinterpret_cast<void*>(static_cast<std::uintptr_t>(static_cast<std::uint32_t>(entity.id()))), flags, "%s", name);
 
         if (ImGui::IsItemClicked())
             m_selectedEntity = entity;

@@ -30,10 +30,11 @@ public:
     auto operator=(Scene&&) -> Scene& = delete;
 
     [[nodiscard]] auto registry() -> Registry& { return m_registry; }
-    [[nodiscard]] auto mainCamera() const -> Entity { return m_mainCamera; }
-    [[nodiscard]] auto ambientLight() const -> Entity { return m_ambientLight; }
-    [[nodiscard]] auto directionalLight() const -> Entity { return m_directionalLight; }
-    [[nodiscard]] auto environment() const -> Entity { return m_skybox; }
+    /// @note The slot getters return a null entity once the slot's entity is destroyed
+    [[nodiscard]] auto mainCamera() const -> Entity { return live(m_mainCamera); }
+    [[nodiscard]] auto ambientLight() const -> Entity { return live(m_ambientLight); }
+    [[nodiscard]] auto directionalLight() const -> Entity { return live(m_directionalLight); }
+    [[nodiscard]] auto environment() const -> Entity { return live(m_skybox); }
 
     void setMainCamera(Entity camera) { m_mainCamera = camera; }
     void setAmbientLight(Entity light) { m_ambientLight = light; }
@@ -71,6 +72,8 @@ public:
     }
 
 private:
+    auto live(Entity entity) const -> Entity { return m_registry.valid(entity) ? entity : Entity{}; }
+
     Registry m_registry;
     std::vector<std::unique_ptr<System>> m_systems;
 
