@@ -8,7 +8,6 @@ add_library(aegis-core STATIC)
 target_link_libraries(aegis-core 
 PUBLIC
 	aegis-assert
-	imguizmo
 	Aegis::Log
 )
 
