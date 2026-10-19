@@ -3,6 +3,16 @@
 import std;
 import aegis.engine;
 
+namespace
+{
+std::mt19937 rng{ std::random_device{}() };
+
+auto uniformFloat(float min, float max) -> float
+{
+    return std::uniform_real_distribution<float>(min, max)(rng);
+}
+}
+
 // 1. Crytek Sponza
 //      - baseline standard small scene
 class Sponza : public aegis::SceneDescription
@@ -130,12 +140,12 @@ public:
             registry.add<aegis::assets::Material>(instance, materialInstance);
             auto& transform = registry.get<Transform>(instance);
             transform.location = {
-                posDis(math::Random::generator()),
-                posDis(math::Random::generator()),
-                posDis(math::Random::generator()) / 2.0f
+                posDis(rng),
+                posDis(rng),
+                posDis(rng) / 2.0f
             };
-            transform.rotation = glm::radians(glm::vec3{ 90.0f, 0.0f, rotDis(math::Random::generator()) });
-            transform.scale = glm::vec3{ scaleDis(math::Random::generator()) };
+            transform.rotation = glm::radians(glm::vec3{ 90.0f, 0.0f, rotDis(rng) });
+            transform.scale = glm::vec3{ scaleDis(rng) };
         }
     }
 };
@@ -191,12 +201,12 @@ public:
         {
             auto matInstance = Engine::createMaterial(pbrMatTemplate);
             glm::vec3 color{
-                math::Random::uniformFloat(0.0f, 1.0f),
-                math::Random::uniformFloat(0.0f, 1.0f),
-                math::Random::uniformFloat(0.0f, 1.0f)
+                uniformFloat(0.0f, 1.0f),
+                uniformFloat(0.0f, 1.0f),
+                uniformFloat(0.0f, 1.0f)
             };
-            const float metallic = math::Random::uniformFloat(0.0f, 1.0f);
-            const float roughness = math::Random::uniformFloat(0.0f, 1.0f);
+            const float metallic = uniformFloat(0.0f, 1.0f);
+            const float roughness = uniformFloat(0.0f, 1.0f);
             [[maybe_unused]] auto set = matInstance->setParameter("albedo", color)
                                             .and_then([&] { return matInstance->setParameter("metallic", metallic); })
                                             .and_then([&] { return matInstance->setParameter("roughness", roughness); });
@@ -214,15 +224,15 @@ public:
         for (int i = 0; i < cubeCount; i++)
         {
             glm::vec3 pos{
-                posDis(math::Random::generator()),
-                posDis(math::Random::generator()),
-                posDis(math::Random::generator())
+                posDis(rng),
+                posDis(rng),
+                posDis(rng)
             };
             glm::quat rot = glm::radians(glm::vec3{
-                rotDis(math::Random::generator()),
-                rotDis(math::Random::generator()),
-                rotDis(math::Random::generator()) });
-            glm::vec3 scale{ scaleDis(math::Random::generator()) };
+                rotDis(rng),
+                rotDis(rng),
+                rotDis(rng) });
+            glm::vec3 scale{ scaleDis(rng) };
 
             auto cubeInstance = registry.create(std::format("Cube {}", i), pos, rot, scale);
             registry.add<aegis::assets::Mesh>(cubeInstance, cubeMesh);
@@ -290,20 +300,20 @@ public:
         for (int i = 0; i < cubeCount; i++)
         {
             glm::vec3 pos{
-                posDis(math::Random::generator()),
-                posDis(math::Random::generator()),
-                posDis(math::Random::generator())
+                posDis(rng),
+                posDis(rng),
+                posDis(rng)
             };
             glm::quat rot = glm::radians(glm::vec3{
-                rotDis(math::Random::generator()),
-                rotDis(math::Random::generator()),
-                rotDis(math::Random::generator()) });
-            glm::vec3 scale{ scaleDis(math::Random::generator()) };
+                rotDis(rng),
+                rotDis(rng),
+                rotDis(rng) });
+            glm::vec3 scale{ scaleDis(rng) };
 
             auto cubeInstance = registry.create(std::format("Cube {}", i), pos, rot, scale);
             registry.add<aegis::assets::Mesh>(cubeInstance, cubeMesh);
             registry.add<aegis::assets::Material>(cubeInstance, cubeMat);
-            registry.add<Rotatable>(cubeInstance, glm::radians(math::Random::uniformFloat(10.0f, 90.0f)));
+            registry.add<Rotatable>(cubeInstance, glm::radians(uniformFloat(10.0f, 90.0f)));
             registry.add<DynamicTag>(cubeInstance); // Mark dynamic, so its updated every frame
         }
     }

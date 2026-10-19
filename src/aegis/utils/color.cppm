@@ -25,7 +25,9 @@ public:
     static glm::vec4 brown() { return glm::vec4{ 0.5f, 0.25f, 0.0f, 1.0f }; }
     static glm::vec4 random()
     {
-        return glm::vec4{ math::Random::uniformFloat(), math::Random::uniformFloat(), math::Random::uniformFloat(), 1.0f };
+        static std::mt19937 generator{ std::random_device{}() };
+        std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
+        return glm::vec4{ distribution(generator), distribution(generator), distribution(generator), 1.0f };
     }
 
     static glm::vec4 fromHex(const std::string& hex)

@@ -3,6 +3,16 @@
 import std;
 import aegis.engine;
 
+namespace
+{
+std::mt19937 rng{ std::random_device{}() };
+
+auto uniformFloat(float min, float max) -> float
+{
+    return std::uniform_real_distribution<float>(min, max)(rng);
+}
+}
+
 /// @brief Example script to rotate the entity around the up axis
 class Rotator : public aegis::scripting::ScriptBase
 {
@@ -58,9 +68,9 @@ public:
             float y = lightRadius * std::sin(glm::radians(360.0f / lightCount * i));
             auto light = registry.create("Light " + std::to_string(i), { x, y, 3.0f });
 
-            float r = math::Random::uniformFloat(0.0f, 1.0f);
-            float g = math::Random::uniformFloat(0.0f, 1.0f);
-            float b = math::Random::uniformFloat(0.0f, 1.0f);
+            float r = uniformFloat(0.0f, 1.0f);
+            float g = uniformFloat(0.0f, 1.0f);
+            float b = uniformFloat(0.0f, 1.0f);
             registry.add<PointLight>(light, glm::vec3{ r, g, b }, 200.0f);
         }
     }
