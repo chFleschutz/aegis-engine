@@ -239,7 +239,7 @@ private:
         auto flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf;
         flags |= (m_selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
-        if (ImGui::TreeNodeEx((void*)(std::uint64_t)(std::uint32_t)entity, flags, "%s", name))
+        if (ImGui::TreeNodeEx(reinterpret_cast<void*>(static_cast<std::uintptr_t>(static_cast<std::uint32_t>(entity.id()))), flags, "%s", name))
             ImGui::TreePop();
 
         if (ImGui::IsItemClicked())
@@ -254,7 +254,7 @@ private:
         flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
         flags |= (m_selectedEntity == entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
-        auto isOpen = ImGui::TreeNodeEx((void*)(std::uint64_t)(std::uint32_t)entity, flags, "%s", name);
+        auto isOpen = ImGui::TreeNodeEx(reinterpret_cast<void*>(static_cast<std::uintptr_t>(static_cast<std::uint32_t>(entity.id()))), flags, "%s", name);
 
         if (ImGui::IsItemClicked())
             m_selectedEntity = entity;
