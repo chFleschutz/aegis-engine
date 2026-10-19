@@ -213,7 +213,8 @@ public:
 
     /// @brief Submits the open upload batch on the graphics queue and reclaims completed staging.
     /// @return The timeline value the submitted batch signals, or nullopt if nothing was submitted.
-    auto flushUploads() -> std::optional<TimelineValue>;
+    ///         The queue's submit error if the submission failed; the batch is dropped then.
+    [[nodiscard]] auto flushUploads() -> std::expected<std::optional<TimelineValue>, Error>;
 
     [[nodiscard]] auto createCommandBuffer(const CommandBuffer::Desc& desc) const
         -> std::expected<CommandBuffer, Error>;

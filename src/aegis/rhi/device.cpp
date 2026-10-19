@@ -232,7 +232,7 @@ auto Device::upload(ImageHandle dst, std::span<const std::byte> data, bool gener
     return m_uploadManager->upload(dst, data, generateMips, finalState);
 }
 
-auto Device::flushUploads() -> std::optional<TimelineValue>
+auto Device::flushUploads() -> std::expected<std::optional<TimelineValue>, Error>
 {
     return m_uploadManager->flushPending(m_graphicsQueue);
 }

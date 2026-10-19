@@ -1056,7 +1056,12 @@ public:
             }
 
             // Nothing queues uploads per frame yet; drain anyway so the path stays exercised.
-            std::ignore = m_device->flushUploads();
+            if (auto flushed = m_device->flushUploads(); !flushed)
+            {
+                std::println("Flushing uploads failed: {}", rhi::describe(flushed.error()));
+                m_device->waitIdle();
+                return 1;
+            }
 
             if (m_scene)
                 m_scene->update(1.0f / 60.0f);
@@ -1373,10 +1378,12 @@ private:
     // Drains the open upload batch and blocks until the GPU has consumed it.
     auto flushAndWait() -> std::expected<void, std::string>
     {
-        auto timeline = m_device->flushUploads();
-        if (!timeline)
+        auto flushed = m_device->flushUploads();
+        if (!flushed)
+            return std::unexpected{ std::format("flushUploads failed: {}", rhi::describe(flushed.error())) };
+        if (!*flushed)
             return std::unexpected{ "flushUploads did not submit a batch" };
-        m_device->graphicsQueue().wait(*timeline);
+        m_device->graphicsQueue().wait(**flushed);
         return {};
     }
 

@@ -180,7 +180,11 @@ public:
             m_layerStack.update(frameTimeSec);
 
             // Rendering: uploads queued this frame (or while loading) go first, on the same queue.
-            std::ignore = m_device->flushUploads();
+            if (auto flushed = m_device->flushUploads(); !flushed)
+            {
+                log::fatal("Failed to flush uploads: {}", rhi::describe(flushed.error()));
+                break;
+            }
             auto rendered = m_renderer->renderFrame([this](const aegis::renderer::Renderer::FrameInfo& frame) {
                 m_frameGraph->execute({
                     .cmd = frame.cmd,
