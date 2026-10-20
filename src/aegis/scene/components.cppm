@@ -13,6 +13,16 @@ struct Name
     std::string name = "Entity";
 };
 
+/// @brief The stable identity of an entity: a random 64-bit ID, unique within its world and never zero
+/// @note entt::entity indices are reused after a destroy and can't be stored in a file, this ID can.
+///       Registry::create assigns it, Registry::find looks an entity up by it, and it never changes.
+struct StableId
+{
+    std::uint64_t value = 0;
+
+    auto operator==(const StableId&) const -> bool = default;
+};
+
 /// @brief Stores the local transformation of the entity
 struct Transform
 {
@@ -128,6 +138,12 @@ struct PointLight
     float intensity = 100.0f;
 };
 
+/// @brief Tags the camera the scene is viewed through (the first entity with it and a Camera wins)
+/// @note Scene::setMainCamera moves the tag, so one entity carries it
+struct MainCamera
+{
+};
+
 /// @brief Holds a camera to view the scene
 struct Camera
 {
@@ -144,6 +160,12 @@ struct Camera
 // Specialize component traits
 template<>
 struct ComponentTraits<Name>
+{
+    static constexpr bool is_required = true;
+};
+
+template<>
+struct ComponentTraits<StableId>
 {
     static constexpr bool is_required = true;
 };

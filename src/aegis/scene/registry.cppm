@@ -25,12 +25,25 @@ public:
     /// @note The entity storage keeps destroyed ids for reuse, its free list marks where the live ones end
     [[nodiscard]] auto entityCount() const -> std::size_t { return m_registry.storage<entt::entity>()->free_list(); }
 
-    /// @brief Creates an entity with a NameComponent and TransformComponent
+    /// @brief Creates an entity with a StableId (random, unique in this registry), a Name and a Transform
     /// @note scene::Entity can be passed by value
     auto create(const std::string& name = std::string{}, const glm::vec3& location = glm::vec3{ 0.0f },
         const glm::quat& rotation = glm::quat{ 1.0f, 0.0f, 0.0f, 0.0f }, const glm::vec3& scale = glm::vec3{ 1.0f }) -> Entity
     {
+        return createWithId(randomId(), name, location, rotation, scale);
+    }
+
+    /// @brief Like create, with a given StableId (a loader restoring a saved entity)
+    /// @return The new entity, or a null Entity (and nothing created) if the id is zero or already in use
+    auto createWithId(std::uint64_t id, const std::string& name = std::string{}, const glm::vec3& location = glm::vec3{ 0.0f },
+        const glm::quat& rotation = glm::quat{ 1.0f, 0.0f, 0.0f, 0.0f }, const glm::vec3& scale = glm::vec3{ 1.0f }) -> Entity
+    {
+        if (id == 0 || m_ids.contains(id))
+            return Entity{};
+
         Entity entity{ m_registry.create() };
+        m_ids.emplace(id, entity.id());
+        add<StableId>(entity, id);
         add<Name>(entity, name.empty() ? "Entity" : name);
         add<Transform>(entity, location, rotation, scale);
         add<GlobalTransform>(entity);
@@ -40,14 +53,56 @@ public:
         return entity;
     }
 
+    /// @brief Destroys the entity (its StableId is gone with it and is not reused)
+    /// @note The listeners added with addDestroyListener run first, while the entity still has all its components
     void destroy(Entity entity)
     {
-        // Scripts of the entity stop when the ScriptManager next updates (it checks valid())
+        for (const auto& listener : m_destroyListeners)
+            listener.callback(entity);
 
         removeParent(entity);
         removeChildren(entity);
 
+        m_ids.erase(get<StableId>(entity).value);
         m_registry.destroy(entity.id());
+    }
+
+    /// @brief Destroys every entity, without calling the destroy listeners (end scripts and the like first)
+    /// @note The StableIds are released; ids are random, so a new entity is unlikely to get a cleared one
+    void clear()
+    {
+        m_registry.clear();
+        m_ids.clear();
+        invalidateStatic();
+    }
+
+    /// @brief Calls callback(entity) at the start of every destroy(), before the entity loses anything
+    /// @param owner Identifies the listener for removeDestroyListener
+    void addDestroyListener(const void* owner, std::function<void(Entity)> callback)
+    {
+        m_destroyListeners.push_back({ owner, std::move(callback) });
+    }
+
+    void removeDestroyListener(const void* owner)
+    {
+        std::erase_if(m_destroyListeners, [owner](const DestroyListener& listener) { return listener.owner == owner; });
+    }
+
+    /// @brief The entity with this StableId, or a null Entity
+    [[nodiscard]] auto find(StableId id) const -> Entity
+    {
+        auto it = m_ids.find(id.value);
+        return it == m_ids.end() ? Entity{} : Entity{ it->second };
+    }
+
+    /// @brief The first entity that has all components of type T... (a null Entity if none does)
+    /// @note This is how the scene's singletons are found: there is no side table that could dangle
+    template<typename... T>
+    [[nodiscard]] auto first() const -> Entity
+    {
+        const auto view = std::as_const(m_registry).template view<const T...>();
+        const auto it = view.begin();
+        return it == view.end() ? Entity{} : Entity{ *it };
     }
 
     /// @brief Checks that the entity is alive: not null, not destroyed (also when its id was recycled)
@@ -266,7 +321,31 @@ public:
     }
 
 private:
+    struct DestroyListener
+    {
+        const void* owner;
+        std::function<void(Entity)> callback;
+    };
+
+    static auto makeIdGenerator() -> std::mt19937_64
+    {
+        std::random_device device;
+        std::seed_seq seed{ device(), device(), device(), device() };
+        return std::mt19937_64{ seed };
+    }
+
+    auto randomId() -> std::uint64_t
+    {
+        std::uint64_t id = 0;
+        while (id == 0 || m_ids.contains(id))
+            id = m_idGenerator();
+        return id;
+    }
+
     entt::registry m_registry;
+    std::unordered_map<std::uint64_t, entt::entity> m_ids;
+    std::mt19937_64 m_idGenerator{ makeIdGenerator() };
+    std::vector<DestroyListener> m_destroyListeners;
     std::uint64_t m_staticVersion{ 0 };
 };
 }
