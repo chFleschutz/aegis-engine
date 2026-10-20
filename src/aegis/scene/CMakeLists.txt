@@ -9,6 +9,7 @@ PUBLIC
 		component_traits.cppm
 		entity.cppm
 		registry.cppm
+		render_components.cppm
 		scene.cppm
 		system.cppm
 		systems/camera_system.cppm
@@ -20,9 +21,11 @@ target_include_directories(aegis-scene PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-# PUBLIC: the module interfaces import aegis.math and aegis.core and export EnTT's names.
+# PUBLIC: the module interfaces import aegis.math and aegis.core, render_components imports aegis.assets,
+# and they export EnTT's names.
 target_link_libraries(aegis-scene
 PUBLIC
+	aegis-assets
 	aegis-base
 	aegis-core
 	aegis-math

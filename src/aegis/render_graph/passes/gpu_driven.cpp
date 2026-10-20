@@ -8,6 +8,7 @@ module;
 module aegis.render_graph;
 import std;
 import aegis.assets;
+import aegis.scene.render_components;
 import aegis.base;
 import aegis.renderer;
 import aegis.rhi;
@@ -121,7 +122,7 @@ auto InstanceUpdatePass::rebuildStatic(ResourcePool& pool, aegis::scene::Scene& 
     }
     m_staticCapacity = capacity;
 
-    auto view = scene.registry().view<aegis::GlobalTransform, assets::Mesh, assets::Material>(entt::exclude<aegis::DynamicTag>);
+    auto view = scene.registry().view<aegis::GlobalTransform, aegis::Mesh, aegis::Material>(entt::exclude<aegis::DynamicTag>);
     for (std::uint32_t frame = 0; frame < frames; ++frame)
     {
         const auto instances = collectInstances(view, m_drawBatches, frame, m_staticCapacity, false);
@@ -155,7 +156,7 @@ auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
     std::ignore = ensureCapacity(pool, m_dynamicInstances, m_dynamicCapacity, m_drawBatches.dynamicInstanceCount(),
         sizeof(InstanceData));
     // DynamicTag is empty, so the view's each() does not yield it.
-    auto view = frameInfo.scene.registry().view<aegis::GlobalTransform, assets::Mesh, assets::Material, aegis::DynamicTag>();
+    auto view = frameInfo.scene.registry().view<aegis::GlobalTransform, aegis::Mesh, aegis::Material, aegis::DynamicTag>();
     const auto instances = collectInstances(view, m_drawBatches, frameInfo.frameIndex, m_dynamicCapacity, true);
     pool.write(m_dynamicInstances, frameInfo.frameIndex, std::as_bytes(std::span{ instances }));
     m_dynamicCount = static_cast<std::uint32_t>(instances.size());

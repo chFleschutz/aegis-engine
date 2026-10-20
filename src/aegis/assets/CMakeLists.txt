@@ -6,7 +6,6 @@ target_link_libraries(aegis-assets
         aegis-rhi
         aegis-core  # aegis::core::Asset, the base class of the loaded assets
         aegis-math
-        aegis-scene # The loaders populate a Scene::Registry
     PRIVATE
         fastgltf
         meshoptimizer

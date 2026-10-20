@@ -16,6 +16,7 @@
 
 import std;
 import aegis.assets;
+import aegis.instantiate;
 import aegis.paths;
 import aegis.platform;
 import aegis.renderer;
@@ -24,6 +25,7 @@ import aegis.rhi;
 import aegis.math;
 import aegis.scene;
 import aegis.scene.registry;
+import aegis.scene.render_components;
 import aegis.scene.systems.camera_system;
 import aegis.scene.systems.transform_system;
 
@@ -674,23 +676,36 @@ public:
         aegis::scene::Registry scene;
         const assets::Loader::Desc loaderDesc{
             .device = *m_device,
-            .scene = scene,
-            .pbrTemplate = defaults->pbrTemplate,
-            .defaultMaterial = defaults->pbrMaterial,
+            .defaults = *defaults,
             .framesInFlight = framesInFlight,
         };
         for (const auto* model : { "DamagedHelmet/DamagedHelmet.gltf", "Misc/cube.obj" })
         {
-            auto root = assets::Loader::load(loaderDesc, paths::assets() / model);
-            if (!root)
-                return std::unexpected{ std::format("Loading {}: {}", model, assets::describe(root.error())) };
+            auto loaded = assets::Loader::load(loaderDesc, paths::assets() / model);
+            if (!loaded)
+                return std::unexpected{ std::format("Loading {}: {}", model, assets::describe(loaded.error())) };
+            instantiate(scene, *loaded);
+        }
+        // Each load gets its own default material: editing one model's must not change another's (E-CONTENT-04).
+        {
+            std::array<std::shared_ptr<assets::MaterialInstance>, 2> defaultMaterials;
+            for (auto& slot : defaultMaterials)
+            {
+                auto cube = assets::Loader::load(loaderDesc, paths::assets() / "Misc/cube.obj");
+                if (!cube)
+                    return std::unexpected{ std::format("Loading cube.obj: {}", assets::describe(cube.error())) };
+                slot = cube->meshes.at(0).primitives.at(0).material;
+            }
+            if (!defaultMaterials[0] || !defaultMaterials[1] || defaultMaterials[0] == defaultMaterials[1] ||
+                defaultMaterials[0] == defaults->pbrMaterial)
+                return std::unexpected{ "Two loads share a default material" };
         }
         if (auto result = flushAndWait(); !result)
             return result;
 
         std::size_t meshes{ 0 };
         std::size_t texturedMaterials{ 0 };
-        for (auto&& [entity, mesh, material] : scene.view<assets::Mesh, assets::Material>().each())
+        for (auto&& [entity, mesh, material] : scene.view<aegis::Mesh, aegis::Material>().each())
         {
             if (!mesh.staticMesh || mesh.staticMesh->indexCount() == 0 || mesh.staticMesh->meshDataAddress() == 0)
                 return std::unexpected{ "A loaded mesh is empty or has no device address" };
@@ -871,15 +886,13 @@ public:
         auto helmet = assets::Loader::load(
             {
                 .device = *m_device,
-                .scene = registry,
-                .pbrTemplate = m_defaults->pbrTemplate,
-                .defaultMaterial = m_defaults->pbrMaterial,
+                .defaults = *m_defaults,
                 .framesInFlight = framesInFlight,
             },
             paths::assets() / "DamagedHelmet/DamagedHelmet.gltf");
         if (!helmet)
             return std::unexpected{ std::format("Loading the helmet: {}", assets::describe(helmet.error())) };
-        m_helmet = *helmet;
+        m_helmet = instantiate(registry, *helmet);
 
         // No platform backend: the UI is drawn, not interacted with.
         m_imgui = ImGuiContextHandle{ ImGui::CreateContext() };
@@ -1040,7 +1053,7 @@ public:
 
         const auto drawableStatic = [&] {
             std::uint32_t count{ 0 };
-            for (auto&& [entity, mesh, material] : registry.view<assets::Mesh, assets::Material>().each())
+            for (auto&& [entity, mesh, material] : registry.view<aegis::Mesh, aegis::Material>().each())
             {
                 if (mesh.staticMesh && material.instance && !registry.has<aegis::DynamicTag>(aegis::scene::Entity{ entity }))
                     ++count;
@@ -1073,15 +1086,13 @@ public:
             auto model = assets::Loader::load(
                 {
                     .device = *m_device,
-                    .scene = registry,
-                    .pbrTemplate = m_defaults->pbrTemplate,
-                    .defaultMaterial = m_defaults->pbrMaterial,
+                    .defaults = *m_defaults,
                     .framesInFlight = renderer::Renderer::maxFramesInFlight,
                 },
                 paths::assets() / "SciFiHelmet/SciFiHelmet.gltf");
             if (!model)
                 return std::unexpected{ std::format("Loading the second model: {}", assets::describe(model.error())) };
-            m_addedModel = *model;
+            m_addedModel = instantiate(registry, *model);
             registry.get<aegis::Transform>(m_addedModel).location = glm::vec3{ 0.9f, 0.0f, 0.0f };
             registry.markStaticDirty(m_addedModel);
         }
@@ -1108,7 +1119,7 @@ public:
         else if (frame == editFrame)
         {
             std::uint32_t edited{ 0 };
-            for (auto&& [entity, material] : registry.view<assets::Material>().each())
+            for (auto&& [entity, material] : registry.view<aegis::Material>().each())
             {
                 if (material.instance && material.instance->setParameter("albedo", glm::vec3{ 1.0f, 0.1f, 0.1f }))
                     ++edited;

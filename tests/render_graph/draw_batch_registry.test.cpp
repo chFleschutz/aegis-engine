@@ -2,6 +2,7 @@
 
 import std;
 import aegis.assets;
+import aegis.scene.render_components;
 import aegis.render_graph;
 import aegis.scene.registry;
 
@@ -76,7 +77,7 @@ TEST_SUITE("render_graph::DrawBatchRegistry")
         registry.connect(scene);
 
         const auto entity = scene.create();
-        scene.add<aegis::assets::Material>(entity); // Null instance: never counted
+        scene.add<aegis::Material>(entity); // Null instance: never counted
         scene.add<aegis::DynamicTag>(entity);
         CHECK(registry.staticInstanceCount() == 0);
         CHECK(registry.dynamicInstanceCount() == 0);
@@ -152,15 +153,15 @@ TEST_SUITE("render_graph::DrawBatchRegistry")
         const auto entity = scene.create();
 
         auto version = scene.staticVersion();
-        scene.add<aegis::assets::Mesh>(entity);
+        scene.add<aegis::Mesh>(entity);
         CHECK(scene.staticVersion() != version);
 
         version = scene.staticVersion();
-        scene.add<aegis::assets::Material>(entity);
+        scene.add<aegis::Material>(entity);
         CHECK(scene.staticVersion() != version);
 
         version = scene.staticVersion();
-        scene.remove<aegis::assets::Mesh>(entity);
+        scene.remove<aegis::Mesh>(entity);
         CHECK(scene.staticVersion() != version);
 
         version = scene.staticVersion();
@@ -191,12 +192,12 @@ TEST_SUITE("render_graph::DrawBatchRegistry")
         registry.connect(scene);
 
         const auto fixed = scene.create();
-        scene.add<aegis::assets::Mesh>(fixed);
+        scene.add<aegis::Mesh>(fixed);
         CHECK(scene.has<aegis::StaticDirtyTag>(fixed));
 
         const auto moving = scene.create();
         scene.add<aegis::DynamicTag>(moving);
-        scene.add<aegis::assets::Mesh>(moving);
+        scene.add<aegis::Mesh>(moving);
         CHECK(!scene.has<aegis::StaticDirtyTag>(moving));
     }
 
@@ -208,7 +209,7 @@ TEST_SUITE("render_graph::DrawBatchRegistry")
         registry.disconnect();
 
         const auto before = scene.staticVersion();
-        scene.add<aegis::assets::Mesh>(scene.create());
+        scene.add<aegis::Mesh>(scene.create());
         CHECK(scene.staticVersion() == before);
     }
 }

@@ -2,16 +2,12 @@ module aegis.assets;
 import std;
 import aegis.rhi;
 import aegis.math;
-import aegis.scene.registry;
 
 namespace aegis::assets
 {
 namespace
 {
-using aegis::scene::Entity;
-
-/// @brief The GPU objects of one ModelData: textures, meshes and materials, indexed like the data, and the
-///        entities for its nodes.
+/// @brief The GPU objects of one ModelData: textures, meshes and materials, indexed like the data.
 class ModelUpload
 {
 public:
@@ -22,7 +18,7 @@ public:
     {
     }
 
-    auto run() -> std::expected<Entity, Error>
+    auto run() -> std::expected<Model, Error>
     {
         // Meshes before textures, as the loader always did: queuing the texture uploads first made the
         // CPU-driven --mutate-scene run lose the device.
@@ -32,7 +28,7 @@ public:
             return std::unexpected{ result.error() };
         if (auto result = uploadMaterials(); !result)
             return std::unexpected{ result.error() };
-        return buildScene();
+        return assemble();
     }
 
 private:
@@ -79,7 +75,7 @@ private:
         m_materials.reserve(m_model.materials.size());
         for (const auto& data : m_model.materials)
         {
-            auto material = MaterialInstance::create(m_desc.device, m_desc.pbrTemplate, m_desc.framesInFlight);
+            auto material = MaterialInstance::create(m_desc.device, m_desc.defaults.pbrTemplate, m_desc.framesInFlight);
             if (!material)
                 return std::unexpected{ material.error() };
 
@@ -119,54 +115,43 @@ private:
         return {};
     }
 
-    auto materialFor(const ModelPrimitive& primitive) const -> std::shared_ptr<MaterialInstance>
+    auto materialFor(const ModelPrimitive& primitive) -> std::expected<std::shared_ptr<MaterialInstance>, Error>
     {
-        return primitive.material ? m_materials[*primitive.material] : m_desc.defaultMaterial;
+        if (primitive.material)
+            return m_materials[*primitive.material];
+        // One default material per load, created when the first primitive needs it.
+        if (!m_defaultMaterial)
+        {
+            auto material = m_desc.defaults.createPbrMaterial(m_desc.device, m_desc.framesInFlight);
+            if (!material)
+                return std::unexpected{ material.error() };
+            m_defaultMaterial = std::move(*material);
+        }
+        return m_defaultMaterial;
     }
 
-    /// @brief One primitive goes on the entity itself; several become child entities.
-    auto attachMesh(Entity entity, std::string_view name, std::uint32_t meshIndex) -> void
+    auto assemble() -> std::expected<Model, Error>
     {
-        auto& scene = m_desc.scene;
-        const auto& primitives = m_model.meshes[meshIndex].primitives;
-        if (primitives.size() == 1)
+        Model model{
+            .name = m_model.name,
+            .rootRotation = m_model.rootRotation,
+            .rootMesh = m_model.rootMesh,
+            .nodes = m_model.nodes,
+        };
+        model.meshes.reserve(m_model.meshes.size());
+        for (std::size_t meshIndex = 0; meshIndex < m_model.meshes.size(); ++meshIndex)
         {
-            scene.add<Mesh>(entity, m_meshes[meshIndex][0]);
-            scene.add<Material>(entity, materialFor(primitives[0]));
-            return;
+            const auto& primitives = m_model.meshes[meshIndex].primitives;
+            auto& mesh = model.meshes.emplace_back(ModelGpuMesh{ .name = m_model.meshes[meshIndex].name });
+            for (std::size_t i = 0; i < primitives.size(); ++i)
+            {
+                auto material = materialFor(primitives[i]);
+                if (!material)
+                    return std::unexpected{ material.error() };
+                mesh.primitives.push_back({ .mesh = m_meshes[meshIndex][i], .material = std::move(*material) });
+            }
         }
-        for (std::size_t sub = 0; sub < primitives.size(); ++sub)
-        {
-            const auto child = scene.create(std::format("{}_Submesh_{}", name, sub));
-            scene.add<Mesh>(child, m_meshes[meshIndex][sub]);
-            scene.add<Material>(child, materialFor(primitives[sub]));
-            scene.addChild(entity, child);
-        }
-    }
-
-    auto buildScene() -> Entity
-    {
-        auto& scene = m_desc.scene;
-        const auto root = scene.create(m_model.name);
-        scene.get<aegis::Transform>(root).rotation = m_model.rootRotation;
-        if (m_model.rootMesh)
-            attachMesh(root, m_model.name, *m_model.rootMesh);
-
-        std::vector<Entity> entities(m_model.nodes.size());
-        for (std::size_t i = 0; i < m_model.nodes.size(); ++i)
-        {
-            const auto& node = m_model.nodes[i];
-            const auto entity = scene.create(node.name, node.translation, node.rotation, node.scale);
-            entities[i] = entity;
-            if (node.parent)
-                scene.addChild(entities[*node.parent], entity);
-            else
-                scene.setParent(entity, root);
-
-            if (node.mesh)
-                attachMesh(entity, node.name, *node.mesh);
-        }
-        return root;
+        return model;
     }
 
     const Loader::Desc& m_desc;
@@ -175,10 +160,11 @@ private:
     std::vector<std::shared_ptr<Texture>> m_textures;               // Per ModelData image
     std::vector<std::vector<std::shared_ptr<StaticMesh>>> m_meshes; // Per ModelData mesh, one per primitive
     std::vector<std::shared_ptr<MaterialInstance>> m_materials;     // Per ModelData material
+    std::shared_ptr<MaterialInstance> m_defaultMaterial;            // For primitives without one
 };
 }
 
-auto Loader::load(const Desc& desc, const std::filesystem::path& path) -> std::expected<aegis::scene::Entity, Error>
+auto Loader::load(const Desc& desc, const std::filesystem::path& path) -> std::expected<Model, Error>
 {
     auto model = importModel(path);
     if (!model)

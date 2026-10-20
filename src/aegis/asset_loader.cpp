@@ -6,6 +6,7 @@ module aegis.asset_loader;
 
 import std;
 import aegis.base;
+import aegis.instantiate;
 
 namespace aegis
 {
@@ -43,16 +44,14 @@ auto AssetLoader::create(rhi::Device& device, std::uint32_t framesInFlight) -> s
 
 auto AssetLoader::loadModel(scene::Scene& scene, const std::filesystem::path& path) const -> scene::Entity
 {
-    auto root = assets::Loader::load(
+    auto model = assets::Loader::load(
         {
             .device = *m_device,
-            .scene = scene.registry(),
-            .pbrTemplate = m_defaults.pbrTemplate,
-            .defaultMaterial = m_defaults.pbrMaterial,
+            .defaults = m_defaults,
             .framesInFlight = m_framesInFlight,
         },
         path);
-    return check(std::move(root), std::format("load model '{}'", path.string()));
+    return instantiate(scene.registry(), check(std::move(model), std::format("load model '{}'", path.string())));
 }
 
 auto AssetLoader::loadEnvironment(const std::filesystem::path& hdr) const -> assets::Environment
