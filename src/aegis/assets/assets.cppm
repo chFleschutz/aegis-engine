@@ -8,6 +8,7 @@ export import :components;
 export import :defaults;
 export import :error;
 export import :gpu_types;
+export import :image_data;
 export import :loader;
 export import :material;
 export import :mesh_data;

@@ -3,6 +3,7 @@ aegis_add_test(assets
         defaults.test.cpp
         error.test.cpp
         gpu_types.test.cpp
+        image_data.test.cpp
         material.test.cpp
         mesh_preprocessor.test.cpp
     LIBS aegis-assets
