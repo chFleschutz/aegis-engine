@@ -98,6 +98,7 @@ void Engine::run()
         // ImGui's flags are from the previous frame's UI; they gate the game input.
         const auto& io = ImGui::GetIO();
         m_input.setCaptured(io.WantCaptureKeyboard, io.WantCaptureMouse);
+        m_input.update();
         updateCameraAspect();
         m_scene.update(frameTimeSec);
         m_layerStack.update(frameTimeSec);

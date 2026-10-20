@@ -32,17 +32,17 @@ public:
 
     virtual void onUpdate(float deltaSeconds) override
     {
-        m_snapping = m_input.keyPressed(aegis::platform::Key::LeftControl);
+        m_snapping = m_input.state().keyDown(aegis::platform::Key::LeftControl);
 
         if (!ImGuizmo::IsUsing())
         {
-            if (m_input.keyPressed(aegis::platform::Key::Q))
+            if (m_input.state().keyDown(aegis::platform::Key::Q))
                 m_gizmoType = -1;
-            else if (m_input.keyPressed(aegis::platform::Key::W))
+            else if (m_input.state().keyDown(aegis::platform::Key::W))
                 m_gizmoType = ImGuizmo::OPERATION::TRANSLATE;
-            else if (m_input.keyPressed(aegis::platform::Key::E))
+            else if (m_input.state().keyDown(aegis::platform::Key::E))
                 m_gizmoType = ImGuizmo::OPERATION::ROTATE;
-            else if (m_input.keyPressed(aegis::platform::Key::R))
+            else if (m_input.state().keyDown(aegis::platform::Key::R))
                 m_gizmoType = ImGuizmo::OPERATION::SCALE;
         }
     }

@@ -18,11 +18,13 @@ export namespace aegis::scripting
 class ScriptContext
 {
 public:
-    /// @param input Null for a world without a window (tests, a server); input() then asserts
-    ScriptContext(scene::Registry& registry, scene::Entity entity, platform::Input* input) :
+    /// @param input This frame's input; build it with nothing down for a world without a window
+    /// @param cursor Changes the cursor mode, or null for a world without a window (setCursorMode then does nothing)
+    ScriptContext(scene::Registry& registry, scene::Entity entity, const platform::InputState& input, platform::Input* cursor = nullptr) :
         m_registry(registry),
         m_entity(entity),
-        m_input(input)
+        m_input(input),
+        m_cursor(cursor)
     {
     }
 
@@ -31,11 +33,14 @@ public:
     /// @brief The registry of the entity's world: spawn, destroy and find other entities here
     [[nodiscard]] auto registry() const -> scene::Registry& { return m_registry; }
 
-    /// @brief The keyboard and mouse input
-    [[nodiscard]] auto input() const -> platform::Input&
+    /// @brief The keyboard and mouse input of this frame (empty while a UI has captured it)
+    [[nodiscard]] auto input() const -> const platform::InputState& { return m_input; }
+
+    /// @brief Shows, hides or captures the cursor; does nothing in a world without a window
+    auto setCursorMode(platform::CursorMode mode) const -> void
     {
-        AGX_ASSERT_X(m_input, "This world has no input");
-        return *m_input;
+        if (m_cursor)
+            m_cursor->setCursorMode(mode);
     }
 
     /// @brief Returns true if the entity has all components of type T...
@@ -62,7 +67,8 @@ public:
 private:
     scene::Registry& m_registry;
     scene::Entity m_entity;
-    platform::Input* m_input;
+    const platform::InputState& m_input;
+    platform::Input* m_cursor;
 };
 
 /// @brief Behavior attached to an entity, with the fixed hooks onCreate, onUpdate and onDestroy

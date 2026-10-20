@@ -579,25 +579,45 @@ public:
         m_input->bind(platform::Key::K, [presses] { ++*presses; }, platform::KeyAction::Press,
             platform::Modifiers::Control); // Must not fire: Control is not held
 
+        // Each step is one frame: window events in, then the snapshot built from them.
+        const auto frame = [this] {
+            m_window->update();
+            m_input->update();
+            return &m_input->state();
+        };
+
         postKey(WM_KEYDOWN, 'K');
-        m_window->update();
-        const bool keyDown = m_input->keyPressed(platform::Key::K);
+        const bool keyDown = frame()->keyDown(platform::Key::K) && m_input->state().keyPressed(platform::Key::K);
         const auto pressesAfterDown = *presses;
 
+        const bool keyHeld = frame()->keyDown(platform::Key::K) && !m_input->state().keyPressed(platform::Key::K);
+
         postKey(WM_KEYUP, 'K');
-        m_window->update();
-        const bool keyUp = !m_input->keyPressed(platform::Key::K);
+        const bool keyUp = !frame()->keyDown(platform::Key::K) && m_input->state().keyReleased(platform::Key::K);
 
         PostMessageW(hwnd, WM_RBUTTONDOWN, MK_RBUTTON, 0);
-        m_window->update();
-        const bool buttonDown = m_input->mouseButtonPressed(platform::MouseButton::Right);
+        const bool buttonDown = frame()->mouseDown(platform::MouseButton::Right);
 
         PostMessageW(hwnd, WM_RBUTTONUP, 0, 0);
-        m_window->update();
-        const bool buttonUp = !m_input->mouseButtonPressed(platform::MouseButton::Right);
+        const bool buttonUp = !frame()->mouseDown(platform::MouseButton::Right);
 
-        if (!keyDown || !keyUp)
-            return std::unexpected{ std::format("Input: key state wrong (down {}, released {})", keyDown, keyUp) };
+        PostMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(10, 10));
+        frame();
+        PostMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(30, 15));
+        const auto cursor = frame()->cursor();
+        const auto delta = m_input->state().cursorDelta();
+        const bool cursorMoved = cursor.x == 30.0 && cursor.y == 15.0 && delta.x == 20.0 && delta.y == 5.0;
+
+        PostMessageW(hwnd, WM_MOUSEWHEEL, MAKEWPARAM(0, WHEEL_DELTA), 0);
+        const bool scrolled = frame()->scroll().y == 1.0;
+        const bool scrollCleared = frame()->scroll().y == 0.0;
+
+        m_input->setCaptured(true, true);
+        const bool captured = !m_input->state().keyDown(platform::Key::K) && m_input->state().cursorDelta().x == 0.0;
+        m_input->setCaptured(false, false);
+
+        if (!keyDown || !keyHeld || !keyUp)
+            return std::unexpected{ std::format("Input: key state wrong (down {}, held {}, released {})", keyDown, keyHeld, keyUp) };
         if (pressesAfterDown != 1 || *presses != 1)
             return std::unexpected{
                 std::format("Input: expected 1 binding call on press only, got {} then {}", pressesAfterDown,
@@ -607,8 +627,15 @@ public:
             return std::unexpected{
                 std::format("Input: mouse button state wrong (down {}, released {})", buttonDown, buttonUp)
             };
+        if (!cursorMoved)
+            return std::unexpected{ std::format("Input: cursor ({}, {}) delta ({}, {}), expected (30, 15) and (20, 5)",
+                cursor.x, cursor.y, delta.x, delta.y) };
+        if (!scrolled || !scrollCleared)
+            return std::unexpected{ std::format("Input: scroll wrong (seen {}, cleared next frame {})", scrolled, scrollCleared) };
+        if (!captured)
+            return std::unexpected{ "Input: a captured state still reports input" };
 
-        std::println("Input verified: key state, key binding (press only, exact modifiers) and mouse button");
+        std::println("Input verified: InputState snapshot (keys, mouse button, cursor delta, scroll, capture) and key binding (press only, exact modifiers)");
         return {};
 #endif
     }
@@ -1135,6 +1162,7 @@ public:
                     m_window->waitEvents();
                     continue;
                 }
+                m_input->update(); // Drains the window's events
 
                 if (m_window->wasResized() || m_renderer->needsResize())
                 {

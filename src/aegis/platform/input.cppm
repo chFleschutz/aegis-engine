@@ -4,6 +4,7 @@ module;
 export module aegis.platform:input;
 import std;
 import :key;
+import :input_state;
 import :key_bindings;
 import :window;
 
@@ -16,17 +17,10 @@ enum class CursorMode
     Disabled, // Invisible and captured: unbounded relative motion, e.g. for camera control
 };
 
-/// @brief In screen coordinates, relative to the window's top-left corner.
-struct CursorPosition
-{
-    double x{ 0.0 };
-    double y{ 0.0 };
-};
-
 class Input
 {
 public:
-    /// @brief Receives 'window's key events; the window must outlive this Input and must not move.
+    /// @brief Receives 'window's events; the window must outlive this Input and must not move.
     explicit Input(Window& window);
     Input(const Input&) = delete;
     Input(Input&&) = delete;
@@ -35,19 +29,18 @@ public:
     auto operator=(const Input&) -> Input& = delete;
     auto operator=(Input&&) -> Input& = delete;
 
-    [[nodiscard]] auto keyPressed(Key key) const -> bool;
-    [[nodiscard]] auto mouseButtonPressed(MouseButton button) const -> bool;
-    [[nodiscard]] auto cursorPosition() const -> CursorPosition;
+    /// @brief Builds this frame's InputState: forgets the last frame's, then applies the events the window
+    ///        collected since. Call once per frame, after Window::update.
+    auto update() -> void;
+
+    /// @brief The state as of the last update. Stays valid, and changes in place, for the life of this Input.
+    [[nodiscard]] auto state() const -> const InputState& { return m_state; }
 
     auto setCursorMode(CursorMode mode) -> void;
 
-    /// @brief While captured (e.g. by a UI that has the focus), keyPressed and mouseButtonPressed report
-    ///        nothing pressed. Bindings and the cursor position are not affected.
-    auto setCaptured(bool keyboard, bool mouse) -> void
-    {
-        m_keyboardCaptured = keyboard;
-        m_mouseCaptured = mouse;
-    }
+    /// @brief While captured (e.g. by a UI that has the focus), the state reports no keyboard or mouse input
+    ///        (see InputState). Bindings and the cursor position are not affected.
+    auto setCaptured(bool keyboard, bool mouse) -> void { m_state.setCaptured(keyboard, mouse); }
 
     /// @brief Calls 'callback' whenever 'key' sees 'action' while exactly 'modifiers' are held; see KeyBindings.
     /// @return The id to unbind with. Dropping it keeps the binding for the life of this Input.
@@ -62,7 +55,6 @@ private:
 
     Window& m_window;
     KeyBindings m_bindings;
-    bool m_keyboardCaptured{ false };
-    bool m_mouseCaptured{ false };
+    InputState m_state;
 };
 }

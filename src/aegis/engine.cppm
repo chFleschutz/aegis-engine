@@ -58,7 +58,7 @@ public:
         m_scene.reset();
         // The engine's systems, always present. Scripts go first, they write the transforms the
         // TransformSystem derives from, and the camera reads the global transforms.
-        m_scene.addSystem<scripting::ScriptSystem>(m_scene.registry(), &m_input);
+        m_scene.addSystem<scripting::ScriptSystem>(m_scene.registry(), m_input.state(), &m_input);
         m_scene.addSystem<scene::TransformSystem>();
         m_scene.addSystem<scene::CameraSystem>();
         T description{ std::forward<Args>(args)... };

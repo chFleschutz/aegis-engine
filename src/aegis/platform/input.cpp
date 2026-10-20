@@ -14,29 +14,27 @@ Input::Input(Window& window) :
     if (glfwRawMouseMotionSupported())
         glfwSetInputMode(m_window.glfwWindow(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 
+    double x = 0.0, y = 0.0;
+    glfwGetCursorPos(m_window.glfwWindow(), &x, &y);
+    m_state.placeCursor({ x, y });
+
     m_window.m_keyHandler = [this](int key, int action, int mods) { onKey(key, action, mods); };
 }
 
 Input::~Input()
 {
+    double x = 0.0, y = 0.0;
+    glfwGetCursorPos(m_window.glfwWindow(), &x, &y);
+    m_state.placeCursor({ x, y });
+
     m_window.m_keyHandler = nullptr;
 }
 
-auto Input::keyPressed(Key key) const -> bool
+auto Input::update() -> void
 {
-    return !m_keyboardCaptured && glfwGetKey(m_window.glfwWindow(), static_cast<int>(key)) == GLFW_PRESS;
-}
-
-auto Input::mouseButtonPressed(MouseButton button) const -> bool
-{
-    return !m_mouseCaptured && glfwGetMouseButton(m_window.glfwWindow(), static_cast<int>(button)) == GLFW_PRESS;
-}
-
-auto Input::cursorPosition() const -> CursorPosition
-{
-    CursorPosition position;
-    glfwGetCursorPos(m_window.glfwWindow(), &position.x, &position.y);
-    return position;
+    m_state.beginFrame();
+    for (const auto& event : m_window.takeEvents())
+        m_state.apply(event);
 }
 
 auto Input::setCursorMode(CursorMode mode) -> void

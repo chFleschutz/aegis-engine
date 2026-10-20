@@ -58,6 +58,9 @@ Window::Window(GLFWwindow* window, const Desc& desc) :
     // Framebuffer size, not window size: it is what a swapchain must match, and update() reads it too.
     glfwSetFramebufferSizeCallback(m_window, onFramebufferResize);
     glfwSetKeyCallback(m_window, onKey);
+    glfwSetMouseButtonCallback(m_window, onMouseButton);
+    glfwSetCursorPosCallback(m_window, onCursorPos);
+    glfwSetScrollCallback(m_window, onScroll);
 }
 
 Window::Window(Window&& other) noexcept :
@@ -65,7 +68,8 @@ Window::Window(Window&& other) noexcept :
     m_width{ other.m_width },
     m_height{ other.m_height },
     m_wasResized{ other.m_wasResized },
-    m_keyHandler{ std::move(other.m_keyHandler) }
+    m_keyHandler{ std::move(other.m_keyHandler) },
+    m_events{ std::move(other.m_events) }
 {
     if (m_window)
         glfwSetWindowUserPointer(m_window, this);
@@ -111,7 +115,27 @@ auto Window::onFramebufferResize(GLFWwindow* glfwWindow, int newWidth, int newHe
 auto Window::onKey(GLFWwindow* glfwWindow, int key, int /*scancode*/, int action, int mods) -> void
 {
     const auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
+    window->m_events.emplace_back(KeyEvent{ static_cast<Key>(key), static_cast<KeyAction>(action), static_cast<Modifiers>(mods) });
     if (window->m_keyHandler)
         window->m_keyHandler(key, action, mods);
+}
+
+auto Window::onMouseButton(GLFWwindow* glfwWindow, int button, int action, int mods) -> void
+{
+    const auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
+    window->m_events.emplace_back(
+        MouseButtonEvent{ static_cast<MouseButton>(button), static_cast<KeyAction>(action), static_cast<Modifiers>(mods) });
+}
+
+auto Window::onCursorPos(GLFWwindow* glfwWindow, double x, double y) -> void
+{
+    const auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
+    window->m_events.emplace_back(CursorEvent{ x, y });
+}
+
+auto Window::onScroll(GLFWwindow* glfwWindow, double x, double y) -> void
+{
+    const auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
+    window->m_events.emplace_back(ScrollEvent{ x, y });
 }
 }

@@ -14,6 +14,7 @@ target_sources(aegis-platform
     glfw_state.cppm
     key.cppm
     key_bindings.cppm
+    input_state.cppm
     input.cppm
     window.cppm
     PRIVATE

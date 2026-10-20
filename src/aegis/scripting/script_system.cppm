@@ -18,12 +18,19 @@ class ScriptSystem : public scene::System
 {
 public:
     /// @param registry The registry of the world this system runs in (it must outlive the system)
-    /// @param input The input scripts see, or null in a world without a window
-    explicit ScriptSystem(scene::Registry& registry, platform::Input* input = nullptr) :
+    /// @param input What scripts see as input; it is read every frame, so whoever owns it updates it in place
+    /// @param cursor Lets scripts change the cursor mode, or null in a world without a window
+    ScriptSystem(scene::Registry& registry, const platform::InputState& input, platform::Input* cursor = nullptr) :
         m_registry(registry),
-        m_input(input)
+        m_input(input),
+        m_cursor(cursor)
     {
         m_registry.addDestroyListener(this, [this](scene::Entity entity) { destroyScripts(entity); });
+    }
+    /// @brief For a world without a window: scripts see no input
+    explicit ScriptSystem(scene::Registry& registry) :
+        ScriptSystem(registry, m_noInput)
+    {
     }
     ScriptSystem(const ScriptSystem&) = delete;
     ScriptSystem& operator=(const ScriptSystem&) = delete;
@@ -61,7 +68,7 @@ private:
                     continue;
 
                 const auto script = entry.script; // Alive for the call even if the hook destroys the entity
-                ScriptContext context{ registry, entity, m_input };
+                ScriptContext context{ registry, entity, m_input, m_cursor };
                 if (entry.state == ScriptEntry::State::Attached)
                 {
                     entry.state = ScriptEntry::State::Created;
@@ -90,7 +97,7 @@ private:
                 continue;
 
             const auto script = entry.script;
-            ScriptContext context{ m_registry, entity, m_input };
+            ScriptContext context{ m_registry, entity, m_input, m_cursor };
             script->onDestroy(context);
         }
     }
@@ -105,7 +112,9 @@ private:
     }
 
     scene::Registry& m_registry;
-    platform::Input* m_input;
+    const platform::InputState& m_input;
+    platform::Input* m_cursor;
+    platform::InputState m_noInput;        // What the constructor without input points at
     std::vector<scene::Entity> m_entities; // Scratch for run()
 };
 }

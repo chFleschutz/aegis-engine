@@ -49,11 +49,6 @@ public:
     float mouseSensitivity{ 0.004f }; // Radians per pixel
     float mousePanSpeed{ 0.02f };     // World units per pixel
 
-    void onCreate(ScriptContext& context) override
-    {
-        m_previousCursorPos = cursorPosition(context);
-    }
-
     void onUpdate(ScriptContext& context, float deltaSeconds) override
     {
         applyRotation(context, deltaSeconds);
@@ -63,41 +58,41 @@ public:
     void onDestroy(ScriptContext& context) override
     {
         if (m_mouseRotateEnabled || m_mousePanEnabled) // Give the cursor back
-            context.input().setCursorMode(aegis::platform::CursorMode::Normal);
+            context.setCursorMode(aegis::platform::CursorMode::Normal);
     }
 
 private:
-    [[nodiscard]] static auto cursorPosition(const ScriptContext& context) -> glm::vec2
+    [[nodiscard]] static auto cursorDelta(const platform::InputState& input) -> glm::vec2
     {
-        const auto [x, y] = context.input().cursorPosition();
+        const auto [x, y] = input.cursorDelta();
         return { static_cast<float>(x), static_cast<float>(y) };
     }
 
     void applyRotation(ScriptContext& context, float deltaSeconds)
     {
         auto& transform = context.get<Transform>();
-        auto& input = context.input();
+        const auto& input = context.input();
 
         // Key input rotation (a rate: scaled by the frame time)
         glm::vec3 rotate{ 0.0f };
-        if (input.keyPressed(m_keys.lookRight))
+        if (input.keyDown(m_keys.lookRight))
             rotate.z -= lookSpeed;
-        if (input.keyPressed(m_keys.lookLeft))
+        if (input.keyDown(m_keys.lookLeft))
             rotate.z += lookSpeed;
-        if (input.keyPressed(m_keys.lookUp))
+        if (input.keyDown(m_keys.lookUp))
             rotate.x += lookSpeed;
-        if (input.keyPressed(m_keys.lookDown))
+        if (input.keyDown(m_keys.lookDown))
             rotate.x -= lookSpeed;
         rotate *= deltaSeconds;
 
         // Mouse input rotation (a displacement: independent of the frame time)
-        toggleMouseRotate(context, input.mouseButtonPressed(m_keys.mouseRotate));
-        if (m_mouseRotateEnabled)
+        const bool wasRotating = m_mouseRotateEnabled;
+        toggleMouseRotate(context, input.mouseDown(m_keys.mouseRotate));
+        if (wasRotating && m_mouseRotateEnabled) // The frame the button went down only starts it
         {
-            auto cursorPos = cursorPosition(context);
-            rotate.x -= (cursorPos.y - m_previousCursorPos.y) * mouseSensitivity;
-            rotate.z -= (cursorPos.x - m_previousCursorPos.x) * mouseSensitivity;
-            m_previousCursorPos = cursorPos;
+            const auto delta = cursorDelta(input);
+            rotate.x -= delta.y * mouseSensitivity;
+            rotate.z -= delta.x * mouseSensitivity;
         }
 
         if (glm::length(rotate) > std::numeric_limits<float>::epsilon())
@@ -113,39 +108,39 @@ private:
     void applyMovement(ScriptContext& context, float deltaSeconds)
     {
         auto& transform = context.get<Transform>();
-        auto& input = context.input();
+        const auto& input = context.input();
         auto forwardDir = transform.forward();
         auto rightDir = transform.right();
         auto upDir = math::world::UP;
 
         // Speed modifiers
-        if (input.keyPressed(m_keys.increaseSpeed))
+        if (input.keyDown(m_keys.increaseSpeed))
             moveSpeed += 100.0f * deltaSeconds;
-        if (input.keyPressed(m_keys.decreaseSpeed))
+        if (input.keyDown(m_keys.decreaseSpeed))
             moveSpeed -= 100.0f * deltaSeconds;
-        if (input.keyPressed(m_keys.resetSpeed))
+        if (input.keyDown(m_keys.resetSpeed))
             moveSpeed = DEFAULT_MOVE_SPEED;
         moveSpeed = std::max(moveSpeed, 0.1f);
 
         auto currentSpeed = moveSpeed;
-        if (input.keyPressed(m_keys.speedupModifier))
+        if (input.keyDown(m_keys.speedupModifier))
             currentSpeed *= 2.0f;
-        if (input.keyPressed(m_keys.slowdownModifier))
+        if (input.keyDown(m_keys.slowdownModifier))
             currentSpeed *= 0.5f;
 
         // Key input movement
         glm::vec3 moveDir{ 0.0f };
-        if (input.keyPressed(m_keys.moveForward))
+        if (input.keyDown(m_keys.moveForward))
             moveDir += forwardDir;
-        if (input.keyPressed(m_keys.moveBackward))
+        if (input.keyDown(m_keys.moveBackward))
             moveDir -= forwardDir;
-        if (input.keyPressed(m_keys.moveRight))
+        if (input.keyDown(m_keys.moveRight))
             moveDir += rightDir;
-        if (input.keyPressed(m_keys.moveLeft))
+        if (input.keyDown(m_keys.moveLeft))
             moveDir -= rightDir;
-        if (input.keyPressed(m_keys.moveUp))
+        if (input.keyDown(m_keys.moveUp))
             moveDir += upDir;
-        if (input.keyPressed(m_keys.moveDown))
+        if (input.keyDown(m_keys.moveDown))
             moveDir -= upDir;
 
         if (glm::length(moveDir) > std::numeric_limits<float>::epsilon())
@@ -154,15 +149,15 @@ private:
         }
 
         // Mouse pan input movement
-        toogleMousePan(context, input.mouseButtonPressed(m_keys.mousePan));
-        if (m_mousePanEnabled)
+        const bool wasPanning = m_mousePanEnabled;
+        toogleMousePan(context, input.mouseDown(m_keys.mousePan));
+        if (wasPanning && m_mousePanEnabled)
         {
             // A displacement like the mouse look: independent of the frame time
-            auto cursorPos = cursorPosition(context);
+            const auto delta = cursorDelta(input);
             glm::vec3 panDir{ 0.0f };
-            panDir -= rightDir * (cursorPos.x - m_previousCursorPos.x);
-            panDir += upDir * (cursorPos.y - m_previousCursorPos.y);
-            m_previousCursorPos = cursorPos;
+            panDir -= rightDir * delta.x;
+            panDir += upDir * delta.y;
 
             transform.location += panDir * mousePanSpeed;
         }
@@ -175,13 +170,12 @@ private:
 
         if (!m_mouseRotateEnabled && enabled)
         {
-            context.input().setCursorMode(aegis::platform::CursorMode::Disabled);
+            context.setCursorMode(aegis::platform::CursorMode::Disabled);
             m_mouseRotateEnabled = true;
-            m_previousCursorPos = cursorPosition(context);
         }
         else if (m_mouseRotateEnabled && !enabled)
         {
-            context.input().setCursorMode(aegis::platform::CursorMode::Normal);
+            context.setCursorMode(aegis::platform::CursorMode::Normal);
             m_mouseRotateEnabled = false;
         }
     }
@@ -193,13 +187,12 @@ private:
 
         if (!m_mousePanEnabled && enabled)
         {
-            context.input().setCursorMode(aegis::platform::CursorMode::Disabled);
+            context.setCursorMode(aegis::platform::CursorMode::Disabled);
             m_mousePanEnabled = true;
-            m_previousCursorPos = cursorPosition(context);
         }
         else if (m_mousePanEnabled && !enabled)
         {
-            context.input().setCursorMode(aegis::platform::CursorMode::Normal);
+            context.setCursorMode(aegis::platform::CursorMode::Normal);
             m_mousePanEnabled = false;
         }
     }
@@ -207,8 +200,6 @@ private:
     KeyMappings m_keys{};
     bool m_mouseRotateEnabled{ false };
     bool m_mousePanEnabled{ false };
-
-    glm::vec2 m_previousCursorPos{ 0.0f };
 };
 }
 
