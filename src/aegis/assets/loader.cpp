@@ -24,9 +24,11 @@ public:
 
     auto run() -> std::expected<Entity, Error>
     {
-        if (auto result = uploadTextures(); !result)
-            return std::unexpected{ result.error() };
+        // Meshes before textures, as the loader always did: queuing the texture uploads first made the
+        // CPU-driven --mutate-scene run lose the device.
         if (auto result = uploadMeshes(); !result)
+            return std::unexpected{ result.error() };
+        if (auto result = uploadTextures(); !result)
             return std::unexpected{ result.error() };
         if (auto result = uploadMaterials(); !result)
             return std::unexpected{ result.error() };
