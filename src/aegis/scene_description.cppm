@@ -8,15 +8,16 @@ export module aegis.scene_description;
 import std;
 import aegis.asset_loader;
 import aegis.scene;
-import aegis.scripting.script_manager;
+import aegis.reflect;
 
 export namespace aegis
 {
 /// @brief What a scene description gets to build its scene with. Plain references, owned by the engine.
+///        Scripts are attached through `types` (scripting::attachScript), by registered name.
 struct SceneContext
 {
     scene::Scene& scene;
-    scripting::ScriptManager& scripts;
+    const reflect::TypeRegistry& types;
     AssetLoader& assets;
 };
 

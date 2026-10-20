@@ -5,7 +5,8 @@ class Sponza : public aegis::SceneDescription
 public:
     void initialize(aegis::SceneContext& context) override
     {
-        auto& [scene, scripts, assets] = context;
+        auto& [scene, types, assets] = context;
+        aegis::addDefaults(context);
         using namespace aegis;
 
         auto& registry = scene.registry();

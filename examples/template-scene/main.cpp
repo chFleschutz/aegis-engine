@@ -6,7 +6,8 @@ public:
     /// @brief All objects in a scene are created here
     void initialize(aegis::SceneContext& context) override
     {
-        [[maybe_unused]] auto& [scene, scripts, assets] = context;
+        [[maybe_unused]] auto& [scene, types, assets] = context;
+        aegis::addDefaults(context);
         using namespace aegis;
 
         // Create your scene here

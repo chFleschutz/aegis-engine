@@ -4,7 +4,6 @@ import std;
 export import aegis.math;
 import aegis.ui;
 import aegis.editor;
-import aegis.defaults;
 export import aegis.asset_loader;
 export import aegis.scene_description;
 import aegis.core.globals;
@@ -14,8 +13,13 @@ export import aegis.base;
 export import aegis.scene;
 export import aegis.scene.components;
 export import aegis.scene.system;
-export import aegis.scripting.script_base;
-export import aegis.scripting.script_manager;
+export import aegis.defaults;
+export import aegis.reflect;
+export import aegis.scripting.script;
+export import aegis.scripting.movement.kinematic_movement_controller;
+import aegis.scripting.script_system;
+import aegis.scene.systems.camera_system;
+import aegis.scene.systems.transform_system;
 export import aegis.assets;
 import aegis.platform;
 import aegis.render_graph;
@@ -41,6 +45,9 @@ public:
 
     [[nodiscard]] auto useGpuDrivenRendering() const -> bool;
 
+    /// @brief The registered components and scripts. Register a game's scripts here before loadScene.
+    [[nodiscard]] auto types() -> reflect::TypeRegistry& { return m_types; }
+
     void run();
 
     /// @brief Creates a scene from a description
@@ -49,9 +56,13 @@ public:
     void loadScene(Args&&... args)
     {
         m_scene.reset();
-        createDefaultScene(m_scene, m_scriptManager, m_assets->defaultEnvironment());
+        // The engine's systems, always present. Scripts go first, they write the transforms the
+        // TransformSystem derives from, and the camera reads the global transforms.
+        m_scene.addSystem<scripting::ScriptSystem>(m_scene.registry(), &m_input);
+        m_scene.addSystem<scene::TransformSystem>();
+        m_scene.addSystem<scene::CameraSystem>();
         T description{ std::forward<Args>(args)... };
-        SceneContext context{ .scene = m_scene, .scripts = m_scriptManager, .assets = *m_assets };
+        SceneContext context{ .scene = m_scene, .types = m_types, .assets = *m_assets };
         description.initialize(context);
         m_scene.begin();
         m_frameGraph->sceneInitialized(m_scene);
@@ -79,8 +90,8 @@ private:
     std::unique_ptr<aegis::rhi::Device> m_device;
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
     std::optional<AssetLoader> m_assets;
+    reflect::TypeRegistry m_types;
     scene::Scene m_scene;
-    scripting::ScriptManager m_scriptManager{ m_scene, m_input };
     aegis::render_graph::DrawBatchRegistry m_drawBatches; // Disconnects from the scene first
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
 };

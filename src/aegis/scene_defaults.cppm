@@ -1,42 +1,72 @@
+module;
+
+#include "core/assert.h"
+
 export module aegis.defaults;
 
 import std;
 import aegis.scene;
-import aegis.scene.systems.camera_system;
-import aegis.scene.systems.transform_system;
-import aegis.scripting.script_manager;
-import aegis.scripting.movement.kinematic_movement_controller;
+import aegis.scene_description;
+import aegis.scripting.script;
 import aegis.assets;
 
+// Opt-in helpers: a scene calls the ones it wants. The engine adds none of this by itself, so a scene
+// without a camera, lights or a sky is possible.
 export namespace aegis
 {
-/// @brief A camera (with movement controls), ambient and directional light, and 'environment' as the sky.
-void createDefaultScene(scene::Scene& scene, scripting::ScriptManager& scriptManager, aegis::assets::Environment environment)
+struct DefaultLights
 {
-    // The camera reads the global transforms, so transforms go first.
-    scene.addSystem<scene::TransformSystem>();
-    scene.addSystem<scene::CameraSystem>();
+    scene::Entity ambient;
+    scene::Entity directional;
+};
 
-    auto& registry = scene.registry();
-
-    auto mainCamera = registry.create("Main Camera");
-    registry.add<Camera>(mainCamera);
-    registry.add<DynamicTag>(mainCamera);
-    registry.get<Transform>(mainCamera) = Transform{
+/// @brief A main camera with fly controls (the "KinematicMovementController" script)
+auto addDefaultCamera(SceneContext& context) -> scene::Entity
+{
+    auto& registry = context.scene.registry();
+    auto camera = registry.create("Main Camera");
+    registry.add<Camera>(camera);
+    registry.add<DynamicTag>(camera);
+    registry.get<Transform>(camera) = Transform{
         .location = { 0.0f, -15.0f, 10.0f },
         .rotation = glm::radians(glm::vec3{ -30.0f, 0.0f, 0.0f })
     };
-    scene.setMainCamera(mainCamera);
-    scriptManager.addScript<scripting::KinematicMovementController>(mainCamera);
+    context.scene.setMainCamera(camera);
 
-    auto ambientLight = registry.create("Ambient Light");
-    registry.add<AmbientLight>(ambientLight);
+    [[maybe_unused]] auto controller = scripting::attachScript(registry, context.types, camera, "KinematicMovementController");
+    AGX_ASSERT_X(controller, "The KinematicMovementController script is not registered");
+    return camera;
+}
 
-    auto directionalLight = registry.create("Directional Light");
-    registry.add<DirectionalLight>(directionalLight);
-    registry.get<Transform>(directionalLight).rotation = glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f });
+/// @brief An ambient light and a directional light
+auto addDefaultLights(SceneContext& context) -> DefaultLights
+{
+    auto& registry = context.scene.registry();
 
+    auto ambient = registry.create("Ambient Light");
+    registry.add<AmbientLight>(ambient);
+
+    auto directional = registry.create("Directional Light");
+    registry.add<DirectionalLight>(directional);
+    registry.get<Transform>(directional).rotation = glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f });
+
+    return { ambient, directional };
+}
+
+/// @brief The engine's default environment as the sky
+auto addDefaultEnvironment(SceneContext& context) -> scene::Entity
+{
+    auto& registry = context.scene.registry();
     auto skybox = registry.create("Skybox");
-    registry.add<aegis::assets::Environment>(skybox, std::move(environment));
+    registry.add<aegis::assets::Environment>(skybox, context.assets.defaultEnvironment());
+    return skybox;
+}
+
+/// @brief The camera, the lights and the environment above
+void addDefaults(SceneContext& context)
+{
+    addDefaultCamera(context);
+    addDefaultLights(context);
+    addDefaultEnvironment(context);
 }
 }

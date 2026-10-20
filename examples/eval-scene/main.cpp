@@ -21,7 +21,8 @@ public:
     /// @brief All objects in a scene are created here
     void initialize(aegis::SceneContext& context) override
     {
-        auto& [scene, scripts, assets] = context;
+        auto& [scene, types, assets] = context;
+        aegis::addDefaults(context);
         using namespace aegis;
         auto& registry = scene.registry();
 
@@ -51,7 +52,8 @@ public:
     /// @brief All objects in a scene are created here
     void initialize(aegis::SceneContext& context) override
     {
-        auto& [scene, scripts, assets] = context;
+        auto& [scene, types, assets] = context;
+        aegis::addDefaults(context);
         using namespace aegis;
         auto& registry = scene.registry();
 
@@ -88,7 +90,8 @@ public:
     /// @brief All objects in a scene are created here
     void initialize(aegis::SceneContext& context) override
     {
-        auto& [scene, scripts, assets] = context;
+        auto& [scene, types, assets] = context;
+        aegis::addDefaults(context);
         using namespace aegis;
         auto& registry = scene.registry();
 
@@ -167,7 +170,8 @@ public:
     /// @brief All objects in a scene are created here
     void initialize(aegis::SceneContext& context) override
     {
-        auto& [scene, scripts, assets] = context;
+        auto& [scene, types, assets] = context;
+        aegis::addDefaults(context);
         using namespace aegis;
         auto& registry = scene.registry();
 
@@ -272,7 +276,8 @@ public:
     /// @brief All objects in a scene are created here
     void initialize(aegis::SceneContext& context) override
     {
-        auto& [scene, scripts, assets] = context;
+        auto& [scene, types, assets] = context;
+        aegis::addDefaults(context);
         using namespace aegis;
         auto& registry = scene.registry();
 
@@ -335,7 +340,8 @@ public:
     /// @brief All objects in a scene are created here
     void initialize(aegis::SceneContext& context) override
     {
-        auto& [scene, scripts, assets] = context;
+        auto& [scene, types, assets] = context;
+        aegis::addDefaults(context);
         using namespace aegis;
         auto& registry = scene.registry();
         // Environment setup
