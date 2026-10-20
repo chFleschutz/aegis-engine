@@ -14,9 +14,11 @@ public:
     }
 };
 
-auto main() -> int
+auto main(int argc, char** argv) -> int
 {
-    aegis::Engine engine;
-    engine.loadScene<TemplateScene>();
-    engine.run();
+    auto engine = aegis::createEngine(argc, argv);
+    if (!engine)
+        return engine.error();
+    (*engine)->loadScene<TemplateScene>();
+    return (*engine)->run();
 }

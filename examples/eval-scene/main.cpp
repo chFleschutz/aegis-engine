@@ -363,12 +363,15 @@ public:
     }
 };
 
-auto main() -> int
+auto main(int argc, char** argv) -> int
 {
     // Toggle between cpu/gpu driven by changing this constant:
     // aegis::Engine::ENABLE_GPU_DRIVEN_RENDERING
 
-    aegis::Engine engine;
+    auto created = aegis::createEngine(argc, argv);
+    if (!created)
+        return created.error();
+    auto& engine = **created;
     engine.loadScene<Sponza>();
     //engine.loadScene<Bistro>(); // NOTE: Bistro model not included
     //engine.loadScene<HighPolyHighObj>(0);
@@ -377,5 +380,5 @@ auto main() -> int
     //engine.loadScene<LowPolyHighObj>(1);
     //engine.loadScene<DynamicObjects>();
     //engine.loadScene<Lucy>(); // NOTE: Lucy model not included
-    engine.run();
+    return engine.run();
 }

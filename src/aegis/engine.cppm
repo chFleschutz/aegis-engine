@@ -30,6 +30,59 @@ import aegis.rhi;
 
 export namespace aegis
 {
+/// @brief How the app starts: a window or an offscreen target, and when it stops.
+struct AppDesc
+{
+    std::string title{ "Aegis" };
+    /// @brief Window size, or the size of the offscreen target when headless.
+    std::uint32_t width{ core::DEFAULT_WIDTH };
+    std::uint32_t height{ core::DEFAULT_HEIGHT };
+    /// @brief No window, input or UI: frames render to an offscreen target and the run ends by itself.
+    bool headless{ false };
+    /// @brief Frames to render before run() returns; 0 runs until the window is closed (headless: 600).
+    std::uint32_t frames{ 0 };
+    /// @brief Headless: save the last frame here as PNG.
+    std::string screenshot;
+};
+
+enum class EngineErrorCode
+{
+    InvalidArguments,
+    WindowFailed,
+    DeviceFailed,
+    RendererFailed,
+    AssetsFailed,
+    ScriptsFailed,
+    FrameGraphFailed,
+};
+
+struct EngineError
+{
+    EngineErrorCode code;
+    std::string message;
+};
+
+/// @brief What 'main' returns: run() succeeded, run() or Engine::create failed (an error, a failed
+///        screenshot or a validation error), or the command line was wrong. 'aegis-test' uses the same codes.
+inline constexpr int exitSuccess{ 0 };
+inline constexpr int exitFailure{ 1 };
+inline constexpr int exitUsage{ 2 };
+
+[[nodiscard]] auto describe(const EngineError& error) -> std::string;
+
+/// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n> and --height <n>; the first
+///        argument (the program name) is skipped. A headless run without --frames stops after 600 frames.
+[[nodiscard]] auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, EngineError>;
+
+/// @brief The same for main's argc and argv.
+[[nodiscard]] auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>;
+
+class Engine;
+
+/// @brief parseArgs plus Engine::create for a 'main': a failure is logged and comes back as the exit code
+///        to return (exitUsage for a bad command line, exitFailure when the engine can't start).
+[[nodiscard]] auto createEngine(int argc, char** argv) -> std::expected<std::unique_ptr<Engine>, int>;
+
 class Engine
 {
 public:
@@ -37,7 +90,9 @@ public:
     static constexpr bool ENABLE_GPU_DRIVEN_RENDERING{ true };
     static constexpr std::uint32_t FRAMES_IN_FLIGHT{ aegis::renderer::Renderer::maxFramesInFlight };
 
-    Engine();
+    /// @brief Creates the window (unless headless), the device, renderer, assets and frame graph.
+    [[nodiscard]] static auto create(const AppDesc& desc = {}) -> std::expected<std::unique_ptr<Engine>, EngineError>;
+
     Engine(const Engine&) = delete;
     Engine(Engine&&) = delete;
     ~Engine();
@@ -50,33 +105,43 @@ public:
     /// @brief The registered components and scripts. Register a game's scripts here before loadScene.
     [[nodiscard]] auto types() -> reflect::TypeRegistry& { return m_types; }
 
-    void run();
+    /// @brief Runs until the window closes or AppDesc::frames have rendered.
+    /// @return An exit code for main: exitSuccess, or exitFailure after a failed frame, a failed screenshot
+    ///         or a validation error. The cause is logged.
+    [[nodiscard]] auto run() -> int;
 
     /// @brief Creates a scene from a description
     /// @tparam T Description of the scene (Derived from SceneDescription)
     template<SceneDescriptionDerived T, typename... Args>
     void loadScene(Args&&... args)
     {
-        m_scene.reset();
+        m_world.reset();
         // The engine's systems, always present. Scripts go first, they write the transforms the
         // TransformSystem derives from, and the camera reads the global transforms.
-        m_scene.addSystem<scripting::ScriptSystem>(m_scene.registry(), m_input.state(), &m_input);
-        m_scene.addSystem<world::TransformSystem>();
-        m_scene.addSystem<world::CameraSystem>();
+        if (m_input)
+            m_world.addSystem<scripting::ScriptSystem>(m_world.registry(), m_input->state(), m_input.get());
+        else
+            m_world.addSystem<scripting::ScriptSystem>(m_world.registry()); // Scripts see no input
+        m_world.addSystem<world::TransformSystem>();
+        m_world.addSystem<world::CameraSystem>();
         T description{ std::forward<Args>(args)... };
-        SceneContext context{ .scene = m_scene, .types = m_types, .assets = *m_assets };
+        SceneContext context{ .scene = m_world, .types = m_types, .assets = *m_assets };
         description.initialize(context);
-        m_scene.begin();
-        m_frameGraph->sceneInitialized(m_scene);
+        m_world.begin();
+        m_frameGraph->sceneInitialized(m_world);
     }
 
 private:
-    void createRenderer();
-    void createAssets();
-    void createFrameGraph();
+    explicit Engine(const AppDesc& desc);
+
+    auto initialize() -> std::expected<void, EngineError>;
+    auto createWindow() -> std::expected<void, EngineError>;
+    auto createRenderer() -> std::expected<void, EngineError>;
+    auto createAssets() -> std::expected<void, EngineError>;
+    auto createFrameGraph() -> std::expected<void, EngineError>;
     bool resize();
-    static auto createWindow() -> aegis::platform::Window;
     void updateCameraAspect();
+    auto saveScreenshot() -> std::expected<void, std::string>;
     void applyFrameBrake(std::chrono::steady_clock::time_point frameBegin);
 
     /// @brief Longest frame time the scene and scripts see.
@@ -86,15 +151,18 @@ private:
     // before the device.
     core::LayerStack m_layerStack{};
     ui::UI m_ui{ m_layerStack };
-    aegis::platform::Window m_window{ createWindow() };
-    // Before ImGui's GLFW backend installs its callbacks, which chain to the window's.
-    aegis::platform::Input m_input{ m_window };
+    AppDesc m_desc;
+    std::unique_ptr<aegis::platform::Window> m_window; // null when headless
+    // Before ImGui's GLFW backend installs its callbacks, which chain to the window's. Null when headless.
+    std::unique_ptr<aegis::platform::Input> m_input;
+    bool m_imguiGlfw{ false };           // ImGui's GLFW backend is initialized
+    std::uint32_t m_lastFrameIndex{ 0 }; // The frame slot the last frame drew into
     std::unique_ptr<aegis::rhi::Context> m_context;
     std::unique_ptr<aegis::rhi::Device> m_device;
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
     std::optional<AssetLoader> m_assets;
     reflect::TypeRegistry m_types;
-    world::World m_scene;
+    world::World m_world;
     aegis::render_graph::DrawBatchRegistry m_drawBatches; // Disconnects from the scene first
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
 };
