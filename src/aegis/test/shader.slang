@@ -39,13 +39,13 @@ struct RoundTripConstants
     uint count;
 };
 
-[[vk::push_constant]] ConstantBuffer<RoundTripConstants> roundTrip;
+[[vk::push_constant]] ConstantBuffer<RoundTripConstants> push;
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
 func computeMain(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= roundTrip.count)
+    if (id.x >= push.count)
         return;
-    roundTrip.dst[id.x] = roundTrip.src[id.x] * 3 + 1;
+    push.dst[id.x] = push.src[id.x] * 3 + 1;
 }

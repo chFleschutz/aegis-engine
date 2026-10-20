@@ -9,7 +9,7 @@ import modules.tbn;
 
 static const uint MESH_GROUP_SIZE = 32;
 
-[[vk::push_constant]] ConstantBuffer<indirectDraw::GeometryConstants> pc;
+[[vk::push_constant]] ConstantBuffer<indirectDraw::GeometryConstants> push;
 
 struct MSOut
 {
@@ -30,7 +30,7 @@ func meshMain(
     out vertices MSOut meshVertices[MESHLET_MAX_VERTICES],
     out indices uint3 meshPrimitives[MESHLET_MAX_PRIMITIVES])
 {
-    let instance = pc.getInstance(inPayload.instanceID);
+    let instance = push.getInstance(inPayload.instanceID);
     let mesh = instance.mesh;
     let meshlet = mesh->meshlets[inPayload.groupMeshletOffset + inPayload.meshletIDs[groupID.x]];
 
@@ -40,7 +40,7 @@ func meshMain(
     {
         let vertex = mesh->vertices[mesh->meshletVertices[meshlet.vertexOffset + i]];
         float4 worldPos = mul(instance.modelMatrix, float4(vertex.position, 1.0));
-        meshVertices[i].position = mul(pc.camera->viewProjection, worldPos);
+        meshVertices[i].position = mul(push.camera->viewProjection, worldPos);
         meshVertices[i].worldPosition = worldPos.xyz;
         meshVertices[i].worldNormal = normalize(mul(instance.normalMatrix, vertex.normal));
         meshVertices[i].uv = vertex.uv;
@@ -60,7 +60,7 @@ func meshMain(
 [shader("fragment")]
 func fragmentMain(MSOut input, out common::GBuffer output)
 {
-    let material = pc.getInstance(input.instanceID).material;
+    let material = push.getInstance(input.instanceID).material;
 
     float3 albedo = material->albedoMap.sample(input.uv).rgb * material->albedo;
     float3 normal = material->normalMap.sample(input.uv).rgb * 2.0 - 1.0;
