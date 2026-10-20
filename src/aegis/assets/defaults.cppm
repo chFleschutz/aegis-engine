@@ -42,6 +42,12 @@ struct DefaultAssets
     std::shared_ptr<MaterialTemplate> pbrTemplate;
     std::shared_ptr<MaterialInstance> pbrMaterial;
 
+    /// @brief A new instance of pbrTemplate with the default material's look (what pbrMaterial is created
+    ///        as). Loaders hand every model its own, so editing one model's default material does not
+    ///        change another's.
+    [[nodiscard]] auto createPbrMaterial(rhi::Device& device, std::uint32_t framesInFlight) const
+        -> std::expected<std::shared_ptr<MaterialInstance>, Error>;
+
     [[nodiscard]] static auto create(rhi::Device& device, std::uint32_t framesInFlight)
         -> std::expected<DefaultAssets, Error>;
 };

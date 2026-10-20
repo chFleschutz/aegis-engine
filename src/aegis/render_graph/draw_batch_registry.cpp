@@ -9,6 +9,7 @@ module;
 module aegis.render_graph;
 import std;
 import aegis.assets;
+import aegis.scene.render_components;
 import aegis.base;
 import aegis.scene.registry;
 
@@ -25,17 +26,17 @@ auto DrawBatchRegistry::connect(aegis::scene::Registry& registry) -> void
     clear();
     m_registry = &registry;
 
-    for (auto&& [entity, material] : registry.view<assets::Material>().each())
+    for (auto&& [entity, material] : registry.view<aegis::Material>().each())
     {
         trackMaterial(entity, material, registry.has<aegis::DynamicTag>(aegis::scene::Entity{ entity }));
     }
 
-    registry.onConstruct<assets::Material>().connect<&DrawBatchRegistry::onMaterialConstruct>(this);
-    registry.onDestroy<assets::Material>().connect<&DrawBatchRegistry::onMaterialDestroy>(this);
+    registry.onConstruct<aegis::Material>().connect<&DrawBatchRegistry::onMaterialConstruct>(this);
+    registry.onDestroy<aegis::Material>().connect<&DrawBatchRegistry::onMaterialDestroy>(this);
     registry.onConstruct<aegis::DynamicTag>().connect<&DrawBatchRegistry::onDynamicConstruct>(this);
     registry.onDestroy<aegis::DynamicTag>().connect<&DrawBatchRegistry::onDynamicDestroy>(this);
-    registry.onConstruct<assets::Mesh>().connect<&DrawBatchRegistry::onMeshConstruct>(this);
-    registry.onDestroy<assets::Mesh>().connect<&DrawBatchRegistry::onMeshDestroy>(this);
+    registry.onConstruct<aegis::Mesh>().connect<&DrawBatchRegistry::onMeshConstruct>(this);
+    registry.onDestroy<aegis::Mesh>().connect<&DrawBatchRegistry::onMeshDestroy>(this);
     registry.invalidateStatic();
 }
 
@@ -44,12 +45,12 @@ auto DrawBatchRegistry::disconnect() -> void
     if (!m_registry)
         return;
 
-    m_registry->onConstruct<assets::Material>().disconnect(this);
-    m_registry->onDestroy<assets::Material>().disconnect(this);
+    m_registry->onConstruct<aegis::Material>().disconnect(this);
+    m_registry->onDestroy<aegis::Material>().disconnect(this);
     m_registry->onConstruct<aegis::DynamicTag>().disconnect(this);
     m_registry->onDestroy<aegis::DynamicTag>().disconnect(this);
-    m_registry->onConstruct<assets::Mesh>().disconnect(this);
-    m_registry->onDestroy<assets::Mesh>().disconnect(this);
+    m_registry->onConstruct<aegis::Mesh>().disconnect(this);
+    m_registry->onDestroy<aegis::Mesh>().disconnect(this);
     m_registry = nullptr;
 }
 
@@ -130,7 +131,7 @@ auto DrawBatchRegistry::updateOffsets() -> void
     }
 }
 
-auto DrawBatchRegistry::trackMaterial(entt::entity entity, const assets::Material& material, bool dynamic) -> void
+auto DrawBatchRegistry::trackMaterial(entt::entity entity, const aegis::Material& material, bool dynamic) -> void
 {
     if (!material.instance)
         return;
@@ -149,7 +150,7 @@ auto DrawBatchRegistry::markStatic(entt::registry& registry, entt::entity entity
 
 auto DrawBatchRegistry::onMaterialConstruct(entt::registry& registry, entt::entity entity) -> void
 {
-    trackMaterial(entity, registry.get<assets::Material>(entity), registry.all_of<aegis::DynamicTag>(entity));
+    trackMaterial(entity, registry.get<aegis::Material>(entity), registry.all_of<aegis::DynamicTag>(entity));
     markStatic(registry, entity);
 }
 

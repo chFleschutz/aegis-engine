@@ -66,13 +66,22 @@ auto DefaultAssets::create(rhi::Device& device, std::uint32_t framesInFlight) ->
     if (auto added = detail::addPbrParameters(*defaults.pbrTemplate, defaults.white, defaults.normal); !added)
         return std::unexpected{ added.error() };
 
-    auto material = MaterialInstance::create(device, defaults.pbrTemplate, framesInFlight);
+    auto material = defaults.createPbrMaterial(device, framesInFlight);
     if (!material)
         return std::unexpected{ material.error() };
     defaults.pbrMaterial = std::move(*material);
-    if (auto set = defaults.pbrMaterial->setParameter(pbr::albedo, glm::vec3{ 0.8f, 0.8f, 0.9f }); !set)
-        return std::unexpected{ set.error() };
 
     return defaults;
+}
+
+auto DefaultAssets::createPbrMaterial(rhi::Device& device, std::uint32_t framesInFlight) const
+    -> std::expected<std::shared_ptr<MaterialInstance>, Error>
+{
+    auto material = MaterialInstance::create(device, pbrTemplate, framesInFlight);
+    if (!material)
+        return std::unexpected{ material.error() };
+    if (auto set = (*material)->setParameter(pbr::albedo, glm::vec3{ 0.8f, 0.8f, 0.9f }); !set)
+        return std::unexpected{ set.error() };
+    return material;
 }
 }

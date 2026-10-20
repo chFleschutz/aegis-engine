@@ -1,22 +1,10 @@
 export module aegis.assets:components;
 import std;
-import :material;
-import :static_mesh;
 import :texture;
 
 export namespace aegis::assets
 {
-// Scene components referencing assets; the render graph draws entities carrying them.
-
-struct Mesh
-{
-    std::shared_ptr<StaticMesh> staticMesh;
-};
-
-struct Material
-{
-    std::shared_ptr<MaterialInstance> instance;
-};
+// Scene components referencing assets.
 
 struct Environment
 {

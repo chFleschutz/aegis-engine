@@ -13,6 +13,7 @@ import aegis.scene;
 import aegis.scene.entity;
 import aegis.scene.components;
 import aegis.assets;
+import aegis.scene.render_components;
 
 export namespace aegis::editor
 {
@@ -187,8 +188,8 @@ private:
                     registry.markStaticDirty(m_selectedEntity);
             });
 
-        drawComponent<aegis::assets::Mesh>(registry, "Mesh", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
-            [](aegis::assets::Mesh& mesh) {
+        drawComponent<aegis::Mesh>(registry, "Mesh", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
+            [](aegis::Mesh& mesh) {
                 drawAssetSlot("Mesh", "Mesh Asset", mesh.staticMesh != nullptr);
             });
 
@@ -311,8 +312,8 @@ private:
             drawAddComponentItem<DirectionalLight>(registry, "Directional Light");
             drawAddComponentItem<PointLight>(registry, "Point Light");
             drawAddComponentItem<Camera>(registry, "Camera");
-            drawAddComponentItem<aegis::assets::Mesh>(registry, "Mesh");
-            drawAddComponentItem<aegis::assets::Material>(registry, "Default Material");
+            drawAddComponentItem<aegis::Mesh>(registry, "Mesh");
+            drawAddComponentItem<aegis::Material>(registry, "Default Material");
             ImGui::EndPopup();
         }
     }

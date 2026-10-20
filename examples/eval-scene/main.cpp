@@ -124,13 +124,13 @@ public:
         scene::Entity meshEntity = scifiHelmet;
         std::shared_ptr<aegis::assets::StaticMesh> mesh;
         std::shared_ptr<aegis::assets::MaterialInstance> materialInstance;
-        while (!registry.has<aegis::assets::Mesh, aegis::assets::Material>(meshEntity))
+        while (!registry.has<aegis::Mesh, aegis::Material>(meshEntity))
         {
             meshEntity = registry.get<Children>(meshEntity).last;
             AGX_ASSERT_X(meshEntity, "Failed to find mesh and material in SciFiHelmet scene");
         }
-        mesh = registry.get<aegis::assets::Mesh>(meshEntity).staticMesh;
-        materialInstance = registry.get<aegis::assets::Material>(meshEntity).instance;
+        mesh = registry.get<aegis::Mesh>(meshEntity).staticMesh;
+        materialInstance = registry.get<aegis::Material>(meshEntity).instance;
         AGX_ASSERT(mesh && materialInstance);
 
         constexpr int instanceCount = 10'000;
@@ -142,8 +142,8 @@ public:
         for (int i = 0; i < instanceCount; i++)
         {
             auto instance = registry.create("SciFiHelmetInstance");
-            registry.add<aegis::assets::Mesh>(instance, mesh);
-            registry.add<aegis::assets::Material>(instance, materialInstance);
+            registry.add<aegis::Mesh>(instance, mesh);
+            registry.add<aegis::Material>(instance, materialInstance);
             auto& transform = registry.get<Transform>(instance);
             transform.location = {
                 posDis(rng),
@@ -200,7 +200,7 @@ public:
         }
 
         auto cube = assets.loadModel(scene, paths::assets() / "Misc/cube.obj");
-        auto& cubeMesh = registry.get<aegis::assets::Mesh>(cube).staticMesh;
+        auto& cubeMesh = registry.get<aegis::Mesh>(cube).staticMesh;
 
         constexpr int materialCount = 10;
         auto pbrMatTemplate = assets.defaults().pbrTemplate;
@@ -243,8 +243,8 @@ public:
             glm::vec3 scale{ scaleDis(rng) };
 
             auto cubeInstance = registry.create(std::format("Cube {}", i), pos, rot, scale);
-            registry.add<aegis::assets::Mesh>(cubeInstance, cubeMesh);
-            registry.add<aegis::assets::Material>(cubeInstance, cubeMats[i % materialCount]);
+            registry.add<aegis::Mesh>(cubeInstance, cubeMesh);
+            registry.add<aegis::Material>(cubeInstance, cubeMats[i % materialCount]);
         }
     }
 };
@@ -295,8 +295,8 @@ public:
         scene.addSystem<RotationSystem>();
 
         auto cube = assets.loadModel(scene, paths::assets() / "Misc/cube.obj");
-        auto& cubeMesh = registry.get<aegis::assets::Mesh>(cube).staticMesh;
-        auto& cubeMat = registry.get<aegis::assets::Material>(cube).instance;
+        auto& cubeMesh = registry.get<aegis::Mesh>(cube).staticMesh;
+        auto& cubeMat = registry.get<aegis::Material>(cube).instance;
         [[maybe_unused]] auto set = cubeMat->setParameter(assets::pbr::albedo, glm::vec3{ 0.8f, 0.1f, 0.1f })
                                         .and_then([&] { return cubeMat->setParameter(assets::pbr::metallic, 1.0f); })
                                         .and_then([&] { return cubeMat->setParameter(assets::pbr::roughness, 0.5f); });
@@ -321,8 +321,8 @@ public:
             glm::vec3 scale{ scaleDis(rng) };
 
             auto cubeInstance = registry.create(std::format("Cube {}", i), pos, rot, scale);
-            registry.add<aegis::assets::Mesh>(cubeInstance, cubeMesh);
-            registry.add<aegis::assets::Material>(cubeInstance, cubeMat);
+            registry.add<aegis::Mesh>(cubeInstance, cubeMesh);
+            registry.add<aegis::Material>(cubeInstance, cubeMat);
             registry.add<Rotatable>(cubeInstance, glm::radians(uniformFloat(10.0f, 90.0f)));
             registry.add<DynamicTag>(cubeInstance); // Mark dynamic, so its updated every frame
         }
