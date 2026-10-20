@@ -5,6 +5,7 @@ export module aegis.base;
 
 export import :align;
 export import :flags;
+export import :frame_clock;
 export import :log;
 export import :match;
 export import :profiler;

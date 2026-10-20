@@ -10,6 +10,7 @@ target_sources(aegis-base
     base.cppm
     align.cppm
     flags.cppm
+    frame_clock.cppm
     log.cppm
     match.cppm
     profiler.cppm
