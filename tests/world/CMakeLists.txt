@@ -1,5 +1,6 @@
 aegis_add_test(world
     SOURCES
+        frame_phases.test.cpp
         kinematic_movement_controller.test.cpp
         registry.test.cpp
         script_system.test.cpp

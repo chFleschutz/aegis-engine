@@ -168,28 +168,22 @@ auto Engine::run() -> int
     std::uint32_t frames{ 0 };
     int exitCode{ exitSuccess };
 
-    auto lastFrameBegin = std::chrono::steady_clock::now();
+    if (headless)
+        m_clock = base::FrameClock::fixed(HEADLESS_FRAME_DELTA_SEC);
+    m_clock.reset(std::chrono::steady_clock::now());
     while ((headless || !m_window->shouldClose()) && (m_desc.frames == 0 || frames < m_desc.frames))
     {
         ScopeProfiler frameTime("Frame Time");
 
-        auto currentFrameBegin = std::chrono::steady_clock::now();
-        float frameTimeSec = std::chrono::duration<float, std::chrono::seconds::period>(currentFrameBegin - lastFrameBegin).count();
-        lastFrameBegin = currentFrameBegin;
-        // After a long frame (a breakpoint, a load), don't hand scripts and systems the whole stall
-        frameTimeSec = std::min(frameTimeSec, MAX_FRAME_DELTA_SEC);
+        const auto currentFrameBegin = std::chrono::steady_clock::now();
 
-        if (headless)
-        {
-            frameTimeSec = HEADLESS_FRAME_DELTA_SEC;
-        }
-        else
+        if (!headless)
         {
             m_window->update();
             if (m_window->isMinimized())
             {
                 m_window->waitEvents();
-                lastFrameBegin = std::chrono::steady_clock::now(); // Not part of the next frame's delta
+                m_clock.reset(std::chrono::steady_clock::now()); // Not part of the next frame's delta
                 continue;
             }
             if (m_window->wasResized() || m_renderer->needsResize())
@@ -209,6 +203,8 @@ auto Engine::run() -> int
             m_input->update();
         }
         updateCameraAspect();
+        // The clock clamps a long frame (a breakpoint, a load) so scripts and systems don't get the whole stall
+        const float frameTimeSec = m_clock.tick(currentFrameBegin);
         m_world.update(frameTimeSec);
         m_layerStack.update(frameTimeSec);
 

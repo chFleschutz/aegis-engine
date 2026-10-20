@@ -59,6 +59,12 @@ public:
         m_systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
     }
 
+    /// @brief Queues a change of the entities for the start of the next update
+    /// @note For code that runs while the frame is in flight (the editor's UI runs inside the render
+    ///       pass): creating, destroying or removing there would change what the passes already read.
+    ///       The commands run in order, before any system.
+    void defer(std::function<void(Registry&)> command) { m_deferred.push_back(std::move(command)); }
+
     void begin()
     {
         for (auto& system : m_systems)
@@ -71,9 +77,14 @@ public:
     {
         aegis::ScopeProfiler profiler("Scene Update");
 
-        for (auto& system : m_systems)
+        applyDeferred();
+        for (const auto phase : { Phase::PreUpdate, Phase::Update, Phase::PostUpdate, Phase::LateUpdate })
         {
-            system->onUpdate(m_registry, deltaSeconds);
+            for (auto& system : m_systems)
+            {
+                if (system->phase() == phase)
+                    system->onUpdate(m_registry, deltaSeconds);
+            }
         }
     }
 
@@ -87,12 +98,23 @@ public:
         {
             system->onReset(m_registry);
         }
+        m_deferred.clear();
         m_registry.clear();
         m_systems.clear();
     }
 
 private:
+    void applyDeferred()
+    {
+        // A command may defer more; those wait for the next update
+        auto commands = std::move(m_deferred);
+        m_deferred.clear();
+        for (auto& command : commands)
+            command(m_registry);
+    }
+
     Registry m_registry;
+    std::vector<std::function<void(Registry&)>> m_deferred;
     std::vector<std::unique_ptr<System>> m_systems;
 };
 }

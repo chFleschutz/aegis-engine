@@ -24,6 +24,7 @@ public:
 
     void draw(world::World& scene)
     {
+        m_scene = &scene;
         ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(400, 800));
 
         drawHierachy(scene);
@@ -282,12 +283,18 @@ private:
         // Right click on window to create entity
         if (ImGui::BeginPopupContextWindow(0, ImGuiPopupFlags_MouseButtonRight))
         {
+            // Structural edits wait for the scene's next update: the UI runs inside the render pass
             if (ImGui::MenuItem("Create Entity"))
-                m_selectedEntity = registry.create("Empty Entity");
+            {
+                m_scene->defer([this](world::Registry& registry) { m_selectedEntity = registry.create("Empty Entity"); });
+            }
 
             if (m_selectedEntity && ImGui::MenuItem("Destroy Selected Entity"))
             {
-                registry.destroy(m_selectedEntity);
+                m_scene->defer([entity = m_selectedEntity](world::Registry& registry) {
+                    if (registry.valid(entity))
+                        registry.destroy(entity);
+                });
                 m_selectedEntity = {};
             }
 
@@ -351,7 +358,12 @@ private:
             drawFunc(registry.get<T>(entity));
 
         if (!keepComponent)
-            registry.remove<T>(entity);
+        {
+            m_scene->defer([entity](world::Registry& registry) {
+                if (registry.valid(entity) && registry.has<T>(entity))
+                    registry.remove<T>(entity);
+            });
+        }
 
         ImGui::Spacing();
         ImGui::Spacing();
@@ -379,11 +391,15 @@ private:
 
         if (ImGui::MenuItem(itemName.c_str()))
         {
-            registry.add<T>(m_selectedEntity);
+            m_scene->defer([entity = m_selectedEntity](world::Registry& registry) {
+                if (registry.valid(entity) && !registry.has<T>(entity))
+                    registry.add<T>(entity);
+            });
             ImGui::CloseCurrentPopup();
         }
     }
 
     world::Entity m_selectedEntity{};
+    world::World* m_scene{ nullptr }; // Set by draw
 };
 }
