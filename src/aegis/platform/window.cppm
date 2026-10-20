@@ -4,6 +4,7 @@ module;
 export module aegis.platform:window;
 
 import std;
+import :error;
 
 export namespace aegis::platform
 {
@@ -19,13 +20,15 @@ public:
         std::uint32_t height;
     };
 
-    explicit Window(const Desc& desc);
+    /// @brief Opens a window. Fails with GLFW's reason when there is no display or GLFW refuses the window.
+    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<Window, Error>;
+
     Window(const Window&) = delete;
     Window(Window&& other) noexcept;
     ~Window();
 
     auto operator=(const Window&) -> Window& = delete;
-    auto operator=(Window&& other) noexcept -> Window&;
+    auto operator=(Window&&) -> Window& = delete;
 
     [[nodiscard]] auto glfwWindow() const -> GLFWwindow* { return m_window; }
     [[nodiscard]] auto width() const -> std::uint32_t { return m_width; }
@@ -44,6 +47,8 @@ public:
     auto resetResized() -> void { m_wasResized = false; }
 
 private:
+    Window(GLFWwindow* window, const Desc& desc);
+
     // Input receives this window's key events through m_keyHandler. GLFW allows one callback per
     // event type and window, so the window owns them all and routes events onward.
     friend class Input;

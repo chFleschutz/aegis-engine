@@ -23,6 +23,14 @@ namespace
 }
 }
 
+auto Engine::createWindow() -> platform::Window
+{
+    auto window = platform::Window::create({ .title = "Aegis", .width = core::DEFAULT_WIDTH, .height = core::DEFAULT_HEIGHT });
+    if (!window)
+        fatalSetup(std::format("Failed to create the window: {}", platform::describe(window.error())));
+    return std::move(*window);
+}
+
 Engine::Engine()
 {
     createRenderer();

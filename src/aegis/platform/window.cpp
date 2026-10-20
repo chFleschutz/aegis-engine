@@ -1,30 +1,59 @@
 module;
 #include "GLFW/glfw3.h"
 
-#include <cassert>
-
 module aegis.platform;
 
 import std;
 
 namespace aegis::platform
 {
-Window::Window(const Desc& desc) :
-    m_width{ desc.width },
-    m_height{ desc.height }
+namespace
 {
-    glfwInit();
+// GLFW is process-wide state: the first window initializes it, the last one terminates it.
+detail::InitRefCount s_glfwUsers;
+detail::GlfwErrorCapture s_glfwErrors;
+
+auto onGlfwError(int code, const char* description) -> void
+{
+    s_glfwErrors.record(code, description ? description : "");
+}
+
+auto initGlfw() -> bool
+{
+    glfwSetErrorCallback(onGlfwError); // Before glfwInit: that is where "no display" is reported
+    return glfwInit() == GLFW_TRUE;
+}
+}
+
+auto Window::create(const Desc& desc) -> std::expected<Window, Error>
+{
+    (void)s_glfwErrors.take(); // Forget anything older, it is not why this call fails
+    if (!s_glfwUsers.acquire(initGlfw))
+        return std::unexpected{ detail::initError(s_glfwErrors.take()) };
+
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     const std::string title{ desc.title }; // GLFW reads a null-terminated string
-    m_window = glfwCreateWindow(static_cast<int>(desc.width),
+    GLFWwindow* handle = glfwCreateWindow(static_cast<int>(desc.width),
         static_cast<int>(desc.height),
         title.c_str(),
         nullptr,
         nullptr);
-    assert(m_window && "Platform Error: Failed to create window");
+    if (!handle)
+    {
+        s_glfwUsers.release(glfwTerminate);
+        return std::unexpected{ detail::windowError(s_glfwErrors.take()) };
+    }
 
+    return Window{ handle, desc };
+}
+
+Window::Window(GLFWwindow* window, const Desc& desc) :
+    m_window{ window },
+    m_width{ desc.width },
+    m_height{ desc.height }
+{
     glfwSetWindowUserPointer(m_window, this);
     // Framebuffer size, not window size: it is what a swapchain must match, and update() reads it too.
     glfwSetFramebufferSizeCallback(m_window, onFramebufferResize);
@@ -47,23 +76,8 @@ Window::~Window()
     if (m_window)
     {
         glfwDestroyWindow(m_window);
-        glfwTerminate();
+        s_glfwUsers.release(glfwTerminate);
     }
-}
-
-auto Window::operator=(Window&& other) noexcept -> Window&
-{
-    // Swapping hands this window's old GLFW window to 'other', which destroys it.
-    std::swap(m_window, other.m_window);
-    std::swap(m_width, other.m_width);
-    std::swap(m_height, other.m_height);
-    std::swap(m_wasResized, other.m_wasResized);
-    std::swap(m_keyHandler, other.m_keyHandler);
-    if (m_window)
-        glfwSetWindowUserPointer(m_window, this);
-    if (other.m_window)
-        glfwSetWindowUserPointer(other.m_window, &other);
-    return *this;
 }
 
 auto Window::shouldClose() const -> bool

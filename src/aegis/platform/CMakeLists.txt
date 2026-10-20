@@ -10,6 +10,8 @@ target_sources(aegis-platform
     PUBLIC
     FILE_SET CXX_MODULES FILES
     platform.cppm
+    error.cppm
+    glfw_state.cppm
     key.cppm
     key_bindings.cppm
     input.cppm
