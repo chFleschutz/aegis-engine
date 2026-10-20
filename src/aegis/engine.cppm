@@ -5,6 +5,7 @@ export import aegis.math;
 export import aegis.ui;
 export import aegis.editor;
 export import aegis.defaults;
+export import aegis.asset_loader;
 export import aegis.scene_description;
 export import aegis.core.globals;
 export import aegis.core.layer_stack;
@@ -38,37 +39,7 @@ public:
     auto operator=(const Engine&) -> Engine& = delete;
     auto operator=(Engine&&) -> Engine& = delete;
 
-    /// @brief Returns the instance of the engine
-    [[nodiscard]] static auto instance() -> Engine&;
-
-    [[nodiscard]] static auto window() -> aegis::platform::Window&;
-    [[nodiscard]] static auto input() -> aegis::platform::Input&;
-    [[nodiscard]] static auto device() -> aegis::rhi::Device&;
-    [[nodiscard]] static auto renderer() -> aegis::renderer::Renderer&;
-    [[nodiscard]] static auto frameGraph() -> aegis::render_graph::FrameGraph&;
-    [[nodiscard]] static auto drawBatches() -> aegis::render_graph::DrawBatchRegistry&;
-    [[nodiscard]] static auto ui() -> ui::UI&;
-    [[nodiscard]] static auto scene() -> scene::Scene&;
-    [[nodiscard]] static auto defaults() -> const aegis::assets::DefaultAssets&;
-
     [[nodiscard]] auto useGpuDrivenRendering() const -> bool;
-
-    // Asset helpers: the new stack's loaders with the engine's device and defaults filled in.
-    // Failures are logged and asserted, like the engine's other setup errors.
-
-    /// @brief Loads a .gltf / .glb / .obj into the current scene; returns its root entity.
-    static auto loadModel(const std::filesystem::path& path) -> scene::Entity;
-
-    /// @brief An environment (sky box and IBL maps) from a Radiance .hdr.
-    static auto loadEnvironment(const std::filesystem::path& hdr) -> aegis::assets::Environment;
-
-    /// @brief A PNG/JPEG/... texture; color data (e.g. albedo) is RGBA8_SRGB.
-    static auto loadTexture(const std::filesystem::path& path,
-        aegis::rhi::Format format = aegis::rhi::Format::RGBA8_UNORM) -> std::shared_ptr<aegis::assets::Texture>;
-
-    /// @brief A new instance of 'materialTemplate' (by default the PBR template).
-    static auto createMaterial(std::shared_ptr<const aegis::assets::MaterialTemplate> materialTemplate = nullptr)
-        -> std::shared_ptr<aegis::assets::MaterialInstance>;
 
     void run();
 
@@ -78,23 +49,21 @@ public:
     void loadScene(Args&&... args)
     {
         m_scene.reset();
-        createDefaultScene(m_scene, m_scriptManager, defaultEnvironment());
+        createDefaultScene(m_scene, m_scriptManager, m_assets->defaultEnvironment());
         T description{ std::forward<Args>(args)... };
-        description.initialize(m_scene, m_scriptManager);
+        SceneContext context{ .scene = m_scene, .scripts = m_scriptManager, .assets = *m_assets };
+        description.initialize(context);
         m_scene.begin();
         m_frameGraph->sceneInitialized(m_scene);
     }
 
 private:
     void createRenderer();
-    void loadDefaultAssets();
+    void createAssets();
     void createFrameGraph();
-    auto defaultEnvironment() const -> aegis::assets::Environment;
     bool resize();
     void updateCameraAspect();
     void applyFrameBrake(std::chrono::steady_clock::time_point frameBegin);
-
-    inline static Engine* s_instance{ nullptr };
 
     /// @brief Longest frame time the scene and scripts see.
     static constexpr float MAX_FRAME_DELTA_SEC{ 0.1f };
@@ -109,9 +78,7 @@ private:
     std::unique_ptr<aegis::rhi::Context> m_context;
     std::unique_ptr<aegis::rhi::Device> m_device;
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
-    std::optional<aegis::assets::DefaultAssets> m_defaults;
-    std::optional<aegis::render_graph::Ibl> m_ibl;
-    std::shared_ptr<aegis::assets::Texture> m_brdfLut;
+    std::optional<AssetLoader> m_assets;
     scene::Scene m_scene;
     scripting::ScriptManager m_scriptManager{ m_scene, m_input };
     aegis::render_graph::DrawBatchRegistry m_drawBatches; // Disconnects from the scene first

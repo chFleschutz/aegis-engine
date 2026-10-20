@@ -21,29 +21,12 @@ namespace
     log::fatal("{}", message);
     std::exit(EXIT_FAILURE);
 }
-
-template<typename T, typename E>
-auto check(std::expected<T, E> result, const std::string& what) -> T
-{
-    if (!result)
-    {
-        // Module errors with a describe() print their code and rhi cause too.
-        if constexpr (requires { describe(result.error()); })
-            fatalSetup(std::format("Failed to {}: {}", what, describe(result.error())));
-        else
-            fatalSetup(std::format("Failed to {}: {}", what, result.error().message));
-    }
-    return std::move(*result);
-}
 }
 
 Engine::Engine()
 {
-    AGX_ASSERT_X(!s_instance, "Only one instance of Engine is allowed");
-    s_instance = this;
-
     createRenderer();
-    loadDefaultAssets();
+    createAssets();
     createFrameGraph();
     m_layerStack.push<editor::EditorLayer>(m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_scene);
 
@@ -67,91 +50,11 @@ Engine::~Engine()
     m_frameGraph.reset();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    s_instance = nullptr;
-}
-
-auto Engine::instance() -> Engine&
-{
-    AGX_ASSERT_X(s_instance, "Engine instance not created yet");
-    return *s_instance;
-}
-
-auto Engine::window() -> aegis::platform::Window&
-{
-    return instance().m_window;
-}
-auto Engine::input() -> aegis::platform::Input&
-{
-    return instance().m_input;
-}
-auto Engine::device() -> aegis::rhi::Device&
-{
-    return *instance().m_device;
-}
-auto Engine::renderer() -> aegis::renderer::Renderer&
-{
-    return *instance().m_renderer;
-}
-auto Engine::frameGraph() -> aegis::render_graph::FrameGraph&
-{
-    return *instance().m_frameGraph;
-}
-auto Engine::drawBatches() -> aegis::render_graph::DrawBatchRegistry&
-{
-    return instance().m_drawBatches;
-}
-auto Engine::ui() -> ui::UI&
-{
-    return instance().m_ui;
-}
-auto Engine::scene() -> scene::Scene&
-{
-    return instance().m_scene;
-}
-auto Engine::defaults() -> const aegis::assets::DefaultAssets&
-{
-    return *instance().m_defaults;
 }
 
 auto Engine::useGpuDrivenRendering() const -> bool
 {
     return ENABLE_GPU_DRIVEN_RENDERING && m_device->capabilities().meshShaders;
-}
-
-auto Engine::loadModel(const std::filesystem::path& path) -> scene::Entity
-{
-    auto& engine = instance();
-    auto root = aegis::assets::Loader::load(
-        {
-            .device = *engine.m_device,
-            .scene = engine.m_scene.registry(),
-            .pbrTemplate = engine.m_defaults->pbrTemplate,
-            .defaultMaterial = engine.m_defaults->pbrMaterial,
-            .framesInFlight = FRAMES_IN_FLIGHT,
-        },
-        path);
-    return check(std::move(root), std::format("load model '{}'", path.string()));
-}
-
-auto Engine::loadEnvironment(const std::filesystem::path& hdr) -> aegis::assets::Environment
-{
-    return check(instance().m_ibl->loadEnvironment(hdr), std::format("load environment '{}'", hdr.string()));
-}
-
-auto Engine::loadTexture(const std::filesystem::path& path, aegis::rhi::Format format) -> std::shared_ptr<aegis::assets::Texture>
-{
-    return check(aegis::assets::Texture::loadFromFile(*instance().m_device, path, format),
-        std::format("load texture '{}'", path.string()));
-}
-
-auto Engine::createMaterial(std::shared_ptr<const aegis::assets::MaterialTemplate> materialTemplate)
-    -> std::shared_ptr<aegis::assets::MaterialInstance>
-{
-    auto& engine = instance();
-    if (!materialTemplate)
-        materialTemplate = engine.m_defaults->pbrTemplate;
-    return check(aegis::assets::MaterialInstance::create(*engine.m_device, std::move(materialTemplate), FRAMES_IN_FLIGHT),
-        "create a material");
 }
 
 void Engine::run()
@@ -240,14 +143,12 @@ void Engine::createRenderer()
     m_renderer = std::move(*renderer);
 }
 
-void Engine::loadDefaultAssets()
+void Engine::createAssets()
 {
-    m_defaults = check(aegis::assets::DefaultAssets::create(*m_device, FRAMES_IN_FLIGHT), "create the default assets");
-    auto ibl = aegis::render_graph::Ibl::create(*m_device);
-    if (!ibl)
-        fatalSetup(std::format("Failed to create the IBL pipelines: {}", describe(ibl.error())));
-    m_ibl.emplace(std::move(*ibl));
-    m_brdfLut = check(m_ibl->brdfLut(), "compute the BRDF lookup table");
+    auto assets = AssetLoader::create(*m_device, FRAMES_IN_FLIGHT);
+    if (!assets)
+        fatalSetup(assets.error());
+    m_assets.emplace(std::move(*assets));
 }
 
 void Engine::createFrameGraph()
@@ -272,16 +173,6 @@ void Engine::createFrameGraph()
         log::fatal("Failed to compile the frame graph: {}", describe(compiled.error()));
         AGX_ASSERT_X(false, "Failed to compile the frame graph");
     }
-}
-
-auto Engine::defaultEnvironment() const -> aegis::assets::Environment
-{
-    return aegis::assets::Environment{
-        .skybox = m_defaults->blackCube,
-        .irradiance = m_defaults->blackCube,
-        .prefiltered = m_defaults->blackCube,
-        .brdfLUT = m_brdfLut,
-    };
 }
 
 bool Engine::resize()

@@ -52,9 +52,11 @@ PUBLIC
 target_sources(aegis-engine 
 PRIVATE
 	engine.cpp
+	asset_loader.cpp
 PUBLIC 
 	FILE_SET CXX_MODULES 
 	FILES
+		asset_loader.cppm
 		engine.cppm
 		scene_defaults.cppm
 		scene_description.cppm
