@@ -4,6 +4,7 @@ import :error;
 import :render_pass;
 import :render_system;
 import :resource;
+import :declarations;
 import :resource_pool;
 import aegis.rhi;
 
@@ -23,7 +24,7 @@ public:
     };
     static constexpr auto depthFormat = rhi::Format::D32_SFLOAT;
 
-    explicit GeometryPass(ResourcePool& pool);
+    explicit GeometryPass(ResourceDeclarations& declarations);
 
     template<typename T, typename... Args>
         requires std::derived_from<T, RenderSystem> && std::constructible_from<T, Args...>

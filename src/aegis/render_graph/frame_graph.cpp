@@ -7,7 +7,7 @@ import aegis.scene;
 namespace aegis::render_graph
 {
 FrameGraph::FrameGraph(rhi::Device& device, renderer::Renderer& renderer) :
-    m_pool{ device, renderer }
+    m_pool{ device, renderer, m_declarations }
 {
 }
 
@@ -17,13 +17,13 @@ auto FrameGraph::compile() -> std::expected<void, Error>
         return resolved;
 
     // Pure scheduling inputs: which entries each pass touches, and what each entry is.
-    const auto& entries = m_pool.m_entries;
+    const auto entries = m_declarations.entries();
     std::vector<detail::EntryDecl> entryDecls(entries.size());
     m_kinds.assign(entries.size(), detail::ResourceKind::Image);
     for (std::uint32_t i = 0; i < entries.size(); ++i)
     {
-        if (const auto* reference = std::get_if<ResourcePool::Reference>(&entries[i].info))
-            entryDecls[i].referenceTo = reference->target;
+        if (std::holds_alternative<ResourceDeclarations::Reference>(entries[i].info))
+            entryDecls[i].referenceTo = m_pool.m_targets[i];
         else if (std::holds_alternative<BufferDesc>(entries[i].info))
             m_kinds[i] = detail::ResourceKind::Buffer;
     }

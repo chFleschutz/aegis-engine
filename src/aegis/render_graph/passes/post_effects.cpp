@@ -11,9 +11,9 @@ namespace aegis::render_graph
 {
 // Bloom ----------------------------------------------------------------------------------------------
 
-BloomPass::BloomPass(ResourcePool& pool) :
-    m_sceneColor{ pool.addReference(names::sceneColor, Usage::StorageRead) },
-    m_bloom{ pool.addTexture(names::bloom, Usage::StorageWrite,
+BloomPass::BloomPass(ResourceDeclarations& declarations) :
+    m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
+    m_bloom{ declarations.addTexture(names::bloom, Usage::StorageWrite,
         { .format = rhi::Format::RGBA16_SFLOAT, .mipLevels = mipLevels, .usage = rhi::ImageUsage::Sampled }) }
 {
 }
@@ -162,10 +162,10 @@ auto BloomPass::drawUI() -> void
 
 // Transparent ----------------------------------------------------------------------------------------
 
-TransparentPass::TransparentPass(ResourcePool& pool) :
-    m_sceneColor{ pool.addReference(names::sceneColor, Usage::ColorAttachment) },
-    m_depth{ pool.addReference(names::depth, Usage::DepthRead) },
-    m_cameraData{ pool.addReference(names::cameraData, Usage::ShaderRead) }
+TransparentPass::TransparentPass(ResourceDeclarations& declarations) :
+    m_sceneColor{ declarations.addReference(names::sceneColor, Usage::ColorAttachment) },
+    m_depth{ declarations.addReference(names::depth, Usage::DepthRead) },
+    m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) }
 {
 }
 

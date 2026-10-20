@@ -11,16 +11,16 @@ import aegis.scene;
 
 namespace aegis::render_graph
 {
-LightingPass::LightingPass(ResourcePool& pool) :
+LightingPass::LightingPass(ResourceDeclarations& declarations) :
     m_gBuffer{
-        pool.addReference(names::position, Usage::StorageRead),
-        pool.addReference(names::normal, Usage::StorageRead),
-        pool.addReference(names::albedo, Usage::StorageRead),
-        pool.addReference(names::arm, Usage::StorageRead),
-        pool.addReference(names::emissive, Usage::StorageRead),
+        declarations.addReference(names::position, Usage::StorageRead),
+        declarations.addReference(names::normal, Usage::StorageRead),
+        declarations.addReference(names::albedo, Usage::StorageRead),
+        declarations.addReference(names::arm, Usage::StorageRead),
+        declarations.addReference(names::emissive, Usage::StorageRead),
     },
-    m_sceneColor{ pool.addTexture(names::sceneColor, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) },
-    m_uniforms{ pool.addBuffer(names::lightingUniforms, Usage::HostWrite, { .size = sizeof(LightingUniforms), .perFrame = true }) }
+    m_sceneColor{ declarations.addTexture(names::sceneColor, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) },
+    m_uniforms{ declarations.addBuffer(names::lightingUniforms, Usage::HostWrite, { .size = sizeof(LightingUniforms), .perFrame = true }) }
 {
 }
 

@@ -22,10 +22,10 @@ auto unavailable() -> void
 }
 }
 
-UiPass::UiPass(ResourcePool& pool, Desc desc) :
+UiPass::UiPass(ResourceDeclarations& declarations, Desc desc) :
     m_context{ desc.context },
     m_build{ std::move(desc.build) },
-    m_final{ pool.addReference(names::finalImage, Usage::ColorAttachment) }
+    m_final{ declarations.addReference(names::finalImage, Usage::ColorAttachment) }
 {
 }
 

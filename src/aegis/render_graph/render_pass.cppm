@@ -1,5 +1,6 @@
 export module aegis.render_graph:render_pass;
 import std;
+import :declarations;
 import :draw_batch_registry;
 import :error;
 import :resource;
@@ -22,7 +23,7 @@ struct FrameInfo
     rhi::ImageViewHandle target;
 };
 
-/// @brief One node of the frame graph. The constructor declares resources on the ResourcePool;
+/// @brief One node of the frame graph. The constructor declares resources on the ResourceDeclarations;
 ///        everything that can fail (pipelines, shaders) belongs in createResources.
 class RenderPass
 {

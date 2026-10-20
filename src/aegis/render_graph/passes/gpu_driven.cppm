@@ -5,6 +5,7 @@ import :error;
 import :gpu_types;
 import :render_pass;
 import :resource;
+import :declarations;
 import :resource_pool;
 import aegis.assets;
 import aegis.rhi;
@@ -41,7 +42,7 @@ public:
     static constexpr std::uint32_t initialStaticCapacity{ 65536 };
     static constexpr std::uint32_t initialDynamicCapacity{ 4096 };
 
-    InstanceUpdatePass(ResourcePool& pool, const DrawBatchRegistry& drawBatches);
+    InstanceUpdatePass(ResourceDeclarations& declarations, const DrawBatchRegistry& drawBatches);
 
     [[nodiscard]] auto info() const -> Info override;
     auto sceneInitialized(ResourcePool& pool, aegis::scene::Scene& scene) -> void override;
@@ -70,7 +71,7 @@ private:
 class ClearDrawCountsPass : public RenderPass
 {
 public:
-    explicit ClearDrawCountsPass(ResourcePool& pool);
+    explicit ClearDrawCountsPass(ResourceDeclarations& declarations);
 
     [[nodiscard]] auto info() const -> Info override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
@@ -85,7 +86,7 @@ private:
 class CullingPass : public RenderPass
 {
 public:
-    CullingPass(ResourcePool& pool, const InstanceUpdatePass& instances);
+    CullingPass(ResourceDeclarations& declarations, const InstanceUpdatePass& instances);
 
     [[nodiscard]] auto info() const -> Info override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -110,7 +111,7 @@ private:
 class GpuDrivenGeometryPass : public RenderPass
 {
 public:
-    GpuDrivenGeometryPass(ResourcePool& pool, const InstanceUpdatePass& instances);
+    GpuDrivenGeometryPass(ResourceDeclarations& declarations, const InstanceUpdatePass& instances);
 
     [[nodiscard]] auto info() const -> Info override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;

@@ -4,16 +4,16 @@ import aegis.rhi;
 
 namespace aegis::render_graph
 {
-GeometryPass::GeometryPass(ResourcePool& pool) :
+GeometryPass::GeometryPass(ResourceDeclarations& declarations) :
     m_gBuffer{
-        pool.addTexture(names::position, Usage::ColorAttachment, { .format = gBufferFormats[0] }),
-        pool.addTexture(names::normal, Usage::ColorAttachment, { .format = gBufferFormats[1] }),
-        pool.addTexture(names::albedo, Usage::ColorAttachment, { .format = gBufferFormats[2] }),
-        pool.addTexture(names::arm, Usage::ColorAttachment, { .format = gBufferFormats[3] }),
-        pool.addTexture(names::emissive, Usage::ColorAttachment, { .format = gBufferFormats[4] }),
+        declarations.addTexture(names::position, Usage::ColorAttachment, { .format = gBufferFormats[0] }),
+        declarations.addTexture(names::normal, Usage::ColorAttachment, { .format = gBufferFormats[1] }),
+        declarations.addTexture(names::albedo, Usage::ColorAttachment, { .format = gBufferFormats[2] }),
+        declarations.addTexture(names::arm, Usage::ColorAttachment, { .format = gBufferFormats[3] }),
+        declarations.addTexture(names::emissive, Usage::ColorAttachment, { .format = gBufferFormats[4] }),
     },
-    m_depth{ pool.addTexture(names::depth, Usage::DepthAttachment, { .format = depthFormat }) },
-    m_cameraData{ pool.addReference(names::cameraData, Usage::ShaderRead) }
+    m_depth{ declarations.addTexture(names::depth, Usage::DepthAttachment, { .format = depthFormat }) },
+    m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) }
 {
 }
 

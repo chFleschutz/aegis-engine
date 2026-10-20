@@ -1,5 +1,6 @@
 export module aegis.render_graph:frame_graph;
 import std;
+import :declarations;
 import :error;
 import :render_pass;
 import :resource_pool;
@@ -31,14 +32,14 @@ public:
     auto operator=(const FrameGraph&) -> FrameGraph& = delete;
     auto operator=(FrameGraph&&) -> FrameGraph& = delete;
 
-    /// @brief Adds a pass constructed as T(ResourcePool&, args...). Order matters among passes accessing
+    /// @brief Adds a pass constructed as T(ResourceDeclarations&, args...). Order matters among passes accessing
     ///        the same resource (a reader runs before a writer declared after it); compile() sorts the
     ///        rest and independent passes keep their add order.
     template<typename T, typename... Args>
-        requires std::derived_from<T, RenderPass> && std::constructible_from<T, ResourcePool&, Args...>
+        requires std::derived_from<T, RenderPass> && std::constructible_from<T, ResourceDeclarations&, Args...>
     auto add(Args&&... args) -> T&
     {
-        auto pass = std::make_unique<T>(m_pool, std::forward<Args>(args)...);
+        auto pass = std::make_unique<T>(m_declarations, std::forward<Args>(args)...);
         auto& ref = *pass;
         m_passes.push_back(std::move(pass));
         return ref;
@@ -70,6 +71,7 @@ public:
 private:
     auto recordTransitions(const rhi::CommandBuffer& cmd, const std::vector<detail::Transition>& transitions) const -> void;
 
+    ResourceDeclarations m_declarations;
     ResourcePool m_pool;
     std::vector<std::unique_ptr<RenderPass>> m_passes;          // In the order added
     std::vector<std::uint32_t> m_order;                         // Execution order, indices into m_passes

@@ -3,6 +3,7 @@ import std;
 import :error;
 import :render_pass;
 import :resource;
+import :declarations;
 import :resource_pool;
 import aegis.rhi;
 
@@ -26,7 +27,7 @@ public:
     /// @brief Descriptor sets the backend may allocate: the font atlas plus textures the UI shows.
     static constexpr std::uint32_t descriptorPoolSize{ 64 };
 
-    UiPass(ResourcePool& pool, Desc desc);
+    UiPass(ResourceDeclarations& declarations, Desc desc);
     ~UiPass() override;
 
     [[nodiscard]] auto info() const -> Info override;

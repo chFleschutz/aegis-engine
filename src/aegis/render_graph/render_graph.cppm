@@ -4,6 +4,7 @@ module;
 
 export module aegis.render_graph;
 import std;
+export import :declarations;
 export import :default_graph;
 export import :draw_batch_registry;
 export import :error;

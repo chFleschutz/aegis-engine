@@ -4,6 +4,7 @@ import :error;
 import :render_pass;
 import :render_system;
 import :resource;
+import :declarations;
 import :resource_pool;
 import aegis.rhi;
 
@@ -24,7 +25,7 @@ public:
         float upsampleScale{ 1.0f };
     };
 
-    explicit BloomPass(ResourcePool& pool);
+    explicit BloomPass(ResourceDeclarations& declarations);
     ~BloomPass() override;
 
     [[nodiscard]] auto info() const -> Info override;
@@ -55,7 +56,7 @@ private:
 class TransparentPass : public RenderPass
 {
 public:
-    explicit TransparentPass(ResourcePool& pool);
+    explicit TransparentPass(ResourceDeclarations& declarations);
 
     template<typename T, typename... Args>
         requires std::derived_from<T, RenderSystem> && std::constructible_from<T, Args...>

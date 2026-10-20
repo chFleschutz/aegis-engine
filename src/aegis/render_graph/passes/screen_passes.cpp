@@ -12,9 +12,9 @@ namespace aegis::render_graph
 {
 // Sky box -------------------------------------------------------------------------------------------
 
-SkyBoxPass::SkyBoxPass(ResourcePool& pool) :
-    m_sceneColor{ pool.addReference(names::sceneColor, Usage::ColorAttachment) },
-    m_depth{ pool.addReference(names::depth, Usage::DepthRead) }
+SkyBoxPass::SkyBoxPass(ResourceDeclarations& declarations) :
+    m_sceneColor{ declarations.addReference(names::sceneColor, Usage::ColorAttachment) },
+    m_depth{ declarations.addReference(names::depth, Usage::DepthRead) }
 {
 }
 
@@ -73,11 +73,11 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 
 // Post-processing -----------------------------------------------------------------------------------
 
-PostProcessingPass::PostProcessingPass(ResourcePool& pool, bool bloom) :
-    m_sceneColor{ pool.addReference(names::sceneColor, Usage::StorageRead) },
-    m_bloom{ bloom ? std::optional{ pool.addReference(names::bloom, Usage::StorageRead) } : std::nullopt },
+PostProcessingPass::PostProcessingPass(ResourceDeclarations& declarations, bool bloom) :
+    m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
+    m_bloom{ bloom ? std::optional{ declarations.addReference(names::bloom, Usage::StorageRead) } : std::nullopt },
     // 16-bit: the image may stay linear until the blit onto an sRGB target encodes it (see execute).
-    m_final{ pool.addTexture(names::finalImage, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) }
+    m_final{ declarations.addTexture(names::finalImage, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) }
 {
 }
 
@@ -132,8 +132,8 @@ auto PostProcessingPass::drawUI() -> void
 
 // Present -------------------------------------------------------------------------------------------
 
-PresentPass::PresentPass(ResourcePool& pool, std::string_view source) :
-    m_source{ pool.addReference(source, Usage::TransferSrc) }
+PresentPass::PresentPass(ResourceDeclarations& declarations, std::string_view source) :
+    m_source{ declarations.addReference(source, Usage::TransferSrc) }
 {
 }
 

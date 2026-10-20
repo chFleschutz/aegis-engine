@@ -5,8 +5,8 @@ import aegis.scene;
 
 namespace aegis::render_graph
 {
-SceneUpdatePass::SceneUpdatePass(ResourcePool& pool) :
-    m_cameraData{ pool.addBuffer(names::cameraData, Usage::HostWrite, { .size = sizeof(CameraData), .perFrame = true }) }
+SceneUpdatePass::SceneUpdatePass(ResourceDeclarations& declarations) :
+    m_cameraData{ declarations.addBuffer(names::cameraData, Usage::HostWrite, { .size = sizeof(CameraData), .perFrame = true }) }
 {
 }
 

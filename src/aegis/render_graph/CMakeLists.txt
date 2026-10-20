@@ -19,6 +19,7 @@ target_sources(aegis-render-graph
     PUBLIC
     FILE_SET CXX_MODULES FILES
     render_graph.cppm
+    declarations.cppm
     default_graph.cppm
     draw_batch_registry.cppm
     error.cppm
@@ -43,6 +44,7 @@ target_sources(aegis-render-graph
     passes/static_mesh_render_system.cppm
     passes/ui_pass.cppm
     PRIVATE
+    declarations.cpp
     default_graph.cpp
     draw_batch_registry.cpp
     frame_graph.cpp
