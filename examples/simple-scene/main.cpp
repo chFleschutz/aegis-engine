@@ -2,6 +2,7 @@
 
 import std;
 import aegis.engine;
+import aegis.rhi; // rhi::Format for loadTexture
 
 namespace
 {

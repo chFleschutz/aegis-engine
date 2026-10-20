@@ -2,13 +2,13 @@ export module aegis.engine;
 
 import std;
 export import aegis.math;
-export import aegis.ui;
-export import aegis.editor;
-export import aegis.defaults;
+import aegis.ui;
+import aegis.editor;
+import aegis.defaults;
 export import aegis.asset_loader;
 export import aegis.scene_description;
-export import aegis.core.globals;
-export import aegis.core.layer_stack;
+import aegis.core.globals;
+import aegis.core.layer_stack;
 export import aegis.paths;
 export import aegis.base;
 export import aegis.scene;
@@ -17,10 +17,10 @@ export import aegis.scene.system;
 export import aegis.scripting.script_base;
 export import aegis.scripting.script_manager;
 export import aegis.assets;
-export import aegis.platform;
-export import aegis.render_graph;
-export import aegis.renderer;
-export import aegis.rhi;
+import aegis.platform;
+import aegis.render_graph;
+import aegis.renderer;
+import aegis.rhi;
 
 export namespace aegis
 {
