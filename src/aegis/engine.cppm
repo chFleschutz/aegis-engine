@@ -62,6 +62,7 @@ private:
     void createAssets();
     void createFrameGraph();
     bool resize();
+    static auto createWindow() -> aegis::platform::Window;
     void updateCameraAspect();
     void applyFrameBrake(std::chrono::steady_clock::time_point frameBegin);
 
@@ -72,7 +73,7 @@ private:
     // before the device.
     core::LayerStack m_layerStack{};
     ui::UI m_ui{ m_layerStack };
-    aegis::platform::Window m_window{ { .title = "Aegis", .width = core::DEFAULT_WIDTH, .height = core::DEFAULT_HEIGHT } };
+    aegis::platform::Window m_window{ createWindow() };
     // Before ImGui's GLFW backend installs its callbacks, which chain to the window's.
     aegis::platform::Input m_input{ m_window };
     std::unique_ptr<aegis::rhi::Context> m_context;

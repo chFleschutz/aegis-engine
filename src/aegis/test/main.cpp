@@ -149,7 +149,10 @@ public:
                 .width = 640,
                 .height = 480,
             };
-            engine.m_window = std::make_unique<platform::Window>(windowDesc);
+            auto window = platform::Window::create(windowDesc);
+            if (!window)
+                return std::unexpected{ std::format("Failed to create window: {}", platform::describe(window.error())) };
+            engine.m_window = std::make_unique<platform::Window>(std::move(*window));
             engine.m_input = std::make_unique<platform::Input>(*engine.m_window);
 
             if (auto result = engine.verifyInput(); !result)
