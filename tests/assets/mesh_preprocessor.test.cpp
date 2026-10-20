@@ -140,6 +140,43 @@ TEST_SUITE("assets::MeshPreprocessor")
             CHECK(area == doctest::Approx(0.5f));
     }
 
+    TEST_CASE("generates flat normals when the input has none")
+    {
+        // An indexed quad whose two triangles share two vertices: flat normals split them from the other triangle's.
+        MeshPreprocessor::Input input;
+        input.positions = { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 0, 1, 1 } };
+        input.indices = { 0, 1, 2, 0, 2, 3 };
+
+        auto mesh = MeshPreprocessor::process(input);
+        REQUIRE(mesh.has_value());
+        CHECK(mesh->vertices.size() == 6);
+        REQUIRE(mesh->indices.size() == 6);
+        for (std::size_t i = 0; i < mesh->indices.size(); i += 3)
+        {
+            const auto& a = mesh->vertices[mesh->indices[i + 0]];
+            const auto& b = mesh->vertices[mesh->indices[i + 1]];
+            const auto& c = mesh->vertices[mesh->indices[i + 2]];
+            const auto expected = glm::normalize(glm::cross(b.position - a.position, c.position - a.position));
+            for (const auto* vertex : { &a, &b, &c })
+            {
+                CHECK(vertex->normal.x == doctest::Approx(expected.x));
+                CHECK(vertex->normal.y == doctest::Approx(expected.y));
+                CHECK(vertex->normal.z == doctest::Approx(expected.z));
+            }
+        }
+    }
+
+    TEST_CASE("a degenerate triangle gets a unit normal")
+    {
+        MeshPreprocessor::Input input;
+        input.positions = { { 0, 0, 0 }, { 1, 0, 0 }, { 2, 0, 0 } };
+
+        auto mesh = MeshPreprocessor::process(input);
+        REQUIRE(mesh.has_value());
+        for (const auto& vertex : mesh->vertices)
+            CHECK(glm::length(vertex.normal) == doctest::Approx(1.0f));
+    }
+
     TEST_CASE("rejects meshlet limits the mesh shader cannot hold")
     {
         // The mesh shader declares at most 64 vertices and 126 primitives per meshlet; a larger meshlet

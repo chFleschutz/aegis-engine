@@ -39,7 +39,7 @@ auto validate(const MeshPreprocessor::Input& input) -> std::expected<void, Error
 
     if (input.positions.empty())
         return makeError(ErrorCode::InvalidData, "Mesh has no positions");
-    if (input.normals.size() != input.positions.size())
+    if (!input.normals.empty() && input.normals.size() != input.positions.size())
     {
         return makeError(ErrorCode::InvalidData,
             std::format("Mesh has {} normals for {} positions", input.normals.size(), input.positions.size()));
@@ -85,6 +85,45 @@ auto toTriangleList(const MeshPreprocessor::Input& input) -> std::vector<std::ui
     }
     return list;
 }
+
+// Replaces the vertices by three per triangle, each with its triangle's normal (the glTF fallback for a
+// missing NORMAL). The input must be a triangle list. A degenerate triangle gets +Z.
+auto generateFlatNormals(MeshPreprocessor::Input& input) -> void
+{
+    const auto cornerCount = input.indices.empty() ? input.positions.size() : input.indices.size();
+    const auto source = [&](std::size_t corner) { return input.indices.empty() ? corner : input.indices[corner]; };
+
+    MeshPreprocessor::Input expanded;
+    expanded.positions.reserve(cornerCount);
+    expanded.normals.reserve(cornerCount);
+    for (std::size_t corner = 0; corner < cornerCount; ++corner)
+    {
+        const auto index = source(corner);
+        expanded.positions.push_back(input.positions[index]);
+        if (index < input.uvs.size())
+            expanded.uvs.push_back(input.uvs[index]);
+        else if (!input.uvs.empty())
+            expanded.uvs.emplace_back(0.0f);
+        if (index < input.colors.size())
+            expanded.colors.push_back(input.colors[index]);
+        else if (!input.colors.empty())
+            expanded.colors.emplace_back(1.0f);
+    }
+    for (std::size_t corner = 0; corner < cornerCount; corner += 3)
+    {
+        const auto& a = expanded.positions[corner];
+        const auto cross = glm::cross(expanded.positions[corner + 1] - a, expanded.positions[corner + 2] - a);
+        const auto length = glm::length(cross);
+        const auto normal = length > 1e-20f ? cross / length : glm::vec3{ 0.0f, 0.0f, 1.0f };
+        expanded.normals.insert(expanded.normals.end(), 3, normal);
+    }
+
+    input.positions = std::move(expanded.positions);
+    input.normals = std::move(expanded.normals);
+    input.uvs = std::move(expanded.uvs);
+    input.colors = std::move(expanded.colors);
+    input.indices.clear();
+}
 }
 
 auto MeshPreprocessor::process(Input input) -> std::expected<MeshData, Error>
@@ -97,6 +136,9 @@ auto MeshPreprocessor::process(Input input) -> std::expected<MeshData, Error>
         input.indices = toTriangleList(input);
         input.topology = Topology::TriangleList;
     }
+
+    if (input.normals.empty())
+        generateFlatNormals(input);
 
     auto vertices = interleave(input);
     const auto initialVertexCount = vertices.size();
