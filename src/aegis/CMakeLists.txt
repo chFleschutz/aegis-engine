@@ -50,6 +50,8 @@ PUBLIC
 )
 
 target_sources(aegis-engine 
+PRIVATE
+	engine.cpp
 PUBLIC 
 	FILE_SET CXX_MODULES 
 	FILES
