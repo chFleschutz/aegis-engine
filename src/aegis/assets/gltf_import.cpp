@@ -481,6 +481,11 @@ private:
 auto importGltf(std::span<const std::byte> bytes, const std::filesystem::path& directory, std::string_view name)
     -> std::expected<ModelData, Error>
 {
+    if (bytes.empty())
+        return makeError(ErrorCode::DecodeFailed, std::format("Failed to read glTF '{}': no data", name));
+
+    // fastgltf rejects an empty directory; a file in the working directory has an empty parent path.
+    const auto base = directory.empty() ? std::filesystem::path{ "." } : directory;
     auto data = fastgltf::GltfDataBuffer::FromBytes(bytes.data(), bytes.size());
     if (data.error() != fastgltf::Error::None)
     {
@@ -490,13 +495,13 @@ auto importGltf(std::span<const std::byte> bytes, const std::filesystem::path& d
 
     fastgltf::Parser parser;
     constexpr auto options = fastgltf::Options::LoadExternalBuffers | fastgltf::Options::DecomposeNodeMatrices;
-    auto asset = parser.loadGltf(data.get(), directory, options);
+    auto asset = parser.loadGltf(data.get(), base, options);
     if (asset.error() != fastgltf::Error::None)
     {
         return makeError(ErrorCode::DecodeFailed,
             std::format("Failed to parse glTF '{}': {}", name, fastgltf::getErrorMessage(asset.error())));
     }
 
-    return GltfImport{ asset.get(), directory, name }.run();
+    return GltfImport{ asset.get(), base, name }.run();
 }
 }

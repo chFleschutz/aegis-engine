@@ -114,7 +114,8 @@ auto generateFlatNormals(MeshPreprocessor::Input& input) -> void
         const auto& a = expanded.positions[corner];
         const auto cross = glm::cross(expanded.positions[corner + 1] - a, expanded.positions[corner + 2] - a);
         const auto length = glm::length(cross);
-        const auto normal = length > 1e-20f ? cross / length : glm::vec3{ 0.0f, 0.0f, 1.0f };
+        // Adding 0 turns -0 into +0, so equal normals are bitwise equal and the vertices merge.
+        const auto normal = (length > 1e-20f ? cross / length : glm::vec3{ 0.0f, 0.0f, 1.0f }) + glm::vec3{ 0.0f };
         expanded.normals.insert(expanded.normals.end(), 3, normal);
     }
 
