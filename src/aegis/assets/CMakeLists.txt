@@ -4,7 +4,6 @@ target_link_libraries(aegis-assets
     PUBLIC
         aegis-base
         aegis-rhi
-        aegis-core  # aegis::core::Asset, the base class of the loaded assets
         aegis-math
     PRIVATE
         fastgltf

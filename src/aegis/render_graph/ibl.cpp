@@ -75,7 +75,6 @@ auto Ibl::loadEnvironment(const std::filesystem::path& hdr) -> std::expected<ass
     auto cube = cubeFromEquirectangular(**equirect);
     if (!cube)
         return std::unexpected{ cube.error() };
-    (*cube)->setPath(hdr);
     return environmentFrom(std::move(*cube));
 }
 

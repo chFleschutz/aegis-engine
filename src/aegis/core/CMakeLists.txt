@@ -16,7 +16,6 @@ PUBLIC
 	FILE_SET CXX_MODULES 
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
-		asset.cppm
 		globals.cppm
 		layer.cppm
 		layer_stack.cppm

@@ -11,10 +11,9 @@ namespace
 class ModelUpload
 {
 public:
-    ModelUpload(const Loader::Desc& desc, const ModelData& model, std::filesystem::path path) :
+    ModelUpload(const Loader::Desc& desc, const ModelData& model) :
         m_desc{ desc },
-        m_model{ model },
-        m_path{ std::move(path) }
+        m_model{ model }
     {
     }
 
@@ -42,8 +41,6 @@ private:
                 Texture::ImageDesc{ .name = image.name, .format = image.srgb ? rhi::Format::RGBA8_SRGB : rhi::Format::RGBA8_UNORM });
             if (!texture)
                 return std::unexpected{ texture.error() };
-            if (!image.uri.empty())
-                (*texture)->setPath(m_path.parent_path() / std::filesystem::path{ image.uri });
             m_textures.push_back(std::move(*texture));
         }
         return {};
@@ -62,8 +59,6 @@ private:
                 auto staticMesh = StaticMesh::create(m_desc.device, mesh.primitives[primitiveIndex].mesh, name);
                 if (!staticMesh)
                     return std::unexpected{ staticMesh.error() };
-                if (isRootMesh)
-                    (*staticMesh)->setPath(m_path);
                 m_meshes[meshIndex].push_back(std::move(*staticMesh));
             }
         }
@@ -80,7 +75,6 @@ private:
                 return std::unexpected{ material.error() };
 
             auto& instance = **material;
-            instance.setPath(data.name);
             struct Override
             {
                 const char* name;
@@ -156,7 +150,6 @@ private:
 
     const Loader::Desc& m_desc;
     const ModelData& m_model;
-    std::filesystem::path m_path;
     std::vector<std::shared_ptr<Texture>> m_textures;               // Per ModelData image
     std::vector<std::vector<std::shared_ptr<StaticMesh>>> m_meshes; // Per ModelData mesh, one per primitive
     std::vector<std::shared_ptr<MaterialInstance>> m_materials;     // Per ModelData material
@@ -169,6 +162,6 @@ auto Loader::load(const Desc& desc, const std::filesystem::path& path) -> std::e
     auto model = importModel(path);
     if (!model)
         return std::unexpected{ std::move(model.error()) };
-    return ModelUpload{ desc, *model, path }.run();
+    return ModelUpload{ desc, *model }.run();
 }
 }
