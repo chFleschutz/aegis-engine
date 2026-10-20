@@ -256,10 +256,11 @@ Suggested order:
 
 ## Open decisions
 
-- **Text format for scenes** (and materials and sidecars): JSON (for example with glaze), YAML, or our
-  own. A binary form for cooked data and save games? The rest of the asset system's open points are in
-  [`asset-system.md`](asset-system.md), "Open".
-- **Reflection backend** for automatic field lists: none, Boost.PFR, reflect-cpp, or wait for C++26.
+- **Text format: decided,** JSON through glaze (`asset-system.md`, "Formats and libraries"). The
+  asset system's remaining open points are in [`asset-system.md`](asset-system.md), "Open".
+- **Reflection backend** for automatic field lists: none, glaze (already a dependency for JSON; it
+  reflects aggregate member names, with the same aggregate-only limit as Boost.PFR), reflect-cpp, or
+  wait for C++26. Type names stay explicit either way.
 - **Shape of script state:** fields directly on the script class, or a nested aggregate (needed for
   library-based reflection).
 - **Entity hierarchy and prefab overrides:** prefabs are scenes and instances get derived entity IDs

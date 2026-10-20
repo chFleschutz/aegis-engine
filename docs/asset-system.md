@@ -89,7 +89,7 @@ Sources go in as they are; the editor imports them and reimports on any change. 
 
 ## Native files
 
-One text format (the scene format, chosen in 6.10) with a common header:
+One text format, JSON (see "Formats and libraries"), with a common header:
 
 ```json
 { "type": "Material", "id": "5b0e17d2c94af3a1", "version": 1, "template": "builtin:pbr",
@@ -180,6 +180,49 @@ the defaults while pending), implemented synchronously first; the slot lets hot 
   "always include" list), import what the cache lacks, compile native files to binary, pack with an
   `AssetId → offset` table. Importers then leave the shipped executable.
 
+## Formats and libraries
+
+**Text: JSON through glaze** (2026-10-20), for scenes, materials, sidecars and the project file.
+- **Stable output:** pretty-printed, one key per line, a fixed key order, entities sorted by local
+  ID, floats as the shortest text that round-trips. Saving an unchanged world gives the same bytes,
+  and diffs stay small. Comments and trailing commas are accepted on read (JSONC), never written.
+- **Two paths:** fixed-shape files (sidecars, the project file, import settings) bind structs through
+  glaze's reflection. Scene files go through the type registry as a generic tree, since component
+  types are known only at runtime.
+- **Asset references:** `reflect::FieldKind` gains an `AssetRef` kind, written `"<id>:<subId>"`; the
+  cook step finds dependencies through it (#130 adds it, #131 serializes it).
+- **Why not YAML:** implicit typing traps hand edits, glaze's YAML covers less than its JSON (no
+  documented generic tree or error locations), and editor saves drop comments in either format.
+- The format is chosen in one place in the serializer; switching means one option plus converting
+  files by loading and saving them.
+- glaze's templates are heavy: include it only in `.cpp` files. Errors carry their location, which
+  gives #131's line numbers.
+
+**Binary (cache and pak):**
+- **Textures:** KTX2 (mips, cubes, arrays, the `VkFormat`, zstd), readable by standard tools.
+- **Meshes:** own blobs, a header `{magic, type, version, cache key}` and aligned arrays that go
+  straight into a staging buffer, compressed with meshoptimizer's vertex/index codecs and zstd.
+- **Cooked scenes and save games** stay JSON at first; glaze's BEVE is the binary option if size or
+  load time needs it.
+- **Debugging:** `<Name>-Editor --dump-asset <id>` prints a cache entry as text (header, key, counts,
+  bounds, first vertices and meshlets) (#137).
+
+**Libraries,** as submodules under `external/`, linked `PRIVATE`, all usable without exceptions:
+
+| Need | Library |
+|---|---|
+| JSON | glaze (yyjson is the fallback if glaze's templates fight Clang modules) |
+| Cache keys | xxHash (XXH3) |
+| Compression | zstd |
+| Textures | KTX-Software (libktx), with Basis Universal for per-platform BC7 / ASTC |
+| Mesh compression | meshoptimizer (already a dependency) |
+| File watching | efsw (#143) |
+| Decoding | stb_image, fastgltf, tinyobjloader (kept; importers only, so they leave shipped games) |
+
+No library for random IDs (`std::mt19937_64`), the pak (a sorted table plus memory-mapped reads) or a
+job system (not before loading goes async). First check: one `.cpp` that includes glaze and does
+`import std;` builds on `windows-clang` and `linux-clang` (libstdc++ 15).
+
 ## Changes and order
 
 Renames:
@@ -204,8 +247,8 @@ Order:
 
 ## Open
 
-- Text format for scenes, materials and sidecars (JSON, YAML or our own), chosen with 6.10.
-- Cooked blob layout (versioning, compression, alignment) and per-platform texture compression.
+- Mesh blob details (alignment, versioning) and where per-platform texture compression runs
+  (import or cook).
 - `.blend` import through headless Blender, which every importing machine would need.
 - Override details; a `.prefab` extension for the browser (same format either way).
 - Hot reload and streaming.
