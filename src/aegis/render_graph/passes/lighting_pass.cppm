@@ -6,14 +6,15 @@ import :render_pass;
 import :resource;
 import :declarations;
 import :resource_pool;
+import aegis.assets;
 import aegis.rhi;
 import aegis.math;
 import aegis.world;
 
 export namespace aegis::render_graph
 {
-/// @brief Deferred PBR lighting: G-buffer + the scene's lights and environment (assets::Environment
-///        on the first entity that has one) -> "SceneColor" (RGBA16F).
+/// @brief Deferred PBR lighting: G-buffer + the scene's lights and environment (the aegis::Sky
+///        on the first entity that has one) and the BRDF lookup table, which it owns -> "SceneColor" (RGBA16F).
 class LightingPass : public RenderPass
 {
 public:
@@ -31,6 +32,7 @@ private:
     ResourceId m_sceneColor;
     ResourceId m_uniforms;
     std::optional<rhi::Pipeline> m_pipeline;
+    std::shared_ptr<assets::Texture> m_brdfLut; // One per pass, not per environment
     LightingViewMode m_viewMode{ LightingViewMode::SceneColor };
     float m_ambientOcclusionFactor{ 1.0f };
 };

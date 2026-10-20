@@ -7,6 +7,7 @@ import aegis.assets;
 import aegis.rhi;
 import aegis.math;
 import aegis.world;
+import aegis.world.render_components;
 
 namespace aegis::render_graph
 {
@@ -43,13 +44,14 @@ auto SkyBoxPass::createResources(ResourcePool& pool) -> std::expected<void, Erro
 auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
     auto& registry = frameInfo.scene.registry();
-    const auto environment = registry.first<assets::Environment>();
+    const auto sky = registry.first<aegis::Sky>();
     const auto camera = frameInfo.scene.mainCamera();
-    if (!environment || !camera || !registry.has<aegis::Camera>(camera))
+    if (!sky || !camera || !registry.has<aegis::Camera>(camera))
         return;
-    const auto& skybox = registry.get<assets::Environment>(environment).skybox;
-    if (!skybox)
+    const auto& environment = registry.get<aegis::Sky>(sky).environment;
+    if (!environment || !environment->skybox)
         return;
+    const auto& skybox = environment->skybox;
 
     // Rotation only: the sky is infinitely far away.
     const auto& cameraComponent = registry.get<aegis::Camera>(camera);

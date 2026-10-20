@@ -12,15 +12,13 @@ auto attachMesh(world::Registry& registry, world::Entity entity, std::string_vie
 {
     if (mesh.primitives.size() == 1)
     {
-        registry.add<Mesh>(entity, mesh.primitives[0].mesh);
-        registry.add<Material>(entity, mesh.primitives[0].material);
+        registry.add<MeshRenderer>(entity, mesh.primitives[0].mesh, mesh.primitives[0].material);
         return;
     }
     for (std::size_t sub = 0; sub < mesh.primitives.size(); ++sub)
     {
         const auto child = registry.create(std::format("{}_Submesh_{}", name, sub));
-        registry.add<Mesh>(child, mesh.primitives[sub].mesh);
-        registry.add<Material>(child, mesh.primitives[sub].material);
+        registry.add<MeshRenderer>(child, mesh.primitives[sub].mesh, mesh.primitives[sub].material);
         registry.addChild(entity, child);
     }
 }

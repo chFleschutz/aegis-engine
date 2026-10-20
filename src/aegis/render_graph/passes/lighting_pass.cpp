@@ -8,6 +8,7 @@ import aegis.base;
 import aegis.rhi;
 import aegis.math;
 import aegis.world;
+import aegis.world.render_components;
 
 namespace aegis::render_graph
 {
@@ -35,6 +36,14 @@ auto LightingPass::createResources(ResourcePool& pool) -> std::expected<void, Er
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
     m_pipeline = std::move(*pipeline);
+
+    auto ibl = Ibl::create(pool.device());
+    if (!ibl)
+        return std::unexpected{ ibl.error() };
+    auto brdfLut = ibl->brdfLut();
+    if (!brdfLut)
+        return std::unexpected{ brdfLut.error() };
+    m_brdfLut = std::move(*brdfLut);
     return {};
 }
 
@@ -43,15 +52,15 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     auto& scene = frameInfo.scene;
     auto& registry = scene.registry();
 
-    const auto environmentEntity = registry.first<assets::Environment>();
-    if (!environmentEntity)
+    const auto skyEntity = registry.first<aegis::Sky>();
+    const auto* environment = skyEntity ? registry.get<aegis::Sky>(skyEntity).environment.get() : nullptr;
+    if (!environment)
     {
         static bool reported{ false };
         if (!std::exchange(reported, true))
-            log::warn("Lighting: the scene has no assets::Environment; skipping lighting");
+            log::warn("Lighting: the scene has no aegis::Sky with an environment; skipping lighting");
         return;
     }
-    const auto& environment = registry.get<assets::Environment>(environmentEntity);
 
     const auto uniforms = detail::gatherLighting(scene, m_ambientOcclusionFactor, m_viewMode);
     pool.write(m_uniforms, frameInfo.frameIndex, std::as_bytes(std::span{ &uniforms, 1 }));
@@ -66,9 +75,9 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
             pool.storageDescriptor(m_gBuffer[3]),
             pool.storageDescriptor(m_gBuffer[4]),
         },
-        .irradiance = environment.irradiance->descriptor(),
-        .prefiltered = environment.prefiltered->descriptor(),
-        .brdfLut = environment.brdfLUT->descriptor(),
+        .irradiance = environment->irradiance->descriptor(),
+        .prefiltered = environment->prefiltered->descriptor(),
+        .brdfLut = m_brdfLut->descriptor(),
     };
 
     const auto& cmd = frameInfo.cmd;

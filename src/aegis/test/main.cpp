@@ -715,7 +715,7 @@ public:
         }
         // Each load gets its own default material: editing one model's must not change another's (E-CONTENT-04).
         {
-            std::array<std::shared_ptr<assets::MaterialInstance>, 2> defaultMaterials;
+            std::array<std::shared_ptr<assets::Material>, 2> defaultMaterials;
             for (auto& slot : defaultMaterials)
             {
                 auto cube = assets::Loader::load(loaderDesc, paths::assets() / "Misc/cube.obj");
@@ -732,13 +732,13 @@ public:
 
         std::size_t meshes{ 0 };
         std::size_t texturedMaterials{ 0 };
-        for (auto&& [entity, mesh, material] : scene.view<aegis::Mesh, aegis::Material>().each())
+        for (auto&& [entity, renderer] : scene.view<aegis::MeshRenderer>().each())
         {
-            if (!mesh.staticMesh || mesh.staticMesh->indexCount() == 0 || mesh.staticMesh->meshDataAddress() == 0)
+            if (!renderer.mesh || renderer.mesh->indexCount() == 0 || renderer.mesh->meshDataAddress() == 0)
                 return std::unexpected{ "A loaded mesh is empty or has no device address" };
-            if (!material.instance)
+            if (!renderer.material)
                 return std::unexpected{ "A loaded mesh has no material" };
-            const auto* albedoMap = material.instance->parameter<std::shared_ptr<assets::Texture>>("albedoMap");
+            const auto* albedoMap = renderer.material->parameter<std::shared_ptr<assets::Texture>>("albedoMap");
             if (!albedoMap || !*albedoMap)
                 return std::unexpected{ "A loaded material has no albedo map" };
             const auto& albedo = *albedoMap;
@@ -778,6 +778,9 @@ public:
         auto environment = ibl->loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
         if (!environment)
             return std::unexpected{ std::format("IBL environment: {}", describe(environment.error())) };
+        auto brdfLut = ibl->brdfLut();
+        if (!brdfLut)
+            return std::unexpected{ std::format("IBL BRDF LUT: {}", describe(brdfLut.error())) };
 
         const auto check = [&](const auto& texture, std::uint32_t size, std::uint32_t mips, std::uint32_t layers,
                                std::string_view what) -> std::expected<void, std::string> {
@@ -791,17 +794,17 @@ public:
         };
         using render_graph::Ibl;
         for (auto result : {
-                 check(environment->skybox, 512, 10, 6, "Environment cube"),
-                 check(environment->irradiance, Ibl::irradianceSize, 1, 6, "Irradiance map"),
-                 check(environment->prefiltered, Ibl::prefilteredSize, Ibl::prefilteredMipLevels, 6, "Prefiltered map"),
-                 check(environment->brdfLUT, Ibl::brdfLutSize, 1, 1, "BRDF LUT"),
+                 check((*environment)->skybox, 512, 10, 6, "Environment cube"),
+                 check((*environment)->irradiance, Ibl::irradianceSize, 1, 6, "Irradiance map"),
+                 check((*environment)->prefiltered, Ibl::prefilteredSize, Ibl::prefilteredMipLevels, 6, "Prefiltered map"),
+                 check(*brdfLut, Ibl::brdfLutSize, 1, 1, "BRDF LUT"),
              })
         {
             if (!result)
                 return result;
         }
 
-        auto lut = readRgba16f(environment->brdfLUT->image(), Ibl::brdfLutSize, 1);
+        auto lut = readRgba16f((*brdfLut)->image(), Ibl::brdfLutSize, 1);
         if (!lut)
             return std::unexpected{ lut.error() };
         const auto lutTexel = [&](std::uint32_t x, std::uint32_t y, std::uint32_t c) {
@@ -812,7 +815,7 @@ public:
         if (scale < 0.9f || scale > 1.05f || bias > 0.05f)
             return std::unexpected{ std::format("BRDF LUT at NdotV~1, roughness 0 is ({}, {}), want ~(1, 0)", scale, bias) };
 
-        auto irradiance = readRgba16f(environment->irradiance->image(), Ibl::irradianceSize, 6);
+        auto irradiance = readRgba16f((*environment)->irradiance->image(), Ibl::irradianceSize, 6);
         if (!irradiance)
             return std::unexpected{ irradiance.error() };
         const auto center = (std::size_t{ Ibl::irradianceSize / 2 } * Ibl::irradianceSize + Ibl::irradianceSize / 2) * 4;
@@ -908,7 +911,7 @@ public:
         if (!environment)
             return std::unexpected{ std::format("Environment: {}", describe(environment.error())) };
         const auto sky = registry.create("Sky");
-        registry.add<assets::Environment>(sky, std::move(*environment));
+        registry.add<aegis::Sky>(sky, std::move(*environment));
 
         auto helmet = assets::Loader::load(
             {
@@ -1080,9 +1083,9 @@ public:
 
         const auto drawableStatic = [&] {
             std::uint32_t count{ 0 };
-            for (auto&& [entity, mesh, material] : registry.view<aegis::Mesh, aegis::Material>().each())
+            for (auto&& [entity, renderer] : registry.view<aegis::MeshRenderer>().each())
             {
-                if (mesh.staticMesh && material.instance && !registry.has<aegis::DynamicTag>(aegis::world::Entity{ entity }))
+                if (renderer.mesh && renderer.material && !registry.has<aegis::DynamicTag>(aegis::world::Entity{ entity }))
                     ++count;
             }
             return count;
@@ -1146,9 +1149,9 @@ public:
         else if (frame == editFrame)
         {
             std::uint32_t edited{ 0 };
-            for (auto&& [entity, material] : registry.view<aegis::Material>().each())
+            for (auto&& [entity, renderer] : registry.view<aegis::MeshRenderer>().each())
             {
-                if (material.instance && material.instance->setParameter("albedo", glm::vec3{ 1.0f, 0.1f, 0.1f }))
+                if (renderer.material && renderer.material->setParameter("albedo", glm::vec3{ 1.0f, 0.1f, 0.1f }))
                     ++edited;
             }
             if (edited == 0)

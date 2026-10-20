@@ -26,17 +26,15 @@ auto DrawBatchRegistry::connect(aegis::world::Registry& registry) -> void
     clear();
     m_registry = &registry;
 
-    for (auto&& [entity, material] : registry.view<aegis::Material>().each())
+    for (auto&& [entity, renderer] : registry.view<aegis::MeshRenderer>().each())
     {
-        trackMaterial(entity, material, registry.has<aegis::DynamicTag>(aegis::world::Entity{ entity }));
+        trackRenderer(entity, renderer, registry.has<aegis::DynamicTag>(aegis::world::Entity{ entity }));
     }
 
-    registry.onConstruct<aegis::Material>().connect<&DrawBatchRegistry::onMaterialConstruct>(this);
-    registry.onDestroy<aegis::Material>().connect<&DrawBatchRegistry::onMaterialDestroy>(this);
+    registry.onConstruct<aegis::MeshRenderer>().connect<&DrawBatchRegistry::onRendererConstruct>(this);
+    registry.onDestroy<aegis::MeshRenderer>().connect<&DrawBatchRegistry::onRendererDestroy>(this);
     registry.onConstruct<aegis::DynamicTag>().connect<&DrawBatchRegistry::onDynamicConstruct>(this);
     registry.onDestroy<aegis::DynamicTag>().connect<&DrawBatchRegistry::onDynamicDestroy>(this);
-    registry.onConstruct<aegis::Mesh>().connect<&DrawBatchRegistry::onMeshConstruct>(this);
-    registry.onDestroy<aegis::Mesh>().connect<&DrawBatchRegistry::onMeshDestroy>(this);
     registry.invalidateStatic();
 }
 
@@ -45,12 +43,10 @@ auto DrawBatchRegistry::disconnect() -> void
     if (!m_registry)
         return;
 
-    m_registry->onConstruct<aegis::Material>().disconnect(this);
-    m_registry->onDestroy<aegis::Material>().disconnect(this);
+    m_registry->onConstruct<aegis::MeshRenderer>().disconnect(this);
+    m_registry->onDestroy<aegis::MeshRenderer>().disconnect(this);
     m_registry->onConstruct<aegis::DynamicTag>().disconnect(this);
     m_registry->onDestroy<aegis::DynamicTag>().disconnect(this);
-    m_registry->onConstruct<aegis::Mesh>().disconnect(this);
-    m_registry->onDestroy<aegis::Mesh>().disconnect(this);
     m_registry = nullptr;
 }
 
@@ -131,12 +127,12 @@ auto DrawBatchRegistry::updateOffsets() -> void
     }
 }
 
-auto DrawBatchRegistry::trackMaterial(entt::entity entity, const aegis::Material& material, bool dynamic) -> void
+auto DrawBatchRegistry::trackRenderer(entt::entity entity, const aegis::MeshRenderer& renderer, bool dynamic) -> void
 {
-    if (!material.instance)
+    if (!renderer.material)
         return;
 
-    if (const auto tracked = track(entity, material.instance->materialTemplate(), dynamic); !tracked)
+    if (const auto tracked = track(entity, renderer.material->materialTemplate(), dynamic); !tracked)
         log::warn("DrawBatchRegistry: {} not drawn on the GPU-driven path: {}", static_cast<std::uint32_t>(entity), describe(tracked.error()));
 }
 
@@ -148,13 +144,13 @@ auto DrawBatchRegistry::markStatic(entt::registry& registry, entt::entity entity
         m_registry->markStaticDirty(aegis::world::Entity{ entity });
 }
 
-auto DrawBatchRegistry::onMaterialConstruct(entt::registry& registry, entt::entity entity) -> void
+auto DrawBatchRegistry::onRendererConstruct(entt::registry& registry, entt::entity entity) -> void
 {
-    trackMaterial(entity, registry.get<aegis::Material>(entity), registry.all_of<aegis::DynamicTag>(entity));
+    trackRenderer(entity, registry.get<aegis::MeshRenderer>(entity), registry.all_of<aegis::DynamicTag>(entity));
     markStatic(registry, entity);
 }
 
-auto DrawBatchRegistry::onMaterialDestroy(entt::registry&, entt::entity entity) -> void
+auto DrawBatchRegistry::onRendererDestroy(entt::registry&, entt::entity entity) -> void
 {
     untrack(entity);
     m_registry->invalidateStatic();
@@ -169,16 +165,6 @@ auto DrawBatchRegistry::onDynamicConstruct(entt::registry&, entt::entity entity)
 auto DrawBatchRegistry::onDynamicDestroy(entt::registry&, entt::entity entity) -> void
 {
     setDynamic(entity, false);
-    m_registry->invalidateStatic();
-}
-
-auto DrawBatchRegistry::onMeshConstruct(entt::registry& registry, entt::entity entity) -> void
-{
-    markStatic(registry, entity);
-}
-
-auto DrawBatchRegistry::onMeshDestroy(entt::registry&, entt::entity) -> void
-{
     m_registry->invalidateStatic();
 }
 }

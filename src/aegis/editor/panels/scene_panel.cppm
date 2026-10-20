@@ -188,9 +188,10 @@ private:
                     registry.markStaticDirty(m_selectedEntity);
             });
 
-        drawComponent<aegis::Mesh>(registry, "Mesh", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
-            [](aegis::Mesh& mesh) {
-                drawAssetSlot("Mesh", "Mesh Asset", mesh.staticMesh != nullptr);
+        drawComponent<aegis::MeshRenderer>(registry, "Mesh Renderer", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
+            [](aegis::MeshRenderer& renderer) {
+                drawAssetSlot("Mesh", "Mesh Asset", renderer.mesh != nullptr);
+                drawAssetSlot("Material", "Material Asset", renderer.material != nullptr);
             });
 
         drawComponent<AmbientLight>(registry, "Ambient Light", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
@@ -312,8 +313,7 @@ private:
             drawAddComponentItem<DirectionalLight>(registry, "Directional Light");
             drawAddComponentItem<PointLight>(registry, "Point Light");
             drawAddComponentItem<Camera>(registry, "Camera");
-            drawAddComponentItem<aegis::Mesh>(registry, "Mesh");
-            drawAddComponentItem<aegis::Material>(registry, "Default Material");
+            drawAddComponentItem<aegis::MeshRenderer>(registry, "Mesh Renderer");
             ImGui::EndPopup();
         }
     }

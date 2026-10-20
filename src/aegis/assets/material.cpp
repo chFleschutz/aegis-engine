@@ -110,8 +110,8 @@ auto MaterialTemplate::check(const std::string& name, const MaterialValue& value
     return {};
 }
 
-auto MaterialInstance::create(rhi::Device& device, std::shared_ptr<const MaterialTemplate> materialTemplate,
-    std::uint32_t framesInFlight) -> std::expected<std::shared_ptr<MaterialInstance>, Error>
+auto Material::create(rhi::Device& device, std::shared_ptr<const MaterialTemplate> materialTemplate,
+    std::uint32_t framesInFlight) -> std::expected<std::shared_ptr<Material>, Error>
 {
     assert(materialTemplate && framesInFlight > 0);
 
@@ -126,12 +126,12 @@ auto MaterialInstance::create(rhi::Device& device, std::shared_ptr<const Materia
     if (!buffer)
         return makeError(buffer.error(), "Failed to create material parameter buffer");
 
-    return std::shared_ptr<MaterialInstance>{
-        new MaterialInstance{ device, std::move(materialTemplate), *buffer, blockStride, framesInFlight }
+    return std::shared_ptr<Material>{
+        new Material{ device, std::move(materialTemplate), *buffer, blockStride, framesInFlight }
     };
 }
 
-MaterialInstance::MaterialInstance(rhi::Device& device, std::shared_ptr<const MaterialTemplate> materialTemplate,
+Material::Material(rhi::Device& device, std::shared_ptr<const MaterialTemplate> materialTemplate,
     rhi::BufferHandle buffer, std::size_t blockStride, std::uint32_t framesInFlight) :
     m_device{ device },
     m_template{ std::move(materialTemplate) },
@@ -141,12 +141,12 @@ MaterialInstance::MaterialInstance(rhi::Device& device, std::shared_ptr<const Ma
 {
 }
 
-MaterialInstance::~MaterialInstance()
+Material::~Material()
 {
     m_device.free(m_buffer);
 }
 
-auto MaterialInstance::setParameter(const std::string& name, MaterialValue value) -> std::expected<void, Error>
+auto Material::setParameter(const std::string& name, MaterialValue value) -> std::expected<void, Error>
 {
     if (auto valid = m_template->check(name, value); !valid)
         return valid;
@@ -156,7 +156,7 @@ auto MaterialInstance::setParameter(const std::string& name, MaterialValue value
     return {};
 }
 
-auto MaterialInstance::parameter(const std::string& name) const -> const MaterialValue*
+auto Material::parameter(const std::string& name) const -> const MaterialValue*
 {
     if (const auto found = m_overrides.find(name); found != m_overrides.end())
         return &found->second;
@@ -165,7 +165,7 @@ auto MaterialInstance::parameter(const std::string& name) const -> const Materia
     return parameter ? &parameter->defaultValue : nullptr;
 }
 
-auto MaterialInstance::update(std::uint32_t frameIndex) -> void
+auto Material::update(std::uint32_t frameIndex) -> void
 {
     if (!m_dirty[frameIndex])
         return;
@@ -176,7 +176,7 @@ auto MaterialInstance::update(std::uint32_t frameIndex) -> void
     m_dirty[frameIndex] = false;
 }
 
-auto MaterialInstance::parameterAddress(std::uint32_t frameIndex) const -> rhi::DeviceAddress
+auto Material::parameterAddress(std::uint32_t frameIndex) const -> rhi::DeviceAddress
 {
     return m_device.get(m_buffer).deviceAddress() + frameIndex * m_blockStride;
 }

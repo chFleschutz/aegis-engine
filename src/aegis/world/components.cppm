@@ -105,7 +105,7 @@ struct Children
 ///    only while the scene is set up: adding or removing the tag later is not supported yet.
 ///  - A one-off edit of a static entity (the editor's gizmo and inspector) calls
 ///    Registry::markStaticDirty(entity) after changing its Transform.
-///  - Creating or destroying entities and adding or removing Mesh/Material need nothing: the
+///  - Creating or destroying entities and adding or removing MeshRenderer need nothing: the
 ///    Registry's static-set version tracks them.
 /// The tag does not pass down the hierarchy: tag each entity that moves on its own (descendants
 /// of a moving entity follow it only if they are tagged too).

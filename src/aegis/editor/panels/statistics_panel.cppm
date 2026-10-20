@@ -20,8 +20,7 @@ public:
         ImGui::Text("Entities: %d", static_cast<int>(registry.entityCount()));
         ImGui::Text(" - Dynamic Entities: %d", static_cast<int>(registry.view<DynamicTag>().size()));
         ImGui::Separator();
-        ImGui::Text("Meshes: %d", static_cast<int>(registry.view<aegis::Mesh>().size()));
-        ImGui::Text("Materials: %d", static_cast<int>(registry.view<aegis::Material>().size()));
+        ImGui::Text("Mesh renderers: %d", static_cast<int>(registry.view<aegis::MeshRenderer>().size()));
         ImGui::Text("Point Lights: %d", static_cast<int>(registry.view<PointLight>().size()));
         ImGui::Text("Cameras: %d", static_cast<int>(registry.view<Camera>().size()));
         ImGui::Separator();
