@@ -63,19 +63,19 @@ auto collectInstances(View view, const DrawBatchRegistry& drawBatches, std::uint
     bool updateMaterials) -> std::vector<InstanceData>
 {
     std::vector<InstanceData> instances;
-    for (auto&& [entity, transform, mesh, material] : view.each())
+    for (auto&& [entity, transform, renderer] : view.each())
     {
         if (instances.size() == limit)
             break;
-        if (!mesh.staticMesh || !material.instance)
+        if (!renderer.mesh || !renderer.material)
             continue;
-        const auto batch = drawBatches.batchId(*material.instance->materialTemplate());
+        const auto batch = drawBatches.batchId(*renderer.material->materialTemplate());
         if (!batch)
             continue;
 
         if (updateMaterials)
-            material.instance->update(frameIndex);
-        instances.push_back(makeInstance(transform, *mesh.staticMesh, *material.instance, frameIndex, *batch));
+            renderer.material->update(frameIndex);
+        instances.push_back(makeInstance(transform, *renderer.mesh, *renderer.material, frameIndex, *batch));
     }
     return instances;
 }
@@ -122,7 +122,7 @@ auto InstanceUpdatePass::rebuildStatic(ResourcePool& pool, aegis::world::World& 
     }
     m_staticCapacity = capacity;
 
-    auto view = scene.registry().view<aegis::GlobalTransform, aegis::Mesh, aegis::Material>(entt::exclude<aegis::DynamicTag>);
+    auto view = scene.registry().view<aegis::GlobalTransform, aegis::MeshRenderer>(entt::exclude<aegis::DynamicTag>);
     for (std::uint32_t frame = 0; frame < frames; ++frame)
     {
         const auto instances = collectInstances(view, m_drawBatches, frame, m_staticCapacity, false);
@@ -132,11 +132,11 @@ auto InstanceUpdatePass::rebuildStatic(ResourcePool& pool, aegis::world::World& 
 
     // Their materials: kept alive for as long as the instances address them, and updated every frame.
     std::unordered_set<const assets::Material*> seen;
-    for (auto&& [entity, transform, mesh, material] : view.each())
+    for (auto&& [entity, transform, renderer] : view.each())
     {
-        if (mesh.staticMesh && material.instance && m_drawBatches.batchId(*material.instance->materialTemplate()) &&
-            seen.insert(material.instance.get()).second)
-            m_staticMaterials.push_back(material.instance);
+        if (renderer.mesh && renderer.material && m_drawBatches.batchId(*renderer.material->materialTemplate()) &&
+            seen.insert(renderer.material.get()).second)
+            m_staticMaterials.push_back(renderer.material);
     }
 }
 
@@ -156,7 +156,7 @@ auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
     std::ignore = ensureCapacity(pool, m_dynamicInstances, m_dynamicCapacity, m_drawBatches.dynamicInstanceCount(),
         sizeof(InstanceData));
     // DynamicTag is empty, so the view's each() does not yield it.
-    auto view = frameInfo.scene.registry().view<aegis::GlobalTransform, aegis::Mesh, aegis::Material, aegis::DynamicTag>();
+    auto view = frameInfo.scene.registry().view<aegis::GlobalTransform, aegis::MeshRenderer, aegis::DynamicTag>();
     const auto instances = collectInstances(view, m_drawBatches, frameInfo.frameIndex, m_dynamicCapacity, true);
     pool.write(m_dynamicInstances, frameInfo.frameIndex, std::as_bytes(std::span{ instances }));
     m_dynamicCount = static_cast<std::uint32_t>(instances.size());

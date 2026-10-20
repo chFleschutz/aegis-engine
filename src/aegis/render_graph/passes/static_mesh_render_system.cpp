@@ -36,16 +36,16 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
     cmd.bindPipeline(*m_pipeline);
 
     const assets::Material* lastMaterial{ nullptr };
-    auto view = context.scene.registry().view<aegis::GlobalTransform, aegis::Mesh, aegis::Material>();
-    for (auto&& [entity, transform, mesh, material] : view.each())
+    auto view = context.scene.registry().view<aegis::GlobalTransform, aegis::MeshRenderer>();
+    for (auto&& [entity, transform, renderer] : view.each())
     {
-        if (!mesh.staticMesh || !material.instance || material.instance->materialTemplate()->type() != m_type)
+        if (!renderer.mesh || !renderer.material || renderer.material->materialTemplate()->type() != m_type)
             continue;
 
-        if (lastMaterial != material.instance.get())
+        if (lastMaterial != renderer.material.get())
         {
-            material.instance->update(context.frameIndex);
-            lastMaterial = material.instance.get();
+            renderer.material->update(context.frameIndex);
+            lastMaterial = renderer.material.get();
         }
 
         const auto gpuTransform = detail::toGpuTransform(transform.matrix());
@@ -55,12 +55,12 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
             .normalRow1 = gpuTransform.normalRow1,
             .normalRow2 = gpuTransform.normalRow2,
             .camera = context.camera,
-            .mesh = mesh.staticMesh->meshDataAddress(),
-            .material = material.instance->parameterAddress(context.frameIndex),
+            .mesh = renderer.mesh->meshDataAddress(),
+            .material = renderer.material->parameterAddress(context.frameIndex),
         });
 
-        cmd.bindIndexBuffer(m_device->get(mesh.staticMesh->indexBuffer()));
-        cmd.drawIndexed(mesh.staticMesh->indexCount());
+        cmd.bindIndexBuffer(m_device->get(renderer.mesh->indexBuffer()));
+        cmd.drawIndexed(renderer.mesh->indexCount());
     }
 }
 }

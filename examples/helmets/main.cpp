@@ -18,7 +18,7 @@ public:
             (std::sin(m_time + 4.0f) + 1.0f) / 2.0f
         };
 
-        auto& material = context.get<aegis::Material>().instance;
+        auto& material = context.get<aegis::MeshRenderer>().material;
         [[maybe_unused]] auto set = material->setParameter(aegis::assets::pbr::albedo, color);
         AGX_ASSERT_X(set, "Failed to set the material's albedo");
     }

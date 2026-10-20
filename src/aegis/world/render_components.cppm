@@ -8,13 +8,9 @@ import aegis.assets;
 
 export namespace aegis
 {
-struct Mesh
+struct MeshRenderer
 {
-    std::shared_ptr<assets::StaticMesh> staticMesh;
-};
-
-struct Material
-{
-    std::shared_ptr<assets::Material> instance;
+    std::shared_ptr<assets::StaticMesh> mesh;
+    std::shared_ptr<assets::Material> material;
 };
 }

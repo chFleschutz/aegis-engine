@@ -732,13 +732,13 @@ public:
 
         std::size_t meshes{ 0 };
         std::size_t texturedMaterials{ 0 };
-        for (auto&& [entity, mesh, material] : scene.view<aegis::Mesh, aegis::Material>().each())
+        for (auto&& [entity, renderer] : scene.view<aegis::MeshRenderer>().each())
         {
-            if (!mesh.staticMesh || mesh.staticMesh->indexCount() == 0 || mesh.staticMesh->meshDataAddress() == 0)
+            if (!renderer.mesh || renderer.mesh->indexCount() == 0 || renderer.mesh->meshDataAddress() == 0)
                 return std::unexpected{ "A loaded mesh is empty or has no device address" };
-            if (!material.instance)
+            if (!renderer.material)
                 return std::unexpected{ "A loaded mesh has no material" };
-            const auto* albedoMap = material.instance->parameter<std::shared_ptr<assets::Texture>>("albedoMap");
+            const auto* albedoMap = renderer.material->parameter<std::shared_ptr<assets::Texture>>("albedoMap");
             if (!albedoMap || !*albedoMap)
                 return std::unexpected{ "A loaded material has no albedo map" };
             const auto& albedo = *albedoMap;
@@ -1080,9 +1080,9 @@ public:
 
         const auto drawableStatic = [&] {
             std::uint32_t count{ 0 };
-            for (auto&& [entity, mesh, material] : registry.view<aegis::Mesh, aegis::Material>().each())
+            for (auto&& [entity, renderer] : registry.view<aegis::MeshRenderer>().each())
             {
-                if (mesh.staticMesh && material.instance && !registry.has<aegis::DynamicTag>(aegis::world::Entity{ entity }))
+                if (renderer.mesh && renderer.material && !registry.has<aegis::DynamicTag>(aegis::world::Entity{ entity }))
                     ++count;
             }
             return count;
@@ -1146,9 +1146,9 @@ public:
         else if (frame == editFrame)
         {
             std::uint32_t edited{ 0 };
-            for (auto&& [entity, material] : registry.view<aegis::Material>().each())
+            for (auto&& [entity, renderer] : registry.view<aegis::MeshRenderer>().each())
             {
-                if (material.instance && material.instance->setParameter("albedo", glm::vec3{ 1.0f, 0.1f, 0.1f }))
+                if (renderer.material && renderer.material->setParameter("albedo", glm::vec3{ 1.0f, 0.1f, 0.1f }))
                     ++edited;
             }
             if (edited == 0)
