@@ -93,9 +93,9 @@ InstanceUpdatePass::InstanceUpdatePass(ResourceDeclarations& declarations, const
 {
 }
 
-auto InstanceUpdatePass::info() const -> Info
+auto InstanceUpdatePass::name() const -> std::string_view
 {
-    return { .name = "Instance Update", .writes = { m_staticInstances, m_dynamicInstances, m_drawBatchData } };
+    return "Instance Update";
 }
 
 auto InstanceUpdatePass::sceneInitialized(ResourcePool&, aegis::scene::Scene&) -> void
@@ -175,9 +175,9 @@ ClearDrawCountsPass::ClearDrawCountsPass(ResourceDeclarations& declarations) :
 {
 }
 
-auto ClearDrawCountsPass::info() const -> Info
+auto ClearDrawCountsPass::name() const -> std::string_view
 {
-    return { .name = "Clear Draw Counts", .writes = { m_counts } };
+    return "Clear Draw Counts";
 }
 
 auto ClearDrawCountsPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
@@ -202,13 +202,9 @@ CullingPass::CullingPass(ResourceDeclarations& declarations, const InstanceUpdat
 {
 }
 
-auto CullingPass::info() const -> Info
+auto CullingPass::name() const -> std::string_view
 {
-    return {
-        .name = "Culling",
-        .reads = { m_cameraData, m_staticInstances, m_dynamicInstances, m_drawBatchData },
-        .writes = { m_visibility, m_commands, m_counts },
-    };
+    return "Culling";
 }
 
 auto CullingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
@@ -255,14 +251,8 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
 
 GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations, const InstanceUpdatePass& instances) :
     m_instances{ instances },
-    m_gBuffer{
-        declarations.addTexture(names::position, Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[0] }),
-        declarations.addTexture(names::normal, Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[1] }),
-        declarations.addTexture(names::albedo, Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[2] }),
-        declarations.addTexture(names::arm, Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[3] }),
-        declarations.addTexture(names::emissive, Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[4] }),
-    },
-    m_depth{ declarations.addTexture(names::depth, Usage::DepthAttachment, { .format = GeometryPass::depthFormat }) },
+    m_gBuffer{ GeometryPass::declareGBuffer(declarations) },
+    m_depth{ GeometryPass::declareDepth(declarations) },
     m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) },
     m_staticInstances{ declarations.addReference(names::staticInstances, Usage::ShaderRead) },
     m_dynamicInstances{ declarations.addReference(names::dynamicInstances, Usage::ShaderRead) },
@@ -272,15 +262,9 @@ GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations,
 {
 }
 
-auto GpuDrivenGeometryPass::info() const -> Info
+auto GpuDrivenGeometryPass::name() const -> std::string_view
 {
-    Info info{
-        .name = "GPU Driven Geometry",
-        .reads = { m_cameraData, m_staticInstances, m_dynamicInstances, m_visibility, m_commands, m_counts },
-    };
-    info.writes.assign(m_gBuffer.begin(), m_gBuffer.end());
-    info.writes.push_back(m_depth);
-    return info;
+    return "GPU Driven Geometry";
 }
 
 auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
@@ -290,7 +274,7 @@ auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected
 
     std::array<rhi::Pipeline::ColorAttachment, GeometryPass::gBufferFormats.size()> attachments;
     for (std::size_t i = 0; i < attachments.size(); ++i)
-        attachments[i] = { .format = GeometryPass::gBufferFormats[i] };
+        attachments[i] = { .format = pool.format(m_gBuffer[i]) };
 
     // The task shader is a separate module: sharing one, the mesh stage would also declare the
     // task stage's DrawIndex, which a mesh shader with a task stage must not.
@@ -303,7 +287,7 @@ auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected
         rhi::Pipeline::GraphicsDesc{
             .name = "GpuDrivenGeometry",
             .colorAttachments = attachments,
-            .depthAttachment = GeometryPass::depthFormat,
+            .depthAttachment = pool.format(m_depth),
         },
         stages);
     if (!pipeline)

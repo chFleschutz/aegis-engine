@@ -13,40 +13,16 @@ FrameGraph::FrameGraph(rhi::Device& device, renderer::Renderer& renderer) :
 
 auto FrameGraph::compile() -> std::expected<void, Error>
 {
-    if (auto resolved = m_pool.resolveReferences(); !resolved)
-        return resolved;
+    if (m_compiled)
+        return makeError(ErrorCode::InvalidGraph, "The frame graph is already compiled");
 
-    // Pure scheduling inputs: which entries each pass touches, and what each entry is.
-    const auto entries = m_declarations.entries();
-    std::vector<detail::EntryDecl> entryDecls(entries.size());
-    m_kinds.assign(entries.size(), detail::ResourceKind::Image);
-    for (std::uint32_t i = 0; i < entries.size(); ++i)
-    {
-        if (std::holds_alternative<ResourceDeclarations::Reference>(entries[i].info))
-            entryDecls[i].referenceTo = m_pool.m_targets[i];
-        else if (std::holds_alternative<BufferDesc>(entries[i].info))
-            m_kinds[i] = detail::ResourceKind::Buffer;
-    }
+    auto plan = this->plan();
+    if (!plan)
+        return std::unexpected{ std::move(plan.error()) };
+    m_order = plan->order;
+    m_kinds = plan->kinds;
 
-    std::vector<RenderPass::Info> infos;
-    std::vector<detail::PassDecl> passDecls;
-    infos.reserve(m_passes.size());
-    for (const auto& pass : m_passes)
-    {
-        auto& info = infos.emplace_back(pass->info());
-        auto& decl = passDecls.emplace_back();
-        for (const auto read : info.reads)
-            decl.reads.push_back(read.index);
-        for (const auto write : info.writes)
-            decl.writes.push_back(write.index);
-    }
-
-    auto order = detail::sortPasses(passDecls, entryDecls);
-    if (!order)
-        return makeError(ErrorCode::InvalidGraph, order.error());
-    m_order = std::move(*order);
-
-    if (auto created = m_pool.createResources(); !created)
+    if (auto created = m_pool.createResources(*plan); !created)
         return created;
 
     for (const auto index : m_order)
@@ -54,24 +30,11 @@ auto FrameGraph::compile() -> std::expected<void, Error>
         if (auto created = m_passes[index]->createResources(m_pool); !created)
         {
             auto error = created.error();
-            error.message = std::format("{}: {}", infos[index].name, error.message);
+            error.message = std::format("{}: {}", m_passes[index]->name(), error.message);
             return std::unexpected{ std::move(error) };
         }
     }
-
-    // A pass reads before it writes.
-    std::vector<std::vector<detail::Access>> accesses;
-    accesses.reserve(m_order.size());
-    for (const auto index : m_order)
-    {
-        auto& passAccesses = accesses.emplace_back();
-        for (const auto& handles : { infos[index].reads, infos[index].writes })
-        {
-            for (const auto handle : handles)
-                passAccesses.push_back({ m_pool.actual(handle), entries[handle.index].usage });
-        }
-    }
-    m_transitions = detail::planTransitions(accesses, m_kinds);
+    m_transitions = std::move(plan->transitions);
 
     const auto queryCount = static_cast<std::uint32_t>(2 * m_order.size());
     for (std::uint32_t i = 0; i < renderer::Renderer::maxFramesInFlight && queryCount > 0; ++i)
@@ -81,6 +44,7 @@ auto FrameGraph::compile() -> std::expected<void, Error>
             return makeError(ErrorCode::ResourceCreationFailed, "Failed to create the frame graph's timestamp queries", pool.error());
         m_timers.push_back({ .pool = std::move(*pool) });
     }
+    m_compiled = true;
     return {};
 }
 
@@ -95,7 +59,7 @@ auto FrameGraph::readTimings(FrameTimer& timer) -> void
     for (std::size_t i = 0; i < m_order.size(); ++i)
     {
         m_timings[i] = {
-            .name = m_passes[m_order[i]]->info().name,
+            .name = std::string{ m_passes[m_order[i]]->name() },
             .gpuMs = timer.pool.elapsedMs((*timestamps)[2 * i], (*timestamps)[2 * i + 1]),
             .cpuMs = timer.cpuMs[i],
         };
@@ -134,7 +98,7 @@ auto FrameGraph::execute(const FrameInfo& frameInfo) -> void
     {
         const auto cpuStart = std::chrono::steady_clock::now();
         auto& pass = *m_passes[m_order[i]];
-        frameInfo.cmd.beginLabel(pass.info().name);
+        frameInfo.cmd.beginLabel(pass.name());
         if (timer)
             frameInfo.cmd.writeTimestamp(timer->pool, static_cast<std::uint32_t>(2 * i), rhi::TimestampStage::TopOfPipe);
 
@@ -159,6 +123,22 @@ auto FrameGraph::passes() const -> std::vector<RenderPass*>
     ordered.reserve(m_order.size());
     for (const auto index : m_order)
         ordered.push_back(m_passes[index].get());
+    return ordered;
+}
+
+auto FrameGraph::describePasses() const -> std::vector<PassDescription>
+{
+    std::vector<PassDescription> ordered;
+    ordered.reserve(m_order.size());
+    for (const auto index : m_order)
+    {
+        ordered.push_back({
+            .pass = m_passes[index].get(),
+            .name = m_passes[index]->name(),
+            .reads = m_declarations.reads(index),
+            .writes = m_declarations.writes(index),
+        });
+    }
     return ordered;
 }
 

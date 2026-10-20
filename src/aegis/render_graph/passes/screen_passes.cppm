@@ -17,7 +17,7 @@ class SkyBoxPass : public RenderPass
 public:
     explicit SkyBoxPass(ResourceDeclarations& declarations);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
@@ -45,7 +45,7 @@ public:
     /// @param bloom Read "Bloom" (a BloomPass must be in the graph); otherwise bloom is off.
     PostProcessingPass(ResourceDeclarations& declarations, bool bloom = true);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
     auto drawUI() -> void override;
@@ -67,7 +67,7 @@ class PresentPass : public RenderPass
 public:
     explicit PresentPass(ResourceDeclarations& declarations, std::string_view source = names::finalImage);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:

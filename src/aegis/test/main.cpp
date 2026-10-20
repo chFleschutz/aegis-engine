@@ -873,7 +873,7 @@ public:
 
         std::print("Frame graph compiled:");
         for (const auto* pass : m_frameGraph->passes())
-            std::print(" {} |", pass->info().name);
+            std::print(" {} |", pass->name());
         std::println("");
         return {};
     }

@@ -44,7 +44,7 @@ public:
 
     InstanceUpdatePass(ResourceDeclarations& declarations, const DrawBatchRegistry& drawBatches);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     auto sceneInitialized(ResourcePool& pool, aegis::scene::Scene& scene) -> void override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
@@ -73,7 +73,7 @@ class ClearDrawCountsPass : public RenderPass
 public:
     explicit ClearDrawCountsPass(ResourceDeclarations& declarations);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
@@ -88,7 +88,7 @@ class CullingPass : public RenderPass
 public:
     CullingPass(ResourceDeclarations& declarations, const InstanceUpdatePass& instances);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
@@ -113,7 +113,7 @@ class GpuDrivenGeometryPass : public RenderPass
 public:
     GpuDrivenGeometryPass(ResourceDeclarations& declarations, const InstanceUpdatePass& instances);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 

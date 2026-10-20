@@ -18,19 +18,19 @@ SkyBoxPass::SkyBoxPass(ResourceDeclarations& declarations) :
 {
 }
 
-auto SkyBoxPass::info() const -> Info
+auto SkyBoxPass::name() const -> std::string_view
 {
-    return { .name = "Sky Box", .reads = { m_depth }, .writes = { m_sceneColor } };
+    return "Sky Box";
 }
 
 auto SkyBoxPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = rhi::Format::RGBA16_SFLOAT } };
+    const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = pool.format(m_sceneColor) } };
     auto pipeline = createGraphicsPipeline(pool.device(), "sky_box.slang.spv",
         rhi::Pipeline::GraphicsDesc{
             .name = "SkyBox",
             .colorAttachments = colorAttachments,
-            .depthAttachment = rhi::Format::D32_SFLOAT,
+            .depthAttachment = pool.format(m_depth),
             .depth = { .test = true, .write = false, .compareOp = rhi::CompareOp::LessOrEqual },
             .cullMode = rhi::CullMode::Front, // Seen from inside
         });
@@ -81,12 +81,9 @@ PostProcessingPass::PostProcessingPass(ResourceDeclarations& declarations, bool 
 {
 }
 
-auto PostProcessingPass::info() const -> Info
+auto PostProcessingPass::name() const -> std::string_view
 {
-    Info info{ .name = "Post Processing", .reads = { m_sceneColor }, .writes = { m_final } };
-    if (m_bloom)
-        info.reads.push_back(*m_bloom);
-    return info;
+    return "Post Processing";
 }
 
 auto PostProcessingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
@@ -137,9 +134,9 @@ PresentPass::PresentPass(ResourceDeclarations& declarations, std::string_view so
 {
 }
 
-auto PresentPass::info() const -> Info
+auto PresentPass::name() const -> std::string_view
 {
-    return { .name = "Present", .reads = { m_source } };
+    return "Present";
 }
 
 auto PresentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void

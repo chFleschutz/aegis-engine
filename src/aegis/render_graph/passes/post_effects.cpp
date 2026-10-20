@@ -25,9 +25,9 @@ BloomPass::~BloomPass()
         m_device->free(*m_sampler);
 }
 
-auto BloomPass::info() const -> Info
+auto BloomPass::name() const -> std::string_view
 {
-    return { .name = "Bloom", .reads = { m_sceneColor }, .writes = { m_bloom } };
+    return "Bloom";
 }
 
 auto BloomPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
@@ -169,17 +169,17 @@ TransparentPass::TransparentPass(ResourceDeclarations& declarations) :
 {
 }
 
-auto TransparentPass::info() const -> Info
+auto TransparentPass::name() const -> std::string_view
 {
-    return { .name = "Transparent", .reads = { m_depth, m_cameraData }, .writes = { m_sceneColor } };
+    return "Transparent";
 }
 
 auto TransparentPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = rhi::Format::RGBA16_SFLOAT } };
+    const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = pool.format(m_sceneColor) } };
     for (const auto& system : m_renderSystems)
     {
-        if (auto created = system->createResources(pool.device(), { colorAttachments, rhi::Format::D32_SFLOAT }); !created)
+        if (auto created = system->createResources(pool.device(), { colorAttachments, pool.format(m_depth) }); !created)
             return created;
     }
     return {};

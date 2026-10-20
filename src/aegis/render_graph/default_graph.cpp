@@ -1,11 +1,8 @@
-module;
-#include <cassert>
-
 module aegis.render_graph;
 
 namespace aegis::render_graph
 {
-auto addDefaultPasses(FrameGraph& graph, const DefaultPassesDesc& desc) -> void
+auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 {
     graph.add<SceneUpdatePass>();
     if (desc.gpuDriven)
@@ -26,10 +23,7 @@ auto addDefaultPasses(FrameGraph& graph, const DefaultPassesDesc& desc) -> void
     graph.add<BloomPass>();
     graph.add<PostProcessingPass>();
     if (desc.buildUi)
-    {
-        assert(desc.context && "The UI pass needs the rhi::Context");
-        graph.add<UiPass>(UiPass::Desc{ .context = *desc.context, .build = desc.buildUi });
-    }
+        graph.add<UiPass>(UiPass::Desc{ .context = desc.context, .build = desc.buildUi });
     graph.add<PresentPass>();
 }
 }

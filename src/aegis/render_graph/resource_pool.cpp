@@ -41,10 +41,7 @@ ResourcePool::~ResourcePool()
 auto ResourcePool::actual(ResourceHandle handle) const -> std::uint32_t
 {
     assert(handle.index < m_targets.size() && "Invalid frame graph resource handle, or used before compile");
-    if (m_targets[handle.index])
-        return *m_targets[handle.index];
-    assert(!std::holds_alternative<ResourceDeclarations::Reference>(m_declarations.entries()[handle.index].info) && "Frame graph reference used before compile");
-    return handle.index;
+    return m_targets[handle.index];
 }
 
 auto ResourcePool::texture(ResourceHandle handle) const -> const renderer::Texture&
@@ -57,6 +54,13 @@ auto ResourcePool::texture(ResourceHandle handle) const -> const renderer::Textu
 auto ResourcePool::storageDescriptor(ResourceHandle handle) const -> rhi::StorageImageDescriptor
 {
     return *m_device.get(texture(handle).view).storageDescriptor();
+}
+
+auto ResourcePool::format(ResourceHandle handle) const -> rhi::Format
+{
+    const auto* desc = std::get_if<TextureDesc>(&m_declarations.entries()[actual(handle)].info);
+    assert(desc && "Frame graph resource is not a texture");
+    return desc->format;
 }
 
 auto ResourcePool::extent(ResourceHandle handle) const -> rhi::Extent2D
@@ -131,58 +135,22 @@ auto ResourcePool::createBuffer(const std::string& name, const BufferDesc& desc,
     return CreatedBuffer{ *buffer, stride, usage, memory, desc.size };
 }
 
-auto ResourcePool::resolveReferences() -> std::expected<void, Error>
+auto ResourcePool::createResources(const GraphPlan& plan) -> std::expected<void, Error>
 {
     const auto entries = m_declarations.entries();
-    m_targets.assign(entries.size(), std::nullopt);
-    for (std::uint32_t e = 0; e < entries.size(); ++e)
-    {
-        const auto& entry = entries[e];
-        if (!std::holds_alternative<ResourceDeclarations::Reference>(entry.info))
-            continue;
-
-        for (std::uint32_t i = 0; i < entries.size(); ++i)
-        {
-            if (!std::holds_alternative<ResourceDeclarations::Reference>(entries[i].info) && entries[i].name == entry.name)
-            {
-                m_targets[e] = i;
-                break;
-            }
-        }
-        if (!m_targets[e])
-            return makeError(ErrorCode::InvalidGraph, std::format("Frame graph resource '{}' is referenced but never created", entry.name));
-    }
-    return {};
-}
-
-auto ResourcePool::createResources() -> std::expected<void, Error>
-{
-    const auto entries = m_declarations.entries();
-    // Every access contributes usage flags to the resource it touches.
-    std::vector<rhi::ImageUsage> imageUsage(entries.size(), rhi::ImageUsage::None);
-    std::vector<rhi::BufferUsage> bufferUsage(entries.size(), rhi::BufferUsage::None);
-    std::vector<bool> hostWritten(entries.size(), false);
-    for (std::uint32_t i = 0; i < entries.size(); ++i)
-    {
-        const auto target = actual({ i });
-        imageUsage[target] = imageUsage[target] | detail::toImageUsage(entries[i].usage);
-        bufferUsage[target] = bufferUsage[target] | detail::toBufferUsage(entries[i].usage);
-        hostWritten[target] = hostWritten[target] || entries[i].usage == Usage::HostWrite;
-    }
-
+    m_targets = plan.target;
     m_created.resize(entries.size());
     for (std::uint32_t i = 0; i < entries.size(); ++i)
     {
         const auto& entry = entries[i];
         if (const auto* desc = std::get_if<TextureDesc>(&entry.info))
         {
-            imageUsage[i] = imageUsage[i] | desc->usage;
             const bool resolutionDependent = desc->extent == rhi::Extent2D{ 0, 0 };
             const renderer::Texture::Desc textureDesc{
                 .name = entry.name,
                 .extent = rhi::Extent3D{ resolutionDependent ? m_renderer.extent() : desc->extent },
                 .format = desc->format,
-                .usage = imageUsage[i],
+                .usage = plan.imageUsage[i],
                 .mipLevels = desc->mipLevels,
             };
             auto texture = resolutionDependent ? m_renderer.createResolutionDependentTexture(textureDesc)
@@ -194,8 +162,8 @@ auto ResourcePool::createResources() -> std::expected<void, Error>
         else if (const auto* desc = std::get_if<BufferDesc>(&entry.info))
         {
             auto buffer = createBuffer(entry.name, *desc,
-                rhi::BufferUsage::Storage | rhi::BufferUsage::ShaderDeviceAddress | bufferUsage[i],
-                hostWritten[i] ? rhi::MemoryUsage::CpuWrite : rhi::MemoryUsage::GpuOnly);
+                rhi::BufferUsage::Storage | rhi::BufferUsage::ShaderDeviceAddress | plan.bufferUsage[i],
+                plan.hostWritten[i] ? rhi::MemoryUsage::CpuWrite : rhi::MemoryUsage::GpuOnly);
             if (!buffer)
                 return std::unexpected{ buffer.error() };
             m_created[i] = *buffer;

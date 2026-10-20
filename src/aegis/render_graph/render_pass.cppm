@@ -28,13 +28,6 @@ struct FrameInfo
 class RenderPass
 {
 public:
-    struct Info
-    {
-        std::string name;
-        std::vector<ResourceHandle> reads;
-        std::vector<ResourceHandle> writes;
-    };
-
     RenderPass() = default;
     RenderPass(const RenderPass&) = delete;
     RenderPass(RenderPass&&) = delete;
@@ -43,8 +36,9 @@ public:
     auto operator=(const RenderPass&) -> RenderPass& = delete;
     auto operator=(RenderPass&&) -> RenderPass& = delete;
 
-    /// @brief The pass's name and the resources it reads and writes, in the order it accesses them.
-    [[nodiscard]] virtual auto info() const -> Info = 0;
+    /// @brief The pass name, for tools and logs. What the pass reads and writes follows from its declarations
+    ///        (ResourceDeclarations::reads, writes): each access is declared once, in the constructor.
+    [[nodiscard]] virtual auto name() const -> std::string_view = 0;
 
     /// @brief Creates what the pass owns. Called by FrameGraph::compile once graph resources exist.
     [[nodiscard]] virtual auto createResources(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }

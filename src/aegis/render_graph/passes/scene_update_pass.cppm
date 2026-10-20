@@ -17,7 +17,7 @@ class SceneUpdatePass : public RenderPass
 public:
     explicit SceneUpdatePass(ResourceDeclarations& declarations);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:

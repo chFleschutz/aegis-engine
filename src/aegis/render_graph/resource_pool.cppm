@@ -36,6 +36,8 @@ public:
 
     [[nodiscard]] auto texture(ResourceHandle handle) const -> const renderer::Texture&;
     [[nodiscard]] auto extent(ResourceHandle handle) const -> rhi::Extent2D;
+    /// @brief The format the texture was declared with, so a pass need not repeat it.
+    [[nodiscard]] auto format(ResourceHandle handle) const -> rhi::Format;
     /// @brief The storage image slot of the texture's view, for a texture some pass declares with a storage
     ///        usage (Usage::StorageRead or StorageWrite).
     [[nodiscard]] auto storageDescriptor(ResourceHandle handle) const -> rhi::StorageImageDescriptor;
@@ -76,14 +78,13 @@ private:
 
     [[nodiscard]] auto createBuffer(const std::string& name, const BufferDesc& desc, rhi::BufferUsage usage,
         rhi::MemoryUsage memory) const -> std::expected<CreatedBuffer, Error>;
-    [[nodiscard]] auto resolveReferences() -> std::expected<void, Error>;
-    [[nodiscard]] auto createResources() -> std::expected<void, Error>;
+    [[nodiscard]] auto createResources(const GraphPlan& plan) -> std::expected<void, Error>;
     [[nodiscard]] auto actual(ResourceHandle handle) const -> std::uint32_t;
 
     rhi::Device& m_device;
     renderer::Renderer& m_renderer;
     const ResourceDeclarations& m_declarations;
-    std::vector<std::optional<std::uint32_t>> m_targets;                                // Per entry: the created entry a reference resolved to
+    std::vector<std::uint32_t> m_targets;                                               // Per entry: the entry creating its resource
     std::vector<std::variant<std::monostate, CreatedTexture, CreatedBuffer>> m_created; // Per entry
 };
 }

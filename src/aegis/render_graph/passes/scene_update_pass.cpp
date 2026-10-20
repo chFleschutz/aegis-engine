@@ -10,9 +10,9 @@ SceneUpdatePass::SceneUpdatePass(ResourceDeclarations& declarations) :
 {
 }
 
-auto SceneUpdatePass::info() const -> Info
+auto SceneUpdatePass::name() const -> std::string_view
 {
-    return { .name = "Scene Update", .writes = { m_cameraData } };
+    return "Scene Update";
 }
 
 auto SceneUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void

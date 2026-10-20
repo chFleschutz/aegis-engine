@@ -24,11 +24,9 @@ LightingPass::LightingPass(ResourceDeclarations& declarations) :
 {
 }
 
-auto LightingPass::info() const -> Info
+auto LightingPass::name() const -> std::string_view
 {
-    Info info{ .name = "Lighting", .writes = { m_sceneColor, m_uniforms } };
-    info.reads.assign(m_gBuffer.begin(), m_gBuffer.end());
-    return info;
+    return "Lighting";
 }
 
 auto LightingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>

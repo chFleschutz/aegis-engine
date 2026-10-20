@@ -24,6 +24,7 @@ target_sources(aegis-render-graph
     draw_batch_registry.cppm
     error.cppm
     frame_graph.cppm
+    graph_builder.cppm
     frustum.cppm
     gpu_types.cppm
     ibl.cppm
