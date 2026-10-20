@@ -138,8 +138,6 @@ auto Texture::loadFromFile(rhi::Device& device, const std::filesystem::path& pat
     }
 
     auto texture = create(device, *image, ImageDesc{ .name = path.filename().string(), .format = format });
-    if (texture)
-        (*texture)->setPath(path);
     return texture;
 }
 
@@ -158,8 +156,6 @@ auto Texture::loadEquirectangular(rhi::Device& device, const std::filesystem::pa
             .mipLevels = 1,
             .sampler = { .addressMode = rhi::SamplerAddressMode::ClampToEdge },
         });
-    if (texture)
-        (*texture)->setPath(path);
     return texture;
 }
 

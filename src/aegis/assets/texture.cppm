@@ -3,7 +3,6 @@ import std;
 import :error;
 import :image_data;
 import aegis.rhi;
-import aegis.core.asset;
 import aegis.math;
 
 export namespace aegis::assets
@@ -12,7 +11,7 @@ export namespace aegis::assets
 ///        sampledDescriptor() and samplerDescriptor(); the image is in ResourceState::ShaderRead
 ///        once its upload completes (with the next Device::flushUploads).
 /// @note Holds the Device and frees its resources on destruction (deferred until the GPU is done).
-class Texture : public aegis::core::Asset
+class Texture
 {
 public:
     struct Desc
@@ -84,7 +83,7 @@ public:
 
     Texture(const Texture&) = delete;
     Texture(Texture&&) = delete;
-    ~Texture() override;
+    ~Texture();
 
     auto operator=(const Texture&) -> Texture& = delete;
     auto operator=(Texture&&) -> Texture& = delete;

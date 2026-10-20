@@ -3,7 +3,6 @@ import std;
 import :error;
 import :texture;
 import aegis.rhi;
-import aegis.core.asset;
 import aegis.math;
 
 export namespace aegis::assets
@@ -29,7 +28,7 @@ struct MaterialParameter
 
 /// @brief The parameters a kind of material has, their defaults and their block layout. Pipelines are
 ///        not part of it: they belong to the render passes that draw the material (Phase 3).
-class MaterialTemplate : public aegis::core::Asset
+class MaterialTemplate
 {
 public:
     explicit MaterialTemplate(MaterialType type = MaterialType::Opaque) :
@@ -67,7 +66,7 @@ private:
 /// @brief A template's parameters with per-material overrides, in a GPU block per frame in flight
 ///        that shaders read through parameterAddress().
 /// @note Holds the Device and frees its buffer on destruction (deferred until the GPU is done).
-class MaterialInstance : public aegis::core::Asset
+class MaterialInstance
 {
 public:
     /// @param framesInFlight One parameter block per frame, so updating one never races a frame the
@@ -77,7 +76,7 @@ public:
 
     MaterialInstance(const MaterialInstance&) = delete;
     MaterialInstance(MaterialInstance&&) = delete;
-    ~MaterialInstance() override;
+    ~MaterialInstance();
 
     auto operator=(const MaterialInstance&) -> MaterialInstance& = delete;
     auto operator=(MaterialInstance&&) -> MaterialInstance& = delete;

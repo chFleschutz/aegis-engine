@@ -4,13 +4,12 @@ import :error;
 import :gpu_types;
 import :mesh_data;
 import aegis.rhi;
-import aegis.core.asset;
 
 export namespace aegis::assets
 {
 /// @brief A mesh in GPU buffers, reached by shaders through buffer device addresses.
 /// @note Holds the Device and frees its buffers on destruction (deferred until the GPU is done).
-class StaticMesh : public aegis::core::Asset
+class StaticMesh
 {
 public:
     /// @brief What meshDataAddress() points at; the layout shaders read (scalar).
@@ -23,7 +22,7 @@ public:
 
     StaticMesh(const StaticMesh&) = delete;
     StaticMesh(StaticMesh&&) = delete;
-    ~StaticMesh() override;
+    ~StaticMesh();
 
     auto operator=(const StaticMesh&) -> StaticMesh& = delete;
     auto operator=(StaticMesh&&) -> StaticMesh& = delete;
