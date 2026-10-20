@@ -51,7 +51,12 @@ PUBLIC
 	aegis-scripting
 )
 
-target_sources(aegis-engine 
+target_link_libraries(aegis-engine
+PRIVATE
+	stb # stb_image_write for the headless screenshot
+)
+
+target_sources(aegis-engine
 PRIVATE
 	engine.cpp
 	asset_loader.cpp

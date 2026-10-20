@@ -7,6 +7,9 @@ module;
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image_write.h>
+
 module aegis.engine;
 
 import std;
@@ -15,33 +18,121 @@ namespace aegis
 {
 namespace
 {
-// Setup failures log their cause and exit; the engine can't carry on without a device.
-[[noreturn]] void fatalSetup(const std::string& message)
+constexpr std::uint32_t DEFAULT_HEADLESS_FRAMES{ 600 };
+constexpr float HEADLESS_FRAME_DELTA_SEC{ 1.0f / 60.0f }; // Fixed, so a headless run does not depend on the machine
+
+auto makeError(EngineErrorCode code, std::string message) -> EngineError
 {
-    log::fatal("{}", message);
-    std::exit(EXIT_FAILURE);
+    return EngineError{ .code = code, .message = std::move(message) };
+}
+
+auto parseCount(std::string_view option, std::string_view value) -> std::expected<std::uint32_t, EngineError>
+{
+    std::uint32_t count{ 0 };
+    const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), count);
+    if (error != std::errc{} || end != value.data() + value.size() || count == 0)
+        return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("{} needs a positive integer, got '{}'", option, value)) };
+    return count;
 }
 }
 
-auto Engine::createWindow() -> platform::Window
+auto describe(const EngineError& error) -> std::string
 {
-    auto window = platform::Window::create({ .title = "Aegis", .width = core::DEFAULT_WIDTH, .height = core::DEFAULT_HEIGHT });
-    if (!window)
-        fatalSetup(std::format("Failed to create the window: {}", platform::describe(window.error())));
-    return std::move(*window);
+    return error.message;
 }
 
-Engine::Engine()
+auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, EngineError>
+{
+    AppDesc desc;
+    for (std::size_t i = 1; i < args.size(); ++i)
+    {
+        const std::string_view arg{ args[i] };
+        const auto hasValue = i + 1 < args.size();
+        if (arg == "--headless")
+        {
+            desc.headless = true;
+        }
+        else if (arg == "--screenshot" && hasValue)
+        {
+            desc.screenshot = args[++i];
+        }
+        else if ((arg == "--frames" || arg == "--width" || arg == "--height") && hasValue)
+        {
+            const auto count = parseCount(arg, args[++i]);
+            if (!count)
+                return std::unexpected{ count.error() };
+            auto& target = arg == "--frames" ? desc.frames : arg == "--width" ? desc.width
+                                                                              : desc.height;
+            target = *count;
+        }
+        else
+        {
+            return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("Unknown or incomplete argument '{}'", arg)) };
+        }
+    }
+
+    if (!desc.screenshot.empty() && !desc.headless)
+        return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, "--screenshot needs --headless") };
+    // Headless has no window to close, so it always stops by itself.
+    if (desc.headless && desc.frames == 0)
+        desc.frames = DEFAULT_HEADLESS_FRAMES;
+    return desc;
+}
+
+auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>
+{
+    const std::vector<const char*> args(argv, argv + argc);
+    return parseArgs(std::span<const char* const>{ args });
+}
+
+auto createEngine(int argc, char** argv) -> std::expected<std::unique_ptr<Engine>, int>
+{
+    const auto desc = parseArgs(argc, argv);
+    if (!desc)
+    {
+        log::error("{}\nUsage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>]",
+            describe(desc.error()), argc > 0 ? argv[0] : "app");
+        return std::unexpected{ exitUsage };
+    }
+    auto engine = Engine::create(*desc);
+    if (!engine)
+    {
+        log::fatal("{}", describe(engine.error()));
+        return std::unexpected{ exitFailure };
+    }
+    return std::move(*engine);
+}
+
+Engine::Engine(const AppDesc& desc) :
+    m_desc{ desc }
+{
+}
+
+auto Engine::create(const AppDesc& desc) -> std::expected<std::unique_ptr<Engine>, EngineError>
+{
+    std::unique_ptr<Engine> engine{ new Engine{ desc } };
+    if (auto initialized = engine->initialize(); !initialized)
+        return std::unexpected{ std::move(initialized.error()) };
+    return engine;
+}
+
+auto Engine::initialize() -> std::expected<void, EngineError>
 {
     if (auto registered = scripting::registerKinematicMovementController(m_types); !registered)
-        fatalSetup(std::format("Failed to register the built-in scripts: {}", reflect::describe(registered.error())));
-    createRenderer();
-    createAssets();
-    createFrameGraph();
-    m_layerStack.push<editor::EditorLayer>(m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_scene);
+        return std::unexpected{ makeError(EngineErrorCode::ScriptsFailed, std::format("Failed to register the built-in scripts: {}", reflect::describe(registered.error()))) };
+    if (auto created = createWindow(); !created)
+        return created;
+    if (auto created = createRenderer(); !created)
+        return created;
+    if (auto created = createAssets(); !created)
+        return created;
+    if (auto created = createFrameGraph(); !created)
+        return created;
+    if (m_input)
+        m_layerStack.push<editor::EditorLayer>(*m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_scene);
 
     log::info("Engine Initialized!");
-    log::info("Using {} Driven Rendering", useGpuDrivenRendering() ? "GPU" : "CPU");
+    log::info("Using {} Driven Rendering{}", useGpuDrivenRendering() ? "GPU" : "CPU", m_desc.headless ? " (headless)" : "");
     log::info("\n\n\n"
               "\t\t\t\t      ###   #######   ######   ####   ###### \n"
               "\t\t\t\t     ## ##  ##       ##    ##   ##   ##    ##\n"
@@ -51,14 +142,18 @@ Engine::Engine()
               "\t\t\t\t ##     ##  ##       ##    ##   ##   ##    ##\n"
               "\t\t\t\t##      ##  #######   ######   ####   ###### \n"
               "\n\n");
+    return {};
 }
 
 Engine::~Engine()
 {
     // The GPU may still use what the members below free; ImGui's backends go before its context.
-    m_device->waitIdle();
+    // A failed create() leaves the later members empty.
+    if (m_device)
+        m_device->waitIdle();
     m_frameGraph.reset();
-    ImGui_ImplGlfw_Shutdown();
+    if (m_imguiGlfw)
+        ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 }
 
@@ -67,10 +162,14 @@ auto Engine::useGpuDrivenRendering() const -> bool
     return ENABLE_GPU_DRIVEN_RENDERING && m_device->capabilities().meshShaders;
 }
 
-void Engine::run()
+auto Engine::run() -> int
 {
+    const bool headless = !m_window;
+    std::uint32_t frames{ 0 };
+    int exitCode{ exitSuccess };
+
     auto lastFrameBegin = std::chrono::steady_clock::now();
-    while (!m_window.shouldClose())
+    while ((headless || !m_window->shouldClose()) && (m_desc.frames == 0 || frames < m_desc.frames))
     {
         ScopeProfiler frameTime("Frame Time");
 
@@ -80,25 +179,35 @@ void Engine::run()
         // After a long frame (a breakpoint, a load), don't hand scripts and systems the whole stall
         frameTimeSec = std::min(frameTimeSec, MAX_FRAME_DELTA_SEC);
 
-        m_window.update();
-        if (m_window.isMinimized())
+        if (headless)
         {
-            m_window.waitEvents();
-            lastFrameBegin = std::chrono::steady_clock::now(); // Not part of the next frame's delta
-            continue;
+            frameTimeSec = HEADLESS_FRAME_DELTA_SEC;
         }
-        if (m_window.wasResized() || m_renderer->needsResize())
+        else
         {
-            if (!resize())
-                break;
-        }
+            m_window->update();
+            if (m_window->isMinimized())
+            {
+                m_window->waitEvents();
+                lastFrameBegin = std::chrono::steady_clock::now(); // Not part of the next frame's delta
+                continue;
+            }
+            if (m_window->wasResized() || m_renderer->needsResize())
+            {
+                if (!resize())
+                {
+                    exitCode = exitFailure;
+                    break;
+                }
+            }
 
-        // Update: the systems run in order, scripts first: they write the transforms, the others derive
-        // from them (camera matrices included), then the editor reads the result.
-        // ImGui's flags are from the previous frame's UI; they gate the game input.
-        const auto& io = ImGui::GetIO();
-        m_input.setCaptured(io.WantCaptureKeyboard, io.WantCaptureMouse);
-        m_input.update();
+            // Update: the systems run in order, scripts first: they write the transforms, the others derive
+            // from them (camera matrices included), then the editor reads the result.
+            // ImGui's flags are from the previous frame's UI; they gate the game input.
+            const auto& io = ImGui::GetIO();
+            m_input->setCaptured(io.WantCaptureKeyboard, io.WantCaptureMouse);
+            m_input->update();
+        }
         updateCameraAspect();
         m_scene.update(frameTimeSec);
         m_layerStack.update(frameTimeSec);
@@ -107,9 +216,11 @@ void Engine::run()
         if (auto flushed = m_device->flushUploads(); !flushed)
         {
             log::fatal("Failed to flush uploads: {}", rhi::describe(flushed.error()));
+            exitCode = exitFailure;
             break;
         }
         auto rendered = m_renderer->renderFrame([this](const aegis::renderer::Renderer::FrameInfo& frame) {
+            m_lastFrameIndex = frame.frameIndex;
             m_frameGraph->execute({
                 .cmd = frame.cmd,
                 .scene = m_scene,
@@ -122,77 +233,117 @@ void Engine::run()
         if (!rendered)
         {
             log::fatal("Failed to render a frame: {}", aegis::renderer::describe(rendered.error()));
+            exitCode = exitFailure;
             break;
         }
+        ++frames;
 
-        applyFrameBrake(currentFrameBegin);
+        if (!headless)
+            applyFrameBrake(currentFrameBegin);
     }
 
     m_device->waitIdle();
+
+    if (exitCode == exitSuccess && !m_desc.screenshot.empty())
+    {
+        if (auto saved = saveScreenshot(); !saved)
+        {
+            log::error("Failed to save the screenshot: {}", saved.error());
+            exitCode = exitFailure;
+        }
+    }
+    // Validation errors never throw; like aegis-test, a run that caused one has failed.
+    if (const auto errors = rhi::Context::validationErrorCount(); errors > 0)
+    {
+        log::error("Validation failed: {} errors reported (see stderr)", errors);
+        exitCode = exitFailure;
+    }
+    return exitCode;
 }
 
-void Engine::createRenderer()
+auto Engine::createWindow() -> std::expected<void, EngineError>
 {
-    auto context = aegis::rhi::Context::create({ .appName = "Aegis", .window = &m_window });
+    if (m_desc.headless)
+        return {};
+
+    auto window = platform::Window::create({ .title = m_desc.title, .width = m_desc.width, .height = m_desc.height });
+    if (!window)
+        return std::unexpected{ makeError(EngineErrorCode::WindowFailed, std::format("Failed to create the window: {}", platform::describe(window.error()))) };
+    m_window = std::make_unique<platform::Window>(std::move(*window));
+    m_input = std::make_unique<platform::Input>(*m_window);
+    return {};
+}
+
+auto Engine::createRenderer() -> std::expected<void, EngineError>
+{
+    auto context = aegis::rhi::Context::create({ .appName = m_desc.title.c_str(), .window = m_window.get() });
     if (!context)
-        fatalSetup(std::format("Failed to create the Vulkan context ({})", aegis::rhi::describe(context.error())));
+        return std::unexpected{ makeError(EngineErrorCode::DeviceFailed, std::format("Failed to create the Vulkan context ({})", aegis::rhi::describe(context.error()))) };
     m_context = std::move(*context);
 
     auto device = m_context->createDevice({});
     if (!device)
-        fatalSetup(std::format("Failed to create the Vulkan device ({})", aegis::rhi::describe(device.error())));
+        return std::unexpected{ makeError(EngineErrorCode::DeviceFailed, std::format("Failed to create the Vulkan device ({})", aegis::rhi::describe(device.error()))) };
     m_device = std::move(*device);
 
     auto renderer = aegis::renderer::Renderer::create({
         .context = *m_context,
         .device = *m_device,
-        .window = &m_window,
+        .window = m_window.get(),
+        .offscreen = { .extent = { m_desc.width, m_desc.height } },
     });
     if (!renderer)
-        fatalSetup(std::format("Failed to create the renderer: {}", aegis::renderer::describe(renderer.error())));
+        return std::unexpected{ makeError(EngineErrorCode::RendererFailed, std::format("Failed to create the renderer: {}", aegis::renderer::describe(renderer.error()))) };
     m_renderer = std::move(*renderer);
+    return {};
 }
 
-void Engine::createAssets()
+auto Engine::createAssets() -> std::expected<void, EngineError>
 {
     auto assets = AssetLoader::create(*m_device, FRAMES_IN_FLIGHT);
     if (!assets)
-        fatalSetup(assets.error());
+        return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, assets.error()) };
     m_assets.emplace(std::move(*assets));
+    return {};
 }
 
-void Engine::createFrameGraph()
+auto Engine::createFrameGraph() -> std::expected<void, EngineError>
 {
     m_drawBatches.connect(m_scene.registry());
 
-    ImGui_ImplGlfw_InitForVulkan(m_window.glfwWindow(), true);
+    // Headless draws no UI: no window for ImGui's backends, and nothing to look at.
+    std::function<void()> buildUi;
+    if (m_window)
+    {
+        ImGui_ImplGlfw_InitForVulkan(m_window->glfwWindow(), true);
+        m_imguiGlfw = true;
+        buildUi = [this] {
+            ImGui_ImplGlfw_NewFrame();
+            m_ui.render();
+        };
+    }
 
     m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, m_renderer->extent());
     aegis::render_graph::addDefaultPasses(*m_frameGraph,
         {
             .gpuDriven = useGpuDrivenRendering(),
             .drawBatches = m_drawBatches,
-            .buildUi = [this] {
-                ImGui_ImplGlfw_NewFrame();
-                m_ui.render();
-            },
+            .buildUi = std::move(buildUi),
             .context = m_context.get(),
         });
     if (auto compiled = m_frameGraph->compile(); !compiled)
-    {
-        log::fatal("Failed to compile the frame graph: {}", describe(compiled.error()));
-        AGX_ASSERT_X(false, "Failed to compile the frame graph");
-    }
+        return std::unexpected{ makeError(EngineErrorCode::FrameGraphFailed, std::format("Failed to compile the frame graph: {}", describe(compiled.error()))) };
+    return {};
 }
 
 bool Engine::resize()
 {
-    if (auto resized = m_renderer->resize(aegis::rhi::Extent2D{ m_window.extent() }); !resized)
+    if (auto resized = m_renderer->resize(aegis::rhi::Extent2D{ m_window->extent() }); !resized)
     {
         log::fatal("Failed to resize the renderer: {}", aegis::renderer::describe(resized.error()));
         return false;
     }
-    m_window.resetResized();
+    m_window->resetResized();
     if (auto resized = m_frameGraph->resized(m_renderer->extent()); !resized)
         log::fatal("Failed to resize the frame graph: {}", describe(resized.error()));
     return true;
@@ -200,12 +351,60 @@ bool Engine::resize()
 
 void Engine::updateCameraAspect()
 {
-    const auto [width, height] = m_window.extent();
+    const auto [width, height] = m_window ? m_window->extent() : std::pair{ m_renderer->extent().x, m_renderer->extent().y };
     auto& registry = m_scene.registry();
     const auto mainCamera = m_scene.mainCamera();
     if (height == 0 || !mainCamera || !registry.has<Camera>(mainCamera))
         return;
     registry.get<Camera>(mainCamera).aspect = static_cast<float>(width) / static_cast<float>(height);
+}
+
+// Reads the offscreen target back (the last frame's slot) and writes it as PNG. The device is idle.
+auto Engine::saveScreenshot() -> std::expected<void, std::string>
+{
+    if (!m_renderer->offscreen() || m_renderer->targetFormat() != rhi::Format::RGBA8_UNORM)
+        return std::unexpected{ "screenshots need the headless RGBA8 target" };
+
+    const auto& target = m_renderer->offscreenTarget(m_lastFrameIndex);
+    const auto extent = m_renderer->extent();
+    constexpr std::size_t texelSize{ 4 };
+    const auto byteSize = std::size_t{ extent.x } * extent.y * texelSize;
+
+    auto readback = m_device->createBuffer({
+        .name = "ScreenshotReadback",
+        .size = byteSize,
+        .usage = rhi::BufferUsage::TransferDst,
+        .memory = rhi::MemoryUsage::CpuRead,
+    });
+    if (!readback)
+        return std::unexpected{ "failed to create the readback buffer" };
+
+    auto pool = m_device->createCommandPool({ .name = "ScreenshotReadback", .queueFamily = m_device->graphicsQueue().family() });
+    if (!pool)
+        return std::unexpected{ "failed to create the command pool" };
+    auto cmd = m_device->createCommandBuffer({ .name = "ScreenshotReadback", .pool = *pool });
+    if (!cmd)
+        return std::unexpected{ "failed to create the command buffer" };
+
+    const std::array regions{ rhi::BufferImageCopy{ .extent = rhi::Extent3D{ extent } } };
+    cmd->begin(true);
+    cmd->transitionImageLayout(target.view, rhi::ResourceState::ColorAttachment, rhi::ResourceState::CopySrc);
+    cmd->copyImageToBuffer(target.image, m_device->get(*readback), regions);
+    cmd->end();
+    auto submitted = m_device->graphicsQueue().submit(*cmd);
+    if (!submitted)
+        return std::unexpected{ "failed to submit the readback" };
+    m_device->graphicsQueue().wait(*submitted);
+
+    std::vector<std::byte> pixels(byteSize);
+    m_device->get(*readback).read(pixels.data(), byteSize);
+    m_device->free(*readback);
+
+    if (!stbi_write_png(m_desc.screenshot.c_str(), static_cast<int>(extent.x), static_cast<int>(extent.y), 4,
+            pixels.data(), static_cast<int>(extent.x * texelSize)))
+        return std::unexpected{ std::format("failed to write '{}'", m_desc.screenshot) };
+    log::info("Screenshot saved: {}", m_desc.screenshot);
+    return {};
 }
 
 void Engine::applyFrameBrake(std::chrono::steady_clock::time_point frameBegin)

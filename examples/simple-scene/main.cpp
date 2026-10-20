@@ -83,13 +83,16 @@ public:
     }
 };
 
-auto main() -> int
+auto main(int argc, char** argv) -> int
 {
-    aegis::Engine engine;
+    auto created = aegis::createEngine(argc, argv);
+    if (!created)
+        return created.error();
+    auto& engine = **created;
     [[maybe_unused]] auto registered = aegis::scripting::registerScript<Rotator>(engine.types(), "Rotator").and_then([](auto builder) {
         return builder.field("speed", &Rotator::speed).status();
     });
     AGX_ASSERT_X(registered, "Failed to register the Rotator script");
     engine.loadScene<SimpleScene>();
-    engine.run();
+    return engine.run();
 }
