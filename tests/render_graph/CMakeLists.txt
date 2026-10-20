@@ -2,6 +2,7 @@ aegis_add_test(render_graph
     SOURCES
         draw_batch_registry.test.cpp
         error.test.cpp
+        frame_data.test.cpp
         frustum.test.cpp
         gpu_driven.test.cpp
         gpu_types.test.cpp

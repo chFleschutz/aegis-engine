@@ -1064,7 +1064,14 @@ public:
             }
 
             if (m_scene)
+            {
+                // The projection is built from the camera's aspect: take it from the frame, as the Engine does.
+                const auto extent = m_renderer->extent();
+                auto& registry = m_scene->registry();
+                if (const auto camera = m_scene->mainCamera(); camera && registry.has<aegis::Camera>(camera))
+                    registry.get<aegis::Camera>(camera).aspect = static_cast<float>(extent.x) / static_cast<float>(extent.y);
                 m_scene->update(1.0f / 60.0f);
+            }
 
             if (m_options.mutateScene)
             {

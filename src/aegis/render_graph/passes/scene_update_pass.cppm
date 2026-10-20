@@ -23,3 +23,10 @@ private:
     ResourceHandle m_cameraData;
 };
 }
+
+export namespace aegis::render_graph::detail
+{
+/// @brief The CameraData the shaders read for a camera whose view and projection matrices are current
+///        (the camera system computes them), at the world position of 'transform'.
+[[nodiscard]] auto makeCameraData(const aegis::Camera& camera, const aegis::GlobalTransform& transform) -> CameraData;
+}
