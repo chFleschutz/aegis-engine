@@ -191,6 +191,22 @@ public:
     auto free(ImageViewHandle handle) -> void;
     auto free(SamplerHandle handle) -> void;
 
+    /// @brief How many buffers, images, image views and samplers exist. A freed resource stops counting at
+    ///        once, though its memory is released only when the GPU is done with it. For leak checks.
+    struct LiveResources
+    {
+        std::size_t buffers{ 0 };
+        std::size_t images{ 0 };
+        std::size_t imageViews{ 0 };
+        std::size_t samplers{ 0 };
+
+        auto operator==(const LiveResources&) const -> bool = default;
+    };
+    [[nodiscard]] auto liveResources() const noexcept -> LiveResources
+    {
+        return { m_buffers.liveCount(), m_images.liveCount(), m_imageViews.liveCount(), m_samplers.liveCount() };
+    }
+
     /// @brief Reports that the graphics queue reached 'frame', releasing everything freed before it.
     auto setFrameCompleted(TimelineValue frame) -> void;
 

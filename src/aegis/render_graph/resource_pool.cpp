@@ -15,10 +15,10 @@ namespace
 constexpr std::size_t perFrameAlignment{ 256 };
 }
 
-ResourcePool::ResourcePool(rhi::Device& device, renderer::Renderer& renderer, const ResourceDeclarations& declarations) :
+ResourcePool::ResourcePool(rhi::Device& device, const ResourceDeclarations& declarations, rhi::Extent2D output) :
     m_device{ device },
-    m_renderer{ renderer },
-    m_declarations{ declarations }
+    m_declarations{ declarations },
+    m_output{ output }
 {
 }
 
@@ -26,11 +26,8 @@ ResourcePool::~ResourcePool()
 {
     for (const auto& created : m_created)
     {
-        if (const auto* texture = std::get_if<CreatedTexture>(&created); texture && texture->ownedByPool)
-        {
-            m_device.free(texture->texture.view);
-            m_device.free(texture->texture.image);
-        }
+        if (const auto* texture = std::get_if<CreatedTexture>(&created))
+            renderer::freeTexture(m_device, texture->texture);
         else if (const auto* buffer = std::get_if<CreatedBuffer>(&created))
         {
             m_device.free(buffer->buffer);
@@ -135,6 +132,34 @@ auto ResourcePool::createBuffer(const std::string& name, const BufferDesc& desc,
     return CreatedBuffer{ *buffer, stride, usage, memory, desc.size };
 }
 
+auto ResourcePool::textureDesc(std::uint32_t entry, rhi::ImageUsage usage) const -> renderer::Texture::Desc
+{
+    const auto& declared = m_declarations.entries()[entry];
+    const auto& desc = std::get<TextureDesc>(declared.info);
+    return {
+        .name = declared.name,
+        .extent = rhi::Extent3D{ detail::textureExtent(desc, m_output) },
+        .format = desc.format,
+        .usage = usage,
+        .mipLevels = desc.mipLevels,
+    };
+}
+
+auto ResourcePool::resize(rhi::Extent2D output) -> std::expected<void, Error>
+{
+    m_output = output;
+    for (std::uint32_t i = 0; i < m_created.size(); ++i)
+    {
+        const auto* created = std::get_if<CreatedTexture>(&m_created[i]);
+        if (!created || !detail::followsOutput(std::get<TextureDesc>(m_declarations.entries()[i].info)))
+            continue;
+        if (auto recreated = renderer::recreateTexture(m_device, created->texture, textureDesc(i, created->usage)); !recreated)
+            return makeError(ErrorCode::ResourceCreationFailed,
+                std::format("Failed to recreate frame graph texture '{}'", m_declarations.entries()[i].name), recreated.error());
+    }
+    return {};
+}
+
 auto ResourcePool::createResources(const GraphPlan& plan) -> std::expected<void, Error>
 {
     const auto entries = m_declarations.entries();
@@ -145,19 +170,10 @@ auto ResourcePool::createResources(const GraphPlan& plan) -> std::expected<void,
         const auto& entry = entries[i];
         if (const auto* desc = std::get_if<TextureDesc>(&entry.info))
         {
-            const bool resolutionDependent = desc->extent == rhi::Extent2D{ 0, 0 };
-            const renderer::Texture::Desc textureDesc{
-                .name = entry.name,
-                .extent = rhi::Extent3D{ resolutionDependent ? m_renderer.extent() : desc->extent },
-                .format = desc->format,
-                .usage = plan.imageUsage[i],
-                .mipLevels = desc->mipLevels,
-            };
-            auto texture = resolutionDependent ? m_renderer.createResolutionDependentTexture(textureDesc)
-                                               : m_renderer.createTexture(textureDesc);
+            auto texture = renderer::createTexture(m_device, textureDesc(i, plan.imageUsage[i]));
             if (!texture)
                 return makeError(ErrorCode::ResourceCreationFailed, std::format("Failed to create frame graph texture '{}'", entry.name), texture.error());
-            m_created[i] = CreatedTexture{ *texture, !resolutionDependent };
+            m_created[i] = CreatedTexture{ *texture, plan.imageUsage[i] };
         }
         else if (const auto* desc = std::get_if<BufferDesc>(&entry.info))
         {

@@ -47,14 +47,6 @@ public:
         rhi::Extent2D extent;
     };
 
-    struct ResolutionDependentResource
-    {
-        std::string name; // Owned: the caller's Desc::name need not outlive the call
-        Texture texture;
-        Texture::Desc desc; // As requested (mipLevels may be fullMipChain); desc.name is cleared
-        double scaleFactor;
-    };
-
     static constexpr std::uint32_t maxFramesInFlight{ 2 };
 
     [[nodiscard]] static auto create(const Desc& desc) -> std::expected<std::unique_ptr<Renderer>, Error>;
@@ -82,17 +74,14 @@ public:
         return m_needsResize || (m_swapchain && m_swapchain->needsRecreation());
     }
 
-    [[nodiscard]] auto createTexture(const Texture::Desc& desc) const -> std::expected<Texture, rhi::Error>;
-    [[nodiscard]] auto createResolutionDependentTexture(const Texture::Desc& desc)
-        -> std::expected<Texture, rhi::Error>;
-
     /// @brief Renders and presents one frame. A frame skipped because the swapchain is out of date is
     ///        not an error (needsResize() is then true); any error returned is fatal: stop rendering.
     [[nodiscard]] auto renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept
         -> std::expected<void, Error>;
 
-    /// @brief Recreates the swapchain (offscreen: the targets) and every resolution-dependent texture.
-    /// @note An error leaves the swapchain or the textures half replaced: it is fatal.
+    /// @brief Recreates the swapchain (offscreen: the targets). Textures that follow its extent are the
+    ///        owner's to recreate with the new extent(), e.g. render_graph::FrameGraph::resized.
+    /// @note An error leaves the swapchain or the targets half replaced: it is fatal.
     [[nodiscard]] auto resize(rhi::Extent2D newSize) -> std::expected<void, Error>;
 
 private:
@@ -114,7 +103,6 @@ private:
     rhi::Format m_targetFormat;
     rhi::CommandPool m_commandPool;
     std::vector<FrameContext> m_frameContext;
-    std::vector<ResolutionDependentResource> m_resDependent;
     std::uint32_t m_currentFrame{ 0 };
     bool m_needsResize{ false };
     bool m_zeroExtent{ false }; // The last resize() was to a zero extent: renderFrame skips

@@ -166,7 +166,7 @@ void Engine::createFrameGraph()
 
     ImGui_ImplGlfw_InitForVulkan(m_window.glfwWindow(), true);
 
-    m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, *m_renderer);
+    m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, m_renderer->extent());
     aegis::render_graph::addDefaultPasses(*m_frameGraph,
         {
             .gpuDriven = useGpuDrivenRendering(),
@@ -192,7 +192,7 @@ bool Engine::resize()
         return false;
     }
     m_window.resetResized();
-    if (auto resized = m_frameGraph->resized(); !resized)
+    if (auto resized = m_frameGraph->resized(m_renderer->extent()); !resized)
         log::fatal("Failed to resize the frame graph: {}", describe(resized.error()));
     return true;
 }

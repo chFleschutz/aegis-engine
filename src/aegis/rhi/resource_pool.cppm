@@ -50,6 +50,9 @@ public:
         return ResourceHandle<T>{ index, slot.generation };
     }
 
+    /// @brief How many resources are alive: pushed and neither popped nor lost.
+    [[nodiscard]] auto liveCount() const noexcept -> std::size_t { return m_slotCount - m_freeSlots.size(); }
+
     auto pop(ResourceHandle<T> handle) -> T
     {
         auto& slot = getSlot(handle);
