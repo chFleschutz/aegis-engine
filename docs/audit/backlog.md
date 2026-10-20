@@ -84,12 +84,18 @@ Taken 2026-10-17 (report §8 lists the original questions).
   - → [M6][m6] (6.1–6.12), export ([#134]). Decides F1.
 - **D8. Asset system: sources in the project, imported data in a cache** (2026-10-19, see
   [`docs/asset-system.md`](../asset-system.md)).
-  - **Identity:** `AssetId = {64-bit random id, subId}`, found through an index (scanned in
-    development, a pak table when shipped). Foreign source files (glTF, OBJ, PNG, HDR) get a
-    `<file>.<ext>.meta` sidecar with the ID, import settings and an assigned sub-asset table;
-    native files (scenes, materials) carry their ID in a common `{type, id, version}` header.
-  - **Import cache:** `<project>/.aegis/cache/`, git-ignored, keyed by a hash of source, settings,
-    importer version and platform. Its format is the cooked format, so cooking packs the cache.
+  - **Identity:** `AssetId` is one random 64-bit ID (16 lowercase hex digits in files) for every
+    asset and every part of a file, found through an index (scanned in development, a pak table when
+    shipped). Foreign source files (glTF, OBJ, PNG, HDR) get a `<file>.<ext>.meta` sidecar with the
+    ID, import settings and a `key → id` table for their parts; native files (scenes, materials) carry
+    their ID in a common `{type, id, version}` header. Engine content is a read-only folder of normal
+    assets, with no reserved IDs.
+  - **Fixed formats (2026-10-20):** JSON through glaze; per-type versions with single-step migration
+    chains; random local entity IDs, with instance entity IDs derived by XXH3-64; a flat entity list
+    with `children` arrays; quaternions `[x, y, z, w]`, meters, radians, linear colors, right-handed
+    Z-up converted at import; paths case-sensitive everywhere. Pinned by golden-file tests.
+  - **Import cache:** in `<project>/.aegis/`, the only git-ignored folder, keyed by a hash of source,
+    settings, importer version and platform. Its format is the cooked format, so cooking packs it.
   - **Runtime:** `AssetLibrary::load<T>(AssetId)` returns an `AssetRef<T>` (a shared slot with a load
     state), deduplicated by ID. Components store `AssetRef`s; the serializer writes only IDs.
   - **Scenes and worlds:** a `World` is the live object, a `Scene` the asset. Prefabs are scenes, not
@@ -97,7 +103,7 @@ Taken 2026-10-17 (report §8 lists the original questions).
     files store local entity IDs, and world IDs derive from instance and local ID. "Level" is not an
     engine type. `scene::Scene` becomes `World` and `aegis.scene` becomes `aegis.world`.
   - **Asset types:** `Texture`, `StaticMesh`, `Material` (was `MaterialInstance`),
-    `MaterialTemplate` (built-in), `Environment`, `Scene`. The `Mesh` and `Material` components merge
+    `MaterialTemplate` (engine content), `Environment`, `Scene`. The `Mesh` and `Material` components merge
     into `MeshRenderer`, and the `Environment` component becomes `Sky`.
   - Why: source stays authoritative and reimports itself; imported data, which depends on importer
     version and shader-pinned layouts, is never committed, so a layout change needs no migration.

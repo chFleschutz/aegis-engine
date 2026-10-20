@@ -64,10 +64,10 @@ registration, loads the project manifest and the startup scene, and runs.
 registry and worlds, as in `engine-architecture.md`. There is no `Engine::instance()`.
 
 **Worlds.** `World` is a plain object, and several can exist at once (the edit world plus a play
-copy, or a menu plus a level). Every entity has a **stable ID** (a UUID component), because
-`entt::entity` indices are reused and can't be stored in a file. The built-in components (Transform
-with hierarchy, MeshRenderer, Camera, lights, Environment, Script) are registered through the same
-API a game uses.
+copy, or a menu plus a level). Every entity has a **stable ID** (a random 64-bit ID component, see
+`asset-system.md`), because `entt::entity` indices are reused and can't be stored in a file. The
+built-in components (Transform with hierarchy, MeshRenderer, Camera, lights, Sky, Script) are
+registered through the same API a game uses.
 
 **Type registry: the single extension point.** It is a runtime description of every type that can be
 saved, shown in the editor or scripted:
