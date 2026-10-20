@@ -1,0 +1,69 @@
+1. Scene Update
+    create CameraData HostWrite
+2. Geometry
+    use    CameraData ShaderRead
+    create Position ColorAttachment
+    create Normal ColorAttachment
+    create Albedo ColorAttachment
+    create ARM ColorAttachment
+    create Emissive ColorAttachment
+    create Depth DepthAttachment
+    barrier Position: undefined -> ColorAttachment
+    barrier Normal: undefined -> ColorAttachment
+    barrier Albedo: undefined -> ColorAttachment
+    barrier ARM: undefined -> ColorAttachment
+    barrier Emissive: undefined -> ColorAttachment
+    barrier Depth: undefined -> DepthAttachment
+3. Lighting
+    use    Position StorageRead
+    use    Normal StorageRead
+    use    Albedo StorageRead
+    use    ARM StorageRead
+    use    Emissive StorageRead
+    create SceneColor StorageWrite
+    create LightingUniforms HostWrite
+    barrier Position: ColorAttachment -> StorageRead
+    barrier Normal: ColorAttachment -> StorageRead
+    barrier Albedo: ColorAttachment -> StorageRead
+    barrier ARM: ColorAttachment -> StorageRead
+    barrier Emissive: ColorAttachment -> StorageRead
+    barrier SceneColor: undefined -> StorageWrite
+4. Sky Box
+    use    Depth DepthRead
+    use    SceneColor ColorAttachment
+    barrier Depth: DepthAttachment -> DepthRead
+    barrier SceneColor: StorageWrite -> ColorAttachment
+5. Transparent
+    use    Depth DepthRead
+    use    CameraData ShaderRead
+    use    SceneColor ColorAttachment
+    barrier SceneColor: ColorAttachment -> ColorAttachment
+6. Bloom
+    use    SceneColor StorageRead
+    create Bloom StorageWrite
+    barrier SceneColor: ColorAttachment -> StorageRead
+    barrier Bloom: undefined -> StorageWrite
+7. Post Processing
+    use    SceneColor StorageRead
+    use    Bloom StorageRead
+    create Final StorageWrite
+    barrier Bloom: StorageWrite -> StorageRead
+    barrier Final: undefined -> StorageWrite
+8. UI
+    use    Final ColorAttachment
+    barrier Final: StorageWrite -> ColorAttachment
+9. Present
+    use    Final TransferSrc
+    barrier Final: ColorAttachment -> TransferSrc
+resources
+    CameraData: buffer, host written
+    Position: texture RGBA16_SFLOAT
+    Normal: texture RGBA16_SFLOAT
+    Albedo: texture RGBA8_UNORM
+    ARM: texture RGBA8_UNORM
+    Emissive: texture RGBA8_UNORM
+    Depth: texture D32_SFLOAT
+    SceneColor: texture RGBA16_SFLOAT
+    LightingUniforms: buffer, host written
+    Bloom: texture RGBA16_SFLOAT
+    Final: texture RGBA16_SFLOAT

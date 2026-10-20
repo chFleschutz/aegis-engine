@@ -1,5 +1,7 @@
 aegis_add_test(render_graph
     SOURCES
+        declarations.test.cpp
+        default_graph.test.cpp
         draw_batch_registry.test.cpp
         error.test.cpp
         frustum.test.cpp
@@ -9,3 +11,6 @@ aegis_add_test(render_graph
         schedule.test.cpp
     LIBS aegis-render-graph
 )
+
+# The checked-in plans of the default graphs (see default_graph.test.cpp).
+target_compile_definitions(aegis-tests-render_graph PRIVATE AEGIS_PLAN_SNAPSHOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/snapshots")
