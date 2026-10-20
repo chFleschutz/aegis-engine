@@ -35,7 +35,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
     const auto& cmd = context.cmd;
     cmd.bindPipeline(*m_pipeline);
 
-    const assets::MaterialInstance* lastMaterial{ nullptr };
+    const assets::Material* lastMaterial{ nullptr };
     auto view = context.scene.registry().view<aegis::GlobalTransform, aegis::Mesh, aegis::Material>();
     for (auto&& [entity, transform, mesh, material] : view.each())
     {

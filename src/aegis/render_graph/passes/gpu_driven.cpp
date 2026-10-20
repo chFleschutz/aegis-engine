@@ -41,7 +41,7 @@ auto ensureCapacity(ResourcePool& pool, ResourceHandle buffer, std::uint32_t& ca
 }
 
 auto makeInstance(const aegis::GlobalTransform& transform, const assets::StaticMesh& mesh,
-    const assets::MaterialInstance& material, std::uint32_t frameIndex, std::uint32_t drawBatch) -> InstanceData
+    const assets::Material& material, std::uint32_t frameIndex, std::uint32_t drawBatch) -> InstanceData
 {
     const auto gpuTransform = detail::toGpuTransform(transform.matrix());
     return {
@@ -131,7 +131,7 @@ auto InstanceUpdatePass::rebuildStatic(ResourcePool& pool, aegis::world::World& 
     }
 
     // Their materials: kept alive for as long as the instances address them, and updated every frame.
-    std::unordered_set<const assets::MaterialInstance*> seen;
+    std::unordered_set<const assets::Material*> seen;
     for (auto&& [entity, transform, mesh, material] : view.each())
     {
         if (mesh.staticMesh && material.instance && m_drawBatches.batchId(*material.instance->materialTemplate()) &&

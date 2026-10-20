@@ -15,6 +15,6 @@ struct Mesh
 
 struct Material
 {
-    std::shared_ptr<assets::MaterialInstance> instance;
+    std::shared_ptr<assets::Material> instance;
 };
 }

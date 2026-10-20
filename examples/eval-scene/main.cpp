@@ -123,7 +123,7 @@ public:
 
         world::Entity meshEntity = scifiHelmet;
         std::shared_ptr<aegis::assets::StaticMesh> mesh;
-        std::shared_ptr<aegis::assets::MaterialInstance> materialInstance;
+        std::shared_ptr<aegis::assets::Material> materialInstance;
         while (!registry.has<aegis::Mesh, aegis::Material>(meshEntity))
         {
             meshEntity = registry.get<Children>(meshEntity).last;
@@ -204,7 +204,7 @@ public:
 
         constexpr int materialCount = 10;
         auto pbrMatTemplate = assets.defaults().pbrTemplate;
-        std::vector<std::shared_ptr<aegis::assets::MaterialInstance>> cubeMats;
+        std::vector<std::shared_ptr<aegis::assets::Material>> cubeMats;
         for (int i = 0; i < materialCount; i++)
         {
             auto matInstance = assets.createMaterial(pbrMatTemplate);

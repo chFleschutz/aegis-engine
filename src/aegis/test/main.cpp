@@ -715,7 +715,7 @@ public:
         }
         // Each load gets its own default material: editing one model's must not change another's (E-CONTENT-04).
         {
-            std::array<std::shared_ptr<assets::MaterialInstance>, 2> defaultMaterials;
+            std::array<std::shared_ptr<assets::Material>, 2> defaultMaterials;
             for (auto& slot : defaultMaterials)
             {
                 auto cube = assets::Loader::load(loaderDesc, paths::assets() / "Misc/cube.obj");

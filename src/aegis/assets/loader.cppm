@@ -14,7 +14,7 @@ export namespace aegis::assets
 struct ModelGpuPrimitive
 {
     std::shared_ptr<StaticMesh> mesh;
-    std::shared_ptr<MaterialInstance> material;
+    std::shared_ptr<Material> material;
 };
 
 struct ModelGpuMesh

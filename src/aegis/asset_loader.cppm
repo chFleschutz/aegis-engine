@@ -28,7 +28,7 @@ public:
 
     /// @brief A new instance of 'materialTemplate' (by default the PBR template).
     auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate = nullptr) const
-        -> std::shared_ptr<assets::MaterialInstance>;
+        -> std::shared_ptr<assets::Material>;
 
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return m_defaults; }
 

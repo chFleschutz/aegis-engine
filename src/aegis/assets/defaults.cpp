@@ -75,9 +75,9 @@ auto DefaultAssets::create(rhi::Device& device, std::uint32_t framesInFlight) ->
 }
 
 auto DefaultAssets::createPbrMaterial(rhi::Device& device, std::uint32_t framesInFlight) const
-    -> std::expected<std::shared_ptr<MaterialInstance>, Error>
+    -> std::expected<std::shared_ptr<Material>, Error>
 {
-    auto material = MaterialInstance::create(device, pbrTemplate, framesInFlight);
+    auto material = Material::create(device, pbrTemplate, framesInFlight);
     if (!material)
         return std::unexpected{ material.error() };
     if (auto set = (*material)->setParameter(pbr::albedo, glm::vec3{ 0.8f, 0.8f, 0.9f }); !set)

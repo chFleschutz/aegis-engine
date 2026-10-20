@@ -65,11 +65,11 @@ auto AssetLoader::loadTexture(const std::filesystem::path& path, rhi::Format for
 }
 
 auto AssetLoader::createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) const
-    -> std::shared_ptr<assets::MaterialInstance>
+    -> std::shared_ptr<assets::Material>
 {
     if (!materialTemplate)
         materialTemplate = m_defaults.pbrTemplate;
-    return check(assets::MaterialInstance::create(*m_device, std::move(materialTemplate), m_framesInFlight), "create a material");
+    return check(assets::Material::create(*m_device, std::move(materialTemplate), m_framesInFlight), "create a material");
 }
 
 auto AssetLoader::defaultEnvironment() const -> assets::Environment
