@@ -7,6 +7,7 @@ import :resource;
 import :resource_pool;
 import aegis.rhi;
 import aegis.math;
+import aegis.scene;
 
 export namespace aegis::render_graph
 {
@@ -32,4 +33,13 @@ private:
     LightingViewMode m_viewMode{ LightingViewMode::SceneColor };
     float m_ambientOcclusionFactor{ 1.0f };
 };
+}
+
+export namespace aegis::render_graph::detail
+{
+/// @brief The lighting block for the scene's main camera, ambient and directional light and its point
+///        lights. A missing piece keeps its default (no ambient, a dark directional light along +Z, the
+///        camera at the origin); point lights beyond maxPointLights are dropped.
+[[nodiscard]] auto gatherLighting(scene::Scene& scene, float ambientOcclusionFactor, LightingViewMode viewMode)
+    -> LightingUniforms;
 }

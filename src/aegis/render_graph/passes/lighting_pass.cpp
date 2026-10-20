@@ -55,34 +55,7 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     }
     const auto& environment = registry.get<assets::Environment>(environmentEntity);
 
-    LightingUniforms uniforms{
-        .ambientOcclusionFactor = m_ambientOcclusionFactor,
-        .viewMode = m_viewMode,
-    };
-    if (const auto camera = scene.mainCamera(); camera && registry.has<aegis::GlobalTransform>(camera))
-        uniforms.cameraPosition = glm::vec4{ registry.get<aegis::GlobalTransform>(camera).location, 1.0f };
-    if (const auto ambient = scene.ambientLight(); ambient && registry.has<aegis::AmbientLight>(ambient))
-    {
-        const auto& light = registry.get<aegis::AmbientLight>(ambient);
-        uniforms.ambientColor = glm::vec4{ light.color, light.intensity };
-    }
-    if (const auto directional = scene.directionalLight();
-        directional && registry.has<aegis::DirectionalLight, aegis::GlobalTransform>(directional))
-    {
-        const auto& light = registry.get<aegis::DirectionalLight>(directional);
-        uniforms.directionalColor = glm::vec4{ light.color, light.intensity };
-        uniforms.directionalDirection =
-            glm::vec4{ glm::normalize(registry.get<aegis::GlobalTransform>(directional).forward()), 0.0f };
-    }
-    for (auto&& [entity, transform, light] : registry.view<aegis::GlobalTransform, aegis::PointLight>().each())
-    {
-        if (uniforms.pointLightCount == static_cast<std::int32_t>(maxPointLights))
-            break;
-        uniforms.pointLights[static_cast<std::size_t>(uniforms.pointLightCount++)] = {
-            .position = glm::vec4{ transform.location, 1.0f },
-            .color = glm::vec4{ light.color, light.intensity },
-        };
-    }
+    const auto uniforms = detail::gatherLighting(scene, m_ambientOcclusionFactor, m_viewMode);
     pool.write(m_uniforms, frameInfo.frameIndex, std::as_bytes(std::span{ &uniforms, 1 }));
 
     const LightingConstants constants{
@@ -114,5 +87,42 @@ auto LightingPass::drawUI() -> void
     int mode = static_cast<int>(m_viewMode);
     if (ImGui::Combo("View Mode", &mode, viewModeNames.data(), static_cast<int>(viewModeNames.size())))
         m_viewMode = static_cast<LightingViewMode>(mode);
+}
+
+namespace detail
+{
+auto gatherLighting(scene::Scene& scene, float ambientOcclusionFactor, LightingViewMode viewMode) -> LightingUniforms
+{
+    auto& registry = scene.registry();
+    LightingUniforms uniforms{
+        .ambientOcclusionFactor = ambientOcclusionFactor,
+        .viewMode = viewMode,
+    };
+    if (const auto camera = scene.mainCamera(); camera && registry.has<aegis::GlobalTransform>(camera))
+        uniforms.cameraPosition = glm::vec4{ registry.get<aegis::GlobalTransform>(camera).location, 1.0f };
+    if (const auto ambient = scene.ambientLight(); ambient && registry.has<aegis::AmbientLight>(ambient))
+    {
+        const auto& light = registry.get<aegis::AmbientLight>(ambient);
+        uniforms.ambientColor = glm::vec4{ light.color, light.intensity };
+    }
+    if (const auto directional = scene.directionalLight();
+        directional && registry.has<aegis::DirectionalLight, aegis::GlobalTransform>(directional))
+    {
+        const auto& light = registry.get<aegis::DirectionalLight>(directional);
+        uniforms.directionalColor = glm::vec4{ light.color, light.intensity };
+        uniforms.directionalDirection =
+            glm::vec4{ glm::normalize(registry.get<aegis::GlobalTransform>(directional).forward()), 0.0f };
+    }
+    for (auto&& [entity, transform, light] : registry.view<aegis::GlobalTransform, aegis::PointLight>().each())
+    {
+        if (uniforms.pointLightCount == static_cast<std::int32_t>(maxPointLights))
+            break;
+        uniforms.pointLights[static_cast<std::size_t>(uniforms.pointLightCount++)] = {
+            .position = glm::vec4{ transform.location, 1.0f },
+            .color = glm::vec4{ light.color, light.intensity },
+        };
+    }
+    return uniforms;
+}
 }
 }
