@@ -129,7 +129,7 @@ auto Engine::initialize() -> std::expected<void, EngineError>
     if (auto created = createFrameGraph(); !created)
         return created;
     if (m_input)
-        m_layerStack.push<editor::EditorLayer>(*m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_scene);
+        m_layerStack.push<editor::EditorLayer>(*m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_world);
 
     log::info("Engine Initialized!");
     log::info("Using {} Driven Rendering{}", useGpuDrivenRendering() ? "GPU" : "CPU", m_desc.headless ? " (headless)" : "");
@@ -209,7 +209,7 @@ auto Engine::run() -> int
             m_input->update();
         }
         updateCameraAspect();
-        m_scene.update(frameTimeSec);
+        m_world.update(frameTimeSec);
         m_layerStack.update(frameTimeSec);
 
         // Rendering: uploads queued this frame (or while loading) go first, on the same queue.
@@ -223,7 +223,7 @@ auto Engine::run() -> int
             m_lastFrameIndex = frame.frameIndex;
             m_frameGraph->execute({
                 .cmd = frame.cmd,
-                .scene = m_scene,
+                .scene = m_world,
                 .drawBatches = m_drawBatches,
                 .frameIndex = frame.frameIndex,
                 .extent = frame.extent,
@@ -309,7 +309,7 @@ auto Engine::createAssets() -> std::expected<void, EngineError>
 
 auto Engine::createFrameGraph() -> std::expected<void, EngineError>
 {
-    m_drawBatches.connect(m_scene.registry());
+    m_drawBatches.connect(m_world.registry());
 
     // Headless draws no UI: no window for ImGui's backends, and nothing to look at.
     std::function<void()> buildUi;
@@ -352,8 +352,8 @@ bool Engine::resize()
 void Engine::updateCameraAspect()
 {
     const auto [width, height] = m_window ? m_window->extent() : std::pair{ m_renderer->extent().x, m_renderer->extent().y };
-    auto& registry = m_scene.registry();
-    const auto mainCamera = m_scene.mainCamera();
+    auto& registry = m_world.registry();
+    const auto mainCamera = m_world.mainCamera();
     if (height == 0 || !mainCamera || !registry.has<Camera>(mainCamera))
         return;
     registry.get<Camera>(mainCamera).aspect = static_cast<float>(width) / static_cast<float>(height);
