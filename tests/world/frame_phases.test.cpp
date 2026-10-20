@@ -12,8 +12,8 @@ namespace
 {
 using aegis::world::Phase;
 using aegis::world::Registry;
-using aegis::world::World;
 using aegis::world::System;
+using aegis::world::World;
 
 template<Phase P>
 class Recorder : public System
