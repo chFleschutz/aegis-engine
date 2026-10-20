@@ -4,6 +4,7 @@ module;
 export module aegis.platform:input;
 import std;
 import :key;
+import :key_bindings;
 import :window;
 
 export namespace aegis::platform
@@ -48,23 +49,19 @@ public:
         m_mouseCaptured = mouse;
     }
 
-    /// @brief Calls 'callback' whenever 'key' sees 'action' while exactly 'modifiers' are held.
+    /// @brief Calls 'callback' whenever 'key' sees 'action' while exactly 'modifiers' are held; see KeyBindings.
+    /// @return The id to unbind with. Dropping it keeps the binding for the life of this Input.
     /// @note Callbacks run inside Window::update, which processes the events.
     auto bind(Key key, std::function<void()> callback, KeyAction action = KeyAction::Press,
-        Modifiers modifiers = Modifiers::None) -> void;
+        Modifiers modifiers = Modifiers::None) -> BindingId;
+
+    auto unbind(BindingId id) -> bool;
 
 private:
-    struct Binding
-    {
-        std::function<void()> callback;
-        KeyAction action;
-        Modifiers modifiers;
-    };
-
     auto onKey(int key, int action, int mods) -> void;
 
     Window& m_window;
-    std::unordered_map<Key, std::vector<Binding>> m_bindings;
+    KeyBindings m_bindings;
     bool m_keyboardCaptured{ false };
     bool m_mouseCaptured{ false };
 };

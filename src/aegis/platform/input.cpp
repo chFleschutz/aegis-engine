@@ -53,21 +53,18 @@ auto Input::setCursorMode(CursorMode mode) -> void
     glfwSetInputMode(m_window.glfwWindow(), GLFW_CURSOR, value);
 }
 
-auto Input::bind(Key key, std::function<void()> callback, KeyAction action, Modifiers modifiers) -> void
+auto Input::bind(Key key, std::function<void()> callback, KeyAction action, Modifiers modifiers) -> BindingId
 {
-    m_bindings[key].emplace_back(std::move(callback), action, modifiers);
+    return m_bindings.bind(key, std::move(callback), action, modifiers);
+}
+
+auto Input::unbind(BindingId id) -> bool
+{
+    return m_bindings.unbind(id);
 }
 
 auto Input::onKey(int key, int action, int mods) -> void
 {
-    const auto bindings = m_bindings.find(static_cast<Key>(key));
-    if (bindings == m_bindings.end())
-        return;
-
-    for (const auto& binding : bindings->second)
-    {
-        if (binding.action == static_cast<KeyAction>(action) && binding.modifiers == static_cast<Modifiers>(mods))
-            binding.callback();
-    }
+    m_bindings.dispatch(static_cast<Key>(key), static_cast<KeyAction>(action), static_cast<Modifiers>(mods));
 }
 }
