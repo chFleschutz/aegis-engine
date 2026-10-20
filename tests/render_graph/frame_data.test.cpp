@@ -2,7 +2,7 @@
 
 import std;
 import aegis.math;
-import aegis.scene;
+import aegis.world;
 import aegis.render_graph;
 
 namespace
@@ -65,7 +65,7 @@ TEST_SUITE("render_graph::detail::gatherLighting")
 
     TEST_CASE("an empty scene keeps the defaults and the given settings")
     {
-        aegis::scene::Scene scene;
+        aegis::world::World scene;
         const auto uniforms = gatherLighting(scene, 0.5f, LightingViewMode::Albedo);
         CHECK(uniforms.ambientOcclusionFactor == 0.5f);
         CHECK(uniforms.viewMode == LightingViewMode::Albedo);
@@ -78,7 +78,7 @@ TEST_SUITE("render_graph::detail::gatherLighting")
 
     TEST_CASE("gathers camera, ambient and directional light")
     {
-        aegis::scene::Scene scene;
+        aegis::world::World scene;
         auto& registry = scene.registry();
 
         const auto camera = registry.create("Camera", glm::vec3{ 1.0f, 2.0f, 3.0f });
@@ -108,7 +108,7 @@ TEST_SUITE("render_graph::detail::gatherLighting")
 
     TEST_CASE("collects point lights and stops at the maximum")
     {
-        aegis::scene::Scene scene;
+        aegis::world::World scene;
         auto& registry = scene.registry();
         const auto count = aegis::render_graph::maxPointLights + 10;
         for (std::uint32_t i = 0; i < count; ++i)

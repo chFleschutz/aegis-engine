@@ -3,7 +3,7 @@ import std;
 import :error;
 import :render_system;
 import aegis.assets;
-import aegis.scene.render_components;
+import aegis.world.render_components;
 import aegis.rhi;
 import aegis.math;
 

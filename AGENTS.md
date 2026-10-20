@@ -57,7 +57,7 @@ per distinct set of compile flags, with the importing target's flags. The engine
   inline handler, entt templates), Clang hides standard concepts from that module's importers:
   `missing '#include <concepts>'; 'derived_from' must be declared before it is used`, with a note
   "declaration here is not visible". Import a module instead (entt names come from
-  `aegis.scene.entity`), move the code into a `.cpp`, or, as a last resort, `#include` the named
+  `aegis.world.entity`), move the code into a `.cpp`, or, as a last resort, `#include` the named
   header in the failing file's global module fragment.
 - **Warnings-as-errors reaches the std module.** The std module sources trip Clang's
   `-Wreserved-module-identifier` and `-Winclude-angled-in-module-purview`; the root `CMakeLists.txt`
@@ -112,17 +112,17 @@ run time. Use `paths::assets() / "..."` for assets in examples; never add anothe
 `aegis-test` still has its own `AEGIS_TEST_SHADER_PATH` for its fixture shader (built next to it).
 
 ## Two code styles (most important)
-The renderer was rewritten onto a new RHI; the code around it (engine, editor, scene, scripting, UI)
+The renderer was rewritten onto a new RHI; the code around it (engine, editor, world, scripting, UI)
 still follows the older style. **Match the conventions of the code you are editing.**
 
-| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/`, `test/` | Legacy — everything else (`core/`, `editor/`, `math/`, `scene/`, `scripting/`, `ui/`, `utils/`, `engine.cppm`, `scene_*.cppm`, `examples/`) |
+| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/`, `test/` | Legacy — everything else (`core/`, `editor/`, `math/`, `world/`, `scripting/`, `ui/`, `utils/`, `engine.cppm`, `scene_*.cppm`, `examples/`) |
 |---|---|---|
 | Vulkan | vulkan-hpp `vk::raii`, `import vulkan` | none — go through `aegis::rhi` and friends |
 | Errors | `std::expected<T, Error>` + `makeError`, never throw | `AGX_ASSERT*` |
-| Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm` only, dotted submodules (`aegis.scene.entity`, `aegis.utils.timer`); `math` is one module |
+| Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm` only, dotted submodules (`aegis.world.entity`, `aegis.utils.timer`); `math` is one module |
 
-Both styles: lowercase `snake_case` namespaces (`aegis::rhi`, `aegis::scene`) and module names
-(`aegis.rhi`, `aegis.scene`), 4-space indent with un-indented namespace bodies, `m_`-prefixed
+Both styles: lowercase `snake_case` namespaces (`aegis::rhi`, `aegis::world`) and module names
+(`aegis.rhi`, `aegis.world`), 4-space indent with un-indented namespace bodies, `m_`-prefixed
 camelCase members, Allman braces, `snake_case` filenames. New RHI also
 uses trailing return types, `[[nodiscard]]`, `Desc` nested config structs, and packed generational
 handles (`ResourceHandle<T>` / `BufferHandle` / `ImageHandle`) as the public currency instead of raw
@@ -147,7 +147,7 @@ types, except `render_graph/passes/ui_pass.cpp`, which imports it for the ImGui 
 
 **Known deviations (current state):** the `Error` types differ per module (rhi struct `{code}`,
 `renderer` enum, `render_graph` `{message, rhi?}`, `assets` struct) and `platform::Window` asserts
-instead of returning one; `render_graph` imports `aegis.scene` and holds `Scene&`;
+instead of returning one; `render_graph` imports `aegis.world` and holds `Scene&`;
 `LayerStack::m_Layers` is PascalCase; components, `Profiler` and `Engine` sit directly in
 `aegis`; `Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
 
@@ -172,7 +172,7 @@ profiler; any module may import it (renamed `aegis.core` once the legacy core is
   gizmo/inspector edits, and scripts that move their entity use `DynamicTag`.
 
 **Link visibility:** link a library `PUBLIC` when its `.cppm` module interfaces import it (or export
-its names, like EnTT from `aegis-scene`), `PRIVATE` when only `.cpp` implementation units use it.
+its names, like EnTT from `aegis-world`), `PRIVATE` when only `.cpp` implementation units use it.
 Linux fails on a missing transitive link that Windows hides, so declare what you import yourself.
 
 ### Cross-platform rules
@@ -190,7 +190,7 @@ on the modules) must both build. CI proves the Linux build on every PR.
   `clang++ --target=x86_64-w64-mingw32` against a MinGW GCC (libstdc++) on PATH (e.g. WinLibs) and
   `-DCMAKE_EXE_LINKER_FLAGS=-pthread`. It reproduced libstdc++'s missing-include errors for `rhi`,
   `renderer`, `platform`, `core` and the unit tests (written before `import std`; not re-checked
-  since); it can't get past `aegis.scene`, where clang crashes generating COFF code for module
+  since); it can't get past `aegis.world`, where clang crashes generating COFF code for module
   initializers (a MinGW-only clang bug, not a code problem).
 
 ### Formatting (clang-format)
@@ -256,7 +256,7 @@ code. Feature PRs don't edit `backlog.md`.
 
 doctest covers **pure, GPU-independent logic** in any module. One
 executable per module (`aegis-tests-base`, `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
-`aegis-tests-math`, `aegis-tests-scene`), each linking only that module's library. Layout, conventions, how to add a
+`aegis-tests-math`, `aegis-tests-world`), each linking only that module's library. Layout, conventions, how to add a
 module, and the full rationale: **`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*

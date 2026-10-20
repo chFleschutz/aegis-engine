@@ -10,7 +10,7 @@ import :resource_pool;
 import aegis.assets;
 import aegis.rhi;
 import aegis.math;
-import aegis.scene;
+import aegis.world;
 
 export namespace aegis::render_graph::detail
 {
@@ -45,7 +45,7 @@ public:
     InstanceUpdatePass(ResourceDeclarations& declarations, const DrawBatchRegistry& drawBatches);
 
     [[nodiscard]] auto name() const -> std::string_view override;
-    auto sceneInitialized(ResourcePool& pool, aegis::scene::Scene& scene) -> void override;
+    auto sceneInitialized(ResourcePool& pool, aegis::world::World& scene) -> void override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
     /// @brief The instances actually written: what culling dispatches over.
@@ -53,7 +53,7 @@ public:
     [[nodiscard]] auto dynamicCount() const noexcept -> std::uint32_t { return m_dynamicCount; }
 
 private:
-    auto rebuildStatic(ResourcePool& pool, aegis::scene::Scene& scene) -> void;
+    auto rebuildStatic(ResourcePool& pool, aegis::world::World& scene) -> void;
 
     const DrawBatchRegistry& m_drawBatches;
     ResourceHandle m_staticInstances;

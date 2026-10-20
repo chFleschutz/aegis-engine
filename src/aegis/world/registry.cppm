@@ -2,14 +2,14 @@ module;
 
 #include "core/assert.h"
 
-export module aegis.scene.registry;
+export module aegis.world.registry;
 
 import std;
 export import aegis.math;
-export import aegis.scene.entity;
-export import aegis.scene.components;
+export import aegis.world.entity;
+export import aegis.world.components;
 
-export namespace aegis::scene
+export namespace aegis::world
 {
 class Registry
 {
@@ -26,7 +26,7 @@ public:
     [[nodiscard]] auto entityCount() const -> std::size_t { return m_registry.storage<entt::entity>()->free_list(); }
 
     /// @brief Creates an entity with a StableId (random, unique in this registry), a Name and a Transform
-    /// @note scene::Entity can be passed by value
+    /// @note world::Entity can be passed by value
     auto create(const std::string& name = std::string{}, const glm::vec3& location = glm::vec3{ 0.0f },
         const glm::quat& rotation = glm::quat{ 1.0f, 0.0f, 0.0f, 0.0f }, const glm::vec3& scale = glm::vec3{ 1.0f }) -> Entity
     {

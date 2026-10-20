@@ -8,12 +8,12 @@ module;
 module aegis.render_graph;
 import std;
 import aegis.assets;
-import aegis.scene.render_components;
+import aegis.world.render_components;
 import aegis.base;
 import aegis.renderer;
 import aegis.rhi;
 import aegis.math;
-import aegis.scene;
+import aegis.world;
 
 namespace aegis::render_graph
 {
@@ -99,7 +99,7 @@ auto InstanceUpdatePass::name() const -> std::string_view
     return "Instance Update";
 }
 
-auto InstanceUpdatePass::sceneInitialized(ResourcePool&, aegis::scene::Scene&) -> void
+auto InstanceUpdatePass::sceneInitialized(ResourcePool&, aegis::world::World&) -> void
 {
     // The scene may be a different one, with its own static version: build for it on the next frame.
     m_builtVersion.reset();
@@ -107,7 +107,7 @@ auto InstanceUpdatePass::sceneInitialized(ResourcePool&, aegis::scene::Scene&) -
 
 // Rewrites every frame's copy of the static instances into a new buffer, which frames still in flight
 // do not read. Should it not be created, nothing static is drawn until the static set changes again.
-auto InstanceUpdatePass::rebuildStatic(ResourcePool& pool, aegis::scene::Scene& scene) -> void
+auto InstanceUpdatePass::rebuildStatic(ResourcePool& pool, aegis::world::World& scene) -> void
 {
     constexpr auto frames = renderer::Renderer::maxFramesInFlight;
     m_staticCount = 0;

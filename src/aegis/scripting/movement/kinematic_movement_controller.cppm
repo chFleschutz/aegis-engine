@@ -5,7 +5,7 @@ import aegis.reflect;
 import aegis.scripting.script;
 import aegis.math;
 import aegis.platform;
-import aegis.scene.components;
+import aegis.world.components;
 
 export namespace aegis::scripting
 {

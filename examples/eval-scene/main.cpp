@@ -121,7 +121,7 @@ public:
         auto scifiHelmet = assets.loadModel(scene, paths::assets() / "SciFiHelmet/SciFiHelmet.gltf");
         registry.get<Transform>(scifiHelmet).location = { 2.0f, 0.0f, 2.0f };
 
-        scene::Entity meshEntity = scifiHelmet;
+        world::Entity meshEntity = scifiHelmet;
         std::shared_ptr<aegis::assets::StaticMesh> mesh;
         std::shared_ptr<aegis::assets::MaterialInstance> materialInstance;
         while (!registry.has<aegis::Mesh, aegis::Material>(meshEntity))
@@ -257,10 +257,10 @@ struct Rotatable
     float speed = 1.0f;
 };
 
-class RotationSystem : public aegis::scene::System
+class RotationSystem : public aegis::world::System
 {
 public:
-    void onUpdate(aegis::scene::Registry& registry, float deltaSeconds) override
+    void onUpdate(aegis::world::Registry& registry, float deltaSeconds) override
     {
         auto view = registry.view<aegis::Transform, Rotatable, aegis::DynamicTag>();
         for (auto [entity, transform, rotatable] : view.each())

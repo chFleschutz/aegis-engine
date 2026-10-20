@@ -1,6 +1,6 @@
 add_library(aegis-scripting STATIC)
 
-# PUBLIC: the module interfaces import aegis.math, aegis.platform, aegis.reflect and aegis.scene,
+# PUBLIC: the module interfaces import aegis.math, aegis.platform, aegis.reflect and aegis.world,
 # and use AGX_ASSERT.
 
 target_link_libraries(aegis-scripting 
@@ -9,7 +9,7 @@ PUBLIC
 	aegis-core
 	aegis-platform
 	aegis-reflect
-	aegis-scene
+	aegis-world
 )
 
 target_sources(aegis-scripting 

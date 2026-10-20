@@ -17,7 +17,7 @@ add_subdirectory(test)
 
 add_subdirectory(math)
 add_subdirectory(core)
-add_subdirectory(scene)
+add_subdirectory(world)
 add_subdirectory(scripting)
 add_subdirectory(ui)
 add_subdirectory(editor)
@@ -45,7 +45,7 @@ PUBLIC
 	aegis-render-graph
 	aegis-renderer
 	aegis-rhi
-	aegis-scene
+	aegis-world
 	aegis-ui
 	aegis-editor
 	aegis-scripting

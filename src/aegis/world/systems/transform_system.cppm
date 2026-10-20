@@ -1,10 +1,10 @@
-export module aegis.scene.systems.transform_system;
+export module aegis.world.systems.transform_system;
 
 import std;
-import aegis.scene.registry;
-import aegis.scene.system;
+import aegis.world.registry;
+import aegis.world.system;
 
-export namespace aegis::scene::detail
+export namespace aegis::world::detail
 {
 /// @brief Composes the global transform of a child from its parent's global transform and its own local transform
 /// @note Goes through matrices, so the parent's rotation and scale apply to the child's location. A non-uniform
@@ -25,7 +25,7 @@ export namespace aegis::scene::detail
 }
 }
 
-export namespace aegis::scene
+export namespace aegis::world
 {
 class TransformSystem : public System
 {

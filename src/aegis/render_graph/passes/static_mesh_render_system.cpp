@@ -1,10 +1,10 @@
 module aegis.render_graph;
 import std;
 import aegis.assets;
-import aegis.scene.render_components;
+import aegis.world.render_components;
 import aegis.rhi;
 import aegis.math;
-import aegis.scene;
+import aegis.world;
 
 namespace aegis::render_graph
 {

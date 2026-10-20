@@ -2,9 +2,9 @@
 
 import std;
 import aegis.assets;
-import aegis.scene.render_components;
+import aegis.world.render_components;
 import aegis.render_graph;
-import aegis.scene.registry;
+import aegis.world.registry;
 
 TEST_SUITE("render_graph::DrawBatchRegistry")
 {
@@ -72,7 +72,7 @@ TEST_SUITE("render_graph::DrawBatchRegistry")
 
     TEST_CASE("a material without an instance never moves counts when its entity becomes dynamic")
     {
-        aegis::scene::Registry scene;
+        aegis::world::Registry scene;
         DrawBatchRegistry registry;
         registry.connect(scene);
 
@@ -89,7 +89,7 @@ TEST_SUITE("render_graph::DrawBatchRegistry")
 
     TEST_CASE("connecting twice does not double-count")
     {
-        aegis::scene::Registry scene;
+        aegis::world::Registry scene;
         DrawBatchRegistry registry;
         const auto material = std::make_shared<const MaterialTemplate>();
         REQUIRE(registry.track(entity(0), material, false));
@@ -147,7 +147,7 @@ TEST_SUITE("render_graph::DrawBatchRegistry")
 
     TEST_CASE("the static version moves when meshes and materials come and go")
     {
-        aegis::scene::Registry scene;
+        aegis::world::Registry scene;
         DrawBatchRegistry registry;
         registry.connect(scene);
         const auto entity = scene.create();
@@ -171,7 +171,7 @@ TEST_SUITE("render_graph::DrawBatchRegistry")
 
     TEST_CASE("the static version moves when an entity changes between static and dynamic")
     {
-        aegis::scene::Registry scene;
+        aegis::world::Registry scene;
         DrawBatchRegistry registry;
         registry.connect(scene);
         const auto entity = scene.create();
@@ -187,7 +187,7 @@ TEST_SUITE("render_graph::DrawBatchRegistry")
 
     TEST_CASE("a new static instance is marked for a transform update, a dynamic one is not")
     {
-        aegis::scene::Registry scene;
+        aegis::world::Registry scene;
         DrawBatchRegistry registry;
         registry.connect(scene);
 
@@ -203,7 +203,7 @@ TEST_SUITE("render_graph::DrawBatchRegistry")
 
     TEST_CASE("a disconnected registry no longer reports changes")
     {
-        aegis::scene::Registry scene;
+        aegis::world::Registry scene;
         DrawBatchRegistry registry;
         registry.connect(scene);
         registry.disconnect();

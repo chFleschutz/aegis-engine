@@ -1,9 +1,9 @@
-export module aegis.scene.components;
+export module aegis.world.components;
 
 import std;
 export import aegis.math;
-export import aegis.scene.entity;
-export import aegis.scene.component_traits;
+export import aegis.world.entity;
+export import aegis.world.component_traits;
 
 export namespace aegis
 {
@@ -53,15 +53,15 @@ struct GlobalTransform
 /// @note Use Entity::setParent to set the parent of an entity
 struct Parent
 {
-    scene::Entity entity{};
+    world::Entity entity{};
 };
 
 /// @brief Stores the next and previous sibling of the entity (for linked list)
 /// @note Use Entity::addChild to add a child to an entity (siblings are automatically updated)
 struct Siblings
 {
-    scene::Entity next{};
-    scene::Entity prev{};
+    world::Entity next{};
+    world::Entity prev{};
 };
 
 /// @brief Stores the children entities as the first and last child of a linked list
@@ -71,35 +71,35 @@ struct Children
     // TODO: This is currentl broken because the entity does not have a pointer to the scene anymore
     //struct Iterator
     //{
-    //    scene::Entity current{};
+    //    world::Entity current{};
 
-    //    auto operator*() const -> scene::Entity { return current; }
+    //    auto operator*() const -> world::Entity { return current; }
     //    auto operator++() -> Iterator& { current = current.get<Siblings>().next; return *this; }
     //    auto operator==(const Iterator& other) const -> bool { return current == other.current; }
     //};
 
     //struct ReverseIterator
     //{
-    //    scene::Entity current{};
+    //    world::Entity current{};
 
-    //    auto operator*() const -> scene::Entity { return current; }
+    //    auto operator*() const -> world::Entity { return current; }
     //    auto operator++() -> ReverseIterator& { current = current.get<Siblings>().prev; return *this; }
     //    auto operator==(const ReverseIterator& other) const -> bool { return current == other.current; };
     //};
 
     std::size_t count = 0;
-    scene::Entity first{};
-    scene::Entity last{};
+    world::Entity first{};
+    world::Entity last{};
 
     //auto begin() const -> Children::Iterator { return { first }; }
-    //auto end() const -> Children::Iterator { return { scene::Entity{} }; }
+    //auto end() const -> Children::Iterator { return { world::Entity{} }; }
     //auto rbegin() const -> Children::ReverseIterator { return { last }; }
-    //auto rend() const -> Children::ReverseIterator { return { scene::Entity{} }; }
+    //auto rend() const -> Children::ReverseIterator { return { world::Entity{} }; }
 };
 
 /// @brief Tags an entity as dynamic: its global transform is recomputed every frame.
 ///
-/// The static/dynamic rule: an entity without this tag is static and stays frozen after Scene::begin,
+/// The static/dynamic rule: an entity without this tag is static and stays frozen after World::begin,
 /// so editing its Transform changes nothing on screen by itself.
 ///  - Anything that moves its entity every frame (a script, an animation) must tag it, and
 ///    only while the scene is set up: adding or removing the tag later is not supported yet.
@@ -139,7 +139,7 @@ struct PointLight
 };
 
 /// @brief Tags the camera the scene is viewed through (the first entity with it and a Camera wins)
-/// @note Scene::setMainCamera moves the tag, so one entity carries it
+/// @note World::setMainCamera moves the tag, so one entity carries it
 struct MainCamera
 {
 };

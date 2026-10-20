@@ -8,7 +8,7 @@ namespace aegis
 namespace
 {
 /// @brief One primitive goes on the entity itself; several become child entities.
-auto attachMesh(scene::Registry& registry, scene::Entity entity, std::string_view name, const assets::ModelGpuMesh& mesh) -> void
+auto attachMesh(world::Registry& registry, world::Entity entity, std::string_view name, const assets::ModelGpuMesh& mesh) -> void
 {
     if (mesh.primitives.size() == 1)
     {
@@ -26,14 +26,14 @@ auto attachMesh(scene::Registry& registry, scene::Entity entity, std::string_vie
 }
 }
 
-auto instantiate(scene::Registry& registry, const assets::Model& model) -> scene::Entity
+auto instantiate(world::Registry& registry, const assets::Model& model) -> world::Entity
 {
     const auto root = registry.create(model.name);
     registry.get<Transform>(root).rotation = model.rootRotation;
     if (model.rootMesh)
         attachMesh(registry, root, model.name, model.meshes[*model.rootMesh]);
 
-    std::vector<scene::Entity> entities(model.nodes.size());
+    std::vector<world::Entity> entities(model.nodes.size());
     for (std::size_t i = 0; i < model.nodes.size(); ++i)
     {
         const auto& node = model.nodes[i];

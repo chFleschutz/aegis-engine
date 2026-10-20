@@ -1,15 +1,15 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.scene.registry;
+import aegis.world.registry;
 
 namespace
 {
 using aegis::Children;
 using aegis::Parent;
 using aegis::Siblings;
-using aegis::scene::Entity;
-using aegis::scene::Registry;
+using aegis::world::Entity;
+using aegis::world::Registry;
 
 // Bound for the list walks, so a corrupted (cyclic) sibling list fails a check instead of hanging.
 constexpr std::size_t maxWalk = 16;
@@ -61,7 +61,7 @@ void checkDetached(Registry& registry, Entity entity)
 }
 }
 
-TEST_SUITE("scene::Registry")
+TEST_SUITE("world::Registry")
 {
     TEST_CASE("links children in the order they are added")
     {

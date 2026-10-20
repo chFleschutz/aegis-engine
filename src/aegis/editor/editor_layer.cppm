@@ -11,8 +11,8 @@ import aegis.editor.panels;
 import aegis.platform;
 import aegis.render_graph;
 import aegis.renderer;
-import aegis.scene;
-import aegis.scene.systems.transform_system;
+import aegis.world;
+import aegis.world.systems.transform_system;
 
 export namespace aegis::editor
 {
@@ -21,7 +21,7 @@ class EditorLayer : public core::Layer
 public:
     EditorLayer(aegis::platform::Input& input, aegis::renderer::Renderer& renderer,
         aegis::render_graph::FrameGraph& frameGraph, aegis::render_graph::DrawBatchRegistry& drawBatches,
-        scene::Scene& scene) :
+        world::World& scene) :
         m_input(input),
         m_renderer(renderer),
         m_frameGraph(frameGraph),
@@ -71,7 +71,7 @@ public:
     }
 
 private:
-    void drawGizmo(scene::Scene& scene)
+    void drawGizmo(world::World& scene)
     {
         auto& registry = scene.registry();
         const auto selected = m_scenePanel.selectedEntity();
@@ -113,7 +113,7 @@ private:
             if (parent && registry.has<GlobalTransform>(parent))
                 parentGlobal = registry.get<GlobalTransform>(parent);
 
-            transform = scene::detail::toLocal(parentGlobal, transformMatrix);
+            transform = world::detail::toLocal(parentGlobal, transformMatrix);
             if (!registry.has<DynamicTag>(selected))
                 registry.markStaticDirty(selected); // Static entities only move when told to
         }
@@ -123,7 +123,7 @@ private:
     aegis::renderer::Renderer& m_renderer;
     aegis::render_graph::FrameGraph& m_frameGraph;
     aegis::render_graph::DrawBatchRegistry& m_drawBatches;
-    scene::Scene& m_scene;
+    world::World& m_scene;
     editor::MenuBarPanel m_menuBarPanel{};
     editor::RendererPanel m_rendererPanel{};
     editor::ScenePanel m_scenePanel{};

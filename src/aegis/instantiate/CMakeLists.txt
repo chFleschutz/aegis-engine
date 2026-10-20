@@ -1,11 +1,11 @@
 add_library(aegis-instantiate STATIC)
 
-# PUBLIC: the module interface imports aegis.assets and the aegis.scene.* modules.
+# PUBLIC: the module interface imports aegis.assets and the aegis.world.* modules.
 target_link_libraries(aegis-instantiate
     PUBLIC
         aegis-assets
         aegis-math
-        aegis-scene
+        aegis-world
 )
 
 target_sources(aegis-instantiate

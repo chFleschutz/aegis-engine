@@ -1,4 +1,4 @@
-export module aegis.scene.render_components;
+export module aegis.world.render_components;
 
 import std;
 import aegis.assets;

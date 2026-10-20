@@ -9,9 +9,9 @@ module;
 module aegis.render_graph;
 import std;
 import aegis.assets;
-import aegis.scene.render_components;
+import aegis.world.render_components;
 import aegis.base;
-import aegis.scene.registry;
+import aegis.world.registry;
 
 namespace aegis::render_graph
 {
@@ -20,7 +20,7 @@ DrawBatchRegistry::~DrawBatchRegistry()
     disconnect();
 }
 
-auto DrawBatchRegistry::connect(aegis::scene::Registry& registry) -> void
+auto DrawBatchRegistry::connect(aegis::world::Registry& registry) -> void
 {
     disconnect();
     clear();
@@ -28,7 +28,7 @@ auto DrawBatchRegistry::connect(aegis::scene::Registry& registry) -> void
 
     for (auto&& [entity, material] : registry.view<aegis::Material>().each())
     {
-        trackMaterial(entity, material, registry.has<aegis::DynamicTag>(aegis::scene::Entity{ entity }));
+        trackMaterial(entity, material, registry.has<aegis::DynamicTag>(aegis::world::Entity{ entity }));
     }
 
     registry.onConstruct<aegis::Material>().connect<&DrawBatchRegistry::onMaterialConstruct>(this);
@@ -145,7 +145,7 @@ auto DrawBatchRegistry::markStatic(entt::registry& registry, entt::entity entity
     if (registry.all_of<aegis::DynamicTag>(entity))
         m_registry->invalidateStatic();
     else
-        m_registry->markStaticDirty(aegis::scene::Entity{ entity });
+        m_registry->markStaticDirty(aegis::world::Entity{ entity });
 }
 
 auto DrawBatchRegistry::onMaterialConstruct(entt::registry& registry, entt::entity entity) -> void

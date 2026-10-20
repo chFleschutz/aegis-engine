@@ -2,7 +2,7 @@ export module aegis.render_graph:render_system;
 import std;
 import :error;
 import aegis.rhi;
-import aegis.scene;
+import aegis.world;
 
 export namespace aegis::render_graph
 {
@@ -10,7 +10,7 @@ export namespace aegis::render_graph
 struct RenderContext
 {
     const rhi::CommandBuffer& cmd;
-    aegis::scene::Scene& scene;
+    aegis::world::World& scene;
     std::uint32_t frameIndex;
     rhi::DeviceAddress camera; // This frame's CameraData
 };

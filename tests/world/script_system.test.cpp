@@ -2,7 +2,7 @@
 
 import std;
 import aegis.reflect;
-import aegis.scene;
+import aegis.world;
 import aegis.scripting.script;
 import aegis.scripting.script_system;
 
@@ -11,8 +11,8 @@ namespace
 using namespace aegis;
 using namespace aegis::scripting;
 using aegis::reflect::TypeRegistry;
-using aegis::scene::Entity;
-using aegis::scene::Scene;
+using aegis::world::Entity;
+using aegis::world::World;
 
 // What the test scripts did, in order: "<tag>.<hook>".
 std::vector<std::string> g_log;
@@ -123,7 +123,7 @@ struct Fixture
     }
 
     TypeRegistry types;
-    Scene scene;
+    World scene;
 };
 }
 
@@ -310,7 +310,7 @@ TEST_SUITE("scripting::ScriptSystem")
     {
         Fixture f;
         {
-            Scene scene;
+            World scene;
             scene.addSystem<ScriptSystem>(scene.registry());
             const auto entity = scene.registry().create("a");
             auto script = attachScript(scene.registry(), f.types, entity, "Recorder");
@@ -380,7 +380,7 @@ TEST_SUITE("scripting::ScriptSystem")
         g_log.clear();
         TypeRegistry types;
         REQUIRE(registerScript<Recorder>(types, "Recorder"));
-        Scene scene;
+        World scene;
         scene.addSystem<ScriptSystem>(scene.registry());
         const auto entity = scene.registry().create();
         REQUIRE(attachScript(scene.registry(), types, entity, "Recorder"));

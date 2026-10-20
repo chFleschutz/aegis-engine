@@ -8,7 +8,7 @@ import :declarations;
 import :resource_pool;
 import aegis.rhi;
 import aegis.math;
-import aegis.scene;
+import aegis.world;
 
 export namespace aegis::render_graph
 {
@@ -41,6 +41,6 @@ export namespace aegis::render_graph::detail
 /// @brief The lighting block for the scene's main camera, ambient and directional light and its point
 ///        lights. A missing piece keeps its default (no ambient, a dark directional light along +Z, the
 ///        camera at the origin); point lights beyond maxPointLights are dropped.
-[[nodiscard]] auto gatherLighting(scene::Scene& scene, float ambientOcclusionFactor, LightingViewMode viewMode)
+[[nodiscard]] auto gatherLighting(world::World& scene, float ambientOcclusionFactor, LightingViewMode viewMode)
     -> LightingUniforms;
 }

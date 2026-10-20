@@ -2,9 +2,9 @@ export module aegis.instantiate;
 
 import std;
 import aegis.assets;
-import aegis.scene.components;
-import aegis.scene.registry;
-import aegis.scene.render_components;
+import aegis.world.components;
+import aegis.world.registry;
+import aegis.world.render_components;
 
 export namespace aegis
 {
@@ -13,5 +13,5 @@ export namespace aegis
 ///        components. The entities share the model's meshes and materials, so calling it N times draws N
 ///        copies of one load.
 /// @return The root entity.
-auto instantiate(scene::Registry& registry, const assets::Model& model) -> scene::Entity;
+auto instantiate(world::Registry& registry, const assets::Model& model) -> world::Entity;
 }

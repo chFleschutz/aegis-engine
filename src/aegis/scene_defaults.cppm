@@ -5,7 +5,7 @@ module;
 export module aegis.defaults;
 
 import std;
-import aegis.scene;
+import aegis.world;
 import aegis.scene_description;
 import aegis.scripting.script;
 import aegis.assets;
@@ -16,12 +16,12 @@ export namespace aegis
 {
 struct DefaultLights
 {
-    scene::Entity ambient;
-    scene::Entity directional;
+    world::Entity ambient;
+    world::Entity directional;
 };
 
 /// @brief A main camera with fly controls (the "KinematicMovementController" script)
-auto addDefaultCamera(SceneContext& context) -> scene::Entity
+auto addDefaultCamera(SceneContext& context) -> world::Entity
 {
     auto& registry = context.scene.registry();
     auto camera = registry.create("Main Camera");
@@ -54,7 +54,7 @@ auto addDefaultLights(SceneContext& context) -> DefaultLights
 }
 
 /// @brief The engine's default environment as the sky
-auto addDefaultEnvironment(SceneContext& context) -> scene::Entity
+auto addDefaultEnvironment(SceneContext& context) -> world::Entity
 {
     auto& registry = context.scene.registry();
     auto skybox = registry.create("Skybox");

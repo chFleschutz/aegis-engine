@@ -1,4 +1,4 @@
-export module aegis.scene.component_traits;
+export module aegis.world.component_traits;
 
 import std;
 
