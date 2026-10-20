@@ -202,6 +202,32 @@ TEST_SUITE("reflect::TypeRegistry")
         CHECK(object.baseValue == 9);
     }
 
+    TEST_CASE("creates an instance of a registered type by name")
+    {
+        TypeRegistry types;
+        registerEverything(types);
+        const TypeInfo* info = types.find<Everything>();
+        REQUIRE(info);
+        auto created = info->create();
+        REQUIRE(created);
+        CHECK(info->set(created->get(), "integer", Value{ std::int64_t{ 5 } }));
+        CHECK(static_cast<Everything*>(created->get())->integer == 5);
+        CHECK(static_cast<Everything*>(info->create()->get()) != static_cast<Everything*>(created->get()));
+    }
+
+    TEST_CASE("cannot create a type that is not default constructible")
+    {
+        struct NoDefault
+        {
+            explicit NoDefault(int) {}
+        };
+        TypeRegistry types;
+        REQUIRE(types.component<NoDefault>("NoDefault"));
+        const auto created = types.find<NoDefault>()->create();
+        REQUIRE_FALSE(created);
+        CHECK(created.error().code == ErrorCode::NotConstructible);
+    }
+
     TEST_CASE("describes an error")
     {
         TypeRegistry types;

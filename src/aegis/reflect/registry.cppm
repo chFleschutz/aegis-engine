@@ -116,6 +116,8 @@ private:
             return makeError(ErrorCode::DuplicateType, std::format("the type is already registered as '{}'", existing->name));
 
         auto& info = *m_storage.emplace_back(std::make_unique<TypeInfo>(TypeInfo{ .name = std::string{ name }, .category = category, .type = std::type_index{ typeid(T) } }));
+        if constexpr (std::default_initializable<T>)
+            info.construct = [] { return std::shared_ptr<void>{ std::make_shared<T>() }; };
         m_byName.emplace(info.name, &info);
         m_byType.emplace(info.type, &info);
         m_ordered.push_back(&info);

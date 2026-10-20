@@ -33,6 +33,20 @@ struct TypeInfo
     std::type_index type;
     std::vector<FieldInfo> fields; // In registration order
 
+    // Creates a default-constructed instance, owned by the returned pointer (which destroys it as the
+    // registered type). Empty when the type is not default constructible. A caller that knows the
+    // registered type's base class converts it to that base: for a script, whose first base is the
+    // script base class, the address is the same.
+    std::function<std::shared_ptr<void>()> construct;
+
+    // Creates an instance of the type, or fails with ErrorCode::NotConstructible.
+    [[nodiscard]] auto create() const -> std::expected<std::shared_ptr<void>, Error>
+    {
+        if (!construct)
+            return makeError(ErrorCode::NotConstructible, std::format("type '{}' is not default constructible", name));
+        return construct();
+    }
+
     [[nodiscard]] auto findField(std::string_view fieldName) const -> const FieldInfo*
     {
         for (const auto& field : fields)
