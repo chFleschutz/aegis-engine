@@ -11,7 +11,7 @@ GeometryPass::GeometryPass(ResourceDeclarations& declarations) :
 {
 }
 
-auto GeometryPass::declareGBuffer(ResourceDeclarations& declarations) -> std::array<ResourceHandle, gBufferFormats.size()>
+auto GeometryPass::declareGBuffer(ResourceDeclarations& declarations) -> std::array<ResourceId, gBufferFormats.size()>
 {
     return {
         declarations.addTexture(names::position, Usage::ColorAttachment, { .format = gBufferFormats[0] }),
@@ -22,7 +22,7 @@ auto GeometryPass::declareGBuffer(ResourceDeclarations& declarations) -> std::ar
     };
 }
 
-auto GeometryPass::declareDepth(ResourceDeclarations& declarations) -> ResourceHandle
+auto GeometryPass::declareDepth(ResourceDeclarations& declarations) -> ResourceId
 {
     return declarations.addTexture(names::depth, Usage::DepthAttachment, { .format = depthFormat });
 }

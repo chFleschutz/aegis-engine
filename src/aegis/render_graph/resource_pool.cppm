@@ -32,35 +32,35 @@ public:
 
     /// @brief Every declaration, in the order passes made them.
     [[nodiscard]] auto describe() const -> std::vector<ResourceDescription> { return m_declarations.describe(); }
-    [[nodiscard]] auto name(ResourceHandle handle) const -> std::string_view { return m_declarations.name(handle); }
+    [[nodiscard]] auto name(ResourceId handle) const -> std::string_view { return m_declarations.name(handle); }
 
     // Valid after FrameGraph::compile
 
-    [[nodiscard]] auto texture(ResourceHandle handle) const -> const renderer::Texture&;
-    [[nodiscard]] auto extent(ResourceHandle handle) const -> rhi::Extent2D;
+    [[nodiscard]] auto texture(ResourceId handle) const -> const renderer::Texture&;
+    [[nodiscard]] auto extent(ResourceId handle) const -> rhi::Extent2D;
     /// @brief The format the texture was declared with, so a pass need not repeat it.
-    [[nodiscard]] auto format(ResourceHandle handle) const -> rhi::Format;
+    [[nodiscard]] auto format(ResourceId handle) const -> rhi::Format;
     /// @brief The storage image slot of the texture's view, for a texture some pass declares with a storage
     ///        usage (Usage::StorageRead or StorageWrite).
-    [[nodiscard]] auto storageDescriptor(ResourceHandle handle) const -> rhi::StorageImageDescriptor;
-    [[nodiscard]] auto buffer(ResourceHandle handle) const -> const rhi::Buffer&;
+    [[nodiscard]] auto storageDescriptor(ResourceId handle) const -> rhi::StorageImageDescriptor;
+    [[nodiscard]] auto buffer(ResourceId handle) const -> const rhi::Buffer&;
 
     /// @brief The address of the buffer, or of frame 'frameIndex's copy of a per-frame buffer.
-    [[nodiscard]] auto bufferAddress(ResourceHandle handle, std::uint32_t frameIndex = 0) const -> rhi::DeviceAddress;
+    [[nodiscard]] auto bufferAddress(ResourceId handle, std::uint32_t frameIndex = 0) const -> rhi::DeviceAddress;
     /// @brief The byte offset of frame 'frameIndex's copy (0 for a buffer that is not per-frame).
-    [[nodiscard]] auto bufferOffset(ResourceHandle handle, std::uint32_t frameIndex = 0) const -> std::size_t;
+    [[nodiscard]] auto bufferOffset(ResourceId handle, std::uint32_t frameIndex = 0) const -> std::size_t;
 
     /// @brief Writes into frame 'frameIndex's copy of a buffer declared with Usage::HostWrite.
-    auto write(ResourceHandle handle, std::uint32_t frameIndex, std::span<const std::byte> data,
+    auto write(ResourceId handle, std::uint32_t frameIndex, std::span<const std::byte> data,
         std::size_t offset = 0) const -> void;
 
     /// @brief The size of one copy of the buffer (of one frame's copy, for a per-frame buffer).
-    [[nodiscard]] auto bufferSize(ResourceHandle handle) const -> std::size_t;
+    [[nodiscard]] auto bufferSize(ResourceId handle) const -> std::size_t;
     /// @brief Replaces the buffer with a new one of 'size' bytes per copy, with the same usage and
     ///        memory. The handle stays valid; the old buffer is freed once the GPU is done with it, and
     ///        its contents are not copied. Passes fetch buffers and addresses per frame, so the next
     ///        lookup sees the new one; barriers on buffers are global, so they need no update.
-    [[nodiscard]] auto resizeBuffer(ResourceHandle handle, std::size_t size) -> std::expected<void, Error>;
+    [[nodiscard]] auto resizeBuffer(ResourceId handle, std::size_t size) -> std::expected<void, Error>;
 
 private:
     struct CreatedTexture
@@ -84,7 +84,7 @@ private:
     /// @brief Recreates the textures that follow the output at the new extent; their handles stay valid.
     /// @warning The GPU must be idle (the renderer waits when it resizes).
     [[nodiscard]] auto resize(rhi::Extent2D output) -> std::expected<void, Error>;
-    [[nodiscard]] auto actual(ResourceHandle handle) const -> std::uint32_t;
+    [[nodiscard]] auto actual(ResourceId handle) const -> std::uint32_t;
     /// @brief The description of the texture entry 'entry' at the current output extent.
     [[nodiscard]] auto textureDesc(std::uint32_t entry, rhi::ImageUsage usage) const -> renderer::Texture::Desc;
 

@@ -38,7 +38,7 @@ public:
 private:
     const rhi::Context* m_context;
     std::function<void()> m_build;
-    ResourceHandle m_final;
+    ResourceId m_final;
     bool m_initialized{ false };
 };
 }

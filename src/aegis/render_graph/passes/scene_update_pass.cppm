@@ -21,7 +21,7 @@ public:
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
-    ResourceHandle m_cameraData;
+    ResourceId m_cameraData;
 };
 }
 

@@ -35,56 +35,56 @@ ResourcePool::~ResourcePool()
     }
 }
 
-auto ResourcePool::actual(ResourceHandle handle) const -> std::uint32_t
+auto ResourcePool::actual(ResourceId handle) const -> std::uint32_t
 {
     assert(handle.index < m_targets.size() && "Invalid frame graph resource handle, or used before compile");
     return m_targets[handle.index];
 }
 
-auto ResourcePool::texture(ResourceHandle handle) const -> const renderer::Texture&
+auto ResourcePool::texture(ResourceId handle) const -> const renderer::Texture&
 {
     const auto* created = std::get_if<CreatedTexture>(&m_created[actual(handle)]);
     assert(created && "Frame graph resource is not a texture");
     return created->texture;
 }
 
-auto ResourcePool::storageDescriptor(ResourceHandle handle) const -> rhi::StorageImageDescriptor
+auto ResourcePool::storageDescriptor(ResourceId handle) const -> rhi::StorageImageDescriptor
 {
     return *m_device.get(texture(handle).view).storageDescriptor();
 }
 
-auto ResourcePool::format(ResourceHandle handle) const -> rhi::Format
+auto ResourcePool::format(ResourceId handle) const -> rhi::Format
 {
     const auto* desc = std::get_if<TextureDesc>(&m_declarations.entries()[actual(handle)].info);
     assert(desc && "Frame graph resource is not a texture");
     return desc->format;
 }
 
-auto ResourcePool::extent(ResourceHandle handle) const -> rhi::Extent2D
+auto ResourcePool::extent(ResourceId handle) const -> rhi::Extent2D
 {
     return m_device.get(texture(handle).image).extent().toExtent2D();
 }
 
-auto ResourcePool::buffer(ResourceHandle handle) const -> const rhi::Buffer&
+auto ResourcePool::buffer(ResourceId handle) const -> const rhi::Buffer&
 {
     const auto* created = std::get_if<CreatedBuffer>(&m_created[actual(handle)]);
     assert(created && "Frame graph resource is not a buffer");
     return m_device.get(created->buffer);
 }
 
-auto ResourcePool::bufferOffset(ResourceHandle handle, std::uint32_t frameIndex) const -> std::size_t
+auto ResourcePool::bufferOffset(ResourceId handle, std::uint32_t frameIndex) const -> std::size_t
 {
     const auto* created = std::get_if<CreatedBuffer>(&m_created[actual(handle)]);
     assert(created && "Frame graph resource is not a buffer");
     return created->stride * frameIndex;
 }
 
-auto ResourcePool::bufferAddress(ResourceHandle handle, std::uint32_t frameIndex) const -> rhi::DeviceAddress
+auto ResourcePool::bufferAddress(ResourceId handle, std::uint32_t frameIndex) const -> rhi::DeviceAddress
 {
     return buffer(handle).deviceAddress() + bufferOffset(handle, frameIndex);
 }
 
-auto ResourcePool::write(ResourceHandle handle, std::uint32_t frameIndex, std::span<const std::byte> data,
+auto ResourcePool::write(ResourceId handle, std::uint32_t frameIndex, std::span<const std::byte> data,
     std::size_t offset) const -> void
 {
     if (data.empty())
@@ -92,14 +92,14 @@ auto ResourcePool::write(ResourceHandle handle, std::uint32_t frameIndex, std::s
     buffer(handle).write(data.data(), data.size(), bufferOffset(handle, frameIndex) + offset);
 }
 
-auto ResourcePool::bufferSize(ResourceHandle handle) const -> std::size_t
+auto ResourcePool::bufferSize(ResourceId handle) const -> std::size_t
 {
     const auto* created = std::get_if<CreatedBuffer>(&m_created[actual(handle)]);
     assert(created && "Frame graph resource is not a buffer");
     return created->size;
 }
 
-auto ResourcePool::resizeBuffer(ResourceHandle handle, std::size_t size) -> std::expected<void, Error>
+auto ResourcePool::resizeBuffer(ResourceId handle, std::size_t size) -> std::expected<void, Error>
 {
     const auto target = actual(handle);
     auto* created = std::get_if<CreatedBuffer>(&m_created[target]);
