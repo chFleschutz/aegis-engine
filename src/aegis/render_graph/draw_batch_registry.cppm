@@ -1,8 +1,8 @@
 export module aegis.render_graph:draw_batch_registry;
 import std;
 import aegis.assets;
-import aegis.scene.render_components;
-import aegis.scene.registry;
+import aegis.world.render_components;
+import aegis.world.registry;
 import :error;
 
 export namespace aegis::render_graph
@@ -36,7 +36,7 @@ public:
 
     /// @brief Counts the registry's existing materials and follows its later changes. Forgets everything
     ///        counted before, so a second connect never double-counts.
-    auto connect(aegis::scene::Registry& registry) -> void;
+    auto connect(aegis::world::Registry& registry) -> void;
     auto disconnect() -> void;
 
     [[nodiscard]] auto batches() const noexcept -> const std::vector<DrawBatch>& { return m_batches; }
@@ -77,7 +77,7 @@ private:
         bool dynamic;
     };
 
-    aegis::scene::Registry* m_registry{ nullptr };
+    aegis::world::Registry* m_registry{ nullptr };
     std::vector<DrawBatch> m_batches;
     std::unordered_map<const assets::MaterialTemplate*, std::uint32_t> m_batchIds;
     std::unordered_map<entt::entity, Tracked> m_tracked;

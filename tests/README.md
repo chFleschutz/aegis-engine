@@ -1,7 +1,7 @@
 # Tests
 
 Unit tests for **pure, GPU-independent logic** in any module (`rhi`, `assets`, `render_graph`, `math`, `platform`,
-`scene`). Scope is intentionally narrow: logic that survives the migration. Device-level integration
+`world`). Scope is intentionally narrow: logic that survives the migration. Device-level integration
 stays in the harness (`../src/aegis/test/`), which CTest also runs headless as three
 `device`-labelled tests (triangle, CPU- and GPU-driven scene).
 
@@ -29,7 +29,7 @@ and about 6 s serially. The device tests share a `gpu` resource lock, so they ne
 within one run.
 
 Currently 117 cases across `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
-`aegis-tests-math` and `aegis-tests-scene`, plus three `device`-labelled `aegis-test` runs (triangle, CPU- and GPU-driven scene).
+`aegis-tests-math` and `aegis-tests-world`, plus three `device`-labelled `aegis-test` runs (triangle, CPU- and GPU-driven scene).
 
 ### Device-level check
 
@@ -70,7 +70,7 @@ look at the image, and commit it with the change.
 
 Pure logic that needs no live `rhi::Device`: ring/offset math, free lists, generational handles,
 `alignTo`, swapchain sizing policy, mip-chain arithmetic, `aegis::math`, and the
-scene hierarchy (`scene::Registry`).
+scene hierarchy (`world::Registry`).
 
 Anything whose only constructor touches the GPU belongs in the device-level harness — or gets its
 pure part extracted (see below).
@@ -87,7 +87,7 @@ flattening of `src/aegis/` never moves them.
 tests/
   CMakeLists.txt       # aegis_add_test helper + shared doctest main
   test_main.cpp        # DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN only, no tests
-  <module>/            # rhi, math, assets, render_graph, scene, platform
+  <module>/            # rhi, math, assets, render_graph, world, platform
     CMakeLists.txt
     *.test.cpp
 ```

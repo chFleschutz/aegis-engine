@@ -1,9 +1,9 @@
-export module aegis.scene.system;
+export module aegis.world.system;
 
 import std;
-export import aegis.scene.registry;
+export import aegis.world.registry;
 
-export namespace aegis::scene
+export namespace aegis::world
 {
 class System
 {
@@ -16,7 +16,7 @@ public:
     virtual void onBegin(Registry& registry) {}
     virtual void onUpdate(Registry& registry, float deltaSeconds) {}
     /// @brief The scene is about to be cleared: every entity still exists with all its components,
-    ///        so a system can end what it runs on them (Scene::reset, Scene's destructor)
+    ///        so a system can end what it runs on them (World::reset, World's destructor)
     virtual void onReset(Registry& registry) {}
 };
 

@@ -4,7 +4,7 @@ import std;
 import aegis.assets;
 import aegis.render_graph;
 import aegis.rhi;
-import aegis.scene;
+import aegis.world;
 
 export namespace aegis
 {
@@ -17,7 +17,7 @@ public:
     [[nodiscard]] static auto create(rhi::Device& device, std::uint32_t framesInFlight) -> std::expected<AssetLoader, std::string>;
 
     /// @brief Loads a .gltf / .glb / .obj into 'scene'; returns its root entity.
-    auto loadModel(scene::Scene& scene, const std::filesystem::path& path) const -> scene::Entity;
+    auto loadModel(world::World& scene, const std::filesystem::path& path) const -> world::Entity;
 
     /// @brief An environment (sky box and IBL maps) from a Radiance .hdr.
     auto loadEnvironment(const std::filesystem::path& hdr) const -> assets::Environment;

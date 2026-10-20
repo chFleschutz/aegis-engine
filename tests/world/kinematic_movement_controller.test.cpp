@@ -4,7 +4,7 @@ import std;
 import aegis.math;
 import aegis.platform;
 import aegis.reflect;
-import aegis.scene;
+import aegis.world;
 import aegis.scripting.script;
 import aegis.scripting.script_system;
 import aegis.scripting.movement.kinematic_movement_controller;
@@ -50,8 +50,8 @@ struct FlyCamera
 
     platform::InputState input;
     reflect::TypeRegistry types;
-    scene::Scene scene;
-    scene::Entity entity;
+    world::World scene;
+    world::Entity entity;
 };
 }
 

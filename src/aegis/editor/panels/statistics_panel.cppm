@@ -4,9 +4,9 @@ module;
 
 export module aegis.editor.panels:statistics_panel;
 
-import aegis.scene.registry;
+import aegis.world.registry;
 import aegis.assets;
-import aegis.scene.render_components;
+import aegis.world.render_components;
 import aegis.render_graph;
 
 export namespace aegis::editor
@@ -14,7 +14,7 @@ export namespace aegis::editor
 class StatisticsPanel
 {
 public:
-    void draw(scene::Registry& registry, const aegis::render_graph::DrawBatchRegistry& drawBatches)
+    void draw(world::Registry& registry, const aegis::render_graph::DrawBatchRegistry& drawBatches)
     {
         ImGui::Begin("Scene Statistics");
         ImGui::Text("Entities: %d", static_cast<int>(registry.entityCount()));

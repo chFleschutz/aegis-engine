@@ -7,7 +7,7 @@ import aegis.assets;
 import aegis.base;
 import aegis.rhi;
 import aegis.math;
-import aegis.scene;
+import aegis.world;
 
 namespace aegis::render_graph
 {
@@ -89,7 +89,7 @@ auto LightingPass::drawUI() -> void
 
 namespace detail
 {
-auto gatherLighting(scene::Scene& scene, float ambientOcclusionFactor, LightingViewMode viewMode) -> LightingUniforms
+auto gatherLighting(world::World& scene, float ambientOcclusionFactor, LightingViewMode viewMode) -> LightingUniforms
 {
     auto& registry = scene.registry();
     LightingUniforms uniforms{

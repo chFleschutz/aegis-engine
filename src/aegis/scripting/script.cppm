@@ -7,7 +7,7 @@ export module aegis.scripting.script;
 import std;
 import aegis.platform;
 import aegis.reflect;
-import aegis.scene.registry;
+import aegis.world.registry;
 
 export namespace aegis::scripting
 {
@@ -20,7 +20,7 @@ class ScriptContext
 public:
     /// @param input This frame's input; build it with nothing down for a world without a window
     /// @param cursor Changes the cursor mode, or null for a world without a window (setCursorMode then does nothing)
-    ScriptContext(scene::Registry& registry, scene::Entity entity, const platform::InputState& input, platform::Input* cursor = nullptr) :
+    ScriptContext(world::Registry& registry, world::Entity entity, const platform::InputState& input, platform::Input* cursor = nullptr) :
         m_registry(registry),
         m_entity(entity),
         m_input(input),
@@ -29,9 +29,9 @@ public:
     }
 
     /// @brief The entity the script is attached to
-    [[nodiscard]] auto entity() const -> scene::Entity { return m_entity; }
+    [[nodiscard]] auto entity() const -> world::Entity { return m_entity; }
     /// @brief The registry of the entity's world: spawn, destroy and find other entities here
-    [[nodiscard]] auto registry() const -> scene::Registry& { return m_registry; }
+    [[nodiscard]] auto registry() const -> world::Registry& { return m_registry; }
 
     /// @brief The keyboard and mouse input of this frame (empty while a UI has captured it)
     [[nodiscard]] auto input() const -> const platform::InputState& { return m_input; }
@@ -65,8 +65,8 @@ public:
     }
 
 private:
-    scene::Registry& m_registry;
-    scene::Entity m_entity;
+    world::Registry& m_registry;
+    world::Entity m_entity;
     const platform::InputState& m_input;
     platform::Input* m_cursor;
 };
@@ -110,7 +110,7 @@ struct ScriptEntry
 };
 
 /// @brief The scripts of an entity, in attach order. The ScriptSystem runs them.
-/// @note The scripts end with the entity: Registry::destroy and Scene::reset call onDestroy first.
+/// @note The scripts end with the entity: Registry::destroy and World::reset call onDestroy first.
 struct Scripts
 {
     Scripts() = default;
@@ -149,8 +149,8 @@ template<class T>
 /// @brief Attaches a new script, created by its registered name, to the entity
 /// @return The script (owned by the entity's Scripts component), or an error if the name is not
 ///         registered (UnknownType), is a component (WrongCategory) or cannot be created
-/// @note onCreate runs when the ScriptSystem next updates (or at Scene::begin), not here
-auto attachScript(scene::Registry& registry, const reflect::TypeRegistry& types, scene::Entity entity, std::string_view name)
+/// @note onCreate runs when the ScriptSystem next updates (or at World::begin), not here
+auto attachScript(world::Registry& registry, const reflect::TypeRegistry& types, world::Entity entity, std::string_view name)
     -> std::expected<Script*, reflect::Error>
 {
     AGX_ASSERT_X(registry.valid(entity), "Cannot attach a script: Entity is not valid");

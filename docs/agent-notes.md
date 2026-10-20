@@ -96,7 +96,7 @@ Read that file first.
    rendering regressions that validation never reports.
 3. **A Linux CI job** (GitHub Actions, Ubuntu + Clang + the LunarG SDK tarball) building everything
    and running `ctest -LE device`. Nothing else proves the Linux build; the MinGW proxy in AGENTS.md
-   stops at `aegis.scene`.
+   stops at `aegis.world`.
 4. **Check in the missing-include scanner** used for the Linux audit (a Python script mapping `std`
    names to headers per translation unit), and run it from CI. Mostly moot since the engine moved to
    `import std`: only the macro headers (`<cassert>`, `<cfloat>`, `<cstdio>`) are still included.

@@ -7,7 +7,7 @@ export module aegis.scene_description;
 
 import std;
 import aegis.asset_loader;
-import aegis.scene;
+import aegis.world;
 import aegis.reflect;
 
 export namespace aegis
@@ -16,7 +16,7 @@ export namespace aegis
 ///        Scripts are attached through `types` (scripting::attachScript), by registered name.
 struct SceneContext
 {
-    scene::Scene& scene;
+    world::World& scene;
     const reflect::TypeRegistry& types;
     AssetLoader& assets;
 };

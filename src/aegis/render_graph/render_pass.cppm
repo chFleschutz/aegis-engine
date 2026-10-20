@@ -6,7 +6,7 @@ import :error;
 import :resource;
 import :resource_pool;
 import aegis.rhi;
-import aegis.scene;
+import aegis.world;
 
 export namespace aegis::render_graph
 {
@@ -14,7 +14,7 @@ export namespace aegis::render_graph
 struct FrameInfo
 {
     const rhi::CommandBuffer& cmd;
-    aegis::scene::Scene& scene;
+    aegis::world::World& scene;
     DrawBatchRegistry& drawBatches;
     std::uint32_t frameIndex;
     rhi::Extent2D extent;
@@ -48,7 +48,7 @@ public:
     [[nodiscard]] virtual auto resized(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
 
     /// @brief Called once a scene has been loaded, before its first frame.
-    virtual auto sceneInitialized(ResourcePool& /*pool*/, aegis::scene::Scene& /*scene*/) -> void {}
+    virtual auto sceneInitialized(ResourcePool& /*pool*/, aegis::world::World& /*scene*/) -> void {}
 
     /// @brief Records the pass. The graph has already recorded the barriers its accesses need.
     virtual auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void = 0;

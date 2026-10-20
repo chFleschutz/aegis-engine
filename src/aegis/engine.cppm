@@ -11,17 +11,17 @@ import aegis.core.globals;
 import aegis.core.layer_stack;
 export import aegis.paths;
 export import aegis.base;
-export import aegis.scene;
-export import aegis.scene.components;
-export import aegis.scene.render_components;
-export import aegis.scene.system;
+export import aegis.world;
+export import aegis.world.components;
+export import aegis.world.render_components;
+export import aegis.world.system;
 export import aegis.defaults;
 export import aegis.reflect;
 export import aegis.scripting.script;
 export import aegis.scripting.movement.kinematic_movement_controller;
 import aegis.scripting.script_system;
-import aegis.scene.systems.camera_system;
-import aegis.scene.systems.transform_system;
+import aegis.world.systems.camera_system;
+import aegis.world.systems.transform_system;
 export import aegis.assets;
 import aegis.platform;
 import aegis.render_graph;
@@ -61,8 +61,8 @@ public:
         // The engine's systems, always present. Scripts go first, they write the transforms the
         // TransformSystem derives from, and the camera reads the global transforms.
         m_scene.addSystem<scripting::ScriptSystem>(m_scene.registry(), m_input.state(), &m_input);
-        m_scene.addSystem<scene::TransformSystem>();
-        m_scene.addSystem<scene::CameraSystem>();
+        m_scene.addSystem<world::TransformSystem>();
+        m_scene.addSystem<world::CameraSystem>();
         T description{ std::forward<Args>(args)... };
         SceneContext context{ .scene = m_scene, .types = m_types, .assets = *m_assets };
         description.initialize(context);
@@ -94,7 +94,7 @@ private:
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
     std::optional<AssetLoader> m_assets;
     reflect::TypeRegistry m_types;
-    scene::Scene m_scene;
+    world::World m_scene;
     aegis::render_graph::DrawBatchRegistry m_drawBatches; // Disconnects from the scene first
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
 };

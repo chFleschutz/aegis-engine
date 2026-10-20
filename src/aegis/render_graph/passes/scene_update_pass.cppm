@@ -6,7 +6,7 @@ import :resource;
 import :declarations;
 import :resource_pool;
 import aegis.math;
-import aegis.scene;
+import aegis.world;
 
 export namespace aegis::render_graph
 {

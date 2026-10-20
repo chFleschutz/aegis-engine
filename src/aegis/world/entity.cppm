@@ -5,7 +5,7 @@ module;
 #include <entt/entity/registry.hpp>
 #include <entt/entity/view.hpp>
 
-export module aegis.scene.entity;
+export module aegis.world.entity;
 
 export namespace entt
 {
@@ -26,7 +26,7 @@ using entt::internal::operator!=;
 }
 }
 
-export namespace aegis::scene
+export namespace aegis::world
 {
 /// @brief An entity represents any object in a scene
 /// @note This class is ment to be passed by value since its just an id

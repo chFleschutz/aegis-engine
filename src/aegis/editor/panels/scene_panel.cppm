@@ -9,20 +9,20 @@ module;
 export module aegis.editor.panels:scene_panel;
 
 import std;
-import aegis.scene;
-import aegis.scene.entity;
-import aegis.scene.components;
+import aegis.world;
+import aegis.world.entity;
+import aegis.world.components;
 import aegis.assets;
-import aegis.scene.render_components;
+import aegis.world.render_components;
 
 export namespace aegis::editor
 {
 class ScenePanel
 {
 public:
-    [[nodiscard]] auto selectedEntity() const -> scene::Entity { return m_selectedEntity; }
+    [[nodiscard]] auto selectedEntity() const -> world::Entity { return m_selectedEntity; }
 
-    void draw(scene::Scene& scene)
+    void draw(world::World& scene)
     {
         ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(400, 800));
 
@@ -51,7 +51,7 @@ public:
     }
 
 private:
-    void drawHierachy(scene::Scene& scene)
+    void drawHierachy(world::World& scene)
     {
         if (!ImGui::Begin("Hierachy"))
         {
@@ -61,7 +61,7 @@ private:
 
         constexpr std::uint8_t NODE_OPENED = 1 << 0;
         constexpr std::uint8_t VISITED = 1 << 1;
-        std::vector<std::pair<scene::Entity, std::uint8_t>> stack;
+        std::vector<std::pair<world::Entity, std::uint8_t>> stack;
 
         auto& registry = scene.registry();
         auto view = registry.view<entt::entity>();
@@ -69,7 +69,7 @@ private:
 
         for (auto entt : view)
         {
-            scene::Entity entity{ entt };
+            world::Entity entity{ entt };
             if (registry.has<Parent>(entity) && registry.get<Parent>(entity).entity)
                 continue;
 
@@ -113,7 +113,7 @@ private:
         ImGui::End();
     }
 
-    void drawAllEntities(scene::Registry& registry)
+    void drawAllEntities(world::Registry& registry)
     {
         if (!ImGui::Begin("All Entities"))
         {
@@ -124,7 +124,7 @@ private:
         auto view = registry.view<entt::entity>();
         for (auto entt : view)
         {
-            if (drawEntityTreeNode(registry, scene::Entity{ entt }, ImGuiTreeNodeFlags_Leaf))
+            if (drawEntityTreeNode(registry, world::Entity{ entt }, ImGuiTreeNodeFlags_Leaf))
                 ImGui::TreePop();
         }
 
@@ -135,7 +135,7 @@ private:
         ImGui::End();
     }
 
-    void drawSceneSettings(scene::Scene& scene)
+    void drawSceneSettings(world::World& scene)
     {
         if (!ImGui::Begin("Scene Settings"))
         {
@@ -154,7 +154,7 @@ private:
         ImGui::End();
     }
 
-    void drawEntityProperties(scene::Registry& registry)
+    void drawEntityProperties(world::Registry& registry)
     {
         if (!registry.valid(m_selectedEntity))
             m_selectedEntity = {};
@@ -244,7 +244,7 @@ private:
         ImGui::End();
     }
 
-    void drawSingleEntity(scene::Registry& registry, scene::Entity entity)
+    void drawSingleEntity(world::Registry& registry, world::Entity entity)
     {
         if (!entity) // The scene's slot is empty (its entity was destroyed)
             return;
@@ -260,7 +260,7 @@ private:
             m_selectedEntity = entity;
     }
 
-    auto drawEntityTreeNode(scene::Registry& registry, scene::Entity entity, ImGuiTreeNodeFlags flags) -> bool
+    auto drawEntityTreeNode(world::Registry& registry, world::Entity entity, ImGuiTreeNodeFlags flags) -> bool
     {
         auto& children = registry.getOrAdd<Children>(entity);
 
@@ -276,7 +276,7 @@ private:
         return isOpen;
     }
 
-    void drawEntityActions(scene::Registry& registry)
+    void drawEntityActions(world::Registry& registry)
     {
         // Right click on window to create entity
         if (ImGui::BeginPopupContextWindow(0, ImGuiPopupFlags_MouseButtonRight))
@@ -294,7 +294,7 @@ private:
         }
     }
 
-    void drawAddComponent(scene::Registry& registry)
+    void drawAddComponent(world::Registry& registry)
     {
         ImGui::Spacing();
 
@@ -340,7 +340,7 @@ private:
 
     template<typename T>
         requires IsOptionalComponent<T>
-    void drawComponent(scene::Registry& registry, const char* componentName, scene::Entity entity, ImGuiTreeNodeFlags flags,
+    void drawComponent(world::Registry& registry, const char* componentName, world::Entity entity, ImGuiTreeNodeFlags flags,
         std::function<void(T&)> drawFunc)
     {
         if (!registry.has<T>(entity))
@@ -359,7 +359,7 @@ private:
 
     template<typename T>
         requires IsRequiredComponent<T>
-    void drawComponent(scene::Registry& registry, const char* componentName, scene::Entity entity, ImGuiTreeNodeFlags flags,
+    void drawComponent(world::Registry& registry, const char* componentName, world::Entity entity, ImGuiTreeNodeFlags flags,
         std::function<void(T&)> drawFunc)
     {
         AGX_ASSERT_X(registry.has<T>(entity), "Entity does not have the required component");
@@ -372,7 +372,7 @@ private:
     }
 
     template<typename T>
-    void drawAddComponentItem(scene::Registry& registry, const std::string& itemName)
+    void drawAddComponentItem(world::Registry& registry, const std::string& itemName)
     {
         if (registry.has<T>(m_selectedEntity))
             return;
@@ -384,6 +384,6 @@ private:
         }
     }
 
-    scene::Entity m_selectedEntity{};
+    world::Entity m_selectedEntity{};
 };
 }

@@ -8,7 +8,7 @@ PUBLIC
 	aegis-platform
 	aegis-render-graph
 	aegis-renderer
-	aegis-scene
+	aegis-world
 	imgui
 	imguizmo
 )

@@ -8,7 +8,7 @@ target_link_libraries(aegis-render-graph
         aegis-paths
         aegis-renderer
         aegis-rhi
-        aegis-scene
+        aegis-world
         EnTT::EnTT # The draw batch registry follows scene component signals
     PRIVATE
         imgui

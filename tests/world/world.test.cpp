@@ -1,19 +1,19 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.scene;
+import aegis.world;
 
 namespace
 {
-using aegis::scene::Entity;
-using aegis::scene::Scene;
+using aegis::world::Entity;
+using aegis::world::World;
 }
 
-TEST_SUITE("scene::Scene")
+TEST_SUITE("world::World")
 {
     TEST_CASE("a scene without slot entities has null slots")
     {
-        Scene scene;
+        World scene;
         CHECK(scene.mainCamera() == Entity{});
         CHECK(scene.ambientLight() == Entity{});
         CHECK(scene.directionalLight() == Entity{});
@@ -21,7 +21,7 @@ TEST_SUITE("scene::Scene")
 
     TEST_CASE("slots are the entities that carry the slot components")
     {
-        Scene scene;
+        World scene;
         auto& registry = scene.registry();
         const auto camera = registry.create("Main Camera");
         registry.add<aegis::MainCamera>(camera);
@@ -37,7 +37,7 @@ TEST_SUITE("scene::Scene")
 
     TEST_CASE("slot entities read as null once they are destroyed")
     {
-        Scene scene;
+        World scene;
         auto& registry = scene.registry();
         const auto camera = registry.create("Main Camera");
         const auto ambient = registry.create("Ambient Light");
@@ -58,7 +58,7 @@ TEST_SUITE("scene::Scene")
 
     TEST_CASE("a slot stays null when its destroyed entity's id is recycled")
     {
-        Scene scene;
+        World scene;
         auto& registry = scene.registry();
         const auto camera = registry.create();
         scene.setMainCamera(camera);
@@ -70,7 +70,7 @@ TEST_SUITE("scene::Scene")
 
     TEST_CASE("a slot reads as null once the entity loses the slot component")
     {
-        Scene scene;
+        World scene;
         auto& registry = scene.registry();
         const auto ambient = registry.create();
         registry.add<aegis::AmbientLight>(ambient);
@@ -80,7 +80,7 @@ TEST_SUITE("scene::Scene")
 
     TEST_CASE("setMainCamera moves the tag to the new camera")
     {
-        Scene scene;
+        World scene;
         auto& registry = scene.registry();
         const auto first = registry.create("First");
         const auto second = registry.create("Second");

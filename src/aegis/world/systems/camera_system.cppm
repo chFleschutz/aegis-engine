@@ -2,16 +2,16 @@ module;
 
 #include "core/assert.h"
 
-export module aegis.scene.systems.camera_system;
+export module aegis.world.systems.camera_system;
 
 import std;
 import aegis.math;
-import aegis.scene.registry;
-import aegis.scene.entity;
-import aegis.scene.system;
-import aegis.scene.components;
+import aegis.world.registry;
+import aegis.world.entity;
+import aegis.world.system;
+import aegis.world.components;
 
-export namespace aegis::scene
+export namespace aegis::world
 {
 class CameraSystem : public System
 {

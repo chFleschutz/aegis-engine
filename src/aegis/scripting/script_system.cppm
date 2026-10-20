@@ -2,7 +2,7 @@ export module aegis.scripting.script_system;
 
 import std;
 import aegis.platform;
-import aegis.scene.system;
+import aegis.world.system;
 export import aegis.scripting.script;
 
 export namespace aegis::scripting
@@ -14,21 +14,21 @@ export namespace aegis::scripting
 /// still has all its components. A script that was never created gets no onDestroy.
 /// Add it before the systems that read what scripts write (the TransformSystem), so a script's change
 /// shows up in the same frame.
-class ScriptSystem : public scene::System
+class ScriptSystem : public world::System
 {
 public:
     /// @param registry The registry of the world this system runs in (it must outlive the system)
     /// @param input What scripts see as input; it is read every frame, so whoever owns it updates it in place
     /// @param cursor Lets scripts change the cursor mode, or null in a world without a window
-    ScriptSystem(scene::Registry& registry, const platform::InputState& input, platform::Input* cursor = nullptr) :
+    ScriptSystem(world::Registry& registry, const platform::InputState& input, platform::Input* cursor = nullptr) :
         m_registry(registry),
         m_input(input),
         m_cursor(cursor)
     {
-        m_registry.addDestroyListener(this, [this](scene::Entity entity) { destroyScripts(entity); });
+        m_registry.addDestroyListener(this, [this](world::Entity entity) { destroyScripts(entity); });
     }
     /// @brief For a world without a window: scripts see no input
-    explicit ScriptSystem(scene::Registry& registry) :
+    explicit ScriptSystem(world::Registry& registry) :
         ScriptSystem(registry, m_noInput)
     {
     }
@@ -42,20 +42,20 @@ public:
     }
 
     /// @brief Creates the scripts that exist when the scene begins
-    void onBegin(scene::Registry& registry) override { run(registry, 0.0f, false); }
+    void onBegin(world::Registry& registry) override { run(registry, 0.0f, false); }
 
-    void onUpdate(scene::Registry& registry, float deltaSeconds) override { run(registry, deltaSeconds, true); }
+    void onUpdate(world::Registry& registry, float deltaSeconds) override { run(registry, deltaSeconds, true); }
 
-    void onReset(scene::Registry&) override { destroyAll(); }
+    void onReset(world::Registry&) override { destroyAll(); }
 
 private:
     /// @brief Creates the scripts that need it and optionally updates them all
-    void run(scene::Registry& registry, float deltaSeconds, bool update)
+    void run(world::Registry& registry, float deltaSeconds, bool update)
     {
         // Scripts spawn and destroy entities, which a view over Scripts must not see happen
         m_entities.clear();
         for (const auto entity : registry.view<Scripts>())
-            m_entities.push_back(scene::Entity{ entity });
+            m_entities.push_back(world::Entity{ entity });
 
         for (const auto entity : m_entities)
         {
@@ -83,7 +83,7 @@ private:
     }
 
     /// @brief Calls onDestroy on the entity's running scripts
-    void destroyScripts(scene::Entity entity)
+    void destroyScripts(world::Entity entity)
     {
         if (!m_registry.valid(entity) || !m_registry.has<Scripts>(entity))
             return;
@@ -104,17 +104,17 @@ private:
 
     void destroyAll()
     {
-        std::vector<scene::Entity> entities;
+        std::vector<world::Entity> entities;
         for (const auto entity : m_registry.view<Scripts>())
-            entities.push_back(scene::Entity{ entity });
+            entities.push_back(world::Entity{ entity });
         for (const auto entity : entities)
             destroyScripts(entity);
     }
 
-    scene::Registry& m_registry;
+    world::Registry& m_registry;
     const platform::InputState& m_input;
     platform::Input* m_cursor;
     platform::InputState m_noInput;        // What the constructor without input points at
-    std::vector<scene::Entity> m_entities; // Scratch for run()
+    std::vector<world::Entity> m_entities; // Scratch for run()
 };
 }

@@ -23,11 +23,11 @@ import aegis.renderer;
 import aegis.render_graph;
 import aegis.rhi;
 import aegis.math;
-import aegis.scene;
-import aegis.scene.registry;
-import aegis.scene.render_components;
-import aegis.scene.systems.camera_system;
-import aegis.scene.systems.transform_system;
+import aegis.world;
+import aegis.world.registry;
+import aegis.world.render_components;
+import aegis.world.systems.camera_system;
+import aegis.world.systems.transform_system;
 
 using SpirvBuffer = std::vector<std::uint32_t>;
 
@@ -700,7 +700,7 @@ public:
         if (!rejected(wrongSize))
             return std::unexpected{ "Texture::create accepted 16 bytes as mip 0 of a 2x2 RGBA32_SFLOAT texture" };
 
-        aegis::scene::Registry scene;
+        aegis::world::Registry scene;
         const assets::Loader::Desc loaderDesc{
             .device = *m_device,
             .defaults = *defaults,
@@ -879,9 +879,9 @@ public:
             return std::unexpected{ std::format("Default assets: {}", assets::describe(defaults.error())) };
         m_defaults = std::move(*defaults);
 
-        m_scene = std::make_unique<aegis::scene::Scene>();
-        m_scene->addSystem<aegis::scene::TransformSystem>();
-        m_scene->addSystem<aegis::scene::CameraSystem>();
+        m_scene = std::make_unique<aegis::world::World>();
+        m_scene->addSystem<aegis::world::TransformSystem>();
+        m_scene->addSystem<aegis::world::CameraSystem>();
         m_drawBatches = std::make_unique<render_graph::DrawBatchRegistry>();
         m_drawBatches->connect(m_scene->registry());
 
@@ -1082,7 +1082,7 @@ public:
             std::uint32_t count{ 0 };
             for (auto&& [entity, mesh, material] : registry.view<aegis::Mesh, aegis::Material>().each())
             {
-                if (mesh.staticMesh && material.instance && !registry.has<aegis::DynamicTag>(aegis::scene::Entity{ entity }))
+                if (mesh.staticMesh && material.instance && !registry.has<aegis::DynamicTag>(aegis::world::Entity{ entity }))
                     ++count;
             }
             return count;
@@ -1129,7 +1129,7 @@ public:
         }
         else if (frame == destroyFrame)
         {
-            std::vector<aegis::scene::Entity> doomed{ m_helmet };
+            std::vector<aegis::world::Entity> doomed{ m_helmet };
             for (std::size_t i = 0; i < doomed.size(); ++i)
             {
                 for (auto child = registry.get<aegis::Children>(doomed[i]).first; child;
@@ -1808,9 +1808,9 @@ private:
 
     // --scene only. Declared last: destroyed first, while the device they free into still exists.
     std::optional<assets::DefaultAssets> m_defaults;
-    std::unique_ptr<aegis::scene::Scene> m_scene;
-    aegis::scene::Entity m_helmet;                                  // The root of the model loaded with the scene
-    aegis::scene::Entity m_addedModel;                              // --mutate-scene: the root of the model loaded later
+    std::unique_ptr<aegis::world::World> m_scene;
+    aegis::world::Entity m_helmet;                                  // The root of the model loaded with the scene
+    aegis::world::Entity m_addedModel;                              // --mutate-scene: the root of the model loaded later
     std::uint32_t m_staticDrawn{ 0 };                               // --mutate-scene: drawable static entities before the last change
     std::unique_ptr<render_graph::DrawBatchRegistry> m_drawBatches; // Disconnects before the scene goes
     struct ImGuiContextDeleter

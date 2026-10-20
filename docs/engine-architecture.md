@@ -79,8 +79,8 @@ ImGui setup is spread over four places:
 
 ### 6. The new render code depends on the legacy scene code
 
-- `render_graph::FrameInfo` carries an `aegis::scene::Scene&`.
-- `aegis.assets` and `aegis.render_graph` import `aegis.scene` or `aegis.scene.registry` about 18 times.
+- `render_graph::FrameInfo` carries an `aegis::world::Scene&`.
+- `aegis.assets` and `aegis.render_graph` import `aegis.world` or `aegis.world.registry` about 18 times.
 - `DrawBatchRegistry` subscribes directly to entt's component signals.
 
 So render passes read ECS components directly, and the render graph can't be driven without a legacy
@@ -185,7 +185,7 @@ gain:
 fills from the ECS. Static instances can be updated incrementally, as `DrawBatchRegistry` already does.
 
 - Why:
-  - It fixes the dependency direction: `render_graph` stops importing `aegis.scene`.
+  - It fixes the dependency direction: `render_graph` stops importing `aegis.world`.
   - Render passes become testable without a scene, since `aegis-test` can hand them a `SceneView`
     directly.
   - It allows a separate extract step and render step, which could later run in parallel.
@@ -194,7 +194,7 @@ fills from the ECS. Static instances can be updated incrementally, as `DrawBatch
 ### What stays
 
 - The rhi → renderer → render_graph layering, and the frame graph with its declared resource usage.
-- The ECS (`aegis::scene`), systems, per-entity scripts, and the layer concept for app-level tools.
+- The ECS (`aegis::world`), systems, per-entity scripts, and the layer concept for app-level tools.
 - Convenience asset helpers. They become member functions of `AssetLibrary` instead of static ones.
 
 ## Suggested order (one commit each)
@@ -208,7 +208,7 @@ fills from the ECS. Static instances can be updated incrementally, as `DrawBatch
 3. **World:** owns its scripts (`std::unique_ptr`), `reset()` really clears, scenes are named
    (Eval-Scene becomes selectable).
 4. **ImGui in one place:** move ImGui ownership into Presentation and make the editor optional.
-5. **Scene view:** add `SceneView` extraction, so `render_graph` no longer imports `aegis.scene`.
+5. **Scene view:** add `SceneView` extraction, so `render_graph` no longer imports `aegis.world`.
 
 ## Open decisions
 

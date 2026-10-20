@@ -5,7 +5,7 @@ module aegis.render_graph;
 import std;
 import aegis.rhi;
 import aegis.math;
-import aegis.scene;
+import aegis.world;
 
 namespace aegis::render_graph
 {

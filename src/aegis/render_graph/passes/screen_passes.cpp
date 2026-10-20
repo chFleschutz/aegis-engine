@@ -6,7 +6,7 @@ import std;
 import aegis.assets;
 import aegis.rhi;
 import aegis.math;
-import aegis.scene;
+import aegis.world;
 
 namespace aegis::render_graph
 {

@@ -42,7 +42,7 @@ auto AssetLoader::create(rhi::Device& device, std::uint32_t framesInFlight) -> s
     return AssetLoader{ device, framesInFlight, std::move(*defaults), std::move(*ibl), std::move(*brdfLut) };
 }
 
-auto AssetLoader::loadModel(scene::Scene& scene, const std::filesystem::path& path) const -> scene::Entity
+auto AssetLoader::loadModel(world::World& scene, const std::filesystem::path& path) const -> world::Entity
 {
     auto model = assets::Loader::load(
         {

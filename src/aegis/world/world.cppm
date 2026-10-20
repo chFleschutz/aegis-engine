@@ -7,27 +7,27 @@ module;
 #include <entt/entity/registry.hpp>
 #include <entt/entity/view.hpp>
 
-export module aegis.scene;
+export module aegis.world;
 
 import std;
-export import aegis.scene.registry;
+export import aegis.world.registry;
 import aegis.math;
 import aegis.base;
-import aegis.scene.system;
+import aegis.world.system;
 
-export namespace aegis::scene
+export namespace aegis::world
 {
-/// @brief Scene contains all entities and systems
-class Scene
+/// @brief World contains all entities and systems
+class World
 {
 public:
-    Scene() = default;
-    Scene(const Scene&) = delete;
-    Scene(Scene&&) = delete;
-    ~Scene() { reset(); }
+    World() = default;
+    World(const World&) = delete;
+    World(World&&) = delete;
+    ~World() { reset(); }
 
-    auto operator=(const Scene&) -> Scene& = delete;
-    auto operator=(Scene&&) -> Scene& = delete;
+    auto operator=(const World&) -> World& = delete;
+    auto operator=(World&&) -> World& = delete;
 
     [[nodiscard]] auto registry() -> Registry& { return m_registry; }
     /// @brief The entity with the MainCamera tag, the first ambient light and the first directional light

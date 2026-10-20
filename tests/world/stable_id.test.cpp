@@ -1,16 +1,16 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.scene.registry;
+import aegis.world.registry;
 
 namespace
 {
 using aegis::StableId;
-using aegis::scene::Entity;
-using aegis::scene::Registry;
+using aegis::world::Entity;
+using aegis::world::Registry;
 }
 
-TEST_SUITE("scene::StableId")
+TEST_SUITE("world::StableId")
 {
     TEST_CASE("gives every entity a nonzero id")
     {
@@ -122,7 +122,7 @@ TEST_SUITE("scene::StableId")
     }
 }
 
-TEST_SUITE("scene::Registry queries")
+TEST_SUITE("world::Registry queries")
 {
     TEST_CASE("first finds an entity with all the components")
     {
