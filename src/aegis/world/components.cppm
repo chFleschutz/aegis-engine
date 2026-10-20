@@ -33,7 +33,7 @@ struct Transform
     auto forward() const -> glm::vec3 { return math::forward(rotation); }
     auto right() const -> glm::vec3 { return math::right(rotation); }
     auto up() const -> glm::vec3 { return math::up(rotation); }
-    auto matrix() const -> glm::mat4 { return math::tranformationMatrix(location, rotation, scale); }
+    auto matrix() const -> glm::mat4 { return math::transformMatrix(location, rotation, scale); }
 };
 
 /// @brief Transformation of the entity in world space (including parent transforms)
@@ -46,7 +46,7 @@ struct GlobalTransform
     auto forward() const -> glm::vec3 { return math::forward(rotation); }
     auto right() const -> glm::vec3 { return math::right(rotation); }
     auto up() const -> glm::vec3 { return math::up(rotation); }
-    auto matrix() const -> glm::mat4 { return math::tranformationMatrix(location, rotation, scale); }
+    auto matrix() const -> glm::mat4 { return math::transformMatrix(location, rotation, scale); }
 };
 
 /// @brief Stores the parent entity

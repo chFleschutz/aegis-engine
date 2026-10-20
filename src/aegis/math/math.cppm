@@ -86,7 +86,7 @@ auto up(const glm::quat& rotation) -> glm::vec3
 }
 
 /// @brief Composes a transformation matrix from location, rotation and scale
-auto tranformationMatrix(const glm::vec3& location, const glm::quat& rotation, const glm::vec3& scale) -> glm::mat4
+auto transformMatrix(const glm::vec3& location, const glm::quat& rotation, const glm::vec3& scale) -> glm::mat4
 {
     glm::mat3 rotMat = glm::mat3_cast(rotation);
     rotMat[0] *= scale.x;
@@ -103,7 +103,7 @@ auto tranformationMatrix(const glm::vec3& location, const glm::quat& rotation, c
 
 /// @brief Decomposes a transformation matrix into location, rotation and scale
 /// @note A mirrored matrix (negative determinant) keeps its mirror as a negative x scale, so that
-/// tranformationMatrix(translation, rotation, scale) reproduces it. The rotation is always a unit quaternion.
+/// transformMatrix(translation, rotation, scale) reproduces it. The rotation is always a unit quaternion.
 /// If an axis has zero length the rotation is undefined and `rotation` is left unchanged.
 void decomposeTRS(const glm::mat4& matrix, glm::vec3& translation, glm::quat& rotation, glm::vec3& scale)
 {

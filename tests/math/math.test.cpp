@@ -45,36 +45,36 @@ TEST_SUITE("aegis::math::decomposeTRS")
 
         SUBCASE("positive scale")
         {
-            const glm::mat4 m = aegis::math::tranformationMatrix(location, rotation, { 1.0f, 2.0f, 3.0f });
+            const glm::mat4 m = aegis::math::transformMatrix(location, rotation, { 1.0f, 2.0f, 3.0f });
             glm::vec3 t, s;
             glm::quat q;
             aegis::math::decomposeTRS(m, t, q, s);
             checkVec3(t, location);
             checkVec3(s, { 1.0f, 2.0f, 3.0f });
             CHECK(glm::length(q) == Approx(1.0f));
-            checkMat4(aegis::math::tranformationMatrix(t, q, s), m);
+            checkMat4(aegis::math::transformMatrix(t, q, s), m);
         }
         SUBCASE("mirrored x axis")
         {
-            const glm::mat4 m = aegis::math::tranformationMatrix(location, rotation, { -1.0f, 2.0f, 1.0f });
+            const glm::mat4 m = aegis::math::transformMatrix(location, rotation, { -1.0f, 2.0f, 1.0f });
             glm::vec3 t, s;
             glm::quat q;
             aegis::math::decomposeTRS(m, t, q, s);
             CHECK(glm::length(q) == Approx(1.0f));
             CHECK(s.x * s.y * s.z < 0.0f);
-            checkMat4(aegis::math::tranformationMatrix(t, q, s), m);
+            checkMat4(aegis::math::transformMatrix(t, q, s), m);
         }
         SUBCASE("mirrored y axis")
         {
-            const glm::mat4 m = aegis::math::tranformationMatrix(location, rotation, { 1.5f, -2.0f, 1.0f });
+            const glm::mat4 m = aegis::math::transformMatrix(location, rotation, { 1.5f, -2.0f, 1.0f });
             glm::vec3 t, s;
             glm::quat q;
             aegis::math::decomposeTRS(m, t, q, s);
-            checkMat4(aegis::math::tranformationMatrix(t, q, s), m);
+            checkMat4(aegis::math::transformMatrix(t, q, s), m);
         }
         SUBCASE("a zero scale keeps the previous rotation and produces no NaN")
         {
-            const glm::mat4 m = aegis::math::tranformationMatrix(location, rotation, { 0.0f, 2.0f, 1.0f });
+            const glm::mat4 m = aegis::math::transformMatrix(location, rotation, { 0.0f, 2.0f, 1.0f });
             glm::vec3 t, s;
             glm::quat q = rotation;
             aegis::math::decomposeTRS(m, t, q, s);
