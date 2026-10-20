@@ -4,11 +4,13 @@ module;
 
 export module aegis.assets;
 import std;
+export import :asset_key;
 export import :components;
 export import :defaults;
 export import :error;
 export import :gpu_types;
 export import :image_data;
+export import :model_data;
 export import :loader;
 export import :material;
 export import :mesh_data;

@@ -3,24 +3,25 @@ module;
 
 module aegis.assets;
 import std;
-import aegis.rhi;
+import aegis.base;
 import aegis.math;
-import aegis.scene.registry;
 
 namespace aegis::assets
 {
-auto Loader::loadObj(const Desc& desc, const std::filesystem::path& path) -> std::expected<aegis::scene::Entity, Error>
+auto importObj(std::istream& stream, std::string_view name) -> std::expected<ModelData, Error>
 {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
     std::string warning;
     std::string error;
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warning, &error, path.string().c_str()))
-        return makeError(ErrorCode::DecodeFailed, std::format("Failed to load OBJ '{}': {}", path.string(), error));
+    // No material reader: .mtl files are not read, every face gets the default material.
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warning, &error, &stream))
+        return makeError(ErrorCode::DecodeFailed, std::format("Failed to load OBJ '{}': {}", name, error));
 
     // Unindexed: one vertex per face corner. MeshPreprocessor deduplicates them.
     MeshPreprocessor::Input input;
+    bool missingNormals{ false };
     for (const auto& shape : shapes)
     {
         for (const auto& index : shape.mesh.indices)
@@ -34,10 +35,16 @@ auto Loader::loadObj(const Desc& desc, const std::filesystem::path& path) -> std
                                           : glm::vec3{ 1.0f });
 
             if (index.normal_index < 0)
-                return makeError(ErrorCode::InvalidData, std::format("OBJ '{}' has a vertex without a normal", path.string()));
-            const auto normal = static_cast<std::size_t>(index.normal_index);
-            input.normals.emplace_back(attrib.normals[3 * normal + 0], attrib.normals[3 * normal + 1],
-                attrib.normals[3 * normal + 2]);
+            {
+                missingNormals = true;
+                input.normals.emplace_back(0.0f);
+            }
+            else
+            {
+                const auto normal = static_cast<std::size_t>(index.normal_index);
+                input.normals.emplace_back(attrib.normals[3 * normal + 0], attrib.normals[3 * normal + 1],
+                    attrib.normals[3 * normal + 2]);
+            }
 
             // OBJ's v runs up from the image's bottom row; the engine's (like glTF's) runs down from the top.
             const auto uv = index.texcoord_index;
@@ -47,23 +54,25 @@ auto Loader::loadObj(const Desc& desc, const std::filesystem::path& path) -> std
         }
     }
 
+    // A face corner without a normal: the whole mesh gets flat normals, as mixing would shade seams.
+    if (missingNormals)
+    {
+        log::warn("OBJ '{}' has face corners without a normal; generating flat normals", name);
+        input.normals.clear();
+    }
+
     auto data = MeshPreprocessor::process(std::move(input));
     if (!data)
     {
-        auto error = data.error();
-        error.message = std::format("OBJ '{}': {}", path.string(), error.message);
-        return std::unexpected{ std::move(error) };
+        auto failure = data.error();
+        failure.message = std::format("OBJ '{}': {}", name, failure.message);
+        return std::unexpected{ std::move(failure) };
     }
 
-    const auto name = path.stem().string();
-    auto mesh = StaticMesh::create(desc.device, *data, name);
-    if (!mesh)
-        return std::unexpected{ mesh.error() };
-    (*mesh)->setPath(path);
-
-    const auto root = desc.scene.create(name);
-    desc.scene.add<Mesh>(root, std::move(*mesh));
-    desc.scene.add<Material>(root, desc.defaultMaterial);
-    return root;
+    ModelData model{ .name = std::string{ name } };
+    model.meshes.push_back(ModelMesh{ .name = std::string{ name }, .primitives = {} });
+    model.meshes.back().primitives.push_back(ModelPrimitive{ .mesh = std::move(*data), .material = std::nullopt });
+    model.rootMesh = 0;
+    return model;
 }
 }

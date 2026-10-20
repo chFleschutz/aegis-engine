@@ -17,12 +17,14 @@ target_link_libraries(aegis-assets
 target_sources(aegis-assets
     PUBLIC
     FILE_SET CXX_MODULES FILES
+    asset_key.cppm
     assets.cppm
     components.cppm
     defaults.cppm
     error.cppm
     gpu_types.cppm
     image_data.cppm
+    model_data.cppm
     loader.cppm
     material.cppm
     mesh_data.cppm
@@ -32,12 +34,13 @@ target_sources(aegis-assets
     upload.cppm
     PRIVATE
     defaults.cpp
-    gltf_loader.cpp
+    gltf_import.cpp
     image_data.cpp
     loader.cpp
     material.cpp
     mesh_preprocessor.cpp
-    obj_loader.cpp
+    model_import.cpp
+    obj_import.cpp
     static_mesh.cpp
     texture.cpp
 )

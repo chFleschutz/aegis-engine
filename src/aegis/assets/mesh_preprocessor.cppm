@@ -23,7 +23,7 @@ public:
     struct Input
     {
         std::vector<glm::vec3> positions;   // Required
-        std::vector<glm::vec3> normals;     // Required, one per position
+        std::vector<glm::vec3> normals;     // Optional, one per position; missing normals are generated flat (per triangle)
         std::vector<glm::vec2> uvs;         // Optional; missing entries become (0, 0)
         std::vector<glm::vec3> colors;      // Optional; missing entries become white
         std::vector<std::uint32_t> indices; // Optional; empty means the vertices in order
@@ -39,7 +39,7 @@ public:
 
     /// @brief Deduplicates vertices, optimizes for vertex cache / overdraw / fetch, computes bounds,
     ///        and builds meshlets.
-    /// @return ErrorCode::InvalidData for missing positions, mismatched normals, an out-of-range
+    /// @return ErrorCode::InvalidData for missing positions, a normal count that is neither 0 nor the position count, an out-of-range
     ///         index, a vertex or index count that is not a whole number of triangles (a list
     ///         count not a multiple of 3, a strip or fan with fewer than 3), or meshlet limits the
     ///         mesh shader cannot hold.
