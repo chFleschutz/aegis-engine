@@ -10,6 +10,7 @@ target_sources(aegis-platform
     PUBLIC
     FILE_SET CXX_MODULES FILES
     platform.cppm
+    key.cppm
     input.cppm
     window.cppm
     PRIVATE
