@@ -14,7 +14,7 @@ void checkVec3(const glm::vec3& actual, const glm::vec3& expected)
 }
 }
 
-TEST_SUITE("aegis::math basis vectors")
+TEST_SUITE("math::basisVectors")
 {
     TEST_CASE("an identity quaternion yields the world axes")
     {
@@ -35,7 +35,7 @@ void checkMat4(const glm::mat4& actual, const glm::mat4& expected, float epsilon
 }
 }
 
-TEST_SUITE("aegis::math::decomposeTRS")
+TEST_SUITE("math::decomposeTRS")
 {
     TEST_CASE("round-trips a rotated, non-uniformly scaled transform and keeps a mirrored axis")
     {
@@ -87,7 +87,7 @@ TEST_SUITE("aegis::math::decomposeTRS")
     }
 }
 
-TEST_SUITE("aegis::math::viewMatrix")
+TEST_SUITE("math::viewMatrix")
 {
     TEST_CASE("inverse view times view is the identity")
     {
