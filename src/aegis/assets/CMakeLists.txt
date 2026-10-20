@@ -22,6 +22,7 @@ target_sources(aegis-assets
     defaults.cppm
     error.cppm
     gpu_types.cppm
+    image_data.cppm
     loader.cppm
     material.cppm
     mesh_data.cppm
@@ -32,6 +33,7 @@ target_sources(aegis-assets
     PRIVATE
     defaults.cpp
     gltf_loader.cpp
+    image_data.cpp
     loader.cpp
     material.cpp
     mesh_preprocessor.cpp

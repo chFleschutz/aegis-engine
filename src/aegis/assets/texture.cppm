@@ -1,6 +1,7 @@
 export module aegis.assets:texture;
 import std;
 import :error;
+import :image_data;
 import aegis.rhi;
 import aegis.core.asset;
 import aegis.math;
@@ -39,7 +40,26 @@ public:
     [[nodiscard]] static auto create(rhi::Device& device, const Desc& desc)
         -> std::expected<std::shared_ptr<Texture>, Error>;
 
-    /// @brief Decodes a PNG/JPEG/... file into an RGBA8 texture with a full mip chain.
+    /// @brief What sampling a decoded image needs besides its pixels.
+    struct ImageDesc
+    {
+        std::string_view name;
+        /// @brief RGBA8_UNORM or RGBA8_SRGB (color data such as albedo is sRGB) for RGBA8 data,
+        ///        RGBA32_SFLOAT for RGBA32F data.
+        rhi::Format format{ rhi::Format::RGBA8_UNORM };
+        std::uint32_t mipLevels{ rhi::Image::fullMipChain };
+        rhi::Sampler::Desc sampler{};
+    };
+
+    /// @brief The one path from decoded pixels to a texture; the loadFrom* functions end here.
+    /// @return ErrorCode::UnsupportedFormat if desc.format does not suit image.format, and
+    ///         ErrorCode::InvalidArgument, before anything is created, if the pixel count does not
+    ///         match the size.
+    [[nodiscard]] static auto create(rhi::Device& device, const ImageData& image, const ImageDesc& desc)
+        -> std::expected<std::shared_ptr<Texture>, Error>;
+
+    /// @brief Decodes a PNG/JPEG/... file (the format is detected from its contents) into an RGBA8 texture
+    ///        with a full mip chain.
     /// @param format RGBA8_UNORM or RGBA8_SRGB (color data such as albedo is sRGB).
     /// @note For .hdr environment maps use loadEquirectangular (and render_graph::Ibl).
     [[nodiscard]] static auto loadFromFile(rhi::Device& device, const std::filesystem::path& path,

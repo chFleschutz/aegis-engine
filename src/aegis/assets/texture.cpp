@@ -1,8 +1,6 @@
-module;
-#include <stb/stb_image.h>
-
 module aegis.assets;
 import std;
+import :image_data;
 import :upload;
 import aegis.base;
 import aegis.rhi;
@@ -12,29 +10,9 @@ namespace aegis::assets
 {
 namespace
 {
-// stbi_load* results are released through stbi_image_free.
-struct StbiDeleter
-{
-    auto operator()(void* pixels) const noexcept -> void { stbi_image_free(pixels); }
-};
-using StbiPixels = std::unique_ptr<stbi_uc, StbiDeleter>;
-
 auto isRgba8(rhi::Format format) -> bool
 {
     return format == rhi::Format::RGBA8_UNORM || format == rhi::Format::RGBA8_SRGB;
-}
-
-auto createFromRgba8(rhi::Device& device, const StbiPixels& pixels, int width, int height, rhi::Format format,
-    std::string_view name) -> std::expected<std::shared_ptr<Texture>, Error>
-{
-    const auto size = std::size_t{ 4 } * static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
-    return Texture::create(device,
-        Texture::Desc{
-            .name = name,
-            .extent = rhi::Extent3D{ static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), 1 },
-            .format = format,
-        },
-        std::as_bytes(std::span{ pixels.get(), size }));
 }
 }
 
@@ -118,30 +96,48 @@ auto Texture::create(rhi::Device& device, const Desc& desc, std::span<const std:
     return texture;
 }
 
+auto Texture::create(rhi::Device& device, const ImageData& image, const ImageDesc& desc)
+    -> std::expected<std::shared_ptr<Texture>, Error>
+{
+    const auto suits = image.format == PixelFormat::RGBA8 ? isRgba8(desc.format) : desc.format == rhi::Format::RGBA32_SFLOAT;
+    if (!suits)
+    {
+        return makeError(ErrorCode::UnsupportedFormat,
+            image.format == PixelFormat::RGBA8
+                ? std::format("Decoded texture '{}' is RGBA8: use RGBA8_UNORM or RGBA8_SRGB", desc.name)
+                : std::format("Decoded texture '{}' is RGBA32F: use RGBA32_SFLOAT", desc.name));
+    }
+
+    // The size check (pixels against extent, format and layers) happens in create(Desc, span).
+    return create(device,
+        Desc{
+            .name = desc.name,
+            .extent = rhi::Extent3D{ image.width, image.height, 1 },
+            .format = desc.format,
+            .mipLevels = desc.mipLevels,
+            .sampler = desc.sampler,
+        },
+        image.pixels);
+}
+
 auto Texture::loadFromFile(rhi::Device& device, const std::filesystem::path& path, rhi::Format format)
     -> std::expected<std::shared_ptr<Texture>, Error>
 {
     if (!std::filesystem::exists(path))
         return makeError(ErrorCode::FileNotFound, std::format("Texture file does not exist: '{}'", path.string()));
-    if (path.extension() == ".hdr")
+    if (!isRgba8(format))
+        return makeError(ErrorCode::UnsupportedFormat, "Decoded textures are RGBA8: use RGBA8_UNORM or RGBA8_SRGB");
+
+    auto image = decodeImageFile(path);
+    if (!image)
+        return std::unexpected{ image.error() };
+    if (image->format != PixelFormat::RGBA8)
     {
         return makeError(ErrorCode::UnsupportedFormat,
             std::format("Load HDR environment maps with loadEquirectangular / render_graph::Ibl: '{}'", path.string()));
     }
-    if (!isRgba8(format))
-        return makeError(ErrorCode::UnsupportedFormat, "Decoded textures are RGBA8: use RGBA8_UNORM or RGBA8_SRGB");
 
-    int width{ 0 };
-    int height{ 0 };
-    int channels{ 0 };
-    StbiPixels pixels{ stbi_load(path.string().c_str(), &width, &height, &channels, STBI_rgb_alpha) };
-    if (!pixels)
-    {
-        return makeError(ErrorCode::DecodeFailed,
-            std::format("Failed to decode '{}': {}", path.string(), stbi_failure_reason()));
-    }
-
-    auto texture = createFromRgba8(device, pixels, width, height, format, path.filename().string());
+    auto texture = create(device, *image, ImageDesc{ .name = path.filename().string(), .format = format });
     if (texture)
         (*texture)->setPath(path);
     return texture;
@@ -150,30 +146,18 @@ auto Texture::loadFromFile(rhi::Device& device, const std::filesystem::path& pat
 auto Texture::loadEquirectangular(rhi::Device& device, const std::filesystem::path& path)
     -> std::expected<std::shared_ptr<Texture>, Error>
 {
-    if (!std::filesystem::exists(path))
-        return makeError(ErrorCode::FileNotFound, std::format("Texture file does not exist: '{}'", path.string()));
+    auto image = decodeImageFile(path, PixelFormat::RGBA32F);
+    if (!image)
+        return std::unexpected{ image.error() };
 
-    int width{ 0 };
-    int height{ 0 };
-    int channels{ 0 };
-    const std::unique_ptr<float, StbiDeleter> pixels{ stbi_loadf(path.string().c_str(), &width, &height, &channels,
-        STBI_rgb_alpha) };
-    if (!pixels)
-    {
-        return makeError(ErrorCode::DecodeFailed,
-            std::format("Failed to decode '{}': {}", path.string(), stbi_failure_reason()));
-    }
-
-    const auto size = std::size_t{ 4 } * static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
     auto texture = create(device,
-        Desc{
+        *image,
+        ImageDesc{
             .name = path.filename().string(),
-            .extent = rhi::Extent3D{ static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), 1 },
             .format = rhi::Format::RGBA32_SFLOAT,
             .mipLevels = 1,
             .sampler = { .addressMode = rhi::SamplerAddressMode::ClampToEdge },
-        },
-        std::as_bytes(std::span{ pixels.get(), size }));
+        });
     if (texture)
         (*texture)->setPath(path);
     return texture;
@@ -185,15 +169,11 @@ auto Texture::loadFromMemory(rhi::Device& device, std::span<const std::byte> enc
     if (!isRgba8(format))
         return makeError(ErrorCode::UnsupportedFormat, "Decoded textures are RGBA8: use RGBA8_UNORM or RGBA8_SRGB");
 
-    int width{ 0 };
-    int height{ 0 };
-    int channels{ 0 };
-    StbiPixels pixels{ stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(encoded.data()),
-        static_cast<int>(encoded.size()), &width, &height, &channels, STBI_rgb_alpha) };
-    if (!pixels)
-        return makeError(ErrorCode::DecodeFailed, std::format("Failed to decode '{}': {}", name, stbi_failure_reason()));
+    auto image = decodeImage(encoded, name, PixelFormat::RGBA8);
+    if (!image)
+        return std::unexpected{ image.error() };
 
-    return createFromRgba8(device, pixels, width, height, format, name);
+    return create(device, *image, ImageDesc{ .name = name, .format = format });
 }
 
 auto Texture::solidColor(rhi::Device& device, glm::vec4 color, std::string_view name)
