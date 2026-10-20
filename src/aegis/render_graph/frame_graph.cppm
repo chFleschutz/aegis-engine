@@ -34,9 +34,12 @@ struct PassDescription
 class FrameGraph : public GraphBuilder
 {
 public:
-    FrameGraph(rhi::Device& device, renderer::Renderer& renderer);
+    /// @param output The extent of textures that follow the output (usually renderer::Renderer::extent()).
+    FrameGraph(rhi::Device& device, rhi::Extent2D output);
     FrameGraph(const FrameGraph&) = delete;
     FrameGraph(FrameGraph&&) = delete;
+    /// @brief Frees every texture and buffer of the graph (through the pool). Wait for the GPU first if frames
+    ///        recorded with it may still be running.
     ~FrameGraph() = default;
 
     auto operator=(const FrameGraph&) -> FrameGraph& = delete;
@@ -46,9 +49,9 @@ public:
     ///        Call once, after all passes were added.
     [[nodiscard]] auto compile() -> std::expected<void, Error>;
 
-    /// @brief Call after renderer::Renderer::resize: graph textures keep their handles, but passes
-    ///        may hold views of the replaced images.
-    [[nodiscard]] auto resized() -> std::expected<void, Error>;
+    /// @brief Call after renderer::Renderer::resize with its new extent: recreates the textures that follow
+    ///        the output. They keep their handles, but passes may hold views of the replaced images.
+    [[nodiscard]] auto resized(rhi::Extent2D output) -> std::expected<void, Error>;
 
     /// @brief Tells every pass a scene was loaded (e.g. to upload static instance data).
     auto sceneInitialized(aegis::scene::Scene& scene) -> void;

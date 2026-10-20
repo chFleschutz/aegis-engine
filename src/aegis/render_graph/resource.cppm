@@ -36,8 +36,12 @@ struct ResourceHandle
 struct TextureDesc
 {
     rhi::Format format;
-    /// @brief {0, 0}: the renderer's extent, recreated on resize. Otherwise a fixed size.
+    /// @brief {0, 0}: relative to the output (the renderer's extent), 'outputScale' times it, recreated
+    ///        by FrameGraph::resized. Otherwise a fixed size.
     rhi::Extent2D extent{ 0, 0 };
+    /// @brief The fraction of the output extent a texture without an extent has, e.g. 0.5 for half
+    ///        resolution. Ignored with a fixed extent.
+    float outputScale{ 1.0f };
     std::uint32_t mipLevels{ 1 };
     /// @brief Usage beyond what the graph accesses imply, e.g. Sampled for mips a pass samples itself.
     rhi::ImageUsage usage{ rhi::ImageUsage::None };
@@ -54,6 +58,24 @@ struct BufferDesc
 
 export namespace aegis::render_graph::detail
 {
+/// @brief Whether the texture's size follows the output, rather than being fixed.
+[[nodiscard]] constexpr auto followsOutput(const TextureDesc& desc) noexcept -> bool
+{
+    return desc.extent == rhi::Extent2D{ 0, 0 };
+}
+
+/// @brief The texture's extent for an output of 'output': the declared one, or the scaled output rounded
+///        down and at least one texel in each dimension.
+[[nodiscard]] constexpr auto textureExtent(const TextureDesc& desc, rhi::Extent2D output) noexcept -> rhi::Extent2D
+{
+    if (!followsOutput(desc))
+        return desc.extent;
+    const auto scaled = [&](std::uint32_t size) {
+        return std::max(1u, static_cast<std::uint32_t>(static_cast<double>(size) * static_cast<double>(desc.outputScale)));
+    };
+    return { scaled(output.x), scaled(output.y) };
+}
+
 [[nodiscard]] constexpr auto isWrite(Usage usage) noexcept -> bool
 {
     switch (usage)

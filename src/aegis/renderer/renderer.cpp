@@ -7,6 +7,23 @@ import std;
 
 namespace aegis::renderer
 {
+namespace
+{
+// One per frame in flight, like swapchain images: a frame never draws into a target that the
+// previous, possibly still running, frame draws into. TransferSrc allows reading a frame back,
+// TransferDst blitting one in, as onto a swapchain image.
+auto offscreenTargetDesc(std::string_view name, rhi::Extent2D extent, rhi::Format format) -> Texture::Desc
+{
+    return {
+        .name = name,
+        .extent = rhi::Extent3D{ extent },
+        .format = format,
+        .usage = rhi::ImageUsage::ColorAttachment | rhi::ImageUsage::Sampled |
+                 rhi::ImageUsage::TransferSrc | rhi::ImageUsage::TransferDst,
+    };
+}
+}
+
 auto Renderer::create(const Desc& desc) -> std::expected<std::unique_ptr<Renderer>, Error>
 {
     std::optional<rhi::Swapchain> swapchain;
@@ -75,6 +92,8 @@ Renderer::Renderer(rhi::Context& context,
 Renderer::~Renderer()
 {
     m_device.waitIdle();
+    for (const auto& target : m_offscreenTargets)
+        freeTexture(m_device, target);
 }
 
 auto Renderer::offscreenTarget(std::uint32_t frameIndex) const -> const Texture&
@@ -83,9 +102,9 @@ auto Renderer::offscreenTarget(std::uint32_t frameIndex) const -> const Texture&
     return m_offscreenTargets[frameIndex];
 }
 
-auto Renderer::createTexture(const Texture::Desc& desc) const -> std::expected<Texture, rhi::Error>
+auto createTexture(rhi::Device& device, const Texture::Desc& desc) -> std::expected<Texture, rhi::Error>
 {
-    auto image = m_device.createImage(rhi::Image::Desc{
+    auto image = device.createImage(rhi::Image::Desc{
         .name = desc.name,
         .type = desc.type,
         .extent = desc.extent,
@@ -99,14 +118,14 @@ auto Renderer::createTexture(const Texture::Desc& desc) const -> std::expected<T
 
     // The resolved mip count: desc.mipLevels may be the fullMipChain sentinel. The usage is what makes
     // Device write the view's bindless descriptors; without it the texture is invisible to shaders.
-    auto view = m_device.createImageView(*image,
+    auto view = device.createImageView(*image,
         rhi::ImageView::Desc{
             .name = desc.name,
             .extent = desc.extent,
             .format = desc.format,
             .range = rhi::ImageView::Range{
                 .baseMipLevel = 0,
-                .mipLevelCount = m_device.get(*image).mipLevels(),
+                .mipLevelCount = device.get(*image).mipLevels(),
                 .baseArrayLayer = 0,
                 .arrayLayerCount = desc.arrayLayers,
             },
@@ -118,16 +137,43 @@ auto Renderer::createTexture(const Texture::Desc& desc) const -> std::expected<T
     return Texture{ *image, *view };
 }
 
-auto Renderer::createResolutionDependentTexture(
-    const Texture::Desc& desc) -> std::expected<Texture, rhi::Error>
+auto recreateTexture(rhi::Device& device, const Texture& texture, const Texture::Desc& desc)
+    -> std::expected<void, rhi::Error>
 {
-    return createTexture(desc)
-        .transform([&](auto texture) {
-            auto stored = desc;
-            stored.name = {};
-            m_resDependent.emplace_back(std::string{ desc.name }, texture, stored, 1.0);
-            return texture;
+    auto image = device.replace(texture.image,
+        rhi::Image::Desc{
+            .name = desc.name,
+            .type = desc.type,
+            .extent = desc.extent,
+            .format = desc.format,
+            .usage = desc.usage,
+            .mipLevels = desc.mipLevels,
+            .arrayLayers = desc.arrayLayers,
         });
+    if (!image)
+        return std::unexpected{ image.error() };
+
+    auto view = device.replace(texture.view,
+        *image,
+        rhi::ImageView::Desc{
+            .name = desc.name,
+            .extent = desc.extent,
+            .format = desc.format,
+            .range = rhi::ImageView::Range{
+                .mipLevelCount = device.get(*image).mipLevels(),
+                .arrayLayerCount = desc.arrayLayers,
+            },
+            .usage = desc.usage,
+        });
+    if (!view)
+        return std::unexpected{ view.error() };
+    return {};
+}
+
+auto freeTexture(rhi::Device& device, const Texture& texture) -> void
+{
+    device.free(texture.view);
+    device.free(texture.image);
 }
 
 auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept
@@ -204,52 +250,19 @@ auto Renderer::resize(rhi::Extent2D newSize) -> std::expected<void, Error>
     }
     else
     {
-        // The offscreen targets are resolution-dependent textures, so the loop below resizes them.
+        // The loop below recreates the offscreen targets.
         m_extent = newSize;
     }
 
-    for (auto& [name, texture, desc, scaleFactor] : m_resDependent)
+    for (std::uint32_t i = 0; i < m_offscreenTargets.size(); ++i)
     {
-        const auto extent = rhi::Extent3D{
-            static_cast<std::uint32_t>(m_extent.x * scaleFactor),
-            static_cast<std::uint32_t>(m_extent.y * scaleFactor),
-            desc.extent.z,
-        };
-
-        auto newImage = m_device.replace(texture.image,
-            rhi::Image::Desc{
-                .name = name,
-                .type = desc.type,
-                .extent = extent,
-                .format = desc.format,
-                .usage = desc.usage,
-                .mipLevels = desc.mipLevels,
-                .arrayLayers = desc.arrayLayers,
-            });
-        if (!newImage)
+        const auto name = std::format("OffscreenTarget{}", i);
+        if (auto recreated = recreateTexture(m_device, m_offscreenTargets[i], offscreenTargetDesc(name, m_extent, m_targetFormat));
+            !recreated)
         {
             return makeError(ErrorCode::ResourceRecreateFailed,
-                std::format("Failed to recreate resolution dependent image '{}'", name),
-                newImage.error());
-        }
-
-        auto newView = m_device.replace(texture.view,
-            *newImage,
-            rhi::ImageView::Desc{
-                .name = name,
-                .extent = extent,
-                .format = desc.format,
-                .range = rhi::ImageView::Range{
-                    .mipLevelCount = m_device.get(*newImage).mipLevels(),
-                    .arrayLayerCount = desc.arrayLayers,
-                },
-                .usage = desc.usage,
-            });
-        if (!newView)
-        {
-            return makeError(ErrorCode::ResourceRecreateFailed,
-                std::format("Failed to recreate resolution dependent view '{}'", name),
-                newView.error());
+                std::format("Failed to recreate '{}'", name),
+                recreated.error());
         }
     }
 
@@ -287,18 +300,10 @@ auto Renderer::createFrameContext(
 
 auto Renderer::createOffscreenTargets() -> std::expected<void, Error>
 {
-    // One per frame in flight, like swapchain images: a frame never draws into a target that the
-    // previous, possibly still running, frame draws into. TransferSrc allows reading a frame back,
-    // TransferDst blitting one in, as onto a swapchain image.
     for (std::uint32_t i = 0; i < maxFramesInFlight; ++i)
     {
-        auto target = createResolutionDependentTexture({
-            .name = std::format("OffscreenTarget{}", i),
-            .extent = rhi::Extent3D{ m_extent },
-            .format = m_targetFormat,
-            .usage = rhi::ImageUsage::ColorAttachment | rhi::ImageUsage::Sampled |
-                     rhi::ImageUsage::TransferSrc | rhi::ImageUsage::TransferDst,
-        });
+        const auto name = std::format("OffscreenTarget{}", i);
+        auto target = createTexture(m_device, offscreenTargetDesc(name, m_extent, m_targetFormat));
         if (!target)
             return makeError(ErrorCode::RHIInitializationFailed, std::format("Failed to create OffscreenTarget{}", i), target.error());
         m_offscreenTargets.emplace_back(*target);

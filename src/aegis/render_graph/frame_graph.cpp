@@ -6,8 +6,8 @@ import aegis.scene;
 
 namespace aegis::render_graph
 {
-FrameGraph::FrameGraph(rhi::Device& device, renderer::Renderer& renderer) :
-    m_pool{ device, renderer, m_declarations }
+FrameGraph::FrameGraph(rhi::Device& device, rhi::Extent2D output) :
+    m_pool{ device, m_declarations, output }
 {
 }
 
@@ -66,8 +66,10 @@ auto FrameGraph::readTimings(FrameTimer& timer) -> void
     }
 }
 
-auto FrameGraph::resized() -> std::expected<void, Error>
+auto FrameGraph::resized(rhi::Extent2D output) -> std::expected<void, Error>
 {
+    if (auto recreated = m_pool.resize(output); !recreated)
+        return recreated;
     for (const auto index : m_order)
     {
         if (auto result = m_passes[index]->resized(m_pool); !result)

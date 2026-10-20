@@ -10,14 +10,15 @@ export namespace aegis::render_graph
 {
 class FrameGraph;
 
-/// @brief The resources behind the frame graph's declarations, once compiled. Passes look their
-///        resources up here while executing.
+/// @brief The resources behind the frame graph's declarations, once compiled. It owns every one of them and
+///        frees them when destroyed. Passes look their resources up here while executing.
 class ResourcePool
 {
     friend class FrameGraph;
 
 public:
-    ResourcePool(rhi::Device& device, renderer::Renderer& renderer, const ResourceDeclarations& declarations);
+    /// @param output The extent textures without a fixed one are sized by (usually the renderer's).
+    ResourcePool(rhi::Device& device, const ResourceDeclarations& declarations, rhi::Extent2D output);
     ResourcePool(const ResourcePool&) = delete;
     ResourcePool(ResourcePool&&) = delete;
     ~ResourcePool();
@@ -26,7 +27,8 @@ public:
     auto operator=(ResourcePool&&) -> ResourcePool& = delete;
 
     [[nodiscard]] auto device() const noexcept -> rhi::Device& { return m_device; }
-    [[nodiscard]] auto renderer() const noexcept -> renderer::Renderer& { return m_renderer; }
+    /// @brief The extent textures that follow the output are sized by.
+    [[nodiscard]] auto output() const noexcept -> rhi::Extent2D { return m_output; }
 
     /// @brief Every declaration, in the order passes made them.
     [[nodiscard]] auto describe() const -> std::vector<ResourceDescription> { return m_declarations.describe(); }
@@ -64,7 +66,7 @@ private:
     struct CreatedTexture
     {
         renderer::Texture texture;
-        bool ownedByPool; // Fixed size; resolution-dependent ones belong to the renderer
+        rhi::ImageUsage usage; // The merged usage it was created with, kept to recreate it
     };
 
     struct CreatedBuffer
@@ -79,11 +81,16 @@ private:
     [[nodiscard]] auto createBuffer(const std::string& name, const BufferDesc& desc, rhi::BufferUsage usage,
         rhi::MemoryUsage memory) const -> std::expected<CreatedBuffer, Error>;
     [[nodiscard]] auto createResources(const GraphPlan& plan) -> std::expected<void, Error>;
+    /// @brief Recreates the textures that follow the output at the new extent; their handles stay valid.
+    /// @warning The GPU must be idle (the renderer waits when it resizes).
+    [[nodiscard]] auto resize(rhi::Extent2D output) -> std::expected<void, Error>;
     [[nodiscard]] auto actual(ResourceHandle handle) const -> std::uint32_t;
+    /// @brief The description of the texture entry 'entry' at the current output extent.
+    [[nodiscard]] auto textureDesc(std::uint32_t entry, rhi::ImageUsage usage) const -> renderer::Texture::Desc;
 
     rhi::Device& m_device;
-    renderer::Renderer& m_renderer;
     const ResourceDeclarations& m_declarations;
+    rhi::Extent2D m_output;
     std::vector<std::uint32_t> m_targets;                                               // Per entry: the entry creating its resource
     std::vector<std::variant<std::monostate, CreatedTexture, CreatedBuffer>> m_created; // Per entry
 };
