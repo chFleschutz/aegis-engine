@@ -33,6 +33,8 @@ auto Engine::createWindow() -> platform::Window
 
 Engine::Engine()
 {
+    if (auto registered = scripting::registerKinematicMovementController(m_types); !registered)
+        fatalSetup(std::format("Failed to register the built-in scripts: {}", reflect::describe(registered.error())));
     createRenderer();
     createAssets();
     createFrameGraph();
@@ -91,13 +93,12 @@ void Engine::run()
                 break;
         }
 
-        // Update: scripts write the transforms, the systems derive from them (camera matrices
-        // included), then the editor reads the result.
+        // Update: the systems run in order, scripts first: they write the transforms, the others derive
+        // from them (camera matrices included), then the editor reads the result.
         // ImGui's flags are from the previous frame's UI; they gate the game input.
         const auto& io = ImGui::GetIO();
         m_input.setCaptured(io.WantCaptureKeyboard, io.WantCaptureMouse);
         updateCameraAspect();
-        m_scriptManager.update(frameTimeSec);
         m_scene.update(frameTimeSec);
         m_layerStack.update(frameTimeSec);
 

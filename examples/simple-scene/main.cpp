@@ -15,13 +15,15 @@ auto uniformFloat(float min, float max) -> float
 }
 
 /// @brief Example script to rotate the entity around the up axis
-class Rotator : public aegis::scripting::ScriptBase
+class Rotator : public aegis::scripting::Script
 {
-protected:
-    void update(float deltaSeconds) override
+public:
+    float speed{ 1.0f }; // Radians per second, a registered field
+
+    void onUpdate(aegis::scripting::ScriptContext& context, float deltaSeconds) override
     {
-        auto& transform = get<aegis::Transform>();
-        transform.rotation *= glm::angleAxis(deltaSeconds, aegis::math::world::UP);
+        auto& transform = context.get<aegis::Transform>();
+        transform.rotation *= glm::angleAxis(speed * deltaSeconds, aegis::math::world::UP);
     }
 };
 
@@ -31,7 +33,8 @@ class SimpleScene : public aegis::SceneDescription
 public:
     void initialize(aegis::SceneContext& context) override
     {
-        auto& [scene, scripts, assets] = context;
+        auto& [scene, types, assets] = context;
+        aegis::addDefaults(context);
         using namespace aegis;
 
         // MATERIALS
@@ -60,7 +63,8 @@ public:
         registry.get<Transform>(teapot).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
         registry.get<aegis::assets::Material>(teapot).instance = metalMat;
         registry.add<DynamicTag>(teapot); // The Rotator moves it every frame
-        scripts.addScript<Rotator>(teapot);
+        [[maybe_unused]] auto rotator = scripting::attachScript(registry, types, teapot, "Rotator");
+        AGX_ASSERT_X(rotator, "The Rotator script is not registered");
 
         // LIGHTS
         constexpr int lightCount = 64;
@@ -82,6 +86,10 @@ public:
 auto main() -> int
 {
     aegis::Engine engine;
+    [[maybe_unused]] auto registered = aegis::scripting::registerScript<Rotator>(engine.types(), "Rotator").and_then([](auto builder) {
+        return builder.field("speed", &Rotator::speed).status();
+    });
+    AGX_ASSERT_X(registered, "Failed to register the Rotator script");
     engine.loadScene<SimpleScene>();
     engine.run();
 }

@@ -202,6 +202,71 @@ TEST_SUITE("reflect::TypeRegistry")
         CHECK(object.baseValue == 9);
     }
 
+    TEST_CASE("creates an instance of a registered type by name")
+    {
+        TypeRegistry types;
+        registerEverything(types);
+        const TypeInfo* info = types.find<Everything>();
+        REQUIRE(info);
+        auto created = info->create();
+        REQUIRE(created);
+        CHECK(info->set(created->get(), "integer", Value{ std::int64_t{ 5 } }));
+        CHECK(static_cast<Everything*>(created->get())->integer == 5);
+        CHECK(static_cast<Everything*>(info->create()->get()) != static_cast<Everything*>(created->get()));
+    }
+
+    TEST_CASE("cannot create a type that is not default constructible")
+    {
+        struct NoDefault
+        {
+            explicit NoDefault(int) {}
+        };
+        TypeRegistry types;
+        REQUIRE(types.component<NoDefault>("NoDefault"));
+        const auto created = types.find<NoDefault>()->create();
+        REQUIRE_FALSE(created);
+        CHECK(created.error().code == ErrorCode::NotConstructible);
+    }
+
+    TEST_CASE("converts an instance to a registered base, wherever the base sits")
+    {
+        struct First
+        {
+            virtual ~First() = default;
+            int a{ 1 };
+        };
+        struct Second
+        {
+            virtual ~Second() = default;
+            int b{ 2 };
+        };
+        struct Both : First, Second
+        {
+        };
+        TypeRegistry types;
+        {
+            auto builder = types.component<Both>("Both");
+            REQUIRE(builder);
+            builder->base<First>().base<Second>();
+        }
+        const TypeInfo* info = types.find<Both>();
+        auto both = std::make_shared<Both>();
+        void* object = both.get();
+
+        CHECK(info->as<First>(object) == static_cast<First*>(both.get()));
+        CHECK(info->as<Second>(object) == static_cast<Second*>(both.get()));
+        CHECK(static_cast<void*>(info->as<Second>(object)) != object); // Not the first base
+        CHECK(info->as<Second>(object)->b == 2);
+    }
+
+    TEST_CASE("does not convert to a base that was not registered")
+    {
+        TypeRegistry types;
+        REQUIRE(types.component<Derived>("Derived"));
+        Derived value;
+        CHECK(types.find<Derived>()->as<Base>(&value) == nullptr);
+    }
+
     TEST_CASE("describes an error")
     {
         TypeRegistry types;

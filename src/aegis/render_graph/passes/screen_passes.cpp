@@ -43,9 +43,9 @@ auto SkyBoxPass::createResources(ResourcePool& pool) -> std::expected<void, Erro
 auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
     auto& registry = frameInfo.scene.registry();
-    const auto environment = frameInfo.scene.environment();
+    const auto environment = registry.first<assets::Environment>();
     const auto camera = frameInfo.scene.mainCamera();
-    if (!environment || !registry.has<assets::Environment>(environment) || !camera || !registry.has<aegis::Camera>(camera))
+    if (!environment || !camera || !registry.has<aegis::Camera>(camera))
         return;
     const auto& skybox = registry.get<assets::Environment>(environment).skybox;
     if (!skybox)

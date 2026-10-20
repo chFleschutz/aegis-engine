@@ -46,6 +46,17 @@ public:
         return *this;
     }
 
+    // Records B as a base of T, so TypeInfo::as<B> can convert an instance's address to a B*.
+    template<class B>
+    auto base() -> TypeBuilder&
+    {
+        static_assert(std::derived_from<T, B>, "B must be a base class of T");
+        m_info->upcasts[std::type_index{ typeid(B) }] = [](void* object) -> void* {
+            return static_cast<B*>(static_cast<T*>(object));
+        };
+        return *this;
+    }
+
     // Ok while every field so far was added.
     [[nodiscard]] auto status() const -> const std::expected<void, Error>& { return m_status; }
 
@@ -116,6 +127,8 @@ private:
             return makeError(ErrorCode::DuplicateType, std::format("the type is already registered as '{}'", existing->name));
 
         auto& info = *m_storage.emplace_back(std::make_unique<TypeInfo>(TypeInfo{ .name = std::string{ name }, .category = category, .type = std::type_index{ typeid(T) } }));
+        if constexpr (std::default_initializable<T>)
+            info.construct = [] { return std::shared_ptr<void>{ std::make_shared<T>() }; };
         m_byName.emplace(info.name, &info);
         m_byType.emplace(info.type, &info);
         m_ordered.push_back(&info);

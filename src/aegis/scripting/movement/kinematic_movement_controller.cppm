@@ -1,14 +1,17 @@
 export module aegis.scripting.movement.kinematic_movement_controller;
 
 import std;
-import aegis.scripting.script_base;
+import aegis.reflect;
+import aegis.scripting.script;
 import aegis.math;
 import aegis.platform;
 import aegis.scene.components;
 
 export namespace aegis::scripting
 {
-class KinematicMovementController : public ScriptBase
+/// @brief Moves its entity with the keyboard and looks around with the mouse (a fly camera)
+/// @note Registered as "KinematicMovementController" (registerKinematicMovementController), its speeds are fields
+class KinematicMovementController : public Script
 {
 public:
     static constexpr float DEFAULT_MOVE_SPEED = 5.0f;
@@ -40,54 +43,60 @@ public:
         aegis::platform::Key lookDown = aegis::platform::Key::Unknown;
     };
 
-    void begin() override
+    // The persistent state, registered as fields
+    float moveSpeed{ DEFAULT_MOVE_SPEED };
+    float lookSpeed{ 1.5f };
+    float mouseSensitivity{ 0.004f }; // Radians per pixel
+    float mousePanSpeed{ 0.02f };     // World units per pixel
+
+    void onCreate(ScriptContext& context) override
     {
-        m_previousCursorPos = cursorPosition();
+        m_previousCursorPos = cursorPosition(context);
     }
 
-    void update(float deltaSeconds) override
+    void onUpdate(ScriptContext& context, float deltaSeconds) override
     {
-        applyRotation(deltaSeconds);
-        applyMovement(deltaSeconds);
+        applyRotation(context, deltaSeconds);
+        applyMovement(context, deltaSeconds);
     }
 
-    /// @brief Sets new overall move speed
-    void setMoveSpeed(float speed) { m_moveSpeed = speed; }
-    /// @brief Sets new overall look speed
-    void setLookSpeed(float speed) { m_lookSpeed = speed; }
-    /// @brief Sets the mouse look speed in radians per pixel of cursor movement
-    void setMouseSensitivity(float sensitivity) { m_mouseSensitivity = sensitivity; }
+    void onDestroy(ScriptContext& context) override
+    {
+        if (m_mouseRotateEnabled || m_mousePanEnabled) // Give the cursor back
+            context.input().setCursorMode(aegis::platform::CursorMode::Normal);
+    }
 
 private:
-    [[nodiscard]] auto cursorPosition() const -> glm::vec2
+    [[nodiscard]] static auto cursorPosition(const ScriptContext& context) -> glm::vec2
     {
-        const auto [x, y] = input().cursorPosition();
+        const auto [x, y] = context.input().cursorPosition();
         return { static_cast<float>(x), static_cast<float>(y) };
     }
 
-    void applyRotation(float deltaSeconds)
+    void applyRotation(ScriptContext& context, float deltaSeconds)
     {
-        auto& transform = get<Transform>();
+        auto& transform = context.get<Transform>();
+        auto& input = context.input();
 
         // Key input rotation (a rate: scaled by the frame time)
         glm::vec3 rotate{ 0.0f };
-        if (input().keyPressed(m_keys.lookRight))
-            rotate.z -= m_lookSpeed;
-        if (input().keyPressed(m_keys.lookLeft))
-            rotate.z += m_lookSpeed;
-        if (input().keyPressed(m_keys.lookUp))
-            rotate.x += m_lookSpeed;
-        if (input().keyPressed(m_keys.lookDown))
-            rotate.x -= m_lookSpeed;
+        if (input.keyPressed(m_keys.lookRight))
+            rotate.z -= lookSpeed;
+        if (input.keyPressed(m_keys.lookLeft))
+            rotate.z += lookSpeed;
+        if (input.keyPressed(m_keys.lookUp))
+            rotate.x += lookSpeed;
+        if (input.keyPressed(m_keys.lookDown))
+            rotate.x -= lookSpeed;
         rotate *= deltaSeconds;
 
         // Mouse input rotation (a displacement: independent of the frame time)
-        toggleMouseRotate(input().mouseButtonPressed(m_keys.mouseRotate));
+        toggleMouseRotate(context, input.mouseButtonPressed(m_keys.mouseRotate));
         if (m_mouseRotateEnabled)
         {
-            auto cursorPos = cursorPosition();
-            rotate.x -= (cursorPos.y - m_previousCursorPos.y) * m_mouseSensitivity;
-            rotate.z -= (cursorPos.x - m_previousCursorPos.x) * m_mouseSensitivity;
+            auto cursorPos = cursorPosition(context);
+            rotate.x -= (cursorPos.y - m_previousCursorPos.y) * mouseSensitivity;
+            rotate.z -= (cursorPos.x - m_previousCursorPos.x) * mouseSensitivity;
             m_previousCursorPos = cursorPos;
         }
 
@@ -101,41 +110,42 @@ private:
         }
     }
 
-    void applyMovement(float deltaSeconds)
+    void applyMovement(ScriptContext& context, float deltaSeconds)
     {
-        auto& transform = get<Transform>();
+        auto& transform = context.get<Transform>();
+        auto& input = context.input();
         auto forwardDir = transform.forward();
         auto rightDir = transform.right();
         auto upDir = math::world::UP;
 
         // Speed modifiers
-        if (input().keyPressed(m_keys.increaseSpeed))
-            m_moveSpeed += 100.0f * deltaSeconds;
-        if (input().keyPressed(m_keys.decreaseSpeed))
-            m_moveSpeed -= 100.0f * deltaSeconds;
-        if (input().keyPressed(m_keys.resetSpeed))
-            m_moveSpeed = DEFAULT_MOVE_SPEED;
-        m_moveSpeed = std::max(m_moveSpeed, 0.1f);
+        if (input.keyPressed(m_keys.increaseSpeed))
+            moveSpeed += 100.0f * deltaSeconds;
+        if (input.keyPressed(m_keys.decreaseSpeed))
+            moveSpeed -= 100.0f * deltaSeconds;
+        if (input.keyPressed(m_keys.resetSpeed))
+            moveSpeed = DEFAULT_MOVE_SPEED;
+        moveSpeed = std::max(moveSpeed, 0.1f);
 
-        auto currentSpeed = m_moveSpeed;
-        if (input().keyPressed(m_keys.speedupModifier))
+        auto currentSpeed = moveSpeed;
+        if (input.keyPressed(m_keys.speedupModifier))
             currentSpeed *= 2.0f;
-        if (input().keyPressed(m_keys.slowdownModifier))
+        if (input.keyPressed(m_keys.slowdownModifier))
             currentSpeed *= 0.5f;
 
         // Key input movement
         glm::vec3 moveDir{ 0.0f };
-        if (input().keyPressed(m_keys.moveForward))
+        if (input.keyPressed(m_keys.moveForward))
             moveDir += forwardDir;
-        if (input().keyPressed(m_keys.moveBackward))
+        if (input.keyPressed(m_keys.moveBackward))
             moveDir -= forwardDir;
-        if (input().keyPressed(m_keys.moveRight))
+        if (input.keyPressed(m_keys.moveRight))
             moveDir += rightDir;
-        if (input().keyPressed(m_keys.moveLeft))
+        if (input.keyPressed(m_keys.moveLeft))
             moveDir -= rightDir;
-        if (input().keyPressed(m_keys.moveUp))
+        if (input.keyPressed(m_keys.moveUp))
             moveDir += upDir;
-        if (input().keyPressed(m_keys.moveDown))
+        if (input.keyPressed(m_keys.moveDown))
             moveDir -= upDir;
 
         if (glm::length(moveDir) > std::numeric_limits<float>::epsilon())
@@ -144,64 +154,76 @@ private:
         }
 
         // Mouse pan input movement
-        toogleMousePan(input().mouseButtonPressed(m_keys.mousePan));
+        toogleMousePan(context, input.mouseButtonPressed(m_keys.mousePan));
         if (m_mousePanEnabled)
         {
             // A displacement like the mouse look: independent of the frame time
-            auto cursorPos = cursorPosition();
+            auto cursorPos = cursorPosition(context);
             glm::vec3 panDir{ 0.0f };
             panDir -= rightDir * (cursorPos.x - m_previousCursorPos.x);
             panDir += upDir * (cursorPos.y - m_previousCursorPos.y);
             m_previousCursorPos = cursorPos;
 
-            transform.location += panDir * m_mousePanSpeed;
+            transform.location += panDir * mousePanSpeed;
         }
     }
 
-    void toggleMouseRotate(bool enabled)
+    void toggleMouseRotate(ScriptContext& context, bool enabled)
     {
         if (m_mousePanEnabled)
             return;
 
         if (!m_mouseRotateEnabled && enabled)
         {
-            input().setCursorMode(aegis::platform::CursorMode::Disabled);
+            context.input().setCursorMode(aegis::platform::CursorMode::Disabled);
             m_mouseRotateEnabled = true;
-            m_previousCursorPos = cursorPosition();
+            m_previousCursorPos = cursorPosition(context);
         }
         else if (m_mouseRotateEnabled && !enabled)
         {
-            input().setCursorMode(aegis::platform::CursorMode::Normal);
+            context.input().setCursorMode(aegis::platform::CursorMode::Normal);
             m_mouseRotateEnabled = false;
         }
     }
 
-    void toogleMousePan(bool enabled)
+    void toogleMousePan(ScriptContext& context, bool enabled)
     {
         if (m_mouseRotateEnabled)
             return;
 
         if (!m_mousePanEnabled && enabled)
         {
-            input().setCursorMode(aegis::platform::CursorMode::Disabled);
+            context.input().setCursorMode(aegis::platform::CursorMode::Disabled);
             m_mousePanEnabled = true;
-            m_previousCursorPos = cursorPosition();
+            m_previousCursorPos = cursorPosition(context);
         }
         else if (m_mousePanEnabled && !enabled)
         {
-            input().setCursorMode(aegis::platform::CursorMode::Normal);
+            context.input().setCursorMode(aegis::platform::CursorMode::Normal);
             m_mousePanEnabled = false;
         }
     }
 
     KeyMappings m_keys{};
-    float m_moveSpeed{ DEFAULT_MOVE_SPEED };
-    float m_lookSpeed{ 1.5f };
-    float m_mouseSensitivity{ 0.004f }; // Radians per pixel
-    float m_mousePanSpeed{ 0.02f };     // World units per pixel
     bool m_mouseRotateEnabled{ false };
     bool m_mousePanEnabled{ false };
 
     glm::vec2 m_previousCursorPos{ 0.0f };
 };
+}
+
+export namespace aegis::scripting
+{
+/// @brief Registers KinematicMovementController and its speeds with the type registry
+inline auto registerKinematicMovementController(reflect::TypeRegistry& types) -> std::expected<void, reflect::Error>
+{
+    auto builder = registerScript<KinematicMovementController>(types, "KinematicMovementController");
+    if (!builder)
+        return std::unexpected{ builder.error() };
+    builder->field("moveSpeed", &KinematicMovementController::moveSpeed)
+        .field("lookSpeed", &KinematicMovementController::lookSpeed)
+        .field("mouseSensitivity", &KinematicMovementController::mouseSensitivity)
+        .field("mousePanSpeed", &KinematicMovementController::mousePanSpeed);
+    return builder->status();
+}
 }

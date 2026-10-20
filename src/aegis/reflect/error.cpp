@@ -17,6 +17,8 @@ constexpr auto codeName(ErrorCode code) -> std::string_view
     case ErrorCode::TypeMismatch: return "TypeMismatch";
     case ErrorCode::OutOfRange: return "OutOfRange";
     case ErrorCode::ParseError: return "ParseError";
+    case ErrorCode::WrongCategory: return "WrongCategory";
+    case ErrorCode::NotConstructible: return "NotConstructible";
     }
     return "Unknown";
 }

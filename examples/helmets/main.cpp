@@ -3,13 +3,14 @@
 import std;
 import aegis.engine;
 
-class ColorChanger : public aegis::scripting::ScriptBase
+class ColorChanger : public aegis::scripting::Script
 {
 public:
-    void update(float deltaSeconds) override
+    float speed{ 0.5f }; // A registered field
+
+    void onUpdate(aegis::scripting::ScriptContext& context, float deltaSeconds) override
     {
         // Cycle through colors
-        constexpr float speed = 0.5f;
         m_time += deltaSeconds * speed;
         glm::vec3 color{
             (std::sin(m_time + 0.0f) + 1.0f) / 2.0f,
@@ -17,7 +18,7 @@ public:
             (std::sin(m_time + 4.0f) + 1.0f) / 2.0f
         };
 
-        auto& material = get<aegis::assets::Material>().instance;
+        auto& material = context.get<aegis::assets::Material>().instance;
         [[maybe_unused]] auto set = material->setParameter(aegis::assets::pbr::albedo, color);
         AGX_ASSERT_X(set, "Failed to set the material's albedo");
     }
@@ -32,13 +33,14 @@ class HelmetScene : public aegis::SceneDescription
 public:
     void initialize(aegis::SceneContext& context) override
     {
-        auto& [scene, scripts, assets] = context;
+        auto& [scene, types, assets] = context;
+        aegis::addDefaults(context);
         using namespace aegis;
 
         auto& registry = scene.registry();
 
         // SKYBOX
-        registry.get<aegis::assets::Environment>(scene.environment()) =
+        registry.get<aegis::assets::Environment>(registry.first<aegis::assets::Environment>()) =
             assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         // LIGHTS
@@ -65,13 +67,18 @@ public:
         auto plane = assets.loadModel(scene, paths::assets() / "Misc/plane.obj");
         registry.get<Transform>(plane).scale = { 2.0f, 2.0f, 2.0f };
         registry.add<DynamicTag>(plane);
-        scripts.addScript<ColorChanger>(plane);
+        [[maybe_unused]] auto changer = scripting::attachScript(registry, types, plane, "ColorChanger");
+        AGX_ASSERT_X(changer, "The ColorChanger script is not registered");
     }
 };
 
 auto main() -> int
 {
     aegis::Engine engine;
+    [[maybe_unused]] auto registered = aegis::scripting::registerScript<ColorChanger>(engine.types(), "ColorChanger").and_then([](auto builder) {
+        return builder.field("speed", &ColorChanger::speed).status();
+    });
+    AGX_ASSERT_X(registered, "Failed to register the ColorChanger script");
     engine.loadScene<HelmetScene>();
     engine.run();
 }

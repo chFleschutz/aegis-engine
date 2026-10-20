@@ -43,8 +43,8 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     auto& scene = frameInfo.scene;
     auto& registry = scene.registry();
 
-    const auto environmentEntity = scene.environment();
-    if (!environmentEntity || !registry.has<assets::Environment>(environmentEntity))
+    const auto environmentEntity = registry.first<assets::Environment>();
+    if (!environmentEntity)
     {
         static bool reported{ false };
         if (!std::exchange(reported, true))

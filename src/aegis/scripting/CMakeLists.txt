@@ -1,14 +1,15 @@
 add_library(aegis-scripting STATIC)
 
-# PUBLIC: the module interfaces import aegis.math, aegis.platform and aegis.scene.
+# PUBLIC: the module interfaces import aegis.math, aegis.platform, aegis.reflect and aegis.scene,
+# and use AGX_ASSERT.
 
 target_link_libraries(aegis-scripting 
 PUBLIC
 	aegis-math
-	aegis-platform
-	aegis-scene
-PRIVATE
 	aegis-core
+	aegis-platform
+	aegis-reflect
+	aegis-scene
 )
 
 target_sources(aegis-scripting 
@@ -16,8 +17,8 @@ PUBLIC
 	FILE_SET CXX_MODULES 
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
-		script_base.cppm
-		script_manager.cppm
+		script.cppm
+		script_system.cppm
 		movement/kinematic_movement_controller.cppm
 )
 
