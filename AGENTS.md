@@ -248,9 +248,12 @@ code. Feature PRs don't edit `backlog.md`.
    `ctest -LE device`. It is the proof that Linux builds.
 7. **Check CI** with `gh pr checks` (`--watch` to block) and report the result; work on another
    independent item meanwhile. Fix failures with new commits; don't force-push a PR under review.
-8. **Leave the merge to the owner.** PRs land as merge commits, not squash or rebase, so commit
-   hashes survive. After a PR with mechanical commits merges, add their hashes to
-   `.git-blame-ignore-revs` (docs-only commit on `main`).
+8. **Merge with auto-merge.** `main` is protected (required checks `Format`, `Linux`/`Windows`
+   × debug/release, branch up to date), so `gh pr merge <pr> --merge --auto` merges once CI is
+   green. CI has no GPU: run the full `ctest` with the device tests locally first for device code.
+   PRs land as merge commits, not squash or rebase, so commit hashes survive. After a PR with
+   mechanical commits merges, add their hashes to `.git-blame-ignore-revs` (docs-only commit on
+   `main`). The `/implement-issue` skill follows this.
 
 ## Unit tests
 
