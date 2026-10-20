@@ -154,13 +154,13 @@ public:
     [[nodiscard]] auto name() const -> std::string_view override { return "OutputProbe"; }
     auto execute(render_graph::ResourcePool&, const render_graph::FrameInfo&) -> void override {}
 
-    [[nodiscard]] auto texture() const noexcept -> render_graph::ResourceHandle { return m_texture; }
-    [[nodiscard]] auto fixedTexture() const noexcept -> render_graph::ResourceHandle { return m_fixed; }
+    [[nodiscard]] auto texture() const noexcept -> render_graph::ResourceId { return m_texture; }
+    [[nodiscard]] auto fixedTexture() const noexcept -> render_graph::ResourceId { return m_fixed; }
     [[nodiscard]] static auto scaled(rhi::Extent2D output) -> rhi::Extent2D { return { output.x / 2, output.y / 2 }; }
 
 private:
-    render_graph::ResourceHandle m_texture;
-    render_graph::ResourceHandle m_fixed;
+    render_graph::ResourceId m_texture;
+    render_graph::ResourceId m_fixed;
 };
 
 class Engine

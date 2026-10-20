@@ -23,14 +23,14 @@ enum class Usage
 };
 
 /// @brief A resource declaration of one pass: an entry in the ResourcePool.
-struct ResourceHandle
+struct ResourceId
 {
     static constexpr std::uint32_t invalid{ std::numeric_limits<std::uint32_t>::max() };
 
     std::uint32_t index{ invalid };
 
     [[nodiscard]] auto isValid() const noexcept -> bool { return index != invalid; }
-    auto operator==(const ResourceHandle&) const -> bool = default;
+    auto operator==(const ResourceId&) const -> bool = default;
 };
 
 struct TextureDesc

@@ -32,34 +32,34 @@ struct PushConstants
     uint dynamicCount;
 }
 
-[[vk::push_constant]] ConstantBuffer<PushConstants> pc;
+[[vk::push_constant]] ConstantBuffer<PushConstants> push;
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
 func main(uint3 dispatchThreadID : SV_DispatchThreadID)
 {
     let instanceID = dispatchThreadID.x;
-    if (instanceID >= pc.staticCount + pc.dynamicCount)
+    if (instanceID >= push.staticCount + push.dynamicCount)
         return;
 
-    let instance = indirectDraw::getInstance(pc.staticInstances, pc.dynamicInstances, pc.staticCount, instanceID);
+    let instance = indirectDraw::getInstance(push.staticInstances, push.dynamicInstances, push.staticCount, instanceID);
     let mesh = instance.mesh;
 
     let worldBounds = mesh->bounds.transform(instance.modelMatrix);
-    if (!visibility::frustumVisible(worldBounds, pc.camera->frustum))
+    if (!visibility::frustumVisible(worldBounds, push.camera->frustum))
         return;
 
     uint drawID;
-    InterlockedAdd(pc.counts[instance.drawBatch], 1, drawID);
+    InterlockedAdd(push.counts[instance.drawBatch], 1, drawID);
 
     // The batch holds slots for the instances the registry counts. Should the instance buffers hold
     // more for this batch, the extra ones would write into the next batch's slots.
-    let batch = pc.drawBatches[instance.drawBatch];
+    let batch = push.drawBatches[instance.drawBatch];
     if (drawID >= batch.count)
         return;
 
-    pc.visibility[batch.offset + drawID] = instanceID;
+    push.visibility[batch.offset + drawID] = instanceID;
 
     let groupCountX = (mesh->meshletCount + TASK_GROUP_SIZE - 1) / TASK_GROUP_SIZE;
-    pc.commands[batch.offset + drawID] = DrawMeshTasksIndirectCommand(groupCountX, 1, 1);
+    push.commands[batch.offset + drawID] = DrawMeshTasksIndirectCommand(groupCountX, 1, 1);
 }

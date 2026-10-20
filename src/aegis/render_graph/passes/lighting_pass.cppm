@@ -27,9 +27,9 @@ public:
     auto drawUI() -> void override;
 
 private:
-    std::array<ResourceHandle, 5> m_gBuffer; // Position, Normal, Albedo, ARM, Emissive
-    ResourceHandle m_sceneColor;
-    ResourceHandle m_uniforms;
+    std::array<ResourceId, 5> m_gBuffer; // Position, Normal, Albedo, ARM, Emissive
+    ResourceId m_sceneColor;
+    ResourceId m_uniforms;
     std::optional<rhi::Pipeline> m_pipeline;
     LightingViewMode m_viewMode{ LightingViewMode::SceneColor };
     float m_ambientOcclusionFactor{ 1.0f };

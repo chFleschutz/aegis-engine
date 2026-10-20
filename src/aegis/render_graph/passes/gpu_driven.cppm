@@ -56,9 +56,9 @@ private:
     auto rebuildStatic(ResourcePool& pool, aegis::world::World& scene) -> void;
 
     const DrawBatchRegistry& m_drawBatches;
-    ResourceHandle m_staticInstances;
-    ResourceHandle m_dynamicInstances;
-    ResourceHandle m_drawBatchData;
+    ResourceId m_staticInstances;
+    ResourceId m_dynamicInstances;
+    ResourceId m_drawBatchData;
     std::uint32_t m_staticCapacity{ initialStaticCapacity };
     std::uint32_t m_dynamicCapacity{ initialDynamicCapacity };
     std::uint32_t m_staticCount{ 0 };
@@ -77,7 +77,7 @@ public:
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
-    ResourceHandle m_counts;
+    ResourceId m_counts;
 };
 
 /// @brief Frustum-culls every instance on the GPU, appending the visible ones per draw batch to
@@ -94,13 +94,13 @@ public:
 
 private:
     const InstanceUpdatePass& m_instances;
-    ResourceHandle m_cameraData;
-    ResourceHandle m_staticInstances;
-    ResourceHandle m_dynamicInstances;
-    ResourceHandle m_drawBatchData;
-    ResourceHandle m_visibility;
-    ResourceHandle m_commands;
-    ResourceHandle m_counts;
+    ResourceId m_cameraData;
+    ResourceId m_staticInstances;
+    ResourceId m_dynamicInstances;
+    ResourceId m_drawBatchData;
+    ResourceId m_visibility;
+    ResourceId m_commands;
+    ResourceId m_counts;
     std::uint32_t m_visibilityCapacity;
     std::uint32_t m_commandCapacity;
     std::optional<rhi::Pipeline> m_pipeline;
@@ -119,14 +119,14 @@ public:
 
 private:
     const InstanceUpdatePass& m_instances;
-    std::array<ResourceHandle, 5> m_gBuffer;
-    ResourceHandle m_depth;
-    ResourceHandle m_cameraData;
-    ResourceHandle m_staticInstances;
-    ResourceHandle m_dynamicInstances;
-    ResourceHandle m_visibility;
-    ResourceHandle m_commands;
-    ResourceHandle m_counts;
+    std::array<ResourceId, 5> m_gBuffer;
+    ResourceId m_depth;
+    ResourceId m_cameraData;
+    ResourceId m_staticInstances;
+    ResourceId m_dynamicInstances;
+    ResourceId m_visibility;
+    ResourceId m_commands;
+    ResourceId m_counts;
     std::optional<rhi::Pipeline> m_pipeline;
 };
 }

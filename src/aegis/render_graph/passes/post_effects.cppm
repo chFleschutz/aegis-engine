@@ -40,8 +40,8 @@ private:
     [[nodiscard]] auto createMipViews(ResourcePool& pool) -> std::expected<void, Error>;
     auto freeMipViews() -> void;
 
-    ResourceHandle m_sceneColor;
-    ResourceHandle m_bloom;
+    ResourceId m_sceneColor;
+    ResourceId m_bloom;
     Settings m_settings;
     rhi::Device* m_device{ nullptr };
     std::vector<rhi::ImageViewHandle> m_mipViews; // One per mip, storage and sampled
@@ -73,9 +73,9 @@ public:
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
-    ResourceHandle m_sceneColor;
-    ResourceHandle m_depth;
-    ResourceHandle m_cameraData;
+    ResourceId m_sceneColor;
+    ResourceId m_depth;
+    ResourceId m_cameraData;
     std::vector<std::unique_ptr<RenderSystem>> m_renderSystems;
 };
 

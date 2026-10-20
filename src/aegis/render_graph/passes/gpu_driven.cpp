@@ -24,7 +24,7 @@ constexpr std::size_t indirectCommandSize{ 3 * sizeof(std::uint32_t) }; // VkDra
 
 // Grows 'buffer', holding 'capacity' elements of 'elementSize' bytes, until 'required' fit. False when
 // the larger buffer could not be created; the old one stays, with its capacity.
-auto ensureCapacity(ResourcePool& pool, ResourceHandle buffer, std::uint32_t& capacity, std::uint32_t required,
+auto ensureCapacity(ResourcePool& pool, ResourceId buffer, std::uint32_t& capacity, std::uint32_t required,
     std::size_t elementSize) -> bool
 {
     const auto grown = detail::grownCapacity(capacity, required);

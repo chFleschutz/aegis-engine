@@ -27,7 +27,7 @@ public:
 };
 }
 
-TEST_SUITE("aegis::log")
+TEST_SUITE("base::log")
 {
     TEST_CASE("forwards formatted messages with their level to the sink")
     {

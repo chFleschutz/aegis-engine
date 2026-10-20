@@ -11,7 +11,7 @@ public:
     LayerStack() = default;
     ~LayerStack()
     {
-        for (auto& layer : m_Layers)
+        for (auto& layer : m_layers)
         {
             layer->onDetach();
         }
@@ -22,23 +22,23 @@ public:
     {
         auto layer = std::make_unique<T>(std::forward<Args>(args)...);
         auto& result = *layer;
-        m_Layers.emplace_back(std::move(layer));
+        m_layers.emplace_back(std::move(layer));
         result.onAttach();
         return result;
     }
 
     void update(float deltaSeconds)
     {
-        for (auto& layer : m_Layers)
+        for (auto& layer : m_layers)
         {
             layer->onUpdate(deltaSeconds);
         }
     }
 
-    auto begin() { return m_Layers.begin(); }
-    auto end() { return m_Layers.end(); }
+    auto begin() { return m_layers.begin(); }
+    auto end() { return m_layers.end(); }
 
 private:
-    std::vector<std::unique_ptr<Layer>> m_Layers;
+    std::vector<std::unique_ptr<Layer>> m_layers;
 };
 }

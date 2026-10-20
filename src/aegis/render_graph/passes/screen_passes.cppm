@@ -22,8 +22,8 @@ public:
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
-    ResourceHandle m_sceneColor;
-    ResourceHandle m_depth;
+    ResourceId m_sceneColor;
+    ResourceId m_depth;
     std::optional<rhi::Pipeline> m_pipeline;
 };
 
@@ -53,9 +53,9 @@ public:
     [[nodiscard]] auto settings() noexcept -> Settings& { return m_settings; }
 
 private:
-    ResourceHandle m_sceneColor;
-    std::optional<ResourceHandle> m_bloom;
-    ResourceHandle m_final;
+    ResourceId m_sceneColor;
+    std::optional<ResourceId> m_bloom;
+    ResourceId m_final;
     Settings m_settings;
     std::optional<rhi::Pipeline> m_pipeline;
 };
@@ -71,6 +71,6 @@ public:
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
-    ResourceHandle m_source;
+    ResourceId m_source;
 };
 }
