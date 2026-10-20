@@ -24,7 +24,7 @@ public:
     Scene() = default;
     Scene(const Scene&) = delete;
     Scene(Scene&&) = delete;
-    ~Scene() = default;
+    ~Scene() { reset(); }
 
     auto operator=(const Scene&) -> Scene& = delete;
     auto operator=(Scene&&) -> Scene& = delete;
@@ -77,9 +77,18 @@ public:
         }
     }
 
+    /// @brief Empties the scene: the systems end what they run (scripts get onDestroy) while the
+    ///        entities still exist, then every entity and then every system is removed
+    /// @note Slots, StableIds and the registry's destroy listeners go with the entities. The scene can be
+    ///       filled again afterwards (systems included).
     void reset()
     {
-        // TODO: Clear old scene
+        for (auto& system : m_systems)
+        {
+            system->onReset(m_registry);
+        }
+        m_registry.clear();
+        m_systems.clear();
     }
 
 private:

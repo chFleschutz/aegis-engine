@@ -13,6 +13,7 @@ enum class ErrorCode
     TypeMismatch,     // A Value of the wrong kind for the field
     OutOfRange,       // The value does not fit the field's type, or is not one of an enum's values
     ParseError,       // Text that is not a valid value of the field's kind
+    WrongCategory,    // The name is registered, but as a component where a script was needed (or the reverse)
     NotConstructible, // The type cannot be created by name (it is not default constructible)
 };
 
