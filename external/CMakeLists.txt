@@ -29,4 +29,6 @@ add_subdirectory(vma)
 
 set(DOCTEST_WITH_TESTS OFF)
 set(DOCTEST_NO_INSTALL ON)
+# tests/test_main.cpp compiles doctest's main once; its prebuilt doctest_with_main (~30 TUs) goes unused.
+set(DOCTEST_WITH_MAIN_IN_STATIC_LIB OFF)
 add_subdirectory(doctest)
