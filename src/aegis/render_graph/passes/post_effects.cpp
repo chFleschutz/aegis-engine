@@ -11,9 +11,9 @@ namespace aegis::render_graph
 {
 // Bloom ----------------------------------------------------------------------------------------------
 
-BloomPass::BloomPass(ResourcePool& pool) :
-    m_sceneColor{ pool.addReference("SceneColor", Usage::StorageRead) },
-    m_bloom{ pool.addTexture("Bloom", Usage::StorageWrite,
+BloomPass::BloomPass(ResourceDeclarations& declarations) :
+    m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
+    m_bloom{ declarations.addTexture(names::bloom, Usage::StorageWrite,
         { .format = rhi::Format::RGBA16_SFLOAT, .mipLevels = mipLevels, .usage = rhi::ImageUsage::Sampled }) }
 {
 }
@@ -25,9 +25,9 @@ BloomPass::~BloomPass()
         m_device->free(*m_sampler);
 }
 
-auto BloomPass::info() const -> Info
+auto BloomPass::name() const -> std::string_view
 {
-    return { .name = "Bloom", .reads = { m_sceneColor }, .writes = { m_bloom } };
+    return "Bloom";
 }
 
 auto BloomPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
@@ -162,24 +162,24 @@ auto BloomPass::drawUI() -> void
 
 // Transparent ----------------------------------------------------------------------------------------
 
-TransparentPass::TransparentPass(ResourcePool& pool) :
-    m_sceneColor{ pool.addReference("SceneColor", Usage::ColorAttachment) },
-    m_depth{ pool.addReference("Depth", Usage::DepthRead) },
-    m_cameraData{ pool.addReference("CameraData", Usage::ShaderRead) }
+TransparentPass::TransparentPass(ResourceDeclarations& declarations) :
+    m_sceneColor{ declarations.addReference(names::sceneColor, Usage::ColorAttachment) },
+    m_depth{ declarations.addReference(names::depth, Usage::DepthRead) },
+    m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) }
 {
 }
 
-auto TransparentPass::info() const -> Info
+auto TransparentPass::name() const -> std::string_view
 {
-    return { .name = "Transparent", .reads = { m_depth, m_cameraData }, .writes = { m_sceneColor } };
+    return "Transparent";
 }
 
 auto TransparentPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = rhi::Format::RGBA16_SFLOAT } };
+    const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = pool.format(m_sceneColor) } };
     for (const auto& system : m_renderSystems)
     {
-        if (auto created = system->createResources(pool.device(), { colorAttachments, rhi::Format::D32_SFLOAT }); !created)
+        if (auto created = system->createResources(pool.device(), { colorAttachments, pool.format(m_depth) }); !created)
             return created;
     }
     return {};

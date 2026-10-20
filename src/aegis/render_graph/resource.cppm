@@ -173,3 +173,73 @@ enum class LayoutClass
     return rhi::BufferUsage::None;
 }
 }
+
+export namespace aegis::render_graph::detail
+{
+/// @brief The enumerator's name, e.g. "ColorAttachment", for tools, logs and plan snapshots.
+[[nodiscard]] constexpr auto usageName(Usage usage) noexcept -> std::string_view
+{
+    switch (usage)
+    {
+    case Usage::ColorAttachment: return "ColorAttachment";
+    case Usage::DepthAttachment: return "DepthAttachment";
+    case Usage::DepthRead: return "DepthRead";
+    case Usage::SampledFragment: return "SampledFragment";
+    case Usage::SampledCompute: return "SampledCompute";
+    case Usage::StorageRead: return "StorageRead";
+    case Usage::StorageWrite: return "StorageWrite";
+    case Usage::ShaderRead: return "ShaderRead";
+    case Usage::IndirectRead: return "IndirectRead";
+    case Usage::TransferSrc: return "TransferSrc";
+    case Usage::TransferDst: return "TransferDst";
+    case Usage::HostWrite: return "HostWrite";
+    }
+    return "Unknown";
+}
+
+/// @brief Whether an image can be accessed this way (false for the buffer-only usages).
+[[nodiscard]] constexpr auto supportsImage(Usage usage) noexcept -> bool
+{
+    switch (usage)
+    {
+    case Usage::ColorAttachment:
+    case Usage::DepthAttachment:
+    case Usage::DepthRead:
+    case Usage::SampledFragment:
+    case Usage::SampledCompute:
+    case Usage::StorageRead:
+    case Usage::StorageWrite:
+    case Usage::TransferSrc:
+    case Usage::TransferDst:
+        return true;
+    case Usage::ShaderRead:
+    case Usage::IndirectRead:
+    case Usage::HostWrite:
+        return false;
+    }
+    return false;
+}
+
+/// @brief Whether a buffer can be accessed this way (false for the image-only usages).
+[[nodiscard]] constexpr auto supportsBuffer(Usage usage) noexcept -> bool
+{
+    switch (usage)
+    {
+    case Usage::StorageRead:
+    case Usage::StorageWrite:
+    case Usage::ShaderRead:
+    case Usage::IndirectRead:
+    case Usage::TransferSrc:
+    case Usage::TransferDst:
+    case Usage::HostWrite:
+        return true;
+    case Usage::ColorAttachment:
+    case Usage::DepthAttachment:
+    case Usage::DepthRead:
+    case Usage::SampledFragment:
+    case Usage::SampledCompute:
+        return false;
+    }
+    return false;
+}
+}

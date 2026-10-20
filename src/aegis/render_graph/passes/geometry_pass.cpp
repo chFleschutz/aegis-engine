@@ -4,36 +4,43 @@ import aegis.rhi;
 
 namespace aegis::render_graph
 {
-GeometryPass::GeometryPass(ResourcePool& pool) :
-    m_gBuffer{
-        pool.addTexture("Position", Usage::ColorAttachment, { .format = gBufferFormats[0] }),
-        pool.addTexture("Normal", Usage::ColorAttachment, { .format = gBufferFormats[1] }),
-        pool.addTexture("Albedo", Usage::ColorAttachment, { .format = gBufferFormats[2] }),
-        pool.addTexture("ARM", Usage::ColorAttachment, { .format = gBufferFormats[3] }),
-        pool.addTexture("Emissive", Usage::ColorAttachment, { .format = gBufferFormats[4] }),
-    },
-    m_depth{ pool.addTexture("Depth", Usage::DepthAttachment, { .format = depthFormat }) },
-    m_cameraData{ pool.addReference("CameraData", Usage::ShaderRead) }
+GeometryPass::GeometryPass(ResourceDeclarations& declarations) :
+    m_gBuffer{ declareGBuffer(declarations) },
+    m_depth{ declareDepth(declarations) },
+    m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) }
 {
 }
 
-auto GeometryPass::info() const -> Info
+auto GeometryPass::declareGBuffer(ResourceDeclarations& declarations) -> std::array<ResourceHandle, gBufferFormats.size()>
 {
-    Info info{ .name = "Geometry", .reads = { m_cameraData } };
-    info.writes.assign(m_gBuffer.begin(), m_gBuffer.end());
-    info.writes.push_back(m_depth);
-    return info;
+    return {
+        declarations.addTexture(names::position, Usage::ColorAttachment, { .format = gBufferFormats[0] }),
+        declarations.addTexture(names::normal, Usage::ColorAttachment, { .format = gBufferFormats[1] }),
+        declarations.addTexture(names::albedo, Usage::ColorAttachment, { .format = gBufferFormats[2] }),
+        declarations.addTexture(names::arm, Usage::ColorAttachment, { .format = gBufferFormats[3] }),
+        declarations.addTexture(names::emissive, Usage::ColorAttachment, { .format = gBufferFormats[4] }),
+    };
+}
+
+auto GeometryPass::declareDepth(ResourceDeclarations& declarations) -> ResourceHandle
+{
+    return declarations.addTexture(names::depth, Usage::DepthAttachment, { .format = depthFormat });
+}
+
+auto GeometryPass::name() const -> std::string_view
+{
+    return "Geometry";
 }
 
 auto GeometryPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
     std::array<rhi::Pipeline::ColorAttachment, gBufferFormats.size()> attachments;
     for (std::size_t i = 0; i < gBufferFormats.size(); ++i)
-        attachments[i] = { .format = gBufferFormats[i] };
+        attachments[i] = { .format = pool.format(m_gBuffer[i]) };
 
     for (const auto& system : m_renderSystems)
     {
-        if (auto created = system->createResources(pool.device(), { attachments, depthFormat }); !created)
+        if (auto created = system->createResources(pool.device(), { attachments, pool.format(m_depth) }); !created)
             return created;
     }
     return {};

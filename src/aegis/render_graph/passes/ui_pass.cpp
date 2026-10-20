@@ -20,12 +20,28 @@ auto unavailable() -> void
 {
     std::abort();
 }
+
+// The formats a color attachment of the UI can have; ImGui's backend takes the Vulkan enum.
+auto toVkFormat(rhi::Format format) -> std::optional<VkFormat>
+{
+    switch (format)
+    {
+    case rhi::Format::RGBA8_UNORM: return static_cast<VkFormat>(vk::Format::eR8G8B8A8Unorm);
+    case rhi::Format::RGBA8_SRGB: return static_cast<VkFormat>(vk::Format::eR8G8B8A8Srgb);
+    case rhi::Format::BGRA8_UNORM: return static_cast<VkFormat>(vk::Format::eB8G8R8A8Unorm);
+    case rhi::Format::BGRA8_SRGB: return static_cast<VkFormat>(vk::Format::eB8G8R8A8Srgb);
+    case rhi::Format::RGB10A2_UNORM: return static_cast<VkFormat>(vk::Format::eA2B10G10R10UnormPack32);
+    case rhi::Format::RGBA16_SFLOAT: return static_cast<VkFormat>(vk::Format::eR16G16B16A16Sfloat);
+    case rhi::Format::RGBA32_SFLOAT: return static_cast<VkFormat>(vk::Format::eR32G32B32A32Sfloat);
+    default: return std::nullopt;
+    }
+}
 }
 
-UiPass::UiPass(ResourcePool& pool, Desc desc) :
+UiPass::UiPass(ResourceDeclarations& declarations, Desc desc) :
     m_context{ desc.context },
     m_build{ std::move(desc.build) },
-    m_final{ pool.addReference("Final", Usage::ColorAttachment) }
+    m_final{ declarations.addReference(names::finalImage, Usage::ColorAttachment) }
 {
 }
 
@@ -35,19 +51,24 @@ UiPass::~UiPass()
         ImGui_ImplVulkan_Shutdown();
 }
 
-auto UiPass::info() const -> Info
+auto UiPass::name() const -> std::string_view
 {
-    return { .name = "UI", .writes = { m_final } };
+    return "UI";
 }
 
 auto UiPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
+    if (!m_context)
+        return makeError(ErrorCode::InitializationFailed, "The UI pass needs the rhi::Context");
+    const auto finalFormat = toVkFormat(pool.format(m_final));
+    if (!finalFormat)
+        return makeError(ErrorCode::InitializationFailed, std::format("The UI pass cannot draw onto a {} target", rhi::formatName(pool.format(m_final))));
+
     auto& device = pool.device();
-    const auto finalFormat = static_cast<VkFormat>(vk::Format::eR16G16B16A16Sfloat); // "Final", see PostProcessingPass
 
     ImGui_ImplVulkan_InitInfo initInfo{
         .ApiVersion = rhi::Context::vulkanVersion,
-        .Instance = static_cast<VkInstance>(*m_context.instance()),
+        .Instance = static_cast<VkInstance>(*m_context->instance()),
         .PhysicalDevice = static_cast<VkPhysicalDevice>(*device.physicalDevice()),
         .Device = static_cast<VkDevice>(*device.device()),
         .QueueFamily = device.graphicsQueue().family(),
@@ -61,7 +82,7 @@ auto UiPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
             .PipelineRenderingCreateInfo = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
                 .colorAttachmentCount = 1,
-                .pColorAttachmentFormats = &finalFormat,
+                .pColorAttachmentFormats = &*finalFormat,
             },
         },
         .UseDynamicRendering = true,
@@ -72,7 +93,7 @@ auto UiPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
     {
         PFN_vkGetInstanceProcAddr getInstanceProcAddr;
         VkInstance instance;
-    } loader{ m_context.instance().getDispatcher()->vkGetInstanceProcAddr, initInfo.Instance };
+    } loader{ m_context->instance().getDispatcher()->vkGetInstanceProcAddr, initInfo.Instance };
     const auto loaded = ImGui_ImplVulkan_LoadFunctions(rhi::Context::vulkanVersion, [](const char* name, void* userData) {
             const auto& [getInstanceProcAddr, instance] = *static_cast<Loader*>(userData);
             const auto function = getInstanceProcAddr(instance, name);

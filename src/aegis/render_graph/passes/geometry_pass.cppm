@@ -1,6 +1,8 @@
 export module aegis.render_graph:geometry_pass;
 import std;
+import :declarations;
 import :error;
+import :names;
 import :render_pass;
 import :render_system;
 import :resource;
@@ -23,7 +25,13 @@ public:
     };
     static constexpr auto depthFormat = rhi::Format::D32_SFLOAT;
 
-    explicit GeometryPass(ResourcePool& pool);
+    explicit GeometryPass(ResourceDeclarations& declarations);
+
+    /// @brief Declares the G-buffer textures, in the order of gBufferFormats. The GPU-driven geometry pass fills the
+    ///        same targets, so both declare them here.
+    static auto declareGBuffer(ResourceDeclarations& declarations) -> std::array<ResourceHandle, gBufferFormats.size()>;
+    /// @brief Declares the depth texture, in depthFormat.
+    static auto declareDepth(ResourceDeclarations& declarations) -> ResourceHandle;
 
     template<typename T, typename... Args>
         requires std::derived_from<T, RenderSystem> && std::constructible_from<T, Args...>
@@ -35,7 +43,7 @@ public:
         return ref;
     }
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 

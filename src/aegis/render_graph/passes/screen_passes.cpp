@@ -12,25 +12,25 @@ namespace aegis::render_graph
 {
 // Sky box -------------------------------------------------------------------------------------------
 
-SkyBoxPass::SkyBoxPass(ResourcePool& pool) :
-    m_sceneColor{ pool.addReference("SceneColor", Usage::ColorAttachment) },
-    m_depth{ pool.addReference("Depth", Usage::DepthRead) }
+SkyBoxPass::SkyBoxPass(ResourceDeclarations& declarations) :
+    m_sceneColor{ declarations.addReference(names::sceneColor, Usage::ColorAttachment) },
+    m_depth{ declarations.addReference(names::depth, Usage::DepthRead) }
 {
 }
 
-auto SkyBoxPass::info() const -> Info
+auto SkyBoxPass::name() const -> std::string_view
 {
-    return { .name = "Sky Box", .reads = { m_depth }, .writes = { m_sceneColor } };
+    return "Sky Box";
 }
 
 auto SkyBoxPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = rhi::Format::RGBA16_SFLOAT } };
+    const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = pool.format(m_sceneColor) } };
     auto pipeline = createGraphicsPipeline(pool.device(), "sky_box.slang.spv",
         rhi::Pipeline::GraphicsDesc{
             .name = "SkyBox",
             .colorAttachments = colorAttachments,
-            .depthAttachment = rhi::Format::D32_SFLOAT,
+            .depthAttachment = pool.format(m_depth),
             .depth = { .test = true, .write = false, .compareOp = rhi::CompareOp::LessOrEqual },
             .cullMode = rhi::CullMode::Front, // Seen from inside
         });
@@ -73,20 +73,17 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 
 // Post-processing -----------------------------------------------------------------------------------
 
-PostProcessingPass::PostProcessingPass(ResourcePool& pool, bool bloom) :
-    m_sceneColor{ pool.addReference("SceneColor", Usage::StorageRead) },
-    m_bloom{ bloom ? std::optional{ pool.addReference("Bloom", Usage::StorageRead) } : std::nullopt },
+PostProcessingPass::PostProcessingPass(ResourceDeclarations& declarations, bool bloom) :
+    m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
+    m_bloom{ bloom ? std::optional{ declarations.addReference(names::bloom, Usage::StorageRead) } : std::nullopt },
     // 16-bit: the image may stay linear until the blit onto an sRGB target encodes it (see execute).
-    m_final{ pool.addTexture("Final", Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) }
+    m_final{ declarations.addTexture(names::finalImage, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) }
 {
 }
 
-auto PostProcessingPass::info() const -> Info
+auto PostProcessingPass::name() const -> std::string_view
 {
-    Info info{ .name = "Post Processing", .reads = { m_sceneColor }, .writes = { m_final } };
-    if (m_bloom)
-        info.reads.push_back(*m_bloom);
-    return info;
+    return "Post Processing";
 }
 
 auto PostProcessingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
@@ -132,14 +129,14 @@ auto PostProcessingPass::drawUI() -> void
 
 // Present -------------------------------------------------------------------------------------------
 
-PresentPass::PresentPass(ResourcePool& pool, const char* source) :
-    m_source{ pool.addReference(source, Usage::TransferSrc) }
+PresentPass::PresentPass(ResourceDeclarations& declarations, std::string_view source) :
+    m_source{ declarations.addReference(source, Usage::TransferSrc) }
 {
 }
 
-auto PresentPass::info() const -> Info
+auto PresentPass::name() const -> std::string_view
 {
-    return { .name = "Present", .reads = { m_source } };
+    return "Present";
 }
 
 auto PresentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void

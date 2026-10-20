@@ -2,8 +2,10 @@ export module aegis.render_graph:screen_passes;
 import std;
 import :error;
 import :gpu_types;
+import :names;
 import :render_pass;
 import :resource;
+import :declarations;
 import :resource_pool;
 import aegis.rhi;
 
@@ -13,9 +15,9 @@ export namespace aegis::render_graph
 class SkyBoxPass : public RenderPass
 {
 public:
-    explicit SkyBoxPass(ResourcePool& pool);
+    explicit SkyBoxPass(ResourceDeclarations& declarations);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
@@ -41,9 +43,9 @@ public:
     };
 
     /// @param bloom Read "Bloom" (a BloomPass must be in the graph); otherwise bloom is off.
-    PostProcessingPass(ResourcePool& pool, bool bloom = true);
+    PostProcessingPass(ResourceDeclarations& declarations, bool bloom = true);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
     auto drawUI() -> void override;
@@ -63,9 +65,9 @@ private:
 class PresentPass : public RenderPass
 {
 public:
-    explicit PresentPass(ResourcePool& pool, const char* source = "Final");
+    explicit PresentPass(ResourceDeclarations& declarations, std::string_view source = names::finalImage);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:

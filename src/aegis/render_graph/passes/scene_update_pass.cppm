@@ -3,6 +3,7 @@ import std;
 import :gpu_types;
 import :render_pass;
 import :resource;
+import :declarations;
 import :resource_pool;
 import aegis.math;
 import aegis.scene;
@@ -14,9 +15,9 @@ export namespace aegis::render_graph
 class SceneUpdatePass : public RenderPass
 {
 public:
-    explicit SceneUpdatePass(ResourcePool& pool);
+    explicit SceneUpdatePass(ResourceDeclarations& declarations);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:

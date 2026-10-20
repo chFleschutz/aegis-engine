@@ -11,24 +11,22 @@ import aegis.scene;
 
 namespace aegis::render_graph
 {
-LightingPass::LightingPass(ResourcePool& pool) :
+LightingPass::LightingPass(ResourceDeclarations& declarations) :
     m_gBuffer{
-        pool.addReference("Position", Usage::StorageRead),
-        pool.addReference("Normal", Usage::StorageRead),
-        pool.addReference("Albedo", Usage::StorageRead),
-        pool.addReference("ARM", Usage::StorageRead),
-        pool.addReference("Emissive", Usage::StorageRead),
+        declarations.addReference(names::position, Usage::StorageRead),
+        declarations.addReference(names::normal, Usage::StorageRead),
+        declarations.addReference(names::albedo, Usage::StorageRead),
+        declarations.addReference(names::arm, Usage::StorageRead),
+        declarations.addReference(names::emissive, Usage::StorageRead),
     },
-    m_sceneColor{ pool.addTexture("SceneColor", Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) },
-    m_uniforms{ pool.addBuffer("LightingUniforms", Usage::HostWrite, { .size = sizeof(LightingUniforms), .perFrame = true }) }
+    m_sceneColor{ declarations.addTexture(names::sceneColor, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) },
+    m_uniforms{ declarations.addBuffer(names::lightingUniforms, Usage::HostWrite, { .size = sizeof(LightingUniforms), .perFrame = true }) }
 {
 }
 
-auto LightingPass::info() const -> Info
+auto LightingPass::name() const -> std::string_view
 {
-    Info info{ .name = "Lighting", .writes = { m_sceneColor, m_uniforms } };
-    info.reads.assign(m_gBuffer.begin(), m_gBuffer.end());
-    return info;
+    return "Lighting";
 }
 
 auto LightingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>

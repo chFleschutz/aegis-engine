@@ -1,6 +1,8 @@
 export module aegis.render_graph:frame_graph;
 import std;
+import :declarations;
 import :error;
+import :graph_builder;
 import :render_pass;
 import :resource_pool;
 import :schedule;
@@ -18,9 +20,18 @@ struct PassTiming
     double cpuMs{ 0.0 };
 };
 
-/// @brief Orders render passes by their resource dependencies, creates the resources they declare,
-///        and records each frame with the barriers between passes.
-class FrameGraph
+/// @brief A pass in the compiled graph, as tools show it.
+struct PassDescription
+{
+    RenderPass* pass;
+    std::string_view name;
+    std::vector<ResourceHandle> reads;
+    std::vector<ResourceHandle> writes;
+};
+
+/// @brief A GraphBuilder with a device behind it: creates the resources the passes declare, and records each
+///        frame with the barriers between passes.
+class FrameGraph : public GraphBuilder
 {
 public:
     FrameGraph(rhi::Device& device, renderer::Renderer& renderer);
@@ -30,19 +41,6 @@ public:
 
     auto operator=(const FrameGraph&) -> FrameGraph& = delete;
     auto operator=(FrameGraph&&) -> FrameGraph& = delete;
-
-    /// @brief Adds a pass constructed as T(ResourcePool&, args...). Order matters among passes accessing
-    ///        the same resource (a reader runs before a writer declared after it); compile() sorts the
-    ///        rest and independent passes keep their add order.
-    template<typename T, typename... Args>
-        requires std::derived_from<T, RenderPass> && std::constructible_from<T, ResourcePool&, Args...>
-    auto add(Args&&... args) -> T&
-    {
-        auto pass = std::make_unique<T>(m_pool, std::forward<Args>(args)...);
-        auto& ref = *pass;
-        m_passes.push_back(std::move(pass));
-        return ref;
-    }
 
     /// @brief Resolves references, orders the passes, creates every resource, and plans the barriers.
     ///        Call once, after all passes were added.
@@ -62,6 +60,8 @@ public:
 
     /// @brief The passes in execution order (valid after compile).
     [[nodiscard]] auto passes() const -> std::vector<RenderPass*>;
+    /// @brief The same passes with what each reads and writes, for tools.
+    [[nodiscard]] auto describePasses() const -> std::vector<PassDescription>;
 
     /// @brief Per-pass timings of the most recent frame the GPU has finished, in execution order.
     ///        Empty until the first frame slot comes round again.
@@ -71,10 +71,10 @@ private:
     auto recordTransitions(const rhi::CommandBuffer& cmd, const std::vector<detail::Transition>& transitions) const -> void;
 
     ResourcePool m_pool;
-    std::vector<std::unique_ptr<RenderPass>> m_passes;          // In the order added
     std::vector<std::uint32_t> m_order;                         // Execution order, indices into m_passes
     std::vector<std::vector<detail::Transition>> m_transitions; // Per entry of m_order
     std::vector<detail::ResourceKind> m_kinds;                  // Per pool entry
+    bool m_compiled{ false };
 
     // GPU timestamps around every pass: one pool per frame in flight, read once its frame is done.
     struct FrameTimer

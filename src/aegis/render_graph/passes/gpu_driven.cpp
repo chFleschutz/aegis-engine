@@ -82,20 +82,20 @@ auto collectInstances(View view, const DrawBatchRegistry& drawBatches, std::uint
 
 // Instance update ------------------------------------------------------------------------------------
 
-InstanceUpdatePass::InstanceUpdatePass(ResourcePool& pool, const DrawBatchRegistry& drawBatches) :
+InstanceUpdatePass::InstanceUpdatePass(ResourceDeclarations& declarations, const DrawBatchRegistry& drawBatches) :
     m_drawBatches{ drawBatches },
-    m_staticInstances{ pool.addBuffer("StaticInstances", Usage::HostWrite,
+    m_staticInstances{ declarations.addBuffer(names::staticInstances, Usage::HostWrite,
         { .size = sizeof(InstanceData) * initialStaticCapacity, .perFrame = true }) },
-    m_dynamicInstances{ pool.addBuffer("DynamicInstances", Usage::HostWrite,
+    m_dynamicInstances{ declarations.addBuffer(names::dynamicInstances, Usage::HostWrite,
         { .size = sizeof(InstanceData) * initialDynamicCapacity, .perFrame = true }) },
-    m_drawBatchData{ pool.addBuffer("DrawBatches", Usage::HostWrite,
+    m_drawBatchData{ declarations.addBuffer(names::drawBatches, Usage::HostWrite,
         { .size = sizeof(DrawBatchData) * DrawBatchRegistry::maxDrawBatches, .perFrame = true }) }
 {
 }
 
-auto InstanceUpdatePass::info() const -> Info
+auto InstanceUpdatePass::name() const -> std::string_view
 {
-    return { .name = "Instance Update", .writes = { m_staticInstances, m_dynamicInstances, m_drawBatchData } };
+    return "Instance Update";
 }
 
 auto InstanceUpdatePass::sceneInitialized(ResourcePool&, aegis::scene::Scene&) -> void
@@ -169,15 +169,15 @@ auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
 
 // Draw count clear -----------------------------------------------------------------------------------
 
-ClearDrawCountsPass::ClearDrawCountsPass(ResourcePool& pool) :
-    m_counts{ pool.addBuffer("IndirectDrawCounts", Usage::TransferDst,
+ClearDrawCountsPass::ClearDrawCountsPass(ResourceDeclarations& declarations) :
+    m_counts{ declarations.addBuffer(names::indirectDrawCounts, Usage::TransferDst,
         { .size = sizeof(std::uint32_t) * DrawBatchRegistry::maxDrawBatches }) }
 {
 }
 
-auto ClearDrawCountsPass::info() const -> Info
+auto ClearDrawCountsPass::name() const -> std::string_view
 {
-    return { .name = "Clear Draw Counts", .writes = { m_counts } };
+    return "Clear Draw Counts";
 }
 
 auto ClearDrawCountsPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
@@ -188,27 +188,23 @@ auto ClearDrawCountsPass::execute(ResourcePool& pool, const FrameInfo& frameInfo
 
 // Culling --------------------------------------------------------------------------------------------
 
-CullingPass::CullingPass(ResourcePool& pool, const InstanceUpdatePass& instances) :
+CullingPass::CullingPass(ResourceDeclarations& declarations, const InstanceUpdatePass& instances) :
     m_instances{ instances },
-    m_cameraData{ pool.addReference("CameraData", Usage::ShaderRead) },
-    m_staticInstances{ pool.addReference("StaticInstances", Usage::ShaderRead) },
-    m_dynamicInstances{ pool.addReference("DynamicInstances", Usage::ShaderRead) },
-    m_drawBatchData{ pool.addReference("DrawBatches", Usage::ShaderRead) },
-    m_visibility{ pool.addBuffer("VisibleInstances", Usage::StorageWrite, { .size = sizeof(std::uint32_t) * initialCapacity }) },
-    m_commands{ pool.addBuffer("IndirectDrawCommands", Usage::StorageWrite, { .size = indirectCommandSize * initialCapacity }) },
-    m_counts{ pool.addReference("IndirectDrawCounts", Usage::StorageWrite) },
+    m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) },
+    m_staticInstances{ declarations.addReference(names::staticInstances, Usage::ShaderRead) },
+    m_dynamicInstances{ declarations.addReference(names::dynamicInstances, Usage::ShaderRead) },
+    m_drawBatchData{ declarations.addReference(names::drawBatches, Usage::ShaderRead) },
+    m_visibility{ declarations.addBuffer(names::visibleInstances, Usage::StorageWrite, { .size = sizeof(std::uint32_t) * initialCapacity }) },
+    m_commands{ declarations.addBuffer(names::indirectDrawCommands, Usage::StorageWrite, { .size = indirectCommandSize * initialCapacity }) },
+    m_counts{ declarations.addReference(names::indirectDrawCounts, Usage::StorageWrite) },
     m_visibilityCapacity{ initialCapacity },
     m_commandCapacity{ initialCapacity }
 {
 }
 
-auto CullingPass::info() const -> Info
+auto CullingPass::name() const -> std::string_view
 {
-    return {
-        .name = "Culling",
-        .reads = { m_cameraData, m_staticInstances, m_dynamicInstances, m_drawBatchData },
-        .writes = { m_visibility, m_commands, m_counts },
-    };
+    return "Culling";
 }
 
 auto CullingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
@@ -253,34 +249,22 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
 
 // GPU-driven geometry --------------------------------------------------------------------------------
 
-GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourcePool& pool, const InstanceUpdatePass& instances) :
+GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations, const InstanceUpdatePass& instances) :
     m_instances{ instances },
-    m_gBuffer{
-        pool.addTexture("Position", Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[0] }),
-        pool.addTexture("Normal", Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[1] }),
-        pool.addTexture("Albedo", Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[2] }),
-        pool.addTexture("ARM", Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[3] }),
-        pool.addTexture("Emissive", Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[4] }),
-    },
-    m_depth{ pool.addTexture("Depth", Usage::DepthAttachment, { .format = GeometryPass::depthFormat }) },
-    m_cameraData{ pool.addReference("CameraData", Usage::ShaderRead) },
-    m_staticInstances{ pool.addReference("StaticInstances", Usage::ShaderRead) },
-    m_dynamicInstances{ pool.addReference("DynamicInstances", Usage::ShaderRead) },
-    m_visibility{ pool.addReference("VisibleInstances", Usage::ShaderRead) },
-    m_commands{ pool.addReference("IndirectDrawCommands", Usage::IndirectRead) },
-    m_counts{ pool.addReference("IndirectDrawCounts", Usage::IndirectRead) }
+    m_gBuffer{ GeometryPass::declareGBuffer(declarations) },
+    m_depth{ GeometryPass::declareDepth(declarations) },
+    m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) },
+    m_staticInstances{ declarations.addReference(names::staticInstances, Usage::ShaderRead) },
+    m_dynamicInstances{ declarations.addReference(names::dynamicInstances, Usage::ShaderRead) },
+    m_visibility{ declarations.addReference(names::visibleInstances, Usage::ShaderRead) },
+    m_commands{ declarations.addReference(names::indirectDrawCommands, Usage::IndirectRead) },
+    m_counts{ declarations.addReference(names::indirectDrawCounts, Usage::IndirectRead) }
 {
 }
 
-auto GpuDrivenGeometryPass::info() const -> Info
+auto GpuDrivenGeometryPass::name() const -> std::string_view
 {
-    Info info{
-        .name = "GPU Driven Geometry",
-        .reads = { m_cameraData, m_staticInstances, m_dynamicInstances, m_visibility, m_commands, m_counts },
-    };
-    info.writes.assign(m_gBuffer.begin(), m_gBuffer.end());
-    info.writes.push_back(m_depth);
-    return info;
+    return "GPU Driven Geometry";
 }
 
 auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
@@ -290,7 +274,7 @@ auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected
 
     std::array<rhi::Pipeline::ColorAttachment, GeometryPass::gBufferFormats.size()> attachments;
     for (std::size_t i = 0; i < attachments.size(); ++i)
-        attachments[i] = { .format = GeometryPass::gBufferFormats[i] };
+        attachments[i] = { .format = pool.format(m_gBuffer[i]) };
 
     // The task shader is a separate module: sharing one, the mesh stage would also declare the
     // task stage's DrawIndex, which a mesh shader with a task stage must not.
@@ -303,7 +287,7 @@ auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected
         rhi::Pipeline::GraphicsDesc{
             .name = "GpuDrivenGeometry",
             .colorAttachments = attachments,
-            .depthAttachment = GeometryPass::depthFormat,
+            .depthAttachment = pool.format(m_depth),
         },
         stages);
     if (!pipeline)

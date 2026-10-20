@@ -47,14 +47,14 @@ public:
         // Frame graph render passes
         ImGui::SeparatorText("Render Passes");
         int i = 0;
-        for (auto* pass : frameGraph.passes())
+        for (const auto& description : frameGraph.describePasses())
         {
             ImGui::PushID(i++);
-            const auto info = pass->info();
-            if (ImGui::CollapsingHeader(info.name.c_str(), ImGuiTreeNodeFlags_None))
+            const std::string passName{ description.name };
+            if (ImGui::CollapsingHeader(passName.c_str(), ImGuiTreeNodeFlags_None))
             {
-                pass->drawUI();
-                for (const auto& [label, handles] : { std::pair{ "Reads", &info.reads }, std::pair{ "Writes", &info.writes } })
+                description.pass->drawUI();
+                for (const auto& [label, handles] : { std::pair{ "Reads", &description.reads }, std::pair{ "Writes", &description.writes } })
                 {
                     if (handles->empty() || !ImGui::TreeNode(label))
                         continue;

@@ -58,3 +58,27 @@ TEST_SUITE("render_graph::Usage")
         }
     }
 }
+
+TEST_SUITE("render_graph::Usage kinds")
+{
+    TEST_CASE("every usage fits images or buffers, and the image usages are the ones with a layout")
+    {
+        for (const auto usage : allUsages)
+        {
+            CAPTURE(static_cast<int>(usage));
+            CHECK((supportsImage(usage) || supportsBuffer(usage)));
+            CHECK(supportsImage(usage) == isImageUsage(usage));
+            CHECK_FALSE(usageName(usage).empty());
+        }
+    }
+
+    TEST_CASE("images take attachments and samples, buffers take device-address and indirect reads")
+    {
+        CHECK(supportsImage(Usage::ColorAttachment));
+        CHECK_FALSE(supportsBuffer(Usage::ColorAttachment));
+        CHECK(supportsBuffer(Usage::ShaderRead));
+        CHECK_FALSE(supportsImage(Usage::ShaderRead));
+        CHECK(supportsImage(Usage::TransferSrc));
+        CHECK(supportsBuffer(Usage::TransferSrc));
+    }
+}

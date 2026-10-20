@@ -4,6 +4,7 @@ import :error;
 import :gpu_types;
 import :render_pass;
 import :resource;
+import :declarations;
 import :resource_pool;
 import aegis.rhi;
 import aegis.math;
@@ -18,9 +19,9 @@ class LightingPass : public RenderPass
 public:
     static constexpr std::uint32_t maxPointLights{ render_graph::maxPointLights };
 
-    explicit LightingPass(ResourcePool& pool);
+    explicit LightingPass(ResourceDeclarations& declarations);
 
-    [[nodiscard]] auto info() const -> Info override;
+    [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
     auto drawUI() -> void override;
