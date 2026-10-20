@@ -110,14 +110,18 @@ public:
     ///         or a validation error. The cause is logged.
     [[nodiscard]] auto run() -> int;
 
+    /// @brief Hands out the delta time of each frame. A wall clock with a clamp by default (a fixed
+    ///        step when headless); assign FrameClock::fixed(step) for a deterministic run.
+    [[nodiscard]] auto clock() -> base::FrameClock& { return m_clock; }
+
     /// @brief Creates a scene from a description
     /// @tparam T Description of the scene (Derived from SceneDescription)
     template<SceneDescriptionDerived T, typename... Args>
     void loadScene(Args&&... args)
     {
         m_world.reset();
-        // The engine's systems, always present. Scripts go first, they write the transforms the
-        // TransformSystem derives from, and the camera reads the global transforms.
+        // The engine's systems, always present. Their phases order them (scripts, then transforms,
+        // then cameras); a game adds its own systems the same way, in the phase they declare.
         if (m_input)
             m_world.addSystem<scripting::ScriptSystem>(m_world.registry(), m_input->state(), m_input.get());
         else
@@ -162,6 +166,7 @@ private:
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
     std::optional<AssetLoader> m_assets;
     reflect::TypeRegistry m_types;
+    base::FrameClock m_clock{ base::FrameClock::clamped(MAX_FRAME_DELTA_SEC) };
     world::World m_world;
     aegis::render_graph::DrawBatchRegistry m_drawBatches; // Disconnects from the scene first
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
