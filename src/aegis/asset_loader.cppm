@@ -13,14 +13,14 @@ export namespace aegis
 class AssetLoader
 {
 public:
-    /// @brief Creates the default assets, the IBL pipelines and the BRDF lookup table.
+    /// @brief Creates the default assets and the IBL pipelines.
     [[nodiscard]] static auto create(rhi::Device& device, std::uint32_t framesInFlight) -> std::expected<AssetLoader, std::string>;
 
     /// @brief Loads a .gltf / .glb / .obj into 'scene'; returns its root entity.
     auto loadModel(world::World& scene, const std::filesystem::path& path) const -> world::Entity;
 
     /// @brief An environment (sky box and IBL maps) from a Radiance .hdr.
-    auto loadEnvironment(const std::filesystem::path& hdr) const -> assets::Environment;
+    auto loadEnvironment(const std::filesystem::path& hdr) const -> std::shared_ptr<assets::Environment>;
 
     /// @brief A PNG/JPEG/... texture; color data (e.g. albedo) is RGBA8_SRGB.
     auto loadTexture(const std::filesystem::path& path, rhi::Format format = rhi::Format::RGBA8_UNORM) const
@@ -33,16 +33,14 @@ public:
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return m_defaults; }
 
     /// @brief A black sky; scenes replace it with loadEnvironment.
-    [[nodiscard]] auto defaultEnvironment() const -> assets::Environment;
+    [[nodiscard]] auto defaultEnvironment() const -> std::shared_ptr<assets::Environment>;
 
 private:
-    AssetLoader(rhi::Device& device, std::uint32_t framesInFlight, assets::DefaultAssets defaults, render_graph::Ibl ibl,
-        std::shared_ptr<assets::Texture> brdfLut) :
+    AssetLoader(rhi::Device& device, std::uint32_t framesInFlight, assets::DefaultAssets defaults, render_graph::Ibl ibl) :
         m_device(&device),
         m_framesInFlight(framesInFlight),
         m_defaults(std::move(defaults)),
-        m_ibl(std::move(ibl)),
-        m_brdfLut(std::move(brdfLut))
+        m_ibl(std::move(ibl))
     {
     }
 
@@ -50,6 +48,5 @@ private:
     std::uint32_t m_framesInFlight;
     assets::DefaultAssets m_defaults;
     mutable render_graph::Ibl m_ibl; // loadEnvironment runs GPU work through it
-    std::shared_ptr<assets::Texture> m_brdfLut;
 };
 }

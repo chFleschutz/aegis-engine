@@ -778,6 +778,9 @@ public:
         auto environment = ibl->loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
         if (!environment)
             return std::unexpected{ std::format("IBL environment: {}", describe(environment.error())) };
+        auto brdfLut = ibl->brdfLut();
+        if (!brdfLut)
+            return std::unexpected{ std::format("IBL BRDF LUT: {}", describe(brdfLut.error())) };
 
         const auto check = [&](const auto& texture, std::uint32_t size, std::uint32_t mips, std::uint32_t layers,
                                std::string_view what) -> std::expected<void, std::string> {
@@ -791,17 +794,17 @@ public:
         };
         using render_graph::Ibl;
         for (auto result : {
-                 check(environment->skybox, 512, 10, 6, "Environment cube"),
-                 check(environment->irradiance, Ibl::irradianceSize, 1, 6, "Irradiance map"),
-                 check(environment->prefiltered, Ibl::prefilteredSize, Ibl::prefilteredMipLevels, 6, "Prefiltered map"),
-                 check(environment->brdfLUT, Ibl::brdfLutSize, 1, 1, "BRDF LUT"),
+                 check((*environment)->skybox, 512, 10, 6, "Environment cube"),
+                 check((*environment)->irradiance, Ibl::irradianceSize, 1, 6, "Irradiance map"),
+                 check((*environment)->prefiltered, Ibl::prefilteredSize, Ibl::prefilteredMipLevels, 6, "Prefiltered map"),
+                 check(*brdfLut, Ibl::brdfLutSize, 1, 1, "BRDF LUT"),
              })
         {
             if (!result)
                 return result;
         }
 
-        auto lut = readRgba16f(environment->brdfLUT->image(), Ibl::brdfLutSize, 1);
+        auto lut = readRgba16f((*brdfLut)->image(), Ibl::brdfLutSize, 1);
         if (!lut)
             return std::unexpected{ lut.error() };
         const auto lutTexel = [&](std::uint32_t x, std::uint32_t y, std::uint32_t c) {
@@ -812,7 +815,7 @@ public:
         if (scale < 0.9f || scale > 1.05f || bias > 0.05f)
             return std::unexpected{ std::format("BRDF LUT at NdotV~1, roughness 0 is ({}, {}), want ~(1, 0)", scale, bias) };
 
-        auto irradiance = readRgba16f(environment->irradiance->image(), Ibl::irradianceSize, 6);
+        auto irradiance = readRgba16f((*environment)->irradiance->image(), Ibl::irradianceSize, 6);
         if (!irradiance)
             return std::unexpected{ irradiance.error() };
         const auto center = (std::size_t{ Ibl::irradianceSize / 2 } * Ibl::irradianceSize + Ibl::irradianceSize / 2) * 4;
@@ -908,7 +911,7 @@ public:
         if (!environment)
             return std::unexpected{ std::format("Environment: {}", describe(environment.error())) };
         const auto sky = registry.create("Sky");
-        registry.add<assets::Environment>(sky, std::move(*environment));
+        registry.add<aegis::Sky>(sky, std::move(*environment));
 
         auto helmet = assets::Loader::load(
             {

@@ -40,7 +40,7 @@ public:
         auto& registry = scene.registry();
 
         // SKYBOX
-        registry.get<aegis::assets::Environment>(registry.first<aegis::assets::Environment>()) =
+        registry.get<aegis::Sky>(registry.first<aegis::Sky>()).environment =
             assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         // LIGHTS

@@ -66,7 +66,7 @@ Ibl::Ibl(rhi::Device& device, rhi::Pipeline equirectToCube, rhi::Pipeline irradi
 {
 }
 
-auto Ibl::loadEnvironment(const std::filesystem::path& hdr) -> std::expected<assets::Environment, Error>
+auto Ibl::loadEnvironment(const std::filesystem::path& hdr) -> std::expected<std::shared_ptr<assets::Environment>, Error>
 {
     auto equirect = assets::Texture::loadEquirectangular(*m_device, hdr);
     if (!equirect)
@@ -78,7 +78,7 @@ auto Ibl::loadEnvironment(const std::filesystem::path& hdr) -> std::expected<ass
     return environmentFrom(std::move(*cube));
 }
 
-auto Ibl::environmentFrom(std::shared_ptr<assets::Texture> cube) -> std::expected<assets::Environment, Error>
+auto Ibl::environmentFrom(std::shared_ptr<assets::Texture> cube) -> std::expected<std::shared_ptr<assets::Environment>, Error>
 {
     auto irradianceMap = irradiance(*cube);
     if (!irradianceMap)
@@ -86,16 +86,12 @@ auto Ibl::environmentFrom(std::shared_ptr<assets::Texture> cube) -> std::expecte
     auto prefilteredMap = prefiltered(*cube);
     if (!prefilteredMap)
         return std::unexpected{ prefilteredMap.error() };
-    auto lut = brdfLut();
-    if (!lut)
-        return std::unexpected{ lut.error() };
 
-    return assets::Environment{
+    return std::make_shared<assets::Environment>(assets::Environment{
         .skybox = std::move(cube),
         .irradiance = std::move(*irradianceMap),
         .prefiltered = std::move(*prefilteredMap),
-        .brdfLUT = std::move(*lut),
-    };
+    });
 }
 
 auto Ibl::storageView(const assets::Texture& texture, std::uint32_t mipLevel) -> std::expected<rhi::ImageViewHandle, Error>

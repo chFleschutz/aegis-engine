@@ -6,6 +6,7 @@ export module aegis.defaults;
 
 import std;
 import aegis.world;
+import aegis.world.render_components;
 import aegis.scene_description;
 import aegis.scripting.script;
 import aegis.assets;
@@ -58,7 +59,7 @@ auto addDefaultEnvironment(SceneContext& context) -> world::Entity
 {
     auto& registry = context.scene.registry();
     auto skybox = registry.create("Skybox");
-    registry.add<aegis::assets::Environment>(skybox, context.assets.defaultEnvironment());
+    registry.add<aegis::Sky>(skybox, context.assets.defaultEnvironment());
     return skybox;
 }
 
