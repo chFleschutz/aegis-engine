@@ -1,6 +1,6 @@
 # Tests
 
-Unit tests for **pure, GPU-independent logic** in any module (`rhi`, `assets`, `render_graph`, `math`,
+Unit tests for **pure, GPU-independent logic** in any module (`rhi`, `assets`, `render_graph`, `math`, `platform`,
 `scene`). Scope is intentionally narrow: logic that survives the migration. Device-level integration
 stays in the harness (`../src/aegis/test/`), which CTest also runs headless as three
 `device`-labelled tests (triangle, CPU- and GPU-driven scene).
@@ -82,7 +82,7 @@ flattening of `src/aegis/` never moves them.
 tests/
   CMakeLists.txt       # aegis_add_test helper + shared doctest main
   test_main.cpp        # DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN only, no tests
-  <module>/            # rhi, math, assets, render_graph, scene
+  <module>/            # rhi, math, assets, render_graph, scene, platform
     CMakeLists.txt
     *.test.cpp
 ```
