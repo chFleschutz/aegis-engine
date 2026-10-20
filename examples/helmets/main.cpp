@@ -18,7 +18,7 @@ public:
             (std::sin(m_time + 4.0f) + 1.0f) / 2.0f
         };
 
-        auto& material = context.get<aegis::Material>().instance;
+        auto& material = context.get<aegis::MeshRenderer>().material;
         [[maybe_unused]] auto set = material->setParameter(aegis::assets::pbr::albedo, color);
         AGX_ASSERT_X(set, "Failed to set the material's albedo");
     }
@@ -40,7 +40,7 @@ public:
         auto& registry = scene.registry();
 
         // SKYBOX
-        registry.get<aegis::assets::Environment>(registry.first<aegis::assets::Environment>()) =
+        registry.get<aegis::Sky>(registry.first<aegis::Sky>()).environment =
             assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         // LIGHTS

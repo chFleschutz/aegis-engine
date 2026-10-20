@@ -25,8 +25,8 @@ struct PassDescription
 {
     RenderPass* pass;
     std::string_view name;
-    std::vector<ResourceHandle> reads;
-    std::vector<ResourceHandle> writes;
+    std::vector<ResourceId> reads;
+    std::vector<ResourceId> writes;
 };
 
 /// @brief A GraphBuilder with a device behind it: creates the resources the passes declare, and records each

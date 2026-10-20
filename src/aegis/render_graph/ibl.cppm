@@ -7,7 +7,8 @@ import aegis.rhi;
 export namespace aegis::render_graph
 {
 /// @brief Image-based lighting precomputation on the GPU: environment cube maps from HDR images,
-///        their diffuse irradiance and specular prefiltered maps, and the BRDF lookup table.
+///        their diffuse irradiance and specular prefiltered maps, and the BRDF lookup table (which
+///        does not depend on an environment).
 ///        Each call records, submits and waits; the results are in ResourceState::ShaderRead.
 class Ibl
 {
@@ -19,12 +20,12 @@ public:
 
     [[nodiscard]] static auto create(rhi::Device& device) -> std::expected<Ibl, Error>;
 
-    /// @brief An environment from a Radiance .hdr: cube (width / 4 per face), irradiance,
-    ///        prefiltered map and BRDF LUT.
-    [[nodiscard]] auto loadEnvironment(const std::filesystem::path& hdr) -> std::expected<assets::Environment, Error>;
+    /// @brief An environment from a Radiance .hdr: cube (width / 4 per face), irradiance
+    ///        and prefiltered map.
+    [[nodiscard]] auto loadEnvironment(const std::filesystem::path& hdr) -> std::expected<std::shared_ptr<assets::Environment>, Error>;
 
     /// @brief An environment around an existing cube map (e.g. a solid-color default).
-    [[nodiscard]] auto environmentFrom(std::shared_ptr<assets::Texture> cube) -> std::expected<assets::Environment, Error>;
+    [[nodiscard]] auto environmentFrom(std::shared_ptr<assets::Texture> cube) -> std::expected<std::shared_ptr<assets::Environment>, Error>;
 
     [[nodiscard]] auto cubeFromEquirectangular(const assets::Texture& equirect)
         -> std::expected<std::shared_ptr<assets::Texture>, Error>;

@@ -26,7 +26,7 @@ struct PushConstants
     }
 }
 
-[[vk::push_constant]] ConstantBuffer<PushConstants> pc;
+[[vk::push_constant]] ConstantBuffer<PushConstants> push;
 
 struct VSOut
 {
@@ -39,20 +39,20 @@ struct VSOut
 [shader("vertex")]
 func vertexMain(uint vertexID : SV_VertexID, out VSOut output)
 {
-    let vertex = pc.mesh->vertices[vertexID];
-    let camera = pc.camera;
+    let vertex = push.mesh->vertices[vertexID];
+    let camera = push.camera;
 
-    float4 worldPosition = mul(pc.modelMatrix, float4(vertex.position, 1.0));
+    float4 worldPosition = mul(push.modelMatrix, float4(vertex.position, 1.0));
     output.position = mul(camera->viewProjection, worldPosition);
     output.worldPosition = worldPosition.xyz;
-    output.worldNormal = normalize(mul(pc.normalMatrix, vertex.normal));
+    output.worldNormal = normalize(mul(push.normalMatrix, vertex.normal));
     output.uv = vertex.uv;
 }
 
 [shader("fragment")]
 func fragmentMain(in VSOut input, out common::GBuffer output)
 {
-    let material = pc.material;
+    let material = push.material;
 
     float3 albedo = material->albedoMap.sample(input.uv).rgb * material->albedo;
     float3 normal = material->normalMap.sample(input.uv).rgb * 2.0 - 1.0;

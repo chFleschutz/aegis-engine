@@ -59,7 +59,7 @@ TEST_SUITE("render_graph::Usage")
     }
 }
 
-TEST_SUITE("render_graph::Usage kinds")
+TEST_SUITE("render_graph::Usage")
 {
     TEST_CASE("every usage fits images or buffers, and the image usages are the ones with a layout")
     {

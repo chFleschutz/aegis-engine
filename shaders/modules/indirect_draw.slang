@@ -31,7 +31,7 @@ namespace indirectDraw
     }
 
     /// The push constants of the task, mesh and fragment stages; their files declare
-    /// [[vk::push_constant]] ConstantBuffer<indirectDraw::GeometryConstants> pc.
+    /// [[vk::push_constant]] ConstantBuffer<indirectDraw::GeometryConstants> push.
     public struct GeometryConstants
     {
         public common::Camera* camera;

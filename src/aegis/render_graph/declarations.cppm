@@ -52,28 +52,28 @@ public:
     auto setPassName(std::uint32_t pass, std::string_view name) -> void;
 
     /// @brief Declares a texture the current pass creates. Names are unique among created resources.
-    auto addTexture(std::string_view name, Usage usage, const TextureDesc& desc) -> ResourceHandle;
+    auto addTexture(std::string_view name, Usage usage, const TextureDesc& desc) -> ResourceId;
     /// @brief Declares a buffer the current pass creates. Names are unique among created resources.
-    auto addBuffer(std::string_view name, Usage usage, const BufferDesc& desc) -> ResourceHandle;
+    auto addBuffer(std::string_view name, Usage usage, const BufferDesc& desc) -> ResourceId;
     /// @brief Declares an access of the current pass to a resource another pass creates, found by name at
     ///        compile time.
-    auto addReference(std::string_view name, Usage usage) -> ResourceHandle;
+    auto addReference(std::string_view name, Usage usage) -> ResourceId;
 
     [[nodiscard]] auto entries() const noexcept -> std::span<const Entry> { return m_entries; }
     [[nodiscard]] auto passCount() const noexcept -> std::uint32_t { return static_cast<std::uint32_t>(m_passNames.size()); }
     [[nodiscard]] auto passName(std::uint32_t pass) const -> std::string_view { return m_passNames[pass]; }
 
     /// @brief What the pass reads: its declarations that do not write, in declaration order.
-    [[nodiscard]] auto reads(std::uint32_t pass) const -> std::vector<ResourceHandle>;
+    [[nodiscard]] auto reads(std::uint32_t pass) const -> std::vector<ResourceId>;
     /// @brief What the pass writes (or creates), in declaration order.
-    [[nodiscard]] auto writes(std::uint32_t pass) const -> std::vector<ResourceHandle>;
+    [[nodiscard]] auto writes(std::uint32_t pass) const -> std::vector<ResourceId>;
 
     /// @brief Every declaration, in the order passes made them.
     [[nodiscard]] auto describe() const -> std::vector<ResourceDescription>;
-    [[nodiscard]] auto name(ResourceHandle handle) const -> std::string_view { return m_entries[handle.index].name; }
+    [[nodiscard]] auto name(ResourceId handle) const -> std::string_view { return m_entries[handle.index].name; }
 
 private:
-    auto add(std::string_view name, Usage usage, std::variant<TextureDesc, BufferDesc, Reference> info) -> ResourceHandle;
+    auto add(std::string_view name, Usage usage, std::variant<TextureDesc, BufferDesc, Reference> info) -> ResourceId;
 
     std::vector<Entry> m_entries;
     std::vector<std::string> m_passNames;

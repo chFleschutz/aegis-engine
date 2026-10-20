@@ -17,8 +17,8 @@ target_sources(aegis-assets
     FILE_SET CXX_MODULES FILES
     asset_key.cppm
     assets.cppm
-    components.cppm
     defaults.cppm
+    environment.cppm
     error.cppm
     gpu_types.cppm
     image_data.cppm

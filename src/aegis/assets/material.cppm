@@ -66,20 +66,20 @@ private:
 /// @brief A template's parameters with per-material overrides, in a GPU block per frame in flight
 ///        that shaders read through parameterAddress().
 /// @note Holds the Device and frees its buffer on destruction (deferred until the GPU is done).
-class MaterialInstance
+class Material
 {
 public:
     /// @param framesInFlight One parameter block per frame, so updating one never races a frame the
     ///        GPU is still reading (renderer::Renderer::maxFramesInFlight).
     [[nodiscard]] static auto create(rhi::Device& device, std::shared_ptr<const MaterialTemplate> materialTemplate,
-        std::uint32_t framesInFlight) -> std::expected<std::shared_ptr<MaterialInstance>, Error>;
+        std::uint32_t framesInFlight) -> std::expected<std::shared_ptr<Material>, Error>;
 
-    MaterialInstance(const MaterialInstance&) = delete;
-    MaterialInstance(MaterialInstance&&) = delete;
-    ~MaterialInstance();
+    Material(const Material&) = delete;
+    Material(Material&&) = delete;
+    ~Material();
 
-    auto operator=(const MaterialInstance&) -> MaterialInstance& = delete;
-    auto operator=(MaterialInstance&&) -> MaterialInstance& = delete;
+    auto operator=(const Material&) -> Material& = delete;
+    auto operator=(Material&&) -> Material& = delete;
 
     [[nodiscard]] auto materialTemplate() const noexcept -> const std::shared_ptr<const MaterialTemplate>&
     {
@@ -110,7 +110,7 @@ public:
     [[nodiscard]] auto parameterAddress(std::uint32_t frameIndex) const -> rhi::DeviceAddress;
 
 private:
-    MaterialInstance(rhi::Device& device, std::shared_ptr<const MaterialTemplate> materialTemplate,
+    Material(rhi::Device& device, std::shared_ptr<const MaterialTemplate> materialTemplate,
         rhi::BufferHandle buffer, std::size_t blockStride, std::uint32_t framesInFlight);
 
     rhi::Device& m_device;

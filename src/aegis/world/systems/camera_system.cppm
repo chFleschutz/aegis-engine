@@ -16,6 +16,9 @@ export namespace aegis::world
 class CameraSystem : public System
 {
 public:
+    /// @brief After the transforms it reads, whatever the order they were added in
+    [[nodiscard]] auto phase() const -> Phase override { return Phase::LateUpdate; }
+
     virtual void onUpdate(Registry& registry, float deltaSeconds) override
     {
         auto view = registry.view<GlobalTransform, Camera>();

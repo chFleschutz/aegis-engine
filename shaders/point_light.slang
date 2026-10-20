@@ -20,7 +20,7 @@ struct PushConstants
     common::Camera* camera;
 }
 
-[[vk::push_constant]] ConstantBuffer<PushConstants> pc;
+[[vk::push_constant]] ConstantBuffer<PushConstants> push;
 
 struct VSOut
 {
@@ -32,9 +32,9 @@ struct VSOut
 func vertexMain(uint vertexID : SV_VertexID, out VSOut output)
 {
     output.fragOffset = OFFSETS[vertexID];
-    float4 viewOffset = float4(output.fragOffset, 0.0, 0.0) * pc.radius;
-    float4 viewPosition = mul(pc.camera->view, pc.worldPosition);
-    output.position = mul(pc.camera->projection, viewPosition + viewOffset);
+    float4 viewOffset = float4(output.fragOffset, 0.0, 0.0) * push.radius;
+    float4 viewPosition = mul(push.camera->view, push.worldPosition);
+    output.position = mul(push.camera->projection, viewPosition + viewOffset);
 }
 
 [shader("fragment")]
@@ -45,5 +45,5 @@ func fragmentMain(VSOut input, out float4 color : SV_Target)
         discard;
 
     float cosDistance = (cos(offsetDistance * constants::PI) + 1.0) * 0.5;
-    color = float4(pc.color.xyz + cosDistance, cosDistance);
+    color = float4(push.color.xyz + cosDistance, cosDistance);
 }

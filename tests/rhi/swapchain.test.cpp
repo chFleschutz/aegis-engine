@@ -3,7 +3,7 @@
 import std;
 import aegis.rhi;
 
-TEST_SUITE("rhi::swapchain policy")
+TEST_SUITE("rhi::swapchain")
 {
     using aegis::rhi::Extent2D;
     using aegis::rhi::detail::chooseImageCount;

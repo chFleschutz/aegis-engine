@@ -70,7 +70,7 @@ private:
         m_materials.reserve(m_model.materials.size());
         for (const auto& data : m_model.materials)
         {
-            auto material = MaterialInstance::create(m_desc.device, m_desc.defaults.pbrTemplate, m_desc.framesInFlight);
+            auto material = Material::create(m_desc.device, m_desc.defaults.pbrTemplate, m_desc.framesInFlight);
             if (!material)
                 return std::unexpected{ material.error() };
 
@@ -109,7 +109,7 @@ private:
         return {};
     }
 
-    auto materialFor(const ModelPrimitive& primitive) -> std::expected<std::shared_ptr<MaterialInstance>, Error>
+    auto materialFor(const ModelPrimitive& primitive) -> std::expected<std::shared_ptr<Material>, Error>
     {
         if (primitive.material)
             return m_materials[*primitive.material];
@@ -152,8 +152,8 @@ private:
     const ModelData& m_model;
     std::vector<std::shared_ptr<Texture>> m_textures;               // Per ModelData image
     std::vector<std::vector<std::shared_ptr<StaticMesh>>> m_meshes; // Per ModelData mesh, one per primitive
-    std::vector<std::shared_ptr<MaterialInstance>> m_materials;     // Per ModelData material
-    std::shared_ptr<MaterialInstance> m_defaultMaterial;            // For primitives without one
+    std::vector<std::shared_ptr<Material>> m_materials;             // Per ModelData material
+    std::shared_ptr<Material> m_defaultMaterial;                    // For primitives without one
 };
 }
 

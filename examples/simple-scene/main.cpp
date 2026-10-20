@@ -57,11 +57,11 @@ public:
 
         auto floorPlane = assets.loadModel(scene, paths::assets() / "Misc/plane.obj");
         registry.get<Transform>(floorPlane).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
-        registry.get<aegis::Material>(floorPlane).instance = paintingMat;
+        registry.get<aegis::MeshRenderer>(floorPlane).material = paintingMat;
 
         auto teapot = assets.loadModel(scene, paths::assets() / "Misc/teapot.obj");
         registry.get<Transform>(teapot).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
-        registry.get<aegis::Material>(teapot).instance = metalMat;
+        registry.get<aegis::MeshRenderer>(teapot).material = metalMat;
         registry.add<DynamicTag>(teapot); // The Rotator moves it every frame
         [[maybe_unused]] auto rotator = scripting::attachScript(registry, types, teapot, "Rotator");
         AGX_ASSERT_X(rotator, "The Rotator script is not registered");

@@ -17,7 +17,7 @@ struct DrawBatch
 };
 
 /// @brief Groups scene instances into draw batches by material template and keeps the counts the
-///        GPU-driven path sizes its buffers by. Follows aegis::Material components as they come and go.
+///        GPU-driven path sizes its buffers by. Follows aegis::MeshRenderer components as they come and go.
 ///        It also reports every change to the static set (instances and meshes coming and going, entities
 ///        moving between static and dynamic) to the scene registry's static version, and marks new static
 ///        entities dirty so the TransformSystem computes their global transforms.
@@ -34,7 +34,7 @@ public:
     auto operator=(const DrawBatchRegistry&) -> DrawBatchRegistry& = delete;
     auto operator=(DrawBatchRegistry&&) -> DrawBatchRegistry& = delete;
 
-    /// @brief Counts the registry's existing materials and follows its later changes. Forgets everything
+    /// @brief Counts the registry's existing mesh renderers and follows its later changes. Forgets everything
     ///        counted before, so a second connect never double-counts.
     auto connect(aegis::world::Registry& registry) -> void;
     auto disconnect() -> void;
@@ -60,14 +60,12 @@ public:
     auto setDynamic(entt::entity entity, bool dynamic) -> void;
 
 private:
-    auto onMaterialConstruct(entt::registry& registry, entt::entity entity) -> void;
-    auto onMaterialDestroy(entt::registry& registry, entt::entity entity) -> void;
+    auto onRendererConstruct(entt::registry& registry, entt::entity entity) -> void;
+    auto onRendererDestroy(entt::registry& registry, entt::entity entity) -> void;
     auto onDynamicConstruct(entt::registry& registry, entt::entity entity) -> void;
     auto onDynamicDestroy(entt::registry& registry, entt::entity entity) -> void;
-    auto onMeshConstruct(entt::registry& registry, entt::entity entity) -> void;
-    auto onMeshDestroy(entt::registry& registry, entt::entity entity) -> void;
     auto markStatic(entt::registry& registry, entt::entity entity) -> void;
-    auto trackMaterial(entt::entity entity, const aegis::Material& material, bool dynamic) -> void;
+    auto trackRenderer(entt::entity entity, const aegis::MeshRenderer& renderer, bool dynamic) -> void;
     auto updateOffsets() -> void;
     auto clear() -> void;
 

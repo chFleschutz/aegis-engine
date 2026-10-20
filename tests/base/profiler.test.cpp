@@ -5,7 +5,7 @@ import aegis.base;
 
 using doctest::Approx;
 
-TEST_SUITE("aegis::RollingAverage")
+TEST_SUITE("base::RollingAverage")
 {
     TEST_CASE("is zero before any value")
     {
@@ -37,7 +37,7 @@ TEST_SUITE("aegis::RollingAverage")
     }
 }
 
-TEST_SUITE("aegis::Profiler")
+TEST_SUITE("base::Profiler")
 {
     TEST_CASE("instances do not share state")
     {
@@ -67,7 +67,7 @@ TEST_SUITE("aegis::Profiler")
     }
 }
 
-TEST_SUITE("aegis::Timer")
+TEST_SUITE("base::Timer")
 {
     TEST_CASE("runs on a monotonic clock")
     {

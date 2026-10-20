@@ -36,10 +36,7 @@ auto AssetLoader::create(rhi::Device& device, std::uint32_t framesInFlight) -> s
     auto ibl = render_graph::Ibl::create(device);
     if (!ibl)
         return std::unexpected(std::format("Failed to create the IBL pipelines: {}", describe(ibl.error())));
-    auto brdfLut = ibl->brdfLut();
-    if (!brdfLut)
-        return std::unexpected(std::format("Failed to compute the BRDF lookup table: {}", describe(brdfLut.error())));
-    return AssetLoader{ device, framesInFlight, std::move(*defaults), std::move(*ibl), std::move(*brdfLut) };
+    return AssetLoader{ device, framesInFlight, std::move(*defaults), std::move(*ibl) };
 }
 
 auto AssetLoader::loadModel(world::World& scene, const std::filesystem::path& path) const -> world::Entity
@@ -54,7 +51,7 @@ auto AssetLoader::loadModel(world::World& scene, const std::filesystem::path& pa
     return instantiate(scene.registry(), check(std::move(model), std::format("load model '{}'", path.string())));
 }
 
-auto AssetLoader::loadEnvironment(const std::filesystem::path& hdr) const -> assets::Environment
+auto AssetLoader::loadEnvironment(const std::filesystem::path& hdr) const -> std::shared_ptr<assets::Environment>
 {
     return check(m_ibl.loadEnvironment(hdr), std::format("load environment '{}'", hdr.string()));
 }
@@ -65,20 +62,19 @@ auto AssetLoader::loadTexture(const std::filesystem::path& path, rhi::Format for
 }
 
 auto AssetLoader::createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) const
-    -> std::shared_ptr<assets::MaterialInstance>
+    -> std::shared_ptr<assets::Material>
 {
     if (!materialTemplate)
         materialTemplate = m_defaults.pbrTemplate;
-    return check(assets::MaterialInstance::create(*m_device, std::move(materialTemplate), m_framesInFlight), "create a material");
+    return check(assets::Material::create(*m_device, std::move(materialTemplate), m_framesInFlight), "create a material");
 }
 
-auto AssetLoader::defaultEnvironment() const -> assets::Environment
+auto AssetLoader::defaultEnvironment() const -> std::shared_ptr<assets::Environment>
 {
-    return assets::Environment{
+    return std::make_shared<assets::Environment>(assets::Environment{
         .skybox = m_defaults.blackCube,
         .irradiance = m_defaults.blackCube,
         .prefiltered = m_defaults.blackCube,
-        .brdfLUT = m_brdfLut,
-    };
+    });
 }
 }

@@ -29,9 +29,9 @@ public:
 
     /// @brief Declares the G-buffer textures, in the order of gBufferFormats. The GPU-driven geometry pass fills the
     ///        same targets, so both declare them here.
-    static auto declareGBuffer(ResourceDeclarations& declarations) -> std::array<ResourceHandle, gBufferFormats.size()>;
+    static auto declareGBuffer(ResourceDeclarations& declarations) -> std::array<ResourceId, gBufferFormats.size()>;
     /// @brief Declares the depth texture, in depthFormat.
-    static auto declareDepth(ResourceDeclarations& declarations) -> ResourceHandle;
+    static auto declareDepth(ResourceDeclarations& declarations) -> ResourceId;
 
     template<typename T, typename... Args>
         requires std::derived_from<T, RenderSystem> && std::constructible_from<T, Args...>
@@ -48,9 +48,9 @@ public:
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
-    std::array<ResourceHandle, gBufferFormats.size()> m_gBuffer;
-    ResourceHandle m_depth;
-    ResourceHandle m_cameraData;
+    std::array<ResourceId, gBufferFormats.size()> m_gBuffer;
+    ResourceId m_depth;
+    ResourceId m_cameraData;
     std::vector<std::unique_ptr<RenderSystem>> m_renderSystems;
 };
 }

@@ -48,7 +48,7 @@ struct PushConstants
     bindless::TextureDescriptor brdfLut;
 }
 
-[[vk::push_constant]] ConstantBuffer<PushConstants> pc;
+[[vk::push_constant]] ConstantBuffer<PushConstants> push;
 
 static const float EMISSIVE_INTENSITY = 2.0;
 static const float MAX_REFLECTION_LOD = 4.0;
@@ -57,20 +57,20 @@ static const float MAX_REFLECTION_LOD = 4.0;
 [numthreads(16, 16, 1)]
 func main(uint3 dispatchThreadID: SV_DispatchThreadID)
 {
-    let sceneColorMap = bindless::storage2D(pc.sceneColor);
+    let sceneColorMap = bindless::storage2D(push.sceneColor);
     uint2 outputSize;
     sceneColorMap.GetDimensions(outputSize.x, outputSize.y);
     if (any(dispatchThreadID.xy >= outputSize))
         return;
 
-    let lighting = pc.lighting;
+    let lighting = push.lighting;
     int2 pixel = int2(dispatchThreadID.xy);
 
-    float3 position = bindless::storage2D(pc.position)[pixel].xyz;
-    float3 normal = bindless::storage2D(pc.normal)[pixel].xyz;
-    float3 albedo = bindless::storage2D(pc.albedo)[pixel].xyz;
-    float3 arm = bindless::storage2D(pc.arm)[pixel].xyz;
-    float3 emissive = bindless::storage2D(pc.emissive)[pixel].xyz;
+    float3 position = bindless::storage2D(push.position)[pixel].xyz;
+    float3 normal = bindless::storage2D(push.normal)[pixel].xyz;
+    float3 albedo = bindless::storage2D(push.albedo)[pixel].xyz;
+    float3 arm = bindless::storage2D(push.arm)[pixel].xyz;
+    float3 emissive = bindless::storage2D(push.emissive)[pixel].xyz;
 
     // The AO factor fades the material's ambient occlusion: 0 turns it off, 1 (default) applies it fully
     float ao = lerp(1.0, arm.x, lighting->ambientOcclusionFactor);
@@ -94,10 +94,10 @@ func main(uint3 dispatchThreadID: SV_DispatchThreadID)
         float3 kS = F;
         float3 kD = (1.0 - kS) * (1.0 - metallic);
 
-        float3 diffuse = albedo * pc.irradiance.sampleCubeLevel(N, 0).rgb;
+        float3 diffuse = albedo * push.irradiance.sampleCubeLevel(N, 0).rgb;
 
-        float3 prefilter = pc.prefiltered.sampleCubeLevel(R, roughness * MAX_REFLECTION_LOD).rgb;
-        float2 brdf = pc.brdfLut.sampleLevel(float2(NdotV, roughness), 0).rg;
+        float3 prefilter = push.prefiltered.sampleCubeLevel(R, roughness * MAX_REFLECTION_LOD).rgb;
+        float2 brdf = push.brdfLut.sampleLevel(float2(NdotV, roughness), 0).rg;
         float3 specular = prefilter * (kS * brdf.x + brdf.y);
 
         float3 ambient = (kD * diffuse + specular) * ao;

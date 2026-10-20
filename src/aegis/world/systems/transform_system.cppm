@@ -33,6 +33,9 @@ public:
     TransformSystem() = default;
     ~TransformSystem() = default;
 
+    /// @brief After the scripts and gameplay that write the transforms
+    [[nodiscard]] auto phase() const -> Phase override { return Phase::PostUpdate; }
+
     void onBegin(Registry& registry) override
     {
         // Calculate initial global transforms for all entities

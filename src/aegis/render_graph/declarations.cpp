@@ -18,24 +18,24 @@ auto ResourceDeclarations::setPassName(std::uint32_t pass, std::string_view name
 }
 
 auto ResourceDeclarations::add(std::string_view name, Usage usage, std::variant<TextureDesc, BufferDesc, Reference> info)
-    -> ResourceHandle
+    -> ResourceId
 {
     assert(!m_passNames.empty() && "Declare resources after beginPass");
     m_entries.push_back({ std::string{ name }, usage, std::move(info), passCount() - 1 });
     return { static_cast<std::uint32_t>(m_entries.size() - 1) };
 }
 
-auto ResourceDeclarations::addTexture(std::string_view name, Usage usage, const TextureDesc& desc) -> ResourceHandle
+auto ResourceDeclarations::addTexture(std::string_view name, Usage usage, const TextureDesc& desc) -> ResourceId
 {
     return add(name, usage, desc);
 }
 
-auto ResourceDeclarations::addBuffer(std::string_view name, Usage usage, const BufferDesc& desc) -> ResourceHandle
+auto ResourceDeclarations::addBuffer(std::string_view name, Usage usage, const BufferDesc& desc) -> ResourceId
 {
     return add(name, usage, desc);
 }
 
-auto ResourceDeclarations::addReference(std::string_view name, Usage usage) -> ResourceHandle
+auto ResourceDeclarations::addReference(std::string_view name, Usage usage) -> ResourceId
 {
     return add(name, usage, Reference{});
 }
@@ -47,9 +47,9 @@ auto isWriting(const ResourceDeclarations::Entry& entry) -> bool
     return detail::isWrite(entry.usage) || !std::holds_alternative<ResourceDeclarations::Reference>(entry.info);
 }
 
-auto declaredBy(const ResourceDeclarations& declarations, std::uint32_t pass, bool writes) -> std::vector<ResourceHandle>
+auto declaredBy(const ResourceDeclarations& declarations, std::uint32_t pass, bool writes) -> std::vector<ResourceId>
 {
-    std::vector<ResourceHandle> handles;
+    std::vector<ResourceId> handles;
     const auto entries = declarations.entries();
     for (std::uint32_t i = 0; i < entries.size(); ++i)
     {
@@ -60,12 +60,12 @@ auto declaredBy(const ResourceDeclarations& declarations, std::uint32_t pass, bo
 }
 }
 
-auto ResourceDeclarations::reads(std::uint32_t pass) const -> std::vector<ResourceHandle>
+auto ResourceDeclarations::reads(std::uint32_t pass) const -> std::vector<ResourceId>
 {
     return declaredBy(*this, pass, false);
 }
 
-auto ResourceDeclarations::writes(std::uint32_t pass) const -> std::vector<ResourceHandle>
+auto ResourceDeclarations::writes(std::uint32_t pass) const -> std::vector<ResourceId>
 {
     return declaredBy(*this, pass, true);
 }
