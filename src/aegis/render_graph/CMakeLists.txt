@@ -30,6 +30,7 @@ target_sources(aegis-render-graph
     render_pass.cppm
     resource.cppm
     resource_pool.cppm
+    names.cppm
     schedule.cppm
     shader.cppm
     passes/geometry_pass.cppm

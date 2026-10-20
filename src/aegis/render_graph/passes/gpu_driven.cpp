@@ -84,11 +84,11 @@ auto collectInstances(View view, const DrawBatchRegistry& drawBatches, std::uint
 
 InstanceUpdatePass::InstanceUpdatePass(ResourcePool& pool, const DrawBatchRegistry& drawBatches) :
     m_drawBatches{ drawBatches },
-    m_staticInstances{ pool.addBuffer("StaticInstances", Usage::HostWrite,
+    m_staticInstances{ pool.addBuffer(names::staticInstances, Usage::HostWrite,
         { .size = sizeof(InstanceData) * initialStaticCapacity, .perFrame = true }) },
-    m_dynamicInstances{ pool.addBuffer("DynamicInstances", Usage::HostWrite,
+    m_dynamicInstances{ pool.addBuffer(names::dynamicInstances, Usage::HostWrite,
         { .size = sizeof(InstanceData) * initialDynamicCapacity, .perFrame = true }) },
-    m_drawBatchData{ pool.addBuffer("DrawBatches", Usage::HostWrite,
+    m_drawBatchData{ pool.addBuffer(names::drawBatches, Usage::HostWrite,
         { .size = sizeof(DrawBatchData) * DrawBatchRegistry::maxDrawBatches, .perFrame = true }) }
 {
 }
@@ -170,7 +170,7 @@ auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
 // Draw count clear -----------------------------------------------------------------------------------
 
 ClearDrawCountsPass::ClearDrawCountsPass(ResourcePool& pool) :
-    m_counts{ pool.addBuffer("IndirectDrawCounts", Usage::TransferDst,
+    m_counts{ pool.addBuffer(names::indirectDrawCounts, Usage::TransferDst,
         { .size = sizeof(std::uint32_t) * DrawBatchRegistry::maxDrawBatches }) }
 {
 }
@@ -190,13 +190,13 @@ auto ClearDrawCountsPass::execute(ResourcePool& pool, const FrameInfo& frameInfo
 
 CullingPass::CullingPass(ResourcePool& pool, const InstanceUpdatePass& instances) :
     m_instances{ instances },
-    m_cameraData{ pool.addReference("CameraData", Usage::ShaderRead) },
-    m_staticInstances{ pool.addReference("StaticInstances", Usage::ShaderRead) },
-    m_dynamicInstances{ pool.addReference("DynamicInstances", Usage::ShaderRead) },
-    m_drawBatchData{ pool.addReference("DrawBatches", Usage::ShaderRead) },
-    m_visibility{ pool.addBuffer("VisibleInstances", Usage::StorageWrite, { .size = sizeof(std::uint32_t) * initialCapacity }) },
-    m_commands{ pool.addBuffer("IndirectDrawCommands", Usage::StorageWrite, { .size = indirectCommandSize * initialCapacity }) },
-    m_counts{ pool.addReference("IndirectDrawCounts", Usage::StorageWrite) },
+    m_cameraData{ pool.addReference(names::cameraData, Usage::ShaderRead) },
+    m_staticInstances{ pool.addReference(names::staticInstances, Usage::ShaderRead) },
+    m_dynamicInstances{ pool.addReference(names::dynamicInstances, Usage::ShaderRead) },
+    m_drawBatchData{ pool.addReference(names::drawBatches, Usage::ShaderRead) },
+    m_visibility{ pool.addBuffer(names::visibleInstances, Usage::StorageWrite, { .size = sizeof(std::uint32_t) * initialCapacity }) },
+    m_commands{ pool.addBuffer(names::indirectDrawCommands, Usage::StorageWrite, { .size = indirectCommandSize * initialCapacity }) },
+    m_counts{ pool.addReference(names::indirectDrawCounts, Usage::StorageWrite) },
     m_visibilityCapacity{ initialCapacity },
     m_commandCapacity{ initialCapacity }
 {
@@ -256,19 +256,19 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
 GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourcePool& pool, const InstanceUpdatePass& instances) :
     m_instances{ instances },
     m_gBuffer{
-        pool.addTexture("Position", Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[0] }),
-        pool.addTexture("Normal", Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[1] }),
-        pool.addTexture("Albedo", Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[2] }),
-        pool.addTexture("ARM", Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[3] }),
-        pool.addTexture("Emissive", Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[4] }),
+        pool.addTexture(names::position, Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[0] }),
+        pool.addTexture(names::normal, Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[1] }),
+        pool.addTexture(names::albedo, Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[2] }),
+        pool.addTexture(names::arm, Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[3] }),
+        pool.addTexture(names::emissive, Usage::ColorAttachment, { .format = GeometryPass::gBufferFormats[4] }),
     },
-    m_depth{ pool.addTexture("Depth", Usage::DepthAttachment, { .format = GeometryPass::depthFormat }) },
-    m_cameraData{ pool.addReference("CameraData", Usage::ShaderRead) },
-    m_staticInstances{ pool.addReference("StaticInstances", Usage::ShaderRead) },
-    m_dynamicInstances{ pool.addReference("DynamicInstances", Usage::ShaderRead) },
-    m_visibility{ pool.addReference("VisibleInstances", Usage::ShaderRead) },
-    m_commands{ pool.addReference("IndirectDrawCommands", Usage::IndirectRead) },
-    m_counts{ pool.addReference("IndirectDrawCounts", Usage::IndirectRead) }
+    m_depth{ pool.addTexture(names::depth, Usage::DepthAttachment, { .format = GeometryPass::depthFormat }) },
+    m_cameraData{ pool.addReference(names::cameraData, Usage::ShaderRead) },
+    m_staticInstances{ pool.addReference(names::staticInstances, Usage::ShaderRead) },
+    m_dynamicInstances{ pool.addReference(names::dynamicInstances, Usage::ShaderRead) },
+    m_visibility{ pool.addReference(names::visibleInstances, Usage::ShaderRead) },
+    m_commands{ pool.addReference(names::indirectDrawCommands, Usage::IndirectRead) },
+    m_counts{ pool.addReference(names::indirectDrawCounts, Usage::IndirectRead) }
 {
 }
 

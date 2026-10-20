@@ -2,6 +2,7 @@ export module aegis.render_graph:screen_passes;
 import std;
 import :error;
 import :gpu_types;
+import :names;
 import :render_pass;
 import :resource;
 import :resource_pool;
@@ -63,7 +64,7 @@ private:
 class PresentPass : public RenderPass
 {
 public:
-    explicit PresentPass(ResourcePool& pool, const char* source = "Final");
+    explicit PresentPass(ResourcePool& pool, std::string_view source = names::finalImage);
 
     [[nodiscard]] auto info() const -> Info override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;

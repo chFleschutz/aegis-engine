@@ -44,11 +44,11 @@ public:
     [[nodiscard]] auto renderer() const noexcept -> renderer::Renderer& { return m_renderer; }
 
     /// @brief Declares a texture this pass creates. Names are unique among created resources.
-    auto addTexture(std::string name, Usage usage, const TextureDesc& desc) -> ResourceHandle;
+    auto addTexture(std::string_view name, Usage usage, const TextureDesc& desc) -> ResourceHandle;
     /// @brief Declares a buffer this pass creates. Names are unique among created resources.
-    auto addBuffer(std::string name, Usage usage, const BufferDesc& desc) -> ResourceHandle;
+    auto addBuffer(std::string_view name, Usage usage, const BufferDesc& desc) -> ResourceHandle;
     /// @brief Declares an access to a resource another pass creates, found by name at compile time.
-    auto addReference(std::string name, Usage usage) -> ResourceHandle;
+    auto addReference(std::string_view name, Usage usage) -> ResourceHandle;
 
     /// @brief Every declaration, in the order passes made them.
     [[nodiscard]] auto describe() const -> std::vector<ResourceDescription>;

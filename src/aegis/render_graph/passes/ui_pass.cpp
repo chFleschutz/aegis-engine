@@ -25,7 +25,7 @@ auto unavailable() -> void
 UiPass::UiPass(ResourcePool& pool, Desc desc) :
     m_context{ desc.context },
     m_build{ std::move(desc.build) },
-    m_final{ pool.addReference("Final", Usage::ColorAttachment) }
+    m_final{ pool.addReference(names::finalImage, Usage::ColorAttachment) }
 {
 }
 

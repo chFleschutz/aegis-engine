@@ -15,6 +15,7 @@ export import :gpu_types;
 export import :ibl;
 export import :immediate;
 export import :lighting_pass;
+export import :names;
 export import :post_effects;
 export import :render_pass;
 export import :render_system;

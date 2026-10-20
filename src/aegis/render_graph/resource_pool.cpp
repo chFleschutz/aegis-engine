@@ -37,21 +37,21 @@ ResourcePool::~ResourcePool()
     }
 }
 
-auto ResourcePool::addTexture(std::string name, Usage usage, const TextureDesc& desc) -> ResourceHandle
+auto ResourcePool::addTexture(std::string_view name, Usage usage, const TextureDesc& desc) -> ResourceHandle
 {
-    m_entries.push_back({ std::move(name), usage, desc });
+    m_entries.push_back({ std::string{ name }, usage, desc });
     return { static_cast<std::uint32_t>(m_entries.size() - 1) };
 }
 
-auto ResourcePool::addBuffer(std::string name, Usage usage, const BufferDesc& desc) -> ResourceHandle
+auto ResourcePool::addBuffer(std::string_view name, Usage usage, const BufferDesc& desc) -> ResourceHandle
 {
-    m_entries.push_back({ std::move(name), usage, desc });
+    m_entries.push_back({ std::string{ name }, usage, desc });
     return { static_cast<std::uint32_t>(m_entries.size() - 1) };
 }
 
-auto ResourcePool::addReference(std::string name, Usage usage) -> ResourceHandle
+auto ResourcePool::addReference(std::string_view name, Usage usage) -> ResourceHandle
 {
-    m_entries.push_back({ std::move(name), usage, Reference{} });
+    m_entries.push_back({ std::string{ name }, usage, Reference{} });
     return { static_cast<std::uint32_t>(m_entries.size() - 1) };
 }
 

@@ -13,14 +13,14 @@ namespace aegis::render_graph
 {
 LightingPass::LightingPass(ResourcePool& pool) :
     m_gBuffer{
-        pool.addReference("Position", Usage::StorageRead),
-        pool.addReference("Normal", Usage::StorageRead),
-        pool.addReference("Albedo", Usage::StorageRead),
-        pool.addReference("ARM", Usage::StorageRead),
-        pool.addReference("Emissive", Usage::StorageRead),
+        pool.addReference(names::position, Usage::StorageRead),
+        pool.addReference(names::normal, Usage::StorageRead),
+        pool.addReference(names::albedo, Usage::StorageRead),
+        pool.addReference(names::arm, Usage::StorageRead),
+        pool.addReference(names::emissive, Usage::StorageRead),
     },
-    m_sceneColor{ pool.addTexture("SceneColor", Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) },
-    m_uniforms{ pool.addBuffer("LightingUniforms", Usage::HostWrite, { .size = sizeof(LightingUniforms), .perFrame = true }) }
+    m_sceneColor{ pool.addTexture(names::sceneColor, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) },
+    m_uniforms{ pool.addBuffer(names::lightingUniforms, Usage::HostWrite, { .size = sizeof(LightingUniforms), .perFrame = true }) }
 {
 }
 

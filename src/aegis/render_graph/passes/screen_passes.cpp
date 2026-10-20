@@ -13,8 +13,8 @@ namespace aegis::render_graph
 // Sky box -------------------------------------------------------------------------------------------
 
 SkyBoxPass::SkyBoxPass(ResourcePool& pool) :
-    m_sceneColor{ pool.addReference("SceneColor", Usage::ColorAttachment) },
-    m_depth{ pool.addReference("Depth", Usage::DepthRead) }
+    m_sceneColor{ pool.addReference(names::sceneColor, Usage::ColorAttachment) },
+    m_depth{ pool.addReference(names::depth, Usage::DepthRead) }
 {
 }
 
@@ -74,10 +74,10 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 // Post-processing -----------------------------------------------------------------------------------
 
 PostProcessingPass::PostProcessingPass(ResourcePool& pool, bool bloom) :
-    m_sceneColor{ pool.addReference("SceneColor", Usage::StorageRead) },
-    m_bloom{ bloom ? std::optional{ pool.addReference("Bloom", Usage::StorageRead) } : std::nullopt },
+    m_sceneColor{ pool.addReference(names::sceneColor, Usage::StorageRead) },
+    m_bloom{ bloom ? std::optional{ pool.addReference(names::bloom, Usage::StorageRead) } : std::nullopt },
     // 16-bit: the image may stay linear until the blit onto an sRGB target encodes it (see execute).
-    m_final{ pool.addTexture("Final", Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) }
+    m_final{ pool.addTexture(names::finalImage, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) }
 {
 }
 
@@ -132,7 +132,7 @@ auto PostProcessingPass::drawUI() -> void
 
 // Present -------------------------------------------------------------------------------------------
 
-PresentPass::PresentPass(ResourcePool& pool, const char* source) :
+PresentPass::PresentPass(ResourcePool& pool, std::string_view source) :
     m_source{ pool.addReference(source, Usage::TransferSrc) }
 {
 }
