@@ -152,8 +152,8 @@ private:
     const ModelData& m_model;
     std::vector<std::shared_ptr<Texture>> m_textures;               // Per ModelData image
     std::vector<std::vector<std::shared_ptr<StaticMesh>>> m_meshes; // Per ModelData mesh, one per primitive
-    std::vector<std::shared_ptr<Material>> m_materials;     // Per ModelData material
-    std::shared_ptr<Material> m_defaultMaterial;            // For primitives without one
+    std::vector<std::shared_ptr<Material>> m_materials;             // Per ModelData material
+    std::shared_ptr<Material> m_defaultMaterial;                    // For primitives without one
 };
 }
 

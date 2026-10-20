@@ -63,7 +63,7 @@ private:
     std::uint32_t m_dynamicCapacity{ initialDynamicCapacity };
     std::uint32_t m_staticCount{ 0 };
     std::uint32_t m_dynamicCount{ 0 };
-    std::optional<std::uint64_t> m_builtVersion;                              // The static version the static instances were built for
+    std::optional<std::uint64_t> m_builtVersion;                      // The static version the static instances were built for
     std::vector<std::shared_ptr<assets::Material>> m_staticMaterials; // Distinct, in the static instances
 };
 
