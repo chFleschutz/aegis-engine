@@ -137,8 +137,7 @@ resource reference resolved through `Device::get` (`BufferHandle`, `ImageViewHan
 (`Descriptor<T>`: `SampledImageDescriptor`, `StorageImageDescriptor`, `SamplerDescriptor`). A
 resource *owns* its descriptors (`ImageView::sampledDescriptor()`, `Sampler::descriptor()`). Never
 call a slot index a handle. The rule covers GPU resources; CPU assets are shared through
-`shared_ptr`. `render_graph::ResourceHandle` is a plain vector index that shares its name with
-`rhi::ResourceHandle<T>` (goal: `…Id`, a plain index).
+`shared_ptr`. A plain vector index is an `…Id` (`render_graph::ResourceId`), not a handle.
 
 **Never `#include <vulkan/vulkan.h>` directly** — use `import vulkan`, and only inside the new
 RHI modules. rhi classes expose native `vk::` handles for interop (`Device::device()`,
@@ -147,8 +146,8 @@ types, except `render_graph/passes/ui_pass.cpp`, which imports it for the ImGui 
 
 **Known deviations (current state):** the `Error` types differ per module (rhi struct `{code}`,
 `renderer` enum, `render_graph` `{message, rhi?}`, `assets` struct) and `platform::Window` asserts
-instead of returning one; `render_graph` imports `aegis.world` and holds `Scene&`;
-`LayerStack::m_Layers` is PascalCase; components, `Profiler` and `Engine` sit directly in
+instead of returning one; `render_graph` imports `aegis.world` and holds `Scene&`; 
+components, `Profiler` and `Engine` sit directly in
 `aegis`; `Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
 
 **Foundation (`aegis.base`, `src/aegis/base/`):** logging, flag enums, alignment, `match` and the
