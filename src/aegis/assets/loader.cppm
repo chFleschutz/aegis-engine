@@ -25,16 +25,11 @@ public:
 
     Loader() = delete;
 
-    /// @brief Loads .gltf / .glb (fastgltf) or .obj (tinyobjloader).
+    /// @brief Imports a .gltf / .glb or .obj file (see importModel), uploads its textures, meshes and
+    ///        materials, and creates the entities for its nodes.
     /// @return The root entity. GPU uploads are queued; they complete with the next
     ///         Device::flushUploads.
     [[nodiscard]] static auto load(const Desc& desc, const std::filesystem::path& path)
-        -> std::expected<aegis::scene::Entity, Error>;
-
-private:
-    [[nodiscard]] static auto loadGltf(const Desc& desc, const std::filesystem::path& path)
-        -> std::expected<aegis::scene::Entity, Error>;
-    [[nodiscard]] static auto loadObj(const Desc& desc, const std::filesystem::path& path)
         -> std::expected<aegis::scene::Entity, Error>;
 };
 }
