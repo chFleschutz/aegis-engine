@@ -5,6 +5,8 @@ export module aegis.platform:window;
 
 import std;
 import :error;
+import :input_state;
+import :key;
 
 export namespace aegis::platform
 {
@@ -38,11 +40,14 @@ public:
     [[nodiscard]] auto wasResized() const -> bool { return m_wasResized; }
     [[nodiscard]] auto shouldClose() const -> bool;
 
-    /// @brief Processes pending events: runs input callbacks and updates the size.
+    /// @brief Processes pending events: runs key bindings, collects the input events and updates the size.
     auto update() -> void;
 
     /// @brief Blocks until an event arrives, then processes it (e.g. while minimized).
     auto waitEvents() -> void;
+
+    /// @brief The input events since the last call, in order. Input::update takes them each frame.
+    [[nodiscard]] auto takeEvents() -> std::vector<InputEvent> { return std::exchange(m_events, {}); }
 
     auto resetResized() -> void { m_wasResized = false; }
 
@@ -55,11 +60,15 @@ private:
 
     static auto onFramebufferResize(GLFWwindow* glfwWindow, int newWidth, int newHeight) -> void;
     static auto onKey(GLFWwindow* glfwWindow, int key, int scancode, int action, int mods) -> void;
+    static auto onMouseButton(GLFWwindow* glfwWindow, int button, int action, int mods) -> void;
+    static auto onCursorPos(GLFWwindow* glfwWindow, double x, double y) -> void;
+    static auto onScroll(GLFWwindow* glfwWindow, double x, double y) -> void;
 
     GLFWwindow* m_window{ nullptr };
     std::uint32_t m_width{ 0 };
     std::uint32_t m_height{ 0 };
     bool m_wasResized{ false };
     std::function<void(int key, int action, int mods)> m_keyHandler;
+    std::vector<InputEvent> m_events;
 };
 }

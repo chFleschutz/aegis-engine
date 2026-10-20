@@ -1,5 +1,6 @@
 aegis_add_test(scene
     SOURCES
+        kinematic_movement_controller.test.cpp
         registry.test.cpp
         script_system.test.cpp
         scene.test.cpp
