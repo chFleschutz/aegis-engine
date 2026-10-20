@@ -30,16 +30,27 @@ public:
     auto operator=(Scene&&) -> Scene& = delete;
 
     [[nodiscard]] auto registry() -> Registry& { return m_registry; }
-    /// @note The slot getters return a null entity once the slot's entity is destroyed
-    [[nodiscard]] auto mainCamera() const -> Entity { return live(m_mainCamera); }
-    [[nodiscard]] auto ambientLight() const -> Entity { return live(m_ambientLight); }
-    [[nodiscard]] auto directionalLight() const -> Entity { return live(m_directionalLight); }
-    [[nodiscard]] auto environment() const -> Entity { return live(m_skybox); }
+    /// @brief The entity with the MainCamera tag, the first ambient light and the first directional light
+    /// @note These are queries, not stored entities: they read as null once the entity is destroyed
+    ///       (or loses the component), and a scene file needs no special case for them.
+    [[nodiscard]] auto mainCamera() const -> Entity { return m_registry.first<MainCamera>(); }
+    [[nodiscard]] auto ambientLight() const -> Entity { return m_registry.first<AmbientLight>(); }
+    [[nodiscard]] auto directionalLight() const -> Entity { return m_registry.first<DirectionalLight>(); }
 
-    void setMainCamera(Entity camera) { m_mainCamera = camera; }
-    void setAmbientLight(Entity light) { m_ambientLight = light; }
-    void setDirectionalLight(Entity light) { m_directionalLight = light; }
-    void setEnvironment(Entity environment) { m_skybox = environment; }
+    /// @brief Makes the entity the main camera: it gets the MainCamera tag, which moves off any other entity
+    void setMainCamera(Entity camera)
+    {
+        std::vector<Entity> previous;
+        for (const auto entity : m_registry.view<MainCamera>())
+        {
+            if (Entity{ entity } != camera)
+                previous.push_back(Entity{ entity });
+        }
+        for (const auto entity : previous)
+            m_registry.remove<MainCamera>(entity);
+        if (m_registry.valid(camera) && !m_registry.has<MainCamera>(camera))
+            m_registry.add<MainCamera>(camera);
+    }
 
     template<SystemDerived T, typename... Args>
         requires std::constructible_from<T, Args...>
@@ -72,14 +83,7 @@ public:
     }
 
 private:
-    auto live(Entity entity) const -> Entity { return m_registry.valid(entity) ? entity : Entity{}; }
-
     Registry m_registry;
     std::vector<std::unique_ptr<System>> m_systems;
-
-    Entity m_mainCamera;
-    Entity m_ambientLight;
-    Entity m_directionalLight;
-    Entity m_skybox;
 };
 }

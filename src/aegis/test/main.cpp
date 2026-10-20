@@ -818,12 +818,10 @@ public:
 
         const auto ambient = registry.create("Ambient Light");
         registry.add<aegis::AmbientLight>(ambient).intensity = 1.0f;
-        m_scene->setAmbientLight(ambient);
 
         const auto sun = registry.create("Directional Light");
         registry.add<aegis::DirectionalLight>(sun);
         registry.get<aegis::Transform>(sun).rotation = glm::quat{ glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }) };
-        m_scene->setDirectionalLight(sun);
 
         // In view, off to the side of the helmet: drawn as a billboard by the transparent pass.
         const auto lamp = registry.create("Point Light", glm::vec3{ 1.2f, -1.0f, 0.6f });
@@ -837,7 +835,6 @@ public:
             return std::unexpected{ std::format("Environment: {}", describe(environment.error())) };
         const auto sky = registry.create("Sky");
         registry.add<assets::Environment>(sky, std::move(*environment));
-        m_scene->setEnvironment(sky);
 
         auto helmet = assets::Loader::load(
             {

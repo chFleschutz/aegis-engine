@@ -88,12 +88,10 @@ TEST_SUITE("render_graph::detail::gatherLighting")
 
         const auto ambient = registry.create("Ambient");
         registry.add<aegis::AmbientLight>(ambient, glm::vec3{ 0.1f, 0.2f, 0.3f }, 0.5f);
-        scene.setAmbientLight(ambient);
 
         const auto sun = registry.create("Sun");
         registry.add<aegis::DirectionalLight>(sun, glm::vec3{ 1.0f, 0.5f, 0.25f }, 2.0f);
         registry.get<aegis::GlobalTransform>(sun).rotation = glm::quat{ glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }) };
-        scene.setDirectionalLight(sun);
 
         const auto uniforms = gatherLighting(scene, 1.0f, LightingViewMode::SceneColor);
         CHECK(equal(uniforms.cameraPosition, glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f }));

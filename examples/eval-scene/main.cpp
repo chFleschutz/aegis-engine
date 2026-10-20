@@ -25,7 +25,7 @@ public:
         using namespace aegis;
         auto& registry = scene.registry();
 
-        registry.get<aegis::assets::Environment>(scene.environment()) =
+        registry.get<aegis::assets::Environment>(registry.first<aegis::assets::Environment>()) =
             assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
@@ -56,7 +56,7 @@ public:
         auto& registry = scene.registry();
 
         // Environment setup
-        registry.get<aegis::assets::Environment>(scene.environment()) =
+        registry.get<aegis::assets::Environment>(registry.first<aegis::assets::Environment>()) =
             assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
@@ -93,7 +93,7 @@ public:
         auto& registry = scene.registry();
 
         // Environment setup
-        registry.get<aegis::assets::Environment>(scene.environment()) =
+        registry.get<aegis::assets::Environment>(registry.first<aegis::assets::Environment>()) =
             assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
@@ -172,7 +172,7 @@ public:
         auto& registry = scene.registry();
 
         // Environment setup
-        registry.get<aegis::assets::Environment>(scene.environment()) =
+        registry.get<aegis::assets::Environment>(registry.first<aegis::assets::Environment>()) =
             assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
@@ -277,7 +277,7 @@ public:
         auto& registry = scene.registry();
 
         // Environment setup
-        registry.get<aegis::assets::Environment>(scene.environment()) =
+        registry.get<aegis::assets::Environment>(registry.first<aegis::assets::Environment>()) =
             assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
@@ -339,7 +339,7 @@ public:
         using namespace aegis;
         auto& registry = scene.registry();
         // Environment setup
-        registry.get<aegis::assets::Environment>(scene.environment()) =
+        registry.get<aegis::assets::Environment>(registry.first<aegis::assets::Environment>()) =
             assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;

@@ -13,7 +13,7 @@ import aegis.scene;
 export namespace aegis::render_graph
 {
 /// @brief Deferred PBR lighting: G-buffer + the scene's lights and environment (assets::Environment
-///        on Scene::environment()) -> "SceneColor" (RGBA16F).
+///        on the first entity that has one) -> "SceneColor" (RGBA16F).
 class LightingPass : public RenderPass
 {
 public:

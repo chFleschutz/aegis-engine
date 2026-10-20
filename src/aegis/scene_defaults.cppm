@@ -31,15 +31,12 @@ void createDefaultScene(scene::Scene& scene, scripting::ScriptManager& scriptMan
 
     auto ambientLight = registry.create("Ambient Light");
     registry.add<AmbientLight>(ambientLight);
-    scene.setAmbientLight(ambientLight);
 
     auto directionalLight = registry.create("Directional Light");
     registry.add<DirectionalLight>(directionalLight);
     registry.get<Transform>(directionalLight).rotation = glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f });
-    scene.setDirectionalLight(directionalLight);
 
     auto skybox = registry.create("Skybox");
     registry.add<aegis::assets::Environment>(skybox, std::move(environment));
-    scene.setEnvironment(skybox);
 }
 }

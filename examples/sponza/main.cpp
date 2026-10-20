@@ -17,7 +17,7 @@ public:
         };
 
         // SKYBOX
-        registry.get<aegis::assets::Environment>(scene.environment()) =
+        registry.get<aegis::assets::Environment>(registry.first<aegis::assets::Environment>()) =
             assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
 
         // MODELS
