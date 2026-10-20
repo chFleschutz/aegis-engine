@@ -228,6 +228,45 @@ TEST_SUITE("reflect::TypeRegistry")
         CHECK(created.error().code == ErrorCode::NotConstructible);
     }
 
+    TEST_CASE("converts an instance to a registered base, wherever the base sits")
+    {
+        struct First
+        {
+            virtual ~First() = default;
+            int a{ 1 };
+        };
+        struct Second
+        {
+            virtual ~Second() = default;
+            int b{ 2 };
+        };
+        struct Both : First, Second
+        {
+        };
+        TypeRegistry types;
+        {
+            auto builder = types.component<Both>("Both");
+            REQUIRE(builder);
+            builder->base<First>().base<Second>();
+        }
+        const TypeInfo* info = types.find<Both>();
+        auto both = std::make_shared<Both>();
+        void* object = both.get();
+
+        CHECK(info->as<First>(object) == static_cast<First*>(both.get()));
+        CHECK(info->as<Second>(object) == static_cast<Second*>(both.get()));
+        CHECK(static_cast<void*>(info->as<Second>(object)) != object); // Not the first base
+        CHECK(info->as<Second>(object)->b == 2);
+    }
+
+    TEST_CASE("does not convert to a base that was not registered")
+    {
+        TypeRegistry types;
+        REQUIRE(types.component<Derived>("Derived"));
+        Derived value;
+        CHECK(types.find<Derived>()->as<Base>(&value) == nullptr);
+    }
+
     TEST_CASE("describes an error")
     {
         TypeRegistry types;

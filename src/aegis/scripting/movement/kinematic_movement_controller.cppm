@@ -217,7 +217,7 @@ export namespace aegis::scripting
 /// @brief Registers KinematicMovementController and its speeds with the type registry
 inline auto registerKinematicMovementController(reflect::TypeRegistry& types) -> std::expected<void, reflect::Error>
 {
-    auto builder = types.script<KinematicMovementController>("KinematicMovementController");
+    auto builder = registerScript<KinematicMovementController>(types, "KinematicMovementController");
     if (!builder)
         return std::unexpected{ builder.error() };
     builder->field("moveSpeed", &KinematicMovementController::moveSpeed)

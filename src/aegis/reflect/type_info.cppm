@@ -39,6 +39,18 @@ struct TypeInfo
     // script base class, the address is the same.
     std::function<std::shared_ptr<void>()> construct;
 
+    // Converts a pointer to an instance of this type to a pointer to its base B, for the bases recorded
+    // with TypeBuilder::base. The conversion is a real upcast, so it is right for any inheritance layout.
+    std::map<std::type_index, std::function<void*(void*)>> upcasts;
+
+    // `object` points to an instance of this type. Null if B was not registered as a base.
+    template<class B>
+    [[nodiscard]] auto as(void* object) const -> B*
+    {
+        auto it = upcasts.find(std::type_index{ typeid(B) });
+        return it == upcasts.end() ? nullptr : static_cast<B*>(it->second(object));
+    }
+
     // Creates an instance of the type, or fails with ErrorCode::NotConstructible.
     [[nodiscard]] auto create() const -> std::expected<std::shared_ptr<void>, Error>
     {

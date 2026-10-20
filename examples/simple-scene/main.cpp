@@ -86,7 +86,7 @@ public:
 auto main() -> int
 {
     aegis::Engine engine;
-    [[maybe_unused]] auto registered = engine.types().script<Rotator>("Rotator").and_then([](auto builder) {
+    [[maybe_unused]] auto registered = aegis::scripting::registerScript<Rotator>(engine.types(), "Rotator").and_then([](auto builder) {
         return builder.field("speed", &Rotator::speed).status();
     });
     AGX_ASSERT_X(registered, "Failed to register the Rotator script");

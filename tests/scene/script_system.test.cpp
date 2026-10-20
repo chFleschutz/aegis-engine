@@ -69,9 +69,25 @@ struct Spawner : Script
     }
 };
 
+struct Orphan : Script
+{
+};
+
 struct NoDefault : Script
 {
     explicit NoDefault(int) {}
+};
+
+// A script whose Script base is not at the start of the object
+struct Mixin
+{
+    int padding[3]{ 1, 2, 3 };
+    virtual ~Mixin() = default;
+};
+
+struct MultiBase : Mixin, Script
+{
+    void onUpdate(ScriptContext&, float) override { g_log.push_back("multi.update"); }
 };
 
 struct Fixture
@@ -79,11 +95,13 @@ struct Fixture
     Fixture()
     {
         g_log.clear();
-        REQUIRE(types.script<Recorder>("Recorder")->field("tag", &Recorder::tag).status());
-        REQUIRE(types.script<Mover>("Mover")->field("speed", &Mover::speed).status());
-        REQUIRE(types.script<Suicide>("Suicide"));
-        REQUIRE(types.script<Spawner>("Spawner"));
-        REQUIRE(types.script<NoDefault>("NoDefault"));
+        REQUIRE(registerScript<Recorder>(types, "Recorder")->field("tag", &Recorder::tag).status());
+        REQUIRE(registerScript<Mover>(types, "Mover")->field("speed", &Mover::speed).status());
+        REQUIRE(registerScript<Suicide>(types, "Suicide"));
+        REQUIRE(registerScript<Spawner>(types, "Spawner"));
+        REQUIRE(registerScript<NoDefault>(types, "NoDefault"));
+        REQUIRE(registerScript<MultiBase>(types, "MultiBase"));
+        REQUIRE(types.script<Orphan>("Orphan"));
         REQUIRE(types.component<Transform>("Transform"));
         scene.addSystem<ScriptSystem>(scene.registry());
     }
@@ -163,6 +181,26 @@ TEST_SUITE("scripting::attachScript")
         const auto script = attachScript(f.scene.registry(), f.types, entity, "NoDefault");
         REQUIRE_FALSE(script);
         CHECK(script.error().code == reflect::ErrorCode::NotConstructible);
+    }
+
+    TEST_CASE("attaches a script whose Script base is not its first base")
+    {
+        Fixture f;
+        const auto entity = f.spawn("MultiBase");
+        f.scene.begin();
+        f.scene.update(0.016f);
+        CHECK(g_log == std::vector<std::string>{ "multi.update" });
+        f.scene.registry().destroy(entity); // Destroys through the right pointer
+    }
+
+    TEST_CASE("refuses a script registered without its Script base")
+    {
+        Fixture f;
+        const auto entity = f.scene.registry().create();
+        const auto script = attachScript(f.scene.registry(), f.types, entity, "Orphan");
+        REQUIRE_FALSE(script);
+        CHECK(script.error().code == reflect::ErrorCode::WrongCategory);
+        CHECK_FALSE(f.scene.registry().has<Scripts>(entity));
     }
 
     TEST_CASE("sets a script's registered fields before it runs")
@@ -341,7 +379,7 @@ TEST_SUITE("scripting::ScriptSystem")
     {
         g_log.clear();
         TypeRegistry types;
-        REQUIRE(types.script<Recorder>("Recorder"));
+        REQUIRE(registerScript<Recorder>(types, "Recorder"));
         Scene scene;
         scene.addSystem<ScriptSystem>(scene.registry());
         const auto entity = scene.registry().create();

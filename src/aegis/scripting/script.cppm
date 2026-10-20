@@ -70,7 +70,7 @@ private:
 /// A script is created by its registered name (reflect::TypeRegistry::script), so its persistent state
 /// belongs in registered fields: that is what a scene file saves and the editor shows. Anything else a
 /// script keeps (cached values, timers) is runtime state and is rebuilt in onCreate.
-/// A script has Script as its first base class.
+/// Register it with registerScript, which records the Script base the system needs.
 class Script
 {
 public:
@@ -128,6 +128,18 @@ struct ComponentTraits<scripting::Scripts>
 
 export namespace aegis::scripting
 {
+/// @brief Registers T as a script named `name` (see reflect::TypeRegistry::script) and records its Script
+///        base. Add the persistent fields to the builder it returns.
+template<class T>
+    requires std::derived_from<T, Script>
+[[nodiscard]] auto registerScript(reflect::TypeRegistry& types, std::string_view name) -> std::expected<reflect::TypeBuilder<T>, reflect::Error>
+{
+    auto builder = types.script<T>(name);
+    if (builder)
+        builder->template base<Script>();
+    return builder;
+}
+
 /// @brief Attaches a new script, created by its registered name, to the entity
 /// @return The script (owned by the entity's Scripts component), or an error if the name is not
 ///         registered (UnknownType), is a component (WrongCategory) or cannot be created
@@ -147,8 +159,10 @@ auto attachScript(scene::Registry& registry, const reflect::TypeRegistry& types,
     if (!created)
         return std::unexpected{ created.error() };
 
-    // A script has Script as its first base, so the registered type's address is the Script's.
-    auto script = std::shared_ptr<Script>{ *created, static_cast<Script*>(created->get()) };
+    Script* base = info->as<Script>(created->get());
+    if (!base)
+        return reflect::makeError(reflect::ErrorCode::WrongCategory, std::format("'{}' was not registered with registerScript", name));
+    auto script = std::shared_ptr<Script>{ *created, base };
     Script* result = script.get();
     registry.getOrAdd<Scripts>(entity).entries.push_back({ .name = std::string{ name }, .script = std::move(script) });
     return result;

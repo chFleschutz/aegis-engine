@@ -75,7 +75,7 @@ public:
 auto main() -> int
 {
     aegis::Engine engine;
-    [[maybe_unused]] auto registered = engine.types().script<ColorChanger>("ColorChanger").and_then([](auto builder) {
+    [[maybe_unused]] auto registered = aegis::scripting::registerScript<ColorChanger>(engine.types(), "ColorChanger").and_then([](auto builder) {
         return builder.field("speed", &ColorChanger::speed).status();
     });
     AGX_ASSERT_X(registered, "Failed to register the ColorChanger script");

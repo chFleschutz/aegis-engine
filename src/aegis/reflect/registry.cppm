@@ -46,6 +46,17 @@ public:
         return *this;
     }
 
+    // Records B as a base of T, so TypeInfo::as<B> can convert an instance's address to a B*.
+    template<class B>
+    auto base() -> TypeBuilder&
+    {
+        static_assert(std::derived_from<T, B>, "B must be a base class of T");
+        m_info->upcasts[std::type_index{ typeid(B) }] = [](void* object) -> void* {
+            return static_cast<B*>(static_cast<T*>(object));
+        };
+        return *this;
+    }
+
     // Ok while every field so far was added.
     [[nodiscard]] auto status() const -> const std::expected<void, Error>& { return m_status; }
 
