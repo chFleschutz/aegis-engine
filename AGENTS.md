@@ -233,7 +233,8 @@ code. Feature PRs don't edit `backlog.md`.
 4. **Verify each commit:** it builds clean and `ctest -LE device` passes. **Before pushing**, and for
    any change to device code, run the full `ctest` *including* the `device` tests (CI has no GPU and
    skips them, see "Verifying device code"), and look at the `--screenshot` output after render
-   changes. Run device tests one at a time per machine, even with several worktrees.
+   changes. The test presets run tests in parallel; a `gpu` resource lock keeps the device tests
+   apart within one run. Across worktrees, run one `ctest` with device tests at a time per machine.
 5. **Format** with `tools/format.sh` (see "Formatting").
 6. **Push and open the PR** with `gh pr create`; the body says `Closes #<issue>`. CI
    (`.github/workflows/build.yml`) builds Linux and Windows, debug and release, and runs
@@ -252,7 +253,7 @@ executable per module (`aegis-tests-base`, `aegis-tests-rhi`, `aegis-tests-asset
 module, and the full rationale: **`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*
-    ctest --preset windows-clang-debug                    # runs every case, plus the device checks
+    ctest --preset windows-clang-debug                    # runs every case in parallel, plus the device checks
     ctest --preset windows-clang-debug -LE device         # skips the device checks (no GPU needed)
     cmake --build --preset windows-clang-debug --target aegis-tests-rhi   # iterate one module
     ctest --preset windows-clang-debug -L rhi             # one module (by label; -R "rhi::" matches nothing)

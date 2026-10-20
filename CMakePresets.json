@@ -159,6 +159,9 @@
             "hidden": true,
             "output": {
                 "outputOnFailure": true
+            },
+            "environment": {
+                "CTEST_PARALLEL_LEVEL": ""
             }
         },
         {

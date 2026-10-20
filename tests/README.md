@@ -23,6 +23,10 @@ ctest --preset windows-clang-debug -L rhi
 `-L` filters by the per-module label. `-R "rhi::"` does **not** work: CTest registers each case under
 its `TEST_CASE` name, so a `TEST_SUITE` filter silently reports "No tests were found".
 
+The test presets run cases in parallel, one per CPU core (`CTEST_PARALLEL_LEVEL` set empty in
+`CMakePresets.json`; `-j <n>` overrides it). The device tests share a `gpu` resource lock, so they never
+overlap each other within one run.
+
 Currently 117 cases across `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
 `aegis-tests-math` and `aegis-tests-scene`, plus three `device`-labelled `aegis-test` runs (triangle, CPU- and GPU-driven scene).
 
