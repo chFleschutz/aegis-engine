@@ -8,12 +8,12 @@
 #   --no-build  stop after configure
 #
 # The worktree lands next to the main checkout in <main>.worktrees/<branch with / replaced by ->.
-# Submodules are copied from the main checkout's object stores (--reference --dissociate), so
-# nothing is downloaded twice and the worktree stays valid if the main checkout changes.
+# Submodules check out in parallel through tools/init-submodules.sh, which shares the main
+# checkout's submodule object stores (--reference), so nothing is downloaded or copied.
 #
 # Environment:
 #   Vulkan_ROOT     SDK to build against (CMake searches it before $VULKAN_SDK). It must be the
-#                   guarded 1.4.328.1 SDK (see AGENTS.md); set it once in your user environment.
+#                   pinned 1.4.363.0 SDK (see AGENTS.md); set it once in your user environment.
 #   AEGIS_PRESET    configure/build preset; default windows-clang-debug on Windows,
 #                   linux-clang-debug elsewhere.
 
@@ -33,6 +33,7 @@ if [[ ${#args[@]} -lt 1 || ${#args[@]} -gt 2 ]]; then
 fi
 branch=${args[0]}
 base=${args[1]:-origin/main}
+tools=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # The main checkout is the parent of the common .git directory, also when run from a worktree.
 main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
@@ -48,20 +49,8 @@ if [[ "$base" == origin/* ]]; then
 fi
 git -C "$main" worktree add -b "$branch" "$dir" "$base"
 
-# Initialize each submodule against the main checkout's copy of the same submodule.
-git -C "$dir" submodule init --quiet
-git -C "$dir" config --file .gitmodules --get-regexp '^submodule\..*\.path$' |
-    while read -r _ path; do
-        ref=""
-        if [[ -e "$main/$path/.git" ]]; then
-            ref=$(git -C "$main/$path" rev-parse --path-format=absolute --git-dir)
-        fi
-        if [[ -n "$ref" ]]; then
-            git -C "$dir" submodule update --quiet --reference "$ref" --dissociate -- "$path"
-        else
-            git -C "$dir" submodule update --quiet -- "$path"
-        fi
-    done
+# This script's own copy, so a base branch that predates init-submodules.sh works too.
+(cd "$dir" && "$tools/init-submodules.sh")
 
 if [[ -z "${AEGIS_PRESET:-}" ]]; then
     case "$(uname -s)" in
@@ -71,7 +60,7 @@ if [[ -z "${AEGIS_PRESET:-}" ]]; then
 fi
 if [[ -z "${Vulkan_ROOT:-}" ]]; then
     echo "warning: Vulkan_ROOT is not set; CMake falls back to \$VULKAN_SDK (${VULKAN_SDK:-unset})," >&2
-    echo "         and configure fails if that is not the guarded 1.4.328.1 SDK." >&2
+    echo "         and configure fails if that is not the pinned 1.4.363.0 SDK." >&2
 fi
 
 cd "$dir"

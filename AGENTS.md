@@ -220,11 +220,18 @@ code. Feature PRs don't edit `backlog.md`.
 
 1. **One worktree per PR.** `tools/new-worktree.sh <branch> [base]` creates
    `../aegis-engine.worktrees/<branch>` from `origin/main` with submodules, then configures and
-   builds it (about 3 minutes). Several agents can work in parallel, one worktree each. Name branches
+   builds it (about 20 s to configure, plus about a minute for the build). Several agents can work
+   in parallel, one worktree each. Name branches
    by kind: `fix/`, `test/`, `refactor/`, `cleanup/`, `style/`, `build/`, `feat/`, `ci/`. After the
    PR merges, `tools/remove-worktree.sh <branch> --delete-branch`. On Windows, run the `tools/*.sh`
    scripts from Git Bash. In PowerShell, `bash` is usually the WSL launcher, so call Git's bash
    explicitly: `& "C:\Program Files\Git\bin\bash.exe" tools/new-worktree.sh <branch>`.
+   Submodules come from `tools/init-submodules.sh`, which shares the main checkout's submodule
+   objects instead of copying them. A worktree made some other way (e.g. Claude Code's
+   `.claude/worktrees/`) gets its submodules from the `SessionStart` hook in `.claude/settings.json`,
+   which runs that script; it still needs `cmake --preset` and a build. Keep worktree paths short
+   on Windows: some build and submodule files are about 140 characters below the worktree root,
+   and the limit is 260 (`git config --global core.longpaths true` helps git, not every tool).
 2. **Stack dependent PRs** instead of waiting: pass the unmerged branch as `base`, open the PR
    against it (`gh pr create --base <that-branch>`), and retarget it once the base merges
    (`gh pr edit --base main`). Keep stacks to two or three PRs.
@@ -233,7 +240,8 @@ code. Feature PRs don't edit `backlog.md`.
 4. **Verify each commit:** it builds clean and `ctest -LE device` passes. **Before pushing**, and for
    any change to device code, run the full `ctest` *including* the `device` tests (CI has no GPU and
    skips them, see "Verifying device code"), and look at the `--screenshot` output after render
-   changes. Run device tests one at a time per machine, even with several worktrees.
+   changes. The test presets run tests in parallel; a `gpu` resource lock keeps the device tests
+   apart within one run. Across worktrees, run one `ctest` with device tests at a time per machine.
 5. **Format** with `tools/format.sh` (see "Formatting").
 6. **Push and open the PR** with `gh pr create`; the body says `Closes #<issue>`. CI
    (`.github/workflows/build.yml`) builds Linux and Windows, debug and release, and runs
@@ -252,7 +260,7 @@ executable per module (`aegis-tests-base`, `aegis-tests-rhi`, `aegis-tests-asset
 module, and the full rationale: **`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*
-    ctest --preset windows-clang-debug                    # runs every case, plus the device checks
+    ctest --preset windows-clang-debug                    # runs every case in parallel, plus the device checks
     ctest --preset windows-clang-debug -LE device         # skips the device checks (no GPU needed)
     cmake --build --preset windows-clang-debug --target aegis-tests-rhi   # iterate one module
     ctest --preset windows-clang-debug -L rhi             # one module (by label; -R "rhi::" matches nothing)
