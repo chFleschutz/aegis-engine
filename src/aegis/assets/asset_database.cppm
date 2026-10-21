@@ -21,7 +21,7 @@ struct AssetEntry
 
 /// @brief The index of every asset in the project and the engine content: `ID → path (+ key)`, the one place
 ///        paths exist. Built by scanning the roots for sidecars (`<file>.<ext>.meta`) and native files
-///        (`.scene`, `.material`, whose header carries the ID).
+///        (`.scene`, `.material`, `.template`, whose header carries the ID).
 /// @note Paths are case-sensitive on every platform: two paths that differ only in case are an error, and so
 ///       is an ID that two files claim (a copied file brings its IDs along; the editor gives the copy new
 ///       ones). The index is cached in a file with each file's modification time and size, so a later scan
@@ -45,8 +45,9 @@ public:
         bool createSidecars{ false };
     };
 
-    /// @brief Extensions of native files, which carry their ID in a `{type, id, version}` header.
-    static constexpr std::array nativeExtensions{ std::string_view{ ".scene" }, std::string_view{ ".material" } };
+    /// @brief Extensions of native files, which carry their ID in a `{type, id, version}` header. A `.template`
+    ///        names a material template (for now only the engine content's PBR template, built in code).
+    static constexpr std::array nativeExtensions{ std::string_view{ ".scene" }, std::string_view{ ".material" }, std::string_view{ ".template" } };
 
     /// @return ErrorCode::FileNotFound for a missing root, ErrorCode::InvalidData for a duplicate ID, a
     ///         case-only path clash or an unreadable sidecar / header (the message names the file).

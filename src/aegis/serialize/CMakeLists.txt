@@ -1,4 +1,4 @@
-# Native files (scenes) through the type registry.
+# Native files (scenes, materials) through the type registry.
 add_library(aegis-serialize STATIC)
 
 # PUBLIC: the module interfaces import aegis.reflect and aegis.world. PRIVATE: glaze stays in .cpp files,
@@ -16,11 +16,15 @@ target_sources(aegis-serialize
     PUBLIC
     FILE_SET CXX_MODULES FILES
     serialize.cppm
+    document.cppm
     error.cppm
     json.cppm
+    material.cppm
     scene.cppm
     PRIVATE
+    document.cpp
     error.cpp
     json.cpp
+    material.cpp
     scene.cpp
 )

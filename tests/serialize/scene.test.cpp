@@ -237,6 +237,28 @@ TEST_SUITE("serialize::scene")
         CHECK(registry.get<aegis::Parent>(child).entity == registry.find(aegis::StableId{ 1 }));
     }
 
+    TEST_CASE("prepares each component before it joins its entity")
+    {
+        TypeRegistry types;
+        registerTypes(types);
+        auto scene = parse(sceneText(entityText("0000000000000001", R"(, "components": { "Health": { "value": 5 } })"), R"("Health": 1, "Transform": 1)"), types);
+        REQUIRE(scene.has_value());
+
+        Registry registry;
+        float seen = 0.0f;
+        auto observe = [&seen, &registry](entt::registry&, entt::entity added) { seen = registry.get<Health>(Entity{ added }).value; };
+        registry.onConstruct<Health>().connect<&decltype(observe)::operator()>(observe);
+        std::vector<std::string> prepared;
+        auto prepare = [&prepared](const aegis::reflect::TypeInfo& type, void* component) {
+            prepared.push_back(type.name);
+            if (type.type == typeid(Health))
+                static_cast<Health*>(component)->value *= 2.0f;
+        };
+        REQUIRE(aegis::serialize::instantiate(registry, types, *scene, prepare).has_value());
+        CHECK(prepared == std::vector<std::string>{ "Health" });
+        CHECK(seen == 10.0f); // The observer saw the prepared value
+    }
+
     TEST_CASE("leaves the world unchanged when the scene does not fit it")
     {
         TypeRegistry types;

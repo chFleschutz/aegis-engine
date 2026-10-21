@@ -8,6 +8,9 @@ import std;
 import aegis.base;
 import aegis.instantiate;
 import aegis.paths;
+import aegis.reflect;
+import aegis.serialize;
+import aegis.world.render_components;
 
 namespace aegis
 {
@@ -152,7 +155,45 @@ public:
                 return *ref;
             return failMaterial(id, std::format("'{}' has no material '{}'", entry->path, entry->key));
         }
+        if (entry && entry->type == "Material")
+            return loadMaterialFile(id, *entry);
         return failMaterial(id, entry ? "it is a file, not a material" : "no asset has this ID");
+    }
+
+    // Reads the scene file 'id', checked against 'types'.
+    auto readScene(AssetId id, const reflect::TypeRegistry& types) const -> std::expected<serialize::Scene, std::string>
+    {
+        const auto* entry = m_database.find(id);
+        if (!entry || entry->type != "Scene")
+            return std::unexpected{ std::format("{} is not a scene file", id) };
+        auto text = readFile(m_database.absolutePath(*entry));
+        if (!text)
+            return std::unexpected{ std::format("cannot read '{}'", entry->path) };
+        auto scene = serialize::parseScene(*text, types);
+        if (!scene)
+            return std::unexpected{ std::format("'{}' {}", entry->path, serialize::describe(scene.error())) };
+        return std::move(*scene);
+    }
+
+    // Loads the assets a component read from a scene file names by ID only (a reference without a slot).
+    auto resolve(const reflect::TypeInfo& type, void* component) -> void
+    {
+        if (type.type == typeid(MeshRenderer))
+        {
+            auto& renderer = *static_cast<MeshRenderer*>(component);
+            if (renderer.mesh.id().valid() && !renderer.mesh.slot())
+                renderer.mesh = loadMesh(renderer.mesh.id());
+            if (renderer.material.id().valid() && !renderer.material.slot())
+                renderer.material = loadMaterial(renderer.material.id());
+        }
+        else if (type.type == typeid(Sky))
+        {
+            auto& sky = *static_cast<Sky*>(component);
+            if (!sky.environment.id().valid())
+                sky.environment = defaultEnvironment();
+            else if (!sky.environment.slot())
+                sky.environment = loadEnvironment(sky.environment.id());
+        }
     }
 
     auto loadEnvironment(AssetId id) -> AssetRef<assets::Environment>
@@ -221,6 +262,66 @@ public:
     }
 
 private:
+    // A material file: the template's parameters with the file's values. A bad file, an unknown template or a
+    // value the template's parameter cannot take fails the whole material (the checker fallback).
+    auto loadMaterialFile(AssetId id, const assets::AssetEntry& entry) -> AssetRef<assets::Material>
+    {
+        auto text = readFile(m_database.absolutePath(entry));
+        if (!text)
+            return failMaterial(id, std::format("cannot read '{}'", entry.path));
+        auto file = serialize::parseMaterial(*text);
+        if (!file)
+            return failMaterial(id, std::format("'{}' {}", entry.path, serialize::describe(file.error())));
+
+        // Only one template exists until custom shaders: the engine content's PBR template, built in code
+        if (AssetId{ file->templateId } != assets::engine::pbrTemplate)
+            return failMaterial(id, std::format("'{}': {} is not a material template", entry.path, AssetId{ file->templateId }));
+        auto material = assets::Material::create(*m_device, m_defaults.pbrTemplate, m_framesInFlight);
+        if (!material)
+            return failMaterial(id, assets::describe(material.error()));
+
+        for (const auto& value : file->parameters.items)
+        {
+            if (auto set = setParameter(**material, value); !set)
+                return failMaterial(id, std::format("'{}' line {}: {}", entry.path, value.line, set.error()));
+        }
+        return m_materials.fill(id, std::move(*material));
+    }
+
+    // Sets the parameter 'value.key' from a material file's value, read as the kind of the parameter's default.
+    auto setParameter(assets::Material& material, const reflect::Node& value) -> std::expected<void, std::string>
+    {
+        const auto* parameter = material.materialTemplate()->parameter(value.key);
+        if (!parameter)
+            return std::unexpected{ std::format("the template has no parameter '{}'", value.key) };
+
+        auto converted = std::visit(
+            [&](const auto& defaultValue) -> std::expected<assets::MaterialValue, std::string> {
+                using T = std::decay_t<decltype(defaultValue)>;
+                if constexpr (std::same_as<T, std::shared_ptr<assets::Texture>>)
+                {
+                    auto textureId = reflect::fromNode(reflect::FieldKind::AssetRef, value);
+                    if (!textureId)
+                        return std::unexpected{ std::format("'{}': {}", value.key, reflect::describe(textureId.error())) };
+                    return loadTexture(AssetId{ std::get<std::uint64_t>(*textureId) }).shared(); // The checker if it failed
+                }
+                else
+                {
+                    using Conversion = reflect::FieldConversion<T>;
+                    auto read = reflect::fromNode(Conversion::kind, value).and_then(Conversion::fromValue);
+                    if (!read)
+                        return std::unexpected{ std::format("'{}': {}", value.key, reflect::describe(read.error())) };
+                    return *read;
+                }
+            },
+            parameter->defaultValue);
+        if (!converted)
+            return std::unexpected{ converted.error() };
+        if (auto set = material.setParameter(value.key, std::move(*converted)); !set)
+            return std::unexpected{ assets::describe(set.error()) };
+        return {};
+    }
+
     // Loads the model file that 'part' belongs to, which fills the slots of all its parts.
     auto loadOwner(const assets::AssetEntry& part) -> void
     {
@@ -500,6 +601,18 @@ auto AssetLibrary::instantiate(world::World& world, AssetId model) -> world::Ent
         std::exit(EXIT_FAILURE);
     }
     return aegis::instantiate(world.registry(), *loaded);
+}
+
+auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegistry& types, AssetId scene)
+    -> std::expected<void, std::string>
+{
+    auto read = m_impl->readScene(scene, types);
+    if (!read)
+        return std::unexpected{ std::move(read.error()) };
+    const auto resolve = [this](const reflect::TypeInfo& type, void* component) { m_impl->resolve(type, component); };
+    if (auto created = serialize::instantiate(world.registry(), types, *read, resolve); !created)
+        return std::unexpected{ std::format("Cannot instantiate scene {}: {}", scene, serialize::describe(created.error())) };
+    return {};
 }
 
 auto AssetLibrary::createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> AssetRef<assets::Material>

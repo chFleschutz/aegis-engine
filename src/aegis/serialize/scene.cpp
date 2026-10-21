@@ -10,80 +10,9 @@ namespace aegis::serialize
 namespace
 {
 using reflect::Node;
+using namespace detail;
 
 constexpr std::string_view sceneType{ "Scene" };
-
-auto formatId(std::uint64_t id) -> std::string
-{
-    return std::format("{:016x}", id);
-}
-
-auto expectKind(const Node& node, Node::Kind kind, std::string_view what) -> std::expected<void, Error>
-{
-    if (node.kind != kind)
-        return makeError(ErrorCode::InvalidData, std::format("{} must be {}, not {}", what, reflect::nodeKindName(kind), reflect::nodeKindName(node.kind)), node.line);
-    return {};
-}
-
-// The member `key` of `object`, which must be there and of kind `kind`.
-auto required(const Node& object, std::string_view key, Node::Kind kind, std::string_view what) -> std::expected<const Node*, Error>
-{
-    const Node* found = object.find(key);
-    if (!found)
-        return makeError(ErrorCode::InvalidData, std::format("{} has no \"{}\"", what, key), object.line);
-    if (auto checked = expectKind(*found, kind, std::format("\"{}\"", key)); !checked)
-        return std::unexpected{ checked.error() };
-    return found;
-}
-
-// The member `key` of `object` if it is there (null if not); it must be of kind `kind`.
-auto optional(const Node& object, std::string_view key, Node::Kind kind) -> std::expected<const Node*, Error>
-{
-    const Node* found = object.find(key);
-    if (found)
-    {
-        if (auto checked = expectKind(*found, kind, std::format("\"{}\"", key)); !checked)
-            return std::unexpected{ checked.error() };
-    }
-    return found;
-}
-
-auto checkKeys(const Node& object, std::span<const std::string_view> known, std::string_view what) -> std::expected<void, Error>
-{
-    for (const Node& member : object.items)
-    {
-        if (!std::ranges::contains(known, std::string_view{ member.key }))
-            return makeError(ErrorCode::InvalidData, std::format("{} has an unknown key \"{}\"", what, member.key), member.line);
-    }
-    return {};
-}
-
-// An ID as files write it: exactly 16 lowercase hex digits, and not zero.
-auto parseId(const Node& node, std::string_view what) -> std::expected<std::uint64_t, Error>
-{
-    if (auto checked = expectKind(node, Node::Kind::String, what); !checked)
-        return std::unexpected{ checked.error() };
-    const std::string& text = node.text;
-    const bool hex = std::ranges::all_of(text, [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
-    if (text.size() != 16 || !hex)
-        return makeError(ErrorCode::InvalidData, std::format("{} '{}' is not 16 lowercase hex digits", what, text), node.line);
-    std::uint64_t id = 0;
-    std::from_chars(text.data(), text.data() + text.size(), id, 16);
-    if (id == 0)
-        return makeError(ErrorCode::InvalidData, std::format("{} must not be zero", what), node.line);
-    return id;
-}
-
-auto parseVersion(const Node& node, std::string_view what) -> std::expected<std::uint32_t, Error>
-{
-    if (auto checked = expectKind(node, Node::Kind::Number, what); !checked)
-        return std::unexpected{ checked.error() };
-    std::uint32_t version = 0;
-    auto result = std::from_chars(node.text.data(), node.text.data() + node.text.size(), version);
-    if (result.ec != std::errc{} || result.ptr != node.text.data() + node.text.size() || version == 0)
-        return makeError(ErrorCode::InvalidData, std::format("{} must be a whole number of at least 1, not {}", what, node.text), node.line);
-    return version;
-}
 
 // Brings a saved component or script up to its type's current version and checks every field: that the type
 // has it (under its name or an alias), that it is set once, and that its value has the field's kind.
@@ -329,35 +258,9 @@ auto parseScene(std::string_view text, const reflect::TypeRegistry& types) -> st
     auto root = parseJson(text);
     if (!root)
         return std::unexpected{ root.error() };
-    if (auto checked = expectKind(*root, Node::Kind::Object, "a scene file"); !checked)
-        return std::unexpected{ checked.error() };
-
-    auto type = required(*root, "type", Node::Kind::String, "the file");
-    if (!type)
-        return std::unexpected{ type.error() };
-    if ((*type)->text != sceneType)
-        return makeError(ErrorCode::WrongType, std::format("the file is a '{}', not a '{}'", (*type)->text, sceneType), (*type)->line);
-    if (auto checked = checkKeys(*root, keys, "the scene"); !checked)
-        return std::unexpected{ checked.error() };
-
-    auto idNode = required(*root, "id", Node::Kind::String, "the scene");
-    if (!idNode)
-        return std::unexpected{ idNode.error() };
-    auto id = parseId(**idNode, "the scene's \"id\"");
-    if (!id)
-        return std::unexpected{ id.error() };
-
-    auto versionNode = required(*root, "version", Node::Kind::Number, "the scene");
-    if (!versionNode)
-        return std::unexpected{ versionNode.error() };
-    auto version = parseVersion(**versionNode, "\"version\"");
-    if (!version)
-        return std::unexpected{ version.error() };
-    if (*version > sceneVersion)
-    {
-        return makeError(ErrorCode::UnsupportedVersion, std::format("the scene is version {}, newer than this engine's {}", *version, sceneVersion),
-            (*versionNode)->line);
-    }
+    auto header = readHeader(*root, sceneType, sceneVersion, keys);
+    if (!header)
+        return std::unexpected{ header.error() };
 
     auto typeTable = required(*root, "types", Node::Kind::Object, "the scene");
     if (!typeTable)
@@ -379,7 +282,7 @@ auto parseScene(std::string_view text, const reflect::TypeRegistry& types) -> st
     if (!entityList)
         return std::unexpected{ entityList.error() };
 
-    Scene scene{ .id = *id };
+    Scene scene{ .id = header->id };
     std::vector<const Node*> childLists; // Each entity's "children" node, for the lines of errors about them
     std::unordered_set<std::uint64_t> ids;
     for (const Node& node : (*entityList)->items)
@@ -412,10 +315,7 @@ auto writeScene(const Scene& scene) -> std::string
         }
     }
 
-    Node root = Node::makeObject();
-    root.add("type", Node::makeString(std::string{ sceneType }));
-    root.add("id", Node::makeString(formatId(scene.id)));
-    root.add("version", Node::makeNumber(std::to_string(sceneVersion)));
+    Node root = writeHeader(sceneType, scene.id, sceneVersion);
     Node& table = root.add("types", Node::makeObject());
     for (const auto& [name, version] : typeVersions)
         table.add(name, Node::makeNumber(std::to_string(version)));
@@ -504,7 +404,8 @@ auto saveScene(world::Registry& registry, const reflect::TypeRegistry& types, st
     return scene;
 }
 
-auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& scene) -> std::expected<void, Error>
+auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& scene, const PrepareComponent& prepare)
+    -> std::expected<void, Error>
 {
     for (const SceneEntity& entity : scene.entities)
     {
@@ -535,8 +436,16 @@ auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, 
                     .message = std::format("'{}' was not registered with world::registerComponent", component.type->name),
                     .line = component.fields.line });
             }
-            if (auto loaded = loadFields(component, storage->emplace(registry, entity)); !loaded)
+            auto value = component.type->create();
+            if (!value)
+            {
+                return fail(Error{ .code = ErrorCode::UnknownType, .message = std::format("cannot create '{}'", component.type->name), .line = component.fields.line, .reflect = value.error() });
+            }
+            if (auto loaded = loadFields(component, value->get()); !loaded)
                 return fail(loaded.error());
+            if (prepare)
+                prepare(*component.type, value->get());
+            storage->add(registry, entity, value->get());
         }
 
         for (const SceneComponent& script : saved.scripts)

@@ -103,6 +103,34 @@ auto createEngine(int argc, char** argv) -> std::expected<std::unique_ptr<Engine
     return std::move(*engine);
 }
 
+auto Engine::loadScene(assets::AssetId scene) -> std::expected<void, EngineError>
+{
+    resetWorld();
+    if (auto created = m_assets->instantiateScene(m_world, m_types, scene); !created)
+        return std::unexpected{ makeError(EngineErrorCode::SceneFailed, std::move(created.error())) };
+    beginWorld();
+    return {};
+}
+
+void Engine::resetWorld()
+{
+    m_world.reset();
+    // The engine's systems, always present. Their phases order them (scripts, then transforms,
+    // then cameras); a game adds its own systems the same way, in the phase they declare.
+    if (m_input)
+        m_world.addSystem<scripting::ScriptSystem>(m_world.registry(), m_input->state(), m_input.get());
+    else
+        m_world.addSystem<scripting::ScriptSystem>(m_world.registry()); // Scripts see no input
+    m_world.addSystem<world::TransformSystem>();
+    m_world.addSystem<world::CameraSystem>();
+}
+
+void Engine::beginWorld()
+{
+    m_world.begin();
+    m_frameGraph->sceneInitialized(m_world);
+}
+
 Engine::Engine(const AppDesc& desc) :
     m_desc{ desc }
 {

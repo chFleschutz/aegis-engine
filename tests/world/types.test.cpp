@@ -11,6 +11,7 @@ namespace
 using aegis::reflect::FieldKind;
 using aegis::reflect::TypeRegistry;
 using aegis::world::ComponentStorage;
+using aegis::world::Entity;
 using aegis::world::Registry;
 
 struct Health
@@ -96,7 +97,7 @@ TEST_SUITE("world::ComponentStorage")
         CHECK(storage.find(registry, dark) == nullptr);
     }
 
-    TEST_CASE("adds a component by name and sets its fields")
+    TEST_CASE("adds a component built by name")
     {
         TypeRegistry types;
         REQUIRE(aegis::world::registerComponents(types).has_value());
@@ -104,22 +105,47 @@ TEST_SUITE("world::ComponentStorage")
         auto entity = registry.create();
 
         const auto* info = types.find("PointLight");
-        void* light = storageOf(types, "PointLight").emplace(registry, entity);
-        REQUIRE(info->set(light, "intensity", 7.0f).has_value());
+        auto light = info->create();
+        REQUIRE(light.has_value());
+        REQUIRE(info->set(light->get(), "intensity", 7.0f).has_value());
+        storageOf(types, "PointLight").add(registry, entity, light->get());
         REQUIRE(registry.has<aegis::PointLight>(entity));
         CHECK(registry.get<aegis::PointLight>(entity).intensity == 7.0f);
-        CHECK(storageOf(types, "PointLight").emplace(registry, entity) == light); // Already there
     }
 
-    TEST_CASE("reaches the Transform every entity has")
+    TEST_CASE("hands construction observers the complete component")
+    {
+        TypeRegistry types;
+        REQUIRE(aegis::world::registerComponents(types).has_value());
+        Registry registry;
+        auto entity = registry.create();
+        float seen = 0.0f;
+        auto observe = [&seen, &registry](entt::registry&, entt::entity added) {
+            seen = registry.get<aegis::PointLight>(Entity{ added }).intensity;
+        };
+        registry.onConstruct<aegis::PointLight>().connect<&decltype(observe)::operator()>(observe);
+
+        auto light = types.find("PointLight")->create();
+        REQUIRE(light.has_value());
+        static_cast<aegis::PointLight*>(light->get())->intensity = 9.0f;
+        storageOf(types, "PointLight").add(registry, entity, light->get());
+        CHECK(seen == 9.0f);
+    }
+
+    TEST_CASE("replaces a component the entity has")
     {
         TypeRegistry types;
         REQUIRE(aegis::world::registerComponents(types).has_value());
         Registry registry;
         auto entity = registry.create("Moved", { 1.0f, 2.0f, 3.0f });
-        auto* transform = static_cast<aegis::Transform*>(storageOf(types, "Transform").emplace(registry, entity));
-        CHECK(transform == &registry.get<aegis::Transform>(entity));
-        CHECK(transform->location.z == 3.0f);
+        auto transform = types.find("Transform")->create();
+        REQUIRE(transform.has_value());
+        static_cast<aegis::Transform*>(transform->get())->location = { 4.0f, 5.0f, 6.0f };
+
+        const auto& storage = storageOf(types, "Transform");
+        CHECK(storage.find(registry, entity) == &registry.get<aegis::Transform>(entity));
+        storage.add(registry, entity, transform->get());
+        CHECK(registry.get<aegis::Transform>(entity).location.z == 6.0f);
     }
 
     TEST_CASE("adds and finds a tag")
@@ -131,10 +157,12 @@ TEST_SUITE("world::ComponentStorage")
         const auto& storage = storageOf(types, "DynamicTag");
 
         CHECK(storage.find(registry, entity) == nullptr);
-        CHECK(storage.emplace(registry, entity) != nullptr);
+        auto tag = types.find("DynamicTag")->create();
+        REQUIRE(tag.has_value());
+        storage.add(registry, entity, tag->get());
         CHECK(registry.has<aegis::DynamicTag>(entity));
         CHECK(storage.find(registry, entity) != nullptr);
-        CHECK(storage.emplace(registry, entity) != nullptr); // Already there
+        storage.add(registry, entity, tag->get()); // Already there
     }
 
     TEST_CASE("serves a game's component registered the same way")
@@ -146,8 +174,10 @@ TEST_SUITE("world::ComponentStorage")
         Registry registry;
         auto entity = registry.create();
 
-        void* health = storageOf(types, "Health").emplace(registry, entity);
-        REQUIRE(types.find("Health")->set(health, "value", 42.0f).has_value());
+        auto health = types.find("Health")->create();
+        REQUIRE(health.has_value());
+        REQUIRE(types.find("Health")->set(health->get(), "value", 42.0f).has_value());
+        storageOf(types, "Health").add(registry, entity, health->get());
         CHECK(registry.get<Health>(entity).value == 42.0f);
     }
 }

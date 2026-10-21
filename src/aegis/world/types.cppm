@@ -10,13 +10,15 @@ export namespace aegis::world
 {
 /// @brief Reaches a registered component on an entity without naming its type, for code that works only
 ///        through the type registry (the scene serializer). registerComponent attaches it to the type.
-/// @note A tag (an empty type) has no storage: its pointer is to a shared dummy, and it has no fields.
+/// @note A tag (an empty type) has no storage: find's pointer is to a shared dummy, and it has no fields.
 struct ComponentStorage
 {
     /// @brief The entity's component, or null if it has none
     std::function<void*(Registry&, Entity)> find;
-    /// @brief The entity's component, added (default constructed) if it has none
-    std::function<void*(Registry&, Entity)> emplace;
+    /// @brief Gives the entity 'value' (an instance of the type, moved from), replacing the component it has.
+    ///        Build the value first: observers of the component's construction (the draw batches) see it as it
+    ///        is added.
+    std::function<void(Registry&, Entity, void* value)> add;
 };
 
 /// @brief The ComponentStorage of T
@@ -28,18 +30,21 @@ auto componentStorage() -> ComponentStorage
         static T tag{};
         return ComponentStorage{
             .find = [](Registry& registry, Entity entity) -> void* { return registry.has<T>(entity) ? &tag : nullptr; },
-            .emplace = [](Registry& registry, Entity entity) -> void* {
+            .add = [](Registry& registry, Entity entity, void*) {
                 if (!registry.has<T>(entity))
-                    registry.add<T>(entity);
-                return &tag;
-            },
+                    registry.add<T>(entity); },
         };
     }
     else
     {
         return ComponentStorage{
             .find = [](Registry& registry, Entity entity) -> void* { return registry.has<T>(entity) ? &registry.get<T>(entity) : nullptr; },
-            .emplace = [](Registry& registry, Entity entity) -> void* { return &registry.getOrAdd<T>(entity); },
+            .add = [](Registry& registry, Entity entity, void* value) {
+                auto& component = *static_cast<T*>(value);
+                if (registry.has<T>(entity))
+                    registry.get<T>(entity) = std::move(component);
+                else
+                    registry.add<T>(entity, std::move(component)); },
         };
     }
 }
