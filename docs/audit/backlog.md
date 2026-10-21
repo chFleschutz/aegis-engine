@@ -148,17 +148,19 @@ Item numbers like "6.9" are gone from the titles; refer to items by issue number
 
 **[M6. Assets and scene files (D8)][m6]**: asset IDs ([#130]) first. Then, in parallel, the
 import cache for meshes ([#137], `needs-design`) → KTX2 textures ([#169]), and scene files
-([#131]). Scene instances ([#140]) follow both #130 and #131.
+([#131]). Scene instances follow both #130 and #131, in two steps: nested instances with derived
+entity IDs ([#183]), then imported models as scene assets ([#140]).
 
 **[M7. FrameScene and render-graph split][m7]** (P8) gives passes a `FrameScene` and one
 `InstanceStore` for both geometry paths, then splits the render graph into framework and passes.
-Do it before the first terrain, vegetation or shadow pass. [#86] is unblocked and runs in parallel
-with M6; [#87] (mechanical) follows it. The mirrored-instance fix ([#171]) lands with [#86] at the
-latest.
+Do it before the first terrain, vegetation or shadow pass. The `FrameScene` ([#181]) is unblocked
+and runs in parallel with M6; the `InstanceStore` ([#86]) follows it, then [#87] (mechanical). The
+mirrored-instance fix ([#171]) has landed.
 
 **[M9. Game launcher and editor split (D7)][m9]** makes the engine host the game
-([`docs/editor-runtime-split.md`](../editor-runtime-split.md)). The launcher ([#132]) follows scene
-files; the examples become one game ([#167]) after it and scene instances, one example per commit.
+([`docs/editor-runtime-split.md`](../editor-runtime-split.md)). The launcher follows scene files,
+in two steps: the engine stops linking the editor ([#182]), then the launcher itself ([#132]). The
+examples become one game ([#167]) after it and scene instances, one example per commit.
 The editor becomes a library ([#83]), then the registry-driven inspector ([#133]), undo ([#165]) and
 play-in-editor with saving ([#166]). `aegis-test`: the per-check split ([#170]) can start any time;
 running its scenes through the app ([#84]) follows [#132]. Last, the legacy core goes ([#172], after
@@ -261,3 +263,6 @@ file format and the asset cache are now planned: [#131], [#137], [#140], [#142].
 [#170]: https://github.com/chFleschutz/aegis-engine/issues/170
 [#171]: https://github.com/chFleschutz/aegis-engine/issues/171
 [#172]: https://github.com/chFleschutz/aegis-engine/issues/172
+[#181]: https://github.com/chFleschutz/aegis-engine/issues/181
+[#182]: https://github.com/chFleschutz/aegis-engine/issues/182
+[#183]: https://github.com/chFleschutz/aegis-engine/issues/183
