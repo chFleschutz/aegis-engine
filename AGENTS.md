@@ -246,8 +246,10 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
    explicitly: `& "C:\Program Files\Git\bin\bash.exe" tools/new-worktree.sh <branch>`.
    Submodules come from `tools/init-submodules.sh`, which shares the main checkout's submodule
    objects instead of copying them. A worktree made some other way (e.g. Claude Code's
-   `.claude/worktrees/`) gets its submodules from the `SessionStart` hook in `.claude/settings.json`,
-   which runs that script; it still needs `cmake --preset` and a build. Keep worktree paths short
+   `.claude/worktrees/`) gets its submodules and a configured preset from the `SessionStart` hook
+   in `.claude/settings.json` (`tools/session-start.sh`); it still needs a build. Such a worktree
+   starts on a throwaway branch (`claude/<session-name>`): rename it to the kind-prefixed name with
+   `git branch -m <kind>/<name>` before the first commit. Keep worktree paths short
    on Windows: some build and submodule files are about 140 characters below the worktree root,
    and the limit is 260 (`git config --global core.longpaths true` helps git, not every tool).
 2. **Stack dependent PRs** instead of waiting: pass the unmerged branch as `base`, open the PR

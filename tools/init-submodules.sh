@@ -15,8 +15,9 @@
 # The worktree's submodules depend on the main checkout's submodule object stores. To make one
 # self-contained: `git -C <path> repack -a -d`, then delete objects/info/alternates in its git dir.
 #
-# The SessionStart hook in .claude/settings.json runs this with --quiet for every new Claude Code
-# session, which covers worktrees that tools/new-worktree.sh did not create.
+# The SessionStart hook in .claude/settings.json runs this with --quiet (through
+# tools/session-start.sh) for every new Claude Code session, which covers worktrees that
+# tools/new-worktree.sh did not create.
 
 set -euo pipefail
 
@@ -35,11 +36,23 @@ top=$(git rev-parse --show-toplevel)
 main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 cd "$top"
 
-# A checked-out submodule has a .git file; this check is much faster than `git submodule status`,
-# which matters for the hook that runs on every session start.
+# A checked-out submodule has a .git file pointing at a git dir with a HEAD (an interrupted clone
+# leaves the .git file without one). This check starts no process, so it is much faster than
+# `git submodule status`, which matters for the hook that runs on every session start.
+checked_out() {
+    local dir=$1/.git
+    if [[ -f "$dir" ]]; then
+        local gitdir
+        read -r _ gitdir <"$dir" || return 1
+        [[ "$gitdir" == /* || "$gitdir" == [A-Za-z]:* ]] || gitdir=$1/$gitdir
+        dir=$gitdir
+    fi
+    [[ -e "$dir/HEAD" ]]
+}
+
 missing=()
 while read -r _ path; do
-    if [[ ! -e "$path/.git" ]]; then
+    if ! checked_out "$path"; then
         missing+=("$path")
     fi
 done < <(git config --file .gitmodules --get-regexp '^submodule\..*\.path$')
@@ -58,14 +71,18 @@ trap 'rm -rf "$logs"' EXIT
 # Register the URLs in one process, so the parallel updates below only clone and check out.
 git submodule init --quiet -- "${missing[@]}"
 
+# Returns its failures explicitly: the retry below calls it under `if !`, where set -e is off.
 checkout() {
     local path=$1
     local reference=()
-    if [[ "$top" != "$main" && -e "$main/$path/.git" ]]; then
-        reference=(--reference "$(git -C "$main/$path" rev-parse --path-format=absolute --git-dir)")
+    if [[ "$top" != "$main" ]] && checked_out "$main/$path"; then
+        local gitdir
+        gitdir=$(git -C "$main/$path" rev-parse --path-format=absolute --git-dir) || return
+        reference=(--reference "$gitdir")
     fi
     # Some submodule files pass Windows' 260-character path limit under a deep worktree path.
-    git -c core.longpaths=true submodule update --quiet "${reference[@]}" -- "$path"
+    git -c core.longpaths=true submodule update --quiet "${reference[@]}" -- "$path" || return
+    checked_out "$path" || return
     git -C "$path" config core.longpaths true
 }
 
