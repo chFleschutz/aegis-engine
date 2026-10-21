@@ -34,6 +34,17 @@ public:
     ///        referenced like one). An unescaped '#' that is no position, so no material name can produce it.
     static constexpr std::string_view defaultMaterial{ "Material/#default" };
 
+    /// @brief The type of the keys of a model's entities (`Entity/<node name>`): the local entity IDs of the
+    ///        model's scene, kept in the sidecar like the parts' IDs so they survive reimports. Entities are no
+    ///        assets, so the database leaves these keys out.
+    static constexpr std::string_view entityType{ "Entity" };
+
+    /// @brief The key of a model's root entity, which no node name can produce (see defaultMaterial).
+    static constexpr std::string_view rootEntity{ "Entity/#root" };
+
+    /// @brief True for the key of a model's entity (see entityType).
+    [[nodiscard]] static auto isEntityKey(std::string_view key) -> bool;
+
     /// @brief The messages of the warnings so far.
     [[nodiscard]] auto warnings() const noexcept -> const std::vector<std::string>& { return m_warnings; }
 

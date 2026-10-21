@@ -72,6 +72,19 @@ TEST_SUITE("assets::AssetDatabase")
         CHECK(database->absolutePath(*entry) == root.path / "models/Helmet.gltf");
     }
 
+    TEST_CASE("a model's entity IDs in its sidecar are no assets")
+    {
+        TempRoot root;
+        const AssetId main{ 1 }, part{ 2 }, entity{ 3 };
+        root.writeSidecarFor("models/Helmet.gltf", sidecarOf(main, { { "Material/Mat", part }, { "Entity/Body", entity } }));
+
+        const auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE(database);
+        CHECK(database->size() == 2);
+        CHECK(database->find(entity) == nullptr);
+        CHECK_FALSE(database->find(0, "models/Helmet.gltf", "Entity/Body"));
+    }
+
     TEST_CASE("a native file carries its own ID")
     {
         TempRoot root;
@@ -263,6 +276,15 @@ TEST_SUITE("assets::AssetDatabase")
         REQUIRE(database);
         CHECK(database->find(0, "cube.obj", "StaticMesh/cube/0"));
         CHECK(database->find(0, "cube.obj", SubAssetKeys::defaultMaterial));
+    }
+
+    TEST_CASE("the engine cube's sidecar records the ID of its root entity")
+    {
+        std::ifstream stream{ std::filesystem::path{ AEGIS_TEST_CONTENT_DIR } / "cube.obj.meta", std::ios::binary };
+        const std::string text{ std::istreambuf_iterator<char>{ stream }, std::istreambuf_iterator<char>{} };
+        const auto sidecar = parseSidecar(text);
+        REQUIRE(sidecar);
+        CHECK(sidecar->subAssets.contains(std::string{ SubAssetKeys::rootEntity }));
     }
 
     TEST_CASE("a main entry carries its sidecar's settings, also from the index")
