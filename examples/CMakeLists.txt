@@ -2,7 +2,7 @@ add_subdirectory(eval-scene)
 add_subdirectory(helmets)
 add_subdirectory(simple-scene)
 add_subdirectory(sponza)
-add_subdirectory(template-scene)
+add_subdirectory(template)
 
 # Every example renders headless for a fixed number of frames as a `device` test (`ctest -LE device` skips
 # them); the exit code fails on a startup error, a render error or a validation error. The `gpu` lock keeps
