@@ -3,16 +3,6 @@
 import std;
 import aegis.engine;
 
-namespace
-{
-std::mt19937 rng{ std::random_device{}() };
-
-auto uniformFloat(float min, float max) -> float
-{
-    return std::uniform_real_distribution<float>(min, max)(rng);
-}
-}
-
 /// @brief Example script to rotate the entity around the up axis
 class Rotator : public aegis::scripting::Script
 {
@@ -26,62 +16,7 @@ public:
     }
 };
 
-/// @brief Simple scene with a teapot, a plane and a bunch of lights
-class SimpleScene : public aegis::SceneDescription
-{
-public:
-    void initialize(aegis::SceneContext& context) override
-    {
-        auto& [scene, types, assets] = context;
-        aegis::addDefaults(context);
-        using namespace aegis;
-
-        // MATERIALS
-        auto paintingTexture = assets.loadTexture(assets.id("Misc/painting.png"));
-        auto metalTexture = assets.loadTexture(assets.id("Misc/brushed-metal.png"));
-
-        auto pbrMatTemplate = assets.defaults().pbrTemplate;
-        auto paintingMat = assets.createMaterial(pbrMatTemplate);
-        [[maybe_unused]] auto paintingSet = paintingMat->setParameter(assets::pbr::albedoMap, paintingTexture.shared());
-        AGX_ASSERT_X(paintingSet, "Failed to set the painting material's parameters");
-
-        auto metalMat = assets.createMaterial(pbrMatTemplate);
-        [[maybe_unused]] auto metalSet = metalMat->setParameter(assets::pbr::albedoMap, metalTexture.shared()).and_then([&] {
-            return metalMat->setParameter(assets::pbr::metallic, 1.0f);
-        });
-        AGX_ASSERT_X(metalSet, "Failed to set the metal material's parameters");
-
-        // ENTITIES
-        auto& registry = scene.registry();
-
-        auto floorPlane = assets.instantiate(scene, assets.id("Misc/plane.obj"));
-        registry.get<Transform>(floorPlane).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
-        registry.get<aegis::MeshRenderer>(floorPlane).material = paintingMat;
-
-        auto teapot = assets.instantiate(scene, assets.id("Misc/teapot.obj"));
-        registry.get<Transform>(teapot).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
-        registry.get<aegis::MeshRenderer>(teapot).material = metalMat;
-        registry.add<DynamicTag>(teapot); // The Rotator moves it every frame
-        [[maybe_unused]] auto rotator = scripting::attachScript(registry, types, teapot, "Rotator");
-        AGX_ASSERT_X(rotator, "The Rotator script is not registered");
-
-        // LIGHTS
-        constexpr int lightCount = 64;
-        constexpr float lightRadius = 10.0f;
-        for (int i = 0; i < lightCount; i++)
-        {
-            float x = lightRadius * std::cos(glm::radians(360.0f / lightCount * i));
-            float y = lightRadius * std::sin(glm::radians(360.0f / lightCount * i));
-            auto light = registry.create("Light " + std::to_string(i), { x, y, 3.0f });
-
-            float r = uniformFloat(0.0f, 1.0f);
-            float g = uniformFloat(0.0f, 1.0f);
-            float b = uniformFloat(0.0f, 1.0f);
-            registry.add<PointLight>(light, glm::vec3{ r, g, b }, 200.0f);
-        }
-    }
-};
-
+/// @brief Simple scene with a teapot, a plane and a ring of lights, loaded from Scenes/simple.scene
 auto main(int argc, char** argv) -> int
 {
     auto created = aegis::createEngine(argc, argv);
@@ -92,6 +27,11 @@ auto main(int argc, char** argv) -> int
         return builder.field("speed", &Rotator::speed).status();
     });
     AGX_ASSERT_X(registered, "Failed to register the Rotator script");
-    engine.loadScene<SimpleScene>();
+
+    if (auto loaded = engine.loadScene(engine.assets().id("Scenes/simple.scene")); !loaded)
+    {
+        aegis::log::fatal("{}", aegis::describe(loaded.error()));
+        return aegis::exitFailure;
+    }
     return engine.run();
 }
