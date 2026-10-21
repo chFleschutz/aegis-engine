@@ -56,6 +56,10 @@ auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, Engi
         {
             desc.screenshot = args[++i];
         }
+        else if (arg == "--project" && hasValue)
+        {
+            desc.project = args[++i]; // argv is in the native narrow encoding, as path expects
+        }
         else if ((arg == "--frames" || arg == "--width" || arg == "--height") && hasValue)
         {
             const auto count = parseCount(arg, args[++i]);
@@ -85,13 +89,18 @@ auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>
     return parseArgs(std::span<const char* const>{ args });
 }
 
+auto usage(std::string_view program) -> std::string
+{
+    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>]",
+        program);
+}
+
 auto createEngine(int argc, char** argv) -> std::expected<std::unique_ptr<Engine>, int>
 {
     const auto desc = parseArgs(argc, argv);
     if (!desc)
     {
-        log::error("{}\nUsage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>]",
-            describe(desc.error()), argc > 0 ? argv[0] : "app");
+        log::error("{}\n{}", describe(desc.error()), usage(argc > 0 ? argv[0] : "app"));
         return std::unexpected{ exitUsage };
     }
     auto engine = Engine::create(*desc);
@@ -328,7 +337,13 @@ auto Engine::createRenderer() -> std::expected<void, EngineError>
 
 auto Engine::createAssets() -> std::expected<void, EngineError>
 {
-    auto assets = AssetLibrary::create(*m_device, FRAMES_IN_FLIGHT);
+    auto sources = AssetLibrary::Sources::standard();
+    if (!m_desc.project.empty())
+    {
+        sources.project = m_desc.project;
+        sources.indexFile = m_desc.project / ".aegis" / "index";
+    }
+    auto assets = AssetLibrary::create(*m_device, FRAMES_IN_FLIGHT, sources);
     if (!assets)
         return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, assets.error()) };
     m_assets.emplace(std::move(*assets));
