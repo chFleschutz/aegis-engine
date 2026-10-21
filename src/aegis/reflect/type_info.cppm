@@ -1,6 +1,7 @@
 export module aegis.reflect:type_info;
 import std;
 import :error;
+import :node;
 import :value;
 
 export namespace aegis::reflect
@@ -24,6 +25,9 @@ enum class TypeCategory
     Script,    // Behavior attached to an entity, with its persistent state in fields
 };
 
+// Upgrades a type's saved fields (an object node, as read from a file) by one version, from n to n + 1.
+using Migration = std::function<std::expected<void, Error>(Node& fields)>;
+
 // The description of one registered type. Immutable once registered, and its address is stable for
 // the registry's lifetime.
 struct TypeInfo
@@ -32,6 +36,21 @@ struct TypeInfo
     TypeCategory category;
     std::type_index type;
     std::vector<FieldInfo> fields; // In registration order
+
+    // The version of the type's saved form, starting at 1. Files record it per type; loading an older one
+    // runs the migrations from it up to this one (see upgrade).
+    std::uint32_t version{ 1 };
+    // migrations[n] upgrades version n to n + 1.
+    std::map<std::uint32_t, Migration> migrations;
+
+    // Earlier names of the type (found by TypeRegistry::find) and of its fields (`old name -> name`), so
+    // files written before a rename still load. Files are written with the current names.
+    std::vector<std::string> aliases;
+    std::map<std::string, std::string, std::less<>> fieldAliases;
+
+    // Data a layer above reflect keeps per type, by its C++ type (the world's access to a component's
+    // storage, say). See TypeBuilder::attach.
+    std::map<std::type_index, std::shared_ptr<const void>> attachments;
 
     // Creates a default-constructed instance, owned by the returned pointer (which destroys it as the
     // registered type). Empty when the type is not default constructible. A caller that knows the
@@ -59,6 +78,15 @@ struct TypeInfo
         return construct();
     }
 
+    // The data attached as X, or null.
+    template<class X>
+    [[nodiscard]] auto attachment() const -> const X*
+    {
+        auto it = attachments.find(std::type_index{ typeid(X) });
+        return it == attachments.end() ? nullptr : static_cast<const X*>(it->second.get());
+    }
+
+    // The field named `fieldName` or, failing that, the field it is an alias of.
     [[nodiscard]] auto findField(std::string_view fieldName) const -> const FieldInfo*
     {
         for (const auto& field : fields)
@@ -66,7 +94,30 @@ struct TypeInfo
             if (field.name == fieldName)
                 return &field;
         }
+        if (auto alias = fieldAliases.find(fieldName); alias != fieldAliases.end())
+            return findField(alias->second);
         return nullptr;
+    }
+
+    // Brings `fields` (an object node of this type, saved at version `from`) up to the current version, one
+    // migration at a time. Fails with UnsupportedVersion for version 0, a version newer than this one or a
+    // missing step; a failing migration's error is returned as it is.
+    [[nodiscard]] auto upgrade(Node& fields, std::uint32_t from) const -> std::expected<void, Error>
+    {
+        if (from == 0 || from > version)
+        {
+            return makeError(ErrorCode::UnsupportedVersion,
+                std::format("type '{}' has no version {} (the current one is {})", name, from, version));
+        }
+        for (std::uint32_t step = from; step < version; ++step)
+        {
+            auto migration = migrations.find(step);
+            if (migration == migrations.end())
+                return makeError(ErrorCode::UnsupportedVersion, std::format("type '{}' has no migration from version {}", name, step));
+            if (auto migrated = migration->second(fields); !migrated)
+                return migrated;
+        }
+        return {};
     }
 
     // By-name access to a field of `object`, an instance of this type.

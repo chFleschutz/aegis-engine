@@ -15,6 +15,7 @@ export import aegis.world;
 export import aegis.world.components;
 export import aegis.world.render_components;
 export import aegis.world.system;
+export import aegis.world.types;
 export import aegis.defaults;
 export import aegis.reflect;
 export import aegis.scripting.script;
@@ -52,7 +53,7 @@ enum class EngineErrorCode
     DeviceFailed,
     RendererFailed,
     AssetsFailed,
-    ScriptsFailed,
+    TypesFailed,
     FrameGraphFailed,
 };
 
@@ -102,7 +103,8 @@ public:
 
     [[nodiscard]] auto useGpuDrivenRendering() const -> bool;
 
-    /// @brief The registered components and scripts. Register a game's scripts here before loadScene.
+    /// @brief The registered components and scripts, the built-in ones included. Register a game's
+    ///        components (world::registerComponent) and scripts (scripting::registerScript) here before loadScene.
     [[nodiscard]] auto types() -> reflect::TypeRegistry& { return m_types; }
 
     /// @brief Runs until the window closes or AppDesc::frames have rendered.
