@@ -19,6 +19,8 @@ constexpr auto codeName(ErrorCode code) -> std::string_view
     case ErrorCode::ParseError: return "ParseError";
     case ErrorCode::WrongCategory: return "WrongCategory";
     case ErrorCode::NotConstructible: return "NotConstructible";
+    case ErrorCode::UnsupportedVersion: return "UnsupportedVersion";
+    case ErrorCode::InvalidVersion: return "InvalidVersion";
     }
     return "Unknown";
 }

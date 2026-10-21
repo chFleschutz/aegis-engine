@@ -12,10 +12,12 @@ target_sources(aegis-reflect
     reflect.cppm
     conversion.cppm
     error.cppm
+    node.cppm
     registry.cppm
     type_info.cppm
     value.cppm
     PRIVATE
     error.cpp
+    node.cpp
     value.cpp
 )
