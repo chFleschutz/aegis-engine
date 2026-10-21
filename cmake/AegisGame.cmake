@@ -12,8 +12,10 @@
 # - <Name>-Editor: the same with the editor attached.
 # Both look up the project as paths::locate does: --project, then project/ next to the executable, then PROJECT
 # (compiled in as AEGIS_GAME_PROJECT_DIR, development builds only). The shaders and the engine content are
-# copied next to the executables, so a copied output folder finds them. With tests on, <Name> renders headless
-# as a `device` test.
+# looked up the same way (paths::shaders, paths::content). Nothing is copied: a development build has nothing
+# next to its executables and uses the build and source trees, so it never sees stale data; laying out a
+# copied or installed game is the export step's job (#134). With tests on, <Name> renders headless as a
+# `device` test.
 function(aegis_add_game name)
     cmake_parse_arguments(G "" "PROJECT" "SOURCES" ${ARGN})
     if(NOT G_SOURCES OR NOT G_PROJECT)
@@ -22,7 +24,6 @@ function(aegis_add_game name)
     cmake_path(ABSOLUTE_PATH G_PROJECT BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE)
     # Relative to this file, so a project that add_subdirectory()s the engine can call it too.
     cmake_path(SET launcher NORMALIZE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../src/aegis/launch/main.cpp")
-    cmake_path(SET content NORMALIZE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../content")
 
     add_library(${name}-module OBJECT ${G_SOURCES})
     target_link_libraries(${name}-module PUBLIC Aegis::Engine)
@@ -35,23 +36,10 @@ function(aegis_add_game name)
     target_link_libraries(${name}-Editor PRIVATE aegis-editor)
     target_compile_definitions(${name}-Editor PRIVATE AEGIS_LAUNCH_EDITOR)
 
-    # Both executables share one output folder, so one copy serves both.
-    if(TARGET compile_shaders)
-        add_custom_target(${name}-data ALL
-            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-                "$<TARGET_PROPERTY:compile_shaders,BINARY_DIR>" "$<TARGET_FILE_DIR:${name}>/shaders"
-            COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-                "${content}" "$<TARGET_FILE_DIR:${name}>/content"
-            COMMENT "Copying the shaders and the engine content next to ${name}"
-            VERBATIM)
-        add_dependencies(${name}-data compile_shaders)
-        add_dependencies(${name} ${name}-data)
-        add_dependencies(${name}-Editor ${name}-data)
-
-        if(AEGIS_BUILD_TESTS)
-            string(TOLOWER ${name} lowered)
-            add_test(NAME game-${lowered} COMMAND ${name} --headless --frames 120)
-            set_tests_properties(game-${lowered} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300)
-        endif()
+    # The test loads compiled shaders, so it exists only when those are built.
+    if(AEGIS_BUILD_TESTS AND TARGET compile_shaders)
+        string(TOLOWER ${name} lowered)
+        add_test(NAME game-${lowered} COMMAND ${name} --headless --frames 120)
+        set_tests_properties(game-${lowered} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300)
     endif()
 endfunction()

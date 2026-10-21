@@ -87,8 +87,9 @@ game's sources once (an OBJECT library) into `<Name>` (runtime, no `aegis-editor
 around the engine's launcher, `src/aegis/launch/main.cpp`, the only `main()`. One game source file ends
 with `AEGIS_GAME_MODULE({ .name = …, .registerTypes = …, .onStartup = … })` (`aegis/launch/game_module.h`).
 The launcher finds the project by `--project <dir>`, then `project/` next to the executable, then
-`PROJECT` (`paths::locate`); the shaders and the engine content are copied next to the executables and
-found the same way, so a copied output folder runs. `Template` is the first game; the other examples
+`PROJECT` (`paths::locate`); the shaders and the engine content are found the same way. Nothing is
+copied next to the executables: a development build uses the build and source trees, and laying out a
+copied or installed game is the export step (#134). `Template` is the first game; the other examples
 follow in #167.
 
 The examples render through the `Engine` facade, but they open a window and have no pass/fail
@@ -120,8 +121,8 @@ configure time**, derived from `PROJECT_BINARY_DIR`/`PROJECT_SOURCE_DIR` so the 
 the source tree or the build dir breaks asset/shader loading unless you re-run configure or set the
 environment variables of the same names, which override the baked-in values at
 run time. Shaders and content are looked up first in `shaders/` and `content/` next to the executable
-(after the variable, before the baked-in path), which is how a game built with `aegis_add_game` finds
-them. Examples name assets through the library, by path inside the project (`assets.id("Misc/cube.obj")`, then
+(after the variable, before the baked-in path), for a copied or installed game; a development build
+has nothing there. Examples name assets through the library, by path inside the project (`assets.id("Misc/cube.obj")`, then
 `assets.instantiate(scene, id)` / `assets.loadEnvironment(id)`); never add another `-D` path.
 `aegis-test` still has its own `AEGIS_TEST_SHADER_PATH` for its fixture shader (built next to it).
 
