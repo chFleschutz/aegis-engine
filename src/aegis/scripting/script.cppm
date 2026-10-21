@@ -106,6 +106,7 @@ struct ScriptEntry
 
     std::string name; // Its registered name
     std::shared_ptr<Script> script;
+    void* object{ nullptr }; // The script as its registered type: the address its TypeInfo's fields take
     State state{ State::Attached };
 };
 
@@ -170,7 +171,7 @@ auto attachScript(world::Registry& registry, const reflect::TypeRegistry& types,
         return reflect::makeError(reflect::ErrorCode::WrongCategory, std::format("'{}' was not registered with registerScript", name));
     auto script = std::shared_ptr<Script>{ *created, base };
     Script* result = script.get();
-    registry.getOrAdd<Scripts>(entity).entries.push_back({ .name = std::string{ name }, .script = std::move(script) });
+    registry.getOrAdd<Scripts>(entity).entries.push_back({ .name = info->name, .script = std::move(script), .object = created->get() });
     return result;
 }
 }
