@@ -8,8 +8,6 @@ target_link_libraries(aegis-render-graph
         aegis-paths
         aegis-renderer
         aegis-rhi
-        aegis-world
-        EnTT::EnTT # The draw batch registry follows scene component signals
     PRIVATE
         imgui
         vulkan-module # The UI pass hands raw Vulkan handles to ImGui's backend
@@ -21,15 +19,14 @@ target_sources(aegis-render-graph
     render_graph.cppm
     declarations.cppm
     default_graph.cppm
-    draw_batch_registry.cppm
     error.cppm
-    extract.cppm
     frame_graph.cppm
     frame_scene.cppm
     graph_builder.cppm
     frustum.cppm
     gpu_types.cppm
     ibl.cppm
+    instance_store.cppm
     immediate.cppm
     render_pass.cppm
     resource.cppm
@@ -49,10 +46,9 @@ target_sources(aegis-render-graph
     PRIVATE
     declarations.cpp
     default_graph.cpp
-    draw_batch_registry.cpp
-    extract.cpp
     frame_graph.cpp
     ibl.cpp
+    instance_store.cpp
     resource_pool.cpp
     schedule.cpp
     shader.cpp

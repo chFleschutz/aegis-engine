@@ -14,6 +14,7 @@ import aegis.reflect;
 import aegis.renderer;
 import aegis.render_graph;
 import aegis.rhi;
+import aegis.render_bridge;
 import aegis.world;
 import aegis.world.registry;
 
@@ -155,10 +156,11 @@ private:
     reflect::TypeRegistry m_types; // The components a model's scene holds
     std::optional<AssetLibrary> m_assets;
     std::unique_ptr<aegis::world::World> m_scene;
-    aegis::world::Entity m_helmet;                                  // The holder of the model instance loaded with the scene
-    aegis::world::Entity m_addedModel;                              // --mutate-scene: the holder of the model instance loaded later
-    std::uint32_t m_staticDrawn{ 0 };                               // --mutate-scene: drawable static entities before the last change
-    std::unique_ptr<render_graph::DrawBatchRegistry> m_drawBatches; // Disconnects before the scene goes
+    aegis::world::Entity m_helmet;                            // The holder of the model instance loaded with the scene
+    aegis::world::Entity m_addedModel;                        // --mutate-scene: the holder of the model instance loaded later
+    std::uint32_t m_staticDrawn{ 0 };                         // --mutate-scene: drawable static entities before the last change
+    std::unique_ptr<render_graph::InstanceStore> m_instances; // Holds meshes and materials
+    std::unique_ptr<InstanceBridge> m_instanceBridge;         // Disconnects before the scene goes
     struct ImGuiContextDeleter
     {
         auto operator()(ImGuiContext* context) const -> void { ImGui::DestroyContext(context); }

@@ -20,12 +20,12 @@ class EditorLayer : public core::Layer
 {
 public:
     EditorLayer(aegis::platform::Input& input, aegis::renderer::Renderer& renderer,
-        aegis::render_graph::FrameGraph& frameGraph, aegis::render_graph::DrawBatchRegistry& drawBatches,
+        aegis::render_graph::FrameGraph& frameGraph, const aegis::render_graph::InstanceStore& instances,
         world::World& scene) :
         m_input(input),
         m_renderer(renderer),
         m_frameGraph(frameGraph),
-        m_drawBatches(drawBatches),
+        m_instances(instances),
         m_scene(scene)
     {
     }
@@ -58,7 +58,7 @@ public:
             m_scenePanel.draw(m_scene);
 
         if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Statistics))
-            m_statisticsPanel.draw(m_scene.registry(), m_drawBatches);
+            m_statisticsPanel.draw(m_scene.registry(), m_instances);
 
         if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Profiler))
             m_profilerPanel.draw(m_frameGraph);
@@ -122,7 +122,7 @@ private:
     aegis::platform::Input& m_input;
     aegis::renderer::Renderer& m_renderer;
     aegis::render_graph::FrameGraph& m_frameGraph;
-    aegis::render_graph::DrawBatchRegistry& m_drawBatches;
+    const aegis::render_graph::InstanceStore& m_instances;
     world::World& m_scene;
     editor::MenuBarPanel m_menuBarPanel{};
     editor::RendererPanel m_rendererPanel{};

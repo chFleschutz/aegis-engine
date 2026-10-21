@@ -1,6 +1,5 @@
 export module aegis.render_graph:default_graph;
 import std;
-import :draw_batch_registry;
 import :graph_builder;
 import aegis.rhi;
 
@@ -10,8 +9,6 @@ struct DefaultPassesDesc
 {
     /// @brief The mesh-shader geometry path; needs rhi::Device::Capabilities::meshShaders.
     bool gpuDriven;
-    /// @brief Read by the GPU-driven passes; must outlive the graph.
-    const DrawBatchRegistry& drawBatches;
     /// @brief Draws ImGui over the frame when set (see UiPass::Desc::build).
     std::function<void()> buildUi{};
     /// @brief Needed with buildUi to compile the graph (ImGui's backend takes the instance); declaring it needs none.

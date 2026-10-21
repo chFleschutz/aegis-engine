@@ -23,6 +23,28 @@ PRIVATE
 	asset_library.cpp
 )
 
+# Between the world and the render graph: the instance store that follows the world, and the per-frame FrameScene.
+# Its own target so aegis-test renders a world through it without the engine.
+add_library(aegis-render-bridge STATIC)
+target_link_libraries(aegis-render-bridge
+PUBLIC
+	aegis-render-graph
+	aegis-world
+	EnTT::EnTT # Follows the world's component signals
+PRIVATE
+	aegis-assets
+	aegis-base
+	aegis-math
+	aegis-rhi
+)
+target_sources(aegis-render-bridge
+PUBLIC
+	FILE_SET CXX_MODULES FILES
+		render_bridge.cppm
+PRIVATE
+	render_bridge.cpp
+)
+
 add_library(aegis-engine STATIC)
 add_library(Aegis::Engine ALIAS aegis-engine)
 
@@ -64,6 +86,7 @@ PUBLIC
 	aegis-paths
 	aegis-platform
 	aegis-reflect
+	aegis-render-bridge
 	aegis-render-graph
 	aegis-renderer
 	aegis-rhi

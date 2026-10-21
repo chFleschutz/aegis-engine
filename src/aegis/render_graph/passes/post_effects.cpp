@@ -198,7 +198,6 @@ auto TransparentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
     const RenderContext context{
         .cmd = cmd,
         .frameScene = frameInfo.frameScene,
-        .scene = frameInfo.scene,
         .frameIndex = frameInfo.frameIndex,
         .camera = pool.bufferAddress(m_cameraData, frameInfo.frameIndex),
     };

@@ -2,12 +2,14 @@ export module aegis.render_graph:frame_scene;
 import std;
 import aegis.math;
 import aegis.rhi;
+import :instance_store;
 
 export namespace aegis::render_graph
 {
-/// @brief What the passes draw of the world in one frame: the main camera, the lights and the sky's
-///        environment, copied out of the world once per frame (see extract). A plain value: passes read
-///        it instead of the ECS, and tests build one by hand.
+/// @brief What the passes draw of the world in one frame: the instances, the main camera, the lights and the
+///        sky's environment. Camera, lights and environment are copied out of the world once per frame
+///        (aegis::extractFrameScene); the instances are not copied, the store follows the world as it changes
+///        (aegis::InstanceBridge). Passes read it instead of the ECS, and tests build one by hand.
 struct FrameScene
 {
     /// @brief The main camera, with this frame's matrices.
@@ -47,6 +49,7 @@ struct FrameScene
         std::optional<rhi::TextureDescriptor> skybox;
     };
 
+    const InstanceStore& instances;
     std::optional<Camera> camera;
     std::optional<AmbientLight> ambientLight;
     std::optional<DirectionalLight> directionalLight;

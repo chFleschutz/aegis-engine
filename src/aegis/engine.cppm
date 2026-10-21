@@ -25,6 +25,7 @@ import aegis.world.systems.camera_system;
 import aegis.world.systems.transform_system;
 export import aegis.assets;
 import aegis.platform;
+import aegis.render_bridge;
 import aegis.render_graph;
 import aegis.renderer;
 import aegis.rhi;
@@ -138,15 +139,15 @@ public:
     ///         then empty.
     [[nodiscard]] auto loadScene(assets::AssetId scene) -> std::expected<void, EngineError>;
 
-    /// @brief Adds a layer built from the engine's input, renderer, frame graph, draw batches and world, such as
+    /// @brief Adds a layer built from the engine's input, renderer, frame graph, instances and world, such as
     ///        the editor (editor::EditorLayer). Headless has no input or UI, so there it adds nothing.
     template<std::derived_from<core::Layer> T>
         requires std::constructible_from<T, platform::Input&, renderer::Renderer&, render_graph::FrameGraph&,
-            render_graph::DrawBatchRegistry&, world::World&>
+            const render_graph::InstanceStore&, world::World&>
     void pushLayer()
     {
         if (m_input)
-            m_layerStack.push<T>(*m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_world);
+            m_layerStack.push<T>(*m_input, *m_renderer, *m_frameGraph, m_instances, m_world);
     }
 
 private:
@@ -161,7 +162,7 @@ private:
     void updateCameraAspect();
     /// @brief Empties the world and adds the engine's systems, ready for a scene's entities.
     void resetWorld();
-    /// @brief Starts the world's systems and hands the world to the frame graph.
+    /// @brief Starts the world's systems.
     void beginWorld();
     auto saveScreenshot() -> std::expected<void, std::string>;
     void applyFrameBrake(std::chrono::steady_clock::time_point frameBegin);
@@ -186,7 +187,8 @@ private:
     reflect::TypeRegistry m_types;
     base::FrameClock m_clock{ base::FrameClock::clamped(MAX_FRAME_DELTA_SEC) };
     world::World m_world;
-    aegis::render_graph::DrawBatchRegistry m_drawBatches; // Disconnects from the scene first
+    aegis::render_graph::InstanceStore m_instances;        // Holds meshes and materials: goes before the device
+    aegis::InstanceBridge m_instanceBridge{ m_instances }; // Disconnects from the world first
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
 };
 }

@@ -3,13 +3,12 @@ import std;
 import :error;
 import :render_system;
 import aegis.assets;
-import aegis.world.render_components;
 import aegis.rhi;
 import aegis.math;
 
 export namespace aegis::render_graph
 {
-/// @brief Draws every entity with an aegis::MeshRenderer of one MaterialType,
+/// @brief Draws every instance of the frame's InstanceStore whose draw batch has one MaterialType,
 ///        one indexed draw each (the CPU-driven path). Materials use the default PBR parameter block.
 class StaticMeshRenderSystem : public RenderSystem
 {

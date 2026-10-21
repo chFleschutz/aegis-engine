@@ -9,6 +9,7 @@ import aegis.asset_library;
 import aegis.assets;
 import aegis.paths;
 import aegis.reflect;
+import aegis.render_bridge;
 import aegis.renderer;
 import aegis.render_graph;
 import aegis.rhi;
@@ -37,8 +38,9 @@ auto Engine::createScene() -> std::expected<void, std::string>
     m_scene = std::make_unique<aegis::world::World>();
     m_scene->addSystem<aegis::world::TransformSystem>();
     m_scene->addSystem<aegis::world::CameraSystem>();
-    m_drawBatches = std::make_unique<render_graph::DrawBatchRegistry>();
-    m_drawBatches->connect(m_scene->registry());
+    m_instances = std::make_unique<render_graph::InstanceStore>();
+    m_instanceBridge = std::make_unique<InstanceBridge>(*m_instances);
+    m_instanceBridge->connect(m_scene->registry());
 
     auto& registry = m_scene->registry();
     const auto camera = registry.create("Camera", glm::vec3{ 0.0f, -3.0f, 0.0f });
@@ -80,7 +82,6 @@ auto Engine::createScene() -> std::expected<void, std::string>
     render_graph::addDefaultPasses(*m_frameGraph,
         {
             .gpuDriven = m_options.gpuDriven,
-            .drawBatches = *m_drawBatches,
             // Not 'this': the Engine is moved after create(). Renderer and graph live on the heap.
             .buildUi = [renderer = m_renderer.get(), graph = m_frameGraph.get(), overlay = !m_options.noOverlay] { buildUi(*renderer, *graph, overlay); },
             .context = m_context.get(),
@@ -89,7 +90,6 @@ auto Engine::createScene() -> std::expected<void, std::string>
         return std::unexpected{ std::format("Frame graph: {}", describe(compiled.error())) };
 
     m_scene->begin();
-    m_frameGraph->sceneInitialized(*m_scene);
 
     std::print("Frame graph compiled:");
     for (const auto* pass : m_frameGraph->passes())
