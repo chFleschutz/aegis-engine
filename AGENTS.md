@@ -210,12 +210,18 @@ descriptions.
 **Code changes go through a PR** (anything under `src/`, `shaders/`, `tests/`, `examples/`, `tools/`,
 CMake or CI). Docs-only changes may be committed to `main` directly.
 
-**Planned work:** GitHub issues are the work items (branch, size, finding IDs, "done when",
-status), grouped into milestones `M1`–`M8`, with dependencies as "Blocked by" relations.
-`docs/audit/backlog.md` keeps the decisions (D1–D7, F1/F2) and each milestone's goal and working
-order. Before starting an item, read its issue (`gh issue view <n>`) and the finding IDs it lists
-(`docs/audit/findings-*.md`, corrected by `verify-*.md`), then re-check them against the current
-code. Feature PRs don't edit `backlog.md`.
+**Planned work:** GitHub issues are the work items, grouped into milestones (`M6`, `M7`, `M9`,
+then `Backlog`), with dependencies as "Blocked by" relations. An issue body holds the branch, size,
+design refs (D-n), the finding IDs it closes, content, out of scope, "done when" and verification.
+Labels: the kind (`bug`, `feature`, `refactor`, `cleanup`, `style`, `build`, `ci`, `tests`,
+`documentation`) matches the branch prefix; `size/*`; `area/*` (don't run two items with the same
+area in parallel); `needs-gpu` (verification needs the local device tests, which CI and cloud
+sessions can't run); `needs-design` (an open decision; don't start without the owner). **Status is
+the assignee:** whoever starts an item assigns it (`gh issue edit <n> --add-assignee @me`), and an
+assigned issue is taken. `docs/audit/backlog.md` keeps the decisions (D1–D8, F1/F2) and each
+milestone's goal and order; read the decisions an issue cites. Before starting an item, read its
+issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*.md`, corrected by
+`verify-*.md`), then re-check them against the current code. Feature PRs don't edit `backlog.md`.
 
 1. **One worktree per PR.** `tools/new-worktree.sh <branch> [base]` creates
    `../aegis-engine.worktrees/<branch>` from `origin/main` with submodules, then configures and
@@ -252,7 +258,8 @@ code. Feature PRs don't edit `backlog.md`.
    green. CI has no GPU: run the full `ctest` with the device tests locally first for device code.
    PRs land as merge commits, not squash or rebase, so commit hashes survive. After a PR with
    mechanical commits merges, add their hashes to `.git-blame-ignore-revs` (docs-only commit on
-   `main`). The `/implement-issue` skill follows this.
+   `main`; only the owner can push to `main` past the protection). The `/implement-issue` skill
+   follows this.
 
 ## Unit tests
 

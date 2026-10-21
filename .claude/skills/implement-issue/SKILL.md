@@ -9,16 +9,25 @@ Take GitHub issue `$ARGUMENTS` (a number or URL) from issue to open PR, followin
 AGENTS.md ("Commits and pull requests"). If no argument is given, ask which issue.
 
 ## 1. Read the issue
-- `gh issue view <n> --comments`. Note the branch name, size, finding IDs, "done when", status and
-  "Blocked by" relations. If it is blocked by an open issue, or already closed or assigned to
-  someone else, stop and tell the user.
-- GitHub issues are the only tracker; ignore `docs/audit/backlog.md`, which is outdated, and never
-  edit it. Read the findings the issue lists (`docs/audit/findings-*.md`, corrected by
-  `verify-*.md`) and **re-check them against the current code**; findings may be stale. If the
-  issue is wrong or already done, say so instead of coding.
-- Stop and ask the user, before editing, when: the scope is ambiguous or large, the issue needs a
-  design decision it doesn't make, the change would touch more than the issue says, or it would
-  break a public API. Auto-merge makes a wrong guess costly, so the bar to proceed is high.
+- `gh issue view <n> --comments`. Note the branch name, size, labels, finding IDs, content, out of
+  scope, "done when", verification and the "Blocked by" relations
+  (`gh api repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by --jq '.[] | "\(.number) \(.state)"'`).
+  Stop and tell the user if it is closed, blocked by an open issue (unless its blocker's branch can
+  be the stack base), assigned to someone else, or already has an open PR.
+- **Claim it** before any other work: `gh issue edit <n> --add-assignee @me`. The assignee is the
+  status; parallel agents skip assigned issues.
+- GitHub issues are the only tracker for status and scope. `docs/audit/backlog.md` holds the
+  decisions (D1–D8, F1/F2): read the ones the issue cites, never edit the file. Read the findings
+  the issue lists (`docs/audit/findings-*.md`, corrected by `verify-*.md`) and **re-check them
+  against the current code**; findings may be stale. If the issue is wrong or already done, say so
+  instead of coding.
+- Stop and ask the user, before editing, when: the issue has the `needs-design` label, the scope
+  is ambiguous or large, the issue needs a design decision it doesn't make, the change would touch
+  more than the issue says (its **Out of scope** is a hard line), or it would break a public API.
+  Auto-merge makes a wrong guess costly, so the bar to proceed is high.
+- `needs-gpu` means the verification needs the local device tests. Without a GPU (cloud session),
+  stop after opening the PR and don't arm auto-merge. Follow any hazard the issue states (e.g.
+  #154: never run a repro that hangs the GPU without asking).
 
 ## 2. Set up the branch
 - Use the issue's branch name, else `<kind>/<short-slug>` with kind from `fix/ test/ refactor/
@@ -71,11 +80,16 @@ AGENTS.md ("Commits and pull requests"). If no argument is given, ask which issu
 - If `main` moves and the PR goes stale (`gh pr view <pr> --json mergeStateStatus` says `BEHIND`),
   run `gh pr update-branch <pr>`, or merge `main` locally when there are conflicts, then rebuild,
   rerun `ctest -LE device`, and push.
-- Required signatures are on for `main`. If the merge is refused over unsigned commits, report that
+- If the merge is refused for a reason not covered here (e.g. a new protection rule), report it
   instead of working around it.
 - Auto-merge lands later, so only clean up once `gh pr view <pr> --json state` says `MERGED`
   (`tools/remove-worktree.sh <branch> --delete-branch`). If it hasn't merged when you finish,
   leave the worktree and say so.
-- Don't commit to `main` yourself (protected). If the PR had mechanical commits, list their hashes
-  in the report so the user can add them to `.git-blame-ignore-revs`.
+- Don't commit to `main` yourself (protected; only the owner pushes docs there). If the PR had
+  mechanical commits, list their hashes in the report so the user can add them to
+  `.git-blame-ignore-revs`.
+- Once merged, check the issues it was blocking
+  (`gh api repos/{owner}/{repo}/issues/<n>/dependencies/blocking --jq '.[] | "\(.number) \(.title)"'`):
+  if the PR changed a file, API or plan that one of them cites, say which and what changed, so the
+  user can correct that issue before someone starts it. Name the ones that are now unblocked.
 - Report the PR URL and its state (merged, auto-merge armed, or blocked and why) and anything not verified.

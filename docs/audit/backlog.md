@@ -1,42 +1,24 @@
 # Foundation plan: decisions and milestones
 
 The work from [report.md](report.md) §7. The work items are GitHub issues, grouped into milestones
-`M1`–`M8` (plus "After the foundation"); each issue holds the branch, size, the finding IDs it
-closes, its "done when" check and its status, and its dependencies are "Blocked by" relations. This
-file keeps what the issues don't: the decisions with their reasons, and each milestone's goal and
-working order. Status lives only in the issues.
+(`M1`–`M9`, then "Backlog"), with their dependencies as "Blocked by" relations; labels give the kind,
+size, area and the `needs-gpu` / `needs-design` flags (AGENTS.md "Planned work"). This file keeps
+what the issues don't: the decisions with their reasons, and each milestone's goal and working
+order. Status lives only in the issues: an assigned issue is being worked on.
 
 - **Closes** in an issue lists the canonical finding IDs, with merged duplicates in parentheses. The
   evidence (file:line, failure scenario, fix sketch) is in `findings-*.md`; verdicts and corrections
   are in `verify-*.md`, which win where the two disagree.
 - **Done when** is the acceptance check. "Test n" refers to the first test batch in report §4.3.
   A test marked *fails today* is written first, as the bug report.
-- **Size:** S = under 5 files or about a day, M = one module or a few days, L = crosses modules.
+- **Size:** S = under 5 files or about a day, M = one module or a few days, L = crosses modules or
+  more than about 1500 lines / 30 files (PRs #151 and #164 were rated M and came out larger).
 - Baseline: commit `5c4b20d9`. Line numbers in the findings drift as PRs land; re-read the cited
   code at the start of each PR. PR #91 (`import std`, CMake 4.5, Vulkan SDK 1.4.363) has since
   touched 167 files, mostly includes, so expect most line numbers to be off.
 
-## How to work an item
-
-The full workflow is in AGENTS.md "Commits and pull requests". In short:
-
-1. Pick an open issue whose "Blocked by" issues are closed, or merged as far as stacking allows, and
-   read it: `gh issue view <n>`.
-2. `tools/new-worktree.sh <branch> [base]` with the branch name from the issue; for an item whose
-   blocker is still unmerged, pass that branch as `base` (stacked PR).
-3. Read only the IDs listed under **Closes**, then re-check them against the current code.
-4. Write the *fails today* test first, where there is one.
-5. Keep mechanical commits (renames, deletions, signature churn) separate from logic commits.
-6. Each commit: builds clean, `ctest -LE device` passes. Before pushing: the full `ctest` including
-   the `device` tests; for render changes, compare `aegis-test --headless --scene --screenshot` and
-   `--gpu-driven --screenshot`.
-7. `tools/format.sh`, then `gh pr create` with `Closes #<issue>` in the body; check CI; leave the
-   merge to the owner.
-8. After merge: `tools/remove-worktree.sh <branch> --delete-branch`; add mechanical commit hashes
-   to `.git-blame-ignore-revs`.
-
-Up to about three items can run in parallel, one worktree each. Don't run two items that edit the
-same central file at once.
+How to work an item: AGENTS.md "Commits and pull requests" and the `/implement-issue` skill. Up to
+about three items run in parallel, one worktree each, never two with the same `area/*` label.
 
 ## Decisions
 
@@ -67,7 +49,7 @@ Taken 2026-10-17 (report §8 lists the original questions).
   foundation work. 5.2 ([#73]) carries the alpha and sidedness data so the feature only adds the
   pipeline key and the masked variant. → [#135], "After the foundation".
 - **D6. Preserve mirrored transforms.** `decomposeTRS` keeps negative scale; check winding of
-  mirrored instances in the same PR. → 1.8c ([#43]); the front-face flip is still open (Polish).
+  mirrored instances in the same PR. → 1.8c ([#43]); the front-face flip is still open ([#171]).
 - **D7. Game-usage model: the engine hosts the game** (2026-10-19, see
   [`docs/editor-runtime-split.md`](../editor-runtime-split.md)).
   - **Executables:** Aegis owns `main()`. `aegis_add_game` builds one engine-owned launcher into
@@ -81,7 +63,8 @@ Taken 2026-10-17 (report §8 lists the original questions).
     hooks), not built.
   - Why: the editor stays out of shipped games, a game needs no `main()` of its own, and scenes
     become savable and editable. Save games need the same serializer anyway.
-  - → [M6][m6] (6.1–6.12), export ([#134]). Decides F1.
+  - → `aegis.app` and the type registry ([#79]–[#82], [#129], done), then [M9][m9]; export
+    ([#134]). Decides F1.
 - **D8. Asset system: sources in the project, imported data in a cache** (2026-10-19, see
   [`docs/asset-system.md`](../asset-system.md)).
   - **Identity:** `AssetId` is one random 64-bit ID (16 lowercase hex digits in files) for every
@@ -108,8 +91,9 @@ Taken 2026-10-17 (report §8 lists the original questions).
   - Why: source stays authoritative and reimports itself; imported data, which depends on importer
     version and shader-pinned layouts, is never committed, so a layout change needs no migration.
     Sidecars survive moves and git merges, unlike paths or one database file.
-  - → 6.9 ([#130]), 6.10 ([#131]), 6.13–6.16 ([#137]–[#140]), export ([#134]); later material
-    files ([#141]), prefab overrides ([#142]) and hot reload ([#143]). Decides F2.
+  - → the renames ([#138], [#139], done), then [M6][m6]; export ([#134]); later save games
+    ([#168]), material files ([#141]), prefab overrides ([#142]) and hot reload ([#143]). Decides
+    F2.
 
 Smaller decisions:
 - **Subproject use:** make paths subproject-safe now (3.5, [#65]). How a game consumes the engine
@@ -119,17 +103,18 @@ Smaller decisions:
 - **Formatting: the whole tree is formatted;** drop the diff-only rule from AGENTS.md (0.1).
   A CI check is optional (8.3, [#90]).
 - **Reference images: local comparison** against images from the dev GPU (8.1, [#88]). lavapipe CI
-  is not a priority ([#136], "After the foundation").
+  is not a priority ([#136], Backlog).
 - **Commit trailers:** keep the AGENTS.md rule, no `Co-Authored-By` on any commit.
 
 Future decisions (not blocking):
 - **F1. How a game uses the engine (decided by D7):** engine-as-host, and `aegis.app` owns `main`.
-  Asset and shader lookup at runtime is part of 6.11 ([#132]); install rules are part of the export
+  Asset and shader lookup at runtime is part of [#132]; install rules are part of the export
   step ([#134]). That step also settles how a game outside this repo consumes the engine: as a
   subproject (3.5 makes that safe) or as an installed package.
 - **F2. Asset system design (decided by D8):** sidecars, import cache, `AssetRef`, scenes as prefabs.
-  Still open, none blocking 6.9: the text format (with 6.10), the cooked blob layout, texture
-  compression, `.blend` import, overrides, hot reload and streaming (`docs/asset-system.md`, "Open").
+  The text format is settled (glaze JSON, [#131]). Still open: the cooked blob layout ([#137],
+  `needs-design`), texture compression, `.blend` import and streaming (`docs/asset-system.md`,
+  "Open"); overrides and hot reload are planned ([#142], [#143]).
 
 ---
 
@@ -142,49 +127,58 @@ Future decisions (not blocking):
 parallel lanes: tests and math, render, content. Its one leftover, the front-face flip for mirrored
 instances (D6), is under Polish.
 
-**[M2. Mechanical cleanup][m2]** deletes dead code and renames, each in its own blame-ignored PR,
-following the dead-code verdicts in `verify-conventions.md` §3. Only the renames ([#56]) remain;
-they waited for M1, which is done.
+**[M2. Mechanical cleanup][m2]** (done) deleted dead code and renamed, each in its own
+blame-ignored PR, following the dead-code verdicts in `verify-conventions.md` §3.
 
 **[M3. Foundation policy][m3]** (done) set the shared rules the later milestones build on:
 `aegis.base` (D3, D4), the D1 error shape in every new-style module, the shader build helper with
 `spirv-val`, the guarded CPU/GPU data contract, subproject-safe paths and link visibility.
 
-**[M4. Render-graph authoring][m4]** makes passes declare their resources once and lets the graph
-plan and own its textures. Order: 4.2 ([#68]) → 4.3 ([#69]); 4.4 ([#70]) runs in parallel with 4.2.
-4.2 also unblocks 7.1 and the material system.
+**[M4. Render-graph authoring][m4]** (done) made passes declare their resources once and let the
+graph plan and own its textures.
 
-**[M5. Content and platform][m5]** splits CPU-side import from GPU upload and moves instantiation
-out of `aegis.assets`, and gives input and windowing explicit APIs. It runs in parallel with M4. Two
-chains: 5.1 ([#72]) → 5.2 ([#73]) → 5.3 ([#74]) → 5.4 ([#75]), and 5.5 ([#76]) → 5.6 ([#77]);
-5.7 ([#78]) is independent. 5.6 and 5.7 gate M6 (6.4 and 6.1), 5.2 gates the asset IDs (6.9), and
-5.4 gates the `aegis.core` rename (6.7).
+**[M5. Content and platform][m5]** (done) split CPU-side import from GPU upload, moved
+instantiation out of `aegis.assets`, and gave input and windowing explicit APIs.
 
-**[M6. `aegis.app`][m6]** (P7) makes the engine host the game (D7, reworked 2026-10-19 after
-[`docs/editor-runtime-split.md`](../editor-runtime-split.md)). One PR per step; examples port one
-per commit. Working order, so the numbers are not sequential: 6.1 ([#79]) and 6.2 ([#80]), the type
-registry 6.8 ([#129], done), then 6.3 ([#81]) and 6.4 ([#82]). The asset chain (D8): the `World`
-rename 6.14 ([#138], right after 6.2) and the asset-type renames 6.15 ([#139], after 5.3), then asset
-IDs 6.9 ([#130]), the import cache 6.13 ([#137]) and scene files 6.10 ([#131]), then scene instances
-6.16 ([#140]). Then the game launcher 6.11 ([#132]); then the editor on top, 6.5
-([#83]) and 6.12 ([#133]), and `aegis-test` on the app, 6.6 ([#84]). The rename to `aegis.core`,
-6.7 ([#85]), comes last, once the legacy core is gone.
+**M6, first part** (done, under the old name "`aegis.app`"): `Engine::create` and headless mode
+([#79]), no engine singleton ([#80]), the type registry ([#129]), the world lifecycle ([#81]),
+frame phases ([#82]), the `World` rename ([#138]) and the asset types ([#139]). On 2026-10-21 the
+rest was split by goal: the asset work (D8) stayed in M6, the launcher and editor (D7) moved to M9.
+Item numbers like "6.9" are gone from the titles; refer to items by issue number.
 
-**[M7. Minimal SceneView, then split][m7]** (P8) gives passes a `FrameScene` and one
+**[M6. Assets and scene files (D8)][m6]**: asset IDs ([#130]) first. Then, in parallel, the
+import cache for meshes ([#137], `needs-design`) → KTX2 textures ([#169]), and scene files
+([#131]). Scene instances ([#140]) follow both #130 and #131.
+
+**[M7. FrameScene and render-graph split][m7]** (P8) gives passes a `FrameScene` and one
 `InstanceStore` for both geometry paths, then splits the render graph into framework and passes.
-Do it before the first terrain, vegetation or shadow pass. 7.1 ([#86]) waits for 4.2 and 6.3;
-7.2 ([#87], mechanical) follows 7.1. The mirrored-instance fix (Polish) lands with 7.1 at the
+Do it before the first terrain, vegetation or shadow pass. [#86] is unblocked and runs in parallel
+with M6; [#87] (mechanical) follows it. The mirrored-instance fix ([#171]) lands with [#86] at the
 latest.
+
+**[M9. Game launcher and editor split (D7)][m9]** makes the engine host the game
+([`docs/editor-runtime-split.md`](../editor-runtime-split.md)). The launcher ([#132]) follows scene
+files; the examples become one game ([#167]) after it and scene instances, one example per commit.
+The editor becomes a library ([#83]), then the registry-driven inspector ([#133]), undo ([#165]) and
+play-in-editor with saving ([#166]). `aegis-test`: the per-check split ([#170]) can start any time;
+running its scenes through the app ([#84]) follows [#132]. Last, the legacy core goes ([#172], after
+[#83]) and `aegis.base` becomes `aegis.core` ([#85]).
+
+**Lanes.** With three agents, run one lane each: assets (M6), render (M7, then [#135]), tooling
+([#170], [#136]). M9 starts once [#131] is merged.
 
 **[M8. Verification tiers][m8]** (P9, done) added local reference-image comparison and the CI
 format check. The missing-include scanner (8.2) was dropped: since PR #91, `import std` gives both
 standard libraries the same module, so the failures it was meant to catch no longer happen.
 
-**[After the foundation][later]** holds the features that build on it: the material system's
-alpha-mask and double-sided materials ([#135], D5), lavapipe device tests in CI ([#136], not a
-priority), exporting a game ([#134], D7/F1/D8, waits for 6.9, 6.11 and 6.13), and the later asset
-features (D8): native material files ([#141]), prefab overrides and unpacking ([#142]), and asset
-hot reload ([#143]).
+**[Backlog][later]** (was "After the foundation") holds unscheduled work, in no order: alpha-mask
+and double-sided materials ([#135], D5, unblocked), lavapipe device tests in CI ([#136], not a
+priority), exporting a game ([#134], D7/F1/D8, `needs-design`), save games ([#168]), the later asset
+features (D8): native material files ([#141]), prefab overrides and unpacking ([#142]) and hot
+reload ([#143]); vertex tangents ([#19], after [#137]), back-to-front sorting of blended draws
+([#9]), clustered light culling ([#22], `needs-design`), the README usage section ([#2], after
+[#132]), and the device-lost bug ([#154]: its repro freezes the owner's PC, never run it without
+asking).
 
 ---
 
@@ -198,50 +192,40 @@ No PR of their own. Pick them up when a PR already edits the file.
 - B-APP-15 (E-APP-08, B-FOUND-06): camera inspector accepts degenerate FOV/near/far; vacuous
   aspect assert.
 - E-RENDER-10: `static_assert` invariants in `:vulkan_conversions`.
-- A-CONTENT-04 dedupe of images shared by several glTF textures (with the asset cache).
 - C-05: one native-handle accessor spelling (needs the formatting/naming decision).
-- Mirrored instances render inside out on both paths (left over from 1.8c, D6): both pipelines
-  cull back faces with a fixed front face. Needs the determinant sign in the instance data, plus a
-  second pipeline on the CPU path and reversed winding or shader culling on the GPU path. After
-  3.4 (PR #124): a flags word fits in `InstanceData`'s 4 padding bytes after `drawBatch`, set from
-  `determinant(mat3(model)) < 0` in `detail::toGpuTransform`; the mesh shader swaps two indices per
-  primitive; `StaticMeshConstants` has 16 spare bytes for the CPU path. Do it with 7.1 ([#86]) at
-  the latest.
+
+A-CONTENT-04 (images shared by several glTF textures) is closed by [#130]; the mirrored-instance
+winding fix has its own issue ([#171]).
 
 ## Deferred until the feature
 
 From report §3: persistent and imported graph images, pooled pipelines and `ShaderLibrary`,
-multi-queue submit, asset cache and streaming, job system, transient aliasing. From D7: prefabs and
-the entity hierarchy's file format, automatic field lists for the type registry, a DLL/hot-reload
-game build, a scripting language.
+multi-queue submit, asset streaming, job system, transient aliasing. From D7: automatic field lists
+for the type registry, a DLL/hot-reload game build, a scripting language. (Prefabs, the hierarchy's
+file format and the asset cache are now planned: [#131], [#137], [#140], [#142].)
 
 [m1]: https://github.com/chFleschutz/aegis-engine/milestone/1?closed=1
-[m2]: https://github.com/chFleschutz/aegis-engine/milestone/2
+[m2]: https://github.com/chFleschutz/aegis-engine/milestone/2?closed=1
 [m3]: https://github.com/chFleschutz/aegis-engine/milestone/3?closed=1
-[m4]: https://github.com/chFleschutz/aegis-engine/milestone/4
-[m5]: https://github.com/chFleschutz/aegis-engine/milestone/5
+[m4]: https://github.com/chFleschutz/aegis-engine/milestone/4?closed=1
+[m5]: https://github.com/chFleschutz/aegis-engine/milestone/5?closed=1
 [m6]: https://github.com/chFleschutz/aegis-engine/milestone/6
 [m7]: https://github.com/chFleschutz/aegis-engine/milestone/7
 [m8]: https://github.com/chFleschutz/aegis-engine/milestone/8?closed=1
+[m9]: https://github.com/chFleschutz/aegis-engine/milestone/10
 [later]: https://github.com/chFleschutz/aegis-engine/milestone/9
+[#2]: https://github.com/chFleschutz/aegis-engine/issues/2
+[#9]: https://github.com/chFleschutz/aegis-engine/issues/9
+[#19]: https://github.com/chFleschutz/aegis-engine/issues/19
+[#22]: https://github.com/chFleschutz/aegis-engine/issues/22
 [#40]: https://github.com/chFleschutz/aegis-engine/issues/40
 [#43]: https://github.com/chFleschutz/aegis-engine/issues/43
 [#44]: https://github.com/chFleschutz/aegis-engine/issues/44
-[#56]: https://github.com/chFleschutz/aegis-engine/issues/56
 [#58]: https://github.com/chFleschutz/aegis-engine/issues/58
 [#59]: https://github.com/chFleschutz/aegis-engine/issues/59
 [#62]: https://github.com/chFleschutz/aegis-engine/issues/62
 [#65]: https://github.com/chFleschutz/aegis-engine/issues/65
-[#68]: https://github.com/chFleschutz/aegis-engine/issues/68
-[#69]: https://github.com/chFleschutz/aegis-engine/issues/69
-[#70]: https://github.com/chFleschutz/aegis-engine/issues/70
-[#72]: https://github.com/chFleschutz/aegis-engine/issues/72
 [#73]: https://github.com/chFleschutz/aegis-engine/issues/73
-[#74]: https://github.com/chFleschutz/aegis-engine/issues/74
-[#75]: https://github.com/chFleschutz/aegis-engine/issues/75
-[#76]: https://github.com/chFleschutz/aegis-engine/issues/76
-[#77]: https://github.com/chFleschutz/aegis-engine/issues/77
-[#78]: https://github.com/chFleschutz/aegis-engine/issues/78
 [#79]: https://github.com/chFleschutz/aegis-engine/issues/79
 [#80]: https://github.com/chFleschutz/aegis-engine/issues/80
 [#81]: https://github.com/chFleschutz/aegis-engine/issues/81
@@ -268,3 +252,12 @@ game build, a scripting language.
 [#141]: https://github.com/chFleschutz/aegis-engine/issues/141
 [#142]: https://github.com/chFleschutz/aegis-engine/issues/142
 [#143]: https://github.com/chFleschutz/aegis-engine/issues/143
+[#154]: https://github.com/chFleschutz/aegis-engine/issues/154
+[#165]: https://github.com/chFleschutz/aegis-engine/issues/165
+[#166]: https://github.com/chFleschutz/aegis-engine/issues/166
+[#167]: https://github.com/chFleschutz/aegis-engine/issues/167
+[#168]: https://github.com/chFleschutz/aegis-engine/issues/168
+[#169]: https://github.com/chFleschutz/aegis-engine/issues/169
+[#170]: https://github.com/chFleschutz/aegis-engine/issues/170
+[#171]: https://github.com/chFleschutz/aegis-engine/issues/171
+[#172]: https://github.com/chFleschutz/aegis-engine/issues/172
