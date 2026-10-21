@@ -59,7 +59,10 @@ if(TARGET compile_shaders)
     aegis_add_device_test(aegis-test-scene-gpu-driven-mutation ARGS --headless --gpu-driven --mutate-scene --frames 150 LABELS mesh-shaders)
 
     # Reference images: the last frame against tests/golden, generated on the dev GPU (see tests/README.md). Local
-    # only: CI excludes them with -LE device. The stats window is left out, its timings change every run.
+    # only: the lavapipe CI job runs the other device tests but excludes these with -LE golden, since software
+    # rendering differs from the dev GPU (the triangle by 1 per channel, the scenes by up to 176 on ~80k pixels:
+    # beyond any tolerance that would still catch a regression). The stats window is left out, its timings
+    # change every run.
     aegis_add_device_test(aegis-test-golden-triangle
         ARGS --headless --frames 120 --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/triangle.png --tolerance 0
         LABELS golden)
