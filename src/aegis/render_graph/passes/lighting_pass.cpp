@@ -7,8 +7,6 @@ import aegis.assets;
 import aegis.base;
 import aegis.rhi;
 import aegis.math;
-import aegis.world;
-import aegis.world.render_components;
 
 namespace aegis::render_graph
 {
@@ -49,12 +47,9 @@ auto LightingPass::createResources(ResourcePool& pool) -> std::expected<void, Er
 
 auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    auto& scene = frameInfo.scene;
-    auto& registry = scene.registry();
-
-    const auto skyEntity = registry.first<aegis::Sky>();
-    const auto* environment = skyEntity ? registry.get<aegis::Sky>(skyEntity).environment.get() : nullptr;
-    if (!environment)
+    const auto& scene = frameInfo.frameScene;
+    const auto& environment = scene.environment;
+    if (!environment.irradiance || !environment.prefiltered)
     {
         static bool reported{ false };
         if (!std::exchange(reported, true))
@@ -62,7 +57,7 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
         return;
     }
 
-    const auto uniforms = detail::gatherLighting(scene, m_ambientOcclusionFactor, m_viewMode);
+    const auto uniforms = detail::packLighting(scene, m_ambientOcclusionFactor, m_viewMode);
     pool.write(m_uniforms, frameInfo.frameIndex, std::as_bytes(std::span{ &uniforms, 1 }));
 
     const LightingConstants constants{
@@ -75,8 +70,8 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
             pool.storageDescriptor(m_gBuffer[3]),
             pool.storageDescriptor(m_gBuffer[4]),
         },
-        .irradiance = environment->irradiance->descriptor(),
-        .prefiltered = environment->prefiltered->descriptor(),
+        .irradiance = *environment.irradiance,
+        .prefiltered = *environment.prefiltered,
         .brdfLut = m_brdfLut->descriptor(),
     };
 
@@ -98,34 +93,27 @@ auto LightingPass::drawUI() -> void
 
 namespace detail
 {
-auto gatherLighting(world::World& scene, float ambientOcclusionFactor, LightingViewMode viewMode) -> LightingUniforms
+auto packLighting(const FrameScene& scene, float ambientOcclusionFactor, LightingViewMode viewMode) -> LightingUniforms
 {
-    auto& registry = scene.registry();
     LightingUniforms uniforms{
         .ambientOcclusionFactor = ambientOcclusionFactor,
         .viewMode = viewMode,
     };
-    if (const auto camera = scene.mainCamera(); camera && registry.has<aegis::GlobalTransform>(camera))
-        uniforms.cameraPosition = glm::vec4{ registry.get<aegis::GlobalTransform>(camera).location, 1.0f };
-    if (const auto ambient = scene.ambientLight(); ambient && registry.has<aegis::AmbientLight>(ambient))
+    if (scene.camera)
+        uniforms.cameraPosition = glm::vec4{ scene.camera->position, 1.0f };
+    if (const auto& light = scene.ambientLight)
+        uniforms.ambientColor = glm::vec4{ light->color, light->intensity };
+    if (const auto& light = scene.directionalLight)
     {
-        const auto& light = registry.get<aegis::AmbientLight>(ambient);
-        uniforms.ambientColor = glm::vec4{ light.color, light.intensity };
+        uniforms.directionalColor = glm::vec4{ light->color, light->intensity };
+        uniforms.directionalDirection = glm::vec4{ light->direction, 0.0f };
     }
-    if (const auto directional = scene.directionalLight();
-        directional && registry.has<aegis::DirectionalLight, aegis::GlobalTransform>(directional))
-    {
-        const auto& light = registry.get<aegis::DirectionalLight>(directional);
-        uniforms.directionalColor = glm::vec4{ light.color, light.intensity };
-        uniforms.directionalDirection =
-            glm::vec4{ glm::normalize(registry.get<aegis::GlobalTransform>(directional).forward()), 0.0f };
-    }
-    for (auto&& [entity, transform, light] : registry.view<aegis::GlobalTransform, aegis::PointLight>().each())
+    for (const auto& light : scene.pointLights)
     {
         if (uniforms.pointLightCount == static_cast<std::int32_t>(maxPointLights))
             break;
         uniforms.pointLights[static_cast<std::size_t>(uniforms.pointLightCount++)] = {
-            .position = glm::vec4{ transform.location, 1.0f },
+            .position = glm::vec4{ light.position, 1.0f },
             .color = glm::vec4{ light.color, light.intensity },
         };
     }

@@ -3,10 +3,13 @@
 import std;
 import aegis.math;
 import aegis.world;
+import aegis.world.render_components;
 import aegis.render_graph;
 
 namespace
 {
+using aegis::render_graph::FrameScene;
+
 // glm's operator== is not part of aegis.math's exports.
 auto equal(const glm::vec3& a, const glm::vec3& b) -> bool
 {
@@ -24,49 +27,133 @@ auto equal(const glm::mat4& a, const glm::mat4& b) -> bool
 }
 }
 
+TEST_SUITE("render_graph::extract")
+{
+    using aegis::render_graph::extract;
+
+    TEST_CASE("an empty world has no camera, lights or environment")
+    {
+        aegis::world::World world;
+        const auto scene = extract(world);
+        CHECK_FALSE(scene.camera.has_value());
+        CHECK_FALSE(scene.ambientLight.has_value());
+        CHECK_FALSE(scene.directionalLight.has_value());
+        CHECK(scene.pointLights.empty());
+        CHECK_FALSE(scene.environment.irradiance.has_value());
+        CHECK_FALSE(scene.environment.prefiltered.has_value());
+        CHECK_FALSE(scene.environment.skybox.has_value());
+    }
+
+    TEST_CASE("copies the main camera's matrices and position")
+    {
+        aegis::world::World world;
+        auto& registry = world.registry();
+        const auto camera = registry.create("Camera");
+        auto& component = registry.add<aegis::Camera>(camera);
+        component.viewMatrix[3] = glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f };
+        component.projectionMatrix[0][0] = 2.0f;
+        component.aspect = 1.5f;
+        registry.get<aegis::GlobalTransform>(camera).location = { 5.0f, 6.0f, 7.0f };
+        world.setMainCamera(camera);
+
+        const auto scene = extract(world);
+        REQUIRE(scene.camera.has_value());
+        CHECK(equal(scene.camera->view, component.viewMatrix));
+        CHECK(equal(scene.camera->projection, component.projectionMatrix));
+        CHECK(equal(scene.camera->position, glm::vec3{ 5.0f, 6.0f, 7.0f }));
+        CHECK(component.aspect == 1.5f); // Read, not written
+    }
+
+    TEST_CASE("copies ambient and directional light with the direction normalized")
+    {
+        aegis::world::World world;
+        auto& registry = world.registry();
+        const auto ambient = registry.create("Ambient");
+        registry.add<aegis::AmbientLight>(ambient, glm::vec3{ 0.1f, 0.2f, 0.3f }, 0.5f);
+        const auto sun = registry.create("Sun");
+        registry.add<aegis::DirectionalLight>(sun, glm::vec3{ 1.0f, 0.5f, 0.25f }, 2.0f);
+        const auto rotation = glm::quat{ glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }) };
+        registry.get<aegis::GlobalTransform>(sun).rotation = rotation;
+
+        const auto scene = extract(world);
+        REQUIRE(scene.ambientLight.has_value());
+        CHECK(equal(scene.ambientLight->color, glm::vec3{ 0.1f, 0.2f, 0.3f }));
+        CHECK(scene.ambientLight->intensity == 0.5f);
+        REQUIRE(scene.directionalLight.has_value());
+        CHECK(equal(scene.directionalLight->color, glm::vec3{ 1.0f, 0.5f, 0.25f }));
+        CHECK(scene.directionalLight->intensity == 2.0f);
+        const auto expected = glm::normalize(aegis::GlobalTransform{ .rotation = rotation }.forward());
+        CHECK(glm::length(scene.directionalLight->direction) == doctest::Approx(1.0f));
+        CHECK(scene.directionalLight->direction.x == doctest::Approx(expected.x));
+        CHECK(scene.directionalLight->direction.y == doctest::Approx(expected.y));
+        CHECK(scene.directionalLight->direction.z == doctest::Approx(expected.z));
+    }
+
+    TEST_CASE("copies every point light with its position and x scale")
+    {
+        aegis::world::World world;
+        auto& registry = world.registry();
+        const auto count = aegis::render_graph::maxPointLights + 10;
+        for (std::uint32_t i = 0; i < count; ++i)
+        {
+            const auto light = registry.create("Light");
+            registry.add<aegis::PointLight>(light, glm::vec3{ 1.0f, 0.0f, 0.0f }, 3.0f);
+            auto& transform = registry.get<aegis::GlobalTransform>(light);
+            transform.location = { static_cast<float>(i), 0.0f, 0.0f };
+            transform.scale = { 2.0f, 4.0f, 8.0f };
+        }
+
+        const auto scene = extract(world);
+        REQUIRE(scene.pointLights.size() == count);
+        CHECK(equal(scene.pointLights[0].color, glm::vec3{ 1.0f, 0.0f, 0.0f }));
+        CHECK(scene.pointLights[0].intensity == 3.0f);
+        CHECK(scene.pointLights[0].scale == 2.0f);
+    }
+
+    TEST_CASE("a sky without an environment leaves the environment empty")
+    {
+        aegis::world::World world;
+        auto& registry = world.registry();
+        registry.add<aegis::Sky>(registry.create("Sky"));
+
+        const auto scene = extract(world);
+        CHECK_FALSE(scene.environment.irradiance.has_value());
+        CHECK_FALSE(scene.environment.prefiltered.has_value());
+        CHECK_FALSE(scene.environment.skybox.has_value());
+    }
+}
+
 TEST_SUITE("render_graph::detail::makeCameraData")
 {
     using aegis::render_graph::detail::makeCameraData;
 
-    TEST_CASE("packs the matrices row-major and takes the position from the transform")
+    TEST_CASE("packs the matrices row-major and takes the camera position")
     {
-        aegis::Camera camera;
-        camera.viewMatrix[3] = glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f }; // glm is column-major: the translation is column 3
-        camera.projectionMatrix[0][0] = 2.0f;
-        camera.projectionMatrix[1][1] = 3.0f;
-        aegis::GlobalTransform transform;
-        transform.location = { 5.0f, 6.0f, 7.0f };
+        FrameScene::Camera camera{ .position = { 5.0f, 6.0f, 7.0f } };
+        camera.view[3] = glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f }; // glm is column-major: the translation is column 3
+        camera.projection[0][0] = 2.0f;
+        camera.projection[1][1] = 3.0f;
 
-        const auto data = makeCameraData(camera, transform);
+        const auto data = makeCameraData(camera);
         CHECK(equal(data.position, glm::vec3{ 5.0f, 6.0f, 7.0f }));
-        CHECK(equal(data.view, glm::rowMajor4(camera.viewMatrix)));
-        CHECK(equal(data.projection, glm::rowMajor4(camera.projectionMatrix)));
-        CHECK(equal(data.viewProjection, glm::rowMajor4(camera.projectionMatrix * camera.viewMatrix)));
+        CHECK(equal(data.view, glm::rowMajor4(camera.view)));
+        CHECK(equal(data.projection, glm::rowMajor4(camera.projection)));
+        CHECK(equal(data.viewProjection, glm::rowMajor4(camera.projection * camera.view)));
         // Row-major: the translation sits in the last column of each row, i.e. in the w of the first three vectors.
         CHECK(data.view[0].w == 1.0f);
         CHECK(data.view[1].w == 2.0f);
         CHECK(data.view[2].w == 3.0f);
     }
-
-    TEST_CASE("does not modify the camera")
-    {
-        aegis::Camera camera;
-        camera.aspect = 1.5f;
-        const aegis::GlobalTransform transform;
-        static_cast<void>(makeCameraData(camera, transform));
-        CHECK(camera.aspect == 1.5f);
-    }
 }
 
-TEST_SUITE("render_graph::detail::gatherLighting")
+TEST_SUITE("render_graph::detail::packLighting")
 {
     using aegis::render_graph::LightingViewMode;
-    using aegis::render_graph::detail::gatherLighting;
+    using aegis::render_graph::detail::packLighting;
 
     TEST_CASE("an empty scene keeps the defaults and the given settings")
     {
-        aegis::world::World scene;
-        const auto uniforms = gatherLighting(scene, 0.5f, LightingViewMode::Albedo);
+        const auto uniforms = packLighting(FrameScene{}, 0.5f, LightingViewMode::Albedo);
         CHECK(uniforms.ambientOcclusionFactor == 0.5f);
         CHECK(uniforms.viewMode == LightingViewMode::Albedo);
         CHECK(uniforms.pointLightCount == 0);
@@ -76,51 +163,70 @@ TEST_SUITE("render_graph::detail::gatherLighting")
         CHECK(equal(uniforms.directionalDirection, glm::vec4{ 0.0f, 0.0f, 1.0f, 0.0f }));
     }
 
-    TEST_CASE("gathers camera, ambient and directional light")
+    TEST_CASE("packs camera, ambient and directional light")
     {
-        aegis::world::World scene;
-        auto& registry = scene.registry();
+        const FrameScene scene{
+            .camera = FrameScene::Camera{ .position = { 1.0f, 2.0f, 3.0f } },
+            .ambientLight = FrameScene::AmbientLight{ .color = { 0.1f, 0.2f, 0.3f }, .intensity = 0.5f },
+            .directionalLight = FrameScene::DirectionalLight{
+                .color = { 1.0f, 0.5f, 0.25f }, .intensity = 2.0f, .direction = { 0.0f, -1.0f, 0.0f } },
+        };
 
-        const auto camera = registry.create("Camera", glm::vec3{ 1.0f, 2.0f, 3.0f });
-        registry.add<aegis::Camera>(camera);
-        registry.get<aegis::GlobalTransform>(camera).location = { 1.0f, 2.0f, 3.0f };
-        scene.setMainCamera(camera);
-
-        const auto ambient = registry.create("Ambient");
-        registry.add<aegis::AmbientLight>(ambient, glm::vec3{ 0.1f, 0.2f, 0.3f }, 0.5f);
-
-        const auto sun = registry.create("Sun");
-        registry.add<aegis::DirectionalLight>(sun, glm::vec3{ 1.0f, 0.5f, 0.25f }, 2.0f);
-        registry.get<aegis::GlobalTransform>(sun).rotation = glm::quat{ glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }) };
-
-        const auto uniforms = gatherLighting(scene, 1.0f, LightingViewMode::SceneColor);
+        const auto uniforms = packLighting(scene, 1.0f, LightingViewMode::SceneColor);
         CHECK(equal(uniforms.cameraPosition, glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f }));
         CHECK(equal(uniforms.ambientColor, glm::vec4{ 0.1f, 0.2f, 0.3f, 0.5f }));
         CHECK(equal(uniforms.directionalColor, glm::vec4{ 1.0f, 0.5f, 0.25f, 2.0f }));
-        CHECK(uniforms.directionalDirection.w == 0.0f);
-        const auto direction = glm::vec3{ uniforms.directionalDirection };
-        CHECK(glm::length(direction) == doctest::Approx(1.0f));
-        const auto expected = glm::normalize(aegis::GlobalTransform{ .rotation = glm::quat{ glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }) } }.forward());
-        CHECK(direction.x == doctest::Approx(expected.x));
-        CHECK(direction.y == doctest::Approx(expected.y));
-        CHECK(direction.z == doctest::Approx(expected.z));
+        CHECK(equal(uniforms.directionalDirection, glm::vec4{ 0.0f, -1.0f, 0.0f, 0.0f }));
     }
 
-    TEST_CASE("collects point lights and stops at the maximum")
+    TEST_CASE("packs point lights and stops at the maximum")
     {
-        aegis::world::World scene;
-        auto& registry = scene.registry();
-        const auto count = aegis::render_graph::maxPointLights + 10;
-        for (std::uint32_t i = 0; i < count; ++i)
+        FrameScene scene;
+        for (std::uint32_t i = 0; i < aegis::render_graph::maxPointLights + 10; ++i)
         {
-            const auto light = registry.create("Light");
-            registry.add<aegis::PointLight>(light, glm::vec3{ 1.0f, 0.0f, 0.0f }, 3.0f);
-            registry.get<aegis::GlobalTransform>(light).location = { static_cast<float>(i), 0.0f, 0.0f };
+            scene.pointLights.push_back(
+                { .position = { static_cast<float>(i), 0.0f, 0.0f }, .color = { 1.0f, 0.0f, 0.0f }, .intensity = 3.0f });
         }
 
-        const auto uniforms = gatherLighting(scene, 1.0f, LightingViewMode::SceneColor);
+        const auto uniforms = packLighting(scene, 1.0f, LightingViewMode::SceneColor);
         CHECK(uniforms.pointLightCount == static_cast<std::int32_t>(aegis::render_graph::maxPointLights));
-        CHECK(uniforms.pointLights[0].position.w == 1.0f);
+        CHECK(equal(uniforms.pointLights[1].position, glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f }));
         CHECK(equal(uniforms.pointLights[0].color, glm::vec4{ 1.0f, 0.0f, 0.0f, 3.0f }));
+    }
+}
+
+TEST_SUITE("render_graph::detail::makeSkyBoxViewProjection")
+{
+    using aegis::render_graph::detail::makeSkyBoxViewProjection;
+
+    TEST_CASE("drops the view's translation and keeps its rotation")
+    {
+        FrameScene::Camera camera;
+        // A quarter turn about +Y (columns: the rotated axes).
+        camera.view[0] = glm::vec4{ 0.0f, 0.0f, -1.0f, 0.0f };
+        camera.view[2] = glm::vec4{ 1.0f, 0.0f, 0.0f, 0.0f };
+        const auto rotationOnly = camera.view;
+        camera.view[3] = glm::vec4{ 10.0f, 20.0f, 30.0f, 1.0f };
+        camera.projection[0][0] = 2.0f;
+
+        CHECK(equal(makeSkyBoxViewProjection(camera), glm::rowMajor4(camera.projection * rotationOnly)));
+    }
+}
+
+TEST_SUITE("render_graph::detail::makePointLightConstants")
+{
+    using aegis::render_graph::detail::makePointLightConstants;
+
+    TEST_CASE("places the billboard at the light and sizes it by intensity and scale")
+    {
+        const FrameScene::PointLight light{
+            .position = { 1.0f, 2.0f, 3.0f }, .color = { 0.5f, 0.25f, 1.0f }, .intensity = 100.0f, .scale = 2.0f
+        };
+
+        const auto constants = makePointLightConstants(light, 42);
+        CHECK(equal(constants.worldPosition, glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f }));
+        CHECK(equal(constants.color, glm::vec4{ 0.5f, 0.25f, 1.0f, 1.0f }));
+        CHECK(constants.radius == doctest::Approx(0.4f));
+        CHECK(constants.camera == 42);
     }
 }

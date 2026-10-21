@@ -1,6 +1,8 @@
 export module aegis.render_graph:post_effects;
 import std;
 import :error;
+import :frame_scene;
+import :gpu_types;
 import :render_pass;
 import :render_system;
 import :resource;
@@ -79,7 +81,7 @@ private:
     std::vector<std::unique_ptr<RenderSystem>> m_renderSystems;
 };
 
-/// @brief Draws each aegis::PointLight as a glowing, alpha-blended billboard.
+/// @brief Draws each of the frame's point lights as a glowing, alpha-blended billboard.
 class PointLightRenderSystem : public RenderSystem
 {
 public:
@@ -90,4 +92,11 @@ public:
 private:
     std::optional<rhi::Pipeline> m_pipeline;
 };
+}
+
+export namespace aegis::render_graph::detail
+{
+/// @brief The billboard of one point light: its size grows with intensity and scale.
+[[nodiscard]] auto makePointLightConstants(const FrameScene::PointLight& light, rhi::DeviceAddress camera)
+    -> PointLightConstants;
 }

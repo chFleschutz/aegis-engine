@@ -1,6 +1,7 @@
 export module aegis.render_graph:lighting_pass;
 import std;
 import :error;
+import :frame_scene;
 import :gpu_types;
 import :render_pass;
 import :resource;
@@ -9,12 +10,11 @@ import :resource_pool;
 import aegis.assets;
 import aegis.rhi;
 import aegis.math;
-import aegis.world;
 
 export namespace aegis::render_graph
 {
-/// @brief Deferred PBR lighting: G-buffer + the scene's lights and environment (the aegis::Sky
-///        on the first entity that has one) and the BRDF lookup table, which it owns -> "SceneColor" (RGBA16F).
+/// @brief Deferred PBR lighting: G-buffer + the frame's lights and environment and the BRDF lookup
+///        table, which it owns -> "SceneColor" (RGBA16F).
 class LightingPass : public RenderPass
 {
 public:
@@ -40,9 +40,9 @@ private:
 
 export namespace aegis::render_graph::detail
 {
-/// @brief The lighting block for the scene's main camera, ambient and directional light and its point
-///        lights. A missing piece keeps its default (no ambient, a dark directional light along +Z, the
-///        camera at the origin); point lights beyond maxPointLights are dropped.
-[[nodiscard]] auto gatherLighting(world::World& scene, float ambientOcclusionFactor, LightingViewMode viewMode)
+/// @brief The lighting block for the frame's camera, ambient and directional light and point lights. A
+///        missing piece keeps its default (no ambient, a dark directional light along +Z, the camera at the
+///        origin); point lights beyond maxPointLights are dropped.
+[[nodiscard]] auto packLighting(const FrameScene& scene, float ambientOcclusionFactor, LightingViewMode viewMode)
     -> LightingUniforms;
 }

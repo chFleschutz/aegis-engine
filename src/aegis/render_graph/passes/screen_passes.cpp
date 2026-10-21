@@ -6,8 +6,6 @@ import std;
 import aegis.assets;
 import aegis.rhi;
 import aegis.math;
-import aegis.world;
-import aegis.world.render_components;
 
 namespace aegis::render_graph
 {
@@ -43,19 +41,10 @@ auto SkyBoxPass::createResources(ResourcePool& pool) -> std::expected<void, Erro
 
 auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    auto& registry = frameInfo.scene.registry();
-    const auto sky = registry.first<aegis::Sky>();
-    const auto camera = frameInfo.scene.mainCamera();
-    if (!sky || !camera || !registry.has<aegis::Camera>(camera))
+    const auto& scene = frameInfo.frameScene;
+    if (!scene.camera || !scene.environment.skybox)
         return;
-    const auto& environment = registry.get<aegis::Sky>(sky).environment;
-    if (!environment || !environment->skybox)
-        return;
-    const auto& skybox = environment->skybox;
 
-    // Rotation only: the sky is infinitely far away.
-    const auto& cameraComponent = registry.get<aegis::Camera>(camera);
-    const auto viewRotation = glm::mat4{ glm::mat3{ cameraComponent.viewMatrix } };
     const auto& cmd = frameInfo.cmd;
     std::array colorAttachments{ rhi::Attachment::colorLoad(pool.texture(m_sceneColor).view) };
     cmd.beginRendering({
@@ -66,8 +55,8 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     cmd.setScissor(frameInfo.extent);
     cmd.bindPipeline(*m_pipeline);
     cmd.pushConstants(SkyBoxConstants{
-        .viewProjection = glm::rowMajor4(cameraComponent.projectionMatrix * viewRotation),
-        .skybox = skybox->descriptor(),
+        .viewProjection = detail::makeSkyBoxViewProjection(*scene.camera),
+        .skybox = *scene.environment.skybox,
     });
     cmd.draw(36);
     cmd.endRendering();
@@ -148,5 +137,14 @@ auto PresentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
     cmd.transitionImageLayout(frameInfo.target, rhi::ResourceState::ColorAttachment, rhi::ResourceState::CopyDst);
     cmd.blit(pool.texture(m_source).view, frameInfo.target);
     cmd.transitionImageLayout(frameInfo.target, rhi::ResourceState::CopyDst, rhi::ResourceState::ColorAttachment);
+}
+}
+
+namespace aegis::render_graph::detail
+{
+auto makeSkyBoxViewProjection(const FrameScene::Camera& camera) -> glm::mat4
+{
+    const auto viewRotation = glm::mat4{ glm::mat3{ camera.view } };
+    return glm::rowMajor4(camera.projection * viewRotation);
 }
 }

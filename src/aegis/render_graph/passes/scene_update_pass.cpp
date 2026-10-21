@@ -1,7 +1,6 @@
 module aegis.render_graph;
 import std;
 import aegis.math;
-import aegis.world;
 
 namespace aegis::render_graph
 {
@@ -17,27 +16,25 @@ auto SceneUpdatePass::name() const -> std::string_view
 
 auto SceneUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    auto& registry = frameInfo.scene.registry();
-    const auto mainCamera = frameInfo.scene.mainCamera();
-    if (!mainCamera || !registry.has<aegis::Camera, aegis::GlobalTransform>(mainCamera))
+    const auto& camera = frameInfo.frameScene.camera;
+    if (!camera)
         return;
 
-    const auto data = detail::makeCameraData(
-        registry.get<aegis::Camera>(mainCamera), registry.get<aegis::GlobalTransform>(mainCamera));
+    const auto data = detail::makeCameraData(*camera);
     pool.write(m_cameraData, frameInfo.frameIndex, std::as_bytes(std::span{ &data, 1 }));
 }
 
 namespace detail
 {
-auto makeCameraData(const aegis::Camera& camera, const aegis::GlobalTransform& transform) -> CameraData
+auto makeCameraData(const FrameScene::Camera& camera) -> CameraData
 {
-    const auto viewProjection = camera.projectionMatrix * camera.viewMatrix;
+    const auto viewProjection = camera.projection * camera.view;
     return {
-        .view = glm::rowMajor4(camera.viewMatrix),
-        .projection = glm::rowMajor4(camera.projectionMatrix),
+        .view = glm::rowMajor4(camera.view),
+        .projection = glm::rowMajor4(camera.projection),
         .viewProjection = glm::rowMajor4(viewProjection),
         .frustum = Frustum::extractFrom(viewProjection),
-        .position = transform.location,
+        .position = camera.position,
     };
 }
 }

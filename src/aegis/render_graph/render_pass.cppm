@@ -3,6 +3,7 @@ import std;
 import :declarations;
 import :draw_batch_registry;
 import :error;
+import :frame_scene;
 import :resource;
 import :resource_pool;
 import aegis.rhi;
@@ -14,6 +15,8 @@ export namespace aegis::render_graph
 struct FrameInfo
 {
     const rhi::CommandBuffer& cmd;
+    /// @brief The camera, lights and environment to draw; passes read these here, not from the world.
+    const FrameScene& frameScene;
     aegis::world::World& scene;
     DrawBatchRegistry& drawBatches;
     std::uint32_t frameIndex;

@@ -311,8 +311,10 @@ auto Engine::drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
     if (m_frameGraph)
     {
         cmd.writeTimestamp(timer.pool, 0, rhi::TimestampStage::TopOfPipe);
+        const auto frameScene = render_graph::extract(*m_scene);
         m_frameGraph->execute({
             .cmd = cmd,
+            .frameScene = frameScene,
             .scene = *m_scene,
             .drawBatches = *m_drawBatches,
             .frameIndex = frameIndex,
