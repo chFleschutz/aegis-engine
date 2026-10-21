@@ -4,7 +4,6 @@ import std;
 export import aegis.math;
 import aegis.ui;
 export import aegis.asset_library;
-export import aegis.instantiate;
 export import aegis.scene_description;
 import aegis.core.globals;
 import aegis.core.layer;
