@@ -37,3 +37,6 @@
 [submodule "external/glaze"]
 	path = external/glaze
 	url = https://github.com/stephenberry/glaze.git
+[submodule "external/xxhash"]
+	path = external/xxhash
+	url = https://github.com/Cyan4973/xxHash.git
