@@ -27,6 +27,11 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
             options.scene = true;
             options.mutateScene = true;
         }
+        else if (arg == "--mirror")
+        {
+            options.scene = true;
+            options.mirror = true;
+        }
         else if (arg == "--screenshot" && i + 1 < args.size())
         {
             options.screenshot = args[++i];
@@ -74,7 +79,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--mutate-scene] [--no-overlay] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--mutate-scene] [--mirror] [--no-overlay] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 
