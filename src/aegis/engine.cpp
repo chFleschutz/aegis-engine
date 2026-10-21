@@ -156,8 +156,6 @@ auto Engine::initialize() -> std::expected<void, EngineError>
         return created;
     if (auto created = createFrameGraph(); !created)
         return created;
-    if (m_input)
-        m_layerStack.push<editor::EditorLayer>(*m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_world);
 
     log::info("Engine Initialized!");
     log::info("Using {} Driven Rendering{}", useGpuDrivenRendering() ? "GPU" : "CPU", m_desc.headless ? " (headless)" : "");
@@ -224,7 +222,7 @@ auto Engine::run() -> int
             }
 
             // Update: the systems run in order, scripts first: they write the transforms, the others derive
-            // from them (camera matrices included), then the editor reads the result.
+            // from them (camera matrices included), then the layers (the editor) read the result.
             // ImGui's flags are from the previous frame's UI; they gate the game input.
             const auto& io = ImGui::GetIO();
             m_input->setCaptured(io.WantCaptureKeyboard, io.WantCaptureMouse);

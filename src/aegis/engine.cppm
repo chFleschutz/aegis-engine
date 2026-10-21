@@ -3,11 +3,11 @@ export module aegis.engine;
 import std;
 export import aegis.math;
 import aegis.ui;
-import aegis.editor;
 export import aegis.asset_library;
 export import aegis.instantiate;
 export import aegis.scene_description;
 import aegis.core.globals;
+import aegis.core.layer;
 import aegis.core.layer_stack;
 export import aegis.paths;
 export import aegis.base;
@@ -137,6 +137,17 @@ public:
     /// @return EngineErrorCode::SceneFailed, naming the file and line, if the file does not load; the world is
     ///         then empty.
     [[nodiscard]] auto loadScene(assets::AssetId scene) -> std::expected<void, EngineError>;
+
+    /// @brief Adds a layer built from the engine's input, renderer, frame graph, draw batches and world, such as
+    ///        the editor (editor::EditorLayer). Headless has no input or UI, so there it adds nothing.
+    template<std::derived_from<core::Layer> T>
+        requires std::constructible_from<T, platform::Input&, renderer::Renderer&, render_graph::FrameGraph&,
+            render_graph::DrawBatchRegistry&, world::World&>
+    void pushLayer()
+    {
+        if (m_input)
+            m_layerStack.push<T>(*m_input, *m_renderer, *m_frameGraph, m_drawBatches, m_world);
+    }
 
 private:
     explicit Engine(const AppDesc& desc);
