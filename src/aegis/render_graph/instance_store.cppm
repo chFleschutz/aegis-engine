@@ -4,6 +4,23 @@ import aegis.assets;
 import aegis.math;
 import :error;
 
+export namespace aegis::render_graph::detail
+{
+/// @brief Whether two model matrices (Instance::model) are equal, element by element.
+[[nodiscard]] constexpr auto sameModel(const glm::mat3x4& a, const glm::mat3x4& b) noexcept -> bool
+{
+    for (int column = 0; column < 3; ++column)
+    {
+        for (int row = 0; row < 4; ++row)
+        {
+            if (a[column][row] != b[column][row])
+                return false;
+        }
+    }
+    return true;
+}
+}
+
 export namespace aegis::render_graph
 {
 /// @brief The instances drawn with one material template. Culling appends a batch's visible instances
@@ -57,12 +74,12 @@ struct DirtyRange
 /// @brief What one instance draws.
 struct Instance
 {
-    glm::mat4 transform{ 1.0f };
+    /// @brief The top three rows of the model matrix, as shaders read it (detail::toModelRows).
+    glm::mat3x4 model{ 1.0f };
     std::shared_ptr<const assets::StaticMesh> mesh;
     std::shared_ptr<assets::Material> material;
-    /// @brief The draw batch key: the material's template. Never null.
-    std::shared_ptr<const assets::MaterialTemplate> materialTemplate;
-    /// @brief The id of the instance's draw batch. Set by the store; add and update ignore it.
+    /// @brief The id of the instance's draw batch, whose template is the material's. Set by the store; add
+    ///        and update ignore it.
     std::uint32_t drawBatch{ 0 };
 };
 
@@ -85,15 +102,18 @@ public:
     auto operator=(const InstanceStore&) -> InstanceStore& = delete;
     auto operator=(InstanceStore&&) -> InstanceStore& = delete;
 
-    /// @brief Adds an instance to the static or dynamic set, creating the batch of its template on first use.
+    /// @brief Adds an instance to the static or dynamic set, in the batch of 'materialTemplate' (its material's
+    ///        template, never null), which is created on first use.
     /// @return An error if a new template would exceed maxDrawBatches; nothing is added then.
-    [[nodiscard]] auto add(Instance instance, bool dynamic) -> std::expected<InstanceId, Error>;
+    [[nodiscard]] auto add(Instance instance, const std::shared_ptr<const assets::MaterialTemplate>& materialTemplate,
+        bool dynamic) -> std::expected<InstanceId, Error>;
     /// @brief Removes the instance. 'id' must name one.
     auto remove(InstanceId id) -> void;
-    /// @brief Replaces what the instance draws, moving it to another batch if its template changed. Marks it
-    ///        dirty only if something changed.
+    /// @brief Replaces what the instance draws, moving it to the batch of 'materialTemplate' if that is another
+    ///        one. Marks it dirty only if something changed.
     /// @return An error if a new template would exceed maxDrawBatches; the instance is unchanged then.
-    [[nodiscard]] auto update(InstanceId id, Instance instance) -> std::expected<void, Error>;
+    [[nodiscard]] auto update(InstanceId id, Instance instance,
+        const std::shared_ptr<const assets::MaterialTemplate>& materialTemplate) -> std::expected<void, Error>;
     /// @brief Moves the instance between the static and dynamic sets. Does nothing if it is in 'dynamic' already.
     auto setDynamic(InstanceId id, bool dynamic) -> void;
     /// @brief Removes every instance and batch.

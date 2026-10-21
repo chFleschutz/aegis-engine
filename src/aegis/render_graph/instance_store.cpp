@@ -10,29 +10,17 @@ namespace aegis::render_graph
 {
 namespace
 {
-auto sameTransform(const glm::mat4& a, const glm::mat4& b) -> bool
-{
-    for (int column = 0; column < 4; ++column)
-    {
-        for (int row = 0; row < 4; ++row)
-        {
-            if (a[column][row] != b[column][row])
-                return false;
-        }
-    }
-    return true;
-}
-
 auto markDirty(DirtyRange& dirty, std::uint32_t position) -> void
 {
     dirty = dirty.merged({ position, position + 1 });
 }
 }
 
-auto InstanceStore::add(Instance instance, bool dynamic) -> std::expected<InstanceId, Error>
+auto InstanceStore::add(Instance instance, const std::shared_ptr<const assets::MaterialTemplate>& materialTemplate,
+    bool dynamic) -> std::expected<InstanceId, Error>
 {
-    assert(instance.materialTemplate && "An instance needs a material template");
-    auto batch = acquireBatch(instance.materialTemplate);
+    assert(materialTemplate && "An instance needs a material template");
+    auto batch = acquireBatch(materialTemplate);
     if (!batch)
         return std::unexpected{ batch.error() };
 
@@ -65,21 +53,21 @@ auto InstanceStore::remove(InstanceId id) -> void
     updateOffsets();
 }
 
-auto InstanceStore::update(InstanceId id, Instance instance) -> std::expected<void, Error>
+auto InstanceStore::update(InstanceId id, Instance instance,
+    const std::shared_ptr<const assets::MaterialTemplate>& materialTemplate) -> std::expected<void, Error>
 {
-    assert(instance.materialTemplate && "An instance needs a material template");
+    assert(materialTemplate && "An instance needs a material template");
     const auto [dynamic, position] = location(id);
     auto& current = set(dynamic).instances[position];
 
-    if (instance.materialTemplate != current.materialTemplate)
+    if (materialTemplate != m_batches[current.drawBatch].materialTemplate)
     {
-        auto batch = acquireBatch(instance.materialTemplate);
+        auto batch = acquireBatch(materialTemplate);
         if (!batch)
             return std::unexpected{ batch.error() };
         --m_batches[current.drawBatch].instanceCount;
         ++m_batches[*batch].instanceCount;
         current.drawBatch = *batch;
-        current.materialTemplate = std::move(instance.materialTemplate);
         updateOffsets();
         markDirty(set(dynamic).dirty, position);
     }
@@ -95,9 +83,9 @@ auto InstanceStore::update(InstanceId id, Instance instance) -> std::expected<vo
         current.mesh = std::move(instance.mesh);
         markDirty(set(dynamic).dirty, position);
     }
-    if (!sameTransform(instance.transform, current.transform))
+    if (!detail::sameModel(instance.model, current.model))
     {
-        current.transform = instance.transform;
+        current.model = instance.model;
         markDirty(set(dynamic).dirty, position);
     }
     return {};

@@ -5,8 +5,8 @@ import aegis.assets;
 import aegis.math;
 import aegis.render_graph;
 
-// Meshes and materials need a device, so these instances carry only a template and a transform: the store
-// compares and counts them by pointer and never dereferences them.
+// Meshes and materials need a device, so these instances have neither, only a model matrix and a template:
+// the store compares and counts them by pointer and never dereferences them.
 
 namespace
 {
@@ -21,16 +21,17 @@ auto makeTemplate() -> std::shared_ptr<const MaterialTemplate>
     return std::make_shared<const MaterialTemplate>();
 }
 
-auto at(const std::shared_ptr<const MaterialTemplate>& materialTemplate, float x = 0.0f) -> Instance
+auto at(float x = 0.0f) -> Instance
 {
-    Instance instance{ .materialTemplate = materialTemplate };
-    instance.transform[3].x = x; // glm is column-major: the translation is column 3
+    Instance instance;
+    instance.model[0][3] = x; // Row 0 of the model matrix holds the x translation in .w
     return instance;
 }
 
-auto add(InstanceStore& store, const Instance& instance, bool dynamic = false) -> InstanceId
+auto add(InstanceStore& store, const std::shared_ptr<const MaterialTemplate>& materialTemplate, float x = 0.0f,
+    bool dynamic = false) -> InstanceId
 {
-    auto id = store.add(instance, dynamic);
+    auto id = store.add(at(x), materialTemplate, dynamic);
     REQUIRE(id.has_value());
     return *id;
 }
@@ -60,9 +61,9 @@ TEST_SUITE("render_graph::InstanceStore")
         InstanceStore store;
         const auto opaque = makeTemplate();
         const auto glass = makeTemplate();
-        add(store, at(opaque));
-        add(store, at(glass));
-        add(store, at(opaque));
+        add(store, opaque);
+        add(store, glass);
+        add(store, opaque);
 
         CHECK(store.batchCount() == 2);
         CHECK(store.batchId(*opaque) == std::optional<std::uint32_t>{ 0 });
@@ -83,10 +84,10 @@ TEST_SUITE("render_graph::InstanceStore")
         InstanceStore store;
         const auto first = makeTemplate();
         const auto second = makeTemplate();
-        add(store, at(first));
-        const auto moved = add(store, at(second), true);
-        add(store, at(first), true);
-        add(store, at(second));
+        add(store, first);
+        const auto moved = add(store, second, 0.0f, true);
+        add(store, first, 0.0f, true);
+        add(store, second);
 
         CHECK(store.batches()[0].firstInstance == 0);
         CHECK(store.batches()[1].firstInstance == 2);
@@ -102,9 +103,9 @@ TEST_SUITE("render_graph::InstanceStore")
     {
         InstanceStore store;
         const auto material = makeTemplate();
-        add(store, at(material));
-        add(store, at(material), true);
-        add(store, at(material));
+        add(store, material);
+        add(store, material, 0.0f, true);
+        add(store, material);
 
         CHECK(store.instanceCount() == 3);
         CHECK(store.staticInstanceCount() == 2);
@@ -115,17 +116,17 @@ TEST_SUITE("render_graph::InstanceStore")
     {
         InstanceStore store;
         const auto material = makeTemplate();
-        const auto a = add(store, at(material, 1.0f));
-        const auto b = add(store, at(material, 2.0f));
-        const auto c = add(store, at(material, 3.0f));
+        const auto a = add(store, material, 1.0f);
+        const auto b = add(store, material, 2.0f);
+        const auto c = add(store, material, 3.0f);
         store.clearDirty();
 
         store.remove(a);
         CHECK(!store.contains(a));
         REQUIRE(store.staticInstanceCount() == 2);
-        CHECK(store.staticInstances()[0].transform[3].x == 3.0f);
-        CHECK(store.get(b).transform[3].x == 2.0f);
-        CHECK(store.get(c).transform[3].x == 3.0f);
+        CHECK(store.staticInstances()[0].model[0][3] == 3.0f);
+        CHECK(store.get(b).model[0][3] == 2.0f);
+        CHECK(store.get(c).model[0][3] == 3.0f);
         CHECK(store.staticDirty() == DirtyRange{ 0, 1 });
     }
 
@@ -133,8 +134,8 @@ TEST_SUITE("render_graph::InstanceStore")
     {
         InstanceStore store;
         const auto material = makeTemplate();
-        add(store, at(material));
-        const auto last = add(store, at(material));
+        add(store, material);
+        const auto last = add(store, material);
         store.clearDirty();
 
         store.remove(last);
@@ -146,19 +147,19 @@ TEST_SUITE("render_graph::InstanceStore")
     {
         InstanceStore store;
         const auto material = makeTemplate();
-        const auto first = add(store, at(material));
-        add(store, at(material));
+        const auto first = add(store, material);
+        add(store, material);
         store.remove(first);
-        CHECK(add(store, at(material)) == first);
+        CHECK(add(store, material) == first);
     }
 
     TEST_CASE("new instances are dirty until the dirty ranges are cleared")
     {
         InstanceStore store;
         const auto material = makeTemplate();
-        add(store, at(material));
-        add(store, at(material));
-        add(store, at(material), true);
+        add(store, material);
+        add(store, material);
+        add(store, material, 0.0f, true);
         CHECK(store.staticDirty() == DirtyRange{ 0, 2 });
         CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
 
@@ -171,16 +172,16 @@ TEST_SUITE("render_graph::InstanceStore")
     {
         InstanceStore store;
         const auto material = makeTemplate();
-        add(store, at(material));
-        const auto id = add(store, at(material, 1.0f));
+        add(store, material);
+        const auto id = add(store, material, 1.0f);
         store.clearDirty();
 
-        REQUIRE(store.update(id, at(material, 1.0f)));
+        REQUIRE(store.update(id, at(1.0f), material));
         CHECK(store.staticDirty().empty());
 
-        REQUIRE(store.update(id, at(material, 5.0f)));
+        REQUIRE(store.update(id, at(5.0f), material));
         CHECK(store.staticDirty() == DirtyRange{ 1, 2 });
-        CHECK(store.get(id).transform[3].x == 5.0f);
+        CHECK(store.get(id).model[0][3] == 5.0f);
     }
 
     TEST_CASE("an update to another template moves the instance to that batch")
@@ -188,9 +189,9 @@ TEST_SUITE("render_graph::InstanceStore")
         InstanceStore store;
         const auto opaque = makeTemplate();
         const auto glass = makeTemplate();
-        const auto id = add(store, at(opaque));
+        const auto id = add(store, opaque);
 
-        REQUIRE(store.update(id, at(glass)));
+        REQUIRE(store.update(id, at(), glass));
         CHECK(store.get(id).drawBatch == *store.batchId(*glass));
         CHECK(store.batches()[*store.batchId(*opaque)].instanceCount == 0);
         CHECK(store.batches()[*store.batchId(*glass)].instanceCount == 1);
@@ -201,15 +202,15 @@ TEST_SUITE("render_graph::InstanceStore")
     {
         InstanceStore store;
         const auto material = makeTemplate();
-        const auto id = add(store, at(material, 4.0f));
-        add(store, at(material));
+        const auto id = add(store, material, 4.0f);
+        add(store, material);
         store.clearDirty();
 
         store.setDynamic(id, true);
         CHECK(store.isDynamic(id));
         CHECK(store.staticInstanceCount() == 1);
         CHECK(store.dynamicInstanceCount() == 1);
-        CHECK(store.get(id).transform[3].x == 4.0f);
+        CHECK(store.get(id).model[0][3] == 4.0f);
         CHECK(store.staticDirty() == DirtyRange{ 0, 1 });
         CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
 
@@ -226,18 +227,18 @@ TEST_SUITE("render_graph::InstanceStore")
         for (std::uint32_t i = 0; i < InstanceStore::maxDrawBatches; ++i)
         {
             templates.push_back(makeTemplate());
-            add(store, at(templates.back()));
+            add(store, templates.back());
         }
 
         const auto extra = makeTemplate();
-        CHECK(!store.add(at(extra), false).has_value());
+        CHECK(!store.add(at(), extra, false).has_value());
         CHECK(store.batchCount() == InstanceStore::maxDrawBatches);
         CHECK(store.instanceCount() == InstanceStore::maxDrawBatches);
         CHECK(!store.batchId(*extra).has_value());
 
         // An existing template still accepts instances, and an update to the extra one changes nothing.
-        const auto id = add(store, at(templates.front()));
-        CHECK(!store.update(id, at(extra)).has_value());
+        const auto id = add(store, templates.front());
+        CHECK(!store.update(id, at(), extra).has_value());
         CHECK(store.get(id).drawBatch == 0);
     }
 
@@ -245,8 +246,8 @@ TEST_SUITE("render_graph::InstanceStore")
     {
         InstanceStore store;
         const auto material = makeTemplate();
-        const auto id = add(store, at(material));
-        add(store, at(material), true);
+        const auto id = add(store, material);
+        add(store, material, 0.0f, true);
 
         store.clear();
         CHECK(store.instanceCount() == 0);
@@ -258,7 +259,7 @@ TEST_SUITE("render_graph::InstanceStore")
     TEST_CASE("an instance without a material adds no material")
     {
         InstanceStore store;
-        add(store, at(makeTemplate()));
+        add(store, makeTemplate());
         CHECK(store.materials().empty());
     }
 }

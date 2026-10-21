@@ -259,19 +259,38 @@ struct GpuTransform
     InstanceFlags flags{ InstanceFlags::None };
 };
 
-/// @brief The row-major form of 'model' for shaders. The normal matrix is the inverse transpose of the
-///        upper 3x3; its rows are the columns of the inverse, which is how glm stores them. A negative
-///        determinant (a mirror, e.g. a scale of -1 on one axis) sets InstanceFlags::Mirrored.
-[[nodiscard]] inline auto toGpuTransform(const glm::mat4& model) -> GpuTransform
+/// @brief The top three rows of 'model', each with its translation in .w: how shaders, and InstanceStore,
+///        hold a model matrix.
+[[nodiscard]] inline auto toModelRows(const glm::mat4& model) -> glm::mat3x4
 {
-    const glm::mat3 linear{ model };
+    return glm::mat3x4{ glm::rowMajor4(model) };
+}
+
+/// @brief The GpuTransform of a model matrix given by its top three rows (toModelRows). The normal matrix is
+///        the inverse transpose of the upper 3x3; its rows are the columns of the inverse, which is how glm
+///        stores them. A negative determinant (a mirror, e.g. a scale of -1 on one axis) sets
+///        InstanceFlags::Mirrored.
+[[nodiscard]] inline auto toGpuTransform(const glm::mat3x4& rows) -> GpuTransform
+{
+    glm::mat3 linear; // Column-major: column c, row r is rows[r][c]
+    for (int column = 0; column < 3; ++column)
+    {
+        for (int row = 0; row < 3; ++row)
+            linear[column][row] = rows[row][column];
+    }
     const auto normalMatrix = glm::inverse(linear);
     return {
-        .model = glm::mat3x4{ glm::rowMajor4(model) },
+        .model = rows,
         .normalRow0 = normalMatrix[0],
         .normalRow1 = normalMatrix[1],
         .normalRow2 = normalMatrix[2],
         .flags = glm::determinant(linear) < 0.0f ? InstanceFlags::Mirrored : InstanceFlags::None,
     };
+}
+
+/// @brief The row-major form of 'model' for shaders (see the overload taking its rows).
+[[nodiscard]] inline auto toGpuTransform(const glm::mat4& model) -> GpuTransform
+{
+    return toGpuTransform(toModelRows(model));
 }
 }

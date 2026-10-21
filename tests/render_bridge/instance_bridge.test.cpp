@@ -94,13 +94,45 @@ TEST_SUITE("render_bridge::InstanceBridge")
     {
         aegis::world::Registry scene;
         InstanceStore store;
-        REQUIRE(store.add({ .materialTemplate = std::make_shared<const aegis::assets::MaterialTemplate>() }, false));
+        REQUIRE(store.add({}, std::make_shared<const aegis::assets::MaterialTemplate>(), false));
 
         InstanceBridge bridge{ store };
         bridge.connect(scene);
         bridge.connect(scene);
         CHECK(store.instanceCount() == 0);
         CHECK(store.batchCount() == 0);
+    }
+
+    TEST_CASE("a mesh renderer carries a RenderInstance while it exists")
+    {
+        aegis::world::Registry scene;
+        InstanceStore store;
+        InstanceBridge bridge{ store };
+        const auto before = scene.create();
+        scene.add<aegis::MeshRenderer>(before);
+        bridge.connect(scene);
+        CHECK(scene.has<aegis::RenderInstance>(before));
+
+        const auto after = scene.create();
+        scene.add<aegis::MeshRenderer>(after);
+        CHECK(scene.has<aegis::RenderInstance>(after));
+
+        scene.remove<aegis::MeshRenderer>(after);
+        CHECK(!scene.has<aegis::RenderInstance>(after));
+    }
+
+    TEST_CASE("disconnecting removes the RenderInstance components")
+    {
+        aegis::world::Registry scene;
+        InstanceStore store;
+        InstanceBridge bridge{ store };
+        bridge.connect(scene);
+        const auto entity = scene.create();
+        scene.add<aegis::MeshRenderer>(entity);
+
+        bridge.disconnect();
+        CHECK(!scene.has<aegis::RenderInstance>(entity));
+        CHECK(store.instanceCount() == 0);
     }
 
     TEST_CASE("a disconnected bridge no longer reports changes")

@@ -37,7 +37,7 @@ auto ensureCapacity(ResourcePool& pool, ResourceId buffer, std::uint32_t& capaci
 auto makeInstance(const Instance& instance, std::uint32_t frameIndex) -> InstanceData
 {
     assert(instance.mesh && instance.material && "The GPU-driven path draws only instances with a mesh and a material");
-    const auto gpuTransform = detail::toGpuTransform(instance.transform);
+    const auto gpuTransform = detail::toGpuTransform(instance.model);
     return {
         .model = gpuTransform.model,
         .normalRow0 = gpuTransform.normalRow0,

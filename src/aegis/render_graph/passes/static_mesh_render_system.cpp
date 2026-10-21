@@ -55,7 +55,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
         if (!instance.mesh || !instance.material || batches[instance.drawBatch].materialTemplate->type() != m_type)
             return;
 
-        const auto gpuTransform = detail::toGpuTransform(instance.transform);
+        const auto gpuTransform = detail::toGpuTransform(instance.model);
         if (const bool mirrored = base::hasFlag(gpuTransform.flags, InstanceFlags::Mirrored); mirrored != boundMirrored)
         {
             cmd.bindPipeline(mirrored ? *m_mirroredPipeline : *m_pipeline);
