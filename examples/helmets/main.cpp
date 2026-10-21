@@ -67,6 +67,9 @@ public:
         auto plane = assets.instantiate(scene, assets.id("Misc/plane.obj"));
         registry.get<Transform>(plane).scale = { 2.0f, 2.0f, 2.0f };
         registry.add<DynamicTag>(plane);
+        // The ColorChanger recolors its material every frame: give the plane its own copy of the shared one.
+        auto& planeMaterial = registry.get<aegis::MeshRenderer>(plane).material;
+        planeMaterial = assets.copyMaterial(planeMaterial);
         [[maybe_unused]] auto changer = scripting::attachScript(registry, types, plane, "ColorChanger");
         AGX_ASSERT_X(changer, "The ColorChanger script is not registered");
     }

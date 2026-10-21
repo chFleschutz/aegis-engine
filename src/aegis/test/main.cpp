@@ -847,6 +847,28 @@ public:
         if (library->loadMaterial(added.id()).get() != added.get())
             return fail("A run-time asset must load back by its ID");
 
+        // A copy of a shared material is its own: changing it leaves the original as it was.
+        const auto& shared = model.meshes.front().primitives.front().material;
+        const auto copy = library->copyMaterial(shared);
+        if (!copy || copy.get() == shared.get() || copy.id() == shared.id() ||
+            copy->materialTemplate() != shared->materialTemplate())
+            return fail("copyMaterial must give a new material of the same template under a new ID");
+        const auto albedoOf = [](const assets::Material& material) -> std::optional<glm::vec3> {
+            const auto* value = material.parameter<glm::vec3>(assets::pbr::albedo);
+            return value ? std::optional{ *value } : std::nullopt;
+        };
+        const auto same = [](const std::optional<glm::vec3>& a, const std::optional<glm::vec3>& b) {
+            return a && b && a->x == b->x && a->y == b->y && a->z == b->z;
+        };
+        const auto original = albedoOf(*shared);
+        if (!same(albedoOf(*copy), original))
+            return fail("A material copy must start with the original's parameters");
+        if (auto set = copy->setParameter(assets::pbr::albedo, glm::vec3{ 0.25f, 0.5f, 0.75f }); !set)
+            return fail(std::format("Recoloring a material copy: {}", assets::describe(set.error())));
+        if (!same(albedoOf(*shared), original) || same(albedoOf(*copy), original))
+            return fail("Changing a material copy must change it and not the shared material");
+
+
         if (auto result = flushAndWait(); !result)
             return result;
         std::println("Asset library verified: one load per ID, {} mesh parts and the textures shared by ID, engine content, fallbacks", parts);

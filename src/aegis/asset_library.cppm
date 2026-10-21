@@ -17,6 +17,10 @@ export namespace aegis
 /// is logged once and replaced by engine content (the checker texture, the default cube, a material with the
 /// checker), so a scene with a broken reference still draws.
 ///
+/// A loaded asset is shared: changing it (a material's parameters, say) changes it for every user, in every
+/// scene of this library. To change one object only, give it its own asset first (copyMaterial,
+/// createMaterial).
+///
 /// Failures of setup are returned; failures of loading are not (see AssetRef::state).
 class AssetLibrary
 {
@@ -70,6 +74,10 @@ public:
     /// @brief A new instance of 'materialTemplate' (by default the PBR template).
     auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate = nullptr)
         -> assets::AssetRef<assets::Material>;
+
+    /// @brief A copy of 'material' (its template and parameters) under a new ID, for an object that changes
+    ///        its material without changing the shared one. A null 'material' gives a new PBR material.
+    auto copyMaterial(const assets::AssetRef<assets::Material>& material) -> assets::AssetRef<assets::Material>;
 
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return *m_defaults; }
     [[nodiscard]] auto database() const -> const assets::AssetDatabase& { return *m_database; }

@@ -202,6 +202,14 @@ public:
         return m_materials.fill(AssetId::generate(), std::move(material));
     }
 
+    auto copyMaterial(const AssetRef<assets::Material>& source) -> AssetRef<assets::Material>
+    {
+        if (!source)
+            return createMaterial(nullptr);
+        auto material = check(source->copy(), "copy a material");
+        return m_materials.fill(AssetId::generate(), std::move(material));
+    }
+
     auto defaultEnvironment() -> AssetRef<assets::Environment>
     {
         if (!m_defaultEnvironment.valid())
@@ -464,6 +472,11 @@ auto AssetLibrary::instantiate(world::World& world, AssetId model) -> world::Ent
 auto AssetLibrary::createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> AssetRef<assets::Material>
 {
     return m_impl->createMaterial(std::move(materialTemplate));
+}
+
+auto AssetLibrary::copyMaterial(const AssetRef<assets::Material>& material) -> AssetRef<assets::Material>
+{
+    return m_impl->copyMaterial(material);
 }
 
 auto AssetLibrary::defaultEnvironment() -> AssetRef<assets::Environment>

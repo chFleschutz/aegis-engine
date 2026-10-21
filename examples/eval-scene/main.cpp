@@ -295,7 +295,9 @@ public:
 
         auto cube = assets.instantiate(scene, assets.id("Misc/cube.obj"));
         auto& cubeMesh = registry.get<aegis::MeshRenderer>(cube).mesh;
+        // The cube's material is the shared asset: color a copy, so other cubes keep theirs.
         auto& cubeMat = registry.get<aegis::MeshRenderer>(cube).material;
+        cubeMat = assets.copyMaterial(cubeMat);
         [[maybe_unused]] auto set = cubeMat->setParameter(assets::pbr::albedo, glm::vec3{ 0.8f, 0.1f, 0.1f })
                                         .and_then([&] { return cubeMat->setParameter(assets::pbr::metallic, 1.0f); })
                                         .and_then([&] { return cubeMat->setParameter(assets::pbr::roughness, 0.5f); });
