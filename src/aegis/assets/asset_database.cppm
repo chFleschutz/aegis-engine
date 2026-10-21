@@ -38,6 +38,9 @@ public:
         std::vector<Root> roots;
         /// @brief Where the index is kept (`<project>/.aegis/index`); empty for none.
         std::filesystem::path indexFile;
+        /// @brief Writes a sidecar with new IDs for each foreign file of a writable root that has none (what
+        ///        the editor does on import), picking the importer from the extension (see importerFor).
+        bool createSidecars{ false };
     };
 
     /// @brief Extensions of native files, which carry their ID in a `{type, id, version}` header.
@@ -51,6 +54,11 @@ public:
 
     /// @brief The ID of the asset made from 'path' (relative to root 'root') and 'key' ("" for the main one).
     [[nodiscard]] auto find(std::size_t root, std::string_view path, std::string_view key = {}) const -> std::optional<AssetId>;
+
+    /// @brief Records the parts of the file at 'path' (relative to root 'root'), as a model import assigned them.
+    /// @return ErrorCode::InvalidData if an ID is already used by another asset.
+    [[nodiscard]] auto addSubAssets(std::size_t root, std::string_view path, std::span<const std::pair<std::string, AssetId>> parts)
+        -> std::expected<void, Error>;
 
     /// @brief The file of an entry on disk.
     [[nodiscard]] auto absolutePath(const AssetEntry& entry) const -> std::filesystem::path;
@@ -69,6 +77,10 @@ private:
     std::vector<AssetEntry> m_entries; // Sorted by ID
     std::size_t m_filesRead{ 0 };
 };
+
+/// @brief The default importer of a foreign file by extension ("model", "texture" or "environment"), or an
+///        empty view for a file that is no asset source.
+[[nodiscard]] auto importerFor(const std::filesystem::path& path) -> std::string_view;
 
 /// @brief True if 'path' has a native extension (see AssetDatabase::nativeExtensions).
 [[nodiscard]] auto isNativeFile(const std::filesystem::path& path) -> bool;

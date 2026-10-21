@@ -16,6 +16,7 @@ struct SettingsFile
     std::string handedness{ "Right" };
     double scale{ 1.0 };
     bool strictNames{ false };
+    std::optional<bool> srgb;
 };
 
 struct SidecarFile
@@ -55,7 +56,7 @@ template<>
 struct glz::meta<aegis::assets::SettingsFile>
 {
     using T = aegis::assets::SettingsFile;
-    static constexpr auto value = object("upAxis", &T::upAxis, "handedness", &T::handedness, "scale", &T::scale, "strictNames", &T::strictNames);
+    static constexpr auto value = object("upAxis", &T::upAxis, "handedness", &T::handedness, "scale", &T::scale, "strictNames", &T::strictNames, "srgb", &T::srgb);
 };
 
 template<>
@@ -104,7 +105,7 @@ auto parseSidecar(std::string_view json) -> std::expected<Sidecar, Error>
     sidecar.importer = std::move(file.importer);
     sidecar.importerVersion = file.importerVersion;
     sidecar.settings = ImportSettings{ std::move(file.settings.upAxis), std::move(file.settings.handedness), file.settings.scale,
-        file.settings.strictNames };
+        file.settings.strictNames, file.settings.srgb };
     for (const auto& [key, text] : file.subAssets)
     {
         auto part = parseId(text, std::format("subAssets['{}']", key));
@@ -121,7 +122,7 @@ auto writeSidecar(const Sidecar& sidecar) -> std::string
         .id = sidecar.id.toString(),
         .importer = sidecar.importer,
         .importerVersion = sidecar.importerVersion,
-        .settings = { sidecar.settings.upAxis, sidecar.settings.handedness, sidecar.settings.scale, sidecar.settings.strictNames },
+        .settings = { sidecar.settings.upAxis, sidecar.settings.handedness, sidecar.settings.scale, sidecar.settings.strictNames, sidecar.settings.srgb },
     };
     for (const auto& [key, id] : sidecar.subAssets)
         file.subAssets.emplace(key, id.toString());

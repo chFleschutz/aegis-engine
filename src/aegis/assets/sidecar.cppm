@@ -12,6 +12,8 @@ struct ImportSettings
     std::string handedness{ "Right" };
     double scale{ 1.0 };
     bool strictNames{ false };
+    /// @brief Textures: whether the pixels are color data (sRGB) or linear; none means the importer's default.
+    std::optional<bool> srgb;
 
     [[nodiscard]] friend auto operator==(const ImportSettings&, const ImportSettings&) -> bool = default;
 };

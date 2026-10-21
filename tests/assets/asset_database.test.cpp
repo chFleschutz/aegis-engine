@@ -179,4 +179,63 @@ TEST_SUITE("assets::AssetDatabase")
         REQUIRE(database);
         CHECK(database->size() == 0);
     }
+
+    TEST_CASE("createSidecars writes a sidecar with new IDs for foreign files")
+    {
+        TempRoot root;
+        root.write("models/Helmet.gltf", "source");
+        root.write("tex/wood.png", "source");
+        root.write("readme.txt", "not an asset");
+
+        const auto database = AssetDatabase::scan({ .roots = { { root.path } }, .createSidecars = true });
+        REQUIRE(database);
+        CHECK(database->size() == 2);
+        CHECK(std::filesystem::exists(root.path / "models/Helmet.gltf.meta"));
+        CHECK_FALSE(std::filesystem::exists(root.path / "readme.txt.meta"));
+
+        const auto helmet = database->find(0, "models/Helmet.gltf");
+        REQUIRE(helmet);
+
+        // A second scan keeps the IDs it wrote.
+        const auto again = AssetDatabase::scan({ .roots = { { root.path } }, .createSidecars = true });
+        REQUIRE(again);
+        CHECK(again->find(0, "models/Helmet.gltf") == helmet);
+    }
+
+    TEST_CASE("createSidecars leaves read-only roots alone")
+    {
+        TempRoot root;
+        root.write("white.png", "source");
+        const auto database = AssetDatabase::scan({ .roots = { { root.path, true } }, .createSidecars = true });
+        REQUIRE(database);
+        CHECK(database->size() == 0);
+        CHECK_FALSE(std::filesystem::exists(root.path / "white.png.meta"));
+    }
+
+    TEST_CASE("addSubAssets records parts and rejects an ID another asset has")
+    {
+        TempRoot root;
+        root.writeSidecarFor("a.gltf", sidecarOf(AssetId{ 1 }));
+        root.writeSidecarFor("b.gltf", sidecarOf(AssetId{ 2 }));
+        auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE(database);
+
+        const std::vector<std::pair<std::string, AssetId>> parts{ { "Material/A", AssetId{ 10 } } };
+        CHECK(database->addSubAssets(0, "a.gltf", parts));
+        CHECK(database->addSubAssets(0, "a.gltf", parts)); // Again: no change
+        CHECK(database->find(AssetId{ 10 })->key == "Material/A");
+        CHECK(database->find(0, "a.gltf", "Material/A") == AssetId{ 10 });
+
+        const std::vector<std::pair<std::string, AssetId>> clashing{ { "Material/A", AssetId{ 2 } } };
+        CHECK_FALSE(database->addSubAssets(0, "a.gltf", clashing));
+    }
+
+    TEST_CASE("the importer comes from the extension")
+    {
+        CHECK(importerFor("a/Helmet.GLTF") == "model");
+        CHECK(importerFor("cube.obj") == "model");
+        CHECK(importerFor("wood.png") == "texture");
+        CHECK(importerFor("sky.hdr") == "environment");
+        CHECK(importerFor("notes.txt").empty());
+    }
 }
