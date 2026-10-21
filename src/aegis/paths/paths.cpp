@@ -2,6 +2,12 @@ module;
 
 #include <cstdlib>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 module aegis.paths;
 
 import std;
@@ -47,11 +53,84 @@ auto resolve(const char* variable, std::u8string_view fallback) -> std::filesyst
         return *overridden;
     return fromLiteral(fallback);
 }
+
+auto isDirectory(const std::filesystem::path& path) -> bool
+{
+    std::error_code error;
+    return std::filesystem::is_directory(path, error);
+}
+
+// The variable, then 'folder' next to the executable, then the configure-time path. When none exists the
+// path still names where it should be, so the first failed load says what is missing.
+auto find(const char* variable, std::string_view folder, std::u8string_view configured) -> std::filesystem::path
+{
+    const auto beside = executableDirectory();
+    const Lookup lookup{
+        .given = fromEnvironment(variable).value_or(std::filesystem::path{}),
+        .besideExecutable = beside.empty() ? beside : beside / folder,
+        .configured = fromLiteral(configured),
+    };
+    return locate(lookup, isDirectory).value_or(lookup.given.empty() ? lookup.configured : lookup.given);
+}
+
+auto findExecutableDirectory() -> std::filesystem::path
+{
+#ifdef _WIN32
+    std::wstring buffer(MAX_PATH, wchar_t{});
+    while (true)
+    {
+        const auto length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+        if (length == 0)
+            return {};
+        if (length < buffer.size())
+        {
+            buffer.resize(length);
+            return std::filesystem::path{ buffer }.parent_path();
+        }
+        buffer.resize(buffer.size() * 2); // Truncated: a long path
+    }
+#else
+    std::error_code error;
+    const auto executable = std::filesystem::read_symlink("/proc/self/exe", error);
+    return error ? std::filesystem::path{} : executable.parent_path();
+#endif
+}
+}
+
+auto locate(const Lookup& lookup, const std::function<bool(const std::filesystem::path&)>& isDirectory)
+    -> std::expected<std::filesystem::path, std::string>
+{
+    // A folder named explicitly must exist: falling back would load other data than asked for.
+    if (!lookup.given.empty())
+    {
+        if (isDirectory(lookup.given))
+            return lookup.given;
+        return std::unexpected{ std::format("'{}' is not a directory", lookup.given.string()) };
+    }
+
+    std::string tried;
+    for (const auto* candidate : { &lookup.besideExecutable, &lookup.configured })
+    {
+        if (candidate->empty())
+            continue;
+        if (isDirectory(*candidate))
+            return *candidate;
+        tried += std::format("{}'{}'", tried.empty() ? "" : ", ", candidate->string());
+    }
+    if (tried.empty())
+        return std::unexpected{ std::string{ "No folder to look in" } };
+    return std::unexpected{ std::format("Found none of {}", tried) };
+}
+
+auto executableDirectory() -> const std::filesystem::path&
+{
+    static const auto dir = findExecutableDirectory();
+    return dir;
 }
 
 auto shaders() -> const std::filesystem::path&
 {
-    static const auto dir = resolve("AEGIS_SHADER_DIR", u8"" AEGIS_SHADER_DIR);
+    static const auto dir = find("AEGIS_SHADER_DIR", "shaders", u8"" AEGIS_SHADER_DIR);
     return dir;
 }
 
@@ -63,7 +142,7 @@ auto assets() -> const std::filesystem::path&
 
 auto content() -> const std::filesystem::path&
 {
-    static const auto dir = resolve("AEGIS_CONTENT_DIR", u8"" AEGIS_CONTENT_DIR);
+    static const auto dir = find("AEGIS_CONTENT_DIR", "content", u8"" AEGIS_CONTENT_DIR);
     return dir;
 }
 
