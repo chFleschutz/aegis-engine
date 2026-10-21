@@ -1,6 +1,7 @@
 export module aegis.assets:asset_ref;
 import std;
 import :asset_id;
+import aegis.reflect;
 
 export namespace aegis::assets
 {
@@ -78,3 +79,12 @@ private:
     std::shared_ptr<AssetSlot<T>> m_slot;
 };
 }
+
+/// An AssetRef field is an asset reference for reflection: it is written as its ID and read back as a
+/// reference the library has yet to resolve.
+export template<class T>
+struct aegis::reflect::AssetFieldTraits<aegis::assets::AssetRef<T>>
+{
+    static auto id(const aegis::assets::AssetRef<T>& ref) -> std::uint64_t { return ref.id().value; }
+    static auto make(std::uint64_t id) -> aegis::assets::AssetRef<T> { return aegis::assets::AssetRef<T>{ aegis::assets::AssetId{ id } }; }
+};

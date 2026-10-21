@@ -9,6 +9,7 @@ export import :asset_id;
 export import :asset_key;
 export import :asset_ref;
 export import :defaults;
+export import :engine_content;
 export import :environment;
 export import :error;
 export import :gpu_types;

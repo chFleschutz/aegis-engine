@@ -1,7 +1,8 @@
 # Asset system, scenes and worlds
 
-Status: **decided** (D8, 2026-10-19; formats 2026-10-20; settles F2 in `audit/backlog.md`), not
-implemented. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md):
+Status: **decided** (D8, 2026-10-19; formats 2026-10-20; settles F2 in `audit/backlog.md`).
+Implemented so far (#130): IDs, sidecars, the database, engine content, `AssetRef` and `AssetLibrary`;
+scene files, the import cache and the pak are not. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md):
 assets referenced only by stable ID, one serializer for scenes and save games, a cook step for export.
 
 **Today** loaders decode and upload in one step and create entities directly, nothing is cached

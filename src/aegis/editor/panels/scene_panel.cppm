@@ -191,8 +191,8 @@ private:
 
         drawComponent<aegis::MeshRenderer>(registry, "Mesh Renderer", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,
             [](aegis::MeshRenderer& renderer) {
-                drawAssetSlot("Mesh", "Mesh Asset", renderer.mesh != nullptr);
-                drawAssetSlot("Material", "Material Asset", renderer.material != nullptr);
+                drawAssetSlot("Mesh", "Mesh Asset", static_cast<bool>(renderer.mesh));
+                drawAssetSlot("Material", "Material Asset", static_cast<bool>(renderer.material));
             });
 
         drawComponent<AmbientLight>(registry, "Ambient Light", m_selectedEntity, ImGuiTreeNodeFlags_DefaultOpen,

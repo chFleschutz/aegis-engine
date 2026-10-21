@@ -4,7 +4,7 @@ import std;
 export import aegis.math;
 import aegis.ui;
 import aegis.editor;
-export import aegis.asset_loader;
+export import aegis.asset_library;
 export import aegis.instantiate;
 export import aegis.scene_description;
 import aegis.core.globals;
@@ -164,7 +164,7 @@ private:
     std::unique_ptr<aegis::rhi::Context> m_context;
     std::unique_ptr<aegis::rhi::Device> m_device;
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
-    std::optional<AssetLoader> m_assets;
+    std::optional<AssetLibrary> m_assets;
     reflect::TypeRegistry m_types;
     base::FrameClock m_clock{ base::FrameClock::clamped(MAX_FRAME_DELTA_SEC) };
     world::World m_world;

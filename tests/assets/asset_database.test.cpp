@@ -238,4 +238,21 @@ TEST_SUITE("assets::AssetDatabase")
         CHECK(importerFor("sky.hdr") == "environment");
         CHECK(importerFor("notes.txt").empty());
     }
+
+    TEST_CASE("the engine content constants name the files of the content folder")
+    {
+        const auto database = AssetDatabase::scan({ .roots = { { std::filesystem::path{ AEGIS_TEST_CONTENT_DIR }, true } } });
+        REQUIRE(database);
+        CHECK(database->size() == 5);
+
+        const auto path = [&](AssetId id) -> std::string {
+            const auto* entry = database->find(id);
+            return entry ? entry->path : std::string{};
+        };
+        CHECK(path(engine::white) == "white.png");
+        CHECK(path(engine::black) == "black.png");
+        CHECK(path(engine::normal) == "normal.png");
+        CHECK(path(engine::checker) == "checker.png");
+        CHECK(path(engine::cube) == "cube.obj");
+    }
 }

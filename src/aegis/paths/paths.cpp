@@ -6,8 +6,8 @@ module aegis.paths;
 
 import std;
 
-// AEGIS_SHADER_DIR and AEGIS_ASSETS_DIR are compile definitions of aegis-paths; this is the only file
-// that reads them.
+// AEGIS_SHADER_DIR, AEGIS_ASSETS_DIR, AEGIS_CONTENT_DIR and AEGIS_CACHE_DIR are compile definitions of
+// aegis-paths; this is the only file that reads them.
 
 namespace aegis::paths
 {
@@ -58,6 +58,18 @@ auto shaders() -> const std::filesystem::path&
 auto assets() -> const std::filesystem::path&
 {
     static const auto dir = resolve("AEGIS_ASSETS_DIR", u8"" AEGIS_ASSETS_DIR);
+    return dir;
+}
+
+auto content() -> const std::filesystem::path&
+{
+    static const auto dir = resolve("AEGIS_CONTENT_DIR", u8"" AEGIS_CONTENT_DIR);
+    return dir;
+}
+
+auto cache() -> const std::filesystem::path&
+{
+    static const auto dir = resolve("AEGIS_CACHE_DIR", u8"" AEGIS_CACHE_DIR);
     return dir;
 }
 }

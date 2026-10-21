@@ -2,7 +2,6 @@
 
 import std;
 import aegis.engine;
-import aegis.rhi; // rhi::Format for loadTexture
 
 namespace
 {
@@ -38,16 +37,16 @@ public:
         using namespace aegis;
 
         // MATERIALS
-        auto paintingTexture = assets.loadTexture(paths::assets() / "Misc/painting.png", aegis::rhi::Format::RGBA8_SRGB);
-        auto metalTexture = assets.loadTexture(paths::assets() / "Misc/brushed-metal.png", aegis::rhi::Format::RGBA8_SRGB);
+        auto paintingTexture = assets.loadTexture(assets.id("Misc/painting.png"));
+        auto metalTexture = assets.loadTexture(assets.id("Misc/brushed-metal.png"));
 
         auto pbrMatTemplate = assets.defaults().pbrTemplate;
         auto paintingMat = assets.createMaterial(pbrMatTemplate);
-        [[maybe_unused]] auto paintingSet = paintingMat->setParameter(assets::pbr::albedoMap, paintingTexture);
+        [[maybe_unused]] auto paintingSet = paintingMat->setParameter(assets::pbr::albedoMap, paintingTexture.shared());
         AGX_ASSERT_X(paintingSet, "Failed to set the painting material's parameters");
 
         auto metalMat = assets.createMaterial(pbrMatTemplate);
-        [[maybe_unused]] auto metalSet = metalMat->setParameter(assets::pbr::albedoMap, metalTexture).and_then([&] {
+        [[maybe_unused]] auto metalSet = metalMat->setParameter(assets::pbr::albedoMap, metalTexture.shared()).and_then([&] {
             return metalMat->setParameter(assets::pbr::metallic, 1.0f);
         });
         AGX_ASSERT_X(metalSet, "Failed to set the metal material's parameters");
@@ -55,11 +54,11 @@ public:
         // ENTITIES
         auto& registry = scene.registry();
 
-        auto floorPlane = assets.loadModel(scene, paths::assets() / "Misc/plane.obj");
+        auto floorPlane = assets.instantiate(scene, assets.id("Misc/plane.obj"));
         registry.get<Transform>(floorPlane).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
         registry.get<aegis::MeshRenderer>(floorPlane).material = paintingMat;
 
-        auto teapot = assets.loadModel(scene, paths::assets() / "Misc/teapot.obj");
+        auto teapot = assets.instantiate(scene, assets.id("Misc/teapot.obj"));
         registry.get<Transform>(teapot).scale = glm::vec3{ 2.0f, 2.0f, 2.0f };
         registry.get<aegis::MeshRenderer>(teapot).material = metalMat;
         registry.add<DynamicTag>(teapot); // The Rotator moves it every frame

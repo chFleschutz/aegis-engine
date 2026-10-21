@@ -5,6 +5,7 @@ target_link_libraries(aegis-assets
         aegis-base
         aegis-rhi
         aegis-math
+        aegis-reflect # AssetRef is a reflected field kind
     PRIVATE
         fastgltf
         glaze::glaze
@@ -22,6 +23,7 @@ target_sources(aegis-assets
     asset_ref.cppm
     assets.cppm
     defaults.cppm
+    engine_content.cppm
     environment.cppm
     error.cppm
     gpu_types.cppm

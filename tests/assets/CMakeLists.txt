@@ -21,3 +21,6 @@ target_compile_definitions(aegis-tests-assets PRIVATE AEGIS_TEST_SHADER_SOURCE_D
 
 # sidecar.test.cpp reads the golden sidecar.
 target_compile_definitions(aegis-tests-assets PRIVATE AEGIS_TEST_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden")
+
+# asset_database.test.cpp checks the engine content constants against the content folder.
+target_compile_definitions(aegis-tests-assets PRIVATE AEGIS_TEST_CONTENT_DIR="${PROJECT_SOURCE_DIR}/content")

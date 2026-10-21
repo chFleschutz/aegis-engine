@@ -15,6 +15,7 @@
 #include <imgui.h>
 
 import std;
+import aegis.asset_library;
 import aegis.assets;
 import aegis.instantiate;
 import aegis.paths;
@@ -293,6 +294,8 @@ public:
                 return std::unexpected{ result.error() };
         }
         if (auto result = engine.verifyAssets(); !result)
+            return std::unexpected{ result.error() };
+        if (auto result = engine.verifyAssetLibrary(); !result)
             return std::unexpected{ result.error() };
         if (auto result = engine.verifyIbl(); !result)
             return std::unexpected{ result.error() };
@@ -721,7 +724,7 @@ public:
                 auto cube = assets::Loader::load(loaderDesc, paths::assets() / "Misc/cube.obj");
                 if (!cube)
                     return std::unexpected{ std::format("Loading cube.obj: {}", assets::describe(cube.error())) };
-                slot = cube->meshes.at(0).primitives.at(0).material;
+                slot = cube->meshes.at(0).primitives.at(0).material.shared();
             }
             if (!defaultMaterials[0] || !defaultMaterials[1] || defaultMaterials[0] == defaultMaterials[1] ||
                 defaultMaterials[0] == defaults->pbrMaterial)
@@ -765,6 +768,88 @@ public:
         std::println("Assets verified: defaults (white texture read back), material blocks, invalid parameters "
                      "and mip 0 sizes rejected, glTF + OBJ loaded ({} meshes)",
             meshes);
+        return {};
+    }
+
+    // AssetLibrary against a real device: an ID loads once, the parts of a model are the assets their own IDs
+    // load, and a missing ID fails loudly into engine content instead of leaving a hole.
+    auto verifyAssetLibrary() -> std::expected<void, std::string>
+    {
+        constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
+        auto library = AssetLibrary::create(*m_device, framesInFlight);
+        if (!library)
+            return std::unexpected{ std::format("Asset library: {}", library.error()) };
+        const auto fail = [](std::string message) -> std::expected<void, std::string> { return std::unexpected{ std::move(message) }; };
+
+        const auto helmetFile = library->find("DamagedHelmet/DamagedHelmet.gltf");
+        if (!helmetFile)
+            return fail("The helmet has no ID in the database");
+        const auto first = library->loadModel(*helmetFile);
+        const auto second = library->loadModel(*helmetFile);
+        if (first.state() != assets::AssetState::Ready || !first || first.get() != second.get())
+            return fail("Loading one model ID twice must return the same ready model");
+
+        const auto& model = *first;
+        if (model.textures.empty() || model.materials.empty() || model.meshes.empty())
+            return fail("The helmet model has no textures, materials or meshes");
+        std::size_t parts{ 0 };
+        for (const auto& primitive : model.meshes.front().primitives)
+        {
+            const auto* entry = library->database().find(primitive.mesh.id());
+            if (!entry || entry->key.empty() || entry->path != "DamagedHelmet/DamagedHelmet.gltf")
+                return fail("A primitive's mesh has no sub-asset ID in the database");
+            if (library->loadMesh(primitive.mesh.id()).get() != primitive.mesh.get())
+                return fail("Loading a mesh by its own ID must return the model's mesh");
+            if (library->loadMaterial(primitive.material.id()).get() != primitive.material.get())
+                return fail("Loading a material by its own ID must return the model's material");
+            ++parts;
+        }
+        for (const auto& texture : model.textures)
+        {
+            const auto id = library->database().find(0, "DamagedHelmet/DamagedHelmet.gltf", std::format("Texture/{}", std::filesystem::path{ texture.uri }.filename().generic_string()));
+            if (!id || library->loadTexture(*id).get() != texture.texture.get())
+                return fail("Loading a glTF texture by its own ID must return the model's texture");
+        }
+
+        const auto paintingId = library->id("Misc/painting.png");
+        if (library->loadTexture(paintingId).get() != library->loadTexture(paintingId).get() || !library->loadTexture(paintingId))
+            return fail("Loading one texture ID twice must return the same texture");
+
+        // Engine content is found like any other asset, in the read-only root.
+        for (const auto id : { assets::engine::white, assets::engine::black, assets::engine::normal, assets::engine::checker })
+        {
+            const auto texture = library->loadTexture(id);
+            const auto* entry = library->database().find(id);
+            if (texture.state() != assets::AssetState::Ready || !entry || entry->root != 1)
+                return fail("An engine content texture is missing or not in the engine content root");
+        }
+
+        // A missing ID is Failed with a fallback of its type.
+        const assets::AssetId missing{ 0x0123456789abcdefULL };
+        const auto texture = library->loadTexture(missing);
+        const auto mesh = library->loadMesh(missing);
+        const auto material = library->loadMaterial(missing);
+        const auto environment = library->loadEnvironment(missing);
+        const auto missingModel = library->loadModel(missing);
+        if (texture.state() != assets::AssetState::Failed || !texture || texture.get() != library->loadTexture(assets::engine::checker).get())
+            return fail("A missing texture must fall back to the checker");
+        if (mesh.state() != assets::AssetState::Failed || !mesh)
+            return fail("A missing mesh must fall back to the cube");
+        if (material.state() != assets::AssetState::Failed || !material)
+            return fail("A missing material must fall back to a default material");
+        if (environment.state() != assets::AssetState::Failed || !environment)
+            return fail("A missing environment must fall back to a black sky");
+        if (missingModel.state() != assets::AssetState::Failed || !missingModel)
+            return fail("A missing model must fall back to the cube");
+
+        // A run-time asset gets its own ID and loads back as itself.
+        const auto added = library->add(library->createMaterial().shared());
+        if (library->loadMaterial(added.id()).get() != added.get())
+            return fail("A run-time asset must load back by its ID");
+
+        if (auto result = flushAndWait(); !result)
+            return result;
+        std::println("Asset library verified: one load per ID, {} mesh parts and the textures shared by ID, engine content, fallbacks", parts);
         return {};
     }
 
@@ -911,7 +996,7 @@ public:
         if (!environment)
             return std::unexpected{ std::format("Environment: {}", describe(environment.error())) };
         const auto sky = registry.create("Sky");
-        registry.add<aegis::Sky>(sky, std::move(*environment));
+        registry.add<aegis::Sky>(sky, assets::AssetRef<assets::Environment>::ready(assets::AssetId::generate(), std::move(*environment)));
 
         auto helmet = assets::Loader::load(
             {

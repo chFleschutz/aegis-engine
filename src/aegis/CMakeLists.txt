@@ -1,6 +1,26 @@
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 set(AEGIS_MODULE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 
+# The asset library: loads assets by ID on a device. Its own target so aegis-test can check it without the engine.
+add_library(aegis-asset-library STATIC)
+target_link_libraries(aegis-asset-library
+PUBLIC
+	aegis-assets
+	aegis-base
+	aegis-instantiate
+	aegis-paths
+	aegis-render-graph
+	aegis-rhi
+	aegis-world
+)
+target_sources(aegis-asset-library
+PUBLIC
+	FILE_SET CXX_MODULES FILES
+		asset_library.cppm
+PRIVATE
+	asset_library.cpp
+)
+
 add_library(aegis-engine STATIC)
 add_library(Aegis::Engine ALIAS aegis-engine)
 
@@ -35,6 +55,7 @@ PRIVATE
 
 target_link_libraries(aegis-engine 
 PUBLIC 
+	aegis-asset-library
 	aegis-assets
 	aegis-base
 	aegis-core
@@ -59,11 +80,9 @@ PRIVATE
 target_sources(aegis-engine
 PRIVATE
 	engine.cpp
-	asset_loader.cpp
 PUBLIC 
 	FILE_SET CXX_MODULES 
 	FILES
-		asset_loader.cppm
 		engine.cppm
 		scene_defaults.cppm
 		scene_description.cppm

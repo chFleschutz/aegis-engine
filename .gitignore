@@ -30,3 +30,6 @@ shaders/**/*.spv
 !.vscode/extensions.json
 !.vscode/*.code-snippets
 .idea/
+
+# Asset index and import cache
+.aegis/

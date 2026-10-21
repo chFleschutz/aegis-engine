@@ -6,7 +6,7 @@ module;
 export module aegis.scene_description;
 
 import std;
-import aegis.asset_loader;
+import aegis.asset_library;
 import aegis.world;
 import aegis.reflect;
 
@@ -18,7 +18,7 @@ struct SceneContext
 {
     world::World& scene;
     const reflect::TypeRegistry& types;
-    AssetLoader& assets;
+    AssetLibrary& assets;
 };
 
 /// @brief Base class for creating a scene
