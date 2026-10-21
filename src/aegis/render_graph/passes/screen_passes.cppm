@@ -1,12 +1,14 @@
 export module aegis.render_graph:screen_passes;
 import std;
 import :error;
+import :frame_scene;
 import :gpu_types;
 import :names;
 import :render_pass;
 import :resource;
 import :declarations;
 import :resource_pool;
+import aegis.math;
 import aegis.rhi;
 
 export namespace aegis::render_graph
@@ -73,4 +75,11 @@ public:
 private:
     ResourceId m_source;
 };
+}
+
+export namespace aegis::render_graph::detail
+{
+/// @brief The sky box's view-projection (row-major): the camera's rotation only, as the sky is infinitely
+///        far away.
+[[nodiscard]] auto makeSkyBoxViewProjection(const FrameScene::Camera& camera) -> glm::mat4;
 }

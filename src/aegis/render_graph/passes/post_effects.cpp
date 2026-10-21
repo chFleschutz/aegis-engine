@@ -5,7 +5,6 @@ module aegis.render_graph;
 import std;
 import aegis.rhi;
 import aegis.math;
-import aegis.world;
 
 namespace aegis::render_graph
 {
@@ -198,6 +197,7 @@ auto TransparentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
 
     const RenderContext context{
         .cmd = cmd,
+        .frameScene = frameInfo.frameScene,
         .scene = frameInfo.scene,
         .frameIndex = frameInfo.frameIndex,
         .camera = pool.bufferAddress(m_cameraData, frameInfo.frameIndex),
@@ -233,18 +233,25 @@ auto PointLightRenderSystem::createResources(rhi::Device& device, const RenderTa
 
 auto PointLightRenderSystem::render(const RenderContext& context) -> void
 {
-    constexpr float pointLightScale{ 0.002f };
-
     context.cmd.bindPipeline(*m_pipeline);
-    for (auto&& [entity, transform, light] : context.scene.registry().view<aegis::GlobalTransform, aegis::PointLight>().each())
+    for (const auto& light : context.frameScene.pointLights)
     {
-        context.cmd.pushConstants(PointLightConstants{
-            .worldPosition = glm::vec4{ transform.location, 1.0f },
-            .color = glm::vec4{ light.color, 1.0f },
-            .radius = light.intensity * transform.scale.x * pointLightScale,
-            .camera = context.camera,
-        });
+        context.cmd.pushConstants(detail::makePointLightConstants(light, context.camera));
         context.cmd.draw(6);
     }
+}
+}
+
+namespace aegis::render_graph::detail
+{
+auto makePointLightConstants(const FrameScene::PointLight& light, rhi::DeviceAddress camera) -> PointLightConstants
+{
+    constexpr float pointLightScale{ 0.002f };
+    return {
+        .worldPosition = glm::vec4{ light.position, 1.0f },
+        .color = glm::vec4{ light.color, 1.0f },
+        .radius = light.intensity * light.scale * pointLightScale,
+        .camera = camera,
+    };
 }
 }

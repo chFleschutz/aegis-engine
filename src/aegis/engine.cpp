@@ -241,10 +241,13 @@ auto Engine::run() -> int
             exitCode = exitFailure;
             break;
         }
-        auto rendered = m_renderer->renderFrame([this](const aegis::renderer::Renderer::FrameInfo& frame) {
+        // The passes draw the camera, lights and sky as the update left them.
+        const auto frameScene = aegis::render_graph::extract(m_world);
+        auto rendered = m_renderer->renderFrame([this, &frameScene](const aegis::renderer::Renderer::FrameInfo& frame) {
             m_lastFrameIndex = frame.frameIndex;
             m_frameGraph->execute({
                 .cmd = frame.cmd,
+                .frameScene = frameScene,
                 .scene = m_world,
                 .drawBatches = m_drawBatches,
                 .frameIndex = frame.frameIndex,

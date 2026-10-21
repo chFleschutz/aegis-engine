@@ -23,7 +23,9 @@ target_sources(aegis-render-graph
     default_graph.cppm
     draw_batch_registry.cppm
     error.cppm
+    extract.cppm
     frame_graph.cppm
+    frame_scene.cppm
     graph_builder.cppm
     frustum.cppm
     gpu_types.cppm
@@ -48,6 +50,7 @@ target_sources(aegis-render-graph
     declarations.cpp
     default_graph.cpp
     draw_batch_registry.cpp
+    extract.cpp
     frame_graph.cpp
     ibl.cpp
     resource_pool.cpp

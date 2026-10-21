@@ -1,12 +1,11 @@
 export module aegis.render_graph:scene_update_pass;
 import std;
+import :frame_scene;
 import :gpu_types;
 import :render_pass;
 import :resource;
 import :declarations;
 import :resource_pool;
-import aegis.math;
-import aegis.world;
 
 export namespace aegis::render_graph
 {
@@ -27,7 +26,6 @@ private:
 
 export namespace aegis::render_graph::detail
 {
-/// @brief The CameraData the shaders read for a camera whose view and projection matrices are current
-///        (the camera system computes them), at the world position of 'transform'.
-[[nodiscard]] auto makeCameraData(const aegis::Camera& camera, const aegis::GlobalTransform& transform) -> CameraData;
+/// @brief The CameraData the shaders read for the frame's camera.
+[[nodiscard]] auto makeCameraData(const FrameScene::Camera& camera) -> CameraData;
 }
