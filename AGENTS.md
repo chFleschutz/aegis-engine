@@ -268,13 +268,15 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
    `ctest -LE device`. It is the proof that Linux builds.
 7. **Check CI** with `gh pr checks` (`--watch` to block) and report the result; work on another
    independent item meanwhile. Fix failures with new commits; don't force-push a PR under review.
-8. **Merge with auto-merge.** `main` is protected (required checks `Format`, `Linux`/`Windows`
-   × debug/release, branch up to date), so `gh pr merge <pr> --merge --auto` merges once CI is
-   green. CI has no GPU: run the full `ctest` with the device tests locally first for device code.
-   PRs land as merge commits, not squash or rebase, so commit hashes survive. After a PR with
-   mechanical commits merges, add their hashes to `.git-blame-ignore-revs` (docs-only commit on
-   `main`; only the owner can push to `main` past the protection). The `/implement-issue` skill
-   follows this.
+8. **The owner merges.** Agents never merge a PR or enable auto-merge (`gh pr merge`); they stop
+   once CI is green and the PR is ready, and the owner reviews and merges it. Write the PR body for
+   that review: what changed and why, the verification actually run (device tests included or
+   skipped) and anything left out. `main` is protected (required checks `Format`, `Linux`/`Windows`
+   × debug/release, branch up to date). CI has no GPU: run the full `ctest` with the device tests
+   locally first for device code. PRs land as merge commits, not squash or rebase, so commit hashes
+   survive. After a PR with mechanical commits merges, add their hashes to `.git-blame-ignore-revs`
+   (docs-only commit on `main`; only the owner can push to `main` past the protection). The
+   `/implement-issue` skill follows this.
 
 ## Unit tests
 

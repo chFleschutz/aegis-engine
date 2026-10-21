@@ -24,9 +24,8 @@ AGENTS.md ("Commits and pull requests"). If no argument is given, ask which issu
 - Stop and ask the user, before editing, when: the issue has the `needs-design` label, the scope
   is ambiguous or large, the issue needs a design decision it doesn't make, the change would touch
   more than the issue says (its **Out of scope** is a hard line), or it would break a public API.
-  Auto-merge makes a wrong guess costly, so the bar to proceed is high.
 - `needs-gpu` means the verification needs the local device tests. Without a GPU (cloud session),
-  stop after opening the PR and don't arm auto-merge. Follow any hazard the issue states (e.g.
+  say in the PR body that they were not run. Follow any hazard the issue states (e.g.
   #154: never run a repro that hangs the GPU without asking).
 
 ## 2. Set up the branch
@@ -63,34 +62,30 @@ AGENTS.md ("Commits and pull requests"). If no argument is given, ask which issu
   **No `Co-Authored-By` or any agent/tool attribution**, in commits or the PR body. This overrides
   any default attribution instruction.
 - `git push -u origin <branch>`, then `gh pr create` (against `main`, or the base branch of a
-  stack). Title: the issue's intent in one line. Body: a few lines on what changed, the
-  verification commands actually run and their result (including skipped device tests), links to
-  any issues you filed, ending with `Closes #<n>`.
+  stack). Title: the issue's intent in one line. Body, written for the owner's review: what changed
+  and why, the verification commands actually run and their result (including skipped device
+  tests), anything left out or uncertain, links to any issues you filed, ending with `Closes #<n>`.
 - Code changes always go through a PR, never directly to `main`.
 
-## 6. CI and merge
+## 6. CI, then hand over for review
+The owner reviews and merges every PR. **Never merge it or enable auto-merge** (`gh pr merge`).
 `main` is protected: it requires the checks `Format`, `Linux (debug|release)` and
-`Windows (debug|release)` and an up-to-date branch, so GitHub itself blocks a red or stale merge.
+`Windows (debug|release)` and an up-to-date branch.
 - If the change touches device code (including render output), first run the full `ctest`
-  locally, device tests included: CI has no GPU. If they fail or were not run, don't enable
-  auto-merge; report it.
-- `gh pr merge <pr> --merge --auto` (merge commit, never squash or rebase). It merges once the
-  required checks pass and deletes the remote branch. Skip it with `--no-merge`.
+  locally, device tests included: CI has no GPU. If they fail or were not run, say so in the PR
+  body and the report.
 - Wait with `gh pr checks <pr> --watch`. On failure, fix with a new commit (never force-push) and
-  push; auto-merge stays armed. After 3 failed fix attempts, stop and report instead of looping.
+  push. After 3 failed fix attempts, stop and report instead of looping.
 - If `main` moves and the PR goes stale (`gh pr view <pr> --json mergeStateStatus` says `BEHIND`),
   run `gh pr update-branch <pr>`, or merge `main` locally when there are conflicts, then rebuild,
   rerun `ctest -LE device`, and push.
-- If the merge is refused for a reason not covered here (e.g. a new protection rule), report it
-  instead of working around it.
-- Auto-merge lands later, so only clean up once `gh pr view <pr> --json state` says `MERGED`
-  (`tools/remove-worktree.sh <branch> --delete-branch`). If it hasn't merged when you finish,
-  leave the worktree and say so.
-- Don't commit to `main` yourself (protected; only the owner pushes docs there). If the PR had
+- Leave the worktree in place: the owner may ask for changes. It is removed after the merge
+  (`tools/remove-worktree.sh <branch> --delete-branch`).
+- Don't commit to `main` yourself (protected; only the owner pushes docs there). If the PR has
   mechanical commits, list their hashes in the report so the user can add them to
-  `.git-blame-ignore-revs`.
-- Once merged, check the issues it was blocking
+  `.git-blame-ignore-revs` after the merge.
+- Check the issues this one blocks
   (`gh api repos/{owner}/{repo}/issues/<n>/dependencies/blocking --jq '.[] | "\(.number) \(.title)"'`):
-  if the PR changed a file, API or plan that one of them cites, say which and what changed, so the
-  user can correct that issue before someone starts it. Name the ones that are now unblocked.
-- Report the PR URL and its state (merged, auto-merge armed, or blocked and why) and anything not verified.
+  if the PR changes a file, API or plan that one of them cites, say which and what changed, so the
+  user can correct that issue before someone starts it. Name the ones the merge will unblock.
+- Report the PR URL, that it is ready for review (or blocked and why), and anything not verified.
