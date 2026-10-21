@@ -32,12 +32,13 @@ AGENTS.md ("Commits and pull requests"). If no argument is given, ask which issu
 ## 2. Set up the branch
 - Use the issue's branch name, else `<kind>/<short-slug>` with kind from `fix/ test/ refactor/
   cleanup/ style/ build/ feat/ ci/`.
-- One worktree per PR. If the session is already in a fresh worktree on a throwaway branch, rename
-  the branch (`git branch -m <branch>`); otherwise run
+- One worktree per PR. If the session is already in a fresh worktree on a throwaway branch
+  (`claude/…`), rename the branch (`git branch -m <branch>`) before the first commit; otherwise run
   `tools/new-worktree.sh <branch> [base]` from Git Bash (on PowerShell call
   `& "C:\Program Files\Git\bin\bash.exe" tools/new-worktree.sh <branch>`). If the issue builds on
   an unmerged PR, pass that branch as `base`.
-- A worktree made some other way still needs `cmake --preset windows-clang-debug`.
+- The `SessionStart` hook configures a worktree made some other way; if its output says the
+  configure failed, run `cmake --preset windows-clang-debug` again before building.
 
 ## 3. Implement
 - Match the conventions of the code being edited (new RHI vs legacy style, see AGENTS.md).

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/tools/init-submodules.sh\" --quiet",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/tools/session-start.sh\"",
             "timeout": 300
           }
         ]
