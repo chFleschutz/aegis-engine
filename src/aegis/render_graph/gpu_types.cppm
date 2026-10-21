@@ -1,3 +1,6 @@
+module;
+#include "aegis/base/flags.h"
+
 export module aegis.render_graph:gpu_types;
 import std;
 import :frustum;
@@ -43,6 +46,14 @@ enum class ToneMapping : std::int32_t
     Aces = 1,
 };
 
+/// @brief indirect_draw.slang's INSTANCE_* bits: InstanceData::flags.
+enum class InstanceFlags : std::uint32_t
+{
+    None = 0,
+    Mirrored = 1 << 0, // The model matrix has a negative determinant: its triangles wind the other way
+};
+AEGIS_FLAGS(InstanceFlags)
+
 // Buffers ---------------------------------------------------------------------------------------------
 
 /// @brief common::Camera: the main camera, written by the scene update pass once per frame. Matrices are
@@ -66,6 +77,7 @@ struct InstanceData
     rhi::DeviceAddress mesh;     // assets::MeshGpuData
     rhi::DeviceAddress material; // assets::Material parameter block (common::PbrMaterial)
     std::uint32_t drawBatch;
+    InstanceFlags flags;
 };
 
 /// @brief culling.slang's DrawBatch: where a draw batch's instances live in the visibility and indirect
@@ -235,26 +247,31 @@ struct BrdfLutConstants
 
 export namespace aegis::render_graph::detail
 {
-/// @brief A model matrix as shaders read it: its top three rows, and the rows of its normal matrix.
-///        Copy the members into InstanceData or StaticMeshConstants.
+/// @brief A model matrix as shaders read it: its top three rows, the rows of its normal matrix, and
+///        whether it mirrors. Copy the members into InstanceData or StaticMeshConstants; the CPU-driven
+///        path has no flags in its constants and picks a pipeline with the other front face instead.
 struct GpuTransform
 {
     glm::mat3x4 model; // Row r of the model matrix is model[r], translation in .w
     glm::vec3 normalRow0;
     glm::vec3 normalRow1;
     glm::vec3 normalRow2;
+    InstanceFlags flags{ InstanceFlags::None };
 };
 
 /// @brief The row-major form of 'model' for shaders. The normal matrix is the inverse transpose of the
-///        upper 3x3; its rows are the columns of the inverse, which is how glm stores them.
+///        upper 3x3; its rows are the columns of the inverse, which is how glm stores them. A negative
+///        determinant (a mirror, e.g. a scale of -1 on one axis) sets InstanceFlags::Mirrored.
 [[nodiscard]] inline auto toGpuTransform(const glm::mat4& model) -> GpuTransform
 {
-    const auto normalMatrix = glm::inverse(glm::mat3{ model });
+    const glm::mat3 linear{ model };
+    const auto normalMatrix = glm::inverse(linear);
     return {
         .model = glm::mat3x4{ glm::rowMajor4(model) },
         .normalRow0 = normalMatrix[0],
         .normalRow1 = normalMatrix[1],
         .normalRow2 = normalMatrix[2],
+        .flags = glm::determinant(linear) < 0.0f ? InstanceFlags::Mirrored : InstanceFlags::None,
     };
 }
 }

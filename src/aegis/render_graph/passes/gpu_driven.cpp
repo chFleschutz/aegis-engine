@@ -52,6 +52,7 @@ auto makeInstance(const aegis::GlobalTransform& transform, const assets::StaticM
         .mesh = mesh.meshDataAddress(),
         .material = material.parameterAddress(frameIndex),
         .drawBatch = drawBatch,
+        .flags = gpuTransform.flags,
     };
 }
 

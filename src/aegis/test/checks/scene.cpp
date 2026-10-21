@@ -71,6 +71,8 @@ auto Engine::createScene() -> std::expected<void, std::string>
     if (!helmet)
         return std::unexpected{ std::format("Loading the helmet: {}", assets::describe(helmet.error())) };
     m_helmet = instantiate(registry, *helmet);
+    if (m_options.mirror)
+        registry.get<aegis::Transform>(m_helmet).scale.x = -1.0f;
 
     // No platform backend: the UI is drawn, not interacted with.
     m_imgui = ImGuiContextHandle{ ImGui::CreateContext() };

@@ -32,6 +32,7 @@ struct Options
     bool scene{ false };       // Render a loaded scene through the render graph instead of the triangle
     bool gpuDriven{ false };   // With --scene: the GPU-driven (mesh shader) geometry path
     bool mutateScene{ false }; // With --scene: change the loaded scene while frames are in flight (see mutateScene())
+    bool mirror{ false };      // With --scene: mirror the helmet (a scale of -1 on x), which must not turn it inside out
     std::string screenshot;    // Headless: save the last frame here as PNG
     std::string compare;       // Headless: fail unless the last frame matches this reference PNG (see compareToReference())
     int tolerance{ 0 };        // With --compare: the largest per-channel difference (0-255) a pixel may have

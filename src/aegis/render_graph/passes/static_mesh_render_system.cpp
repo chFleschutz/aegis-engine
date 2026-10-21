@@ -1,5 +1,6 @@
 module aegis.render_graph;
 import std;
+import aegis.base;
 import aegis.assets;
 import aegis.world.render_components;
 import aegis.rhi;
@@ -26,7 +27,18 @@ auto StaticMeshRenderSystem::createResources(rhi::Device& device, const RenderTa
         });
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
+    // A mirrored model matrix reverses the winding of every triangle, so its front faces are clockwise.
+    auto mirrored = createGraphicsPipeline(device, m_shader,
+        rhi::Pipeline::GraphicsDesc{
+            .name = "StaticMeshesMirrored",
+            .colorAttachments = targets.colorAttachments,
+            .depthAttachment = targets.depthAttachment,
+            .frontFace = rhi::FrontFace::Clockwise,
+        });
+    if (!mirrored)
+        return std::unexpected{ mirrored.error() };
     m_pipeline = std::move(*pipeline);
+    m_mirroredPipeline = std::move(*mirrored);
     return {};
 }
 
@@ -34,6 +46,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
 {
     const auto& cmd = context.cmd;
     cmd.bindPipeline(*m_pipeline);
+    bool boundMirrored{ false };
 
     const assets::Material* lastMaterial{ nullptr };
     auto view = context.scene.registry().view<aegis::GlobalTransform, aegis::MeshRenderer>();
@@ -49,6 +62,11 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
         }
 
         const auto gpuTransform = detail::toGpuTransform(transform.matrix());
+        if (const bool mirrored = base::hasFlag(gpuTransform.flags, InstanceFlags::Mirrored); mirrored != boundMirrored)
+        {
+            cmd.bindPipeline(mirrored ? *m_mirroredPipeline : *m_pipeline);
+            boundMirrored = mirrored;
+        }
         cmd.pushConstants(StaticMeshConstants{
             .model = gpuTransform.model,
             .normalRow0 = gpuTransform.normalRow0,
