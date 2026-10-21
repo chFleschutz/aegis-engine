@@ -206,9 +206,7 @@ auto findCaseClash(std::span<const std::string> paths) -> std::optional<std::pai
 
 auto importerFor(const std::filesystem::path& path) -> std::string_view
 {
-    auto extension = path.extension().generic_string();
-    for (auto& c : extension)
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    const auto extension = lowercase(path.extension().generic_string());
     if (extension == ".gltf" || extension == ".glb" || extension == ".obj")
         return "model";
     if (extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".tga" || extension == ".bmp")
@@ -245,8 +243,10 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
         std::vector<std::string> allPaths;
         std::vector<std::filesystem::path> files;
         std::vector<std::filesystem::path> sources; // Foreign files that may need a sidecar
-        for (auto it = std::filesystem::recursive_directory_iterator{ rootPath, ec };
-            it != std::filesystem::recursive_directory_iterator{}; it.increment(ec))
+        // An error while walking ends the walk, so it fails the scan instead of leaving assets out.
+        std::error_code walkError;
+        for (auto it = std::filesystem::recursive_directory_iterator{ rootPath, walkError };
+            !walkError && it != std::filesystem::recursive_directory_iterator{}; it.increment(walkError))
         {
             if (it->is_directory(ec) && it->path().filename() == cacheFolder)
             {
@@ -255,13 +255,16 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
             }
             if (!it->is_regular_file(ec))
                 continue;
-            const auto relative = std::filesystem::relative(it->path(), rootPath).generic_string();
+            const auto relative = it->path().lexically_relative(rootPath).generic_string();
             allPaths.push_back(relative);
             if (isSidecar(it->path()) || isNativeFile(it->path()))
                 files.push_back(it->path());
             else if (desc.createSidecars && !database.m_roots[root].readOnly && !importerFor(it->path()).empty())
                 sources.push_back(it->path());
         }
+        if (walkError)
+            return makeError(ErrorCode::FileNotFound,
+                std::format("cannot read the asset root '{}': {}", rootPath.generic_string(), walkError.message()));
         for (const auto& source : sources)
         {
             const auto meta = sidecarPath(source);
@@ -277,7 +280,7 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
                 out << writeSidecar(sidecar);
             else
                 return makeError(ErrorCode::FileNotFound, std::format("cannot write '{}'", meta.generic_string()));
-            allPaths.push_back(std::filesystem::relative(meta, rootPath).generic_string());
+            allPaths.push_back(meta.lexically_relative(rootPath).generic_string());
             files.push_back(meta);
         }
         if (const auto clash = detail::findCaseClash(allPaths))
@@ -287,7 +290,7 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
 
         for (const auto& file : files)
         {
-            const auto relative = std::filesystem::relative(file, rootPath).generic_string();
+            const auto relative = file.lexically_relative(rootPath).generic_string();
             const auto stamp = stampOf(file);
 
             std::optional<std::vector<AssetEntry>> entries;
@@ -369,7 +372,7 @@ auto AssetDatabase::addSubAssets(std::size_t root, std::string_view path, std::s
             return makeError(ErrorCode::InvalidData,
                 std::format("ID {} for '{}' ({}) is already used by '{}'", id, path, key, existing->path));
         }
-        const AssetEntry entry{ id, root, std::string{ path }, key, {} };
+        const AssetEntry entry{ id, root, std::string{ path }, key, {}, {} };
         m_entries.insert(std::ranges::lower_bound(m_entries, id, {}, &AssetEntry::id), entry);
     }
     return {};
