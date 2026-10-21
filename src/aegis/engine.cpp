@@ -296,7 +296,7 @@ auto Engine::createRenderer() -> std::expected<void, EngineError>
 
 auto Engine::createAssets() -> std::expected<void, EngineError>
 {
-    auto assets = AssetLoader::create(*m_device, FRAMES_IN_FLIGHT);
+    auto assets = AssetLibrary::create(*m_device, FRAMES_IN_FLIGHT);
     if (!assets)
         return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, assets.error()) };
     m_assets.emplace(std::move(*assets));

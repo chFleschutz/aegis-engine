@@ -114,6 +114,10 @@ auto toText(FieldKind kind, const Value& value, std::span<const EnumEntry> enumE
         if (auto* v = std::get_if<glm::quat>(&value))
             return joinComponents(std::to_array({ v->x, v->y, v->z, v->w }));
         return mismatch(kind);
+    case FieldKind::AssetRef:
+        if (auto* v = std::get_if<std::uint64_t>(&value))
+            return *v == 0 ? std::string{} : std::format("{:016x}", *v);
+        return mismatch(kind);
     case FieldKind::Enum:
         if (auto* v = std::get_if<std::int64_t>(&value))
         {
@@ -171,6 +175,18 @@ auto fromText(FieldKind kind, std::string_view text, std::span<const EnumEntry> 
         auto c = parseComponents<4>(text);
         // glm::quat's constructor takes (w, x, y, z); the text is "x y z w".
         return c ? std::expected<Value, Error>{ glm::quat{ (*c)[3], (*c)[0], (*c)[1], (*c)[2] } } : std::unexpected{ c.error() };
+    }
+    case FieldKind::AssetRef:
+    {
+        if (text.empty())
+            return Value{ std::uint64_t{ 0 } };
+        // Exactly 16 lowercase hex digits, as asset IDs are written in files.
+        const bool hex = std::ranges::all_of(text, [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
+        if (text.size() != 16 || !hex)
+            return makeError(ErrorCode::ParseError, std::format("'{}' is not an asset ID (16 lowercase hex digits)", text));
+        std::uint64_t id = 0;
+        std::from_chars(text.data(), text.data() + text.size(), id, 16);
+        return Value{ id };
     }
     case FieldKind::Enum:
         for (const auto& entry : enumEntries)

@@ -136,7 +136,7 @@ auto InstanceUpdatePass::rebuildStatic(ResourcePool& pool, aegis::world::World& 
     {
         if (renderer.mesh && renderer.material && m_drawBatches.batchId(*renderer.material->materialTemplate()) &&
             seen.insert(renderer.material.get()).second)
-            m_staticMaterials.push_back(renderer.material);
+            m_staticMaterials.push_back(renderer.material.shared());
     }
 }
 

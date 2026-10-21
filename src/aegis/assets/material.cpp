@@ -146,6 +146,14 @@ Material::~Material()
     m_device.free(m_buffer);
 }
 
+auto Material::copy() const -> std::expected<std::shared_ptr<Material>, Error>
+{
+    auto material = create(m_device, m_template, static_cast<std::uint32_t>(m_dirty.size()));
+    if (material)
+        (*material)->m_overrides = m_overrides;
+    return material;
+}
+
 auto Material::setParameter(const std::string& name, MaterialValue value) -> std::expected<void, Error>
 {
     if (auto valid = m_template->check(name, value); !valid)

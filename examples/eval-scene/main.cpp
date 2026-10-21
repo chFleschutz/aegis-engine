@@ -1,4 +1,6 @@
 #include <aegis/core/assert.h>
+#include <cstdio>
+#include <cstdlib>
 
 import std;
 import aegis.engine;
@@ -10,6 +12,15 @@ std::mt19937 rng{ std::random_device{}() };
 auto uniformFloat(float min, float max) -> float
 {
     return std::uniform_real_distribution<float>(min, max)(rng);
+}
+
+// A model the assets project does not ship: its ID, or exit with where to get it (in release builds too).
+auto downloadedModel(aegis::AssetLibrary& assets, std::string_view path, std::string_view source) -> aegis::assets::AssetId
+{
+    if (const auto id = assets.find(path))
+        return *id;
+    std::println(stderr, "'{}' not found! Please download it from '{}' and place it in the assets project.", path, source);
+    std::exit(EXIT_FAILURE);
 }
 }
 
@@ -27,12 +38,12 @@ public:
         auto& registry = scene.registry();
 
         registry.get<aegis::Sky>(registry.first<aegis::Sky>()).environment =
-            assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
+            assets.loadEnvironment(assets.id("Environments/KloppenheimSky.hdr"));
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-        assets.loadModel(scene, paths::assets() / "Sponza/Sponza.gltf");
+        assets.instantiate(scene, assets.id("Sponza/Sponza.gltf"));
         registry.get<Transform>(scene.mainCamera()) = Transform{
             .location = { -9.75f, 1.2f, 5.25f },
             .rotation = glm::radians(glm::vec3{ -12.0f, 0.0f, 263.0f })
@@ -59,16 +70,12 @@ public:
 
         // Environment setup
         registry.get<aegis::Sky>(registry.first<aegis::Sky>()).environment =
-            assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
+            assets.loadEnvironment(assets.id("Environments/KloppenheimSky.hdr"));
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-        std::filesystem::path bistroPath = paths::assets() / "../../temp/Bistro/bistro.gltf";
-        AGX_ASSERT_X(std::filesystem::exists(bistroPath),
-            "Bistro scene not found! Please download the scene from 'https://github.com/zeux/niagara_bistro' and place it in the 'temp/Bistro' folder.");
-
-        assets.loadModel(scene, bistroPath);
+        assets.instantiate(scene, downloadedModel(assets, "temp/Bistro/bistro.gltf", "https://github.com/zeux/niagara_bistro"));
         registry.get<Transform>(scene.mainCamera()) = Transform{
             .location = { -24.5f, 2.75f, 5.25f },
             .rotation = glm::radians(glm::vec3{ -1.5f, 0.0f, -90.0f })
@@ -97,7 +104,7 @@ public:
 
         // Environment setup
         registry.get<aegis::Sky>(registry.first<aegis::Sky>()).environment =
-            assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
+            assets.loadEnvironment(assets.id("Environments/KloppenheimSky.hdr"));
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
@@ -118,12 +125,12 @@ public:
             };
         }
 
-        auto scifiHelmet = assets.loadModel(scene, paths::assets() / "SciFiHelmet/SciFiHelmet.gltf");
+        auto scifiHelmet = assets.instantiate(scene, assets.id("SciFiHelmet/SciFiHelmet.gltf"));
         registry.get<Transform>(scifiHelmet).location = { 2.0f, 0.0f, 2.0f };
 
         world::Entity meshEntity = scifiHelmet;
-        std::shared_ptr<aegis::assets::StaticMesh> mesh;
-        std::shared_ptr<aegis::assets::Material> materialInstance;
+        aegis::assets::AssetRef<aegis::assets::StaticMesh> mesh;
+        aegis::assets::AssetRef<aegis::assets::Material> materialInstance;
         while (!registry.has<aegis::MeshRenderer>(meshEntity))
         {
             meshEntity = registry.get<Children>(meshEntity).last;
@@ -177,7 +184,7 @@ public:
 
         // Environment setup
         registry.get<aegis::Sky>(registry.first<aegis::Sky>()).environment =
-            assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
+            assets.loadEnvironment(assets.id("Environments/KloppenheimSky.hdr"));
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
@@ -199,12 +206,12 @@ public:
             };
         }
 
-        auto cube = assets.loadModel(scene, paths::assets() / "Misc/cube.obj");
+        auto cube = assets.instantiate(scene, assets.id("Misc/cube.obj"));
         auto& cubeMesh = registry.get<aegis::MeshRenderer>(cube).mesh;
 
         constexpr int materialCount = 10;
         auto pbrMatTemplate = assets.defaults().pbrTemplate;
-        std::vector<std::shared_ptr<aegis::assets::Material>> cubeMats;
+        std::vector<aegis::assets::AssetRef<aegis::assets::Material>> cubeMats;
         for (int i = 0; i < materialCount; i++)
         {
             auto matInstance = assets.createMaterial(pbrMatTemplate);
@@ -282,7 +289,7 @@ public:
 
         // Environment setup
         registry.get<aegis::Sky>(registry.first<aegis::Sky>()).environment =
-            assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
+            assets.loadEnvironment(assets.id("Environments/KloppenheimSky.hdr"));
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
@@ -293,9 +300,11 @@ public:
 
         scene.addSystem<RotationSystem>();
 
-        auto cube = assets.loadModel(scene, paths::assets() / "Misc/cube.obj");
+        auto cube = assets.instantiate(scene, assets.id("Misc/cube.obj"));
         auto& cubeMesh = registry.get<aegis::MeshRenderer>(cube).mesh;
+        // The cube's material is the shared asset: color a copy, so other cubes keep theirs.
         auto& cubeMat = registry.get<aegis::MeshRenderer>(cube).material;
+        cubeMat = assets.copyMaterial(cubeMat);
         [[maybe_unused]] auto set = cubeMat->setParameter(assets::pbr::albedo, glm::vec3{ 0.8f, 0.1f, 0.1f })
                                         .and_then([&] { return cubeMat->setParameter(assets::pbr::metallic, 1.0f); })
                                         .and_then([&] { return cubeMat->setParameter(assets::pbr::roughness, 0.5f); });
@@ -344,16 +353,12 @@ public:
         auto& registry = scene.registry();
         // Environment setup
         registry.get<aegis::Sky>(registry.first<aegis::Sky>()).environment =
-            assets.loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
+            assets.loadEnvironment(assets.id("Environments/KloppenheimSky.hdr"));
 
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-        std::filesystem::path bistroPath = paths::assets() / "../../temp/Lucy/lucy.gltf";
-        AGX_ASSERT_X(std::filesystem::exists(bistroPath),
-            "Lucy statue model not found! Please download the model from 'https://graphics.stanford.edu/data/3Dscanrep/' and place it in the 'temp/Lucy' folder.");
-
-        assets.loadModel(scene, bistroPath);
+        assets.instantiate(scene, downloadedModel(assets, "temp/Lucy/lucy.gltf", "https://graphics.stanford.edu/data/3Dscanrep/"));
         registry.get<Transform>(scene.mainCamera()) = Transform{
             .location = { 0.0f, 16.0f, 14.0f },
             .rotation = glm::radians(glm::vec3{ -17.0f, 0.0f, 175.0f })

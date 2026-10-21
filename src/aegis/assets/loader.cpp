@@ -132,6 +132,10 @@ private:
             .rootMesh = m_model.rootMesh,
             .nodes = m_model.nodes,
         };
+        for (std::size_t i = 0; i < m_model.images.size(); ++i)
+            model.textures.push_back({ m_model.images[i].name, m_model.images[i].uri, m_textures[i] });
+        for (std::size_t i = 0; i < m_model.materials.size(); ++i)
+            model.materials.push_back({ m_model.materials[i].name, m_materials[i] });
         model.meshes.reserve(m_model.meshes.size());
         for (std::size_t meshIndex = 0; meshIndex < m_model.meshes.size(); ++meshIndex)
         {
@@ -142,7 +146,8 @@ private:
                 auto material = materialFor(primitives[i]);
                 if (!material)
                     return std::unexpected{ material.error() };
-                mesh.primitives.push_back({ .mesh = m_meshes[meshIndex][i], .material = std::move(*material) });
+                mesh.primitives.push_back({ .mesh = AssetRef<StaticMesh>::ready({}, m_meshes[meshIndex][i]),
+                    .material = AssetRef<Material>::ready({}, std::move(*material)) });
             }
         }
         return model;

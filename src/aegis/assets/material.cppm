@@ -86,6 +86,10 @@ public:
         return m_template;
     }
 
+    /// @brief A new material with this one's template and overrides, in its own parameter buffer: what an
+    ///        object changes on its own instead of the shared one.
+    [[nodiscard]] auto copy() const -> std::expected<std::shared_ptr<Material>, Error>;
+
     /// @brief Overrides the template's default.
     /// @return ErrorCode::InvalidArgument, leaving the material unchanged, if MaterialTemplate::check
     ///         rejects 'value'.

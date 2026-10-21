@@ -101,15 +101,28 @@ through a pointer; keep such members as `uint64_t` addresses behind properties (
 
 ### Asset/shader paths (gotcha)
 The `aegis.paths` module (`src/aegis/paths/`) is the one reader of the build-tree locations:
-`aegis::paths::shaders()` (`<build>/shaders`) and `aegis::paths::assets()`
-(`<source>/modules/aegis-assets`). They are PRIVATE compile definitions `AEGIS_SHADER_DIR` and
-`AEGIS_ASSETS_DIR` of `aegis-paths`, read only in `paths.cpp`, so they are **absolute paths fixed at
+`aegis::paths::shaders()` (`<build>/shaders`), `aegis::paths::assets()`
+(`<source>/modules/aegis-assets`), `aegis::paths::content()` (`<source>/content`, the engine content) and
+`aegis::paths::cache()` (`<build>/.aegis`, the asset index). They are PRIVATE compile definitions
+`AEGIS_SHADER_DIR`, `AEGIS_ASSETS_DIR`, `AEGIS_CONTENT_DIR` and `AEGIS_CACHE_DIR` of `aegis-paths`, read only in `paths.cpp`, so they are **absolute paths fixed at
 configure time**, derived from `PROJECT_BINARY_DIR`/`PROJECT_SOURCE_DIR` so the engine also works as an
 `add_subdirectory()` of another project. Running the exe from any cwd is fine, but moving or renaming
 the source tree or the build dir breaks asset/shader loading unless you re-run configure or set the
-environment variables `AEGIS_SHADER_DIR` / `AEGIS_ASSETS_DIR`, which override the baked-in values at
-run time. Use `paths::assets() / "..."` for assets in examples; never add another `-D` path.
+environment variables of the same names, which override the baked-in values at
+run time. Examples name assets through the library, by path inside the project (`assets.id("Misc/cube.obj")`, then
+`assets.instantiate(scene, id)` / `assets.loadEnvironment(id)`); never add another `-D` path.
 `aegis-test` still has its own `AEGIS_TEST_SHADER_PATH` for its fixture shader (built next to it).
+
+### Assets by ID
+`aegis::AssetLibrary` (`src/aegis/asset_library.*`, target `aegis-asset-library`) loads assets by `AssetId`
+and caches them by ID; components store `AssetRef<T>` (`MeshRenderer`, `Sky`). It scans two roots through
+`assets::AssetDatabase`: the project (`aegis-assets` for now; **a `.meta` sidecar with new IDs is written next
+to every source file that has none**, so the submodule shows untracked `.meta` files) and the read-only engine
+content folder `content/` (named in code as `assets::engine::white`, ...). A model file's meshes, materials and
+textures get sub-asset IDs, recorded in its sidecar. Missing assets fall back to engine content with one
+warning. Loaded assets are shared: editing one (a material's parameters) changes every user, so code that
+changes one object's material gives it its own first (`assets.copyMaterial(ref)` / `createMaterial`). Sidecars and the index use glaze (`external/glaze`, include it only in `.cpp` files). Design:
+`docs/asset-system.md`.
 
 ## Two code styles (most important)
 The renderer was rewritten onto a new RHI; the code around it (engine, editor, world, scripting, UI)

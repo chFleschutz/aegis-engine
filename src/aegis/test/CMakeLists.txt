@@ -2,6 +2,7 @@ add_executable(aegis-test main.cpp)
 
 target_link_libraries(aegis-test
     PRIVATE
+        aegis-asset-library
         aegis-assets
         aegis-instantiate
         aegis-math

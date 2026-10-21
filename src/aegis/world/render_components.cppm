@@ -10,14 +10,14 @@ export namespace aegis
 {
 struct MeshRenderer
 {
-    std::shared_ptr<assets::StaticMesh> mesh;
-    std::shared_ptr<assets::Material> material;
+    assets::AssetRef<assets::StaticMesh> mesh;
+    assets::AssetRef<assets::Material> material;
 };
 
 /// @brief The sky of a world: drawn behind the geometry and the source of its image-based lighting.
 ///        The lighting pass uses the first entity that has one.
 struct Sky
 {
-    std::shared_ptr<assets::Environment> environment;
+    assets::AssetRef<assets::Environment> environment;
 };
 }

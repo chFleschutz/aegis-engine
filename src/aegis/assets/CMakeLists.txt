@@ -5,8 +5,10 @@ target_link_libraries(aegis-assets
         aegis-base
         aegis-rhi
         aegis-math
+        aegis-reflect # AssetRef is a reflected field kind
     PRIVATE
         fastgltf
+        glaze::glaze
         meshoptimizer
         stb
         tinyobjloader
@@ -15,9 +17,13 @@ target_link_libraries(aegis-assets
 target_sources(aegis-assets
     PUBLIC
     FILE_SET CXX_MODULES FILES
+    asset_database.cppm
+    asset_id.cppm
     asset_key.cppm
+    asset_ref.cppm
     assets.cppm
     defaults.cppm
+    engine_content.cppm
     environment.cppm
     error.cppm
     gpu_types.cppm
@@ -27,10 +33,14 @@ target_sources(aegis-assets
     material.cppm
     mesh_data.cppm
     mesh_preprocessor.cppm
+    sidecar.cppm
     static_mesh.cppm
+    sub_asset_key.cppm
     texture.cppm
     upload.cppm
     PRIVATE
+    asset_database.cpp
+    asset_id.cpp
     defaults.cpp
     gltf_import.cpp
     image_data.cpp
@@ -39,6 +49,8 @@ target_sources(aegis-assets
     mesh_preprocessor.cpp
     model_import.cpp
     obj_import.cpp
+    sidecar.cpp
     static_mesh.cpp
+    sub_asset_key.cpp
     texture.cpp
 )

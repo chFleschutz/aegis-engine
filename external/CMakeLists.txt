@@ -32,3 +32,8 @@ set(DOCTEST_NO_INSTALL ON)
 # tests/test_main.cpp compiles doctest's main once; its prebuilt doctest_with_main (~30 TUs) goes unused.
 set(DOCTEST_WITH_MAIN_IN_STATIC_LIB OFF)
 add_subdirectory(doctest)
+
+# glaze is header-only; its templates are heavy, so only .cpp files include it.
+set(glaze_DEVELOPER_MODE OFF)
+set(glaze_BUILD_EXAMPLES OFF)
+add_subdirectory(glaze)

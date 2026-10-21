@@ -1,0 +1,16 @@
+{
+  "id": "a3f09c2e4b1d7788",
+  "importer": "gltf",
+  "importerVersion": 1,
+  "settings": {
+    "upAxis": "Y",
+    "handedness": "Right",
+    "scale": 1,
+    "strictNames": false
+  },
+  "subAssets": {
+    "Material/HelmetMat": "c4d8e1a07b2f9036",
+    "StaticMesh/Helmet/0": "1f6b2c0d93ae5547",
+    "Texture/Helmet_albedo.png": "08e3f5b6a1c47d29"
+  }
+}
