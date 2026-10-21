@@ -868,6 +868,16 @@ public:
         if (!same(albedoOf(*shared), original) || same(albedoOf(*copy), original))
             return fail("Changing a material copy must change it and not the shared material");
 
+        // The engine cube's parts have the IDs its read-only sidecar records (a scan of the folder alone),
+        // including the default material, so references to them survive a restart.
+        const auto content = assets::AssetDatabase::scan({ .roots = { { paths::content(), true } } });
+        if (!content)
+            return fail(std::format("Scanning the engine content: {}", assets::describe(content.error())));
+        const auto cube = library->loadModel(assets::engine::cube);
+        const auto& cubePrimitive = cube->meshes.at(0).primitives.at(0);
+        if (cubePrimitive.mesh.id() != content->find(0, "cube.obj", "StaticMesh/cube/0") ||
+            cubePrimitive.material.id() != content->find(0, "cube.obj", assets::SubAssetKeys::defaultMaterial))
+            return fail("The engine cube's mesh and default material must have the IDs of its sidecar");
 
         if (auto result = flushAndWait(); !result)
             return result;

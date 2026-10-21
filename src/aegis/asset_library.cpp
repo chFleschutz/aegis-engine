@@ -221,17 +221,6 @@ public:
     }
 
 private:
-    auto readSidecar(const assets::AssetEntry& entry) const -> std::optional<assets::Sidecar>
-    {
-        const auto text = readFile(assets::sidecarPath(m_database.absolutePath(entry)));
-        if (!text)
-            return std::nullopt;
-        auto sidecar = assets::parseSidecar(*text);
-        if (!sidecar)
-            return std::nullopt;
-        return std::move(*sidecar);
-    }
-
     // Loads the model file that 'part' belongs to, which fills the slots of all its parts.
     auto loadOwner(const assets::AssetEntry& part) -> void
     {
@@ -313,11 +302,43 @@ private:
         });
     }
 
+    // The sidecar of a model file, and why writing it back would lose something (empty if it would not).
+    struct ModelSidecar
+    {
+        assets::Sidecar sidecar;
+        std::string keepReason;
+    };
+
+    // Reads the sidecar registerParts adds new parts to. It is rewritten only when it is in the exact form
+    // writeSidecar gives (line endings aside): comments, keys this version does not know and hand edits are
+    // never lost, and an unreadable sidecar is never replaced by a fresh one.
+    auto readModelSidecar(const assets::AssetEntry& entry) const -> ModelSidecar
+    {
+        ModelSidecar result{ .sidecar = { .id = entry.id, .importer = "model" }, .keepReason = {} };
+        if (m_database.roots()[entry.root].readOnly)
+            result.keepReason = "its folder is read-only";
+
+        auto text = readFile(assets::sidecarPath(m_database.absolutePath(entry)));
+        if (!text)
+            return result;
+        auto sidecar = assets::parseSidecar(*text);
+        if (!sidecar)
+        {
+            result.keepReason = std::format("it does not parse: {}", assets::describe(sidecar.error()));
+            return result;
+        }
+        std::erase(*text, '\r');
+        if (result.keepReason.empty() && assets::writeSidecar(*sidecar) != *text)
+            result.keepReason = "it differs from the written form (comments, unknown keys or hand edits) that rewriting would lose";
+        result.sidecar = std::move(*sidecar);
+        return result;
+    }
+
     // Gives the parts of a freshly loaded model their IDs from the file's sidecar (new parts get new IDs,
     // recorded in it), fills their slots, and points the model's primitives at those slots.
     auto registerParts(const assets::AssetEntry& entry, assets::Model& model) -> std::expected<void, assets::Error>
     {
-        auto sidecar = readSidecar(entry).value_or(assets::Sidecar{ .id = entry.id, .importer = "model" });
+        auto [sidecar, keepReason] = readModelSidecar(entry);
         const auto known = sidecar.subAssets.size();
         assets::SubAssetKeys keys{ sidecar.settings.strictNames };
 
@@ -338,14 +359,17 @@ private:
                 return std::unexpected{ std::move(key.error()) };
             textureIds.push_back(addPart(*key));
         }
+        std::unordered_map<const assets::Material*, AssetRef<assets::Material>> materialRefs;
         for (std::size_t i = 0; i < model.materials.size(); ++i)
         {
             auto key = keys.name("Material", model.materials[i].name, i);
             if (!key)
                 return std::unexpected{ std::move(key.error()) };
             materialIds.push_back(addPart(*key));
+            materialRefs.emplace(model.materials[i].material.get(), AssetRef<assets::Material>{});
         }
         std::vector<std::vector<AssetId>> meshIds;
+        AssetId defaultMaterialId; // Of the load's default material, if a primitive has no material of the file
         for (std::size_t i = 0; i < model.meshes.size(); ++i)
         {
             auto key = keys.name("StaticMesh", model.meshes[i].name, i);
@@ -353,13 +377,20 @@ private:
                 return std::unexpected{ std::move(key.error()) };
             auto& ids = meshIds.emplace_back();
             for (std::size_t j = 0; j < model.meshes[i].primitives.size(); ++j)
+            {
                 ids.push_back(addPart(assets::SubAssetKeys::withIndex(*key, j)));
+                if (!defaultMaterialId.valid() && !materialRefs.contains(model.meshes[i].primitives[j].material.get()))
+                    defaultMaterialId = addPart(std::string{ assets::SubAssetKeys::defaultMaterial });
+            }
         }
 
-        if (sidecar.subAssets.size() != known && !m_database.roots()[entry.root].readOnly)
+        if (sidecar.subAssets.size() != known)
         {
             const auto path = assets::sidecarPath(m_database.absolutePath(entry));
-            if (std::ofstream out{ path, std::ios::binary })
+            if (!keepReason.empty())
+                log::warn("'{}' lacks {} part(s) and is not rewritten ({}); they get new IDs every run",
+                    path.generic_string(), sidecar.subAssets.size() - known, keepReason);
+            else if (std::ofstream out{ path, std::ios::binary })
                 out << assets::writeSidecar(sidecar);
             else
                 log::warn("Cannot write the sidecar '{}'; the parts of this model get new IDs next run", path.generic_string());
@@ -369,10 +400,8 @@ private:
 
         for (std::size_t i = 0; i < model.textures.size(); ++i)
             m_textures.fill(textureIds[i], model.textures[i].texture);
-
-        std::unordered_map<const assets::Material*, AssetRef<assets::Material>> materialRefs;
         for (std::size_t i = 0; i < model.materials.size(); ++i)
-            materialRefs.emplace(model.materials[i].material.get(), m_materials.fill(materialIds[i], model.materials[i].material));
+            materialRefs[model.materials[i].material.get()] = m_materials.fill(materialIds[i], model.materials[i].material);
 
         for (std::size_t i = 0; i < model.meshes.size(); ++i)
         {
@@ -381,10 +410,10 @@ private:
                 auto& primitive = model.meshes[i].primitives[j];
                 primitive.mesh = m_meshes.fill(meshIds[i][j], primitive.mesh.shared());
 
-                // Primitives without a material share the load's default material, which is no part of the file.
-                auto [it, inserted] = materialRefs.try_emplace(primitive.material.get(), AssetRef<assets::Material>{});
+                // Primitives without a material share the load's one default material (see Loader).
+                auto [it, inserted] = materialRefs.try_emplace(primitive.material.get());
                 if (inserted)
-                    it->second = m_materials.fill(AssetId::generate(), primitive.material.shared());
+                    it->second = m_materials.fill(defaultMaterialId, primitive.material.shared());
                 primitive.material = it->second;
             }
         }

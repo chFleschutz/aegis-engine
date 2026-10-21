@@ -30,6 +30,10 @@ public:
     /// @brief 'key' + "/<index>", for a part that is a position inside another part.
     [[nodiscard]] static auto withIndex(std::string_view key, std::size_t index) -> std::string;
 
+    /// @brief The key of the material a model's primitives without one share (no part of the file, but
+    ///        referenced like one). An unescaped '#' that is no position, so no material name can produce it.
+    static constexpr std::string_view defaultMaterial{ "Material/#default" };
+
     /// @brief The messages of the warnings so far.
     [[nodiscard]] auto warnings() const noexcept -> const std::vector<std::string>& { return m_warnings; }
 

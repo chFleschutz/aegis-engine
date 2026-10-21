@@ -63,6 +63,14 @@ TEST_SUITE("assets::SubAssetKeys")
         CHECK(keys.name("Material", "Cube", 2) == "Material/Cube#1");
     }
 
+    TEST_CASE("no material name produces the default material key")
+    {
+        SubAssetKeys keys;
+        CHECK(keys.name("Material", "#default", 0) != SubAssetKeys::defaultMaterial);
+        CHECK(keys.name("Material", "default", 1) != SubAssetKeys::defaultMaterial);
+        CHECK(keys.name("Material", "", 2) != SubAssetKeys::defaultMaterial);
+    }
+
     TEST_CASE("strictNames turns the warnings into errors")
     {
         SubAssetKeys keys{ true };
