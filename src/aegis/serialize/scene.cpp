@@ -404,7 +404,8 @@ auto saveScene(world::Registry& registry, const reflect::TypeRegistry& types, st
     return scene;
 }
 
-auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& scene) -> std::expected<void, Error>
+auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& scene, const PrepareComponent& prepare)
+    -> std::expected<void, Error>
 {
     for (const SceneEntity& entity : scene.entities)
     {
@@ -435,8 +436,16 @@ auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, 
                     .message = std::format("'{}' was not registered with world::registerComponent", component.type->name),
                     .line = component.fields.line });
             }
-            if (auto loaded = loadFields(component, storage->emplace(registry, entity)); !loaded)
+            auto value = component.type->create();
+            if (!value)
+            {
+                return fail(Error{ .code = ErrorCode::UnknownType, .message = std::format("cannot create '{}'", component.type->name), .line = component.fields.line, .reflect = value.error() });
+            }
+            if (auto loaded = loadFields(component, value->get()); !loaded)
                 return fail(loaded.error());
+            if (prepare)
+                prepare(*component.type, value->get());
+            storage->add(registry, entity, value->get());
         }
 
         for (const SceneComponent& script : saved.scripts)

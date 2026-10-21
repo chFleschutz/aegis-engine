@@ -76,9 +76,15 @@ struct Scene
 // world::registerComponent) and scripts, as the scene `id`.
 [[nodiscard]] auto saveScene(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id) -> std::expected<Scene, Error>;
 
+// Finishes a component read from a scene file before it joins its entity: `component` is an instance of `type`
+// with the file's fields set. The asset library loads the asset references here, which the file gives as IDs.
+using PrepareComponent = std::function<void(const reflect::TypeInfo& type, void* component)>;
+
 // Creates the scene's entities in `registry`, keeping their IDs (a world's root scene), with their components,
-// scripts and hierarchy. Asset references come out unresolved (an ID without a slot) for the asset library to
-// load. On failure (an ID the registry already uses, a value that does not fit its field) nothing is created.
-[[nodiscard]] auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& scene)
-    -> std::expected<void, Error>;
+// scripts and hierarchy. Each component is built complete (its fields read, then `prepare`) before it is added,
+// so observers of its construction see the final value; without `prepare`, asset references stay unresolved
+// (an ID without a slot). On failure (an ID the registry already uses, a value that does not fit its field, a
+// type that cannot be created) nothing is created.
+[[nodiscard]] auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& scene,
+    const PrepareComponent& prepare = {}) -> std::expected<void, Error>;
 }
