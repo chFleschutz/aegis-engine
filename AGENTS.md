@@ -72,14 +72,25 @@ success code: test `has_value()`, read `.error()` and `*result`. Calls with seve
 
 ### Examples (visual smoke tests of the engine)
 Executable targets are the PascalCase `project()` names: `Simple-Scene`, `Sponza`, `Eval-Scene`,
-`Helmets`, `Template-Scene`; each lives in `examples/<lowercased-name>`. Build one and run its exe:
+`Helmets`, plus `Template` / `Template-Editor`; each lives in `examples/<lowercased-name>`. Build one and
+run its exe:
 
     cmake --build --preset windows-clang-debug --target Simple-Scene
     build\windows-clang-debug\examples\simple-scene\Simple-Scene.exe
 
-`Template-Scene` is empty (safest smoke test); `Simple-Scene` is the simplest content scene. Content
+`Template` is empty (safest smoke test); `Simple-Scene` is the simplest content scene. Content
 scenes need the `aegis-assets` submodule. Report whether it built clean (warnings are errors) and the
 window rendered; on a build failure, surface the first real error, not the downstream cascade.
+
+**Games** (`cmake/AegisGame.cmake`, D7): `aegis_add_game(<Name> SOURCES … PROJECT <dir>)` builds the
+game's sources once (an OBJECT library) into `<Name>` (runtime, no `aegis-editor`) and `<Name>-Editor`
+around the engine's launcher, `src/aegis/launch/main.cpp`, the only `main()`. One game source file ends
+with `AEGIS_GAME_MODULE({ .name = …, .registerTypes = …, .onStartup = … })` (`aegis/launch/game_module.h`).
+The launcher finds the project by `--project <dir>`, then `project/` next to the executable, then
+`PROJECT` (`paths::locate`); the shaders and the engine content are found the same way. Nothing is
+copied next to the executables: a development build uses the build and source trees, and laying out a
+copied or installed game is the export step (#134). `Template` is the first game; the other examples
+follow in #167.
 
 The examples render through the `Engine` facade, but they open a window and have no pass/fail
 signal — validation errors only go to stderr. Verify RHI work with `aegis-test` first (see
@@ -109,7 +120,9 @@ configure time**, derived from `PROJECT_BINARY_DIR`/`PROJECT_SOURCE_DIR` so the 
 `add_subdirectory()` of another project. Running the exe from any cwd is fine, but moving or renaming
 the source tree or the build dir breaks asset/shader loading unless you re-run configure or set the
 environment variables of the same names, which override the baked-in values at
-run time. Examples name assets through the library, by path inside the project (`assets.id("Misc/cube.obj")`, then
+run time. Shaders and content are looked up first in `shaders/` and `content/` next to the executable
+(after the variable, before the baked-in path), for a copied or installed game; a development build
+has nothing there. Examples name assets through the library, by path inside the project (`assets.id("Misc/cube.obj")`, then
 `aegis::instantiate(context, id)` for a model or scene file / `assets.loadEnvironment(id)`); never add another `-D` path.
 `aegis-test` still has its own `AEGIS_TEST_SHADER_PATH` for its fixture shader (built next to it).
 
@@ -224,7 +237,7 @@ descriptions.
 CMake or CI). Docs-only changes may be committed to `main` directly.
 
 **Planned work:** GitHub issues are the work items, grouped into milestones (`M6`, `M7`, `M9`,
-then `Backlog`), with dependencies as "Blocked by" relations. An issue body holds the branch, size,
+`M10`, then `Backlog`), with dependencies as "Blocked by" relations. An issue body holds the branch, size,
 design refs (D-n), the finding IDs it closes, content, out of scope, "done when" and verification.
 Labels: the kind (`bug`, `feature`, `refactor`, `cleanup`, `style`, `build`, `ci`, `tests`,
 `documentation`) matches the branch prefix; `size/*`; `area/*` (don't run two items with the same
@@ -282,7 +295,7 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
 
 doctest covers **pure, GPU-independent logic** in any module. One
 executable per module (`aegis-tests-base`, `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
-`aegis-tests-math`, `aegis-tests-world`), each linking only that module's library. Layout, conventions, how to add a
+`aegis-tests-math`, `aegis-tests-paths`, `aegis-tests-world`), each linking only that module's library. Layout, conventions, how to add a
 module, and the full rationale: **`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*

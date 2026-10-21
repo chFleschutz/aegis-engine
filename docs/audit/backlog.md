@@ -1,7 +1,8 @@
 # Foundation plan: decisions and milestones
 
 The work from [report.md](report.md) §7. The work items are GitHub issues, grouped into milestones
-(`M1`–`M9`, then "Backlog"), with their dependencies as "Blocked by" relations; labels give the kind,
+(`M1`–`M10`, then "Backlog"; the numbers are IDs in creation order, not the working order), with
+their dependencies as "Blocked by" relations; labels give the kind,
 size, area and the `needs-gpu` / `needs-design` flags (AGENTS.md "Planned work"). This file keeps
 what the issues don't: the decisions with their reasons, and each milestone's goal and working
 order. Status lives only in the issues: an assigned issue is being worked on.
@@ -161,10 +162,25 @@ mirrored-instance fix ([#171]) has landed.
 ([`docs/editor-runtime-split.md`](../editor-runtime-split.md)). The launcher follows scene files,
 in two steps: the engine stops linking the editor ([#182]), then the launcher itself ([#132]). The
 examples become one game ([#167]) after it and scene instances, one example per commit.
-The editor becomes a library ([#83]), then the registry-driven inspector ([#133]), undo ([#165]) and
-play-in-editor with saving ([#166]). `aegis-test`: the per-check split ([#170]) can start any time;
+The editor becomes a library ([#83]); building the editor itself is M10. `aegis-test`: the per-check split ([#170]) can start any time;
 running its scenes through the app ([#84]) follows [#132]. Last, the legacy core goes ([#172], after
 [#83]) and `aegis.base` becomes `aegis.core` ([#85]).
+
+**[M10. Editor][m10]** builds the editor on the runtime ([`docs/editor.md`](../editor.md)). It
+starts once [#83] (M9) has made the editor a library.
+- **Editor steps,** one at a time, since all are `area/editor`: the viewport ([#200]), the
+  registry-driven inspector ([#133]), undo of field edits ([#165]) and of structural edits ([#201]),
+  play-in-editor with saving ([#166]), the asset browser ([#202]) and the console ([#203]). A headless
+  smoke test ([#205]) comes first and grows with them.
+- **Runtime prerequisites,** in other lanes, ahead of the steps that need them:
+  - type metadata and change hooks ([#191]);
+  - render views ([#192]) and UI textures ([#193]);
+  - several worlds ([#194]) and subtree snapshots ([#195]);
+  - asset types in the database ([#196]);
+  - child order ([#197]);
+  - window scale and close veto ([#198]);
+  - log sinks ([#199]).
+- **Last,** the UI design is tested and refined ([#204], `needs-design`).
 
 **Lanes.** With three agents, run one lane each: assets (M6), render (M7, then [#135]), tooling
 ([#170], [#136]). M9 starts once [#131] is merged.
@@ -215,6 +231,7 @@ file format and the asset cache are now planned: [#131], [#137], [#140], [#142].
 [m7]: https://github.com/chFleschutz/aegis-engine/milestone/7
 [m8]: https://github.com/chFleschutz/aegis-engine/milestone/8?closed=1
 [m9]: https://github.com/chFleschutz/aegis-engine/milestone/10
+[m10]: https://github.com/chFleschutz/aegis-engine/milestone/11
 [later]: https://github.com/chFleschutz/aegis-engine/milestone/9
 [#2]: https://github.com/chFleschutz/aegis-engine/issues/2
 [#9]: https://github.com/chFleschutz/aegis-engine/issues/9
@@ -266,3 +283,18 @@ file format and the asset cache are now planned: [#131], [#137], [#140], [#142].
 [#181]: https://github.com/chFleschutz/aegis-engine/issues/181
 [#182]: https://github.com/chFleschutz/aegis-engine/issues/182
 [#183]: https://github.com/chFleschutz/aegis-engine/issues/183
+[#191]: https://github.com/chFleschutz/aegis-engine/issues/191
+[#192]: https://github.com/chFleschutz/aegis-engine/issues/192
+[#193]: https://github.com/chFleschutz/aegis-engine/issues/193
+[#194]: https://github.com/chFleschutz/aegis-engine/issues/194
+[#195]: https://github.com/chFleschutz/aegis-engine/issues/195
+[#196]: https://github.com/chFleschutz/aegis-engine/issues/196
+[#197]: https://github.com/chFleschutz/aegis-engine/issues/197
+[#198]: https://github.com/chFleschutz/aegis-engine/issues/198
+[#199]: https://github.com/chFleschutz/aegis-engine/issues/199
+[#200]: https://github.com/chFleschutz/aegis-engine/issues/200
+[#201]: https://github.com/chFleschutz/aegis-engine/issues/201
+[#202]: https://github.com/chFleschutz/aegis-engine/issues/202
+[#203]: https://github.com/chFleschutz/aegis-engine/issues/203
+[#204]: https://github.com/chFleschutz/aegis-engine/issues/204
+[#205]: https://github.com/chFleschutz/aegis-engine/issues/205
