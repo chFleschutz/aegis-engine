@@ -1,5 +1,4 @@
-project(Template-Scene)
-
-add_executable(${PROJECT_NAME} main.cpp)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE Aegis::Engine aegis-editor)
+aegis_add_game(Template
+    SOURCES game.cpp
+    PROJECT project
+)
