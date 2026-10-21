@@ -72,7 +72,6 @@ PUBLIC
 	aegis-rhi
 	aegis-world
 	aegis-ui
-	aegis-editor
 	aegis-scripting
 )
 

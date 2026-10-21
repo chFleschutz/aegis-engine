@@ -1,3 +1,4 @@
+import aegis.editor;
 import aegis.engine;
 
 class Sponza : public aegis::SceneDescription
@@ -35,6 +36,7 @@ auto main(int argc, char** argv) -> int
     auto engine = aegis::createEngine(argc, argv);
     if (!engine)
         return engine.error();
+    (*engine)->pushLayer<aegis::editor::EditorLayer>();
     (*engine)->loadScene<Sponza>();
     return (*engine)->run();
 }

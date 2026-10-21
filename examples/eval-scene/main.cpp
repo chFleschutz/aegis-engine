@@ -3,6 +3,7 @@
 #include <cstdlib>
 
 import std;
+import aegis.editor;
 import aegis.engine;
 
 namespace
@@ -375,6 +376,7 @@ auto main(int argc, char** argv) -> int
     if (!created)
         return created.error();
     auto& engine = **created;
+    engine.pushLayer<aegis::editor::EditorLayer>();
     engine.loadScene<Sponza>();
     //engine.loadScene<Bistro>(); // NOTE: Bistro model not included
     //engine.loadScene<HighPolyHighObj>(0);
