@@ -1,4 +1,21 @@
-add_executable(aegis-test main.cpp)
+add_executable(aegis-test)
+
+target_sources(aegis-test
+    PRIVATE
+    FILE_SET CXX_MODULES FILES
+    test.cppm
+    PRIVATE
+    main.cpp
+    engine.cpp
+    checks/assets.cpp
+    checks/graph.cpp
+    checks/ibl.cpp
+    checks/input.cpp
+    checks/offscreen.cpp
+    checks/rhi.cpp
+    checks/scene.cpp
+    checks/uploads.cpp
+)
 
 target_link_libraries(aegis-test
     PRIVATE
