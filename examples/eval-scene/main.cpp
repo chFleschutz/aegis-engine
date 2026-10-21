@@ -1,4 +1,6 @@
 #include <aegis/core/assert.h>
+#include <cstdio>
+#include <cstdlib>
 
 import std;
 import aegis.engine;
@@ -10,6 +12,15 @@ std::mt19937 rng{ std::random_device{}() };
 auto uniformFloat(float min, float max) -> float
 {
     return std::uniform_real_distribution<float>(min, max)(rng);
+}
+
+// A model the assets project does not ship: its ID, or exit with where to get it (in release builds too).
+auto downloadedModel(aegis::AssetLibrary& assets, std::string_view path, std::string_view source) -> aegis::assets::AssetId
+{
+    if (const auto id = assets.find(path))
+        return *id;
+    std::println(stderr, "'{}' not found! Please download it from '{}' and place it in the assets project.", path, source);
+    std::exit(EXIT_FAILURE);
 }
 }
 
@@ -64,11 +75,7 @@ public:
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-        const auto bistro = assets.find("temp/Bistro/bistro.gltf");
-        AGX_ASSERT_X(bistro,
-            "Bistro scene not found! Please download the scene from 'https://github.com/zeux/niagara_bistro' and place it in the 'temp/Bistro' folder of the assets project.");
-
-        assets.instantiate(scene, *bistro);
+        assets.instantiate(scene, downloadedModel(assets, "temp/Bistro/bistro.gltf", "https://github.com/zeux/niagara_bistro"));
         registry.get<Transform>(scene.mainCamera()) = Transform{
             .location = { -24.5f, 2.75f, 5.25f },
             .rotation = glm::radians(glm::vec3{ -1.5f, 0.0f, -90.0f })
@@ -351,11 +358,7 @@ public:
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-        const auto lucy = assets.find("temp/Lucy/lucy.gltf");
-        AGX_ASSERT_X(lucy,
-            "Lucy statue model not found! Please download the model from 'https://graphics.stanford.edu/data/3Dscanrep/' and place it in the 'temp/Lucy' folder of the assets project.");
-
-        assets.instantiate(scene, *lucy);
+        assets.instantiate(scene, downloadedModel(assets, "temp/Lucy/lucy.gltf", "https://graphics.stanford.edu/data/3Dscanrep/"));
         registry.get<Transform>(scene.mainCamera()) = Transform{
             .location = { 0.0f, 16.0f, 14.0f },
             .rotation = glm::radians(glm::vec3{ -17.0f, 0.0f, 175.0f })
