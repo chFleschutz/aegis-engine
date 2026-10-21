@@ -24,12 +24,16 @@ struct IndexFileFile
     std::string path; // The scanned file's own path, relative to its root
     std::int64_t modified{ 0 };
     std::uint64_t size{ 0 };
+    ImportSettings settings; // A sidecar's settings, which its main entry carries
     std::vector<IndexEntryFile> entries;
 };
 
+// Bumped when the shape changes; an index of another version is rebuilt.
+constexpr std::uint32_t indexVersion{ 2 };
+
 struct IndexFile
 {
-    std::uint32_t version{ 1 };
+    std::uint32_t version{ indexVersion };
     std::vector<IndexFileFile> files;
 };
 
@@ -44,6 +48,14 @@ constexpr WriteOptions writeOptions{ { .prettify = true } };
 }
 
 template<>
+struct glz::meta<aegis::assets::ImportSettings>
+{
+    using T = aegis::assets::ImportSettings;
+    static constexpr auto value = object("upAxis", &T::upAxis, "handedness", &T::handedness, "scale", &T::scale,
+        "strictNames", &T::strictNames, "srgb", &T::srgb);
+};
+
+template<>
 struct glz::meta<aegis::assets::IndexEntryFile>
 {
     using T = aegis::assets::IndexEntryFile;
@@ -55,7 +67,8 @@ struct glz::meta<aegis::assets::IndexFileFile>
 {
     using T = aegis::assets::IndexFileFile;
     static constexpr auto value =
-        object("root", &T::root, "path", &T::path, "modified", &T::modified, "size", &T::size, "entries", &T::entries);
+        object("root", &T::root, "path", &T::path, "modified", &T::modified, "size", &T::size, "settings", &T::settings,
+            "entries", &T::entries);
 };
 
 template<>
@@ -121,16 +134,16 @@ auto readEntries(const std::filesystem::path& file, const std::string& relative,
         if (!sidecar)
             return makeError(sidecar.error().code, std::format("{}: {}", relative, sidecar.error().message));
         const auto source = sourceOf(relative);
-        entries.push_back({ sidecar->id, root, source, {}, {} });
+        entries.push_back({ sidecar->id, root, source, {}, {}, sidecar->settings });
         for (const auto& [key, id] : sidecar->subAssets)
-            entries.push_back({ id, root, source, key, {} });
+            entries.push_back({ id, root, source, key, {}, {} });
     }
     else
     {
         auto header = parseNativeHeader(*text);
         if (!header)
             return makeError(header.error().code, std::format("{}: {}", relative, header.error().message));
-        entries.push_back({ header->id, root, relative, {}, header->type });
+        entries.push_back({ header->id, root, relative, {}, header->type, {} });
     }
     return entries;
 }
@@ -156,6 +169,8 @@ auto loadIndex(const std::filesystem::path& indexFile) -> IndexFile
         log::warn("Ignoring the asset index '{}': {}", indexFile.generic_string(), glz::format_error(result, *text));
         return IndexFile{};
     }
+    if (index.version != indexVersion)
+        return IndexFile{};
     return index;
 }
 
@@ -168,7 +183,7 @@ auto cachedEntries(const IndexFileFile& file, std::size_t root) -> std::optional
         const auto id = AssetId::parse(entry.id);
         if (!id)
             return std::nullopt;
-        entries.push_back({ *id, root, sourceOf(file.path), entry.key, entry.type });
+        entries.push_back({ *id, root, sourceOf(file.path), entry.key, entry.type, entry.key.empty() ? file.settings : ImportSettings{} });
     }
     return entries;
 }
@@ -288,9 +303,11 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
                 ++database.m_filesRead;
             }
 
-            IndexFileFile record{ root, relative, stamp.modified, stamp.size, {} };
+            IndexFileFile record{ root, relative, stamp.modified, stamp.size, {}, {} };
             for (auto& entry : *entries)
             {
+                if (entry.key.empty())
+                    record.settings = entry.settings;
                 record.entries.push_back({ entry.id.toString(), entry.key, entry.type });
                 database.m_entries.push_back(std::move(entry));
             }

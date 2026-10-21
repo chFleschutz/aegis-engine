@@ -255,4 +255,44 @@ TEST_SUITE("assets::AssetDatabase")
         CHECK(path(engine::checker) == "checker.png");
         CHECK(path(engine::cube) == "cube.obj");
     }
+
+    TEST_CASE("a main entry carries its sidecar's settings, also from the index")
+    {
+        TempRoot root;
+        auto sidecar = sidecarOf(AssetId{ 1 }, { { "Material/Mat", AssetId{ 2 } } });
+        sidecar.settings.srgb = false;
+        root.writeSidecarFor("normal.png", sidecar);
+        const auto indexFile = root.path / ".aegis" / "index";
+        for (const auto expectedReads : { 1u, 0u })
+        {
+            const auto database = AssetDatabase::scan({ .roots = { { root.path } }, .indexFile = indexFile });
+            REQUIRE(database);
+            CHECK(database->filesRead() == expectedReads);
+            CHECK(database->find(AssetId{ 1 })->settings.srgb == false);
+            CHECK(database->find(AssetId{ 2 })->settings == ImportSettings{});
+        }
+    }
+
+    TEST_CASE("an index of another version is rebuilt")
+    {
+        TempRoot root;
+        root.writeSidecarFor("a.gltf", sidecarOf(AssetId{ 1 }));
+        const auto indexFile = root.path / ".aegis" / "index";
+        REQUIRE(AssetDatabase::scan({ .roots = { { root.path } }, .indexFile = indexFile }));
+
+        // The same index with an older version number: none of it is trusted.
+        std::string index;
+        {
+            std::ifstream in{ indexFile, std::ios::binary };
+            index.assign(std::istreambuf_iterator<char>{ in }, std::istreambuf_iterator<char>{});
+        }
+        const auto version = index.find("\"version\": 2");
+        REQUIRE(version != std::string::npos);
+        index.replace(version, 12, "\"version\": 1");
+        root.write(".aegis/index", index);
+
+        const auto database = AssetDatabase::scan({ .roots = { { root.path } }, .indexFile = indexFile });
+        REQUIRE(database);
+        CHECK(database->filesRead() == 1);
+    }
 }

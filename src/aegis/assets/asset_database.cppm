@@ -2,6 +2,7 @@ export module aegis.assets:asset_database;
 import std;
 import :asset_id;
 import :error;
+import :sidecar;
 
 export namespace aegis::assets
 {
@@ -9,10 +10,11 @@ export namespace aegis::assets
 struct AssetEntry
 {
     AssetId id;
-    std::size_t root{ 0 }; // Index into AssetDatabase::roots()
-    std::string path;      // Of the source (or native) file, relative to the root, with '/'
-    std::string key;       // Sub-asset key (see SubAssetKeys); empty for the file's main asset
-    std::string type;      // A native file's header type; empty for foreign files
+    std::size_t root{ 0 };   // Index into AssetDatabase::roots()
+    std::string path;        // Of the source (or native) file, relative to the root, with '/'
+    std::string key;         // Sub-asset key (see SubAssetKeys); empty for the file's main asset
+    std::string type;        // A native file's header type; empty for foreign files
+    ImportSettings settings; // A foreign file's main entry: its sidecar's settings; defaults otherwise
 
     [[nodiscard]] friend auto operator==(const AssetEntry&, const AssetEntry&) -> bool = default;
 };

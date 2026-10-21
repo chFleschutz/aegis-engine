@@ -116,7 +116,7 @@ public:
             return failTexture(id, std::format("'{}' is not a texture file", entry->path));
 
         const auto path = m_database.absolutePath(*entry);
-        const auto srgb = readSidecar(*entry).and_then([](const assets::Sidecar& s) { return s.settings.srgb; }).value_or(true);
+        const auto srgb = entry->settings.srgb.value_or(true);
         auto texture = assets::Texture::loadFromFile(*m_device, path, srgb ? rhi::Format::RGBA8_SRGB : rhi::Format::RGBA8_UNORM);
         if (!texture)
             return failTexture(id, assets::describe(texture.error()));
