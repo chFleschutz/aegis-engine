@@ -19,6 +19,11 @@ struct ComponentStorage
     ///        Build the value first: observers of the component's construction (the draw batches) see it as it
     ///        is added.
     std::function<void(Registry&, Entity, void* value)> add;
+    /// @brief The first entity that has one (a null Entity if none does)
+    std::function<Entity(Registry&)> first;
+    /// @brief A world holds one at most (the sky, the main camera): instantiating a scene into a world that
+    ///        already has one drops the scene's with a warning, so the world's first wins
+    bool singleton{ false };
 };
 
 /// @brief The ComponentStorage of T
@@ -33,6 +38,7 @@ auto componentStorage() -> ComponentStorage
             .add = [](Registry& registry, Entity entity, void*) {
                 if (!registry.has<T>(entity))
                     registry.add<T>(entity); },
+            .first = [](Registry& registry) { return registry.first<T>(); },
         };
     }
     else
@@ -45,6 +51,7 @@ auto componentStorage() -> ComponentStorage
                     registry.get<T>(entity) = std::move(component);
                 else
                     registry.add<T>(entity, std::move(component)); },
+            .first = [](Registry& registry) { return registry.first<T>(); },
         };
     }
 }
@@ -58,6 +65,20 @@ template<typename T>
     auto builder = types.component<T>(name);
     if (builder)
         builder->attach(componentStorage<T>());
+    return builder;
+}
+
+/// @brief Like registerComponent, for a component a world holds one of at most (ComponentStorage::singleton)
+template<typename T>
+[[nodiscard]] auto registerSingleton(reflect::TypeRegistry& types, std::string_view name) -> std::expected<reflect::TypeBuilder<T>, reflect::Error>
+{
+    auto builder = types.component<T>(name);
+    if (builder)
+    {
+        auto storage = componentStorage<T>();
+        storage.singleton = true;
+        builder->attach(std::move(storage));
+    }
     return builder;
 }
 
@@ -86,7 +107,7 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
         check(builder);
     }
     check(registerComponent<DynamicTag>(types, "DynamicTag"));
-    check(registerComponent<MainCamera>(types, "MainCamera"));
+    check(registerSingleton<MainCamera>(types, "MainCamera"));
     {
         auto builder = registerComponent<Camera>(types, "Camera");
         if (builder)
@@ -118,7 +139,7 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
         check(builder);
     }
     {
-        auto builder = registerComponent<Sky>(types, "Sky");
+        auto builder = registerSingleton<Sky>(types, "Sky");
         if (builder)
             builder->field("environment", &Sky::environment);
         check(builder);

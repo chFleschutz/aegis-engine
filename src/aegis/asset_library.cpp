@@ -175,9 +175,33 @@ public:
         return std::move(*scene);
     }
 
-    // Loads the assets a component read from a scene file names by ID only (a reference without a slot).
-    auto resolve(const reflect::TypeInfo& type, void* component) -> void
+    // The scene file 'id' as an asset, read against 'types' on first use. A failure is not logged: instantiating
+    // an instance of it returns it.
+    auto loadScene(AssetId id, const reflect::TypeRegistry& types) -> AssetRef<serialize::Scene>
     {
+        if (auto ref = m_scenes.find(id))
+            return *ref;
+        auto scene = readScene(id, types);
+        if (!scene)
+        {
+            const auto& slot = m_scenes.slot(id);
+            slot->state = AssetState::Failed;
+            slot->message = std::move(scene.error());
+            return AssetRef<serialize::Scene>{ id, slot };
+        }
+        return m_scenes.fill(id, std::make_shared<serialize::Scene>(std::move(*scene)));
+    }
+
+    // Loads the assets a component read from a scene file names by ID only (a reference without a slot).
+    auto resolve(const reflect::TypeInfo& type, void* component, const reflect::TypeRegistry& types) -> void
+    {
+        if (type.type == typeid(serialize::SceneInstance))
+        {
+            auto& instance = *static_cast<serialize::SceneInstance*>(component);
+            if (!instance.scene.slot())
+                instance.scene = loadScene(instance.scene.id(), types);
+            return;
+        }
         if (type.type == typeid(MeshRenderer))
         {
             auto& renderer = *static_cast<MeshRenderer*>(component);
@@ -537,6 +561,7 @@ private:
     Cache<assets::Material> m_materials;
     Cache<assets::Environment> m_environments;
     Cache<assets::Model> m_models;
+    Cache<serialize::Scene> m_scenes;
 };
 
 auto AssetLibrary::Sources::standard() -> Sources
@@ -609,10 +634,25 @@ auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegi
     auto read = m_impl->readScene(scene, types);
     if (!read)
         return std::unexpected{ std::move(read.error()) };
-    const auto resolve = [this](const reflect::TypeInfo& type, void* component) { m_impl->resolve(type, component); };
+    const auto resolve = [this, &types](const reflect::TypeInfo& type, void* component) { m_impl->resolve(type, component, types); };
     if (auto created = serialize::instantiate(world.registry(), types, *read, resolve); !created)
         return std::unexpected{ std::format("Cannot instantiate scene {}: {}", scene, serialize::describe(created.error())) };
     return {};
+}
+
+auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegistry& types, AssetId scene, world::Entity parent)
+    -> std::expected<world::Entity, std::string>
+{
+    const auto loaded = m_impl->loadScene(scene, types);
+    if (!loaded)
+        return std::unexpected{ std::format("Cannot instantiate scene {}: {}", scene, loaded.slot()->message) };
+    const auto resolve = [this, &types](const reflect::TypeInfo& type, void* component) { m_impl->resolve(type, component, types); };
+    auto holder = serialize::instantiate(world.registry(), types, loaded, parent, resolve);
+    if (!holder)
+        return std::unexpected{ std::format("Cannot instantiate scene {}: {}", scene, serialize::describe(holder.error())) };
+    if (const auto* entry = m_database->find(scene))
+        world.registry().get<Name>(*holder).name = std::filesystem::path{ entry->path }.stem().string();
+    return *holder;
 }
 
 auto AssetLibrary::createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> AssetRef<assets::Material>

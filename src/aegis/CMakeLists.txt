@@ -73,6 +73,7 @@ PUBLIC
 	aegis-world
 	aegis-ui
 	aegis-scripting
+	aegis-serialize
 )
 
 target_link_libraries(aegis-engine

@@ -72,10 +72,20 @@ public:
     ///        (a world's root scene keeps its local IDs). 'types' names the components and scripts the file may
     ///        hold. The assets a MeshRenderer or Sky names are loaded before the component joins its entity, so
     ///        observers of the world (the draw batches) see it complete. A Sky without an environment gets
-    ///        defaultEnvironment(); a mesh renderer without a mesh or material is not drawn.
+    ///        defaultEnvironment(); a mesh renderer without a mesh or material is not drawn. The scenes its
+    ///        SceneInstance components name are instantiated under their holders (see the overload below).
     /// @return Why the scene could not be read or instantiated (the file and line); 'world' is then unchanged.
     [[nodiscard]] auto instantiateScene(world::World& world, const reflect::TypeRegistry& types, assets::AssetId scene)
         -> std::expected<void, std::string>;
+
+    /// @brief Creates an instance of the scene file 'scene' in 'world' (a prefab, or a scene a script spawns): a
+    ///        new entity with a random ID, named after the file, holds it as a child of 'parent' (a root entity
+    ///        for a null 'parent'), and the scene's entities derive their IDs from the holder's
+    ///        (serialize::deriveEntityId). Instantiating a scene twice gives two sets of entities. Scene files
+    ///        are read once and kept.
+    /// @return The holder, or why the scene could not be read or instantiated; 'world' is then unchanged.
+    [[nodiscard]] auto instantiateScene(world::World& world, const reflect::TypeRegistry& types, assets::AssetId scene, world::Entity parent)
+        -> std::expected<world::Entity, std::string>;
 
     /// @brief Registers an asset made at run time under a new ID, so it can be referenced like a loaded one.
     ///        It is not in the database: nothing finds it by path and a scene file could not load it again.

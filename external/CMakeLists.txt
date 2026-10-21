@@ -37,3 +37,8 @@ add_subdirectory(doctest)
 set(glaze_DEVELOPER_MODE OFF)
 set(glaze_BUILD_EXAMPLES OFF)
 add_subdirectory(glaze)
+
+# xxHash: XXH3_64 for entity ID derivation and cache keys. Its implementation is compiled once here;
+# include xxhash.h only in .cpp files.
+add_library(xxhash STATIC xxhash_impl.c)
+target_include_directories(xxhash SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/xxhash)
