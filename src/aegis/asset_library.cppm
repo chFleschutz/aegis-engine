@@ -64,12 +64,8 @@ public:
     auto loadEnvironment(assets::AssetId id) -> assets::AssetRef<assets::Environment>;
     auto loadModel(assets::AssetId id) -> assets::AssetRef<assets::Model>;
 
-    /// @brief Loads the model file 'id' and creates its entities in 'world'.
-    /// @return The root entity. A model that fails to load is replaced by the default cube.
-    auto instantiate(world::World& world, assets::AssetId model) -> world::Entity;
-
-    /// @brief Reads the scene file 'scene' and creates its entities in 'world' with the IDs the file gives them
-    ///        (a world's root scene keeps its local IDs). 'types' names the components and scripts the file may
+    /// @brief Reads the scene file 'scene' (or a model file's scene, see below) and creates its entities in 'world'
+    ///        with the IDs the file gives them (a world's root scene keeps its local IDs). 'types' names the components and scripts the file may
     ///        hold. The assets a MeshRenderer or Sky names are loaded before the component joins its entity, so
     ///        observers of the world (the draw batches) see it complete. A Sky without an environment gets
     ///        defaultEnvironment(); a mesh renderer without a mesh or material is not drawn. The scenes its
@@ -78,11 +74,15 @@ public:
     [[nodiscard]] auto instantiateScene(world::World& world, const reflect::TypeRegistry& types, assets::AssetId scene)
         -> std::expected<void, std::string>;
 
-    /// @brief Creates an instance of the scene file 'scene' in 'world' (a prefab, or a scene a script spawns): a
-    ///        new entity with a random ID, named after the file, holds it as a child of 'parent' (a root entity
-    ///        for a null 'parent'), and the scene's entities derive their IDs from the holder's
-    ///        (serialize::deriveEntityId). Instantiating a scene twice gives two sets of entities. Scene files
-    ///        are read once and kept.
+    /// @brief Creates an instance of the scene file or model file 'scene' in 'world' (a prefab, a model, or a
+    ///        scene a script spawns): a new entity with a random ID, named after the file, holds it as a child of
+    ///        'parent' (a root entity for a null 'parent'), and the scene's entities derive their IDs from the
+    ///        holder's (serialize::deriveEntityId). Instantiating a scene twice gives two sets of entities that
+    ///        share their meshes and materials. Scene files are read once and kept.
+    ///
+    ///        A model file's main asset is the scene of its nodes (serialize::modelScene): its entities' local IDs
+    ///        are kept in its sidecar next to its parts' IDs, so they survive reimports. A model that fails to
+    ///        load is replaced by the default cube.
     /// @return The holder, or why the scene could not be read or instantiated; 'world' is then unchanged.
     [[nodiscard]] auto instantiateScene(world::World& world, const reflect::TypeRegistry& types, assets::AssetId scene, world::Entity parent)
         -> std::expected<world::Entity, std::string>;

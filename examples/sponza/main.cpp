@@ -23,7 +23,7 @@ public:
             assets.loadEnvironment(assets.id("Environments/KloppenheimSky.hdr"));
 
         // MODELS
-        assets.instantiate(scene, assets.id("Sponza/Sponza.gltf"));
+        aegis::instantiate(context, assets.id("Sponza/Sponza.gltf"));
 
         // LIGHTS
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.5f;

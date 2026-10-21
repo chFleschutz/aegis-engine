@@ -56,22 +56,23 @@ public:
         };
 
         // ENTITIES
-        auto spheres = assets.instantiate(scene, assets.id("MetalRoughSpheres/MetalRoughSpheres.gltf"));
+        auto spheres = aegis::instantiate(context, assets.id("MetalRoughSpheres/MetalRoughSpheres.gltf"));
         registry.get<Transform>(spheres).location = { 0.0f, 5.0f, 5.0f };
 
-        auto damagedHelmet = assets.instantiate(scene, assets.id("DamagedHelmet/DamagedHelmet.gltf"));
+        auto damagedHelmet = aegis::instantiate(context, assets.id("DamagedHelmet/DamagedHelmet.gltf"));
         registry.get<Transform>(damagedHelmet).location = { -2.0f, 0.0f, 2.0f };
 
-        auto scifiHelmet = assets.instantiate(scene, assets.id("SciFiHelmet/SciFiHelmet.gltf"));
+        auto scifiHelmet = aegis::instantiate(context, assets.id("SciFiHelmet/SciFiHelmet.gltf"));
         registry.get<Transform>(scifiHelmet).location = { 2.0f, 0.0f, 2.0f };
 
-        auto plane = assets.instantiate(scene, assets.id("Misc/plane.obj"));
+        auto plane = aegis::instantiate(context, assets.id("Misc/plane.obj"));
         registry.get<Transform>(plane).scale = { 2.0f, 2.0f, 2.0f };
-        registry.add<DynamicTag>(plane);
+        const auto planeMesh = registry.get<Children>(plane).first; // The model's root, which draws the OBJ's mesh
+        registry.add<DynamicTag>(planeMesh);
         // The ColorChanger recolors its material every frame: give the plane its own copy of the shared one.
-        auto& planeMaterial = registry.get<aegis::MeshRenderer>(plane).material;
+        auto& planeMaterial = registry.get<aegis::MeshRenderer>(planeMesh).material;
         planeMaterial = assets.copyMaterial(planeMaterial);
-        [[maybe_unused]] auto changer = scripting::attachScript(registry, types, plane, "ColorChanger");
+        [[maybe_unused]] auto changer = scripting::attachScript(registry, types, planeMesh, "ColorChanger");
         AGX_ASSERT_X(changer, "The ColorChanger script is not registered");
     }
 };

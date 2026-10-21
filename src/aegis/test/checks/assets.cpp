@@ -3,20 +3,22 @@ module aegis.test;
 import std;
 import aegis.asset_library;
 import aegis.assets;
-import aegis.instantiate;
 import aegis.paths;
+import aegis.reflect;
 import aegis.renderer;
 import aegis.rhi;
 import aegis.math;
+import aegis.world;
 import aegis.world.registry;
 import aegis.world.render_components;
+import aegis.world.types;
 
 namespace aegis
 {
 // Renderer textures must reach shaders through bindless, cover all their mips, and keep their
 // bindless slot across a resize. The name is a temporary on purpose: the renderer must copy it.
 // aegis.assets against a real device: default assets, a texture read back after its upload left
-// it in ShaderRead, per-frame material blocks, and glTF + OBJ files loaded into a scene.
+// it in ShaderRead, per-frame material blocks, and glTF + OBJ files instantiated as scenes.
 auto Engine::verifyAssets() -> std::expected<void, std::string>
 {
     constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
@@ -71,19 +73,27 @@ auto Engine::verifyAssets() -> std::expected<void, std::string>
     if (!rejected(wrongSize))
         return std::unexpected{ "Texture::create accepted 16 bytes as mip 0 of a 2x2 RGBA32_SFLOAT texture" };
 
-    aegis::world::Registry scene;
+    // The models as scene instances, loaded by an asset library (with its own default assets).
+    auto library = AssetLibrary::create(*m_device, framesInFlight);
+    if (!library)
+        return std::unexpected{ std::format("Asset library: {}", library.error()) };
+    reflect::TypeRegistry types;
+    if (auto registered = world::registerComponents(types); !registered)
+        return std::unexpected{ std::format("Component types: {}", reflect::describe(registered.error())) };
+    aegis::world::World models;
+    for (const auto* model : { "DamagedHelmet/DamagedHelmet.gltf", "Misc/cube.obj" })
+    {
+        const auto id = library->find(model);
+        if (!id)
+            return std::unexpected{ std::format("'{}' is not in the assets project", model) };
+        if (auto holder = library->instantiateScene(models, types, *id, {}); !holder)
+            return std::unexpected{ std::format("Instantiating {}: {}", model, holder.error()) };
+    }
     const assets::Loader::Desc loaderDesc{
         .device = *m_device,
         .defaults = *defaults,
         .framesInFlight = framesInFlight,
     };
-    for (const auto* model : { "DamagedHelmet/DamagedHelmet.gltf", "Misc/cube.obj" })
-    {
-        auto loaded = assets::Loader::load(loaderDesc, paths::assets() / model);
-        if (!loaded)
-            return std::unexpected{ std::format("Loading {}: {}", model, assets::describe(loaded.error())) };
-        instantiate(scene, *loaded);
-    }
     // Each load gets its own default material: editing one model's must not change another's (E-CONTENT-04).
     {
         std::array<std::shared_ptr<assets::Material>, 2> defaultMaterials;
@@ -103,7 +113,7 @@ auto Engine::verifyAssets() -> std::expected<void, std::string>
 
     std::size_t meshes{ 0 };
     std::size_t texturedMaterials{ 0 };
-    for (auto&& [entity, renderer] : scene.view<aegis::MeshRenderer>().each())
+    for (auto&& [entity, renderer] : models.registry().view<aegis::MeshRenderer>().each())
     {
         if (!renderer.mesh || renderer.mesh->indexCount() == 0 || renderer.mesh->meshDataAddress() == 0)
             return std::unexpected{ "A loaded mesh is empty or has no device address" };
@@ -113,7 +123,7 @@ auto Engine::verifyAssets() -> std::expected<void, std::string>
         if (!albedoMap || !*albedoMap)
             return std::unexpected{ "A loaded material has no albedo map" };
         const auto& albedo = *albedoMap;
-        if (albedo != defaults->white)
+        if (albedo != library->defaults().white)
         {
             // The helmet's albedo: decoded at full size, with GPU-generated mips.
             const auto& image = m_device->get(albedo->image());
@@ -134,7 +144,7 @@ auto Engine::verifyAssets() -> std::expected<void, std::string>
     }
 
     std::println("Assets verified: defaults (white texture read back), material blocks, invalid parameters "
-                 "and mip 0 sizes rejected, glTF + OBJ loaded ({} meshes)",
+                 "and mip 0 sizes rejected, glTF + OBJ instantiated as scenes ({} meshes)",
         meshes);
     return {};
 }
@@ -247,9 +257,45 @@ auto Engine::verifyAssetLibrary() -> std::expected<void, std::string>
         cubePrimitive.material.id() != content->find(0, "cube.obj", assets::SubAssetKeys::defaultMaterial))
         return fail("The engine cube's mesh and default material must have the IDs of its sidecar");
 
+    // A model file's main ID is its scene. As a world's root scene its entities keep their local IDs: those its
+    // sidecar records, so they survive a restart. The helmet is loaded already; the SciFiHelmet loads with its
+    // scene, which adds its parts to the database first.
+    reflect::TypeRegistry types;
+    if (auto registered = world::registerComponents(types); !registered)
+        return fail(std::format("Component types: {}", reflect::describe(registered.error())));
+    for (const std::string_view path : { "DamagedHelmet/DamagedHelmet.gltf", "SciFiHelmet/SciFiHelmet.gltf" })
+    {
+        const auto id = library->find(path);
+        if (!id)
+            return fail(std::format("'{}' has no ID in the database", path));
+        aegis::world::World modelWorld;
+        if (auto created = library->instantiateScene(modelWorld, types, *id); !created)
+            return fail(std::format("Instantiating the scene of '{}': {}", path, created.error()));
+        std::set<std::uint64_t> entityIds;
+        for (const auto handle : modelWorld.registry().view<aegis::StableId>())
+            entityIds.insert(modelWorld.registry().get<aegis::StableId>(aegis::world::Entity{ handle }).value);
+
+        std::ifstream stream{ assets::sidecarPath(paths::assets() / path), std::ios::binary };
+        const std::string text{ std::istreambuf_iterator<char>{ stream }, std::istreambuf_iterator<char>{} };
+        const auto sidecar = assets::parseSidecar(text);
+        if (!sidecar)
+            return fail(std::format("The sidecar of '{}': {}", path, assets::describe(sidecar.error())));
+        std::set<std::uint64_t> recorded;
+        for (const auto& [key, entityId] : sidecar->subAssets)
+        {
+            if (assets::SubAssetKeys::isEntityKey(key))
+                recorded.insert(entityId.value);
+        }
+        if (entityIds.size() < 2 || entityIds != recorded)
+            return fail(std::format("The scene of '{}' has {} entities; its sidecar records {} entity IDs, which must be theirs", path,
+                entityIds.size(), recorded.size()));
+    }
+
     if (auto result = flushAndWait(); !result)
         return result;
-    std::println("Asset library verified: one load per ID, {} mesh parts and the textures shared by ID, engine content, fallbacks", parts);
+    std::println("Asset library verified: one load per ID, {} mesh parts and the textures shared by ID, engine content, fallbacks, "
+                 "model entity IDs in the sidecar",
+        parts);
     return {};
 }
 }

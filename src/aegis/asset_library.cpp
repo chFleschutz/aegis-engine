@@ -6,7 +6,6 @@ module aegis.asset_library;
 
 import std;
 import aegis.base;
-import aegis.instantiate;
 import aegis.paths;
 import aegis.reflect;
 import aegis.serialize;
@@ -160,10 +159,17 @@ public:
         return failMaterial(id, entry ? "it is a file, not a material" : "no asset has this ID");
     }
 
-    // Reads the scene file 'id', checked against 'types'.
-    auto readScene(AssetId id, const reflect::TypeRegistry& types) const -> std::expected<serialize::Scene, std::string>
+    // Reads the scene file 'id', checked against 'types'. A model file's scene is the one loadScene keeps.
+    auto readScene(AssetId id, const reflect::TypeRegistry& types) -> std::expected<serialize::Scene, std::string>
     {
         const auto* entry = m_database.find(id);
+        if (entry && isModelFile(*entry))
+        {
+            const auto scene = loadScene(id, types);
+            if (!scene)
+                return std::unexpected{ scene.slot()->message };
+            return *scene;
+        }
         if (!entry || entry->type != "Scene")
             return std::unexpected{ std::format("{} is not a scene file", id) };
         auto text = readFile(m_database.absolutePath(*entry));
@@ -175,12 +181,14 @@ public:
         return std::move(*scene);
     }
 
-    // The scene file 'id' as an asset, read against 'types' on first use. A failure is not logged: instantiating
-    // an instance of it returns it.
+    // The scene file or model file 'id' as an asset, read against 'types' on first use. A failure of a scene
+    // file is not logged: instantiating an instance of it returns it.
     auto loadScene(AssetId id, const reflect::TypeRegistry& types) -> AssetRef<serialize::Scene>
     {
         if (auto ref = m_scenes.find(id))
             return *ref;
+        if (const auto* entry = m_database.find(id); entry && isModelFile(*entry))
+            return loadModelScene(id, types);
         auto scene = readScene(id, types);
         if (!scene)
         {
@@ -245,7 +253,7 @@ public:
         const auto* entry = m_database.find(id);
         if (!entry)
             return failModel(id, "no asset has this ID");
-        if (!entry->key.empty() || assets::importerFor(entry->path) != "model")
+        if (!isModelFile(*entry))
             return failModel(id, std::format("'{}' is not a model file", entry->path));
 
         auto model = assets::Loader::load(
@@ -286,6 +294,43 @@ public:
     }
 
 private:
+    // The main asset of a .gltf, .glb or .obj file, which loads as a Model and as a Scene.
+    static auto isModelFile(const assets::AssetEntry& entry) -> bool
+    {
+        return entry.key.empty() && assets::importerFor(entry.path) == "model";
+    }
+
+    // The scene of the model file 'id' (see serialize::modelScene), with the local IDs of its entities from the
+    // file's sidecar: new entities get new IDs, recorded there. A model that fails to load (logged by loadModel)
+    // gives the engine cube's scene.
+    auto loadModelScene(AssetId id, const reflect::TypeRegistry& types) -> AssetRef<serialize::Scene>
+    {
+        const auto model = loadModel(id); // Adds the model's parts to the database, which moves its entries
+        if (model.state() == AssetState::Failed)
+        {
+            const auto cube = id != assets::engine::cube ? loadScene(assets::engine::cube, types) : AssetRef<serialize::Scene>{};
+            const auto& slot = m_scenes.slot(id);
+            slot->state = AssetState::Failed;
+            slot->message = model.slot()->message;
+            slot->value = cube.shared();
+            return AssetRef<serialize::Scene>{ id, slot };
+        }
+
+        const auto entry = *m_database.find(id);
+        auto [sidecar, keepReason] = readModelSidecar(entry);
+        const auto known = sidecar.subAssets.size();
+        auto scene = serialize::modelScene(*model, id.value, types, [&sidecar](const std::string& key) { return sidecar.subAssetId(key).value; }, sidecar.settings.strictNames);
+        if (!scene)
+        {
+            const auto& slot = m_scenes.slot(id);
+            slot->state = AssetState::Failed;
+            slot->message = std::format("'{}': {}", entry.path, serialize::describe(scene.error()));
+            return AssetRef<serialize::Scene>{ id, slot };
+        }
+        saveModelSidecar(entry, sidecar, sidecar.subAssets.size() - known, keepReason);
+        return m_scenes.fill(id, std::make_shared<serialize::Scene>(std::move(*scene)));
+    }
+
     // A material file: the template's parameters with the file's values. A bad file, an unknown template or a
     // value the template's parameter cannot take fails the whole material (the checker fallback).
     auto loadMaterialFile(AssetId id, const assets::AssetEntry& entry) -> AssetRef<assets::Material>
@@ -462,6 +507,21 @@ private:
         return result;
     }
 
+    // Writes back the sidecar of a model file that got 'added' new IDs (of parts or entities), unless 'keepReason'
+    // says why it must stay as it is.
+    auto saveModelSidecar(const assets::AssetEntry& entry, const assets::Sidecar& sidecar, std::size_t added, const std::string& keepReason) const -> void
+    {
+        if (added == 0)
+            return;
+        const auto path = assets::sidecarPath(m_database.absolutePath(entry));
+        if (!keepReason.empty())
+            log::warn("'{}' lacks {} ID(s) and is not rewritten ({}); they are new every run", path.generic_string(), added, keepReason);
+        else if (std::ofstream out{ path, std::ios::binary })
+            out << assets::writeSidecar(sidecar);
+        else
+            log::warn("Cannot write the sidecar '{}'; the parts and entities of this model get new IDs next run", path.generic_string());
+    }
+
     // Gives the parts of a freshly loaded model their IDs from the file's sidecar (new parts get new IDs,
     // recorded in it), fills their slots, and points the model's primitives at those slots.
     auto registerParts(const assets::AssetEntry& entry, assets::Model& model) -> std::expected<void, assets::Error>
@@ -512,17 +572,7 @@ private:
             }
         }
 
-        if (sidecar.subAssets.size() != known)
-        {
-            const auto path = assets::sidecarPath(m_database.absolutePath(entry));
-            if (!keepReason.empty())
-                log::warn("'{}' lacks {} part(s) and is not rewritten ({}); they get new IDs every run",
-                    path.generic_string(), sidecar.subAssets.size() - known, keepReason);
-            else if (std::ofstream out{ path, std::ios::binary })
-                out << assets::writeSidecar(sidecar);
-            else
-                log::warn("Cannot write the sidecar '{}'; the parts of this model get new IDs next run", path.generic_string());
-        }
+        saveModelSidecar(entry, sidecar, sidecar.subAssets.size() - known, keepReason);
         if (auto added = m_database.addSubAssets(entry.root, entry.path, parts); !added)
             return std::unexpected{ std::move(added.error()) };
 
@@ -615,17 +665,6 @@ auto AssetLibrary::id(std::string_view path, std::string_view key) const -> Asse
         std::exit(EXIT_FAILURE);
     }
     return *found;
-}
-
-auto AssetLibrary::instantiate(world::World& world, AssetId model) -> world::Entity
-{
-    const auto loaded = m_impl->loadModel(model);
-    if (!loaded)
-    {
-        log::fatal("Cannot instantiate model {}: it did not load and there is no fallback", model);
-        std::exit(EXIT_FAILURE);
-    }
-    return aegis::instantiate(world.registry(), *loaded);
 }
 
 auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegistry& types, AssetId scene)
