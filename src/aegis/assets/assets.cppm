@@ -4,6 +4,8 @@ module;
 
 export module aegis.assets;
 import std;
+export import :asset_database;
+export import :asset_id;
 export import :asset_key;
 export import :defaults;
 export import :environment;
@@ -15,5 +17,7 @@ export import :loader;
 export import :material;
 export import :mesh_data;
 export import :mesh_preprocessor;
+export import :sidecar;
 export import :static_mesh;
+export import :sub_asset_key;
 export import :texture;
