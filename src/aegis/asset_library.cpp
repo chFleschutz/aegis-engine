@@ -259,16 +259,19 @@ private:
         return fail(m_meshes, id, "mesh", message, cubeMesh());
     }
 
+    // Every missing material shares one fallback, like the other types share their engine content.
     auto failMaterial(AssetId id, const std::string& message) -> AssetRef<assets::Material>
     {
-        std::shared_ptr<assets::Material> fallback;
-        if (auto material = m_defaults.createPbrMaterial(*m_device, m_framesInFlight))
+        if (!m_fallbackMaterial)
         {
-            fallback = std::move(*material);
-            if (const auto checker = loadTexture(assets::engine::checker).shared())
-                (void)fallback->setParameter(assets::pbr::albedoMap, checker);
+            if (auto material = m_defaults.createPbrMaterial(*m_device, m_framesInFlight))
+            {
+                m_fallbackMaterial = std::move(*material);
+                if (const auto checker = loadTexture(assets::engine::checker).shared())
+                    (void)m_fallbackMaterial->setParameter(assets::pbr::albedoMap, checker);
+            }
         }
-        return fail(m_materials, id, "material", message, std::move(fallback));
+        return fail(m_materials, id, "material", message, m_fallbackMaterial);
     }
 
     auto failEnvironment(AssetId id, const std::string& message) -> AssetRef<assets::Environment>
@@ -426,6 +429,7 @@ private:
     render_graph::Ibl m_ibl;
     assets::AssetDatabase m_database;
     AssetId m_defaultEnvironment;
+    std::shared_ptr<assets::Material> m_fallbackMaterial;
 
     Cache<assets::Texture> m_textures;
     Cache<assets::StaticMesh> m_meshes;
