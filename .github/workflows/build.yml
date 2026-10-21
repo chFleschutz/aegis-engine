@@ -34,7 +34,7 @@ jobs:
         run: tools/format.sh --all --check
 
   linux:
-    name: Linux (${{ matrix.config }})
+    name: ${{ matrix.lavapipe && 'Linux device tests (lavapipe)' || format('Linux ({0})', matrix.config) }}
     # Ubuntu 26.04 ships Clang 22 and libstdc++ 15 with a working libstdc++.modules.json (earlier
     # releases point it at the wrong std.cc path, which breaks `import std`). Public preview for now.
     runs-on: ubuntu-26.04
@@ -42,6 +42,12 @@ jobs:
       fail-fast: false
       matrix:
         config: [debug, release]
+        lavapipe: [false]
+        # One more debug build that runs the device tests on Mesa's lavapipe, a software Vulkan
+        # driver, under validation. Not a required check (yet): it runs as its own job.
+        include:
+          - config: debug
+            lavapipe: true
     env:
       PRESET: linux-clang-${{ matrix.config }}
     steps:
@@ -55,7 +61,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y "clang-$LLVM_VERSION" "clang-tools-$LLVM_VERSION" libstdc++-15-dev \
-            ninja-build libwayland-dev libxkbcommon-dev xorg-dev
+            ninja-build libwayland-dev libxkbcommon-dev xorg-dev ${{ matrix.lavapipe && 'mesa-vulkan-drivers' || '' }}
           # Unversioned clang, clang++ and clang-scan-deps (module scanning) for the preset.
           echo "/usr/lib/llvm-$LLVM_VERSION/bin" >> "$GITHUB_PATH"
           # Clang picks the newest GCC installation; pin it to 15 in case the image carries a newer one.
@@ -97,10 +103,23 @@ jobs:
       - name: Build
         run: cmake --build --preset "$PRESET"
 
-      # The device tests need a GPU, which hosted runners lack. The build runs spirv-val on every
-      # shader and fails on invalid SPIR-V; configure fails if CI finds no spirv-val in the SDK.
+      # The device tests need a GPU, which hosted runners lack (the lavapipe job runs them). The build
+      # runs spirv-val on every shader and fails on invalid SPIR-V; configure fails if CI finds no
+      # spirv-val in the SDK.
       - name: Test
+        if: ${{ !matrix.lavapipe }}
         run: ctest --preset "$PRESET" -LE device
+
+      # Debug builds require the SDK's validation layer, and the device tests fail on any validation
+      # error. Only lavapipe is offered to the loader, so no other driver on the image can be picked.
+      - name: Device tests (lavapipe)
+        if: ${{ matrix.lavapipe }}
+        run: |
+          layer=$(find "$VULKAN_SDK" -name VkLayer_khronos_validation.json -print -quit)
+          export VK_ADD_LAYER_PATH=$(dirname "$layer")
+          export VK_DRIVER_FILES=$(find /usr/share/vulkan/icd.d -name 'lvp_icd*.json' -print -quit)
+          vulkaninfo --summary
+          ctest --preset "$PRESET" -L device
 
   windows:
     name: Windows (${{ matrix.config }})
