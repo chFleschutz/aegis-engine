@@ -2,6 +2,7 @@ export module aegis.asset_library;
 
 import std;
 import aegis.assets;
+import aegis.reflect;
 import aegis.render_graph;
 import aegis.rhi;
 import aegis.world;
@@ -12,7 +13,8 @@ export namespace aegis
 ///        same asset and the parts of a model file (its meshes, materials, textures) are shared with
 ///        anything that loads them by their own ID.
 ///
-/// Where an ID lives comes from the AssetDatabase (the project's assets and the engine content). Loading is
+/// Where an ID lives comes from the AssetDatabase (the project's assets and the engine content): foreign files
+/// load through their importers, material (`.material`) and scene (`.scene`) files through aegis.serialize. Loading is
 /// async-shaped and synchronous for now: a returned AssetRef is ready or failed. A failed or missing asset
 /// is logged once and replaced by engine content (the checker texture, the default cube, a material with the
 /// checker), so a scene with a broken reference still draws.
@@ -50,7 +52,7 @@ public:
     [[nodiscard]] auto id(std::string_view path, std::string_view key = {}) const -> assets::AssetId;
 
     /// @brief The asset 'id' names, loaded on first use. Types: assets::Texture, assets::StaticMesh,
-    ///        assets::Material, assets::Environment and assets::Model.
+    ///        assets::Material (a part of a model file, or a material file), assets::Environment and assets::Model.
     template<class T>
     [[nodiscard]] auto load(assets::AssetId id) -> assets::AssetRef<T>;
 
@@ -65,6 +67,15 @@ public:
     /// @brief Loads the model file 'id' and creates its entities in 'world'.
     /// @return The root entity. A model that fails to load is replaced by the default cube.
     auto instantiate(world::World& world, assets::AssetId model) -> world::Entity;
+
+    /// @brief Reads the scene file 'scene' and creates its entities in 'world' with the IDs the file gives them
+    ///        (a world's root scene keeps its local IDs). 'types' names the components and scripts the file may
+    ///        hold. The assets a MeshRenderer or Sky names are loaded before the component joins its entity, so
+    ///        observers of the world (the draw batches) see it complete. A Sky without an environment gets
+    ///        defaultEnvironment(); a mesh renderer without a mesh or material is not drawn.
+    /// @return Why the scene could not be read or instantiated (the file and line); 'world' is then unchanged.
+    [[nodiscard]] auto instantiateScene(world::World& world, const reflect::TypeRegistry& types, assets::AssetId scene)
+        -> std::expected<void, std::string>;
 
     /// @brief Registers an asset made at run time under a new ID, so it can be referenced like a loaded one.
     ///        It is not in the database: nothing finds it by path and a scene file could not load it again.

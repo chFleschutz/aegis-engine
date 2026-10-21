@@ -55,6 +55,7 @@ enum class EngineErrorCode
     AssetsFailed,
     TypesFailed,
     FrameGraphFailed,
+    SceneFailed,
 };
 
 struct EngineError
@@ -116,26 +117,26 @@ public:
     ///        step when headless); assign FrameClock::fixed(step) for a deterministic run.
     [[nodiscard]] auto clock() -> base::FrameClock& { return m_clock; }
 
+    /// @brief Finds assets by path and loads them by ID.
+    [[nodiscard]] auto assets() -> AssetLibrary& { return *m_assets; }
+
     /// @brief Creates a scene from a description
     /// @tparam T Description of the scene (Derived from SceneDescription)
     template<SceneDescriptionDerived T, typename... Args>
     void loadScene(Args&&... args)
     {
-        m_world.reset();
-        // The engine's systems, always present. Their phases order them (scripts, then transforms,
-        // then cameras); a game adds its own systems the same way, in the phase they declare.
-        if (m_input)
-            m_world.addSystem<scripting::ScriptSystem>(m_world.registry(), m_input->state(), m_input.get());
-        else
-            m_world.addSystem<scripting::ScriptSystem>(m_world.registry()); // Scripts see no input
-        m_world.addSystem<world::TransformSystem>();
-        m_world.addSystem<world::CameraSystem>();
+        resetWorld();
         T description{ std::forward<Args>(args)... };
         SceneContext context{ .scene = m_world, .types = m_types, .assets = *m_assets };
         description.initialize(context);
-        m_world.begin();
-        m_frameGraph->sceneInitialized(m_world);
+        beginWorld();
     }
+
+    /// @brief Replaces the world with the scene file 'scene': its entities with the IDs, components and scripts
+    ///        the file gives them, and the assets they reference. Register the game's types first (types()).
+    /// @return EngineErrorCode::SceneFailed, naming the file and line, if the file does not load; the world is
+    ///         then empty.
+    [[nodiscard]] auto loadScene(assets::AssetId scene) -> std::expected<void, EngineError>;
 
 private:
     explicit Engine(const AppDesc& desc);
@@ -147,6 +148,10 @@ private:
     auto createFrameGraph() -> std::expected<void, EngineError>;
     bool resize();
     void updateCameraAspect();
+    /// @brief Empties the world and adds the engine's systems, ready for a scene's entities.
+    void resetWorld();
+    /// @brief Starts the world's systems and hands the world to the frame graph.
+    void beginWorld();
     auto saveScreenshot() -> std::expected<void, std::string>;
     void applyFrameBrake(std::chrono::steady_clock::time_point frameBegin);
 
