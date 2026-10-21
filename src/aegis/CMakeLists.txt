@@ -40,6 +40,7 @@ add_subdirectory(math)
 add_subdirectory(core)
 add_subdirectory(world)
 add_subdirectory(scripting)
+add_subdirectory(serialize)
 add_subdirectory(ui)
 add_subdirectory(editor)
 

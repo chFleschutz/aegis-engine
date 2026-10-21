@@ -26,6 +26,7 @@ add_subdirectory(reflect)
 add_subdirectory(render_graph)
 add_subdirectory(renderer)
 add_subdirectory(rhi)
+add_subdirectory(serialize)
 add_subdirectory(world)
 
 # aegis_add_device_test(<name> ARGS <aegis-test args> ... [LABELS <label> ...])

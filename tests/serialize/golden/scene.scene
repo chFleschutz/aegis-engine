@@ -1,0 +1,91 @@
+{
+  "type": "Scene",
+  "id": "9d41c7e0a25b6f18",
+  "version": 1,
+  "types": {
+    "Camera": 1,
+    "DynamicTag": 1,
+    "Health": 1,
+    "MainCamera": 1,
+    "MeshRenderer": 1,
+    "PointLight": 1,
+    "Spinner": 1,
+    "Transform": 1
+  },
+  "entities": [
+    {
+      "id": "1c5e09b7f3a8d264",
+      "name": "Lamp",
+      "children": ["7a21e4c90d3b5f86", "3b0f5e2a9c1d4e77"],
+      "components": {
+        "PointLight": {
+          "color": [1, 0.5, 0.25],
+          "intensity": 200
+        },
+        "Transform": {
+          "location": [0, 0, 1.5],
+          "rotation": [0, 0, 0.70710677, 0.70710677],
+          "scale": [1, 1, 1]
+        }
+      }
+    },
+    {
+      "id": "3b0f5e2a9c1d4e77",
+      "name": "Crate",
+      "children": [],
+      "components": {
+        "Health": {
+          "value": 75,
+          "armor": "Heavy"
+        },
+        "MeshRenderer": {
+          "mesh": "1f6b2c0d93ae5547",
+          "material": null
+        },
+        "Transform": {
+          "location": [2, -1, 0],
+          "rotation": [0, 0, 0, 1],
+          "scale": [0.5, 0.5, 0.5]
+        }
+      }
+    },
+    {
+      "id": "7a21e4c90d3b5f86",
+      "name": "Spinning Bulb",
+      "children": [],
+      "components": {
+        "DynamicTag": {},
+        "Transform": {
+          "location": [0, 0, 0.25],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1, 1, 1]
+        }
+      },
+      "scripts": [
+        {
+          "Spinner": {
+            "speed": 2.5
+          }
+        }
+      ]
+    },
+    {
+      "id": "c0ffee0000000001",
+      "name": "Main Camera",
+      "children": [],
+      "components": {
+        "Camera": {
+          "fov": 1.0471976,
+          "near": 0.1,
+          "far": 1000
+        },
+        "MainCamera": {},
+        "Transform": {
+          "location": [0, -15, 10],
+          "rotation": [-0.25881904, 0, 0, 0.9659258],
+          "scale": [1, 1, 1]
+        }
+      }
+    }
+  ]
+}
