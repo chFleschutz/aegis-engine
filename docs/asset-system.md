@@ -1,6 +1,7 @@
 # Asset system, scenes and worlds
 
-Status: **decided** (D8, 2026-10-19; formats 2026-10-20; settles F2 in `audit/backlog.md`).
+Status: **decided** (D8, 2026-10-19; formats 2026-10-20; sample project 2026-10-21; settles F2 in
+`audit/backlog.md`).
 Implemented so far (#130): IDs, sidecars, the database, engine content, `AssetRef` and `AssetLibrary`;
 scene files, the import cache and the pak are not. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md):
 assets referenced only by stable ID, one serializer for scenes and save games, a cook step for export.
@@ -61,6 +62,37 @@ my_game/
   content folder in the engine repository, with normal sidecars and native files, mounted read-only
   next to the project and cooked like project assets. Code names its assets through constants
   (`assets::engine::white`); there are no reserved or special IDs.
+
+### Sample project
+
+The examples, `aegis-test`'s scene checks and the device tests share one sample project,
+`aegis-samples`. It is a separate repository, because sample assets are large and the engine
+repository should stay small, and is checked out as the submodule `samples/`. It replaces
+`aegis-assets`, whose name also clashes with the `aegis-assets` library target (#180).
+
+- **A project like any other.** It follows "Project layout": `samples.aegis` once project files
+  exist (#132), today's asset folders under `assets/`, scene files under `scenes/` (today's
+  `Scenes/`; the other examples follow in #167), and a `.gitignore` of `/.aegis/`. One project for all examples, not one each: Sponza, the
+  helmets and the sky are shared, and the examples become scenes in it.
+- **Sidecars are committed** in the sample repository, as in any project. IDs are random, so a
+  sidecar that isn't committed gets a new ID on every clone, and scenes reference assets by ID.
+- **Opt-in.** `.gitmodules` sets `update = none` and `shallow = true` for it:
+  `git clone --recurse-submodules` fetches the libraries but not the samples, and
+  `git submodule update --init --checkout samples` fetches them, the pinned commit only. The
+  submodule pin still ties every engine commit to the sample commit it was tested with.
+- **The engine never needs it.** The libraries, engine content and unit tests build and pass
+  without it. CMake builds the examples and registers the device tests that load sample assets only
+  when the samples are checked out and the engine is the top-level project; otherwise it prints how
+  to opt in. An engine added through `add_subdirectory` never builds the examples.
+- **The project root is a run-time input** (`--project`, #132's lookup order). The samples' path,
+  fixed at configure time, is only the development default for the examples and `aegis-test`.
+  Engine content stays in the engine repository and is mounted next to whichever project runs.
+- **Opted in where the samples are needed:** CI (the device tests), and `tools/init-submodules.sh`
+  with the `SessionStart` hook, so worktrees and agent sessions have them.
+
+Not chosen: Git LFS in the engine repository (storage and bandwidth quotas, which every CI clone
+draws on); downloading an archive at configure time (the pin moves into CMake, and sidecars can't be
+edited and committed in place); a copy of the assets per example (shared assets duplicated).
 
 ## Identity
 
