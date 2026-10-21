@@ -2,7 +2,6 @@ module aegis.render_graph;
 import std;
 import aegis.renderer;
 import aegis.rhi;
-import aegis.world;
 
 namespace aegis::render_graph
 {
@@ -76,12 +75,6 @@ auto FrameGraph::resized(rhi::Extent2D output) -> std::expected<void, Error>
             return result;
     }
     return {};
-}
-
-auto FrameGraph::sceneInitialized(aegis::world::World& scene) -> void
-{
-    for (const auto index : m_order)
-        m_passes[index]->sceneInitialized(m_pool, scene);
 }
 
 auto FrameGraph::execute(const FrameInfo& frameInfo) -> void

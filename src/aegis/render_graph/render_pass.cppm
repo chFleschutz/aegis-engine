@@ -1,13 +1,11 @@
 export module aegis.render_graph:render_pass;
 import std;
 import :declarations;
-import :draw_batch_registry;
 import :error;
 import :frame_scene;
 import :resource;
 import :resource_pool;
 import aegis.rhi;
-import aegis.world;
 
 export namespace aegis::render_graph
 {
@@ -15,10 +13,8 @@ export namespace aegis::render_graph
 struct FrameInfo
 {
     const rhi::CommandBuffer& cmd;
-    /// @brief The camera, lights and environment to draw; passes read these here, not from the world.
+    /// @brief What to draw: instances, camera, lights and environment. Passes read these here, not from the world.
     const FrameScene& frameScene;
-    aegis::world::World& scene;
-    DrawBatchRegistry& drawBatches;
     std::uint32_t frameIndex;
     rhi::Extent2D extent;
     /// @brief The renderer's target for this frame (swapchain image or offscreen target), in
@@ -49,9 +45,6 @@ public:
     /// @brief Called by FrameGraph::resized after the graph recreated its output-sized
     ///        textures, for a pass to recreate what it derived from them (e.g. extra image views).
     [[nodiscard]] virtual auto resized(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
-
-    /// @brief Called once a scene has been loaded, before its first frame.
-    virtual auto sceneInitialized(ResourcePool& /*pool*/, aegis::world::World& /*scene*/) -> void {}
 
     /// @brief Records the pass. The graph has already recorded the barriers its accesses need.
     virtual auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void = 0;

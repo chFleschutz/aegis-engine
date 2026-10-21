@@ -86,6 +86,11 @@ ImGui setup is spread over four places:
 So render passes read ECS components directly, and the render graph can't be driven without a legacy
 `Scene`. The dependency points the wrong way: new code depends on legacy code.
 
+*Resolved for the render graph:* passes read a per-frame `render_graph::FrameScene` (#181) whose
+instances come from a `render_graph::InstanceStore` (#86). The world-facing side (`aegis::InstanceBridge`,
+which took over the registry's entt signals, and `extractFrameScene`) lives in `aegis.render_bridge`, so
+`render_graph` no longer imports `aegis.world`.
+
 ### 7. Leftovers
 
 - `core::AssetManager` stores the default assets under their old `default/...` names, and nothing reads
@@ -182,7 +187,7 @@ gain:
 
 **Later: a render view between the scene and the render graph.** Introduce a plain
 `render_graph::SceneView` (camera, lights, environment, instance batches) that a bridge in `aegis.app`
-fills from the ECS. Static instances can be updated incrementally, as `DrawBatchRegistry` already does.
+fills from the ECS. Static instances are updated incrementally (done: `FrameScene` and `InstanceStore`, see §6).
 
 - Why:
   - It fixes the dependency direction: `render_graph` stops importing `aegis.world`.

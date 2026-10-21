@@ -8,7 +8,6 @@ import :resource_pool;
 import :schedule;
 import aegis.renderer;
 import aegis.rhi;
-import aegis.world;
 
 export namespace aegis::render_graph
 {
@@ -52,9 +51,6 @@ public:
     /// @brief Call after renderer::Renderer::resize with its new extent: recreates the textures that follow
     ///        the output. They keep their handles, but passes may hold views of the replaced images.
     [[nodiscard]] auto resized(rhi::Extent2D output) -> std::expected<void, Error>;
-
-    /// @brief Tells every pass a scene was loaded (e.g. to upload static instance data).
-    auto sceneInitialized(aegis::world::World& scene) -> void;
 
     /// @brief Records every pass, in order, into frameInfo.cmd.
     auto execute(const FrameInfo& frameInfo) -> void;

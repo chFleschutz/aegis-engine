@@ -1,19 +1,13 @@
 module;
-
-// Only the ECS headers: entt.hpp pulls in entt::meta, which crashes clang -O3 against libstdc++
-#include <entt/entity/entity.hpp>
-#include <entt/entity/registry.hpp>
-#include <entt/entity/view.hpp>
+#include <cassert>
 
 module aegis.render_graph;
 import std;
 import aegis.assets;
-import aegis.world.render_components;
 import aegis.base;
 import aegis.renderer;
 import aegis.rhi;
 import aegis.math;
-import aegis.world;
 
 namespace aegis::render_graph
 {
@@ -40,59 +34,41 @@ auto ensureCapacity(ResourcePool& pool, ResourceId buffer, std::uint32_t& capaci
     return true;
 }
 
-auto makeInstance(const aegis::GlobalTransform& transform, const assets::StaticMesh& mesh,
-    const assets::Material& material, std::uint32_t frameIndex, std::uint32_t drawBatch) -> InstanceData
+auto makeInstance(const Instance& instance, std::uint32_t frameIndex) -> InstanceData
 {
-    const auto gpuTransform = detail::toGpuTransform(transform.matrix());
+    assert(instance.mesh && instance.material && "The GPU-driven path draws only instances with a mesh and a material");
+    const auto gpuTransform = detail::toGpuTransform(instance.model);
     return {
         .model = gpuTransform.model,
         .normalRow0 = gpuTransform.normalRow0,
         .normalRow1 = gpuTransform.normalRow1,
         .normalRow2 = gpuTransform.normalRow2,
-        .mesh = mesh.meshDataAddress(),
-        .material = material.parameterAddress(frameIndex),
-        .drawBatch = drawBatch,
+        .mesh = instance.mesh->meshDataAddress(),
+        .material = instance.material->parameterAddress(frameIndex),
+        .drawBatch = instance.drawBatch,
         .flags = gpuTransform.flags,
     };
-}
-
-// The instances of the entities in 'view' that can be drawn, up to 'limit', addressing the material
-// blocks of frame 'frameIndex'. 'updateMaterials' writes that block first, which is only safe for the
-// frame being recorded.
-template<typename View>
-auto collectInstances(View view, const DrawBatchRegistry& drawBatches, std::uint32_t frameIndex, std::uint32_t limit,
-    bool updateMaterials) -> std::vector<InstanceData>
-{
-    std::vector<InstanceData> instances;
-    for (auto&& [entity, transform, renderer] : view.each())
-    {
-        if (instances.size() == limit)
-            break;
-        if (!renderer.mesh || !renderer.material)
-            continue;
-        const auto batch = drawBatches.batchId(*renderer.material->materialTemplate());
-        if (!batch)
-            continue;
-
-        if (updateMaterials)
-            renderer.material->update(frameIndex);
-        instances.push_back(makeInstance(transform, *renderer.mesh, *renderer.material, frameIndex, *batch));
-    }
-    return instances;
 }
 }
 
 // Instance update ------------------------------------------------------------------------------------
 
-InstanceUpdatePass::InstanceUpdatePass(ResourceDeclarations& declarations, const DrawBatchRegistry& drawBatches) :
-    m_drawBatches{ drawBatches },
-    m_staticInstances{ declarations.addBuffer(names::staticInstances, Usage::HostWrite,
-        { .size = sizeof(InstanceData) * initialStaticCapacity, .perFrame = true }) },
-    m_dynamicInstances{ declarations.addBuffer(names::dynamicInstances, Usage::HostWrite,
-        { .size = sizeof(InstanceData) * initialDynamicCapacity, .perFrame = true }) },
+InstanceUpdatePass::InstanceUpdatePass(ResourceDeclarations& declarations) :
+    m_static{
+        .buffer = declarations.addBuffer(names::staticInstances, Usage::HostWrite,
+            { .size = sizeof(InstanceData) * initialStaticCapacity, .perFrame = true }),
+        .capacity = initialStaticCapacity,
+    },
+    m_dynamic{
+        .buffer = declarations.addBuffer(names::dynamicInstances, Usage::HostWrite,
+            { .size = sizeof(InstanceData) * initialDynamicCapacity, .perFrame = true }),
+        .capacity = initialDynamicCapacity,
+    },
     m_drawBatchData{ declarations.addBuffer(names::drawBatches, Usage::HostWrite,
-        { .size = sizeof(DrawBatchData) * DrawBatchRegistry::maxDrawBatches, .perFrame = true }) }
+        { .size = sizeof(DrawBatchData) * InstanceStore::maxDrawBatches, .perFrame = true }) }
 {
+    m_static.pending.fill(DirtyRange::all());
+    m_dynamic.pending.fill(DirtyRange::all());
 }
 
 auto InstanceUpdatePass::name() const -> std::string_view
@@ -100,71 +76,47 @@ auto InstanceUpdatePass::name() const -> std::string_view
     return "Instance Update";
 }
 
-auto InstanceUpdatePass::sceneInitialized(ResourcePool&, aegis::world::World&) -> void
+// Writes the positions of frame 'frameIndex's copy that changed since it was last written. Should the
+// buffer fail to grow, only the instances that fit are written (and drawn).
+auto InstanceUpdatePass::write(ResourcePool& pool, InstanceBuffer& buffer, std::span<const Instance> instances,
+    DirtyRange dirty, std::uint32_t frameIndex) -> void
 {
-    // The scene may be a different one, with its own static version: build for it on the next frame.
-    m_builtVersion.reset();
-}
+    for (auto& pending : buffer.pending)
+        pending = pending.merged(dirty);
 
-// Rewrites every frame's copy of the static instances into a new buffer, which frames still in flight
-// do not read. Should it not be created, nothing static is drawn until the static set changes again.
-auto InstanceUpdatePass::rebuildStatic(ResourcePool& pool, aegis::world::World& scene) -> void
-{
-    constexpr auto frames = renderer::Renderer::maxFramesInFlight;
-    m_staticCount = 0;
-    m_staticMaterials.clear();
+    const auto count = static_cast<std::uint32_t>(instances.size());
+    const auto capacity = buffer.capacity;
+    // A new buffer starts empty in every copy.
+    if (ensureCapacity(pool, buffer.buffer, buffer.capacity, count, sizeof(InstanceData)) && buffer.capacity != capacity)
+        buffer.pending.fill(DirtyRange::all());
 
-    const auto capacity = detail::grownCapacity(m_staticCapacity, m_drawBatches.staticInstanceCount());
-    if (auto fresh = pool.resizeBuffer(m_staticInstances, sizeof(InstanceData) * capacity); !fresh)
-    {
-        log::warn("{}: {} static instances need {} bytes per frame", describe(fresh.error()),
-            m_drawBatches.staticInstanceCount(), sizeof(InstanceData) * capacity);
+    buffer.written = std::min(count, buffer.capacity);
+    const auto range = buffer.pending[frameIndex].clipped(buffer.written);
+    buffer.pending[frameIndex] = {};
+    if (range.empty())
         return;
-    }
-    m_staticCapacity = capacity;
 
-    auto view = scene.registry().view<aegis::GlobalTransform, aegis::MeshRenderer>(entt::exclude<aegis::DynamicTag>);
-    for (std::uint32_t frame = 0; frame < frames; ++frame)
-    {
-        const auto instances = collectInstances(view, m_drawBatches, frame, m_staticCapacity, false);
-        pool.write(m_staticInstances, frame, std::as_bytes(std::span{ instances }));
-        m_staticCount = static_cast<std::uint32_t>(instances.size());
-    }
-
-    // Their materials: kept alive for as long as the instances address them, and updated every frame.
-    std::unordered_set<const assets::Material*> seen;
-    for (auto&& [entity, transform, renderer] : view.each())
-    {
-        if (renderer.mesh && renderer.material && m_drawBatches.batchId(*renderer.material->materialTemplate()) &&
-            seen.insert(renderer.material.get()).second)
-            m_staticMaterials.push_back(renderer.material.shared());
-    }
+    std::vector<InstanceData> data;
+    data.reserve(range.size());
+    for (const auto& instance : instances.subspan(range.begin, range.size()))
+        data.push_back(makeInstance(instance, frameIndex));
+    pool.write(buffer.buffer, frameIndex, std::as_bytes(std::span{ data }), sizeof(InstanceData) * range.begin);
 }
 
 auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    const auto version = frameInfo.scene.registry().staticVersion();
-    if (m_builtVersion != version)
-    {
-        m_builtVersion = version;
-        rebuildStatic(pool, frameInfo.scene);
-    }
-    // Edits to a static material reach the GPU through its block for this frame, which no frame in
-    // flight reads any more.
-    for (const auto& material : m_staticMaterials)
+    const auto& store = frameInfo.frameScene.instances;
+    // Edits to a material reach the GPU through its block for this frame, which no frame in flight reads
+    // any more.
+    for (const auto& material : store.materials())
         material->update(frameInfo.frameIndex);
 
-    std::ignore = ensureCapacity(pool, m_dynamicInstances, m_dynamicCapacity, m_drawBatches.dynamicInstanceCount(),
-        sizeof(InstanceData));
-    // DynamicTag is empty, so the view's each() does not yield it.
-    auto view = frameInfo.scene.registry().view<aegis::GlobalTransform, aegis::MeshRenderer, aegis::DynamicTag>();
-    const auto instances = collectInstances(view, m_drawBatches, frameInfo.frameIndex, m_dynamicCapacity, true);
-    pool.write(m_dynamicInstances, frameInfo.frameIndex, std::as_bytes(std::span{ instances }));
-    m_dynamicCount = static_cast<std::uint32_t>(instances.size());
+    write(pool, m_static, store.staticInstances(), store.staticDirty(), frameInfo.frameIndex);
+    write(pool, m_dynamic, store.dynamicInstances(), store.dynamicDirty(), frameInfo.frameIndex);
 
     std::vector<DrawBatchData> batches;
-    batches.reserve(m_drawBatches.batchCount());
-    for (const auto& batch : m_drawBatches.batches())
+    batches.reserve(store.batchCount());
+    for (const auto& batch : store.batches())
         batches.push_back({ batch.firstInstance, batch.instanceCount });
     pool.write(m_drawBatchData, frameInfo.frameIndex, std::as_bytes(std::span{ batches }));
 }
@@ -173,7 +125,7 @@ auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
 
 ClearDrawCountsPass::ClearDrawCountsPass(ResourceDeclarations& declarations) :
     m_counts{ declarations.addBuffer(names::indirectDrawCounts, Usage::TransferDst,
-        { .size = sizeof(std::uint32_t) * DrawBatchRegistry::maxDrawBatches }) }
+        { .size = sizeof(std::uint32_t) * InstanceStore::maxDrawBatches }) }
 {
 }
 
@@ -220,10 +172,10 @@ auto CullingPass::createResources(ResourcePool& pool) -> std::expected<void, Err
 
 auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    // Culling appends each batch's visible instances at its registry offset, so both buffers need an
-    // entry per registered instance. Should they fail to grow, nothing is culled: the counts stay zero
+    // Culling appends each batch's visible instances at its batch offset, so both buffers need an
+    // entry per instance in the store. Should they fail to grow, nothing is culled: the counts stay zero
     // and nothing is drawn.
-    const auto registered = frameInfo.drawBatches.instanceCount();
+    const auto registered = frameInfo.frameScene.instances.instanceCount();
     if (!ensureCapacity(pool, m_visibility, m_visibilityCapacity, registered, sizeof(std::uint32_t)) ||
         !ensureCapacity(pool, m_commands, m_commandCapacity, registered, indirectCommandSize))
         return;
@@ -319,9 +271,11 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
     // A batch past the command buffer's end (it failed to grow; culling then wrote nothing) is
     // skipped: its maximum draw count would read beyond the buffer.
     const auto commandCapacity = pool.bufferSize(m_commands) / indirectCommandSize;
-    for (const auto& batch : frameInfo.drawBatches.batches())
+    for (const auto& batch : frameInfo.frameScene.instances.batches())
     {
-        if (batch.instanceCount == 0 || std::size_t{ batch.firstInstance } + batch.instanceCount > commandCapacity)
+        // The G-buffer holds opaque surfaces only, as on the CPU path (StaticMeshRenderSystem).
+        if (batch.instanceCount == 0 || batch.materialTemplate->type() != assets::MaterialType::Opaque ||
+            std::size_t{ batch.firstInstance } + batch.instanceCount > commandCapacity)
             continue;
         cmd.pushConstants(GpuDrivenGeometryConstants{
             .camera = pool.bufferAddress(m_cameraData, frame),
