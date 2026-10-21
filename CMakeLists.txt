@@ -30,6 +30,7 @@ find_program(SLANGC_EXE slangc
     REQUIRED
 )
 include(cmake/AegisShaders.cmake)
+include(cmake/AegisGame.cmake)
 
 add_subdirectory(external SYSTEM)
 add_subdirectory(src)

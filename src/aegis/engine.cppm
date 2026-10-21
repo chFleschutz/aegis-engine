@@ -46,6 +46,9 @@ struct AppDesc
     std::uint32_t frames{ 0 };
     /// @brief Headless: save the last frame here as PNG.
     std::string screenshot;
+    /// @brief The project folder the assets come from, its index kept in `<project>/.aegis`; empty for
+    ///        the samples (paths::assets()). A game's launcher fills it in through paths::locate.
+    std::filesystem::path project;
 };
 
 enum class EngineErrorCode
@@ -74,14 +77,30 @@ inline constexpr int exitUsage{ 2 };
 
 [[nodiscard]] auto describe(const EngineError& error) -> std::string;
 
-/// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n> and --height <n>; the first
-///        argument (the program name) is skipped. A headless run without --frames stops after 600 frames.
+/// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n> and --project <dir>;
+///        the first argument (the program name) is skipped. A headless run without --frames stops after 600 frames.
 [[nodiscard]] auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, EngineError>;
 
 /// @brief The same for main's argc and argv.
 [[nodiscard]] auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>;
 
+/// @brief The usage line for parseArgs's options, naming 'program'.
+[[nodiscard]] auto usage(std::string_view program) -> std::string;
+
 class Engine;
+
+/// @brief A game as the launcher sees it. AEGIS_GAME_MODULE (`aegis/launch/game_module.h`) defines the one
+///        function that returns it; the launcher (`<Game>` and `<Game>-Editor`, see aegis_add_game) calls it.
+struct GameModule
+{
+    /// @brief The game's name, also the window title.
+    std::string_view name;
+    /// @brief Registers the game's components and scripts in the engine's types; null for none.
+    auto (*registerTypes)(reflect::TypeRegistry& types) -> std::expected<void, reflect::Error>{ nullptr };
+    /// @brief Runs once the engine is created and the types are registered, e.g. to load the first scene;
+    ///        null for none.
+    auto (*onStartup)(Engine& engine) -> std::expected<void, EngineError>{ nullptr };
+};
 
 /// @brief parseArgs plus Engine::create for a 'main': a failure is logged and comes back as the exit code
 ///        to return (exitUsage for a bad command line, exitFailure when the engine can't start).
