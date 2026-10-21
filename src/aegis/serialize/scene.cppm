@@ -1,5 +1,6 @@
 export module aegis.serialize:scene;
 import std;
+import aegis.assets;
 import aegis.reflect;
 import aegis.world.registry;
 import :error;
@@ -64,6 +65,29 @@ struct Scene
     std::vector<SceneEntity> entities; // Sorted by ID
 };
 
+// The entity holding an instance of `scene`: instantiating it creates the scene's entities as its descendants
+// (the scene's roots become its children), with IDs derived from its own (deriveEntityId). Saving writes the
+// holder with this component, not the entities of the instance. A scene may hold instances of other scenes.
+struct SceneInstance
+{
+    assets::AssetRef<Scene> scene;
+};
+
+// An entity created by a scene instance, so saveScene leaves it out (its holder recreates it): `holder` is the
+// world ID of the entity holding the instance. Not registered; it is rebuilt at instantiation.
+struct InstanceMember
+{
+    std::uint64_t holder{ 0 };
+};
+
+// Registers SceneInstance with world::registerComponent, so scene files can hold instances.
+auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, reflect::Error>;
+
+// The world ID of the entity `localId` of a scene instance held by the entity `holderId` (its world ID):
+// XXH3_64 of both IDs as little-endian bytes, holder first, with seed 0. Nested instances chain it. Saved games
+// and overrides name instance entities by it, so it must never change (a test pins it).
+[[nodiscard]] auto deriveEntityId(std::uint64_t holderId, std::uint64_t localId) -> std::uint64_t;
+
 // Reads a scene file and checks it against the registry: its layout, every type and field, every value's
 // kind, entity IDs (unique and non-zero), children (existing, each listed once) and the hierarchy (no cycle).
 // Errors carry the line they are about.
@@ -73,18 +97,28 @@ struct Scene
 [[nodiscard]] auto writeScene(const Scene& scene) -> std::string;
 
 // Captures every entity of `registry` with its name, children, registered components (those registered with
-// world::registerComponent) and scripts, as the scene `id`.
+// world::registerComponent) and scripts, as the scene `id`. The entities of scene instances are left out: the
+// holder's SceneInstance recreates them.
 [[nodiscard]] auto saveScene(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id) -> std::expected<Scene, Error>;
 
 // Finishes a component read from a scene file before it joins its entity: `component` is an instance of `type`
-// with the file's fields set. The asset library loads the asset references here, which the file gives as IDs.
+// with the file's fields set. The asset library loads the asset references here, which the file gives as IDs,
+// including the scene of a SceneInstance.
 using PrepareComponent = std::function<void(const reflect::TypeInfo& type, void* component)>;
 
-// Creates the scene's entities in `registry`, keeping their IDs (a world's root scene), with their components,
-// scripts and hierarchy. Each component is built complete (its fields read, then `prepare`) before it is added,
-// so observers of its construction see the final value; without `prepare`, asset references stay unresolved
-// (an ID without a slot). On failure (an ID the registry already uses, a value that does not fit its field, a
-// type that cannot be created) nothing is created.
+// Creates the scene's entities in `registry`, keeping their IDs (a world's root scene, a level), with their
+// components, scripts and hierarchy, then the entities of the scene instances they hold. Each component is
+// built complete (its fields read, then `prepare`) before it is added, so observers of its construction see the
+// final value; without `prepare`, asset references stay unresolved (an ID without a slot). A singleton
+// component (the sky, the main camera) the world already has is dropped with a warning. On failure (an ID the
+// registry already uses, a value that does not fit its field, a type that cannot be created, an instance whose
+// scene did not load, a scene that holds itself through its instances) nothing is created.
 [[nodiscard]] auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& scene,
     const PrepareComponent& prepare = {}) -> std::expected<void, Error>;
+
+// Creates an instance of `scene` (a loaded reference): a new entity with a random ID holds it, as a child of
+// `parent` (a root entity for a null `parent`), and the scene's entities derive their IDs from the holder's.
+// Otherwise like the overload above. Returns the holder.
+[[nodiscard]] auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const assets::AssetRef<Scene>& scene,
+    world::Entity parent, const PrepareComponent& prepare = {}) -> std::expected<world::Entity, Error>;
 }

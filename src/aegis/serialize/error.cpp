@@ -20,6 +20,7 @@ constexpr auto codeName(ErrorCode code) -> std::string_view
     case ErrorCode::DuplicateEntity: return "DuplicateEntity";
     case ErrorCode::MissingEntity: return "MissingEntity";
     case ErrorCode::Cycle: return "Cycle";
+    case ErrorCode::MissingScene: return "MissingScene";
     }
     return "Unknown";
 }

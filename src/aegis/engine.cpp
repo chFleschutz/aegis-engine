@@ -146,7 +146,10 @@ auto Engine::create(const AppDesc& desc) -> std::expected<std::unique_ptr<Engine
 
 auto Engine::initialize() -> std::expected<void, EngineError>
 {
-    if (auto registered = world::registerComponents(m_types).and_then([this] { return scripting::registerKinematicMovementController(m_types); }); !registered)
+    auto registered = world::registerComponents(m_types)
+                          .and_then([this] { return serialize::registerComponents(m_types); })
+                          .and_then([this] { return scripting::registerKinematicMovementController(m_types); });
+    if (!registered)
         return std::unexpected{ makeError(EngineErrorCode::TypesFailed, std::format("Failed to register the built-in types: {}", reflect::describe(registered.error()))) };
     if (auto created = createWindow(); !created)
         return created;

@@ -1,5 +1,11 @@
+module;
+
+#include <xxhash.h>
+
 module aegis.serialize;
 import std;
+import aegis.assets;
+import aegis.base;
 import aegis.reflect;
 import aegis.scripting.script;
 import aegis.world.registry;
@@ -249,6 +255,184 @@ auto loadFields(const SceneComponent& component, void* object) -> std::expected<
     }
     return {};
 }
+
+// Creates a scene's entities and then the instances they hold, and destroys all it created when told to.
+class Instantiator
+{
+public:
+    Instantiator(world::Registry& registry, const reflect::TypeRegistry& types, const PrepareComponent& prepare) :
+        m_registry{ registry },
+        m_types{ types },
+        m_prepare{ prepare }
+    {
+    }
+
+    // Creates the entities of `scene`: with their local IDs for a null `holder` (the world's root scene), else
+    // with IDs derived from the holder's and as its descendants.
+    auto place(const Scene& scene, world::Entity holder) -> std::expected<void, Error>
+    {
+        if (auto start = std::ranges::find(m_chain, scene.id); start != m_chain.end())
+        {
+            std::string chain;
+            for (auto it = start; it != m_chain.end(); ++it)
+                chain += std::format("{} -> ", formatId(*it));
+            chain += formatId(scene.id);
+            return makeError(ErrorCode::Cycle, std::format("the scene holds itself through its instances: {}", chain));
+        }
+        m_chain.push_back(scene.id);
+        auto placed = placeEntities(scene, holder);
+        m_chain.pop_back();
+        return placed;
+    }
+
+    // Destroys every entity this created.
+    void rollback()
+    {
+        for (auto it = m_created.rbegin(); it != m_created.rend(); ++it)
+            m_registry.destroy(*it);
+        m_created.clear();
+    }
+
+private:
+    auto placeEntities(const Scene& scene, world::Entity holder) -> std::expected<void, Error>
+    {
+        const std::uint64_t holderId = holder ? m_registry.get<StableId>(holder).value : 0;
+        std::unordered_map<std::uint64_t, world::Entity> created; // By local ID
+        std::vector<std::pair<world::Entity, const SceneEntity*>> holders;
+
+        for (const SceneEntity& saved : scene.entities)
+        {
+            const std::uint64_t id = holder ? deriveEntityId(holderId, saved.id) : saved.id;
+            const world::Entity entity = m_registry.createWithId(id, saved.name);
+            if (!entity)
+                return makeError(ErrorCode::DuplicateEntity, std::format("the world already has an entity {}", formatId(id)), saved.line);
+            m_created.push_back(entity);
+            created.emplace(saved.id, entity);
+            if (holder)
+                m_registry.add<InstanceMember>(entity, InstanceMember{ holderId });
+
+            if (auto added = addComponents(saved, entity, id); !added)
+                return std::unexpected{ std::move(added.error()) };
+            if (m_registry.has<SceneInstance>(entity))
+                holders.emplace_back(entity, &saved);
+        }
+
+        for (const SceneEntity& saved : scene.entities)
+        {
+            const world::Entity parent = created.at(saved.id);
+            for (std::uint64_t childId : saved.children)
+            {
+                auto child = created.find(childId);
+                if (child == created.end())
+                    return makeError(ErrorCode::MissingEntity, std::format("the child {} is not in the scene", formatId(childId)), saved.line);
+                if (m_registry.get<Parent>(child->second).entity)
+                    return makeError(ErrorCode::DuplicateEntity, std::format("{} is listed as a child twice", formatId(childId)), saved.line);
+                if (!m_registry.addChild(parent, child->second))
+                    return makeError(ErrorCode::Cycle, std::format("{} is its own ancestor", formatId(saved.id)), saved.line);
+            }
+        }
+
+        // The scene's roots become the holder's children, after those its own scene gives it
+        if (holder)
+        {
+            for (const SceneEntity& saved : scene.entities)
+            {
+                const world::Entity entity = created.at(saved.id);
+                if (!m_registry.get<Parent>(entity).entity)
+                    m_registry.addChild(holder, entity);
+            }
+        }
+
+        for (const auto& [entity, saved] : holders)
+        {
+            // A copy: placing the instance adds SceneInstance components, which may move this one
+            const assets::AssetRef<Scene> instance = m_registry.get<SceneInstance>(entity).scene;
+            if (!instance)
+            {
+                const auto& slot = instance.slot();
+                return makeError(ErrorCode::MissingScene,
+                    std::format("the scene {} of entity {} did not load{}{}", formatId(instance.id().value), formatId(saved->id),
+                        slot && !slot->message.empty() ? ": " : "", slot ? slot->message : std::string{}),
+                    saved->line);
+            }
+            if (auto placed = place(*instance, entity); !placed)
+            {
+                if (placed.error().code == ErrorCode::Cycle)
+                    return placed;
+                return std::unexpected{ Error{ .code = placed.error().code,
+                    .message = std::format("in the instance of scene {} on entity {}: {}", formatId(instance->id), formatId(saved->id), describe(placed.error())),
+                    .line = saved->line } };
+            }
+        }
+        return {};
+    }
+
+    auto addComponents(const SceneEntity& saved, world::Entity entity, std::uint64_t id) -> std::expected<void, Error>
+    {
+        for (const SceneComponent& component : saved.components)
+        {
+            const auto* storage = component.type->attachment<world::ComponentStorage>();
+            if (!storage)
+            {
+                return makeError(ErrorCode::UnknownType, std::format("'{}' was not registered with world::registerComponent", component.type->name),
+                    component.fields.line);
+            }
+            if (storage->singleton)
+            {
+                if (const world::Entity first = storage->first(m_registry))
+                {
+                    log::warn("The world already has a {} (entity {}): entity {} drops its own", component.type->name,
+                        formatId(m_registry.get<StableId>(first).value), formatId(id));
+                    continue;
+                }
+            }
+            auto value = component.type->create();
+            if (!value)
+                return makeError(ErrorCode::UnknownType, value.error(), std::format("cannot create '{}'", component.type->name), component.fields.line);
+            if (auto loaded = loadFields(component, value->get()); !loaded)
+                return loaded;
+            if (m_prepare)
+                m_prepare(*component.type, value->get());
+            storage->add(m_registry, entity, value->get());
+        }
+
+        for (const SceneComponent& script : saved.scripts)
+        {
+            auto attached = scripting::attachScript(m_registry, m_types, entity, script.type->name);
+            if (!attached)
+                return makeError(ErrorCode::UnknownType, attached.error(), std::format("cannot attach the script '{}'", script.type->name), script.fields.line);
+            if (auto loaded = loadFields(script, m_registry.get<scripting::Scripts>(entity).entries.back().object); !loaded)
+                return loaded;
+        }
+        return {};
+    }
+
+    world::Registry& m_registry;
+    const reflect::TypeRegistry& m_types;
+    const PrepareComponent& m_prepare;
+    std::vector<world::Entity> m_created;
+    std::vector<std::uint64_t> m_chain; // The scenes being placed, outermost first
+};
+}
+
+auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, reflect::Error>
+{
+    auto builder = world::registerComponent<SceneInstance>(types, "SceneInstance");
+    if (!builder)
+        return std::unexpected{ builder.error() };
+    builder->field("scene", &SceneInstance::scene);
+    return builder->status();
+}
+
+auto deriveEntityId(std::uint64_t holderId, std::uint64_t localId) -> std::uint64_t
+{
+    std::array<unsigned char, 16> bytes{};
+    for (std::size_t i = 0; i < 8; ++i)
+    {
+        bytes[i] = static_cast<unsigned char>(holderId >> (8 * i));
+        bytes[8 + i] = static_cast<unsigned char>(localId >> (8 * i));
+    }
+    return XXH3_64bits(bytes.data(), bytes.size());
 }
 
 auto parseScene(std::string_view text, const reflect::TypeRegistry& types) -> std::expected<Scene, Error>
@@ -370,9 +554,14 @@ auto saveScene(world::Registry& registry, const reflect::TypeRegistry& types, st
     for (const auto handle : registry.view<StableId>())
     {
         const world::Entity entity{ handle };
+        if (registry.has<InstanceMember>(entity))
+            continue;
         SceneEntity saved{ .id = registry.get<StableId>(entity).value, .name = registry.get<Name>(entity).name };
         for (world::Entity child = registry.get<Children>(entity).first; child; child = registry.get<Siblings>(child).next)
-            saved.children.push_back(registry.get<StableId>(child).value);
+        {
+            if (!registry.has<InstanceMember>(child))
+                saved.children.push_back(registry.get<StableId>(child).value);
+        }
 
         for (const auto& [info, storage] : stored)
         {
@@ -407,73 +596,33 @@ auto saveScene(world::Registry& registry, const reflect::TypeRegistry& types, st
 auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& scene, const PrepareComponent& prepare)
     -> std::expected<void, Error>
 {
-    for (const SceneEntity& entity : scene.entities)
+    Instantiator instantiator{ registry, types, prepare };
+    if (auto placed = instantiator.place(scene, world::Entity{}); !placed)
     {
-        if (registry.find(StableId{ entity.id }))
-            return makeError(ErrorCode::DuplicateEntity, std::format("the world already has an entity {}", formatId(entity.id)), entity.line);
-    }
-
-    std::unordered_map<std::uint64_t, world::Entity> created;
-    auto fail = [&](Error error) -> std::expected<void, Error> {
-        for (const auto& [id, entity] : created)
-            registry.destroy(entity);
-        return std::unexpected{ std::move(error) };
-    };
-
-    for (const SceneEntity& saved : scene.entities)
-    {
-        const world::Entity entity = registry.createWithId(saved.id, saved.name);
-        if (!entity)
-            return fail(Error{ .code = ErrorCode::DuplicateEntity, .message = std::format("the entity {} is listed twice", formatId(saved.id)), .line = saved.line });
-        created.emplace(saved.id, entity);
-
-        for (const SceneComponent& component : saved.components)
-        {
-            const auto* storage = component.type->attachment<world::ComponentStorage>();
-            if (!storage)
-            {
-                return fail(Error{ .code = ErrorCode::UnknownType,
-                    .message = std::format("'{}' was not registered with world::registerComponent", component.type->name),
-                    .line = component.fields.line });
-            }
-            auto value = component.type->create();
-            if (!value)
-            {
-                return fail(Error{ .code = ErrorCode::UnknownType, .message = std::format("cannot create '{}'", component.type->name), .line = component.fields.line, .reflect = value.error() });
-            }
-            if (auto loaded = loadFields(component, value->get()); !loaded)
-                return fail(loaded.error());
-            if (prepare)
-                prepare(*component.type, value->get());
-            storage->add(registry, entity, value->get());
-        }
-
-        for (const SceneComponent& script : saved.scripts)
-        {
-            auto attached = scripting::attachScript(registry, types, entity, script.type->name);
-            if (!attached)
-            {
-                return fail(Error{ .code = ErrorCode::UnknownType, .message = std::format("cannot attach the script '{}'", script.type->name), .line = script.fields.line, .reflect = attached.error() });
-            }
-            if (auto loaded = loadFields(script, registry.get<scripting::Scripts>(entity).entries.back().object); !loaded)
-                return fail(loaded.error());
-        }
-    }
-
-    for (const SceneEntity& saved : scene.entities)
-    {
-        const world::Entity parent = created.at(saved.id);
-        for (std::uint64_t childId : saved.children)
-        {
-            auto child = created.find(childId);
-            if (child == created.end())
-                return fail(Error{ .code = ErrorCode::MissingEntity, .message = std::format("the child {} is not in the scene", formatId(childId)), .line = saved.line });
-            if (registry.get<Parent>(child->second).entity)
-                return fail(Error{ .code = ErrorCode::DuplicateEntity, .message = std::format("{} is listed as a child twice", formatId(childId)), .line = saved.line });
-            if (!registry.addChild(parent, child->second))
-                return fail(Error{ .code = ErrorCode::Cycle, .message = std::format("{} is its own ancestor", formatId(saved.id)), .line = saved.line });
-        }
+        instantiator.rollback();
+        return std::unexpected{ std::move(placed.error()) };
     }
     return {};
+}
+
+auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const assets::AssetRef<Scene>& scene,
+    world::Entity parent, const PrepareComponent& prepare) -> std::expected<world::Entity, Error>
+{
+    if (!scene)
+        return makeError(ErrorCode::MissingScene, std::format("the scene {} is not loaded", formatId(scene.id().value)));
+
+    const world::Entity holder = registry.create();
+    registry.add<SceneInstance>(holder, SceneInstance{ scene });
+    if (parent)
+        registry.addChild(parent, holder);
+
+    Instantiator instantiator{ registry, types, prepare };
+    if (auto placed = instantiator.place(*scene, holder); !placed)
+    {
+        instantiator.rollback();
+        registry.destroy(holder);
+        return std::unexpected{ std::move(placed.error()) };
+    }
+    return holder;
 }
 }

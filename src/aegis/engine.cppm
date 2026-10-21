@@ -21,6 +21,7 @@ export import aegis.reflect;
 export import aegis.scripting.script;
 export import aegis.scripting.movement.kinematic_movement_controller;
 import aegis.scripting.script_system;
+import aegis.serialize;
 import aegis.world.systems.camera_system;
 import aegis.world.systems.transform_system;
 export import aegis.assets;

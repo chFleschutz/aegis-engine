@@ -15,7 +15,8 @@ enum class ErrorCode
     UnsupportedVersion, // A version newer than the engine knows, or one no migration upgrades
     DuplicateEntity,    // An entity listed twice (in the entity list, or as a child)
     MissingEntity,      // A child ID that no entity has
-    Cycle,              // An entity among its own descendants
+    Cycle,              // An entity among its own descendants, or a scene among its own instances
+    MissingScene,       // A scene instance whose scene did not load
 };
 
 struct Error
