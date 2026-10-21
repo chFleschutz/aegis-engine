@@ -7,5 +7,6 @@ aegis_add_test(world
         world.test.cpp
         stable_id.test.cpp
         transform_system.test.cpp
+        types.test.cpp
     LIBS aegis-world aegis-scripting aegis-reflect
 )

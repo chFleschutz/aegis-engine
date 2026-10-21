@@ -10,6 +10,7 @@ PUBLIC
 		entity.cppm
 		registry.cppm
 		render_components.cppm
+		types.cppm
 		world.cppm
 		system.cppm
 		systems/camera_system.cppm
@@ -22,12 +23,13 @@ target_include_directories(aegis-world PRIVATE
 )
 
 # PUBLIC: the module interfaces import aegis.math and aegis.core, render_components imports aegis.assets,
-# and they export EnTT's names.
+# types imports aegis.reflect, and they export EnTT's names.
 target_link_libraries(aegis-world
 PUBLIC
 	aegis-assets
 	aegis-base
 	aegis-core
 	aegis-math
+	aegis-reflect
 	EnTT::EnTT
 )
