@@ -24,7 +24,7 @@ Why it hurts:
 
 - **Hidden dependencies:** a function's signature doesn't show what it uses.
 - **One engine per process:** only one can exist at a time.
-- **Duplicated setup:** the engine can't be built in tests, so `aegis-test` (`src/aegis/test/main.cpp`)
+- **Duplicated setup:** the engine can't be built in tests, so `aegis-test` (`src/aegis/test/`)
   rebuilds the same setup in its own `Engine` class (context, device, renderer, frame graph, IBL).
   Two setup paths will drift apart.
 
