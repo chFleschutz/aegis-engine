@@ -26,5 +26,6 @@ private:
     std::string m_shader;
     rhi::Device* m_device{ nullptr };
     std::optional<rhi::Pipeline> m_pipeline;
+    std::optional<rhi::Pipeline> m_mirroredPipeline; // Clockwise front faces, for mirrored transforms
 };
 }

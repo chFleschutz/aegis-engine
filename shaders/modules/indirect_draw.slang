@@ -9,6 +9,9 @@ import modules.common;
 
 namespace indirectDraw
 {
+    /// Instance::flags bits (render_graph::InstanceFlags).
+    public static const uint INSTANCE_MIRRORED = 1 << 0; // Negative determinant: triangles wind the other way
+
     public struct Instance
     {
         public float3x4 model; // Top three rows of the model matrix
@@ -18,6 +21,12 @@ namespace indirectDraw
         public common::Mesh* mesh;
         public common::PbrMaterial* material;
         public uint drawBatch;
+        public uint flags; // INSTANCE_* bits
+
+        public property bool mirrored
+        {
+            get { return (flags & INSTANCE_MIRRORED) != 0; }
+        }
 
         public property float4x4 modelMatrix
         {
