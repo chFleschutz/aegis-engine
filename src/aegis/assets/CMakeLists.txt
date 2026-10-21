@@ -19,6 +19,7 @@ target_sources(aegis-assets
     asset_database.cppm
     asset_id.cppm
     asset_key.cppm
+    asset_ref.cppm
     assets.cppm
     defaults.cppm
     environment.cppm

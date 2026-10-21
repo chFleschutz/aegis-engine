@@ -37,6 +37,19 @@ struct EnumNames;
 template<class T>
 struct FieldConversion;
 
+// Marks a type as a reference to an asset, so it is a field of kind AssetRef. Specialize it next to the
+// type (reflect knows no assets):
+//
+//     template <class T> struct aegis::reflect::AssetFieldTraits<AssetRef<T>>
+//     {
+//         static auto id(const AssetRef<T>& ref) -> std::uint64_t;   // 0 for none
+//         static auto make(std::uint64_t id) -> AssetRef<T>;         // an unresolved reference
+//     };
+//
+// The serializer writes the ID, and the cook step finds a file's dependencies through these fields.
+template<class T>
+struct AssetFieldTraits;
+
 namespace detail
 {
 template<class T>
@@ -168,6 +181,25 @@ struct FieldConversion<E>
         for (const auto& [name, value] : EnumNames<E>::values)
             entries.push_back({ .name = std::string{ name }, .value = static_cast<std::int64_t>(std::to_underlying(value)) });
         return entries;
+    }
+};
+
+// An asset reference travels as its ID.
+template<class T>
+    requires requires(const T& ref, std::uint64_t id) {
+        { AssetFieldTraits<T>::id(ref) } -> std::convertible_to<std::uint64_t>;
+        { AssetFieldTraits<T>::make(id) } -> std::convertible_to<T>;
+    }
+struct FieldConversion<T>
+{
+    static constexpr FieldKind kind = FieldKind::AssetRef;
+    static auto toValue(const T& v) -> Value { return static_cast<std::uint64_t>(AssetFieldTraits<T>::id(v)); }
+    static auto fromValue(const Value& v) -> std::expected<T, Error>
+    {
+        auto id = detail::exactly<std::uint64_t>(v, kind);
+        if (!id)
+            return std::unexpected{ id.error() };
+        return AssetFieldTraits<T>::make(*id);
     }
 };
 }

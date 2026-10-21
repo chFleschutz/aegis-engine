@@ -541,3 +541,87 @@ TEST_SUITE("reflect::text")
         CHECK(info->setText(&object, "big", "99999999999999999999").error().code == ErrorCode::OutOfRange);
     }
 }
+
+namespace
+{
+// Stands in for assets::AssetRef<T>: reflect only needs the ID and a way to make one from it.
+struct FakeRef
+{
+    std::uint64_t id{ 0 };
+};
+
+struct Holder
+{
+    FakeRef mesh;
+};
+}
+
+template<>
+struct aegis::reflect::AssetFieldTraits<FakeRef>
+{
+    static auto id(const FakeRef& ref) -> std::uint64_t { return ref.id; }
+    static auto make(std::uint64_t id) -> FakeRef { return FakeRef{ id }; }
+};
+
+TEST_SUITE("reflect::AssetRef")
+{
+    TEST_CASE("an asset reference field is written as its ID")
+    {
+        TypeRegistry types;
+        auto builder = types.component<Holder>("Holder");
+        REQUIRE(builder.has_value());
+        builder->field("mesh", &Holder::mesh);
+        REQUIRE(builder->status().has_value());
+
+        const TypeInfo* info = types.find<Holder>();
+        const FieldInfo* mesh = info->findField("mesh");
+        REQUIRE(mesh != nullptr);
+        CHECK(mesh->kind == FieldKind::AssetRef);
+
+        Holder holder{ FakeRef{ 0xa3f09c2e4b1d7788ULL } };
+        CHECK(info->getText(&holder, "mesh").value() == "a3f09c2e4b1d7788");
+
+        Holder other;
+        REQUIRE(info->setText(&other, "mesh", "00000000000000ab").has_value());
+        CHECK(other.mesh.id == 0xab);
+    }
+
+    TEST_CASE("an empty reference is empty text and parses back")
+    {
+        TypeRegistry types;
+        auto builder = types.component<Holder>("Holder");
+        builder->field("mesh", &Holder::mesh);
+        const TypeInfo* info = types.find<Holder>();
+
+        Holder holder;
+        CHECK(info->getText(&holder, "mesh").value().empty());
+        holder.mesh.id = 5;
+        REQUIRE(info->setText(&holder, "mesh", "").has_value());
+        CHECK(holder.mesh.id == 0);
+    }
+
+    TEST_CASE("rejects asset IDs of the wrong width or case")
+    {
+        TypeRegistry types;
+        auto builder = types.component<Holder>("Holder");
+        builder->field("mesh", &Holder::mesh);
+        const TypeInfo* info = types.find<Holder>();
+
+        Holder holder;
+        CHECK_FALSE(info->setText(&holder, "mesh", "abc").has_value());
+        CHECK_FALSE(info->setText(&holder, "mesh", "A3F09C2E4B1D7788").has_value());
+        CHECK_FALSE(info->setText(&holder, "mesh", "a3f09c2e4b1d778g").has_value());
+    }
+
+    TEST_CASE("an integer value is not an asset reference")
+    {
+        TypeRegistry types;
+        auto builder = types.component<Holder>("Holder");
+        builder->field("mesh", &Holder::mesh);
+        const TypeInfo* info = types.find<Holder>();
+
+        Holder holder;
+        CHECK_FALSE(info->set(&holder, "mesh", std::int64_t{ 5 }).has_value());
+        CHECK(info->set(&holder, "mesh", std::uint64_t{ 5 }).has_value());
+    }
+}

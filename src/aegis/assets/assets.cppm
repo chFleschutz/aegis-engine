@@ -7,6 +7,7 @@ import std;
 export import :asset_database;
 export import :asset_id;
 export import :asset_key;
+export import :asset_ref;
 export import :defaults;
 export import :environment;
 export import :error;

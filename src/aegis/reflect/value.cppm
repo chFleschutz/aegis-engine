@@ -18,7 +18,8 @@ enum class FieldKind
     Vec3,
     Vec4,
     Quat,
-    Enum, // Carried as int64_t; the field's EnumEntry list names the valid values
+    Enum,     // Carried as int64_t; the field's EnumEntry list names the valid values
+    AssetRef, // An asset reference, carried as the asset's uint64_t ID (0 for none); the text form is 16 hex digits
 };
 
 [[nodiscard]] constexpr auto kindName(FieldKind kind) -> std::string_view
@@ -36,11 +37,13 @@ enum class FieldKind
     case FieldKind::Vec4: return "Vec4";
     case FieldKind::Quat: return "Quat";
     case FieldKind::Enum: return "Enum";
+    case FieldKind::AssetRef: return "AssetRef";
     }
     return "Unknown";
 }
 
-// A field's value, type-erased. Int and Enum fields both use the int64_t alternative.
+// A field's value, type-erased. Int and Enum fields both use the int64_t alternative, UInt and AssetRef
+// fields the uint64_t one.
 using Value = std::variant<bool, std::int64_t, std::uint64_t, float, double, std::string, glm::vec2, glm::vec3, glm::vec4, glm::quat>;
 
 // One named enumerator of an enum field.

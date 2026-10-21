@@ -2,6 +2,7 @@ aegis_add_test(assets
     SOURCES
         asset_database.test.cpp
         asset_id.test.cpp
+        asset_ref.test.cpp
         asset_key.test.cpp
         defaults.test.cpp
         error.test.cpp
