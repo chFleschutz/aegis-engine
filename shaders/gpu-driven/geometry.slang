@@ -47,13 +47,16 @@ func meshMain(
         meshVertices[i].instanceID = inPayload.instanceID;
     }
 
+    // A mirrored transform reverses the winding of every triangle; swapping two indices restores it, so
+    // the pipeline's back-face culling keeps the outside.
+    let mirrored = instance.mirrored;
     for (uint i = threadID.x; i < uint(meshlet.primitiveCount); i += MESH_GROUP_SIZE)
     {
         let offset = meshlet.primitiveOffset + i * 3;
-        meshPrimitives[i] = uint3(
-            mesh->meshletPrimitives[offset + 0],
-            mesh->meshletPrimitives[offset + 1],
-            mesh->meshletPrimitives[offset + 2]);
+        let first = mesh->meshletPrimitives[offset + 0];
+        let second = mesh->meshletPrimitives[offset + 1];
+        let third = mesh->meshletPrimitives[offset + 2];
+        meshPrimitives[i] = mirrored ? uint3(first, third, second) : uint3(first, second, third);
     }
 }
 

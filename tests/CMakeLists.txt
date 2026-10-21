@@ -72,4 +72,11 @@ if(TARGET compile_shaders)
     aegis_add_device_test(aegis-test-golden-scene-gpu-driven
         ARGS --headless --gpu-driven --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-gpu-driven.png --tolerance 0
         LABELS golden mesh-shaders)
+    # The helmet mirrored (a scale of -1 on x): it must look like the plain one, not inside out (#171).
+    aegis_add_device_test(aegis-test-golden-scene-mirrored
+        ARGS --headless --scene --mirror --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-mirrored.png --tolerance 0
+        LABELS golden)
+    aegis_add_device_test(aegis-test-golden-scene-mirrored-gpu-driven
+        ARGS --headless --gpu-driven --mirror --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-mirrored-gpu-driven.png --tolerance 0
+        LABELS golden mesh-shaders)
 endif()

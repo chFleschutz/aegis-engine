@@ -51,6 +51,7 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(InstanceData, mesh) == 88); // 84 rounded up to the pointer's alignment
         CHECK(offsetof(InstanceData, material) == 96);
         CHECK(offsetof(InstanceData, drawBatch) == 104);
+        CHECK(offsetof(InstanceData, flags) == 108);
         CHECK(sizeof(InstanceData) == 112);
     }
 
@@ -88,6 +89,8 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(static_cast<int>(ToneMapping::Aces) == 1);
         CHECK(sizeof(LightingViewMode) == 4);
         CHECK(sizeof(ToneMapping) == 4);
+        CHECK(static_cast<std::uint32_t>(InstanceFlags::Mirrored) == 1); // indirect_draw.slang's INSTANCE_MIRRORED
+        CHECK(sizeof(InstanceFlags) == 4);
     }
 
     TEST_CASE("CullingConstants matches culling.slang")
@@ -273,5 +276,37 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
         CHECK(equal(transform.normalRow0, 1.0f, 0.0f, 0.0f));
         CHECK(equal(transform.normalRow1, -2.0f, 1.0f, 0.0f));
         CHECK(equal(transform.normalRow2, 0.0f, 0.0f, 1.0f));
+    }
+
+    TEST_CASE("a plain transform is not flagged as mirrored")
+    {
+        // Rotated, scaled and moved, but with a positive determinant.
+        glm::mat4 model{ 1.0f };
+        model[0] = glm::vec4{ 0.0f, 2.0f, 0.0f, 0.0f };
+        model[1] = glm::vec4{ -3.0f, 0.0f, 0.0f, 0.0f };
+        model[3] = glm::vec4{ 5.0f, 6.0f, 7.0f, 1.0f };
+        CHECK(toGpuTransform(glm::mat4{ 1.0f }).flags == InstanceFlags::None);
+        CHECK(toGpuTransform(model).flags == InstanceFlags::None);
+    }
+
+    TEST_CASE("a negative scale on one or three axes is flagged as mirrored")
+    {
+        glm::mat4 oneAxis{ 1.0f };
+        oneAxis[0][0] = -1.0f;
+        glm::mat4 threeAxes{ 1.0f };
+        threeAxes[0][0] = -2.0f;
+        threeAxes[1][1] = -1.0f;
+        threeAxes[2][2] = -0.5f;
+        threeAxes[3] = glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f };
+        CHECK(toGpuTransform(oneAxis).flags == InstanceFlags::Mirrored);
+        CHECK(toGpuTransform(threeAxes).flags == InstanceFlags::Mirrored);
+    }
+
+    TEST_CASE("a negative scale on two axes is a rotation, not a mirror")
+    {
+        glm::mat4 model{ 1.0f };
+        model[0][0] = -1.0f;
+        model[1][1] = -1.0f;
+        CHECK(toGpuTransform(model).flags == InstanceFlags::None);
     }
 }
