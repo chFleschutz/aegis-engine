@@ -23,11 +23,13 @@ target_sources(aegis-serialize
     error.cppm
     json.cppm
     material.cppm
+    model.cppm
     scene.cppm
     PRIVATE
     document.cpp
     error.cpp
     json.cpp
     material.cpp
+    model.cpp
     scene.cpp
 )

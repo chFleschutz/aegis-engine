@@ -10,10 +10,12 @@
 //   :document  (module-internal) The `{type, id, version}` header and checks every native file shares.
 //   :scene     Scene files: read and check them, write them, save a world, instantiate a scene into a world.
 //   :material  Material files: a template's ID and parameter values, read and written as data.
+//   :model     An imported model as a scene asset (its node hierarchy).
 export module aegis.serialize;
 
 export import :document;
 export import :error;
 export import :json;
 export import :material;
+export import :model;
 export import :scene;
