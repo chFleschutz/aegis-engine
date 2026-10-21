@@ -71,8 +71,14 @@ public:
     [[nodiscard]] auto operator*() const noexcept -> T& { return *get(); }
     [[nodiscard]] explicit operator bool() const noexcept { return get() != nullptr; }
 
-    /// @brief References are equal when they name the same asset.
-    [[nodiscard]] friend auto operator==(const AssetRef& a, const AssetRef& b) noexcept -> bool { return a.m_id == b.m_id; }
+    /// @brief References are equal when they name the same asset. References without an ID (a loader's
+    ///        output before the library names it) name nothing, so they are equal only if they share a slot.
+    [[nodiscard]] friend auto operator==(const AssetRef& a, const AssetRef& b) noexcept -> bool
+    {
+        if (!a.m_id.valid() && !b.m_id.valid())
+            return a.m_slot == b.m_slot;
+        return a.m_id == b.m_id;
+    }
 
 private:
     AssetId m_id;

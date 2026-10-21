@@ -58,4 +58,13 @@ TEST_SUITE("assets::AssetRef")
         CHECK(AssetRef<int>{ AssetId{ 5 } } == AssetRef<int>::ready(AssetId{ 5 }, std::make_shared<int>(1)));
         CHECK_FALSE(AssetRef<int>{ AssetId{ 5 } } == AssetRef<int>{ AssetId{ 6 } });
     }
+
+    TEST_CASE("references without an ID are equal only when they share a slot")
+    {
+        const auto a = AssetRef<int>::ready({}, std::make_shared<int>(1));
+        const auto b = AssetRef<int>::ready({}, std::make_shared<int>(2));
+        CHECK_FALSE(a == b);
+        CHECK(a == AssetRef<int>{ AssetId{}, a.slot() });
+        CHECK(AssetRef<int>{} == AssetRef<int>{});
+    }
 }
