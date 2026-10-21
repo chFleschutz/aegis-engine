@@ -128,7 +128,6 @@ void Engine::resetWorld()
 void Engine::beginWorld()
 {
     m_world.begin();
-    m_frameGraph->sceneInitialized(m_world);
 }
 
 Engine::Engine(const AppDesc& desc) :
@@ -244,19 +243,20 @@ auto Engine::run() -> int
             exitCode = exitFailure;
             break;
         }
-        // The passes draw the camera, lights and sky as the update left them.
-        const auto frameScene = aegis::render_graph::extract(m_world);
+        // The passes draw the instances, camera, lights and sky as the update left them.
+        m_instanceBridge.sync();
+        const auto frameScene = aegis::extractFrameScene(m_world, m_instances);
         auto rendered = m_renderer->renderFrame([this, &frameScene](const aegis::renderer::Renderer::FrameInfo& frame) {
             m_lastFrameIndex = frame.frameIndex;
             m_frameGraph->execute({
                 .cmd = frame.cmd,
                 .frameScene = frameScene,
-                .scene = m_world,
-                .drawBatches = m_drawBatches,
                 .frameIndex = frame.frameIndex,
                 .extent = frame.extent,
                 .target = frame.target,
             });
+            // Recorded: the next frame needs only what changes after this one.
+            m_instances.clearDirty();
         });
         if (!rendered)
         {
@@ -337,7 +337,7 @@ auto Engine::createAssets() -> std::expected<void, EngineError>
 
 auto Engine::createFrameGraph() -> std::expected<void, EngineError>
 {
-    m_drawBatches.connect(m_world.registry());
+    m_instanceBridge.connect(m_world.registry());
 
     // Headless draws no UI: no window for ImGui's backends, and nothing to look at.
     std::function<void()> buildUi;
@@ -355,7 +355,6 @@ auto Engine::createFrameGraph() -> std::expected<void, EngineError>
     aegis::render_graph::addDefaultPasses(*m_frameGraph,
         {
             .gpuDriven = useGpuDrivenRendering(),
-            .drawBatches = m_drawBatches,
             .buildUi = std::move(buildUi),
             .context = m_context.get(),
         });

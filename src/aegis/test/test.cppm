@@ -12,6 +12,7 @@ import aegis.platform;
 import aegis.renderer;
 import aegis.render_graph;
 import aegis.rhi;
+import aegis.render_bridge;
 import aegis.world;
 import aegis.world.registry;
 
@@ -151,10 +152,11 @@ private:
     // --scene only. Declared last: destroyed first, while the device they free into still exists.
     std::optional<assets::DefaultAssets> m_defaults;
     std::unique_ptr<aegis::world::World> m_scene;
-    aegis::world::Entity m_helmet;                                  // The root of the model loaded with the scene
-    aegis::world::Entity m_addedModel;                              // --mutate-scene: the root of the model loaded later
-    std::uint32_t m_staticDrawn{ 0 };                               // --mutate-scene: drawable static entities before the last change
-    std::unique_ptr<render_graph::DrawBatchRegistry> m_drawBatches; // Disconnects before the scene goes
+    aegis::world::Entity m_helmet;                            // The root of the model loaded with the scene
+    aegis::world::Entity m_addedModel;                        // --mutate-scene: the root of the model loaded later
+    std::uint32_t m_staticDrawn{ 0 };                         // --mutate-scene: drawable static entities before the last change
+    std::unique_ptr<render_graph::InstanceStore> m_instances; // Holds meshes and materials
+    std::unique_ptr<InstanceBridge> m_instanceBridge;         // Disconnects before the scene goes
     struct ImGuiContextDeleter
     {
         auto operator()(ImGuiContext* context) const -> void { ImGui::DestroyContext(context); }

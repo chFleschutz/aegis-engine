@@ -63,7 +63,6 @@ auto GeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     const RenderContext context{
         .cmd = cmd,
         .frameScene = frameInfo.frameScene,
-        .scene = frameInfo.scene,
         .frameIndex = frameInfo.frameIndex,
         .camera = pool.bufferAddress(m_cameraData, frameInfo.frameIndex),
     };

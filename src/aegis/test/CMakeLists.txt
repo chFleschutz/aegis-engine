@@ -25,6 +25,7 @@ target_link_libraries(aegis-test
         aegis-math
         aegis-paths
         aegis-platform
+        aegis-render-bridge
         aegis-render-graph
         aegis-renderer
         aegis-rhi

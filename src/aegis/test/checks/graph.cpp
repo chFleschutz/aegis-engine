@@ -81,10 +81,9 @@ auto Engine::verifyGraphTextures() -> std::expected<void, std::string>
 // create, so the number of live device resources is the same each time. Then resizes a rebuilt graph.
 auto Engine::verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::string>
 {
-    render_graph::DrawBatchRegistry drawBatches;
     const auto build = [&](std::unique_ptr<render_graph::FrameGraph>& graph) -> std::expected<void, std::string> {
         graph = std::make_unique<render_graph::FrameGraph>(*m_device, m_renderer->extent());
-        render_graph::addDefaultPasses(*graph, { .gpuDriven = gpuDriven, .drawBatches = drawBatches });
+        render_graph::addDefaultPasses(*graph, { .gpuDriven = gpuDriven });
         if (auto compiled = graph->compile(); !compiled)
             return std::unexpected{ std::format("Compiling the default graph: {}", describe(compiled.error())) };
         return {};

@@ -1,8 +1,8 @@
 export module aegis.render_graph:gpu_driven;
 import std;
-import :draw_batch_registry;
 import :error;
 import :gpu_types;
+import :instance_store;
 import :render_pass;
 import :resource;
 import :declarations;
@@ -10,7 +10,7 @@ import :resource_pool;
 import aegis.assets;
 import aegis.rhi;
 import aegis.math;
-import aegis.world;
+import aegis.renderer;
 
 export namespace aegis::render_graph::detail
 {
@@ -27,14 +27,14 @@ export namespace aegis::render_graph::detail
 
 export namespace aegis::render_graph
 {
-/// @brief Writes "StaticInstances" whenever the scene registry's static version changes, and
-///        "DynamicInstances" (DynamicTag entities) and "DrawBatches" every frame. Instance IDs count static
-///        instances first, then dynamic ones. The instance buffers grow to the draw batch registry's counts
-///        (detail::grownCapacity).
+/// @brief Writes the frame's InstanceStore into "StaticInstances" and "DynamicInstances", and its draw batches
+///        into "DrawBatches". Instance IDs count static instances first, then dynamic ones.
 ///
-///        A static rebuild writes into a new buffer, so frames in flight keep reading the old one, which is
-///        freed once they are done. "StaticInstances" has a copy per frame in flight that differ only in the
-///        material blocks they address; each frame updates the static materials' block for that frame.
+///        Both instance buffers have a copy per frame in flight, which differ only in the material blocks they
+///        address. A frame rewrites only the positions of its copy that changed since that copy was last
+///        written (the store's dirty ranges, collected for each copy), so a frame still in flight never sees
+///        a write. The buffers grow to the store's counts (detail::grownCapacity), and a grown buffer is
+///        written whole. Each frame also updates the store's materials' blocks for that frame.
 class InstanceUpdatePass : public RenderPass
 {
 public:
@@ -42,29 +42,31 @@ public:
     static constexpr std::uint32_t initialStaticCapacity{ 65536 };
     static constexpr std::uint32_t initialDynamicCapacity{ 4096 };
 
-    InstanceUpdatePass(ResourceDeclarations& declarations, const DrawBatchRegistry& drawBatches);
+    explicit InstanceUpdatePass(ResourceDeclarations& declarations);
 
     [[nodiscard]] auto name() const -> std::string_view override;
-    auto sceneInitialized(ResourcePool& pool, aegis::world::World& scene) -> void override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
     /// @brief The instances actually written: what culling dispatches over.
-    [[nodiscard]] auto staticCount() const noexcept -> std::uint32_t { return m_staticCount; }
-    [[nodiscard]] auto dynamicCount() const noexcept -> std::uint32_t { return m_dynamicCount; }
+    [[nodiscard]] auto staticCount() const noexcept -> std::uint32_t { return m_static.written; }
+    [[nodiscard]] auto dynamicCount() const noexcept -> std::uint32_t { return m_dynamic.written; }
 
 private:
-    auto rebuildStatic(ResourcePool& pool, aegis::world::World& scene) -> void;
+    struct InstanceBuffer
+    {
+        ResourceId buffer;
+        std::uint32_t capacity;
+        // Per frame copy: the positions changed since it was last written; all of them at first.
+        std::array<DirtyRange, renderer::Renderer::maxFramesInFlight> pending;
+        std::uint32_t written{ 0 }; // Instances in the copy last written
+    };
 
-    const DrawBatchRegistry& m_drawBatches;
-    ResourceId m_staticInstances;
-    ResourceId m_dynamicInstances;
+    static auto write(ResourcePool& pool, InstanceBuffer& buffer, std::span<const Instance> instances,
+        DirtyRange dirty, std::uint32_t frameIndex) -> void;
+
+    InstanceBuffer m_static;
+    InstanceBuffer m_dynamic;
     ResourceId m_drawBatchData;
-    std::uint32_t m_staticCapacity{ initialStaticCapacity };
-    std::uint32_t m_dynamicCapacity{ initialDynamicCapacity };
-    std::uint32_t m_staticCount{ 0 };
-    std::uint32_t m_dynamicCount{ 0 };
-    std::optional<std::uint64_t> m_builtVersion;                      // The static version the static instances were built for
-    std::vector<std::shared_ptr<assets::Material>> m_staticMaterials; // Distinct, in the static instances
 };
 
 /// @brief Zeroes "IndirectDrawCounts" (one counter per draw batch) before culling counts into it.
@@ -82,7 +84,7 @@ private:
 
 /// @brief Frustum-culls every instance on the GPU, appending the visible ones per draw batch to
 ///        "VisibleInstances" with their "IndirectDrawCommands", and counting them. Both buffers hold
-///        one entry per instance the draw batch registry counts, and grow with it.
+///        one entry per instance of the frame's InstanceStore, and grow with it.
 class CullingPass : public RenderPass
 {
 public:
@@ -106,8 +108,8 @@ private:
     std::optional<rhi::Pipeline> m_pipeline;
 };
 
-/// @brief The GPU-driven G-buffer pass (mesh shaders): one indirect-count draw per draw batch fills
-///        the same G-buffer GeometryPass does. Needs rhi::Device::Capabilities::meshShaders.
+/// @brief The GPU-driven G-buffer pass (mesh shaders): one indirect-count draw per opaque draw batch fills
+///        the same G-buffer GeometryPass does, from the instances StaticMeshRenderSystem draws on the CPU path. Needs rhi::Device::Capabilities::meshShaders.
 class GpuDrivenGeometryPass : public RenderPass
 {
 public:

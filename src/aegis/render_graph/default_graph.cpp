@@ -7,7 +7,7 @@ auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> voi
     graph.add<SceneUpdatePass>();
     if (desc.gpuDriven)
     {
-        const auto& instances = graph.add<InstanceUpdatePass>(desc.drawBatches);
+        const auto& instances = graph.add<InstanceUpdatePass>();
         graph.add<ClearDrawCountsPass>();
         graph.add<CullingPass>(instances);
         graph.add<GpuDrivenGeometryPass>(instances);

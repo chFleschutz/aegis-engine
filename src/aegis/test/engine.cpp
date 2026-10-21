@@ -2,6 +2,7 @@ module aegis.test;
 
 import std;
 import aegis.platform;
+import aegis.render_bridge;
 import aegis.renderer;
 import aegis.render_graph;
 import aegis.rhi;
@@ -311,16 +312,16 @@ auto Engine::drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
     if (m_frameGraph)
     {
         cmd.writeTimestamp(timer.pool, 0, rhi::TimestampStage::TopOfPipe);
-        const auto frameScene = render_graph::extract(*m_scene);
+        m_instanceBridge->sync();
+        const auto frameScene = extractFrameScene(*m_scene, *m_instances);
         m_frameGraph->execute({
             .cmd = cmd,
             .frameScene = frameScene,
-            .scene = *m_scene,
-            .drawBatches = *m_drawBatches,
             .frameIndex = frameIndex,
             .extent = extent,
             .target = target,
         });
+        m_instances->clearDirty();
         cmd.writeTimestamp(timer.pool, 1, rhi::TimestampStage::AllCommands);
         timer.pending = true;
         return;

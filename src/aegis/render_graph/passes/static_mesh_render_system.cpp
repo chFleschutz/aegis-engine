@@ -2,10 +2,8 @@ module aegis.render_graph;
 import std;
 import aegis.base;
 import aegis.assets;
-import aegis.world.render_components;
 import aegis.rhi;
 import aegis.math;
-import aegis.world;
 
 namespace aegis::render_graph
 {
@@ -44,24 +42,20 @@ auto StaticMeshRenderSystem::createResources(rhi::Device& device, const RenderTa
 
 auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
 {
+    const auto& instances = context.frameScene.instances;
+    for (const auto& material : instances.materials())
+        material->update(context.frameIndex);
+
     const auto& cmd = context.cmd;
     cmd.bindPipeline(*m_pipeline);
     bool boundMirrored{ false };
 
-    const assets::Material* lastMaterial{ nullptr };
-    auto view = context.scene.registry().view<aegis::GlobalTransform, aegis::MeshRenderer>();
-    for (auto&& [entity, transform, renderer] : view.each())
-    {
-        if (!renderer.mesh || !renderer.material || renderer.material->materialTemplate()->type() != m_type)
-            continue;
+    const auto& batches = instances.batches();
+    const auto draw = [&](const Instance& instance) {
+        if (!instance.mesh || !instance.material || batches[instance.drawBatch].materialTemplate->type() != m_type)
+            return;
 
-        if (lastMaterial != renderer.material.get())
-        {
-            renderer.material->update(context.frameIndex);
-            lastMaterial = renderer.material.get();
-        }
-
-        const auto gpuTransform = detail::toGpuTransform(transform.matrix());
+        const auto gpuTransform = detail::toGpuTransform(instance.transform);
         if (const bool mirrored = base::hasFlag(gpuTransform.flags, InstanceFlags::Mirrored); mirrored != boundMirrored)
         {
             cmd.bindPipeline(mirrored ? *m_mirroredPipeline : *m_pipeline);
@@ -73,12 +67,16 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
             .normalRow1 = gpuTransform.normalRow1,
             .normalRow2 = gpuTransform.normalRow2,
             .camera = context.camera,
-            .mesh = renderer.mesh->meshDataAddress(),
-            .material = renderer.material->parameterAddress(context.frameIndex),
+            .mesh = instance.mesh->meshDataAddress(),
+            .material = instance.material->parameterAddress(context.frameIndex),
         });
 
-        cmd.bindIndexBuffer(m_device->get(renderer.mesh->indexBuffer()));
-        cmd.drawIndexed(renderer.mesh->indexCount());
-    }
+        cmd.bindIndexBuffer(m_device->get(instance.mesh->indexBuffer()));
+        cmd.drawIndexed(instance.mesh->indexCount());
+    };
+    for (const auto& instance : instances.staticInstances())
+        draw(instance);
+    for (const auto& instance : instances.dynamicInstances())
+        draw(instance);
 }
 }
