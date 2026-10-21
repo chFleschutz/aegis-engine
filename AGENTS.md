@@ -237,7 +237,7 @@ descriptions.
 CMake or CI). Docs-only changes may be committed to `main` directly.
 
 **Planned work:** GitHub issues are the work items, grouped into milestones (`M6`, `M7`, `M9`,
-then `Backlog`), with dependencies as "Blocked by" relations. An issue body holds the branch, size,
+`M10`, then `Backlog`), with dependencies as "Blocked by" relations. An issue body holds the branch, size,
 design refs (D-n), the finding IDs it closes, content, out of scope, "done when" and verification.
 Labels: the kind (`bug`, `feature`, `refactor`, `cleanup`, `style`, `build`, `ci`, `tests`,
 `documentation`) matches the branch prefix; `size/*`; `area/*` (don't run two items with the same
