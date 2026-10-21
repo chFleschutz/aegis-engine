@@ -6,12 +6,13 @@ add_library(aegis-asset-library STATIC)
 target_link_libraries(aegis-asset-library
 PUBLIC
 	aegis-assets
-	aegis-base
-	aegis-instantiate
-	aegis-paths
 	aegis-render-graph
 	aegis-rhi
 	aegis-world
+PRIVATE
+	aegis-base
+	aegis-instantiate
+	aegis-paths
 )
 target_sources(aegis-asset-library
 PUBLIC
