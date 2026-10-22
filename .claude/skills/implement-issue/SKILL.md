@@ -40,13 +40,18 @@ the comment and stop.
   code. If the issue is wrong or already done, stop and say so.
 - Stop and ask when the scope is ambiguous, the change would cross the issue's **Out of scope**,
   or it would break a public API.
+- **The issue's scope wins over the plan doc it cites.** When a doc's step (`docs/editor.md`'s E1,
+  say) lists more than the issue, do the issue's list, name the rest in the PR body's **Notes**, and
+  change the doc's step to link the issue instead of repeating its list. When the work clearly
+  exceeds the issue's size label, say so at the design checkpoint and propose a split.
 - **Design checkpoint** (size M and larger, or any issue that leaves a "how" open): list the
   decisions the issue doesn't make, such as file layout, where data comes from, new defines or
   options, precedence rules, and anything copied or generated at build time. State the cheap,
   implied ones in one line and go on; ask about the rest, with your recommendation. All of them go
   in the PR body's **Notes**.
-- Follow any hazard the issue states. `needs-gpu` means the local device tests are part of the
-  verification; without a GPU, the PR body says they were not run.
+- Follow any hazard the issue states. `needs-gpu` means a local run on a real GPU is part of the
+  verification (reference images, a windowed run, Windows input: what CI's lavapipe job doesn't
+  cover, AGENTS.md "What CI covers"); without a GPU, the PR body says it was not run.
 
 ## 3. Set up
 - Branch: the issue's branch name, else `<kind>/<short-slug>` (kinds in AGENTS.md). In a fresh
@@ -89,7 +94,7 @@ the comment and stop.
   **Notes**
   - <Decisions the issue left open, and what was picked.>
   - <Left out or follow-up; issues filed (#n); what changes for the issues this one blocks.>
-  - <Only checks CI can't show: device tests run or not, a manual run and what it showed, what wasn't verified.>
+  - <Only checks CI can't show: reference images and windowed runs on a real GPU, a manual run and what it showed, what wasn't verified.>
   - <Commits to review apart, e.g. "77cf1e7 is a rename only".>
 
   Closes #<n>
@@ -106,8 +111,12 @@ the comment and stop.
   commit's, start it again. Confirm the result is for the pushed commit
   (`gh pr view <pr> --json headRefOid`).
 - On failure, fix with a new commit and push; after 3 failed attempts, stop and report.
-- If the PR goes `BEHIND` (`gh pr view <pr> --json mergeStateStatus`), run `gh pr update-branch <pr>`,
-  or `git merge origin/main` locally on conflicts, then rebuild, rerun `ctest -LE device`, and push.
+- If the PR goes `BEHIND` (`gh pr view <pr> --json mergeStateStatus`), run `gh pr update-branch <pr>`.
+  If it is `DIRTY` (conflicts), merge `main` into the branch: in a Claude desktop worktree with the
+  app's `sync_with_base_branch` tool (it merges on the host and lists the conflicts), elsewhere with
+  `git fetch origin` and `git merge origin/main`. Resolve keeping both sides' intent, then rebuild,
+  rerun the full `ctest` (device tests too when either side touched device code), and push. Never
+  rebase or force-push a PR under review.
 - Check the issues this one blocks
   (`gh api repos/{owner}/{repo}/issues/<n>/dependencies/blocking --jq '.[] | "\(.number) \(.title)"'`):
   if the PR changes a file, API or plan one of them cites, say which and what changed. Name the ones
