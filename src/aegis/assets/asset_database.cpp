@@ -136,7 +136,10 @@ auto readEntries(const std::filesystem::path& file, const std::string& relative,
         const auto source = sourceOf(relative);
         entries.push_back({ sidecar->id, root, source, {}, {}, sidecar->settings });
         for (const auto& [key, id] : sidecar->subAssets)
-            entries.push_back({ id, root, source, key, {}, {} });
+        {
+            if (!SubAssetKeys::isEntityKey(key)) // A model's entity IDs, not assets
+                entries.push_back({ id, root, source, key, {}, {} });
+        }
     }
     else
     {

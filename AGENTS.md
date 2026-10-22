@@ -123,7 +123,7 @@ environment variables of the same names, which override the baked-in values at
 run time. Shaders and content are looked up first in `shaders/` and `content/` next to the executable
 (after the variable, before the baked-in path), for a copied or installed game; a development build
 has nothing there. Examples name assets through the library, by path inside the project (`assets.id("Misc/cube.obj")`, then
-`assets.instantiate(scene, id)` / `assets.loadEnvironment(id)`); never add another `-D` path.
+`aegis::instantiate(context, id)` for a model or scene file / `assets.loadEnvironment(id)`); never add another `-D` path.
 `aegis-test` still has its own `AEGIS_TEST_SHADER_PATH` for its fixture shader (built next to it).
 
 ### Assets by ID

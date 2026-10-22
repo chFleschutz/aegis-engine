@@ -44,7 +44,7 @@ public:
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-        assets.instantiate(scene, assets.id("Sponza/Sponza.gltf"));
+        aegis::instantiate(context, assets.id("Sponza/Sponza.gltf"));
         registry.get<Transform>(scene.mainCamera()) = Transform{
             .location = { -9.75f, 1.2f, 5.25f },
             .rotation = glm::radians(glm::vec3{ -12.0f, 0.0f, 263.0f })
@@ -76,7 +76,7 @@ public:
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-        assets.instantiate(scene, downloadedModel(assets, "temp/Bistro/bistro.gltf", "https://github.com/zeux/niagara_bistro"));
+        aegis::instantiate(context, downloadedModel(assets, "temp/Bistro/bistro.gltf", "https://github.com/zeux/niagara_bistro"));
         registry.get<Transform>(scene.mainCamera()) = Transform{
             .location = { -24.5f, 2.75f, 5.25f },
             .rotation = glm::radians(glm::vec3{ -1.5f, 0.0f, -90.0f })
@@ -126,7 +126,7 @@ public:
             };
         }
 
-        auto scifiHelmet = assets.instantiate(scene, assets.id("SciFiHelmet/SciFiHelmet.gltf"));
+        auto scifiHelmet = aegis::instantiate(context, assets.id("SciFiHelmet/SciFiHelmet.gltf"));
         registry.get<Transform>(scifiHelmet).location = { 2.0f, 0.0f, 2.0f };
 
         world::Entity meshEntity = scifiHelmet;
@@ -207,8 +207,8 @@ public:
             };
         }
 
-        auto cube = assets.instantiate(scene, assets.id("Misc/cube.obj"));
-        auto& cubeMesh = registry.get<aegis::MeshRenderer>(cube).mesh;
+        auto cube = aegis::instantiate(context, assets.id("Misc/cube.obj"));
+        auto& cubeMesh = registry.get<aegis::MeshRenderer>(registry.get<Children>(cube).first).mesh; // On the model's root
 
         constexpr int materialCount = 10;
         auto pbrMatTemplate = assets.defaults().pbrTemplate;
@@ -301,10 +301,11 @@ public:
 
         scene.addSystem<RotationSystem>();
 
-        auto cube = assets.instantiate(scene, assets.id("Misc/cube.obj"));
-        auto& cubeMesh = registry.get<aegis::MeshRenderer>(cube).mesh;
+        auto cube = aegis::instantiate(context, assets.id("Misc/cube.obj"));
+        auto& cubeRenderer = registry.get<aegis::MeshRenderer>(registry.get<Children>(cube).first); // On the model's root
+        auto& cubeMesh = cubeRenderer.mesh;
         // The cube's material is the shared asset: color a copy, so other cubes keep theirs.
-        auto& cubeMat = registry.get<aegis::MeshRenderer>(cube).material;
+        auto& cubeMat = cubeRenderer.material;
         cubeMat = assets.copyMaterial(cubeMat);
         [[maybe_unused]] auto set = cubeMat->setParameter(assets::pbr::albedo, glm::vec3{ 0.8f, 0.1f, 0.1f })
                                         .and_then([&] { return cubeMat->setParameter(assets::pbr::metallic, 1.0f); })
@@ -359,7 +360,7 @@ public:
         registry.get<AmbientLight>(scene.ambientLight()).intensity = 0.25f;
         registry.get<DirectionalLight>(scene.directionalLight()).intensity = 2.0f;
 
-        assets.instantiate(scene, downloadedModel(assets, "temp/Lucy/lucy.gltf", "https://graphics.stanford.edu/data/3Dscanrep/"));
+        aegis::instantiate(context, downloadedModel(assets, "temp/Lucy/lucy.gltf", "https://graphics.stanford.edu/data/3Dscanrep/"));
         registry.get<Transform>(scene.mainCamera()) = Transform{
             .location = { 0.0f, 16.0f, 14.0f },
             .rotation = glm::radians(glm::vec3{ -17.0f, 0.0f, 175.0f })

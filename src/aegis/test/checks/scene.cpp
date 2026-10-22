@@ -5,9 +5,10 @@ module;
 module aegis.test;
 
 import std;
+import aegis.asset_library;
 import aegis.assets;
-import aegis.instantiate;
 import aegis.paths;
+import aegis.reflect;
 import aegis.render_bridge;
 import aegis.renderer;
 import aegis.render_graph;
@@ -18,6 +19,7 @@ import aegis.world.registry;
 import aegis.world.render_components;
 import aegis.world.systems.camera_system;
 import aegis.world.systems.transform_system;
+import aegis.world.types;
 
 namespace aegis
 {
@@ -26,10 +28,12 @@ namespace aegis
 auto Engine::createScene() -> std::expected<void, std::string>
 {
     constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
-    auto defaults = assets::DefaultAssets::create(*m_device, framesInFlight);
-    if (!defaults)
-        return std::unexpected{ std::format("Default assets: {}", assets::describe(defaults.error())) };
-    m_defaults = std::move(*defaults);
+    auto library = AssetLibrary::create(*m_device, framesInFlight);
+    if (!library)
+        return std::unexpected{ std::format("Asset library: {}", library.error()) };
+    m_assets = std::move(*library);
+    if (auto registered = world::registerComponents(m_types); !registered)
+        return std::unexpected{ std::format("Component types: {}", reflect::describe(registered.error())) };
 
     m_scene = std::make_unique<aegis::world::World>();
     m_scene->addSystem<aegis::world::TransformSystem>();
@@ -63,16 +67,10 @@ auto Engine::createScene() -> std::expected<void, std::string>
     const auto sky = registry.create("Sky");
     registry.add<aegis::Sky>(sky, assets::AssetRef<assets::Environment>::ready(assets::AssetId::generate(), std::move(*environment)));
 
-    auto helmet = assets::Loader::load(
-        {
-            .device = *m_device,
-            .defaults = *m_defaults,
-            .framesInFlight = framesInFlight,
-        },
-        paths::assets() / "DamagedHelmet/DamagedHelmet.gltf");
+    auto helmet = instantiateModel("DamagedHelmet/DamagedHelmet.gltf");
     if (!helmet)
-        return std::unexpected{ std::format("Loading the helmet: {}", assets::describe(helmet.error())) };
-    m_helmet = instantiate(registry, *helmet);
+        return std::unexpected{ std::format("Loading the helmet: {}", helmet.error()) };
+    m_helmet = *helmet;
     if (m_options.mirror)
         registry.get<aegis::Transform>(m_helmet).scale.x = -1.0f;
 
@@ -98,6 +96,15 @@ auto Engine::createScene() -> std::expected<void, std::string>
         std::print(" {} |", pass->name());
     std::println("");
     return {};
+}
+
+// An instance of the model file 'path' (in the assets project) in the scene, as a root entity.
+auto Engine::instantiateModel(std::string_view path) -> std::expected<aegis::world::Entity, std::string>
+{
+    const auto id = m_assets->find(path);
+    if (!id)
+        return std::unexpected{ std::format("'{}' is not in the assets project", path) };
+    return m_assets->instantiateScene(*m_scene, m_types, *id, {});
 }
 
 // The UI pass's input: one window, so a screenshot shows ImGui drawn over the scene.
@@ -161,16 +168,10 @@ auto Engine::mutateScene(std::uint32_t frame) -> std::expected<void, std::string
     if (frame == loadFrame)
     {
         m_staticDrawn = drawableStatic();
-        auto model = assets::Loader::load(
-            {
-                .device = *m_device,
-                .defaults = *m_defaults,
-                .framesInFlight = renderer::Renderer::maxFramesInFlight,
-            },
-            paths::assets() / "SciFiHelmet/SciFiHelmet.gltf");
+        auto model = instantiateModel("SciFiHelmet/SciFiHelmet.gltf");
         if (!model)
-            return std::unexpected{ std::format("Loading the second model: {}", assets::describe(model.error())) };
-        m_addedModel = instantiate(registry, *model);
+            return std::unexpected{ std::format("Loading the second model: {}", model.error()) };
+        m_addedModel = *model;
         registry.get<aegis::Transform>(m_addedModel).location = glm::vec3{ 0.9f, 0.0f, 0.0f };
         registry.markStaticDirty(m_addedModel);
     }

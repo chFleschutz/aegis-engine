@@ -226,7 +226,10 @@ auto orderedFields(const SceneComponent& component) -> Node
     }
     return fields;
 }
+}
 
+namespace detail
+{
 auto saveFields(const reflect::TypeInfo& type, const void* object) -> std::expected<SceneComponent, Error>
 {
     SceneComponent component{ .type = &type, .fields = Node::makeObject() };
@@ -239,6 +242,10 @@ auto saveFields(const reflect::TypeInfo& type, const void* object) -> std::expec
     }
     return component;
 }
+}
+
+namespace
+{
 
 auto loadFields(const SceneComponent& component, void* object) -> std::expected<void, Error>
 {

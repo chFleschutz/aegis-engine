@@ -52,4 +52,9 @@ auto SubAssetKeys::withIndex(std::string_view key, std::size_t index) -> std::st
 {
     return std::format("{}/{}", key, index);
 }
+
+auto SubAssetKeys::isEntityKey(std::string_view key) -> bool
+{
+    return key.starts_with(entityType) && key.substr(entityType.size()).starts_with('/');
+}
 }

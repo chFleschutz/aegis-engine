@@ -71,6 +71,25 @@ TEST_SUITE("assets::SubAssetKeys")
         CHECK(keys.name("Material", "", 2) != SubAssetKeys::defaultMaterial);
     }
 
+    TEST_CASE("entity keys are the keys of the Entity type")
+    {
+        SubAssetKeys keys;
+        CHECK(SubAssetKeys::isEntityKey(SubAssetKeys::rootEntity));
+        CHECK(SubAssetKeys::isEntityKey(*keys.name(SubAssetKeys::entityType, "Body", 0)));
+        CHECK(SubAssetKeys::isEntityKey(SubAssetKeys::withIndex("Entity/Body", 1)));
+        CHECK_FALSE(SubAssetKeys::isEntityKey("Entityx/Body"));
+        CHECK_FALSE(SubAssetKeys::isEntityKey("StaticMesh/Entity"));
+        CHECK_FALSE(SubAssetKeys::isEntityKey(SubAssetKeys::defaultMaterial));
+    }
+
+    TEST_CASE("no node name produces the root entity key")
+    {
+        SubAssetKeys keys;
+        CHECK(keys.name(SubAssetKeys::entityType, "#root", 0) != SubAssetKeys::rootEntity);
+        CHECK(keys.name(SubAssetKeys::entityType, "root", 1) != SubAssetKeys::rootEntity);
+        CHECK(keys.name(SubAssetKeys::entityType, "", 2) != SubAssetKeys::rootEntity);
+    }
+
     TEST_CASE("strictNames turns the warnings into errors")
     {
         SubAssetKeys keys{ true };

@@ -122,3 +122,10 @@ using PrepareComponent = std::function<void(const reflect::TypeInfo& type, void*
 [[nodiscard]] auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const assets::AssetRef<Scene>& scene,
     world::Entity parent, const PrepareComponent& prepare = {}) -> std::expected<world::Entity, Error>;
 }
+
+// Module-internal: shared with :model.
+namespace aegis::serialize::detail
+{
+// The registered fields of `object`, an instance of `type`, as a scene component.
+[[nodiscard]] auto saveFields(const reflect::TypeInfo& type, const void* object) -> std::expected<SceneComponent, Error>;
+}

@@ -144,6 +144,10 @@ rejects a file; it warns.
 - The import setting `strictNames` turns the warnings into errors.
 - Entries for removed parts stay in the table, so a part that comes back keeps its ID. Rename
   detection through content hashes can come later.
+- **A model's entities** are keyed the same way, as `Entity/<node name>` (`Entity/#root` for the
+  root, plus `/<index>` for the entity of one primitive of a mesh with several). Their IDs are the
+  local entity IDs of the model's scene, kept in the same table so they survive reimports; they are
+  no assets, so the database leaves them out.
 
 **Finding an asset by ID** goes through an index, the one place paths exist:
 - *Development:* the database scans `assets/` and the engine content, reading sidecars and native

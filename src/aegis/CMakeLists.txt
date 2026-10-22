@@ -12,7 +12,6 @@ PUBLIC
 	aegis-world
 PRIVATE
 	aegis-base
-	aegis-instantiate
 	aegis-paths
 	aegis-serialize
 )
@@ -55,7 +54,6 @@ add_subdirectory(platform)
 add_subdirectory(rhi)
 add_subdirectory(renderer)
 add_subdirectory(assets)
-add_subdirectory(instantiate)
 add_subdirectory(reflect)
 add_subdirectory(render_graph)
 add_subdirectory(test)
@@ -85,7 +83,6 @@ PUBLIC
 	aegis-assets
 	aegis-base
 	aegis-core
-	aegis-instantiate
 	aegis-paths
 	aegis-platform
 	aegis-reflect

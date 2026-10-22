@@ -7,8 +7,10 @@ module;
 export module aegis.test;
 
 import std;
+import aegis.asset_library;
 import aegis.assets;
 import aegis.platform;
+import aegis.reflect;
 import aegis.renderer;
 import aegis.render_graph;
 import aegis.rhi;
@@ -77,6 +79,7 @@ public:
 
     // checks/scene.cpp
     auto createScene() -> std::expected<void, std::string>;
+    auto instantiateModel(std::string_view path) -> std::expected<aegis::world::Entity, std::string>;
     static auto buildUi(const renderer::Renderer& renderer, const render_graph::FrameGraph& frameGraph, bool overlay) -> void;
     auto mutateScene(std::uint32_t frame) -> std::expected<void, std::string>;
 
@@ -150,10 +153,11 @@ private:
     double m_frameTimeTotalMs{ 0.0 };
 
     // --scene only. Declared last: destroyed first, while the device they free into still exists.
-    std::optional<assets::DefaultAssets> m_defaults;
+    reflect::TypeRegistry m_types; // The components a model's scene holds
+    std::optional<AssetLibrary> m_assets;
     std::unique_ptr<aegis::world::World> m_scene;
-    aegis::world::Entity m_helmet;                            // The root of the model loaded with the scene
-    aegis::world::Entity m_addedModel;                        // --mutate-scene: the root of the model loaded later
+    aegis::world::Entity m_helmet;                            // The holder of the model instance loaded with the scene
+    aegis::world::Entity m_addedModel;                        // --mutate-scene: the holder of the model instance loaded later
     std::uint32_t m_staticDrawn{ 0 };                         // --mutate-scene: drawable static entities before the last change
     std::unique_ptr<render_graph::InstanceStore> m_instances; // Holds meshes and materials
     std::unique_ptr<InstanceBridge> m_instanceBridge;         // Disconnects before the scene goes
