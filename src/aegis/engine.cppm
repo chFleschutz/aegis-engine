@@ -74,6 +74,8 @@ struct AppDesc
     std::uint32_t frames{ 0 };
     /// @brief Headless: save the last frame here as PNG.
     std::string screenshot;
+    /// @brief GPU-driven rendering (mesh shaders) where the device supports it; false renders CPU-driven.
+    bool gpuDriven{ true };
     /// @brief The project folder the assets come from, its index kept in `<project>/.aegis`; empty for
     ///        the samples (paths::assets()). A game's launcher fills it in through paths::locate.
     std::filesystem::path project;

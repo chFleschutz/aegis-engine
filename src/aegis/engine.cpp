@@ -203,7 +203,7 @@ Engine::~Engine()
 
 auto Engine::useGpuDrivenRendering() const -> bool
 {
-    return ENABLE_GPU_DRIVEN_RENDERING && m_device->capabilities().meshShaders;
+    return ENABLE_GPU_DRIVEN_RENDERING && m_desc.gpuDriven && m_device->capabilities().meshShaders;
 }
 
 auto Engine::run() -> int
