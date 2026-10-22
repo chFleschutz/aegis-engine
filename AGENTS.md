@@ -296,7 +296,7 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
 ## Unit tests
 
 doctest covers **pure, GPU-independent logic** in any module. One
-executable per module (`aegis-tests-base`, `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
+executable per module (`aegis-tests-base`, `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`, `aegis-tests-render_passes`,
 `aegis-tests-math`, `aegis-tests-paths`, `aegis-tests-world`), each linking only that module's library. Layout, conventions, how to add a
 module, and the full rationale: **`tests/README.md`**.
 

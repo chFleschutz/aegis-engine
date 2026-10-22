@@ -10,7 +10,7 @@ import aegis.math;
 // The C++ side of the CPU/GPU contract of the render graph's shaders: every struct a shader reads
 // through a push constant or a buffer address, and the values both sides must agree on. Each struct is
 // named after its Slang twin and mirrors it member for member in scalar layout (shaders/modules/README.md);
-// tests/render_graph/gpu_types.test.cpp pins sizes and offsets. Change a struct here and its Slang twin
+// tests/render_passes/gpu_types.test.cpp pins sizes and offsets. Change a struct here and its Slang twin
 // together.
 //
 // Mirrors of the asset types (assets::Vertex, assets::Meshlet, ...) live in aegis.assets:gpu_types.

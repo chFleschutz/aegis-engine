@@ -4,7 +4,7 @@ import std;
 import aegis.render_passes;
 
 // The default graphs are declared and planned with no device, then compared with a checked-in plan
-// (tests/render_graph/snapshots). A change to a pass's declarations, the order of the passes or a barrier
+// (tests/render_passes/snapshots). A change to a pass's declarations, the order of the passes or a barrier
 // shows up as a diff of that file. After an intended change, regenerate the files by running this test
 // with AEGIS_UPDATE_SNAPSHOTS=1 and review the diff.
 
