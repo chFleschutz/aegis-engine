@@ -1,7 +1,8 @@
-# The examples as one game (docs/editor-runtime-split.md): its project is the samples, whose scene files the
-# examples are. Run one with --scene <path>; without it the game starts in the simple scene.
+# The examples as one game (docs/editor-runtime-split.md). Its project is the samples, and the examples are
+# their scene files: run one with --scene <path>, or without it the simple scene. Each scene listed here is a
+# `device` test.
 aegis_add_game(Examples
     SOURCES game.cpp
     PROJECT ${PROJECT_SOURCE_DIR}/modules/aegis-assets
-    SCENES Scenes/simple.scene
+    SCENES Scenes/simple.scene Scenes/sponza.scene
 )
