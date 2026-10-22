@@ -1,130 +1,139 @@
 module;
 
 #include <imgui.h>
+#include <stb/stb_image.h>
 
 module aegis.test;
 
 import std;
-import aegis.asset_library;
-import aegis.assets;
-import aegis.paths;
-import aegis.reflect;
-import aegis.render_bridge;
-import aegis.renderer;
+import aegis.engine;
 import aegis.render_graph;
 import aegis.render_passes;
 import aegis.rhi;
-import aegis.math;
-import aegis.world;
 import aegis.world.registry;
-import aegis.world.render_components;
-import aegis.world.systems.camera_system;
-import aegis.world.systems.transform_system;
-import aegis.world.types;
 
 namespace aegis::test
 {
-// The render graph's input: DamagedHelmet under the Kloppenheim sky, a camera and two lights,
-// and the CPU-driven frame graph to draw it.
-auto Harness::createScene() -> std::expected<void, std::string>
+namespace
 {
-    constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
-    auto library = AssetLibrary::create(*m_device, framesInFlight);
-    if (!library)
-        return std::unexpected{ std::format("Asset library: {}", library.error()) };
-    m_assets = std::move(*library);
-    if (auto registered = world::registerComponents(m_types); !registered)
-        return std::unexpected{ std::format("Component types: {}", reflect::describe(registered.error())) };
+// DamagedHelmet under the Kloppenheim sky, a camera and three lights, in the assets project.
+constexpr std::string_view sceneFile{ "Scenes/aegis-test.scene" };
 
-    m_scene = std::make_unique<aegis::world::World>();
-    m_scene->addSystem<aegis::world::TransformSystem>();
-    m_scene->addSystem<aegis::world::CameraSystem>();
-    m_instances = std::make_unique<render_graph::InstanceStore>();
-    m_instanceBridge = std::make_unique<InstanceBridge>(*m_instances);
-    m_instanceBridge->connect(m_scene->registry());
+// What the shell found, read once the engine (and the shell with it) is gone.
+struct SceneResult
+{
+    std::vector<std::string> errors;
+    rhi::Extent2D view{ viewExtent }; // --view: the view's size in the last frame
+};
 
-    auto& registry = m_scene->registry();
-    const auto camera = registry.create("Camera", glm::vec3{ 0.0f, -3.0f, 0.0f });
-    registry.add<aegis::Camera>(camera);
-    m_scene->setMainCamera(camera);
-    if (m_options.view)
+// The test's side of the app: edits the loaded scene at the safe point (--mirror, --mutate-scene), renders it
+// through a second camera into a view of its own (--view), draws the stats window and checks the frame graph's
+// timings. Failures go to the SceneResult; the run carries on.
+class SceneShell final : public Shell
+{
+public:
+    SceneShell(const Options& options, SceneResult& result) :
+        m_options{ options },
+        m_result{ result }
     {
-        // Ahead and to the right of the main camera, turned towards the helmet; CameraSystem keeps its matrices.
-        m_viewCamera = registry.create("View Camera", glm::vec3{ 2.2f, -2.2f, 0.3f }, glm::quat{ glm::radians(glm::vec3{ 0.0f, 0.0f, 45.0f }) });
-        registry.add<aegis::Camera>(m_viewCamera);
     }
 
-    const auto ambient = registry.create("Ambient Light");
-    registry.add<aegis::AmbientLight>(ambient).intensity = 1.0f;
-
-    const auto sun = registry.create("Directional Light");
-    registry.add<aegis::DirectionalLight>(sun);
-    registry.get<aegis::Transform>(sun).rotation = glm::quat{ glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }) };
-
-    // In view, off to the side of the helmet: drawn as a billboard by the transparent pass.
-    const auto lamp = registry.create("Point Light", glm::vec3{ 1.2f, -1.0f, 0.6f });
-    registry.add<aegis::PointLight>(lamp).color = glm::vec3{ 1.0f, 0.4f, 0.1f };
-
-    auto ibl = render_graph::Ibl::create(*m_device);
-    if (!ibl)
-        return std::unexpected{ std::format("IBL: {}", describe(ibl.error())) };
-    auto environment = ibl->loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
-    if (!environment)
-        return std::unexpected{ std::format("Environment: {}", describe(environment.error())) };
-    const auto sky = registry.create("Sky");
-    registry.add<aegis::Sky>(sky, assets::AssetRef<assets::Environment>::ready(assets::AssetId::generate(), std::move(*environment)));
-
-    auto helmet = instantiateModel("DamagedHelmet/DamagedHelmet.gltf");
-    if (!helmet)
-        return std::unexpected{ std::format("Loading the helmet: {}", helmet.error()) };
-    m_helmet = *helmet;
-    if (m_options.mirror)
-        registry.get<aegis::Transform>(m_helmet).scale.x = -1.0f;
-
-    // No platform backend: the UI is drawn, not interacted with.
-    m_imgui = ImGuiContextHandle{ ImGui::CreateContext() };
-    ImGui::GetIO().IniFilename = nullptr;
-
-    // A view's graph follows the view's extent, not the target's.
-    m_frameGraph = std::make_unique<render_graph::FrameGraph>(*m_device, m_options.view ? m_viewExtent : m_renderer->extent());
-    render_graph::addDefaultPasses(*m_frameGraph,
-        {
-            .gpuDriven = m_options.gpuDriven,
-            .ui = true,
-            .context = m_context.get(),
-            .view = m_options.view ? std::optional{ render_graph::DefaultPassesDesc::View{ .targetFormat = m_renderer->targetFormat() } } : std::nullopt,
-        });
-    if (auto compiled = m_frameGraph->compile(); !compiled)
-        return std::unexpected{ std::format("Frame graph: {}", describe(compiled.error())) };
-
-    m_scene->begin();
-
-    std::print("Frame graph compiled:");
-    for (const auto* pass : m_frameGraph->passes())
-        std::print(" {} |", pass->name());
-    std::println("");
-    return {};
-}
-
-// An instance of the model file 'path' (in the assets project) in the scene, as a root entity.
-auto Harness::instantiateModel(std::string_view path) -> std::expected<aegis::world::Entity, std::string>
-{
-    const auto id = m_assets->find(path);
-    if (!id)
-        return std::unexpected{ std::format("'{}' is not in the assets project", path) };
-    return m_assets->instantiateScene(*m_scene, m_types, *id, {});
-}
-
-// The UI pass's input: one window, so a screenshot shows ImGui drawn over the scene. Ends the frame
-// (ImGui::Render), so the frame graph's UI pass records it.
-auto Harness::buildUi(const renderer::Renderer& renderer, const render_graph::FrameGraph& frameGraph, bool overlay) -> void
-{
-    auto& io = ImGui::GetIO();
-    const auto extent = renderer.extent();
-    io.DisplaySize = ImVec2{ static_cast<float>(extent.x), static_cast<float>(extent.y) };
-    ImGui::NewFrame();
-    if (overlay)
+    auto onStartup(Engine& engine) -> std::expected<void, EngineError> override
     {
+        m_engine = &engine;
+        return {};
+    }
+
+    void onFrame(FrameContext& frame) override
+    {
+        auto& registry = frame.world.registry();
+        if (m_frame == 0)
+            setUp(frame.world);
+
+        if (m_options.mutateScene)
+        {
+            if (auto mutated = mutateScene(frame); !mutated)
+                m_result.errors.push_back(std::format("Scene change failed: {}", mutated.error()));
+        }
+
+        if (m_options.view)
+        {
+            // Headless runs resize the view halfway, so the graph's resolution-dependent textures and the views
+            // passes derive from them are recreated under validation.
+            if (m_options.frames != 0 && m_frame == m_options.frames / 2)
+                m_result.view = resizedViewExtent;
+            const auto extent = m_result.view;
+            registry.get<Camera>(m_viewCamera).aspect = static_cast<float>(extent.x) / static_cast<float>(extent.y);
+        }
+
+        buildUi(frame.frameGraph);
+        if (m_options.frames != 0 && m_frame + 1 == m_options.frames)
+            verifyTimings(frame.frameGraph);
+        ++m_frame;
+    }
+
+    // The view's camera replaces the main one once the update has given it its matrices (from the second frame).
+    [[nodiscard]] auto renderView() const -> std::optional<RenderView> override
+    {
+        if (!m_options.view)
+            return std::nullopt;
+        std::optional<RenderView::Camera> camera;
+        if (m_frame > 1)
+        {
+            auto& registry = m_world->registry(); // Registry::get has no const overload
+            const auto& view = registry.get<Camera>(m_viewCamera);
+            camera = RenderView::Camera{
+                .view = view.viewMatrix,
+                .projection = view.projectionMatrix,
+                .position = registry.get<GlobalTransform>(m_viewCamera).location,
+            };
+        }
+        return RenderView{ .camera = camera, .extent = m_result.view };
+    }
+
+private:
+    // The first frame: the edits the options ask for on the scene as the file left it.
+    void setUp(world::World& world)
+    {
+        m_world = &world;
+        auto& registry = world.registry();
+        for (auto&& [entity, name] : registry.view<Name>().each())
+        {
+            if (name.name == "DamagedHelmet")
+                m_helmet = world::Entity{ entity };
+        }
+        if (!m_helmet)
+            m_result.errors.push_back(std::format("{} has no entity named DamagedHelmet", sceneFile));
+        else if (m_options.mirror)
+        {
+            // A scale of -1 on x must not turn the helmet inside out.
+            registry.get<Transform>(m_helmet).scale.x = -1.0f;
+            registry.markStaticDirty(m_helmet);
+        }
+
+        if (m_options.view)
+        {
+            // Ahead and to the right of the main camera, turned towards the helmet; CameraSystem keeps its matrices.
+            m_viewCamera = registry.create("View Camera", glm::vec3{ 2.2f, -2.2f, 0.3f }, glm::quat{ glm::radians(glm::vec3{ 0.0f, 0.0f, 45.0f }) });
+            registry.add<Camera>(m_viewCamera);
+            registry.markStaticDirty(m_viewCamera); // The world has begun: a new static entity has no global transform yet
+        }
+    }
+
+    // An instance of the model file 'path' (in the assets project) in the scene, as a root entity.
+    auto instantiateModel(world::World& world, std::string_view path) -> std::expected<world::Entity, std::string>
+    {
+        const auto id = m_engine->assets().find(path);
+        if (!id)
+            return std::unexpected{ std::format("'{}' is not in the assets project", path) };
+        return m_engine->assets().instantiateScene(world, m_engine->types(), *id, {});
+    }
+
+    // The UI pass's input: one window, so a screenshot shows ImGui drawn over the scene.
+    void buildUi(const render_graph::FrameGraph& frameGraph) const
+    {
+        if (m_options.noOverlay)
+            return;
         ImGui::SetNextWindowPos(ImVec2{ 10.0f, 10.0f });
         ImGui::Begin("aegis-test", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Text("Frame graph: %d passes", static_cast<int>(frameGraph.passes().size()));
@@ -132,91 +141,212 @@ auto Harness::buildUi(const renderer::Renderer& renderer, const render_graph::Fr
             ImGui::Text("%-20s %.3f ms", timing.name.c_str(), timing.gpuMs);
         ImGui::End();
     }
-    ImGui::Render();
+
+    // The frame graph's own per-pass timestamps: one entry per pass, read back once complete.
+    void verifyTimings(const render_graph::FrameGraph& frameGraph)
+    {
+        const auto timings = frameGraph.timings();
+        if (timings.size() != frameGraph.passes().size())
+            m_result.errors.push_back(std::format("Pass timings failed: {} timings for {} passes", timings.size(), frameGraph.passes().size()));
+        for (const auto& [name, gpuMs, cpuMs] : timings)
+            std::println("  {:<20} GPU {:7.4f} ms  CPU {:7.4f} ms", name, gpuMs, cpuMs);
+    }
+
+    // --mutate-scene: changes the scene the way an editor or gameplay code would, while frames are in
+    // flight, and checks that the GPU-driven path follows. Called once per frame at the safe point.
+    // Frame 30 loads a second model, 60 destroys the first one, 90 edits the second one's materials.
+    // The frame after each change, the instance pass must have written as many static instances as
+    // the scene holds. The last frame (--screenshot) shows the second model only, in red.
+    auto mutateScene(FrameContext& frame) -> std::expected<void, std::string>
+    {
+        constexpr std::uint32_t loadFrame{ 30 };
+        constexpr std::uint32_t destroyFrame{ 60 };
+        constexpr std::uint32_t editFrame{ 90 };
+        auto& registry = frame.world.registry();
+
+        const auto drawableStatic = [&] {
+            std::uint32_t count{ 0 };
+            for (auto&& [entity, renderer] : registry.view<MeshRenderer>().each())
+            {
+                if (renderer.mesh && renderer.material && !registry.has<DynamicTag>(world::Entity{ entity }))
+                    ++count;
+            }
+            return count;
+        };
+        const auto writtenStatic = [&]() -> std::optional<std::uint32_t> {
+            for (auto* pass : frame.frameGraph.passes())
+            {
+                if (const auto* instances = dynamic_cast<render_graph::InstanceUpdatePass*>(pass))
+                    return instances->staticCount();
+            }
+            return std::nullopt; // The CPU-driven path has no instance pass
+        };
+        // The frame after a change: the instances written for it match the scene.
+        const auto verifyWritten = [&](std::string_view what, bool grew) -> std::expected<void, std::string> {
+            const auto expected = drawableStatic();
+            if (grew ? expected <= m_staticDrawn : expected >= m_staticDrawn)
+                return std::unexpected{ std::format("{} did not change the scene's static instances ({} before, {} after)", what, m_staticDrawn, expected) };
+            if (const auto written = writtenStatic(); written && *written != expected)
+                return std::unexpected{ std::format("after {}: {} static instances written, the scene has {}", what, *written, expected) };
+            std::println("Scene change verified: {} -> {} static instances after {}", m_staticDrawn, expected, what);
+            m_staticDrawn = expected;
+            return {};
+        };
+
+        if (m_frame == loadFrame)
+        {
+            m_staticDrawn = drawableStatic();
+            auto model = instantiateModel(frame.world, "SciFiHelmet/SciFiHelmet.gltf");
+            if (!model)
+                return std::unexpected{ std::format("Loading the second model: {}", model.error()) };
+            m_addedModel = *model;
+            registry.get<Transform>(m_addedModel).location = glm::vec3{ 0.9f, 0.0f, 0.0f };
+            registry.markStaticDirty(m_addedModel);
+        }
+        else if (m_frame == loadFrame + 1)
+        {
+            return verifyWritten("loading a model", true);
+        }
+        else if (m_frame == destroyFrame)
+        {
+            std::vector<world::Entity> doomed{ m_helmet };
+            for (std::size_t i = 0; i < doomed.size(); ++i)
+            {
+                for (auto child = registry.get<Children>(doomed[i]).first; child;
+                    child = registry.get<Siblings>(child).next)
+                    doomed.push_back(child);
+            }
+            for (const auto entity : doomed)
+                registry.destroy(entity);
+        }
+        else if (m_frame == destroyFrame + 1)
+        {
+            return verifyWritten("destroying a model", false);
+        }
+        else if (m_frame == editFrame)
+        {
+            std::uint32_t edited{ 0 };
+            for (auto&& [entity, renderer] : registry.view<MeshRenderer>().each())
+            {
+                if (renderer.material && renderer.material->setParameter("albedo", glm::vec3{ 1.0f, 0.1f, 0.1f }))
+                    ++edited;
+            }
+            if (edited == 0)
+                return std::unexpected{ "no material to edit" };
+        }
+        return {};
+    }
+
+    const Options& m_options;
+    SceneResult& m_result;
+    Engine* m_engine{ nullptr };
+    world::World* m_world{ nullptr };
+    std::uint32_t m_frame{ 0 };       // Frames begun so far
+    world::Entity m_helmet;           // The holder of the model instance the scene file holds
+    world::Entity m_addedModel;       // --mutate-scene: the holder of the model instance loaded later
+    world::Entity m_viewCamera;       // --view: the camera the view renders through, not the main one
+    std::uint32_t m_staticDrawn{ 0 }; // --mutate-scene: drawable static entities before the last change
+};
+
+// Headless: the last frame, as the engine saved it, is drawn (not one flat color), has the size it should have and,
+// with --compare, matches the reference.
+auto verifyFrame(const Options& options, const std::filesystem::path& file, rhi::Extent2D extent) -> std::expected<void, std::string>
+{
+    int width{ 0 };
+    int height{ 0 };
+    int channels{ 0 };
+    const std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> image{
+        stbi_load(file.string().c_str(), &width, &height, &channels, 4), &stbi_image_free
+    };
+    if (!image)
+        return std::unexpected{ std::format("failed to read the frame '{}'", file.string()) };
+    if (std::cmp_not_equal(width, extent.x) || std::cmp_not_equal(height, extent.y))
+        return std::unexpected{ std::format("the frame is {}x{}, the {} {}x{}", width, height, options.view ? "view" : "target", extent.x, extent.y) };
+    const auto pixels = std::as_bytes(std::span{ image.get(), std::size_t{ extent.x } * extent.y * 4 });
+
+    if (!options.compare.empty())
+    {
+        if (auto matched = compareToReference(options, pixels, extent); !matched)
+            return matched;
+    }
+
+    const auto texel = [&](std::uint32_t x, std::uint32_t y) {
+        const auto offset = (std::size_t{ y } * extent.x + x) * 4;
+        return std::array{ pixels[offset], pixels[offset + 1], pixels[offset + 2] };
+    };
+    if (texel(extent.x / 2, extent.y / 2) == texel(0, 0))
+        return std::unexpected{ "the scene frame's centre and corner have the same color" };
+    std::println("Offscreen scene frame verified: {}x{} {} read back, not uniform", extent.x, extent.y, options.view ? "view" : "target");
+    return {};
+}
 }
 
-// --mutate-scene: changes the scene the way an editor or gameplay code would, while frames are in
-// flight, and checks that the GPU-driven path follows. Called once per frame before it is recorded.
-// Frame 30 loads a second model, 60 destroys the first one, 90 edits the second one's materials.
-// The frame after each change, the instance pass must have written as many static instances as
-// the scene holds. The last frame (--screenshot) shows the second model only, in red.
-auto Harness::mutateScene(std::uint32_t frame) -> std::expected<void, std::string>
+auto runScene(const Options& options) -> int
 {
-    constexpr std::uint32_t loadFrame{ 30 };
-    constexpr std::uint32_t destroyFrame{ 60 };
-    constexpr std::uint32_t editFrame{ 90 };
-    auto& registry = m_scene->registry();
+    // Headless, the engine saves the last frame for the checks: to --screenshot, or to a file of its own.
+    std::filesystem::path frameFile;
+    if (options.headless)
+    {
+        frameFile = options.screenshot;
+        if (frameFile.empty())
+            frameFile = std::filesystem::temp_directory_path() / std::format("aegis-test-{:016x}.png", std::random_device{}() * 0x100000001ull);
+    }
 
-    const auto drawableStatic = [&] {
-        std::uint32_t count{ 0 };
-        for (auto&& [entity, renderer] : registry.view<aegis::MeshRenderer>().each())
-        {
-            if (renderer.mesh && renderer.material && !registry.has<aegis::DynamicTag>(aegis::world::Entity{ entity }))
-                ++count;
-        }
-        return count;
-    };
-    const auto writtenStatic = [&]() -> std::optional<std::uint32_t> {
-        for (auto* pass : m_frameGraph->passes())
-        {
-            if (const auto* instances = dynamic_cast<render_graph::InstanceUpdatePass*>(pass))
-                return instances->staticCount();
-        }
-        return std::nullopt; // The CPU-driven path has no instance pass
-    };
-    // The frame after a change: the instances written for it match the scene.
-    const auto verifyWritten = [&](std::string_view what, bool grew) -> std::expected<void, std::string> {
-        const auto expected = drawableStatic();
-        if (grew ? expected <= m_staticDrawn : expected >= m_staticDrawn)
-            return std::unexpected{ std::format("{} did not change the scene's static instances ({} before, {} after)", what, m_staticDrawn, expected) };
-        if (const auto written = writtenStatic(); written && *written != expected)
-            return std::unexpected{ std::format("after {}: {} static instances written, the scene has {}", what, *written, expected) };
-        std::println("Scene change verified: {} -> {} static instances after {}", m_staticDrawn, expected, what);
-        m_staticDrawn = expected;
-        return {};
-    };
+    auto engine = Engine::create({
+        .title = "aegis-test",
+        .width = sceneExtent.x,
+        .height = sceneExtent.y,
+        .headless = options.headless,
+        .frames = options.frames,
+        .screenshot = frameFile.string(),
+        .gpuDriven = options.gpuDriven,
+    });
+    if (!engine)
+    {
+        std::println("Failed to create the engine\n{}", describe(engine.error()));
+        return exitFailure;
+    }
+    if (options.gpuDriven && !(*engine)->useGpuDrivenRendering())
+    {
+        std::println("{}", skipMeshShaders);
+        return skipExitCode;
+    }
 
-    if (frame == loadFrame)
+    SceneResult result;
+    (*engine)->setShell(std::make_unique<SceneShell>(options, result));
+    const auto scene = (*engine)->assets().find(sceneFile);
+    if (!scene)
     {
-        m_staticDrawn = drawableStatic();
-        auto model = instantiateModel("SciFiHelmet/SciFiHelmet.gltf");
-        if (!model)
-            return std::unexpected{ std::format("Loading the second model: {}", model.error()) };
-        m_addedModel = *model;
-        registry.get<aegis::Transform>(m_addedModel).location = glm::vec3{ 0.9f, 0.0f, 0.0f };
-        registry.markStaticDirty(m_addedModel);
+        std::println("'{}' is not in the assets project", sceneFile);
+        return exitFailure;
     }
-    else if (frame == loadFrame + 1)
+    if (auto loaded = (*engine)->loadScene(*scene); !loaded)
     {
-        return verifyWritten("loading a model", true);
+        std::println("{}", describe(loaded.error()));
+        return exitFailure;
     }
-    else if (frame == destroyFrame)
+
+    auto exitCode = (*engine)->run();
+    engine->reset(); // The shell has finished with the result
+    for (const auto& error : result.errors)
     {
-        std::vector<aegis::world::Entity> doomed{ m_helmet };
-        for (std::size_t i = 0; i < doomed.size(); ++i)
+        std::println("{}", error);
+        exitCode = exitFailure;
+    }
+
+    if (options.headless && exitCode == exitSuccess)
+    {
+        if (auto verified = verifyFrame(options, frameFile, options.view ? result.view : sceneExtent); !verified)
         {
-            for (auto child = registry.get<aegis::Children>(doomed[i]).first; child;
-                child = registry.get<aegis::Siblings>(child).next)
-                doomed.push_back(child);
+            std::println("Offscreen frame check failed: {}", verified.error());
+            exitCode = exitFailure;
         }
-        for (const auto entity : doomed)
-            registry.destroy(entity);
     }
-    else if (frame == destroyFrame + 1)
+    if (options.headless && options.screenshot.empty())
     {
-        return verifyWritten("destroying a model", false);
+        std::error_code ignored;
+        std::filesystem::remove(frameFile, ignored);
     }
-    else if (frame == editFrame)
-    {
-        std::uint32_t edited{ 0 };
-        for (auto&& [entity, renderer] : registry.view<aegis::MeshRenderer>().each())
-        {
-            if (renderer.material && renderer.material->setParameter("albedo", glm::vec3{ 1.0f, 0.1f, 0.1f }))
-                ++edited;
-        }
-        if (edited == 0)
-            return std::unexpected{ "no material to edit" };
-    }
-    return {};
+    return exitCode;
 }
 }

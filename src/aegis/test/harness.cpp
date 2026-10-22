@@ -2,13 +2,8 @@ module aegis.test;
 
 import std;
 import aegis.platform;
-import aegis.render_bridge;
 import aegis.renderer;
-import aegis.render_graph;
 import aegis.rhi;
-import aegis.world;
-import aegis.world.registry;
-import aegis.world.render_components;
 
 auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, std::string>
 {
@@ -68,8 +63,6 @@ auto Harness::create(const Options& options) -> std::expected<Harness, std::stri
     auto device = harness.m_context->createDevice({});
     if (!device)
         return std::unexpected{ std::format("Failed to create rhi device: {}", rhi::describe(device.error())) };
-    if (options.gpuDriven && !(*device)->capabilities().meshShaders)
-        return std::unexpected{ std::string{ skipMeshShaders } };
     harness.m_device = std::move(*device);
 
     auto renderer = renderer::Renderer::create({
@@ -169,13 +162,6 @@ auto Harness::create(const Options& options) -> std::expected<Harness, std::stri
         return std::unexpected{ result.error() };
     if (auto result = harness.verifyIbl(); !result)
         return std::unexpected{ result.error() };
-
-    if (options.scene)
-    {
-        if (auto result = harness.createScene(); !result)
-            return std::unexpected{ result.error() };
-    }
-
     return harness;
 }
 
@@ -211,11 +197,6 @@ auto Harness::run() -> int
                     std::println("Depth resize failed");
                     return 1;
                 }
-                if (m_frameGraph)
-                {
-                    if (auto resized = m_frameGraph->resized(m_renderer->extent()); !resized)
-                        std::println("Frame graph resize failed: {}", describe(resized.error()));
-                }
             }
         }
 
@@ -225,47 +206,6 @@ auto Harness::run() -> int
             std::println("Flushing uploads failed: {}", rhi::describe(flushed.error()));
             m_device->waitIdle();
             return 1;
-        }
-
-        if (m_scene)
-        {
-            // The projection is built from the camera's aspect: take it from the frame, as the Engine does.
-            const auto extent = m_renderer->extent();
-            auto& registry = m_scene->registry();
-            if (const auto camera = m_scene->mainCamera(); camera && registry.has<aegis::Camera>(camera))
-                registry.get<aegis::Camera>(camera).aspect = static_cast<float>(extent.x) / static_cast<float>(extent.y);
-            if (m_options.view)
-                registry.get<aegis::Camera>(m_viewCamera).aspect = static_cast<float>(m_viewExtent.x) / static_cast<float>(m_viewExtent.y);
-            m_scene->update(1.0f / 60.0f);
-        }
-
-        if (m_options.mutateScene)
-        {
-            if (auto mutated = mutateScene(frames); !mutated)
-            {
-                std::println("Scene change failed: {}", mutated.error());
-                m_device->waitIdle();
-                return 1;
-            }
-        }
-
-        // Headless scene runs resize halfway, so the graph's resolution-dependent textures and the
-        // views passes derive from them are recreated under validation. A view resizes on its own: the
-        // graph follows it, not the target.
-        if (m_frameGraph && m_renderer->offscreen() && frames == m_options.frames / 2)
-        {
-            if (auto resized = m_renderer->resize({ 800, 600 }); !resized)
-            {
-                std::println("Renderer resize failed: {}", renderer::describe(resized.error()));
-                return 1;
-            }
-            if (m_options.view)
-                m_viewExtent = resizedViewExtent;
-            if (auto resized = m_frameGraph->resized(m_options.view ? m_viewExtent : m_renderer->extent()); !resized)
-            {
-                std::println("Frame graph resize failed: {}", describe(resized.error()));
-                return 1;
-            }
         }
 
         if (auto rendered = m_renderer->renderFrame([this](const auto& frameInfo) { drawFrame(frameInfo); }); !rendered)
@@ -280,18 +220,6 @@ auto Harness::run() -> int
     m_device->waitIdle();
 
     auto result = reportFrameTimes();
-    if (m_frameGraph)
-    {
-        // The frame graph's own per-pass timestamps: one entry per pass, read back once complete.
-        const auto timings = m_frameGraph->timings();
-        if (timings.size() != m_frameGraph->passes().size())
-        {
-            std::println("Pass timings failed: {} timings for {} passes", timings.size(), m_frameGraph->passes().size());
-            result = 1;
-        }
-        for (const auto& [name, gpuMs, cpuMs] : timings)
-            std::println("  {:<20} GPU {:7.4f} ms  CPU {:7.4f} ms", name, gpuMs, cpuMs);
-    }
     if (m_renderer->offscreen())
     {
         if (auto offscreen = verifyOffscreenFrame(); !offscreen)
@@ -318,36 +246,6 @@ auto Harness::drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
         recordFrameTime(timer);
 
     cmd.resetQueries(timer.pool, 0, 2);
-    if (m_frameGraph)
-    {
-        cmd.writeTimestamp(timer.pool, 0, rhi::TimestampStage::TopOfPipe);
-        m_instanceBridge->sync();
-        auto frameScene = extractFrameScene(*m_scene, *m_instances);
-        if (m_options.view)
-        {
-            // The view's camera replaces the main one, as a shell's RenderView does in aegis::Engine.
-            auto& registry = m_scene->registry();
-            const auto& camera = registry.get<aegis::Camera>(m_viewCamera);
-            frameScene.camera = render_graph::FrameScene::Camera{
-                .view = camera.viewMatrix,
-                .projection = camera.projectionMatrix,
-                .position = registry.get<aegis::GlobalTransform>(m_viewCamera).location,
-            };
-        }
-        buildUi(*m_renderer, *m_frameGraph, !m_options.noOverlay);
-        m_frameGraph->execute({
-            .cmd = cmd,
-            .frameScene = frameScene,
-            .frameIndex = frameIndex,
-            .extent = m_options.view ? m_viewExtent : extent,
-            .target = target,
-        });
-        m_instances->clearDirty();
-        cmd.writeTimestamp(timer.pool, 1, rhi::TimestampStage::AllCommands);
-        timer.pending = true;
-        return;
-    }
-
     cmd.transitionImageLayout(
         m_depthTexture.view,
         rhi::ResourceState::Unknown,

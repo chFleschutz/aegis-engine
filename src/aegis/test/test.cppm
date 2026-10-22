@@ -1,22 +1,12 @@
-module;
-
-#include <imgui.h>
-
-// The aegis-test harness: harness.cpp sets up the device and renders frames, checks/*.cpp hold the checks it
-// runs, one file per group, and main.cpp parses the arguments.
+// The aegis-test harness: harness.cpp sets up the device and renders the triangle, checks/*.cpp hold the checks
+// it runs, one file per group, checks/scene.cpp runs --scene through the app (aegis::Engine), and main.cpp parses
+// the arguments.
 export module aegis.test;
 
 import std;
-import aegis.asset_library;
-import aegis.assets;
 import aegis.platform;
-import aegis.reflect;
 import aegis.renderer;
-import aegis.render_graph;
 import aegis.rhi;
-import aegis.render_bridge;
-import aegis.world;
-import aegis.world.registry;
 
 using SpirvBuffer = std::vector<std::uint32_t>;
 
@@ -32,9 +22,9 @@ struct Options
 {
     bool headless{ false };
     std::uint32_t frames{ 0 }; // 0: until the window is closed
-    bool scene{ false };       // Render a loaded scene through the render graph instead of the triangle
+    bool scene{ false };       // Render the test scene file through the app instead of the triangle (runScene)
     bool gpuDriven{ false };   // With --scene: the GPU-driven (mesh shader) geometry path
-    bool mutateScene{ false }; // With --scene: change the loaded scene while frames are in flight (see mutateScene())
+    bool mutateScene{ false }; // With --scene: change the loaded scene while frames are in flight (see SceneShell::mutateScene)
     bool mirror{ false };      // With --scene: mirror the helmet (a scale of -1 on x), which must not turn it inside out
     std::string screenshot;    // Headless: save the last frame here as PNG
     std::string compare;       // Headless: fail unless the last frame matches this reference PNG (see compareToReference())
@@ -44,10 +34,15 @@ struct Options
                                // --screenshot and --compare then read (see viewExtent)
 };
 
-// --view: the view's size, unlike the target's (640x480, then 800x600), and the one it is resized to halfway.
+// --scene: the target's size. --view: the view's size, unlike the target's, and the one it is resized to halfway.
+inline constexpr rhi::Extent2D sceneExtent{ 800, 600 };
 inline constexpr rhi::Extent2D viewExtent{ 480, 270 };
 inline constexpr rhi::Extent2D resizedViewExtent{ 400, 300 };
 
+// checks/scene.cpp: --scene, the test scene file loaded and run by aegis::Engine (see the Options). Returns the exit code.
+auto runScene(const Options& options) -> int;
+
+// The triangle and the device checks, on a device of its own: they test the RHI under the engine, not its startup.
 class Harness
 {
 public:
@@ -86,12 +81,6 @@ public:
     // checks/graph.cpp
     auto verifyGraphTextures() -> std::expected<void, std::string>;
     auto verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::string>;
-
-    // checks/scene.cpp
-    auto createScene() -> std::expected<void, std::string>;
-    auto instantiateModel(std::string_view path) -> std::expected<aegis::world::Entity, std::string>;
-    static auto buildUi(const renderer::Renderer& renderer, const render_graph::FrameGraph& frameGraph, bool overlay) -> void;
-    auto mutateScene(std::uint32_t frame) -> std::expected<void, std::string>;
 
 private:
     // One pool per frame in flight, so a frame's timestamps are read only after the GPU finished it.
@@ -144,15 +133,7 @@ private:
         -> std::expected<void, std::string>;
 
     // checks/offscreen.cpp
-    // The last frame as RGBA8 pixels: the offscreen target's, or with --view the view's.
-    struct Frame
-    {
-        std::vector<std::byte> pixels;
-        rhi::Extent2D extent;
-    };
-    auto compareToReference(const std::vector<std::byte>& pixels, rhi::Extent2D extent) const -> std::expected<void, std::string>;
-    auto readTarget() -> std::expected<Frame, std::string>;
-    auto readView() -> std::expected<Frame, std::string>;
+    auto readTarget() -> std::expected<std::vector<std::byte>, std::string>;
     auto verifyOffscreenFrame() -> std::expected<void, std::string>;
 
     Options m_options;
@@ -169,24 +150,11 @@ private:
     std::uint32_t m_timedFrames{ 0 };
     std::uint32_t m_frameTimeErrors{ 0 };
     double m_frameTimeTotalMs{ 0.0 };
-
-    // --scene only. Declared last: destroyed first, while the device they free into still exists.
-    reflect::TypeRegistry m_types; // The components a model's scene holds
-    std::optional<AssetLibrary> m_assets;
-    std::unique_ptr<aegis::world::World> m_scene;
-    aegis::world::Entity m_helmet;                            // The holder of the model instance loaded with the scene
-    aegis::world::Entity m_addedModel;                        // --mutate-scene: the holder of the model instance loaded later
-    aegis::world::Entity m_viewCamera;                        // --view: the camera the view renders through, not the main one
-    rhi::Extent2D m_viewExtent{ viewExtent };                 // --view: the view's size
-    std::uint32_t m_staticDrawn{ 0 };                         // --mutate-scene: drawable static entities before the last change
-    std::unique_ptr<render_graph::InstanceStore> m_instances; // Holds meshes and materials
-    std::unique_ptr<InstanceBridge> m_instanceBridge;         // Disconnects before the scene goes
-    struct ImGuiContextDeleter
-    {
-        auto operator()(ImGuiContext* context) const -> void { ImGui::DestroyContext(context); }
-    };
-    using ImGuiContextHandle = std::unique_ptr<ImGuiContext, ImGuiContextDeleter>;
-    ImGuiContextHandle m_imgui; // Outlives the frame graph's UI pass
-    std::unique_ptr<render_graph::FrameGraph> m_frameGraph;
 };
+}
+
+namespace aegis::test
+{
+// checks/offscreen.cpp: --compare, for the triangle and the scene. 'pixels' is the last frame, RGBA8.
+auto compareToReference(const Options& options, std::span<const std::byte> pixels, rhi::Extent2D extent) -> std::expected<void, std::string>;
 }

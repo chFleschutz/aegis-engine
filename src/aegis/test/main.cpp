@@ -88,14 +88,12 @@ auto main(int argc, char** argv) -> int
         return 2;
     }
 
+    if (options->scene)
+        return aegis::test::runScene(*options);
+
     auto harness = aegis::test::Harness::create(*options);
     if (!harness)
     {
-        if (harness.error() == skipMeshShaders)
-        {
-            std::println("{}", harness.error());
-            return skipExitCode;
-        }
         std::println("Failed to create the harness \n{}", harness.error());
         return 1;
     }
