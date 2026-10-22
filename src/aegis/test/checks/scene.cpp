@@ -96,6 +96,14 @@ auto Engine::createScene() -> std::expected<void, std::string>
         });
     if (auto compiled = m_frameGraph->compile(); !compiled)
         return std::unexpected{ std::format("Frame graph: {}", describe(compiled.error())) };
+    if (m_options.view)
+    {
+        // The UI shows the view, as an editor's viewport does.
+        auto textures = render_graph::UiTextures::create(*m_device);
+        if (!textures)
+            return std::unexpected{ std::format("UI textures: {}", describe(textures.error())) };
+        m_uiTextures.emplace(std::move(*textures));
+    }
 
     m_scene->begin();
 
@@ -115,24 +123,53 @@ auto Engine::instantiateModel(std::string_view path) -> std::expected<aegis::wor
     return m_assets->instantiateScene(*m_scene, m_types, *id, {});
 }
 
-// The UI pass's input: one window, so a screenshot shows ImGui drawn over the scene. Ends the frame
-// (ImGui::Render), so the frame graph's UI pass records it.
-auto Engine::buildUi(const renderer::Renderer& renderer, const render_graph::FrameGraph& frameGraph, bool overlay) -> void
+// The UI pass's input: one window, so a screenshot shows ImGui drawn over the scene, and with --view a
+// second one showing the view through UiTextures. Ends the frame (ImGui::Render), so the frame graph's UI
+// pass records it.
+auto Engine::buildUi() -> void
 {
     auto& io = ImGui::GetIO();
-    const auto extent = renderer.extent();
+    const auto extent = m_renderer->extent();
     io.DisplaySize = ImVec2{ static_cast<float>(extent.x), static_cast<float>(extent.y) };
     ImGui::NewFrame();
-    if (overlay)
+    if (!m_options.noOverlay)
     {
         ImGui::SetNextWindowPos(ImVec2{ 10.0f, 10.0f });
         ImGui::Begin("aegis-test", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-        ImGui::Text("Frame graph: %d passes", static_cast<int>(frameGraph.passes().size()));
-        for (const auto& timing : frameGraph.timings())
+        ImGui::Text("Frame graph: %d passes", static_cast<int>(m_frameGraph->passes().size()));
+        for (const auto& timing : m_frameGraph->timings())
             ImGui::Text("%-20s %.3f ms", timing.name.c_str(), timing.gpuMs);
         ImGui::End();
     }
+    if (m_uiTextures)
+    {
+        m_uiTextures->nextFrame();
+        const auto final = m_frameGraph->declarations().find(render_graph::names::finalImage);
+        const auto texture = final ? m_uiTextures->get(m_frameGraph->pool().texture(*final).view) : 0;
+        if (texture != 0)
+        {
+            ImGui::SetNextWindowPos(ImVec2{ static_cast<float>(extent.x) / 2.0f, 10.0f });
+            ImGui::Begin("View", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::Image(ImTextureRef{ texture }, ImVec2{ static_cast<float>(m_viewExtent.x) / 2.0f, static_cast<float>(m_viewExtent.y) / 2.0f });
+            ImGui::End();
+            ++m_viewShown;
+        }
+    }
     ImGui::Render();
+}
+
+// --view: every frame's UI showed the view, and the one registration it needed goes with the UI textures.
+auto Engine::verifyUiTextures(std::uint32_t frames) -> std::expected<void, std::string>
+{
+    if (m_viewShown != frames)
+        return std::unexpected{ std::format("the UI showed the view in {} of {} frames", m_viewShown, frames) };
+    if (m_uiTextures->size() != 1)
+        return std::unexpected{ std::format("{} registrations for the one view", m_uiTextures->size()) };
+    m_uiTextures->releaseAll();
+    if (m_uiTextures->size() != 0)
+        return std::unexpected{ "registrations left after releasing them" };
+    std::println("UI texture verified: the view shown in {} frames, across a resize", m_viewShown);
+    return {};
 }
 
 // --mutate-scene: changes the scene the way an editor or gameplay code would, while frames are in

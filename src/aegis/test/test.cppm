@@ -13,6 +13,7 @@ import aegis.platform;
 import aegis.reflect;
 import aegis.renderer;
 import aegis.render_graph;
+import aegis.render_passes;
 import aegis.rhi;
 import aegis.render_bridge;
 import aegis.world;
@@ -90,7 +91,8 @@ public:
     // checks/scene.cpp
     auto createScene() -> std::expected<void, std::string>;
     auto instantiateModel(std::string_view path) -> std::expected<aegis::world::Entity, std::string>;
-    static auto buildUi(const renderer::Renderer& renderer, const render_graph::FrameGraph& frameGraph, bool overlay) -> void;
+    auto buildUi() -> void;
+    auto verifyUiTextures(std::uint32_t frames) -> std::expected<void, std::string>;
     auto mutateScene(std::uint32_t frame) -> std::expected<void, std::string>;
 
 private:
@@ -188,5 +190,7 @@ private:
     using ImGuiContextHandle = std::unique_ptr<ImGuiContext, ImGuiContextDeleter>;
     ImGuiContextHandle m_imgui; // Outlives the frame graph's UI pass
     std::unique_ptr<render_graph::FrameGraph> m_frameGraph;
+    std::optional<render_graph::UiTextures> m_uiTextures; // --view: shows the view; released before the UI pass goes
+    std::uint32_t m_viewShown{ 0 };                       // --view: frames whose UI showed the view
 };
 }

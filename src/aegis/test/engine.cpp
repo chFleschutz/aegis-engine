@@ -261,6 +261,9 @@ auto Engine::run() -> int
             }
             if (m_options.view)
                 m_viewExtent = resizedViewExtent;
+            // The renderer waited for the frames in flight; the view's image is recreated behind its handle.
+            if (m_uiTextures)
+                m_uiTextures->releaseAll();
             if (auto resized = m_frameGraph->resized(m_options.view ? m_viewExtent : m_renderer->extent()); !resized)
             {
                 std::println("Frame graph resize failed: {}", describe(resized.error()));
@@ -280,6 +283,14 @@ auto Engine::run() -> int
     m_device->waitIdle();
 
     auto result = reportFrameTimes();
+    if (m_uiTextures)
+    {
+        if (auto shown = verifyUiTextures(frames); !shown)
+        {
+            std::println("UI texture check failed: {}", shown.error());
+            result = 1;
+        }
+    }
     if (m_frameGraph)
     {
         // The frame graph's own per-pass timestamps: one entry per pass, read back once complete.
@@ -334,7 +345,7 @@ auto Engine::drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
                 .position = registry.get<aegis::GlobalTransform>(m_viewCamera).location,
             };
         }
-        buildUi(*m_renderer, *m_frameGraph, !m_options.noOverlay);
+        buildUi();
         m_frameGraph->execute({
             .cmd = cmd,
             .frameScene = frameScene,
