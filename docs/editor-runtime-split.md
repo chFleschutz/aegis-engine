@@ -154,7 +154,8 @@ present. Systems register into a phase, and the editor gets a safe point between
    hot-reload build would export it from a DLL, and game code wouldn't change.
 
 3. **A project folder**, mostly written by the editor: a manifest, the project file
-   `<Name>.aegis` (name, startup scene, settings), plus `scenes/` and `assets/`.
+   `project.aegis` (name, startup scene, settings), plus `content/` (assets and scenes); layout in
+   [`asset-system.md`](asset-system.md).
 
 **Rules for game code:**
 - no `main`, no Vulkan, no globals

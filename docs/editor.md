@@ -380,7 +380,7 @@ usable: the layout, sizes and colors below are guesses until they have been trie
 │                 │ └──────────────────────────────────────────────┘ │ [Add …     ▾] │
 ├─────────────────┴────────────────────────────┬─────────────────────┴───────────────┤
 │ Assets   [project ▾] [search   ] [type ▾]    │ Console   [info][warn][error] [ ]   │ bottom dock, tabbed
-│ ▸ assets/  ▸ scenes/   Helmet.gltf  ▸ …      │ [warn] Missing asset 1f6b… (fallback)│
+│ ▸ models/  ▸ scenes/   Helmet.gltf  ▸ …      │ [warn] Missing asset 1f6b… (fallback)│
 ├──────────────────────────────────────────────┴─────────────────────────────────────┤
 │ 1 selected · 60 fps · GPU 4.1 ms · ⚠ last warning                         ● unsaved │ status bar
 └────────────────────────────────────────────────────────────────────────────────────┘

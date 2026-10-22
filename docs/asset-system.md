@@ -1,6 +1,7 @@
 # Asset system, scenes and worlds
 
-Status: **decided** (D8, 2026-10-19; formats 2026-10-20; sample project 2026-10-21; settles F2 in
+Status: **decided** (D8, 2026-10-19; formats 2026-10-20; sample project 2026-10-21; project layout
+2026-10-22; settles F2 in
 `audit/backlog.md`).
 Implemented so far (#130, #137): IDs, sidecars, the database, engine content, `AssetRef`, `AssetLibrary` and
 the import cache for models; scene files and the pak are not. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md):
@@ -36,26 +37,77 @@ app-level `LayerStack`, so render and collision groups are channels or masks.
 
 ## Project layout
 
+Decided 2026-10-22. The layout is user-facing and every project depends on it, so the names below
+are fixed; anything not listed belongs to the user.
+
 ```
 my_game/
-├─ my_game.aegis                  project file: name, startup scene, settings, last engine version
-├─ assets/helmet/
-│  ├─ Helmet.gltf                 source, as exported (its name is kept)
-│  ├─ Helmet.gltf.meta            sidecar: ID, import settings, sub-asset table
-│  └─ helmet.material             native asset: carries its own ID
-├─ scenes/level_1.scene
-└─ .aegis/                        cache, index, temp files; never committed
+├─ project.aegis                  project file: name, startup scene, settings, last engine version
+├─ CMakeLists.txt                 a few lines: the engine, then aegis_add_game
+├─ CMakePresets.json              from the template
+├─ content/                       the only scanned folder: everything with an ID
+│  ├─ models/helmet/
+│  │  ├─ Helmet.gltf              source, as exported (its name is kept)
+│  │  ├─ Helmet.gltf.meta         sidecar: ID, import settings, sub-asset table
+│  │  └─ helmet.material          native asset: carries its own ID
+│  └─ scenes/level_1.scene
+├─ src/                           the C++ game module; optional
+├─ config/                        reserved: committed settings that outgrow project.aegis
+├─ plugins/                       reserved: packages with their own content/ and src/
+├─ engine/                        recommended path of the engine as a submodule
+├─ .aegis/                        local, never committed
+│  ├─ cache/                      import cache and index; safe to delete at any time
+│  ├─ editor/                     per-user editor state (imgui.ini, cameras; see editor.md)
+│  └─ saved/                      what development runs write: save games, logs, screenshots
+├─ build/                         CMake build trees and exports (build/export/<platform>/)
+├─ .gitignore                     /.aegis/  /build/  /CMakeUserPresets.json
+└─ .gitattributes                 * text=auto eol=lf, Git LFS patterns for binary content
 ```
 
+- **The engine owns only these names.** Any other file or folder at the root (`docs/`, `tools/`,
+  `tests/`, `screenshots/`, `README.md`) is the user's; the engine never scans, writes or deletes
+  it. Unlisted names stay free; a reserved name is not created until it is used.
+- **`content/` is the only folder the database scans.** Scenes, materials, models, textures and
+  later scripts all live in it, in folders of the user's choosing. The name matches the engine's own
+  `content/` folder (both are mounted the same way) and stays clear of the `aegis-assets` library
+  and the `aegis.assets` module. Inside it, dot-files and dot-folders are skipped, and files no
+  importer handles (`README.md`, `LICENSE.md`, `.blend`, `.psd`) get no sidecar and are no assets.
 - **Sources go in as they are;** the editor imports them and reimports on any change. Native files
   (scenes, materials) are the asset and are edited in place.
-- **`.gitignore` is one line, `/.aegis/`.** Nothing in `.aegis/` is ever committed; anything that
-  must be in git lives elsewhere (project settings in the project file). The project folder holds no
-  other import or build artifacts.
+- **`project.aegis` has a fixed name,** like Godot's `project.godot`: `--project <dir>` finds it
+  without a search, a folder can't hold two, and renaming a game doesn't rename the file. It holds
+  the committed settings in sections; `config/` takes sections over only when they outgrow one file
+  (per-platform overrides, files tools rewrite often), a versioned migration like any format change.
+- **`CMakeLists.txt` is at the root,** where presets, `cmake -S .` and IDEs look. The engine does
+  the work through `aegis_add_game`, so the file stays a few lines:
+
+  ```cmake
+  cmake_minimum_required(VERSION 4.5)
+  project(MyGame CXX)
+  add_subdirectory(engine)        # or AEGIS_ENGINE_DIR; find_package(Aegis) later
+  aegis_add_game(MyGame SOURCES src/game.cpp PROJECT .)
+  ```
+
+  `src/` is optional in the format: a content-only project (once scripting exists) runs on a
+  prebuilt player.
+- **The engine is a subproject** (a submodule at `engine/`, `FetchContent` or `AEGIS_ENGINE_DIR`).
+  The editor links the game module (D7), so a prebuilt, installed editor can't load a game's types
+  until game modules are DLLs, and an installed package of C++ modules makes the consumer rebuild
+  their BMIs anyway. A submodule also pins the exact engine version; `project.aegis`'s engine
+  version becomes a check. An installed package (`find_package(Aegis)`, defining the same
+  `Aegis::Engine`) can come with DLL game modules; this answers #134's question for now.
+- **`.aegis/` is everything local:** `cache/` is regenerated and "clear cache" deletes only it;
+  `editor/` and `saved/` aren't disposable, so they live beside it. A shipped game writes to the
+  user's data folder instead (#134, #168).
+- **The template's `.gitattributes`** keeps the files the editor writes LF on every platform, so
+  sidecars and scenes don't show line-ending diffs on Windows, and lists binary content for Git LFS,
+  the normal choice for a game project (not chosen for the engine repository, see below).
 - **Paths are case-sensitive on every platform,** Windows included. The database rejects two paths
   that differ only in case, and importers check that every referenced file (e.g. a glTF's texture
   URIs) matches the case on disk, so a mismatch fails on Windows too instead of only on Linux. Paths
-  are relative to the project root, with `/`.
+  are relative to `content/`, with `/` (`assets.id("models/helmet/Helmet.gltf")`): nothing outside
+  it is an asset, so the prefix would carry nothing. Engine content is named through constants; if
+  it is ever named by path, paths get a mount prefix (Unreal's `/Game/` and `/Engine/`).
 - **Lowercase snake_case** is the convention for engine folders and files the editor creates; it is
   not enforced on imported files, whose names other files (a glTF's URIs) may depend on.
 - **Engine content** (default textures, the checker texture, the default cube, the PBR template) is a
@@ -70,10 +122,18 @@ The examples, `aegis-test`'s scene checks and the device tests share one sample 
 repository should stay small, and is checked out as the submodule `samples/`. It replaces
 `aegis-assets`, whose name also clashes with the `aegis-assets` library target (#180).
 
-- **A project like any other.** It follows "Project layout": `samples.aegis` once project files
-  exist (#132), today's asset folders under `assets/`, scene files under `scenes/` (today's
-  `Scenes/`, which holds the examples), and a `.gitignore` of `/.aegis/`. One project for all examples, not one each: Sponza, the
-  helmets and the sky are shared, and the examples become scenes in it.
+- **A project like any other.** It follows "Project layout": `project.aegis` once project files
+  exist (#132), today's asset folders under `content/`, sorted by kind (`models/` with one folder
+  per model, its files as exported; `materials/`, `environments/`), scene files under
+  `content/scenes/` (today's `Scenes/`, which holds the examples; stress scenes in `stress/`,
+  `aegis-test`'s in `tests/`), and the template's `.gitignore`. Folders the samples create are
+  snake_case. The models' README screenshots move out of `content/` to a root `screenshots/`. One
+  project for all examples, not one each: Sponza, the helmets and the sky are shared, and the
+  examples become scenes in it.
+- **Later, with its code:** the Examples game's `src/` and root `CMakeLists.txt` move into the
+  sample repository (#167 or later), and the engine `add_subdirectory`s it when it is checked out;
+  its `CMakeLists.txt` skips adding the engine when `Aegis::Engine` exists. The samples then test
+  the layout and the subproject integration from outside the engine tree.
 - **Sidecars are committed** in the sample repository, as in any project. IDs are random, so a
   sidecar that isn't committed gets a new ID on every clone, and scenes reference assets by ID.
 - **Opt-in.** `.gitmodules` sets `update = none` and `shallow = true` for it:
@@ -150,8 +210,8 @@ rejects a file; it warns.
   no assets, so the database leaves them out.
 
 **Finding an asset by ID** goes through an index, the one place paths exist:
-- *Development:* the database scans `assets/` and the engine content, reading sidecars and native
-  headers into `ID → path (+ key)`. It keeps the index in `.aegis/index` with each file's
+- *Development:* the database scans `content/` and the engine content, reading sidecars and native
+  headers into `ID → path (+ key)`. It keeps the index in `.aegis/cache/index` with each file's
   modification time and size, so a later start rereads only changed files; the editor's file watcher
   updates it on moves and renames, which leave every reference intact. Until the watcher, the editor
   adds a file it wrote (`AssetDatabase::addFile`) and rescans on request (`rescan`). Every entry
@@ -310,10 +370,11 @@ implemented synchronously first; the slot lets hot reload swap contents.
 
 ## Import cache and cooking
 
-- **Cache:** in `.aegis/`, keyed by an XXH3 hash of source bytes, settings, importer version and
+- **Cache:** in `.aegis/cache/`, keyed by an XXH3 hash of source bytes, settings, importer version and
   platform, so a changed importer invalidates its own entries. It holds the cooked format: one format
-  for development and shipping.
-- **Layout (#137):** `.aegis/imported/<id>/`, one folder per source file named by its asset ID:
+  for development and shipping. Today it is still `<build>/.aegis/` (`paths::cache()`); moving it
+  into the project is its own item.
+- **Layout (#137):** `.aegis/cache/imported/<id>/`, one folder per source file named by its asset ID:
   `model.json` (the key, the files the import read besides the source, the node tree, materials,
   images and the blob of each primitive), `mesh-<m>-<p>.mesh` per primitive and `image-<i>.bin` with
   an embedded image's encoded bytes. External images are decoded from their files on every load
@@ -407,3 +468,7 @@ accidental format change then fails CI instead of breaking a project.
 - `.blend` import through headless Blender, which every importing machine would need.
 - Override details; a `.prefab` extension for the browser (same format either way).
 - Soft references, hot reload and streaming.
+- Game shaders: content (imported and compiled by the asset pipeline, as material shaders would be)
+  or source (`src/`, compiled by CMake through `aegis_add_shaders`, as the engine's are).
+- Export metadata (window title, version, executable icon) in `project.aegis`, the icon in
+  `content/`; the Windows icon is needed at build time, so the build reads the project file.
