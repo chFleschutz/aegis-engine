@@ -55,6 +55,12 @@ jobs:
         with:
           submodules: recursive
 
+      # The sample project is opt-in (update = none in .gitmodules), so the checkout above skips it. Only
+      # the device tests load it, and without it CMake doesn't build the examples or register those tests.
+      - name: Check out the samples
+        if: ${{ matrix.lavapipe }}
+        run: git submodule update --init --checkout samples
+
       # libstdc++ 14 declares std::forward_like with a deduced return type, which clang rejects
       # across module boundaries, so the build needs libstdc++ 15.
       - name: Install Clang, libstdc++ 15, CMake, Ninja and GLFW dependencies

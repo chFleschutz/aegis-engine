@@ -6,8 +6,8 @@ import std;
 ///
 /// The shaders and the engine content are looked up like a game's project (see locate): the environment
 /// variable AEGIS_SHADER_DIR or AEGIS_CONTENT_DIR, then `shaders/` or `content/` next to the executable,
-/// then the directory fixed at configure time (inside the build and source trees). The samples and the
-/// cache are fixed at configure time and can be overridden with AEGIS_ASSETS_DIR and AEGIS_CACHE_DIR.
+/// then the directory fixed at configure time (inside the build and source trees). The sample project and the
+/// cache are fixed at configure time and can be overridden with AEGIS_PROJECT_DIR and AEGIS_CACHE_DIR.
 /// Non-ASCII paths are handled as UTF-8 (compile-time value) or in the native encoding (variable).
 export namespace aegis::paths
 {
@@ -34,8 +34,12 @@ struct Lookup
 /// @brief Directory holding the compiled shaders (`<name>.slang.spv`, in the shaders/ layout).
 [[nodiscard]] auto shaders() -> const std::filesystem::path&;
 
-/// @brief Root of the aegis-assets submodule.
-[[nodiscard]] auto assets() -> const std::filesystem::path&;
+/// @brief Root of the sample project, the samples/ submodule; its assets are in `content/`. It may not be checked out.
+[[nodiscard]] auto project() -> const std::filesystem::path&;
+
+/// @brief The folder of 'project' that holds its assets, `<project>/content`: the only one the asset database
+///        scans. Asset paths are relative to it.
+[[nodiscard]] auto projectContent(const std::filesystem::path& project) -> std::filesystem::path;
 
 /// @brief The engine content: normal assets (default textures, the fallback checker and cube) with their
 ///        sidecars, in the engine repository's `content/` folder. Read-only.

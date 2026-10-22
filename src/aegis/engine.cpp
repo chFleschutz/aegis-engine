@@ -120,7 +120,7 @@ auto dumpAsset(const AppDesc& desc) -> std::expected<std::string, EngineError>
 
     const auto sources = assetSources(desc);
     const auto database = assets::AssetDatabase::scan({
-        .roots = { { sources.project }, { sources.engineContent, true } },
+        .roots = { { paths::projectContent(sources.project) }, { sources.engineContent, true } },
         .indexFile = sources.indexFile,
     });
     if (!database)

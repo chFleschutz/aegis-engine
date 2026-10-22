@@ -56,6 +56,10 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         {
             options.noOverlay = true;
         }
+        else if (arg == "--no-samples")
+        {
+            options.noSamples = true;
+        }
         else if (arg == "--frames" && i + 1 < args.size())
         {
             const std::string_view value{ args[++i] };
@@ -71,6 +75,8 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
 
     if (!options.compare.empty() && !options.headless)
         return std::unexpected{ "--compare needs --headless" };
+    if (options.scene && options.noSamples)
+        return std::unexpected{ "--scene loads the sample project, so it can't run with --no-samples" };
 
     // Headless has no window to close, so it always stops by itself.
     if (options.headless && options.frames == 0)
@@ -84,7 +90,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::test::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--mutate-scene] [--mirror] [--view] [--no-overlay] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--mutate-scene] [--mirror] [--view] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 
