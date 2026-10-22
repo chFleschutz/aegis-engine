@@ -67,8 +67,9 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 PostProcessingPass::PostProcessingPass(ResourceDeclarations& declarations, bool bloom) :
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
     m_bloom{ bloom ? std::optional{ declarations.addReference(names::bloom, Usage::StorageRead) } : std::nullopt },
-    // 16-bit: the image may stay linear until the blit onto an sRGB target encodes it (see execute).
-    m_final{ declarations.addTexture(names::finalImage, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) }
+    // 16-bit: the image may stay linear until the blit onto an sRGB target encodes it (see execute). As a
+    // view's target it is also copied out, for a screenshot.
+    m_final{ declarations.addTexture(names::finalImage, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT, .usage = rhi::ImageUsage::TransferSrc }) }
 {
 }
 
@@ -88,7 +89,8 @@ auto PostProcessingPass::createResources(ResourcePool& pool) -> std::expected<vo
 
 auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    // An sRGB target (the swapchain prefers one) encodes on write; gamma here would apply it twice.
+    // An sRGB target (the swapchain prefers one) encodes on write; gamma here would apply it twice. A view's
+    // "Final" reaches the same target through the UI, so the same holds for it.
     const auto targetFormat = pool.device().get(frameInfo.target).format();
     const bool targetEncodes = targetFormat == rhi::Format::BGRA8_SRGB || targetFormat == rhi::Format::RGBA8_SRGB;
 

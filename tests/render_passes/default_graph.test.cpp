@@ -2,6 +2,7 @@
 
 import std;
 import aegis.render_passes;
+import aegis.rhi;
 
 // The default graphs are declared and planned with no device, then compared with a checked-in plan
 // (tests/render_passes/snapshots). A change to a pass's declarations, the order of the passes or a barrier
@@ -35,10 +36,10 @@ auto updateRequested() -> bool
 #endif
 }
 
-auto planOfDefaultGraph(bool gpuDriven) -> std::string
+auto planOfDefaultGraph(bool gpuDriven, std::optional<DefaultPassesDesc::View> view = std::nullopt) -> std::string
 {
     GraphBuilder builder;
-    addDefaultPasses(builder, { .gpuDriven = gpuDriven, .ui = true });
+    addDefaultPasses(builder, { .gpuDriven = gpuDriven, .ui = true, .view = view });
 
     const auto plan = builder.plan();
     REQUIRE(plan.has_value());
@@ -84,6 +85,12 @@ TEST_SUITE("render_graph::addDefaultPasses")
     TEST_CASE("the GPU-driven default graph matches its plan snapshot")
     {
         checkSnapshot("default_graph_gpu_driven.txt", planOfDefaultGraph(true));
+    }
+
+    TEST_CASE("the default graph rendering into a view matches its plan snapshot")
+    {
+        // The UI pass samples "Final" and comes last, with no present pass.
+        checkSnapshot("default_graph_view.txt", planOfDefaultGraph(false, DefaultPassesDesc::View{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB }));
     }
 
     TEST_CASE("every pass of the default graph has a name")
