@@ -36,10 +36,11 @@ function(aegis_add_game name)
     target_link_libraries(${name}-Editor PRIVATE aegis-editor)
     target_compile_definitions(${name}-Editor PRIVATE AEGIS_LAUNCH_EDITOR)
 
-    # The test loads compiled shaders, so it exists only when those are built.
+    # The test renders small like the examples' (see examples/CMakeLists.txt). It loads compiled shaders, so it
+    # exists only when those are built.
     if(AEGIS_BUILD_TESTS AND TARGET compile_shaders)
         string(TOLOWER ${name} lowered)
-        add_test(NAME game-${lowered} COMMAND ${name} --headless --frames 120)
+        add_test(NAME game-${lowered} COMMAND ${name} --headless --frames 120 --width 640 --height 360)
         set_tests_properties(game-${lowered} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300)
     endif()
 endfunction()
