@@ -103,6 +103,12 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
 // holder's SceneInstance recreates them.
 [[nodiscard]] auto saveScene(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id) -> std::expected<Scene, Error>;
 
+// Captures `root` and its descendants like the overload above, as the scene `id` with `root` as its one root (its
+// own parent is left out). The editor's structural undo and Duplicate keep subtrees this way. `root` must not be
+// an entity of a scene instance (capture the holder).
+[[nodiscard]] auto saveScene(world::Registry& registry, const reflect::TypeRegistry& types, world::Entity root, std::uint64_t id)
+    -> std::expected<Scene, Error>;
+
 // Finishes a component read from a scene file before it joins its entity: `component` is an instance of `type`
 // with the file's fields set. The asset library loads the asset references here, which the file gives as IDs,
 // including the scene of a SceneInstance.
@@ -117,6 +123,21 @@ using PrepareComponent = std::function<void(const reflect::TypeInfo& type, void*
 // scene did not load, a scene that holds itself through its instances) nothing is created.
 [[nodiscard]] auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& scene,
     const PrepareComponent& prepare = {}) -> std::expected<void, Error>;
+
+// The IDs a subtree's entities get when it is instantiated.
+enum class EntityIds
+{
+    Keep, // The saved ones: undo restores a destroyed subtree
+    New,  // New random ones, with the children lists remapped: a duplicate or a pasted copy
+};
+
+// Creates `subtree`, a scene with one root (from saveScene of an entity), with its components, scripts, hierarchy
+// and the instances its entities hold, and makes its root the child of `parent` at `index` among its children
+// (the last one for an index past their end; a root entity for a null `parent`). Otherwise like the overloads
+// around it: on failure (with EntityIds::Keep, an ID the registry already uses) nothing is created. Returns the
+// root.
+[[nodiscard]] auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& subtree, world::Entity parent,
+    std::size_t index, EntityIds ids, const PrepareComponent& prepare = {}) -> std::expected<world::Entity, Error>;
 
 // Creates an instance of `scene` (a loaded reference): a new entity with a random ID holds it, as a child of
 // `parent` (a root entity for a null `parent`), and the scene's entities derive their IDs from the holder's.
