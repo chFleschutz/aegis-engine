@@ -390,3 +390,23 @@ TEST_SUITE("scripting::ScriptSystem")
         CHECK(scene.registry().entityCount() == 0);
     }
 }
+
+TEST_SUITE("scripting::ScriptSystem in edit mode")
+{
+    TEST_CASE("an edit world neither creates nor updates scripts")
+    {
+        Fixture f;
+        f.spawnRecorder("a");
+        f.scene.begin(world::UpdateMode::Edit);
+        f.scene.update(0.016f, world::UpdateMode::Edit);
+        CHECK(g_log.empty());
+    }
+
+    TEST_CASE("an edit world does not move an entity with a moving script")
+    {
+        Fixture f;
+        const auto entity = f.spawn("Mover");
+        f.scene.update(1.0f, world::UpdateMode::Edit);
+        CHECK(f.scene.registry().get<Transform>(entity).location.x == doctest::Approx(0.0f));
+    }
+}

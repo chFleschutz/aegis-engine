@@ -13,9 +13,10 @@ namespace
 using aegis::world::Phase;
 using aegis::world::Registry;
 using aegis::world::System;
+using aegis::world::UpdateMode;
 using aegis::world::World;
 
-template<Phase P>
+template<Phase P, bool Edit = false>
 class Recorder : public System
 {
 public:
@@ -26,6 +27,8 @@ public:
     }
 
     [[nodiscard]] auto phase() const -> Phase override { return P; }
+    [[nodiscard]] auto runsInEdit() const -> bool override { return Edit; }
+    void onBegin(Registry&) override { m_log.push_back(m_name + ".begin"); }
     void onUpdate(Registry&, float) override { m_log.push_back(m_name); }
 
 private:
@@ -129,5 +132,66 @@ TEST_SUITE("world::World phases")
         CHECK(runs == 1);
         scene.update(0.016f);
         CHECK(runs == 2);
+    }
+}
+
+TEST_SUITE("world::World update modes")
+{
+    TEST_CASE("play mode runs every system")
+    {
+        std::vector<std::string> log;
+        World scene;
+        scene.addSystem<Recorder<Phase::Update>>(log, "game");
+        scene.addSystem<Recorder<Phase::PostUpdate, true>>(log, "derived");
+        scene.begin(UpdateMode::Play);
+        scene.update(0.016f, UpdateMode::Play);
+
+        CHECK(log == std::vector<std::string>{ "game.begin", "derived.begin", "game", "derived" });
+    }
+
+    TEST_CASE("edit mode begins and updates only the systems that opt in")
+    {
+        std::vector<std::string> log;
+        World scene;
+        scene.addSystem<Recorder<Phase::Update>>(log, "game");
+        scene.addSystem<Recorder<Phase::PostUpdate, true>>(log, "derived");
+        scene.begin(UpdateMode::Edit);
+        scene.update(0.016f, UpdateMode::Edit);
+
+        CHECK(log == std::vector<std::string>{ "derived.begin", "derived" });
+    }
+
+    TEST_CASE("a system stays out of edit mode by default")
+    {
+        CHECK_FALSE(System{}.runsInEdit());
+        CHECK(aegis::world::TransformSystem{}.runsInEdit());
+        CHECK(aegis::world::CameraSystem{}.runsInEdit());
+    }
+
+    TEST_CASE("edit mode applies the deferred commands")
+    {
+        int runs = 0;
+        World scene;
+        scene.defer([&runs](Registry&) { ++runs; });
+        scene.update(0.016f, UpdateMode::Edit);
+        CHECK(runs == 1);
+    }
+
+    TEST_CASE("an edited transform reaches the camera in edit mode")
+    {
+        World scene;
+        scene.addSystem<aegis::world::TransformSystem>();
+        scene.addSystem<aegis::world::CameraSystem>();
+        auto& registry = scene.registry();
+        const auto camera = registry.create("Camera");
+        registry.add<aegis::Camera>(camera);
+        scene.begin(UpdateMode::Edit);
+
+        registry.get<aegis::Transform>(camera).location = { 3.0f, 0.0f, 0.0f };
+        registry.markStaticDirty(camera); // What the editor does after moving a static entity
+        scene.update(0.016f, UpdateMode::Edit);
+
+        CHECK(registry.get<aegis::GlobalTransform>(camera).location.x == doctest::Approx(3.0f));
+        CHECK(registry.get<aegis::Camera>(camera).viewMatrix[3][0] != 0.0f);
     }
 }

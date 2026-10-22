@@ -15,6 +15,13 @@ enum class Phase
     LateUpdate  ///< After the derived data: what reads it (camera matrices)
 };
 
+/// @brief How a world runs: the game plays, or an editor edits it
+enum class UpdateMode
+{
+    Play, ///< Every system runs: scripts, gameplay and what derives from them
+    Edit  ///< Only the systems that opt in (runsInEdit) run, so entities move when edited and nothing plays
+};
+
 class System
 {
 public:
@@ -23,6 +30,8 @@ public:
 
     /// @brief The phase onUpdate runs in (onBegin and onReset don't depend on it)
     [[nodiscard]] virtual auto phase() const -> Phase { return Phase::Update; }
+    /// @brief Whether onBegin and onUpdate also run in UpdateMode::Edit; scripts and gameplay don't
+    [[nodiscard]] virtual auto runsInEdit() const -> bool { return false; }
 
     virtual void onAttach() {}
     virtual void onDetach() {}
