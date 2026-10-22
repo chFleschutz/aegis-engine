@@ -40,6 +40,23 @@ public:
     [[nodiscard]] auto wasResized() const -> bool { return m_wasResized; }
     [[nodiscard]] auto shouldClose() const -> bool;
 
+    /// @brief The ratio of the monitor's DPI to the platform default: 1.5 at 150% display scaling.
+    [[nodiscard]] auto contentScale() const -> float { return m_contentScale; }
+
+    /// @brief Calls 'handler' with the new content scale when it changes, e.g. when the window moves to a
+    /// monitor with another scale. Runs inside update() and waitEvents().
+    auto setContentScaleHandler(std::function<void(float scale)> handler) -> void { m_contentScaleHandler = std::move(handler); }
+
+    [[nodiscard]] auto title() const -> std::string_view { return m_title; }
+    auto setTitle(std::string_view title) -> void;
+
+    /// @brief Asks 'canClose' when the user closes the window; false keeps it open, e.g. to ask about
+    /// unsaved changes first. Without a handler the window closes. Runs inside update() and waitEvents().
+    auto setCloseHandler(std::function<bool()> canClose) -> void { m_closeHandler = std::move(canClose); }
+
+    /// @brief Makes shouldClose() true without asking the close handler, e.g. once the user confirmed.
+    auto close() -> void;
+
     /// @brief Processes pending events: runs key bindings, collects the input events and updates the size.
     auto update() -> void;
 
@@ -63,12 +80,18 @@ private:
     static auto onMouseButton(GLFWwindow* glfwWindow, int button, int action, int mods) -> void;
     static auto onCursorPos(GLFWwindow* glfwWindow, double x, double y) -> void;
     static auto onScroll(GLFWwindow* glfwWindow, double x, double y) -> void;
+    static auto onContentScale(GLFWwindow* glfwWindow, float x, float y) -> void;
+    static auto onClose(GLFWwindow* glfwWindow) -> void;
 
     GLFWwindow* m_window{ nullptr };
     std::uint32_t m_width{ 0 };
     std::uint32_t m_height{ 0 };
     bool m_wasResized{ false };
+    float m_contentScale{ 1.0f };
+    std::string m_title;
     std::function<void(int key, int action, int mods)> m_keyHandler;
+    std::function<void(float scale)> m_contentScaleHandler;
+    std::function<bool()> m_closeHandler;
     std::vector<InputEvent> m_events;
 };
 }
