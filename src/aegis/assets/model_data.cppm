@@ -27,6 +27,9 @@ struct ModelImage
     std::string uri;
     bool srgb{ false }; // Color data (base color, emissive) is sRGB; normals, metal/roughness and occlusion are linear
     ImageData data;
+    /// @brief The encoded bytes (PNG, JPEG, ...) of an embedded image, which the import cache keeps; empty for an
+    ///        external one, which is read again from 'uri'.
+    std::vector<std::byte> encoded;
 };
 
 /// @brief A material's PBR inputs. Images are indices into ModelData::images; none means "not set"
@@ -73,7 +76,7 @@ struct ModelNode
 };
 
 /// @brief Everything a model file holds, decoded and converted to the engine's conventions (plain values,
-///        no GPU state). A cacheable intermediate: Loader::load uploads it.
+///        no GPU state). A cacheable intermediate (see ImportCache): Loader::upload uploads it.
 struct ModelData
 {
     std::string name; // The scene's name, or the file's stem
@@ -87,6 +90,11 @@ struct ModelData
     std::vector<ModelImage> images;
     /// @brief The nodes of one scene in depth-first preorder, so a parent precedes its children.
     std::vector<ModelNode> nodes;
+    /// @brief Files besides the model file whose contents the import depends on, relative to its directory with
+    ///        '/': a glTF's external buffers and the external images that failed to decode. The import cache hashes
+    ///        them into its key, so changing one reimports the model. Images that decoded are read again on
+    ///        every load and are not listed.
+    std::vector<std::string> dependencies;
 };
 
 /// @brief Imports a glTF / GLB document held in memory.

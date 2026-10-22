@@ -80,6 +80,9 @@ struct AppDesc
     /// @brief The scene file the launcher starts with, by its path in the project ("Scenes/sponza.scene");
     ///        empty for the game's own (GameModule::startupScene).
     std::string scene;
+    /// @brief An asset ID: print the import cache entry of that model, or of that mesh of a model, instead of
+    ///        running (see dumpAsset).
+    std::string dumpAsset;
 };
 
 enum class EngineErrorCode
@@ -108,8 +111,8 @@ inline constexpr int exitUsage{ 2 };
 
 [[nodiscard]] auto describe(const EngineError& error) -> std::string;
 
-/// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n>, --project <dir> and
-///        --scene <path>;
+/// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n>, --project <dir>,
+///        --scene <path> and --dump-asset <id>;
 ///        the first argument (the program name) is skipped. A headless run without --frames stops after 600 frames.
 [[nodiscard]] auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, EngineError>;
 
@@ -118,6 +121,13 @@ inline constexpr int exitUsage{ 2 };
 
 /// @brief The usage line for parseArgs's options, naming 'program'.
 [[nodiscard]] auto usage(std::string_view program) -> std::string;
+
+/// @brief The import cache entry of the asset AppDesc::dumpAsset names, as text (assets::ImportCache::dump): a model
+///        file's entry, or one mesh blob of it for the ID of a model's mesh. Reads the project's asset index; needs no
+///        device.
+/// @return EngineErrorCode::InvalidArguments for a malformed ID, EngineErrorCode::AssetsFailed for an unknown ID, an
+///         asset that is not cached (only models and their meshes are) or one without an entry yet.
+[[nodiscard]] auto dumpAsset(const AppDesc& desc) -> std::expected<std::string, EngineError>;
 
 class Engine;
 
