@@ -21,7 +21,10 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
   compiler errors (C1001) in `render_graph` and its tests. MSVC also needs `<compare>` in every
   translation unit that instantiates a defaulted `operator<=>` (Vulkan-Hpp's `vk::Flags` included),
   and resolves `std::pair` structured bindings in templates at the instantiating TU.
-- Requires `git clone --recurse-submodules` — assets live in the `aegis-assets` submodule.
+- Requires `git clone --recurse-submodules` for the libraries. The sample project (the examples' scenes
+  and the assets the device tests load) is the opt-in submodule `samples/` (`aegis-samples`, `update =
+  none`): `git submodule update --init --checkout samples`. Without it configure prints that line and
+  skips the `Examples` game and the device tests that load samples; the library and unit tests never need it.
 
 > **Vulkan SDK version matters — configure fails fast with the wrong one.** The RHI imports the
 > SDK's Vulkan-Hpp module (`import vulkan`), which still changes between SDK releases, so the build
@@ -73,14 +76,14 @@ success code: test `has_value()`, read `.error()` and `*result`. Calls with seve
 ### Examples (visual smoke tests of the engine)
 The examples are two games (see **Games** below), each in `examples/<lowercased-name>`: `Template` /
 `Template-Editor`, an empty project, and `Examples` / `Examples-Editor`, whose project is the
-`aegis-assets` submodule and whose examples are its scene files, picked with `--scene <path>`
-(`Scenes/simple.scene`, the default, `sponza`, `helmets`, and the stress scenes `instanced-helmets`,
-`cubes` and `dynamic-cubes`). Build one and run its exe:
+`samples/` submodule (built only when it is checked out) and whose examples are its scene files, picked
+with `--scene <path>` relative to its `content/` (`scenes/simple.scene`, the default, `sponza`, `helmets`,
+and the stress scenes `stress/instanced_helmets`, `stress/cubes` and `stress/dynamic_cubes`). Build one and run its exe:
 
     cmake --build --preset windows-clang-debug --target Examples
-    build\windows-clang-debug\examples\examples\Examples.exe --scene Scenes/sponza.scene
+    build\windows-clang-debug\examples\examples\Examples.exe --scene scenes/sponza.scene
 
-`Template` is empty (safest smoke test); `Scenes/simple.scene` is the simplest content scene. Report whether it built clean (warnings are errors) and the
+`Template` is empty (safest smoke test); `scenes/simple.scene` is the simplest content scene. Report whether it built clean (warnings are errors) and the
 window rendered; on a build failure, surface the first real error, not the downstream cascade.
 
 **Games** (`cmake/AegisGame.cmake`, D7): `aegis_add_game(<Name> SOURCES … PROJECT <dir>)` builds the
@@ -116,25 +119,27 @@ through a pointer; keep such members as `uint64_t` addresses behind properties (
 
 ### Asset/shader paths (gotcha)
 The `aegis.paths` module (`src/aegis/paths/`) is the one reader of the build-tree locations:
-`aegis::paths::shaders()` (`<build>/shaders`), `aegis::paths::assets()`
-(`<source>/modules/aegis-assets`), `aegis::paths::content()` (`<source>/content`, the engine content) and
+`aegis::paths::shaders()` (`<build>/shaders`), `aegis::paths::project()`
+(`<source>/samples`, the sample project), `aegis::paths::content()` (`<source>/content`, the engine content) and
 `aegis::paths::cache()` (`<build>/.aegis`, the asset index and the import cache). They are PRIVATE compile definitions
-`AEGIS_SHADER_DIR`, `AEGIS_ASSETS_DIR`, `AEGIS_CONTENT_DIR` and `AEGIS_CACHE_DIR` of `aegis-paths`, read only in `paths.cpp`, so they are **absolute paths fixed at
+`AEGIS_SHADER_DIR`, `AEGIS_PROJECT_DIR`, `AEGIS_CONTENT_DIR` and `AEGIS_CACHE_DIR` of `aegis-paths`, read only in `paths.cpp`, so they are **absolute paths fixed at
 configure time**, derived from `PROJECT_BINARY_DIR`/`PROJECT_SOURCE_DIR` so the engine also works as an
 `add_subdirectory()` of another project. Running the exe from any cwd is fine, but moving or renaming
 the source tree or the build dir breaks asset/shader loading unless you re-run configure or set the
 environment variables of the same names, which override the baked-in values at
 run time. Shaders and content are looked up first in `shaders/` and `content/` next to the executable
 (after the variable, before the baked-in path), for a copied or installed game; a development build
-has nothing there. Examples name assets through the library, by path inside the project (`assets.id("Misc/cube.obj")`, then
+has nothing there. A project's assets are in its `content/` folder (`paths::projectContent`), the only one scanned.
+Examples name assets through the library, by path inside it (`assets.id("models/basic/cube.obj")`, then
 `aegis::instantiate(context, id)` for a model or scene file / `assets.loadEnvironment(id)`); never add another `-D` path.
 `aegis-test` still has its own `AEGIS_TEST_SHADER_PATH` for its fixture shader (built next to it).
 
 ### Assets by ID
 `aegis::AssetLibrary` (`src/aegis/asset_library.*`, target `aegis-asset-library`) loads assets by `AssetId`
 and caches them by ID; components store `AssetRef<T>` (`MeshRenderer`, `Sky`). It scans two roots through
-`assets::AssetDatabase`: the project (`aegis-assets` for now; **a `.meta` sidecar with new IDs is written next
-to every source file that has none**, so the submodule shows untracked `.meta` files) and the read-only engine
+`assets::AssetDatabase`: the project's `content/` folder (the samples for now; dot-files and dot-folders are skipped;
+**a `.meta` sidecar with new IDs is written next to every source file that has none**, so a new source shows an
+untracked `.meta` file in the samples: commit it there, scenes reference assets by ID) and the read-only engine
 content folder `content/` (named in code as `assets::engine::white`, ...). A model file's meshes, materials and
 textures get sub-asset IDs, recorded in its sidecar. Missing assets fall back to engine content with one
 warning. Loaded assets are shared: editing one (a material's parameters) changes every user, so code that
@@ -356,7 +361,8 @@ it exits 0.
 
 - `aegis-test --headless` renders offscreen: no window, no surface, no swapchain, and stops after
   600 frames (or `--frames <n>`). `ctest` runs it as a `device`-labelled test. Use this by default.
-- `--scene` / `--gpu-driven` load the test scene file (`Scenes/aegis-test.scene` in `aegis-assets`)
+  Its asset and IBL checks load the samples; without them `ctest` runs it with `--no-samples`, which skips those.
+- `--scene` / `--gpu-driven` load the test scene file (`scenes/tests/aegis_test.scene` in the samples)
   and run it through the app's `aegis::Engine` (CPU- / GPU-driven geometry) instead of the test triangle; `--screenshot <png>` saves the last headless frame — look
   at it after render changes. `ctest` runs both paths too.
 - Headless does not touch surface, swapchain, acquire or present. When that code changed, also run
