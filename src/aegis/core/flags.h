@@ -7,7 +7,7 @@
 //     AEGIS_FLAGS(ImageUsage)
 //
 // Defines | & ^ ~ |= &= ^=. Needs `import std;` in the using translation unit. Query bits with
-// `aegis::base::hasFlag` from the `aegis.base` module. It is a macro because ADL only looks in the
+// `aegis::core::hasFlag` from the `aegis.core` module. It is a macro because ADL only looks in the
 // enum's namespace and a module cannot export a macro.
 
 // clang-format off

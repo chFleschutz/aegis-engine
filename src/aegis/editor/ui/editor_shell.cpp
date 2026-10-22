@@ -5,7 +5,7 @@ module;
 
 module aegis.editor;
 import std;
-import aegis.base;
+import aegis.core;
 import aegis.math;
 import aegis.render_passes;
 import aegis.rhi;

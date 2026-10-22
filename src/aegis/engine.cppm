@@ -5,7 +5,7 @@ export import aegis.math;
 export import aegis.asset_library;
 export import aegis.scene_description;
 export import aegis.paths;
-export import aegis.base;
+export import aegis.core;
 export import aegis.world;
 export import aegis.world.components;
 export import aegis.world.render_components;
@@ -270,7 +270,7 @@ public:
 
     /// @brief Hands out the delta time of each frame. A wall clock with a clamp by default (a fixed
     ///        step when headless); assign FrameClock::fixed(step) for a deterministic run.
-    [[nodiscard]] auto clock() -> base::FrameClock& { return m_clock; }
+    [[nodiscard]] auto clock() -> core::FrameClock& { return m_clock; }
 
     /// @brief Finds assets by path and loads them by ID.
     [[nodiscard]] auto assets() -> AssetLibrary& { return *m_assets; }
@@ -341,7 +341,7 @@ private:
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
     std::optional<AssetLibrary> m_assets;
     reflect::TypeRegistry m_types;
-    base::FrameClock m_clock{ base::FrameClock::clamped(MAX_FRAME_DELTA_SEC) };
+    core::FrameClock m_clock{ core::FrameClock::clamped(MAX_FRAME_DELTA_SEC) };
     world::World m_world;
     aegis::render_graph::InstanceStore m_instances;        // Holds meshes and materials: goes before the device
     aegis::InstanceBridge m_instanceBridge{ m_instances }; // Disconnects from the world first

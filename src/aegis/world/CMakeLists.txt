@@ -27,7 +27,7 @@ target_include_directories(aegis-world PRIVATE
 target_link_libraries(aegis-world
 PUBLIC
 	aegis-assets
-	aegis-base
+	aegis-core
 	aegis-math
 	aegis-reflect
 	EnTT::EnTT

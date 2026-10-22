@@ -2,7 +2,7 @@
 
 import std;
 import aegis.assets;
-import aegis.base;
+import aegis.core;
 import aegis.reflect;
 import aegis.serialize;
 import aegis.world.registry;

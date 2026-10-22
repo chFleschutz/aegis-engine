@@ -1,6 +1,6 @@
 module aegis.assets;
 import std;
-import aegis.base;
+import aegis.core;
 
 namespace aegis::assets
 {

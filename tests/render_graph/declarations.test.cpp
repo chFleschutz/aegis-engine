@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.base;
+import aegis.core;
 import aegis.render_graph;
 import aegis.rhi;
 
@@ -190,7 +190,7 @@ TEST_SUITE("render_graph::compilePlan")
 
     TEST_CASE("merges the usage flags of every access into the resource")
     {
-        using aegis::base::hasFlag;
+        using aegis::core::hasFlag;
         using aegis::rhi::BufferUsage;
         using aegis::rhi::ImageUsage;
 

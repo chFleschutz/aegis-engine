@@ -72,7 +72,7 @@ export namespace aegis::rhi::detail
 /// @note The offset must be a multiple of both 4 and the texel block size, so the requirement is
 ///       their least common multiple -- not the next power of two. Rounding 12 (R32G32B32) up to 16
 ///       would satisfy neither 12 nor the spec: 16 is not a multiple of 12. Callers must therefore
-///       round with base::roundUpTo, not alignTo.
+///       round with core::roundUpTo, not alignTo.
 [[nodiscard]] constexpr auto copyAlignment(Format format) noexcept -> std::size_t
 {
     const auto texelSize = bytesPerTexel(format);

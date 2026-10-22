@@ -5,7 +5,7 @@ module;
 module aegis.serialize;
 import std;
 import aegis.assets;
-import aegis.base;
+import aegis.core;
 import aegis.reflect;
 import aegis.scripting.script;
 import aegis.world.registry;

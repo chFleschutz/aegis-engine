@@ -9,7 +9,7 @@ export module aegis.scene_description;
 import std;
 import aegis.asset_library;
 import aegis.assets;
-import aegis.base;
+import aegis.core;
 import aegis.world;
 import aegis.reflect;
 

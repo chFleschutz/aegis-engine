@@ -10,7 +10,7 @@ PUBLIC
 	aegis-rhi
 	aegis-world
 PRIVATE
-	aegis-base
+	aegis-core
 	aegis-paths
 	aegis-render-passes # Bakes environments with Ibl
 	aegis-serialize
@@ -33,7 +33,7 @@ PUBLIC
 	EnTT::EnTT # Follows the world's component signals
 PRIVATE
 	aegis-assets
-	aegis-base
+	aegis-core
 	aegis-math
 	aegis-rhi
 )
@@ -48,7 +48,7 @@ PRIVATE
 add_library(aegis-engine STATIC)
 add_library(Aegis::Engine ALIAS aegis-engine)
 
-add_subdirectory(base)
+add_subdirectory(core)
 add_subdirectory(paths)
 add_subdirectory(platform)
 add_subdirectory(rhi)
@@ -79,7 +79,7 @@ target_link_libraries(aegis-engine
 PUBLIC 
 	aegis-asset-library
 	aegis-assets
-	aegis-base
+	aegis-core
 	aegis-paths
 	aegis-platform
 	aegis-reflect

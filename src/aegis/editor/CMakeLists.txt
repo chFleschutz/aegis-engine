@@ -25,7 +25,7 @@ target_link_libraries(aegis-editor
         aegis-editor-core
         aegis-engine # The shell it implements
     PRIVATE
-        aegis-base
+        aegis-core
         aegis-math
         aegis-render-graph
         aegis-render-passes # The frame graph's resource names

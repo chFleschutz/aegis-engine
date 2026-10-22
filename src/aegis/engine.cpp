@@ -275,7 +275,7 @@ auto Engine::run() -> int
     }
 
     if (headless)
-        m_clock = base::FrameClock::fixed(HEADLESS_FRAME_DELTA_SEC);
+        m_clock = core::FrameClock::fixed(HEADLESS_FRAME_DELTA_SEC);
     m_clock.reset(std::chrono::steady_clock::now());
     while ((headless || !m_window->shouldClose()) && (m_desc.frames == 0 || frames < m_desc.frames))
     {
