@@ -22,6 +22,7 @@ target_link_libraries(aegis-test
     PRIVATE
         aegis-asset-library
         aegis-assets
+        aegis-base
         aegis-math
         aegis-paths
         aegis-platform

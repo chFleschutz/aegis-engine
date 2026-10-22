@@ -54,6 +54,23 @@ auto Context::validationErrorCount() noexcept -> std::uint32_t
     return g_validationErrors.load();
 }
 
+auto Context::submitDebugMessage(std::string_view message) const -> bool
+{
+    if constexpr (!enableValidation)
+        return false;
+
+    const std::string text{ message };
+    const vk::DebugUtilsMessengerCallbackDataEXT data{
+        .pMessageIdName = "Aegis-Test",
+        .pMessage = text.c_str(),
+    };
+    m_instance.submitDebugUtilsMessageEXT(
+        vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning,
+        vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation,
+        data);
+    return true;
+}
+
 auto Context::create(const Desc& desc) -> std::expected<std::unique_ptr<Context>, Error>
 {
     vk::raii::Context context{};

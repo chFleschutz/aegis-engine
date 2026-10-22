@@ -58,6 +58,68 @@ TEST_SUITE("base::log")
         CHECK(calls == 1);
     }
 
+    TEST_CASE("an added sink receives messages next to the primary output")
+    {
+        Capture primary;
+        std::vector<Entry> added;
+        const auto id = aegis::log::addSink([&](aegis::log::Level level, std::string_view message) {
+            added.push_back({ level, std::string{ message } });
+        });
+        aegis::log::warn("slow frame {}", 12);
+        aegis::log::removeSink(id);
+
+        REQUIRE(added.size() == 1);
+        CHECK(added[0].level == aegis::log::Level::Warn);
+        CHECK(added[0].message == "slow frame 12");
+        REQUIRE(primary.entries.size() == 1);
+        CHECK(primary.entries[0].message == "slow frame 12");
+    }
+
+    TEST_CASE("an added sink outlives replacing the primary output")
+    {
+        std::size_t calls = 0;
+        const auto id = aegis::log::addSink([&](aegis::log::Level, std::string_view) { ++calls; });
+        {
+            Capture capture;
+            aegis::log::info("captured");
+        }
+        aegis::log::info("to stderr");
+        aegis::log::removeSink(id);
+        CHECK(calls == 2);
+    }
+
+    TEST_CASE("a removed sink receives no further messages")
+    {
+        Capture capture;
+        std::size_t firstCalls = 0;
+        std::size_t secondCalls = 0;
+        const auto first = aegis::log::addSink([&](aegis::log::Level, std::string_view) { ++firstCalls; });
+        const auto second = aegis::log::addSink([&](aegis::log::Level, std::string_view) { ++secondCalls; });
+        CHECK(first != second);
+
+        aegis::log::info("both");
+        aegis::log::removeSink(first);
+        aegis::log::info("second only");
+        aegis::log::removeSink(second);
+        aegis::log::info("neither");
+
+        CHECK(firstCalls == 1);
+        CHECK(secondCalls == 2);
+        CHECK(capture.entries.size() == 3);
+    }
+
+    TEST_CASE("removing an unknown sink is ignored")
+    {
+        Capture capture;
+        std::size_t calls = 0;
+        const auto id = aegis::log::addSink([&](aegis::log::Level, std::string_view) { ++calls; });
+        aegis::log::removeSink(id);
+        aegis::log::removeSink(id);
+        aegis::log::info("after");
+        CHECK(calls == 0);
+        CHECK(capture.entries.size() == 1);
+    }
+
     TEST_CASE("names every level")
     {
         CHECK(aegis::log::levelName(aegis::log::Level::Info) == "info");
