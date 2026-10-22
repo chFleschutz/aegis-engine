@@ -1,4 +1,24 @@
 {
+  "permissions": {
+    "deny": [
+      "Bash(gh pr merge*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push origin main*)",
+      "Bash(git push * main)",
+      "Bash(git push *:main*)",
+      "PowerShell(gh pr merge*)",
+      "PowerShell(git push --force*)",
+      "PowerShell(git push -f*)",
+      "PowerShell(git push * --force*)",
+      "PowerShell(git push * -f*)",
+      "PowerShell(git push origin main*)",
+      "PowerShell(git push * main)",
+      "PowerShell(git push *:main*)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
