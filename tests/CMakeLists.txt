@@ -19,7 +19,7 @@ function(aegis_add_test module)
 endfunction()
 
 add_subdirectory(assets)
-add_subdirectory(base)
+add_subdirectory(core)
 add_subdirectory(editor)
 add_subdirectory(math)
 add_subdirectory(paths)
@@ -50,11 +50,29 @@ function(aegis_add_device_test name)
 endfunction()
 
 # The device tests load compiled shaders, so they exist only when the shaders are built
-# (-DCOMPILE_SHADERS=OFF registers none).
+# (-DCOMPILE_SHADERS=OFF registers none). The ones that load the sample project exist only when it is checked out
+# (AEGIS_SAMPLES); without it the harness skips its sample checks (--no-samples).
 if(TARGET compile_shaders)
-    # The harness headless for a fixed number of frames.
-    aegis_add_device_test(aegis-test-headless ARGS --headless --frames 600)
+    if(AEGIS_SAMPLES)
+        set(samples_args)
+    else()
+        set(samples_args --no-samples)
+    endif()
 
+    # The harness headless for a fixed number of frames.
+    aegis_add_device_test(aegis-test-headless ARGS --headless --frames 600 ${samples_args})
+
+    # Reference images: the last frame against tests/golden, generated on the dev GPU (see tests/README.md). Local
+    # only: the lavapipe CI job runs the other device tests but excludes these with -LE golden, since software
+    # rendering differs from the dev GPU (the triangle by 1 per channel, the scenes by up to 176 on ~80k pixels:
+    # beyond any tolerance that would still catch a regression). The stats window is left out, its timings
+    # change every run.
+    aegis_add_device_test(aegis-test-golden-triangle
+        ARGS --headless --frames 120 --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/triangle.png --tolerance 0 ${samples_args}
+        LABELS golden)
+endif()
+
+if(TARGET compile_shaders AND AEGIS_SAMPLES)
     # The same harness rendering a loaded scene through the render graph (aegis.render_graph).
     aegis_add_device_test(aegis-test-scene ARGS --headless --scene --frames 120)
     aegis_add_device_test(aegis-test-scene-gpu-driven ARGS --headless --gpu-driven --frames 120 LABELS mesh-shaders)
@@ -67,14 +85,7 @@ if(TARGET compile_shaders)
     aegis_add_device_test(aegis-test-scene-view ARGS --headless --scene --view --frames 120)
     aegis_add_device_test(aegis-test-scene-gpu-driven-view ARGS --headless --gpu-driven --view --frames 120 LABELS mesh-shaders)
 
-    # Reference images: the last frame against tests/golden, generated on the dev GPU (see tests/README.md). Local
-    # only: the lavapipe CI job runs the other device tests but excludes these with -LE golden, since software
-    # rendering differs from the dev GPU (the triangle by 1 per channel, the scenes by up to 176 on ~80k pixels:
-    # beyond any tolerance that would still catch a regression). The stats window is left out, its timings
-    # change every run.
-    aegis_add_device_test(aegis-test-golden-triangle
-        ARGS --headless --frames 120 --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/triangle.png --tolerance 0
-        LABELS golden)
+    # The scene's reference images (see above).
     aegis_add_device_test(aegis-test-golden-scene
         ARGS --headless --scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene.png --tolerance 0
         LABELS golden)

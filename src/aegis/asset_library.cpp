@@ -5,7 +5,7 @@ module;
 module aegis.asset_library;
 
 import std;
-import aegis.base;
+import aegis.core;
 import aegis.paths;
 import aegis.reflect;
 import aegis.render_passes;
@@ -623,7 +623,7 @@ private:
 auto AssetLibrary::Sources::standard() -> Sources
 {
     return {
-        .project = paths::assets(),
+        .project = paths::project(),
         .engineContent = paths::content(),
         .indexFile = paths::cache() / "index",
         .importCache = paths::cache() / "imported",
@@ -646,7 +646,7 @@ auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, con
     -> std::expected<AssetLibrary, std::string>
 {
     auto database = assets::AssetDatabase::scan({
-        .roots = { { sources.project }, { sources.engineContent, true } },
+        .roots = { { paths::projectContent(sources.project) }, { sources.engineContent, true } },
         .indexFile = sources.indexFile,
         .createSidecars = true,
     });

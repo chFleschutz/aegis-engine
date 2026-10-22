@@ -15,7 +15,7 @@ auto Harness::verifyIbl() -> std::expected<void, std::string>
     auto ibl = render_graph::Ibl::create(*m_device);
     if (!ibl)
         return std::unexpected{ std::format("IBL pipelines: {}", describe(ibl.error())) };
-    auto environment = ibl->loadEnvironment(paths::assets() / "Environments/KloppenheimSky.hdr");
+    auto environment = ibl->loadEnvironment(paths::projectContent(paths::project()) / "environments/KloppenheimSky.hdr");
     if (!environment)
         return std::unexpected{ std::format("IBL environment: {}", describe(environment.error())) };
     auto brdfLut = ibl->brdfLut();

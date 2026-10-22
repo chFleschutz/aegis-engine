@@ -11,7 +11,7 @@ import :image;
 import :queue;
 import :resource_handle;
 import :ring_allocator;
-import aegis.base;
+import aegis.core;
 
 export namespace aegis::rhi
 {

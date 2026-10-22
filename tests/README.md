@@ -58,7 +58,7 @@ and exits non-zero on a mismatch, writing `<name>.diff.png` (differing pixels in
 excludes these (`-LE golden`): software rendering differs from the dev GPU's. Other
 GPUs or drivers may differ slightly, so raise `--tolerance` there rather than committing new images.
 The scene runs use `--no-overlay`, since the stats window shows timings that change every run. They render
-`Scenes/aegis-test.scene` of the `aegis-assets` project through the app (`aegis::Engine`), so editing that
+`scenes/tests/aegis_test.scene` of the sample project through the app (`aegis::Engine`), so editing that
 file changes their references too. When
 a render change is intended, regenerate the affected reference with the same arguments the test uses
 plus `--screenshot` (arguments are in `tests/CMakeLists.txt`), for example

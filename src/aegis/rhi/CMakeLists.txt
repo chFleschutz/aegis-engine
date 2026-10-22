@@ -51,7 +51,7 @@ add_library(aegis-rhi)
 
 target_link_libraries(aegis-rhi
     PUBLIC
-        aegis-base
+        aegis-core
         aegis-platform
     PRIVATE
         vulkan-module

@@ -6,7 +6,7 @@ import std;
 import :image;
 import :debug;
 import :error;
-import aegis.base;
+import aegis.core;
 import :vulkan_conversions;
 import vulkan;
 
@@ -43,7 +43,7 @@ auto subresourceFootprints(Extent3D extent, Format format, std::uint32_t mipLeve
         const auto size = std::size_t{ texelSize } * levelExtent.x * levelExtent.y * levelExtent.z *
                           arrayLayers;
 
-        stagingOffset = base::roundUpTo(stagingOffset, alignment);
+        stagingOffset = core::roundUpTo(stagingOffset, alignment);
         footprints.emplace_back(SubresourceFootprint{
             .mipLevel = level,
             .arrayLayerCount = arrayLayers,

@@ -2,11 +2,11 @@ module;
 
 #include <cassert>
 
-export module aegis.base:align;
+export module aegis.core:align;
 
 import std;
 
-export namespace aegis::base
+export namespace aegis::core
 {
 /// @brief Aligns 'size' to the next multiple of 'alignment'.
 /// @note 'alignment' must be a power of 2 greater than 0.

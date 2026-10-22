@@ -61,10 +61,12 @@ The engine runs on **Windows** and **Linux**. Before building ensure you have th
 
 Follow these steps to get started:
 
-1. Clone the repository and its submodules:
+1. Clone the repository and its submodules, then, for the examples and the device tests, the sample
+   project (an opt-in submodule, so the clone skips it):
 
     ```bash
     git clone --recurse-submodules https://github.com/chFleschutz/aegis-engine.git
+    git -C aegis-engine submodule update --init --checkout samples
     ```
 
 2. Configure and build with a preset (`windows-clang-*` or `linux-clang-*`, each `-debug` or
@@ -75,8 +77,8 @@ Follow these steps to get started:
     cmake --build --preset windows-clang-debug
     ```
 
-3. Run one of the examples, e.g. `build/windows-clang-debug/examples/examples/Examples --scene Scenes/sponza.scene`
-   (the scene files are in `modules/aegis-assets/Scenes`).
+3. Run one of the examples, e.g. `build/windows-clang-debug/examples/examples/Examples --scene scenes/sponza.scene`
+   (the scene files are in `samples/content/scenes`).
 
 4. Optionally run the tests (the `device` tests need a Vulkan GPU; `-LE device` skips them):
 
@@ -90,7 +92,7 @@ Follow these steps to get started:
 ## Modules and External Libraries <a name="external-libraries"></a>
 
 This project is structured into several independent modules:
-- [aegis-assets](https://github.com/chFleschutz/aegis-assets) - Collection of sample assets
+- [aegis-samples](https://github.com/chFleschutz/aegis-samples) - The sample project: the examples' scenes and assets (opt-in)
 
 The engine relies on the following external libraries:
 - [doctest](https://github.com/doctest/doctest) - Unit testing

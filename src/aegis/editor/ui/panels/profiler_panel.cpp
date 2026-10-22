@@ -4,7 +4,7 @@ module;
 
 module aegis.editor;
 import std;
-import aegis.base;
+import aegis.core;
 import aegis.render_graph;
 import :panels;
 

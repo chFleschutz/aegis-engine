@@ -10,7 +10,7 @@ export module aegis.world;
 import std;
 export import aegis.world.registry;
 import aegis.math;
-import aegis.base;
+import aegis.core;
 export import aegis.world.system; // System and UpdateMode, which begin and update take
 
 export namespace aegis::world

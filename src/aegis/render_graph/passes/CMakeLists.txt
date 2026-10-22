@@ -5,7 +5,7 @@ add_library(aegis-render-passes STATIC)
 target_link_libraries(aegis-render-passes
     PUBLIC
         aegis-assets
-        aegis-base
+        aegis-core
         aegis-math
         aegis-render-graph
         aegis-renderer

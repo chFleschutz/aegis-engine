@@ -1,11 +1,11 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.base;
+import aegis.core;
 
-TEST_SUITE("base::FrameClock")
+TEST_SUITE("core::FrameClock")
 {
-    using aegis::base::FrameClock;
+    using aegis::core::FrameClock;
     using namespace std::chrono_literals;
 
     const auto t0 = FrameClock::Clock::time_point{} + 10s;

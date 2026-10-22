@@ -3,7 +3,7 @@ module;
 
 module aegis.assets;
 import std;
-import aegis.base;
+import aegis.core;
 import aegis.rhi;
 import aegis.math;
 
@@ -82,7 +82,7 @@ auto MaterialTemplate::addParameter(const std::string& name, MaterialValue defau
     if (isNullTexture(defaultValue))
         return makeError(ErrorCode::InvalidArgument, std::format("Material parameter '{}' needs a default texture", name));
 
-    const auto offset = base::alignTo(m_parameterSize, detail::scalarAlignment(defaultValue));
+    const auto offset = core::alignTo(m_parameterSize, detail::scalarAlignment(defaultValue));
     const auto size = detail::scalarSize(defaultValue);
     m_parameterSize = offset + size;
     m_parameters.emplace(name, MaterialParameter{ .offset = offset, .size = size, .defaultValue = std::move(defaultValue) });
@@ -116,7 +116,7 @@ auto Material::create(rhi::Device& device, std::shared_ptr<const MaterialTemplat
     assert(materialTemplate && framesInFlight > 0);
 
     // 16-byte blocks: every frame's block starts at least as aligned as any member needs.
-    const auto blockStride = base::alignTo(std::max<std::size_t>(materialTemplate->parameterSize(), 16), 16);
+    const auto blockStride = core::alignTo(std::max<std::size_t>(materialTemplate->parameterSize(), 16), 16);
     auto buffer = device.createBuffer({
         .name = "MaterialParameters",
         .size = blockStride * framesInFlight,

@@ -1,11 +1,11 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.base;
+import aegis.core;
 
 using doctest::Approx;
 
-TEST_SUITE("base::RollingAverage")
+TEST_SUITE("core::RollingAverage")
 {
     TEST_CASE("is zero before any value")
     {
@@ -37,7 +37,7 @@ TEST_SUITE("base::RollingAverage")
     }
 }
 
-TEST_SUITE("base::Profiler")
+TEST_SUITE("core::Profiler")
 {
     TEST_CASE("instances do not share state")
     {
@@ -67,7 +67,7 @@ TEST_SUITE("base::Profiler")
     }
 }
 
-TEST_SUITE("base::Timer")
+TEST_SUITE("core::Timer")
 {
     TEST_CASE("runs on a monotonic clock")
     {

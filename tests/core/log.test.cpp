@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.base;
+import aegis.core;
 
 namespace
 {
@@ -27,7 +27,7 @@ public:
 };
 }
 
-TEST_SUITE("base::log")
+TEST_SUITE("core::log")
 {
     TEST_CASE("forwards formatted messages with their level to the sink")
     {

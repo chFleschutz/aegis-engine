@@ -45,7 +45,7 @@ lists go with E3 ([#133]).
      └─ aegis-editor-core   pure model: EditorContext, selection, commands + undo,
                             property model, hierarchy model, play session, editor camera math
          └─ runtime: aegis-engine (Engine, Presentation, Shell), aegis-world, aegis-reflect,
-                     serializer (#131), aegis-asset-library / aegis-assets, aegis-base
+                     serializer (#131), aegis-asset-library / aegis-assets, aegis-core
 ```
 
 - **Dependencies only point down.** No runtime library imports `aegis.editor*`. A game's own editor

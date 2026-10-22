@@ -8,7 +8,7 @@ module;
 module aegis.render_bridge;
 import std;
 import aegis.assets;
-import aegis.base;
+import aegis.core;
 import aegis.math;
 import aegis.render_graph;
 import aegis.rhi;

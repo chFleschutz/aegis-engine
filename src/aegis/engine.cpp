@@ -120,7 +120,7 @@ auto dumpAsset(const AppDesc& desc) -> std::expected<std::string, EngineError>
 
     const auto sources = assetSources(desc);
     const auto database = assets::AssetDatabase::scan({
-        .roots = { { sources.project }, { sources.engineContent, true } },
+        .roots = { { paths::projectContent(sources.project) }, { sources.engineContent, true } },
         .indexFile = sources.indexFile,
     });
     if (!database)
@@ -275,7 +275,7 @@ auto Engine::run() -> int
     }
 
     if (headless)
-        m_clock = base::FrameClock::fixed(HEADLESS_FRAME_DELTA_SEC);
+        m_clock = core::FrameClock::fixed(HEADLESS_FRAME_DELTA_SEC);
     m_clock.reset(std::chrono::steady_clock::now());
     while ((headless || !m_window->shouldClose()) && (m_desc.frames == 0 || frames < m_desc.frames))
     {

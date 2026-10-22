@@ -1,11 +1,11 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.base;
+import aegis.core;
 
-TEST_SUITE("base::alignTo")
+TEST_SUITE("core::alignTo")
 {
-    using aegis::base::alignTo;
+    using aegis::core::alignTo;
 
     TEST_CASE("rounds up to the next multiple of a power-of-two alignment")
     {
@@ -32,9 +32,9 @@ TEST_SUITE("base::alignTo")
     }
 }
 
-TEST_SUITE("base::roundUpTo")
+TEST_SUITE("core::roundUpTo")
 {
-    using aegis::base::roundUpTo;
+    using aegis::core::roundUpTo;
 
     TEST_CASE("rounds up to the next multiple of a non-power-of-two")
     {
@@ -47,7 +47,7 @@ TEST_SUITE("base::roundUpTo")
 
     TEST_CASE("agrees with alignTo on power-of-two alignments")
     {
-        using aegis::base::alignTo;
+        using aegis::core::alignTo;
         for (std::size_t size = 0; size < 40; ++size)
         {
             CHECK(roundUpTo(size, 4) == alignTo(size, 4));

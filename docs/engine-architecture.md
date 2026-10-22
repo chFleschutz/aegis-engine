@@ -121,12 +121,12 @@ An example then becomes:
 ```cpp
 auto buildSponza(aegis::app::SceneContext& ctx) -> std::expected<void, aegis::app::Error>
 {
-    auto sky = ctx.assets.loadEnvironment("Environments/KloppenheimSky.hdr");
+    auto sky = ctx.assets.loadEnvironment("environments/KloppenheimSky.hdr");
     if (!sky)
         return std::unexpected{ sky.error() };
     ctx.world.setEnvironment(std::move(*sky));
 
-    if (auto sponza = ctx.assets.loadModel(ctx.world, "Sponza/Sponza.gltf"); !sponza)
+    if (auto sponza = ctx.assets.loadModel(ctx.world, "models/sponza/Sponza.gltf"); !sponza)
         return std::unexpected{ sponza.error() };
     return {};
 }

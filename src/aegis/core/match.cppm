@@ -1,8 +1,8 @@
-export module aegis.base:match;
+export module aegis.core:match;
 
 import std;
 
-export namespace aegis::base
+export namespace aegis::core
 {
 /// @brief Overload set built from callables, e.g. for std::visit.
 template<typename... Ts>
@@ -14,7 +14,7 @@ struct overloads : Ts...
 /// @brief Calls the callable that fits the variant's active alternative.
 /// @code
 /// std::variant<bool, int, float> value{ 42 };
-/// base::match(value,
+/// core::match(value,
 ///     [](bool v) { /* bool */ },
 ///     [](int v) { /* int */ },
 ///     [](auto v) { /* everything else */ });

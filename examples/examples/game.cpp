@@ -62,4 +62,4 @@ auto registerTypes(aegis::reflect::TypeRegistry& types) -> std::expected<void, a
 }
 }
 
-AEGIS_GAME_MODULE({ .name = "Examples", .startupScene = "Scenes/simple.scene", .registerTypes = registerTypes })
+AEGIS_GAME_MODULE({ .name = "Examples", .startupScene = "scenes/simple.scene", .registerTypes = registerTypes })

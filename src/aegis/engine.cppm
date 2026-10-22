@@ -5,7 +5,7 @@ export import aegis.math;
 export import aegis.asset_library;
 export import aegis.scene_description;
 export import aegis.paths;
-export import aegis.base;
+export import aegis.core;
 export import aegis.world;
 export import aegis.world.components;
 export import aegis.world.render_components;
@@ -89,9 +89,9 @@ struct AppDesc
     /// @brief GPU-driven rendering (mesh shaders) where the device supports it; false renders CPU-driven.
     bool gpuDriven{ true };
     /// @brief The project folder the assets come from, its index kept in `<project>/.aegis`; empty for
-    ///        the samples (paths::assets()). A game's launcher fills it in through paths::locate.
+    ///        the samples (paths::project()). A game's launcher fills it in through paths::locate.
     std::filesystem::path project;
-    /// @brief The scene file the launcher starts with, by its path in the project ("Scenes/sponza.scene");
+    /// @brief The scene file the launcher starts with, by its path in the project's content/ folder ("scenes/sponza.scene");
     ///        empty for the game's own (GameModule::startupScene).
     std::string scene;
     /// @brief An asset ID: print the import cache entry of that model, or of that mesh of a model, instead of
@@ -270,7 +270,7 @@ public:
 
     /// @brief Hands out the delta time of each frame. A wall clock with a clamp by default (a fixed
     ///        step when headless); assign FrameClock::fixed(step) for a deterministic run.
-    [[nodiscard]] auto clock() -> base::FrameClock& { return m_clock; }
+    [[nodiscard]] auto clock() -> core::FrameClock& { return m_clock; }
 
     /// @brief Finds assets by path and loads them by ID.
     [[nodiscard]] auto assets() -> AssetLibrary& { return *m_assets; }
@@ -341,7 +341,7 @@ private:
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
     std::optional<AssetLibrary> m_assets;
     reflect::TypeRegistry m_types;
-    base::FrameClock m_clock{ base::FrameClock::clamped(MAX_FRAME_DELTA_SEC) };
+    core::FrameClock m_clock{ core::FrameClock::clamped(MAX_FRAME_DELTA_SEC) };
     world::World m_world;
     aegis::render_graph::InstanceStore m_instances;        // Holds meshes and materials: goes before the device
     aegis::InstanceBridge m_instanceBridge{ m_instances }; // Disconnects from the world first

@@ -9,7 +9,7 @@ target_link_libraries(aegis-serialize
         aegis-reflect
         aegis-world
     PRIVATE
-        aegis-base
+        aegis-core
         aegis-scripting
         glaze::glaze
         xxhash

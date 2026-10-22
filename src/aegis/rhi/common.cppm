@@ -1,5 +1,5 @@
 module;
-#include "aegis/base/flags.h"
+#include "aegis/core/flags.h"
 
 export module aegis.rhi:common;
 import std;

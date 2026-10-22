@@ -4,7 +4,7 @@ module;
 
 module aegis.assets;
 import std;
-import aegis.base;
+import aegis.core;
 
 namespace aegis::assets
 {
@@ -83,7 +83,6 @@ namespace aegis::assets
 namespace
 {
 constexpr std::string_view sidecarExtension{ ".meta" };
-constexpr std::string_view cacheFolder{ ".aegis" };
 
 struct FileStamp
 {
@@ -291,9 +290,11 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
         for (auto it = std::filesystem::recursive_directory_iterator{ rootPath, walkError };
             !walkError && it != std::filesystem::recursive_directory_iterator{}; it.increment(walkError))
         {
-            if (it->is_directory(ec) && it->path().filename() == cacheFolder)
+            // Dot-files and dot-folders (.git, .aegis, editor and OS files) are no assets.
+            if (it->path().filename().native().starts_with('.'))
             {
-                it.disable_recursion_pending();
+                if (it->is_directory(ec))
+                    it.disable_recursion_pending();
                 continue;
             }
             if (!it->is_regular_file(ec))
