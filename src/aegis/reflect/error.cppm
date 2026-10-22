@@ -17,6 +17,7 @@ enum class ErrorCode
     NotConstructible,   // The type cannot be created by name (it is not default constructible)
     UnsupportedVersion, // A saved version the type cannot upgrade from (newer than the type, or no migration)
     InvalidVersion,     // A version or migration that does not fit the type (version 0, a step past it)
+    InvalidMeta,        // Field metadata that does not fit the field (a Color widget on a float, min above max)
 };
 
 struct Error

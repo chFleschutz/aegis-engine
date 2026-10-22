@@ -6,6 +6,36 @@ import :value;
 
 export namespace aegis::reflect
 {
+// How an editor shows a field, beyond what its kind implies.
+enum class FieldWidget
+{
+    Default, // The kind's widget: a checkbox, a drag, a text field, a combo
+    Color,   // A color picker (Vec3, Vec4; the value is linear)
+    Angle,   // Radians shown as degrees (Float, Double); min and max stay in radians
+    Slider,  // A slider between min and max, which it needs (Int, UInt, Float, Double)
+};
+
+// Editor metadata of a field. Serializers ignore it: it never changes a file.
+struct FieldMeta
+{
+    FieldWidget widget{ FieldWidget::Default };
+    // Limits and drag step of a number or of each vector component, in the field's own unit. Only for Int,
+    // UInt, Float, Double and Vec2/3/4 fields.
+    std::optional<double> min;
+    std::optional<double> max;
+    std::optional<double> step;
+    bool readOnly{ false }; // Shown, never edited
+    std::string tooltip;
+};
+
+// Editor metadata of a type. Serializers ignore it as well.
+struct TypeMeta
+{
+    std::string displayName; // Empty for the registered name (see TypeInfo::displayName)
+    std::string category;    // The group the editor's Add menus list it under ("Lighting"); empty for none
+    bool required{ false };  // Every entity has one, and it cannot be removed (Transform)
+};
+
 // One registered member: its name, kind, and type-erased accessors. The accessors take the address of
 // an instance of the owning type; passing an instance of another type is the caller's bug (look the
 // TypeInfo up with the same type or name you are holding the object for).
@@ -14,6 +44,8 @@ struct FieldInfo
     std::string name;
     FieldKind kind;
     std::vector<EnumEntry> enumEntries; // Only for FieldKind::Enum
+    std::string assetType;              // Only for FieldKind::AssetRef: the asset type it accepts ("StaticMesh")
+    FieldMeta meta;
 
     std::function<Value(const void* object)> getter;
     std::function<std::expected<void, Error>(void* object, const Value& value)> setter;
@@ -36,6 +68,7 @@ struct TypeInfo
     TypeCategory category;
     std::type_index type;
     std::vector<FieldInfo> fields; // In registration order
+    TypeMeta meta;
 
     // The version of the type's saved form, starting at 1. Files record it per type; loading an older one
     // runs the migrations from it up to this one (see upgrade).
@@ -68,6 +101,12 @@ struct TypeInfo
     {
         auto it = upcasts.find(std::type_index{ typeid(B) });
         return it == upcasts.end() ? nullptr : static_cast<B*>(it->second(object));
+    }
+
+    // The name an editor shows: the metadata's display name, or the registered name.
+    [[nodiscard]] auto displayName() const -> std::string_view
+    {
+        return meta.displayName.empty() ? std::string_view{ name } : std::string_view{ meta.displayName };
     }
 
     // Creates an instance of the type, or fails with ErrorCode::NotConstructible.

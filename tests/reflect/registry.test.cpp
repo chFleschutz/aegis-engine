@@ -561,6 +561,7 @@ struct aegis::reflect::AssetFieldTraits<FakeRef>
 {
     static auto id(const FakeRef& ref) -> std::uint64_t { return ref.id; }
     static auto make(std::uint64_t id) -> FakeRef { return FakeRef{ id }; }
+    static auto assetType() -> std::string_view { return "StaticMesh"; }
 };
 
 TEST_SUITE("reflect::AssetRef")
@@ -577,6 +578,7 @@ TEST_SUITE("reflect::AssetRef")
         const FieldInfo* mesh = info->findField("mesh");
         REQUIRE(mesh != nullptr);
         CHECK(mesh->kind == FieldKind::AssetRef);
+        CHECK(mesh->assetType == "StaticMesh");
 
         Holder holder{ FakeRef{ 0xa3f09c2e4b1d7788ULL } };
         CHECK(info->getText(&holder, "mesh").value() == "a3f09c2e4b1d7788");
@@ -623,5 +625,117 @@ TEST_SUITE("reflect::AssetRef")
         Holder holder;
         CHECK_FALSE(info->set(&holder, "mesh", std::int64_t{ 5 }).has_value());
         CHECK(info->set(&holder, "mesh", std::uint64_t{ 5 }).has_value());
+    }
+}
+
+TEST_SUITE("reflect::TypeMeta")
+{
+    TEST_CASE("a type has no metadata until the builder sets it")
+    {
+        TypeRegistry types;
+        REQUIRE(types.component<Rotator>("Rotator").has_value());
+        const TypeInfo* info = types.find<Rotator>();
+        CHECK(info->displayName() == "Rotator");
+        CHECK(info->meta.category.empty());
+        CHECK_FALSE(info->meta.required);
+    }
+
+    TEST_CASE("the builder sets the display name, category and required flag")
+    {
+        TypeRegistry types;
+        auto builder = types.component<Rotator>("Rotator");
+        REQUIRE(builder.has_value());
+        builder->displayName("Spinning Thing").category("Motion").required().field("speed", &Rotator::speed);
+        REQUIRE(builder->status().has_value());
+
+        const TypeInfo* info = types.find("Rotator");
+        CHECK(info->displayName() == "Spinning Thing");
+        CHECK(info->meta.category == "Motion");
+        CHECK(info->meta.required);
+        CHECK(types.find("Spinning Thing") == nullptr); // Not a name it is found by
+    }
+}
+
+TEST_SUITE("reflect::FieldMeta")
+{
+    TEST_CASE("a field keeps the metadata it was registered with")
+    {
+        TypeRegistry types;
+        auto builder = types.component<Everything>("Everything");
+        REQUIRE(builder.has_value());
+        builder->field("real", &Everything::real, { .widget = FieldWidget::Angle, .min = 0.0, .max = 3.0, .step = 0.5, .readOnly = true, .tooltip = "How far" })
+            .field("v3", &Everything::v3, { .widget = FieldWidget::Color })
+            .field("integer", &Everything::integer, { .widget = FieldWidget::Slider, .min = -5.0, .max = 5.0 })
+            .field("text", &Everything::text);
+        REQUIRE(builder->status().has_value());
+
+        const TypeInfo* info = types.find<Everything>();
+        const FieldMeta& real = info->findField("real")->meta;
+        CHECK(real.widget == FieldWidget::Angle);
+        CHECK(real.min == 0.0);
+        CHECK(real.max == 3.0);
+        CHECK(real.step == 0.5);
+        CHECK(real.readOnly);
+        CHECK(real.tooltip == "How far");
+        CHECK(info->findField("v3")->meta.widget == FieldWidget::Color);
+        CHECK(info->findField("integer")->meta.widget == FieldWidget::Slider);
+
+        const FieldInfo* text = info->findField("text");
+        CHECK(text->meta.widget == FieldWidget::Default);
+        CHECK_FALSE(text->meta.min.has_value());
+        CHECK_FALSE(text->meta.readOnly);
+        CHECK(text->assetType.empty());
+    }
+
+    TEST_CASE("metadata does not change how a field is read or written")
+    {
+        TypeRegistry types;
+        auto builder = types.component<Rotator>("Rotator");
+        REQUIRE(builder.has_value());
+        builder->field("speed", &Rotator::speed, { .widget = FieldWidget::Slider, .min = 0.0, .max = 10.0, .readOnly = true });
+        const TypeInfo* info = types.find<Rotator>();
+
+        Rotator rotator; // 90, outside the slider's range
+        CHECK(info->getText(&rotator, "speed").value() == "90");
+        REQUIRE(info->set(&rotator, "speed", 42.0f).has_value()); // readOnly is for the editor
+        CHECK(rotator.speed == 42.0f);
+    }
+
+    TEST_CASE("rejects a widget that does not fit the field's kind")
+    {
+        TypeRegistry types;
+        auto builder = types.component<Everything>("Everything");
+        REQUIRE(builder.has_value());
+        builder->field("real", &Everything::real, { .widget = FieldWidget::Color });
+        CHECK(builder->status().error().code == ErrorCode::InvalidMeta);
+        CHECK(types.find<Everything>()->findField("real") == nullptr);
+
+        for (auto widget : { FieldWidget::Angle, FieldWidget::Slider })
+        {
+            TypeRegistry other;
+            auto vector = other.component<Everything>("Everything");
+            REQUIRE(vector.has_value());
+            vector->field("v3", &Everything::v3, { .widget = widget, .min = 0.0, .max = 1.0 });
+            CHECK(vector->status().error().code == ErrorCode::InvalidMeta);
+        }
+    }
+
+    TEST_CASE("rejects limits that do not fit")
+    {
+        auto status = [](FieldMeta meta, bool onText = false) {
+            TypeRegistry types;
+            auto builder = types.component<Everything>("Everything");
+            REQUIRE(builder.has_value());
+            if (onText)
+                builder->field("text", &Everything::text, std::move(meta));
+            else
+                builder->field("precise", &Everything::precise, std::move(meta));
+            return builder->status();
+        };
+        CHECK(status({ .min = 2.0, .max = 1.0 }).error().code == ErrorCode::InvalidMeta);
+        CHECK(status({ .step = 0.0 }).error().code == ErrorCode::InvalidMeta);
+        CHECK(status({ .widget = FieldWidget::Slider, .min = 0.0 }).error().code == ErrorCode::InvalidMeta);
+        CHECK(status({ .max = 1.0 }, true).error().code == ErrorCode::InvalidMeta);
+        CHECK(status({ .min = 1.0, .max = 1.0, .step = 0.25 }).has_value());
     }
 }

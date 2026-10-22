@@ -14,6 +14,9 @@ export namespace aegis::assets
 class Texture
 {
 public:
+    /// @brief The asset type's name, for the editor (reflect::FieldInfo::assetType)
+    static constexpr std::string_view assetType{ "Texture" };
+
     struct Desc
     {
         std::string_view name;

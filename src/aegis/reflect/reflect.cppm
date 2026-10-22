@@ -11,6 +11,16 @@
 //
 // Built-in components and a game's own types register through this same API.
 //
+// The editor's metadata goes on the same builder: per type a display name, a category and `required`, per
+// field a FieldMeta (a widget hint, limits, read-only, a tooltip). Serializers ignore it, so it never
+// changes a file:
+//
+//     types.component<PointLight>("PointLight")
+//         .displayName("Point Light")
+//         .category("Lighting")
+//         .field("color", &PointLight::color, { .widget = FieldWidget::Color })
+//         .field("intensity", &PointLight::intensity, { .min = 0.0, .step = 1.0 });
+//
 // Saved forms change over time, so each type has its own version (1 until it is raised) and one
 // migration per step, which upgrades the saved fields from version n to n + 1 on load. A renamed type
 // or field keeps its old name as an alias, so files written before the rename still load:
