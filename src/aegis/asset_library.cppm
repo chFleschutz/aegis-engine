@@ -29,12 +29,12 @@ public:
     /// @brief The folders the library reads.
     struct Sources
     {
-        std::filesystem::path project;       // Scanned for assets; sidecars are created for new sources
+        std::filesystem::path project;       // Its content/ folder is scanned; sidecars are created for new sources
         std::filesystem::path engineContent; // Read-only
         std::filesystem::path indexFile;     // The database's index cache; empty for none
         std::filesystem::path importCache;   // The import cache's folder (assets::ImportCache); empty for none
 
-        /// @brief The aegis-assets submodule as the project, the engine's content folder, and the index and the
+        /// @brief The sample project (the samples/ submodule), the engine's content folder, and the index and the
         ///        import cache in the build tree (see aegis.paths).
         [[nodiscard]] static auto standard() -> Sources;
     };
@@ -43,7 +43,7 @@ public:
     [[nodiscard]] static auto create(rhi::Device& device, std::uint32_t framesInFlight, const Sources& sources = Sources::standard())
         -> std::expected<AssetLibrary, std::string>;
 
-    /// @brief The ID of the asset made from a file of the project ('path' relative to the project folder,
+    /// @brief The ID of the asset made from a file of the project ('path' relative to the project's content/ folder,
     ///        with '/') and a sub-asset key ("" for the file's main asset).
     [[nodiscard]] auto find(std::string_view path, std::string_view key = {}) const -> std::optional<assets::AssetId>;
 

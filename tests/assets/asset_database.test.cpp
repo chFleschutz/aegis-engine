@@ -184,13 +184,28 @@ TEST_SUITE("assets::AssetDatabase")
         CHECK(third->find(AssetId{ 2 }) == nullptr);
     }
 
-    TEST_CASE("the cache folder is not scanned")
+    TEST_CASE("dot-files and dot-folders are not scanned")
     {
         TempRoot root;
         root.write(".aegis/stray.gltf.meta", writeSidecar(sidecarOf(AssetId{ 9 })));
-        const auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        root.write("models/.backup/stray.scene", R"({"type":"Scene","id":"0000000000000001","version":1})");
+        root.write("models/.hidden.png", "source");
+        const auto database = AssetDatabase::scan({ .roots = { { root.path } }, .createSidecars = true });
         REQUIRE(database);
         CHECK(database->size() == 0);
+        CHECK_FALSE(std::filesystem::exists(sidecarPath(root.path / "models/.hidden.png")));
+    }
+
+    TEST_CASE("createSidecars skips files no importer handles")
+    {
+        TempRoot root;
+        root.write("models/helmet/README.md", "readme");
+        root.write("models/helmet/LICENSE.md", "license");
+        const auto database = AssetDatabase::scan({ .roots = { { root.path } }, .createSidecars = true });
+        REQUIRE(database);
+        CHECK(database->size() == 0);
+        CHECK_FALSE(std::filesystem::exists(sidecarPath(root.path / "models/helmet/README.md")));
+        CHECK_FALSE(std::filesystem::exists(sidecarPath(root.path / "models/helmet/LICENSE.md")));
     }
 
     TEST_CASE("createSidecars writes a sidecar with new IDs for foreign files")

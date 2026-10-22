@@ -16,8 +16,8 @@ namespace aegis::test
 {
 namespace
 {
-// DamagedHelmet under the Kloppenheim sky, a camera and three lights, in the assets project.
-constexpr std::string_view sceneFile{ "Scenes/aegis-test.scene" };
+// DamagedHelmet under the Kloppenheim sky, a camera and three lights, in the sample project.
+constexpr std::string_view sceneFile{ "scenes/tests/aegis_test.scene" };
 
 // What the shell found, read once the engine (and the shell with it) is gone.
 struct SceneResult
@@ -123,12 +123,12 @@ private:
         }
     }
 
-    // An instance of the model file 'path' (in the assets project) in the scene, as a root entity.
+    // An instance of the model file 'path' (in the sample project) in the scene, as a root entity.
     auto instantiateModel(world::World& world, std::string_view path) -> std::expected<world::Entity, std::string>
     {
         const auto id = m_engine->assets().find(path);
         if (!id)
-            return std::unexpected{ std::format("'{}' is not in the assets project", path) };
+            return std::unexpected{ std::format("'{}' is not in the sample project", path) };
         return m_engine->assets().instantiateScene(world, m_engine->types(), *id, {});
     }
 
@@ -216,7 +216,7 @@ private:
         if (m_frame == loadFrame)
         {
             m_staticDrawn = drawableStatic();
-            auto model = instantiateModel(frame.world, "SciFiHelmet/SciFiHelmet.gltf");
+            auto model = instantiateModel(frame.world, "models/sci_fi_helmet/SciFiHelmet.gltf");
             if (!model)
                 return std::unexpected{ std::format("Loading the second model: {}", model.error()) };
             m_addedModel = *model;
@@ -337,7 +337,7 @@ auto runScene(const Options& options) -> int
     const auto scene = (*engine)->assets().find(sceneFile);
     if (!scene)
     {
-        std::println("'{}' is not in the assets project", sceneFile);
+        std::println("'{}' is not in the sample project", sceneFile);
         return exitFailure;
     }
     if (auto loaded = (*engine)->loadScene(*scene); !loaded)

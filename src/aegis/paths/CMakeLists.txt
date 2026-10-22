@@ -6,7 +6,7 @@ add_library(aegis-paths STATIC)
 # environment variable of the same name.
 target_compile_definitions(aegis-paths PRIVATE
     AEGIS_SHADER_DIR="${PROJECT_BINARY_DIR}/shaders"
-    AEGIS_ASSETS_DIR="${PROJECT_SOURCE_DIR}/modules/aegis-assets"
+    AEGIS_PROJECT_DIR="${PROJECT_SOURCE_DIR}/samples"
     AEGIS_CONTENT_DIR="${PROJECT_SOURCE_DIR}/content"
     AEGIS_CACHE_DIR="${PROJECT_BINARY_DIR}/.aegis"
 )

@@ -81,7 +81,8 @@ checkout() {
         reference=(--reference "$gitdir")
     fi
     # Some submodule files pass Windows' 260-character path limit under a deep worktree path.
-    git -c core.longpaths=true submodule update --quiet "${reference[@]}" -- "$path" || return
+    # --checkout also checks out the opt-in samples, which `update = none` in .gitmodules skips otherwise.
+    git -c core.longpaths=true submodule update --quiet --checkout "${reference[@]}" -- "$path" || return
     checked_out "$path" || return
     git -C "$path" config core.longpaths true
 }

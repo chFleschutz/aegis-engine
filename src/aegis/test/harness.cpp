@@ -156,6 +156,11 @@ auto Harness::create(const Options& options) -> std::expected<Harness, std::stri
         if (auto result = harness.verifyGraphRebuild(true); !result)
             return std::unexpected{ result.error() };
     }
+    if (options.noSamples)
+    {
+        std::println("Skipping the asset and IBL checks: they load the sample project");
+        return harness;
+    }
     if (auto result = harness.verifyAssets(); !result)
         return std::unexpected{ result.error() };
     if (auto result = harness.verifyAssetLibrary(); !result)

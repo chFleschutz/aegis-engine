@@ -81,11 +81,11 @@ auto Harness::verifyAssets() -> std::expected<void, std::string>
     if (auto registered = world::registerComponents(types); !registered)
         return std::unexpected{ std::format("Component types: {}", reflect::describe(registered.error())) };
     aegis::world::World models;
-    for (const auto* model : { "DamagedHelmet/DamagedHelmet.gltf", "Misc/cube.obj" })
+    for (const auto* model : { "models/damaged_helmet/DamagedHelmet.gltf", "models/basic/cube.obj" })
     {
         const auto id = library->find(model);
         if (!id)
-            return std::unexpected{ std::format("'{}' is not in the assets project", model) };
+            return std::unexpected{ std::format("'{}' is not in the sample project", model) };
         if (auto holder = library->instantiateScene(models, types, *id, {}); !holder)
             return std::unexpected{ std::format("Instantiating {}: {}", model, holder.error()) };
     }
@@ -99,7 +99,7 @@ auto Harness::verifyAssets() -> std::expected<void, std::string>
         std::array<std::shared_ptr<assets::Material>, 2> defaultMaterials;
         for (auto& slot : defaultMaterials)
         {
-            auto cube = assets::Loader::load(loaderDesc, paths::assets() / "Misc/cube.obj");
+            auto cube = assets::Loader::load(loaderDesc, paths::projectContent(paths::project()) / "models/basic/cube.obj");
             if (!cube)
                 return std::unexpected{ std::format("Loading cube.obj: {}", assets::describe(cube.error())) };
             slot = cube->meshes.at(0).primitives.at(0).material.shared();
@@ -159,7 +159,7 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
         return std::unexpected{ std::format("Asset library: {}", library.error()) };
     const auto fail = [](std::string message) -> std::expected<void, std::string> { return std::unexpected{ std::move(message) }; };
 
-    const auto helmetFile = library->find("DamagedHelmet/DamagedHelmet.gltf");
+    const auto helmetFile = library->find("models/damaged_helmet/DamagedHelmet.gltf");
     if (!helmetFile)
         return fail("The helmet has no ID in the database");
     const auto first = library->loadModel(*helmetFile);
@@ -174,7 +174,7 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
     for (const auto& primitive : model.meshes.front().primitives)
     {
         const auto* entry = library->database().find(primitive.mesh.id());
-        if (!entry || entry->key.empty() || entry->path != "DamagedHelmet/DamagedHelmet.gltf")
+        if (!entry || entry->key.empty() || entry->path != "models/damaged_helmet/DamagedHelmet.gltf")
             return fail("A primitive's mesh has no sub-asset ID in the database");
         if (library->loadMesh(primitive.mesh.id()).get() != primitive.mesh.get())
             return fail("Loading a mesh by its own ID must return the model's mesh");
@@ -184,12 +184,12 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
     }
     for (const auto& texture : model.textures)
     {
-        const auto id = library->database().find(0, "DamagedHelmet/DamagedHelmet.gltf", std::format("Texture/{}", std::filesystem::path{ texture.uri }.filename().generic_string()));
+        const auto id = library->database().find(0, "models/damaged_helmet/DamagedHelmet.gltf", std::format("Texture/{}", std::filesystem::path{ texture.uri }.filename().generic_string()));
         if (!id || library->loadTexture(*id).get() != texture.texture.get())
             return fail("Loading a glTF texture by its own ID must return the model's texture");
     }
 
-    const auto paintingId = library->id("Misc/painting.png");
+    const auto paintingId = library->id("materials/textures/painting.png");
     if (library->loadTexture(paintingId).get() != library->loadTexture(paintingId).get() || !library->loadTexture(paintingId))
         return fail("Loading one texture ID twice must return the same texture");
 
@@ -263,7 +263,7 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
     reflect::TypeRegistry types;
     if (auto registered = world::registerComponents(types); !registered)
         return fail(std::format("Component types: {}", reflect::describe(registered.error())));
-    for (const std::string_view path : { "DamagedHelmet/DamagedHelmet.gltf", "SciFiHelmet/SciFiHelmet.gltf" })
+    for (const std::string_view path : { "models/damaged_helmet/DamagedHelmet.gltf", "models/sci_fi_helmet/SciFiHelmet.gltf" })
     {
         const auto id = library->find(path);
         if (!id)
@@ -275,7 +275,7 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
         for (const auto handle : modelWorld.registry().view<aegis::StableId>())
             entityIds.insert(modelWorld.registry().get<aegis::StableId>(aegis::world::Entity{ handle }).value);
 
-        std::ifstream stream{ assets::sidecarPath(paths::assets() / path), std::ios::binary };
+        std::ifstream stream{ assets::sidecarPath(paths::projectContent(paths::project()) / path), std::ios::binary };
         const std::string text{ std::istreambuf_iterator<char>{ stream }, std::istreambuf_iterator<char>{} };
         const auto sidecar = assets::parseSidecar(text);
         if (!sidecar)
