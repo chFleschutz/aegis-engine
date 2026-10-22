@@ -1,13 +1,8 @@
-export module aegis.render_graph:post_effects;
+export module aegis.render_passes:post_effects;
 import std;
-import :error;
-import :frame_scene;
 import :gpu_types;
-import :render_pass;
 import :render_system;
-import :resource;
-import :declarations;
-import :resource_pool;
+import aegis.render_graph;
 import aegis.rhi;
 
 export namespace aegis::render_graph

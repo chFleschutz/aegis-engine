@@ -1,12 +1,7 @@
-export module aegis.render_graph:gpu_driven;
+export module aegis.render_passes:gpu_driven;
 import std;
-import :error;
 import :gpu_types;
-import :instance_store;
-import :render_pass;
-import :resource;
-import :declarations;
-import :resource_pool;
+import aegis.render_graph;
 import aegis.assets;
 import aegis.rhi;
 import aegis.math;

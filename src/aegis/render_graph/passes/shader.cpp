@@ -1,4 +1,4 @@
-module aegis.render_graph;
+module aegis.render_passes;
 import std;
 import aegis.paths;
 import aegis.rhi;

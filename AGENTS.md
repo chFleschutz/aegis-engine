@@ -97,7 +97,7 @@ signal — validation errors only go to stderr. Verify RHI work with `aegis-test
 "Verifying device code").
 
 ### Shaders
-Shaders compile on every build of `aegis-engine` or `aegis-render-graph` (the `compile_shaders`
+Shaders compile on every build of `aegis-engine` or `aegis-render-passes` (the `compile_shaders`
 target they depend on) while `COMPILE_SHADERS` is ON, the default, with `slangc` from the same
 Vulkan SDK as the headers (falling back to `$VULKAN_SDK/bin`) through `aegis_add_shaders`
 (`cmake/AegisShaders.cmake`), which `shaders/` and the `aegis-test` shader both use, so one flag set
@@ -296,7 +296,7 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
 ## Unit tests
 
 doctest covers **pure, GPU-independent logic** in any module. One
-executable per module (`aegis-tests-base`, `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
+executable per module (`aegis-tests-base`, `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`, `aegis-tests-render_passes`,
 `aegis-tests-math`, `aegis-tests-paths`, `aegis-tests-world`), each linking only that module's library. Layout, conventions, how to add a
 module, and the full rationale: **`tests/README.md`**.
 

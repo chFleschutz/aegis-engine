@@ -1,7 +1,7 @@
 module;
 #include <imgui.h>
 
-module aegis.render_graph;
+module aegis.render_passes;
 import std;
 import aegis.rhi;
 import aegis.math;
