@@ -2,7 +2,7 @@
 
 import std;
 import aegis.math;
-import aegis.render_graph;
+import aegis.render_passes;
 
 namespace
 {

@@ -7,12 +7,12 @@ target_link_libraries(aegis-asset-library
 PUBLIC
 	aegis-assets
 	aegis-reflect
-	aegis-render-graph
 	aegis-rhi
 	aegis-world
 PRIVATE
 	aegis-base
 	aegis-paths
+	aegis-render-passes # Bakes environments with Ibl
 	aegis-serialize
 )
 target_sources(aegis-asset-library
@@ -97,6 +97,7 @@ PUBLIC
 target_link_libraries(aegis-engine
 PRIVATE
 	imgui::imgui # Presentation: the ImGui context and its GLFW backend
+	aegis-render-passes # The default graph
 	stb # stb_image_write for the headless screenshot
 )
 

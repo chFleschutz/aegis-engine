@@ -59,9 +59,13 @@ public:
     auto verifySamplers() -> std::expected<void, std::string>;
     auto verifyBufferDeviceAddress() -> std::expected<void, std::string>;
     auto verifyComputeRoundTrip() -> std::expected<void, std::string>;
+    auto verifyValidationLog() -> std::expected<void, std::string>;
 
     // checks/input.cpp
     auto verifyInput() -> std::expected<void, std::string>;
+
+    // checks/window.cpp
+    auto verifyWindow() -> std::expected<void, std::string>;
 
     // checks/assets.cpp
     auto verifyAssets() -> std::expected<void, std::string>;

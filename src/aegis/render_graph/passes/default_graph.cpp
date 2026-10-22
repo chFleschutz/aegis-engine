@@ -1,4 +1,4 @@
-module aegis.render_graph;
+module aegis.render_passes;
 
 namespace aegis::render_graph
 {

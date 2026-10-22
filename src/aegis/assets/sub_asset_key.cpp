@@ -57,4 +57,9 @@ auto SubAssetKeys::isEntityKey(std::string_view key) -> bool
 {
     return key.starts_with(entityType) && key.substr(entityType.size()).starts_with('/');
 }
+
+auto SubAssetKeys::typeOf(std::string_view key) -> std::string_view
+{
+    return key.substr(0, key.find('/'));
+}
 }

@@ -30,6 +30,11 @@ public:
     ///        Lets a test harness fail on errors instead of relying on someone reading stderr.
     [[nodiscard]] static auto validationErrorCount() noexcept -> std::uint32_t;
 
+    /// @brief Sends a validation warning through the debug messenger, which reports it like one from
+    ///        the layer (through aegis::log). Lets a test check where validation messages go.
+    /// @return false without validation, when there is no messenger.
+    [[nodiscard]] auto submitDebugMessage(std::string_view message) const -> bool;
+
     Context(
         vk::raii::Context context,
         vk::raii::Instance instance,

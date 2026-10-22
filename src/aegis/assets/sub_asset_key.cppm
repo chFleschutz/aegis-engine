@@ -45,6 +45,9 @@ public:
     /// @brief True for the key of a model's entity (see entityType).
     [[nodiscard]] static auto isEntityKey(std::string_view key) -> bool;
 
+    /// @brief The asset type a key names, its `<Type>` prefix (`StaticMesh` for `StaticMesh/Cube/0`).
+    [[nodiscard]] static auto typeOf(std::string_view key) -> std::string_view;
+
     /// @brief The messages of the warnings so far.
     [[nodiscard]] auto warnings() const noexcept -> const std::vector<std::string>& { return m_warnings; }
 

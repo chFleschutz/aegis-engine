@@ -10,6 +10,7 @@ module;
 module aegis.engine;
 
 import std;
+import aegis.render_passes;
 
 namespace aegis
 {

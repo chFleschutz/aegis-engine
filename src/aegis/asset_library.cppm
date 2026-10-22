@@ -3,7 +3,6 @@ export module aegis.asset_library;
 import std;
 import aegis.assets;
 import aegis.reflect;
-import aegis.render_graph;
 import aegis.rhi;
 import aegis.world;
 

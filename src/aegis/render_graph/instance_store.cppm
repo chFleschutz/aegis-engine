@@ -6,6 +6,13 @@ import :error;
 
 export namespace aegis::render_graph::detail
 {
+/// @brief The top three rows of 'model', each with its translation in .w: how shaders, and InstanceStore,
+///        hold a model matrix.
+[[nodiscard]] inline auto toModelRows(const glm::mat4& model) -> glm::mat3x4
+{
+    return glm::mat3x4{ glm::rowMajor4(model) };
+}
+
 /// @brief Whether two model matrices (Instance::model) are equal, element by element.
 [[nodiscard]] constexpr auto sameModel(const glm::mat3x4& a, const glm::mat3x4& b) noexcept -> bool
 {

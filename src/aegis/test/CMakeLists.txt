@@ -15,18 +15,21 @@ target_sources(aegis-test
     checks/rhi.cpp
     checks/scene.cpp
     checks/uploads.cpp
+    checks/window.cpp
 )
 
 target_link_libraries(aegis-test
     PRIVATE
         aegis-asset-library
         aegis-assets
+        aegis-base
         aegis-math
         aegis-paths
         aegis-platform
         aegis-reflect
         aegis-render-bridge
         aegis-render-graph
+        aegis-render-passes
         aegis-renderer
         aegis-rhi
         aegis-world

@@ -1,6 +1,6 @@
-export module aegis.render_graph:ibl;
+export module aegis.render_passes:ibl;
 import std;
-import :error;
+import aegis.render_graph;
 import aegis.assets;
 import aegis.rhi;
 

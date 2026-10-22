@@ -1,13 +1,8 @@
-export module aegis.render_graph:screen_passes;
+export module aegis.render_passes:screen_passes;
 import std;
-import :error;
-import :frame_scene;
 import :gpu_types;
 import :names;
-import :render_pass;
-import :resource;
-import :declarations;
-import :resource_pool;
+import aegis.render_graph;
 import aegis.math;
 import aegis.rhi;
 

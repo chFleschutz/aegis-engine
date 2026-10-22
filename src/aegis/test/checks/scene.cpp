@@ -12,6 +12,7 @@ import aegis.reflect;
 import aegis.render_bridge;
 import aegis.renderer;
 import aegis.render_graph;
+import aegis.render_passes;
 import aegis.rhi;
 import aegis.math;
 import aegis.world;

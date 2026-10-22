@@ -1,7 +1,7 @@
-export module aegis.render_graph:static_mesh_render_system;
+export module aegis.render_passes:static_mesh_render_system;
 import std;
-import :error;
 import :render_system;
+import aegis.render_graph;
 import aegis.assets;
 import aegis.rhi;
 import aegis.math;

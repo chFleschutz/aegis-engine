@@ -4,7 +4,7 @@ module;
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 
-module aegis.render_graph;
+module aegis.render_passes;
 import std;
 import aegis.renderer;
 import aegis.rhi;

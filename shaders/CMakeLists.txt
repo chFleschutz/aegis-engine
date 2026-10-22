@@ -17,6 +17,6 @@ aegis_add_shaders(compile_shaders
 )
 
 add_dependencies(aegis-engine compile_shaders)
-if(TARGET aegis-render-graph)
-    add_dependencies(aegis-render-graph compile_shaders)
+if(TARGET aegis-render-passes)
+    add_dependencies(aegis-render-passes compile_shaders)
 endif()

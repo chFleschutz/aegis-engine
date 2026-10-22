@@ -52,8 +52,11 @@ auto Window::create(const Desc& desc) -> std::expected<Window, Error>
 Window::Window(GLFWwindow* window, const Desc& desc) :
     m_window{ window },
     m_width{ desc.width },
-    m_height{ desc.height }
+    m_height{ desc.height },
+    m_title{ desc.title }
 {
+    glfwGetWindowContentScale(m_window, &m_contentScale, nullptr);
+
     glfwSetWindowUserPointer(m_window, this);
     // Framebuffer size, not window size: it is what a swapchain must match, and update() reads it too.
     glfwSetFramebufferSizeCallback(m_window, onFramebufferResize);
@@ -61,6 +64,8 @@ Window::Window(GLFWwindow* window, const Desc& desc) :
     glfwSetMouseButtonCallback(m_window, onMouseButton);
     glfwSetCursorPosCallback(m_window, onCursorPos);
     glfwSetScrollCallback(m_window, onScroll);
+    glfwSetWindowContentScaleCallback(m_window, onContentScale);
+    glfwSetWindowCloseCallback(m_window, onClose);
 }
 
 Window::Window(Window&& other) noexcept :
@@ -68,7 +73,11 @@ Window::Window(Window&& other) noexcept :
     m_width{ other.m_width },
     m_height{ other.m_height },
     m_wasResized{ other.m_wasResized },
+    m_contentScale{ other.m_contentScale },
+    m_title{ std::move(other.m_title) },
     m_keyHandler{ std::move(other.m_keyHandler) },
+    m_contentScaleHandler{ std::move(other.m_contentScaleHandler) },
+    m_closeHandler{ std::move(other.m_closeHandler) },
     m_events{ std::move(other.m_events) }
 {
     if (m_window)
@@ -87,6 +96,17 @@ Window::~Window()
 auto Window::shouldClose() const -> bool
 {
     return glfwWindowShouldClose(m_window);
+}
+
+auto Window::setTitle(std::string_view title) -> void
+{
+    m_title = title; // Also the null-terminated string GLFW reads
+    glfwSetWindowTitle(m_window, m_title.c_str());
+}
+
+auto Window::close() -> void
+{
+    glfwSetWindowShouldClose(m_window, GLFW_TRUE);
 }
 
 auto Window::update() -> void
@@ -137,5 +157,22 @@ auto Window::onScroll(GLFWwindow* glfwWindow, double x, double y) -> void
 {
     const auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
     window->m_events.emplace_back(ScrollEvent{ x, y });
+}
+
+auto Window::onContentScale(GLFWwindow* glfwWindow, float x, float /*y*/) -> void
+{
+    // One scale: the platforms GLFW supports scale both axes alike.
+    const auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
+    window->m_contentScale = x;
+    if (window->m_contentScaleHandler)
+        window->m_contentScaleHandler(x);
+}
+
+auto Window::onClose(GLFWwindow* glfwWindow) -> void
+{
+    // GLFW has already set the close flag; a refusal clears it again.
+    const auto window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
+    if (window->m_closeHandler && !window->m_closeHandler())
+        glfwSetWindowShouldClose(glfwWindow, GLFW_FALSE);
 }
 }
