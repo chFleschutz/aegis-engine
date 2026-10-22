@@ -3,17 +3,24 @@ add_library(aegis-editor-core STATIC)
 
 target_link_libraries(aegis-editor-core
     PUBLIC
+        aegis-core
         aegis-world
+    PRIVATE
+        glaze::glaze
 )
 
 target_sources(aegis-editor-core
     PUBLIC
     FILE_SET CXX_MODULES FILES
     core/core.cppm
+    core/console.cppm
     core/context.cppm
+    core/preferences.cppm
     core/selection.cppm
     PRIVATE
+    core/console.cpp
     core/context.cpp
+    core/preferences.cpp
     core/selection.cpp
 )
 
@@ -45,6 +52,8 @@ target_sources(aegis-editor
     ui/panels.cppm
     PRIVATE
     ui/editor_shell.cpp
+    ui/panels/console_panel.cpp
+    ui/panels/preferences_panel.cpp
     ui/panels/demo_panel.cpp
     ui/panels/profiler_panel.cpp
     ui/panels/renderer_panel.cpp
