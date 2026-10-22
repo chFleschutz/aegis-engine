@@ -53,6 +53,8 @@ auto Engine::create(const Options& options) -> std::expected<Engine, std::string
 
         if (auto result = engine.verifyInput(); !result)
             return std::unexpected{ result.error() };
+        if (auto result = engine.verifyWindow(); !result)
+            return std::unexpected{ result.error() };
     }
 
     auto context = rhi::Context::create({

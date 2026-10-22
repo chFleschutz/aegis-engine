@@ -15,6 +15,7 @@ target_sources(aegis-test
     checks/rhi.cpp
     checks/scene.cpp
     checks/uploads.cpp
+    checks/window.cpp
 )
 
 target_link_libraries(aegis-test
