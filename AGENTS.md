@@ -53,8 +53,8 @@ per distinct set of compile flags, with the importing target's flags. The engine
   third-party) *before* `import std;` or any module that imports it. The reverse order gives
   "redefinition" errors with the MSVC STL. A module unit's global module fragment satisfies this.
 - **Keep std-using headers out of interface fragments when a module will do.** If a module
-  interface *uses* a header's std-based code from its global module fragment (`core/assert.h`'s old
-  inline handler, entt templates), Clang hides standard concepts from that module's importers:
+  interface *uses* a header's std-based code from its global module fragment (entt
+  templates), Clang hides standard concepts from that module's importers:
   `missing '#include <concepts>'; 'derived_from' must be declared before it is used`, with a note
   "declaration here is not visible". Import a module instead (entt names come from
   `aegis.world.entity`), move the code into a `.cpp`, or, as a last resort, `#include` the named
@@ -148,7 +148,7 @@ still follows the older style. **Match the conventions of the code you are editi
 | | New style (see the list below) | Legacy — everything else |
 |---|---|---|
 | Vulkan | vulkan-hpp `vk::raii`, `import vulkan` | none — go through `aegis::rhi` and friends |
-| Errors | `std::expected<T, Error>` + `makeError`, never throw | `AGX_ASSERT*` |
+| Errors | `std::expected<T, Error>` + `makeError`, never throw | `assert` |
 | Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm` only, dotted submodules (`aegis.world.entity`, `aegis.utils.timer`); `math` is one module |
 
 New-style folders under `src/aegis/`, one per line so moving a folder doesn't conflict with another PR
@@ -194,7 +194,7 @@ instead of returning one; components, `Profiler` and `Engine` sit directly in `a
 `Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
 
 **Foundation (`aegis.base`, `src/aegis/base/`):** logging, flag enums, alignment, `match` and the
-profiler; any module may import it (renamed `aegis.core` once the legacy core is gone).
+profiler; any module may import it (renamed `aegis.core` by #85; the legacy core is gone).
 - *Logging:* `aegis::log::{info,warn,error,fatal}` take a `std::format_string`, work with no setup
   and write `[warn] ...` to stderr under one mutex; `log::setSink` redirects them (tests capture
   output with it). Library code logs only degraded behaviour that carries on; errors are returned

@@ -436,7 +436,7 @@ instantiation (`saveScene` / `instantiate`, [#131], [#183]), the `FrameScene` ([
 | R8 | **Edit-mode update:** `World::update(dt, UpdateMode)`; systems opt in to `Edit` (TransformSystem, CameraSystem) | Moving things without running the game | [#83] | E1 |
 | R9 | **Subtree snapshots:** `saveScene` of one entity and its descendants, and `instantiate` that keeps the IDs (undo) or gives new ones (duplicate, later paste) | Structural undo, Duplicate | [#195] | E4 |
 | R10 | **Asset database for the browser:** the asset type of every entry (from the importer and the sub-asset key prefix), adding a file the editor wrote, rescan | Typed browser, picker filter, Save As | [#196] | E5, E6 |
-| R11 | **Hierarchy API:** insert a child at an index (sibling order is saved, D8); misuse returns an error instead of asserting (`AGX_ASSERT_X` in `registry.cppm`) | Reorder by drag and drop; undo of Reparent | [#197] | E4 |
+| R11 | **Hierarchy API:** insert a child at an index (sibling order is saved, D8); misuse returns an error instead of asserting (`assert` in `registry.cppm`) | Reorder by drag and drop; undo of Reparent | [#197] | E4 |
 | R12 | **Window:** content scale and its change event, title, close request that the shell can veto | High DPI, dirty title, unsaved prompt | [#198] | E5, E8 |
 | R13 | **Log sinks:** add a sink without replacing stderr (today `log::setSink` replaces it); validation messages go through `aegis::log` | Console | [#199] | E7 |
 | R14 | **Project and launcher:** project file (startup scene) read/write, `--project`, `--scene`, runtime data lookup | Open the project; New/Save update it | [#132] (merged) | E1 |
