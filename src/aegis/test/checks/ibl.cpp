@@ -6,11 +6,11 @@ import aegis.render_graph;
 import aegis.render_passes;
 import aegis.rhi;
 
-namespace aegis
+namespace aegis::test
 {
 // IBL on the GPU from a real HDR: shapes of every map, plus values with a known answer. The
 // BRDF LUT at NdotV ~ 1, roughness 0 is (~1, ~0); a lit sky's irradiance is positive.
-auto Engine::verifyIbl() -> std::expected<void, std::string>
+auto Harness::verifyIbl() -> std::expected<void, std::string>
 {
     auto ibl = render_graph::Ibl::create(*m_device);
     if (!ibl)
@@ -70,7 +70,7 @@ auto Engine::verifyIbl() -> std::expected<void, std::string>
 }
 
 // Reads mip 0 of an RGBA16_SFLOAT image in ResourceState::ShaderRead (all layers) as floats.
-auto Engine::readRgba16f(rhi::ImageHandle image, std::uint32_t size, std::uint32_t layers)
+auto Harness::readRgba16f(rhi::ImageHandle image, std::uint32_t size, std::uint32_t layers)
     -> std::expected<std::vector<float>, std::string>
 {
     const auto texels = std::size_t{ size } * size * layers;
@@ -100,7 +100,7 @@ auto Engine::readRgba16f(rhi::ImageHandle image, std::uint32_t size, std::uint32
     return values;
 }
 
-auto Engine::halfToFloat(std::uint16_t half) -> float
+auto Harness::halfToFloat(std::uint16_t half) -> float
 {
     const auto sign = (half >> 15) ? -1.0f : 1.0f;
     const auto exponent = (half >> 10) & 0x1F;

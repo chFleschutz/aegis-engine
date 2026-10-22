@@ -356,8 +356,8 @@ it exits 0.
 
 - `aegis-test --headless` renders offscreen: no window, no surface, no swapchain, and stops after
   600 frames (or `--frames <n>`). `ctest` runs it as a `device`-labelled test. Use this by default.
-- `--scene` / `--gpu-driven` render a loaded scene through `aegis.render_graph` (CPU- / GPU-driven
-  geometry) instead of the test triangle; `--screenshot <png>` saves the last headless frame — look
+- `--scene` / `--gpu-driven` load the test scene file (`Scenes/aegis-test.scene` in `aegis-assets`)
+  and run it through the app's `aegis::Engine` (CPU- / GPU-driven geometry) instead of the test triangle; `--screenshot <png>` saves the last headless frame — look
   at it after render changes. `ctest` runs both paths too.
 - Headless does not touch surface, swapchain, acquire or present. When that code changed, also run
   `aegis-test --frames 600`: it opens a window briefly and exits by itself. On Windows it also checks
