@@ -1,10 +1,10 @@
-export module aegis.base:flags;
+export module aegis.core:flags;
 
 import std;
 
-export namespace aegis::base
+export namespace aegis::core
 {
-/// @brief An enum that opted in to bitwise operators with AEGIS_FLAGS (aegis/base/flags.h).
+/// @brief An enum that opted in to bitwise operators with AEGIS_FLAGS (aegis/core/flags.h).
 /// @note The operators are found by ADL, they live next to the enum. An enum without the opt-in
 ///       (a Format, a Key) has no `|`, so mixing up enumerators does not compile.
 template<typename T>

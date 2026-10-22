@@ -3,7 +3,7 @@ module;
 
 module aegis.assets;
 import std;
-import aegis.base;
+import aegis.core;
 import aegis.math;
 
 namespace aegis::assets

@@ -2,7 +2,7 @@ module aegis.assets;
 import std;
 import :image_data;
 import :upload;
-import aegis.base;
+import aegis.core;
 import aegis.rhi;
 import aegis.math;
 

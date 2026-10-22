@@ -7,7 +7,7 @@ export module aegis.rhi:vulkan_conversions;
 import std;
 import :common;
 import :commands;
-import aegis.base;
+import aegis.core;
 import vulkan;
 
 export namespace aegis::rhi
@@ -281,7 +281,7 @@ constexpr auto toVulkan(ResourceState state) noexcept -> VulkanState
 
 inline auto toVulkan(ClearValue clearValue) noexcept -> vk::ClearValue
 {
-    return base::match(
+    return core::match(
         clearValue,
         [](const ClearColor& value) -> vk::ClearValue {
             return vk::ClearColorValue{ value.r, value.g, value.b, value.a };
@@ -322,21 +322,21 @@ constexpr auto toVulkan(AttachmentStoreOp op) noexcept -> vk::AttachmentStoreOp
 constexpr auto toVulkan(BufferUsage usage) noexcept -> vk::BufferUsageFlags
 {
     vk::BufferUsageFlags flags{};
-    if (base::hasFlag(usage, BufferUsage::Vertex))
+    if (core::hasFlag(usage, BufferUsage::Vertex))
         flags |= vk::BufferUsageFlagBits::eVertexBuffer;
-    if (base::hasFlag(usage, BufferUsage::Index))
+    if (core::hasFlag(usage, BufferUsage::Index))
         flags |= vk::BufferUsageFlagBits::eIndexBuffer;
-    if (base::hasFlag(usage, BufferUsage::Uniform))
+    if (core::hasFlag(usage, BufferUsage::Uniform))
         flags |= vk::BufferUsageFlagBits::eUniformBuffer;
-    if (base::hasFlag(usage, BufferUsage::Storage))
+    if (core::hasFlag(usage, BufferUsage::Storage))
         flags |= vk::BufferUsageFlagBits::eStorageBuffer;
-    if (base::hasFlag(usage, BufferUsage::Indirect))
+    if (core::hasFlag(usage, BufferUsage::Indirect))
         flags |= vk::BufferUsageFlagBits::eIndirectBuffer;
-    if (base::hasFlag(usage, BufferUsage::TransferSrc))
+    if (core::hasFlag(usage, BufferUsage::TransferSrc))
         flags |= vk::BufferUsageFlagBits::eTransferSrc;
-    if (base::hasFlag(usage, BufferUsage::TransferDst))
+    if (core::hasFlag(usage, BufferUsage::TransferDst))
         flags |= vk::BufferUsageFlagBits::eTransferDst;
-    if (base::hasFlag(usage, BufferUsage::ShaderDeviceAddress))
+    if (core::hasFlag(usage, BufferUsage::ShaderDeviceAddress))
         flags |= vk::BufferUsageFlagBits::eShaderDeviceAddress;
     return flags;
 }
@@ -344,17 +344,17 @@ constexpr auto toVulkan(BufferUsage usage) noexcept -> vk::BufferUsageFlags
 constexpr auto toVulkan(ImageUsage usage) noexcept -> vk::ImageUsageFlags
 {
     vk::ImageUsageFlags flags{};
-    if (base::hasFlag(usage, ImageUsage::Sampled))
+    if (core::hasFlag(usage, ImageUsage::Sampled))
         flags |= vk::ImageUsageFlagBits::eSampled;
-    if (base::hasFlag(usage, ImageUsage::Storage))
+    if (core::hasFlag(usage, ImageUsage::Storage))
         flags |= vk::ImageUsageFlagBits::eStorage;
-    if (base::hasFlag(usage, ImageUsage::ColorAttachment))
+    if (core::hasFlag(usage, ImageUsage::ColorAttachment))
         flags |= vk::ImageUsageFlagBits::eColorAttachment;
-    if (base::hasFlag(usage, ImageUsage::DepthStencilAttachment))
+    if (core::hasFlag(usage, ImageUsage::DepthStencilAttachment))
         flags |= vk::ImageUsageFlagBits::eDepthStencilAttachment;
-    if (base::hasFlag(usage, ImageUsage::TransferSrc))
+    if (core::hasFlag(usage, ImageUsage::TransferSrc))
         flags |= vk::ImageUsageFlagBits::eTransferSrc;
-    if (base::hasFlag(usage, ImageUsage::TransferDst))
+    if (core::hasFlag(usage, ImageUsage::TransferDst))
         flags |= vk::ImageUsageFlagBits::eTransferDst;
     return flags;
 }

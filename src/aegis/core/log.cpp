@@ -2,7 +2,7 @@ module;
 
 #include <cstdio>
 
-module aegis.base;
+module aegis.core;
 
 import std;
 

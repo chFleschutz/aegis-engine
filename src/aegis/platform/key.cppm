@@ -1,7 +1,7 @@
 module;
 #include <GLFW/glfw3.h>
 
-#include "aegis/base/flags.h"
+#include "aegis/core/flags.h"
 
 export module aegis.platform:key;
 import std;

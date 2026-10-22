@@ -1,5 +1,5 @@
 module;
-#include "aegis/base/flags.h"
+#include "aegis/core/flags.h"
 
 export module aegis.render_passes:gpu_types;
 import std;

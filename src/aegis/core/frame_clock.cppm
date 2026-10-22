@@ -1,8 +1,8 @@
-export module aegis.base:frame_clock;
+export module aegis.core:frame_clock;
 
 import std;
 
-export namespace aegis::base
+export namespace aegis::core
 {
 /// @brief Hands out the delta time of each frame
 ///

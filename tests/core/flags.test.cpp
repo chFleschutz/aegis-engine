@@ -1,9 +1,9 @@
 #include <doctest/doctest.h>
 
-#include "aegis/base/flags.h"
+#include "aegis/core/flags.h"
 
 import std;
-import aegis.base;
+import aegis.core;
 
 namespace flags_test
 {
@@ -26,19 +26,19 @@ enum class Plain
 
 namespace
 {
-using aegis::base::hasFlag;
+using aegis::core::hasFlag;
 using flags_test::Plain;
 using flags_test::Usage;
 
 template<typename T>
 concept Combinable = requires(T a) { a | a; };
 
-static_assert(aegis::base::FlagEnum<Usage>);
-static_assert(!aegis::base::FlagEnum<Plain>);
+static_assert(aegis::core::FlagEnum<Usage>);
+static_assert(!aegis::core::FlagEnum<Plain>);
 static_assert(!Combinable<Plain>);
 }
 
-TEST_SUITE("base::flags")
+TEST_SUITE("core::flags")
 {
     TEST_CASE("combines and masks flags through ADL without a using-directive")
     {

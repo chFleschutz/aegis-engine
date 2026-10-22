@@ -4,7 +4,7 @@ module;
 module aegis.render_passes;
 import std;
 import aegis.assets;
-import aegis.base;
+import aegis.core;
 import aegis.renderer;
 import aegis.rhi;
 import aegis.math;

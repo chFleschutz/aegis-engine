@@ -1,7 +1,7 @@
 module aegis.test;
 
 import std;
-import aegis.base;
+import aegis.core;
 import aegis.rhi;
 
 namespace aegis::test

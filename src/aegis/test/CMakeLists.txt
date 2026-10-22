@@ -22,7 +22,7 @@ target_link_libraries(aegis-test
     PRIVATE
         aegis-asset-library
         aegis-assets
-        aegis-base
+        aegis-core
         aegis-engine # --scene runs through the app
         aegis-math
         aegis-paths

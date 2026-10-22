@@ -1,8 +1,8 @@
-export module aegis.base:profiler;
+export module aegis.core:profiler;
 
 import std;
 
-// Stays in namespace aegis (not aegis::base): the engine and the scene use these names unqualified.
+// Stays in namespace aegis (not aegis::core): the engine and the scene use these names unqualified.
 export namespace aegis
 {
 /// @brief Stopwatch on the monotonic clock.

@@ -19,7 +19,7 @@ function(aegis_add_test module)
 endfunction()
 
 add_subdirectory(assets)
-add_subdirectory(base)
+add_subdirectory(core)
 add_subdirectory(editor)
 add_subdirectory(math)
 add_subdirectory(paths)

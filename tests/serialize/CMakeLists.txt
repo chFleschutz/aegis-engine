@@ -5,7 +5,7 @@ aegis_add_test(serialize
         model.test.cpp
         scene.test.cpp
         scene_instance.test.cpp
-    LIBS aegis-serialize aegis-scripting aegis-world aegis-reflect aegis-assets aegis-math aegis-base
+    LIBS aegis-serialize aegis-scripting aegis-world aegis-reflect aegis-assets aegis-math aegis-core
 )
 
 # scene.test.cpp and material.test.cpp read the golden files.

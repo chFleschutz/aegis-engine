@@ -1,6 +1,6 @@
 module aegis.render_passes;
 import std;
-import aegis.base;
+import aegis.core;
 import aegis.assets;
 import aegis.rhi;
 import aegis.math;
@@ -56,7 +56,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
             return;
 
         const auto gpuTransform = detail::toGpuTransform(instance.model);
-        if (const bool mirrored = base::hasFlag(gpuTransform.flags, InstanceFlags::Mirrored); mirrored != boundMirrored)
+        if (const bool mirrored = core::hasFlag(gpuTransform.flags, InstanceFlags::Mirrored); mirrored != boundMirrored)
         {
             cmd.bindPipeline(mirrored ? *m_mirroredPipeline : *m_pipeline);
             boundMirrored = mirrored;

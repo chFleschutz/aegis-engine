@@ -1,7 +1,7 @@
 module aegis.assets;
 import std;
 import :upload;
-import aegis.base;
+import aegis.core;
 import aegis.rhi;
 
 namespace aegis::assets
@@ -42,7 +42,7 @@ auto StaticMesh::create(rhi::Device& device, const MeshData& data, std::string_v
     for (; created < BufferCount; ++created)
     {
         const auto& source = sources[created];
-        const auto size = created == MeshDataBlock ? sizeof(GpuData) : base::alignTo(source.bytes.size(), 4);
+        const auto size = created == MeshDataBlock ? sizeof(GpuData) : core::alignTo(source.bytes.size(), 4);
         auto buffer = device.createBuffer({
             .name = std::format("{}{}", name, source.label),
             .size = size,
@@ -79,7 +79,7 @@ auto StaticMesh::create(rhi::Device& device, const MeshData& data, std::string_v
         if (bytes.size() % 4 != 0)
         {
             padded.assign(bytes.begin(), bytes.end());
-            padded.resize(base::alignTo(bytes.size(), 4));
+            padded.resize(core::alignTo(bytes.size(), 4));
             bytes = padded;
         }
 

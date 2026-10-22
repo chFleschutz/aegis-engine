@@ -5,7 +5,7 @@ module;
 module aegis.asset_library;
 
 import std;
-import aegis.base;
+import aegis.core;
 import aegis.paths;
 import aegis.reflect;
 import aegis.render_passes;

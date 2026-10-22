@@ -1,4 +1,4 @@
-export module aegis.base:log;
+export module aegis.core:log;
 
 import std;
 

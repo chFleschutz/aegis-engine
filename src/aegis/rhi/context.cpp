@@ -9,7 +9,7 @@ import std;
 import :context;
 import :error;
 import :vulkan_conversions;
-import aegis.base;
+import aegis.core;
 import aegis.platform;
 
 namespace aegis::rhi

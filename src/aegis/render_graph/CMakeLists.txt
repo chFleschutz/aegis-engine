@@ -9,7 +9,7 @@ target_link_libraries(aegis-render-graph
         aegis-renderer
         aegis-rhi
     PRIVATE
-        aegis-base
+        aegis-core
 )
 
 target_sources(aegis-render-graph
