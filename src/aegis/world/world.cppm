@@ -13,7 +13,7 @@ import std;
 export import aegis.world.registry;
 import aegis.math;
 import aegis.base;
-import aegis.world.system;
+export import aegis.world.system; // System and UpdateMode, which begin and update take
 
 export namespace aegis::world
 {
@@ -60,20 +60,22 @@ public:
     }
 
     /// @brief Queues a change of the entities for the start of the next update
-    /// @note For code that runs while the frame is in flight (the editor's UI runs inside the render
-    ///       pass): creating, destroying or removing there would change what the passes already read.
-    ///       The commands run in order, before any system.
+    /// @note For scripts and systems, which run while the world updates: creating, destroying or removing
+    ///       there would change what the other systems iterate. The commands run in order, before any system.
     void defer(std::function<void(Registry&)> command) { m_deferred.push_back(std::move(command)); }
 
-    void begin()
+    /// @brief Starts the systems that run in 'mode'
+    void begin(UpdateMode mode = UpdateMode::Play)
     {
         for (auto& system : m_systems)
         {
-            system->onBegin(m_registry);
+            if (runs(*system, mode))
+                system->onBegin(m_registry);
         }
     }
 
-    void update(float deltaSeconds)
+    /// @brief Applies the deferred commands, then runs the systems of 'mode' phase by phase
+    void update(float deltaSeconds, UpdateMode mode = UpdateMode::Play)
     {
         aegis::ScopeProfiler profiler("Scene Update");
 
@@ -82,7 +84,7 @@ public:
         {
             for (auto& system : m_systems)
             {
-                if (system->phase() == phase)
+                if (system->phase() == phase && runs(*system, mode))
                     system->onUpdate(m_registry, deltaSeconds);
             }
         }
@@ -104,6 +106,11 @@ public:
     }
 
 private:
+    [[nodiscard]] static auto runs(const System& system, UpdateMode mode) -> bool
+    {
+        return mode == UpdateMode::Play || system.runsInEdit();
+    }
+
     void applyDeferred()
     {
         // A command may defer more; those wait for the next update

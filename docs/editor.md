@@ -1,6 +1,7 @@
 # Editor: architecture, features and implementation plan
 
-Status: **proposal**, not implemented. It plans the editor that M9 (D7) splits off and M10 builds.
+Status: **proposal**; E1 ([#83]: R3, R4, R8) is implemented, without the action registry, theme v0,
+fonts v0 and Reset Layout. It plans the editor that M9 (D7) splits off and M10 builds.
 It builds on [`editor-runtime-split.md`](editor-runtime-split.md) (the launcher, the type registry, play-in-editor),
 [`asset-system.md`](asset-system.md) (D8: asset IDs, scene files, `World` vs `Scene`) and
 [`engine-architecture.md`](engine-architecture.md) (services, `Presentation`). It fixes how the editor is
@@ -558,7 +559,9 @@ in world, platform and base). That way each E-item finds its prerequisites merge
 
 ## Open decisions
 
-- **Naming:** `app::Shell` versus `app::Frontend` or `app::Mode`, decided in [#83].
+- **Naming:** decided in [#83]: `aegis::Shell`, `GameShell` and `FrameContext` in `aegis.engine`, next to
+  `Engine` (there is no `app` namespace yet). The world's mode is `world::UpdateMode`; until R7 a shell
+  names it for the engine's one world (`Shell::updateMode`).
 - **Edit mode when there are no game systems for it:** whether game systems can opt in to `Edit`
   (procedural previews) from day one, or only engine systems (proposed: engine only, with the flag
   public so games can use it later).

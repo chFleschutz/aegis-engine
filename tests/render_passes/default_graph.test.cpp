@@ -38,7 +38,7 @@ auto updateRequested() -> bool
 auto planOfDefaultGraph(bool gpuDriven) -> std::string
 {
     GraphBuilder builder;
-    addDefaultPasses(builder, { .gpuDriven = gpuDriven, .buildUi = [] {} });
+    addDefaultPasses(builder, { .gpuDriven = gpuDriven, .ui = true });
 
     const auto plan = builder.plan();
     REQUIRE(plan.has_value());
@@ -68,7 +68,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
         {
             CAPTURE(gpuDriven);
             GraphBuilder builder;
-            addDefaultPasses(builder, { .gpuDriven = gpuDriven, .buildUi = [] {} });
+            addDefaultPasses(builder, { .gpuDriven = gpuDriven, .ui = true });
 
             const auto plan = builder.plan();
             REQUIRE_MESSAGE(plan.has_value(), plan.error().message);
@@ -89,7 +89,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
     TEST_CASE("every pass of the default graph has a name")
     {
         GraphBuilder builder;
-        addDefaultPasses(builder, { .gpuDriven = true, .buildUi = [] {} });
+        addDefaultPasses(builder, { .gpuDriven = true, .ui = true });
 
         for (std::uint32_t pass = 0; pass < builder.declarations().passCount(); ++pass)
             CHECK_FALSE(builder.declarations().passName(pass).empty());

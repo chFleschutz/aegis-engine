@@ -20,6 +20,7 @@ endfunction()
 
 add_subdirectory(assets)
 add_subdirectory(base)
+add_subdirectory(editor)
 add_subdirectory(math)
 add_subdirectory(paths)
 add_subdirectory(platform)

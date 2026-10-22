@@ -18,6 +18,8 @@ class CameraSystem : public System
 public:
     /// @brief After the transforms it reads, whatever the order they were added in
     [[nodiscard]] auto phase() const -> Phase override { return Phase::LateUpdate; }
+    /// @brief Edited entities move in the editor too
+    [[nodiscard]] auto runsInEdit() const -> bool override { return true; }
 
     virtual void onUpdate(Registry& registry, float deltaSeconds) override
     {

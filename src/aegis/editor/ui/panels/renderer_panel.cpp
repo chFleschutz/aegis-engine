@@ -2,31 +2,36 @@ module;
 
 #include <imgui.h>
 
-export module aegis.editor.panels:renderer_panel;
-
+module aegis.editor;
 import std;
 import aegis.render_graph;
 import aegis.renderer;
 import aegis.rhi;
+import :panels;
 
-export namespace aegis::editor
+namespace aegis::editor
 {
-class RendererPanel
+namespace
+{
+auto toString(render_graph::ResourceDescription::Kind kind) -> const char*
+{
+    using Kind = render_graph::ResourceDescription::Kind;
+    switch (kind)
+    {
+    case Kind::Texture: return "Texture";
+    case Kind::Buffer: return "Buffer";
+    case Kind::Reference: return "Reference";
+    }
+    return "Unknown";
+}
+
+// The renderer's extent, the frame graph's passes (with their settings) and its resources.
+class RendererPanel final : public Panel
 {
 public:
-    static auto toString(aegis::render_graph::ResourceDescription::Kind kind) -> const char*
-    {
-        using Kind = aegis::render_graph::ResourceDescription::Kind;
-        switch (kind)
-        {
-        case Kind::Texture: return "Texture";
-        case Kind::Buffer: return "Buffer";
-        case Kind::Reference: return "Reference";
-        }
-        return "Unknown";
-    }
+    [[nodiscard]] auto name() const -> std::string_view override { return "Renderer"; }
 
-    void draw(aegis::renderer::Renderer& renderer, aegis::render_graph::FrameGraph& frameGraph)
+    void draw(EditorContext&, FrameContext& frame) override
     {
         ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 10, 30), ImGuiCond_FirstUseEver, ImVec2(1.0f, 0.0f));
         if (!ImGui::Begin("Renderer"))
@@ -35,11 +40,12 @@ public:
             return;
         }
 
+        auto& frameGraph = frame.frameGraph;
         auto& pool = frameGraph.pool();
 
         // Renderer info
         ImGui::SeparatorText("Renderer Info");
-        const auto extent = renderer.extent();
+        const auto extent = frame.renderer.extent();
         ImGui::Text("Extent: %d x %d", extent.x, extent.y);
         ImGui::Text("Aspect Ratio: %.2f", static_cast<float>(extent.x) / static_cast<float>(extent.y));
         ImGui::NewLine();
@@ -97,7 +103,7 @@ public:
                 ImGui::TableSetColumnIndex(3);
                 if (resource.format)
                 {
-                    const std::string format{ aegis::rhi::formatName(*resource.format) };
+                    const std::string format{ rhi::formatName(*resource.format) };
                     ImGui::Text("%s", format.c_str());
                 }
             }
@@ -107,4 +113,10 @@ public:
         ImGui::End();
     }
 };
+}
+
+auto makeRendererPanel() -> std::unique_ptr<Panel>
+{
+    return std::make_unique<RendererPanel>();
+}
 }

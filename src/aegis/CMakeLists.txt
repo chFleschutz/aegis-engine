@@ -63,7 +63,6 @@ add_subdirectory(core)
 add_subdirectory(world)
 add_subdirectory(scripting)
 add_subdirectory(serialize)
-add_subdirectory(ui)
 add_subdirectory(editor)
 
 target_include_directories(aegis-engine 
@@ -91,13 +90,13 @@ PUBLIC
 	aegis-renderer
 	aegis-rhi
 	aegis-world
-	aegis-ui
 	aegis-scripting
 	aegis-serialize
 )
 
 target_link_libraries(aegis-engine
 PRIVATE
+	imgui::imgui # Presentation: the ImGui context and its GLFW backend
 	aegis-render-passes # The default graph
 	stb # stb_image_write for the headless screenshot
 )
@@ -105,6 +104,7 @@ PRIVATE
 target_sources(aegis-engine
 PRIVATE
 	engine.cpp
+	presentation.cpp
 PUBLIC 
 	FILE_SET CXX_MODULES 
 	FILES

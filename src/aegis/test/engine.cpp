@@ -318,6 +318,7 @@ auto Engine::drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
         cmd.writeTimestamp(timer.pool, 0, rhi::TimestampStage::TopOfPipe);
         m_instanceBridge->sync();
         const auto frameScene = extractFrameScene(*m_scene, *m_instances);
+        buildUi(*m_renderer, *m_frameGraph, !m_options.noOverlay);
         m_frameGraph->execute({
             .cmd = cmd,
             .frameScene = frameScene,

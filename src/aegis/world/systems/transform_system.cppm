@@ -35,6 +35,8 @@ public:
 
     /// @brief After the scripts and gameplay that write the transforms
     [[nodiscard]] auto phase() const -> Phase override { return Phase::PostUpdate; }
+    /// @brief Edited entities move in the editor too
+    [[nodiscard]] auto runsInEdit() const -> bool override { return true; }
 
     void onBegin(Registry& registry) override
     {

@@ -1,7 +1,6 @@
 #include <aegis/core/assert.h>
 
 import std;
-import aegis.editor;
 import aegis.engine;
 
 class ColorChanger : public aegis::scripting::Script
@@ -83,7 +82,6 @@ auto main(int argc, char** argv) -> int
     if (!created)
         return created.error();
     auto& engine = **created;
-    engine.pushLayer<aegis::editor::EditorLayer>();
     [[maybe_unused]] auto registered = aegis::scripting::registerScript<ColorChanger>(engine.types(), "ColorChanger").and_then([](auto builder) {
         return builder.field("speed", &ColorChanger::speed).status();
     });

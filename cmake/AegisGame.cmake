@@ -9,7 +9,7 @@
 #   linker drop object files nothing references, such as the one with AEGIS_GAME_MODULE.
 # - <Name>: the runtime executable, the launcher (src/aegis/launch/main.cpp, the only main()) plus the game.
 #   It doesn't link aegis-editor.
-# - <Name>-Editor: the same with the editor attached.
+# - <Name>-Editor: the same with the editor's shell (editor::EditorShell) installed.
 # Both look up the project as paths::locate does: --project, then project/ next to the executable, then PROJECT
 # (compiled in as AEGIS_GAME_PROJECT_DIR, development builds only). The shaders and the engine content are
 # looked up the same way (paths::shaders, paths::content). Nothing is copied: a development build has nothing

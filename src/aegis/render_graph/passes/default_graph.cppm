@@ -9,9 +9,9 @@ struct DefaultPassesDesc
 {
     /// @brief The mesh-shader geometry path; needs rhi::Device::Capabilities::meshShaders.
     bool gpuDriven;
-    /// @brief Draws ImGui over the frame when set (see UiPass::Desc::build).
-    std::function<void()> buildUi{};
-    /// @brief Needed with buildUi to compile the graph (ImGui's backend takes the instance); declaring it needs none.
+    /// @brief Draws ImGui over the frame: the draw data of the frame the caller ended (see UiPass).
+    bool ui{ false };
+    /// @brief Needed with ui to compile the graph (ImGui's backend takes the instance); declaring it needs none.
     const rhi::Context* context{ nullptr };
 };
 
