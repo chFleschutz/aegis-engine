@@ -154,7 +154,7 @@ still follows the older style. **Match the conventions of the code you are editi
 New-style folders under `src/aegis/`, one per line so moving a folder doesn't conflict with another PR
 (everything else, `examples/` included, is legacy):
 - `assets/`
-- `base/`
+- `core/`
 - `editor/`
 - `paths/`
 - `platform/`
@@ -193,15 +193,15 @@ types, except `render_graph/passes/ui_pass.cpp`, which imports it for the ImGui 
 instead of returning one; components, `Profiler` and `Engine` sit directly in `aegis`;
 `Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
 
-**Foundation (`aegis.base`, `src/aegis/base/`):** logging, flag enums, alignment, `match` and the
-profiler; any module may import it (renamed `aegis.core` by #85; the legacy core is gone).
+**Foundation (`aegis.core`, `src/aegis/core/`):** logging, flag enums, alignment, `match` and the
+profiler; any module may import it.
 - *Logging:* `aegis::log::{info,warn,error,fatal}` take a `std::format_string`, work with no setup
   and write `[warn] ...` to stderr under one mutex; `log::setSink` redirects them (tests capture
   output with it). Library code logs only degraded behaviour that carries on; errors are returned
   and only the top level logs them. `std::print` stays in `aegis-test`, examples and tools.
-- *Flag enums:* opt in with `AEGIS_FLAGS(Enum)` (`#include "aegis/base/flags.h"`) directly after the
+- *Flag enums:* opt in with `AEGIS_FLAGS(Enum)` (`#include "aegis/core/flags.h"`) directly after the
   enum, inside its namespace, so ADL finds the operators with no using-directive; an enum without
-  it has no `|`. `base::hasFlag` tests bits.
+  it has no `|`. `core::hasFlag` tests bits.
 
 **Target style (decided, not yet the current state):**
 - *Errors:* one shape per module, `{ErrorCode code; std::string message; std::optional<rhi::Error>
