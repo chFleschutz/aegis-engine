@@ -4,7 +4,8 @@ Status: **decided** (D8, 2026-10-19; formats 2026-10-20; sample project 2026-10-
 2026-10-22; settles F2 in
 `audit/backlog.md`).
 Implemented so far (#130, #137): IDs, sidecars, the database, engine content, `AssetRef`, `AssetLibrary` and
-the import cache for models; scene files and the pak are not. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md):
+the import cache for models; scene files and the pak are not. Changes under review: "Proposed
+changes" (P1–P3). It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md):
 assets referenced only by stable ID, one serializer for scenes and save games, a cook step for export.
 
 **Today** loaders decode and upload in one step and create entities directly, nothing is cached
@@ -454,6 +455,51 @@ Order:
 **Golden files:** a small scene, a material and a sidecar under `tests/`, with tests that must keep
 loading them unchanged (#130 for the sidecar and IDs, #131 for scene and material files). An
 accidental format change then fails CI instead of breaking a project.
+
+## Proposed changes (under review)
+
+Proposed 2026-10-22, not decided. Each changes something above; the sections above still describe
+the decided plan until one is accepted.
+
+**P1. Derived sub-asset IDs.** A sub-asset's ID is `XXH3_64(le(fileId) ‖ key)`, seed 0, instead of a
+random ID per new part (changes "Identity").
+- Why: random IDs are made wherever a part is first imported. Two branches that import the same new
+  file or the same re-export give the same key different IDs; after the merge one wins and every
+  scene that used the other breaks. Unity moved model sub-IDs to hashes of the part's path for the
+  same reason.
+- The sidecar's `subAssets` table keeps only exceptions: a part renamed in the source that keeps
+  its old ID, and an extracted part ("Extract material"), whose ID then lives in its own file. A
+  re-export adds no lines to the sidecar, and a new part needs no committed sidecar change.
+- Entity IDs of a model (`Entity/<node name>`) derive the same way.
+- The function is pinned by a test with known outputs, like the entity ID derivation.
+- Removed parts that come back keep their ID without a table entry. The cost is renames: a renamed
+  part keeps its ID only through an explicit entry (written by the editor's reimport dialog, or by
+  hand).
+
+**P2. External images are their own assets.** A glTF (or OBJ) that references an image file by URI
+references that file's `Texture` ID; only images embedded in the model (data URIs, `.glb` buffers)
+are sub-assets (changes "Identity" and the sidecar example).
+- Why: today the same PNG has two IDs, its own sidecar's and `Texture/<uri file name>` in the
+  model's sidecar, so it can be imported twice with conflicting settings. sRGB is the usual
+  conflict: the PNG's sidecar defaults to sRGB, while the glTF material uses it as a normal map.
+  Unity, Unreal and Godot all keep external images as separate assets the model references.
+- The model importer records the usage it implies (color or linear data) and warns when the
+  image's own import settings disagree; the editor offers to fix the image's sidecar. An image used
+  both ways is imported once per setting only on request.
+- Settles what the texture cache (#169) is keyed by, so it lands before #169.
+
+**P3. Cache entries by content, not by asset.** The import cache stores entries under their key,
+`.aegis/cache/imported/<key>/`, and the index maps each asset ID to its current key (changes
+"Import cache and cooking").
+- Why: `imported/<id>/` holds one version per file, so switching git branches back and forth
+  reimports every time, and worktrees and CI can't share entries. Unreal's derived data cache is
+  content-addressed for this reason; Unity added a separate server (the Accelerator) to get it.
+- Entries are immutable once written, which also replaces the write-then-move step for readers in
+  another process.
+- Needs eviction: delete entries no index has used for some time, or past a size limit. "Clear
+  cache" still deletes everything.
+- Opens a shared cache later (a network folder or server keyed the same way), without format
+  changes.
 
 ## TBD (cheap to change, decided when built)
 
