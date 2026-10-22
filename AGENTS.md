@@ -283,8 +283,10 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
    independent item meanwhile. Fix failures with new commits; don't force-push a PR under review.
 8. **The owner merges.** Agents never merge a PR or enable auto-merge (`gh pr merge`); they stop
    once CI is green and the PR is ready, and the owner reviews and merges it. Write the PR body for
-   that review: what changed and why, the verification actually run (device tests included or
-   skipped) and anything left out. `main` is protected (required checks `Format`, `Linux`/`Windows`
+   that review, readable at a glance (about one screen): what changed and why, then short notes on
+   open decisions, anything left out, and checks CI can't show (device tests run or skipped). Skip
+   what the page already shows, such as CI results, test counts and the command list; the
+   `/implement-issue` skill has the template. `main` is protected (required checks `Format`, `Linux`/`Windows`
    × debug/release, branch up to date). CI has no GPU: run the full `ctest` with the device tests
    locally first for device code. PRs land as merge commits, not squash or rebase, so commit hashes
    survive. After a PR with mechanical commits merges, add their hashes to `.git-blame-ignore-revs`
