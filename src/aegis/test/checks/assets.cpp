@@ -168,8 +168,8 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
         return fail("Loading one model ID twice must return the same ready model");
 
     const auto& model = *first;
-    if (model.textures.empty() || model.materials.empty() || model.meshes.empty())
-        return fail("The helmet model has no textures, materials or meshes");
+    if (model.materials.empty() || model.meshes.empty())
+        return fail("The helmet model has no materials or meshes");
     std::size_t parts{ 0 };
     for (const auto& primitive : model.meshes.front().primitives)
     {
@@ -182,11 +182,16 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
             return fail("Loading a material by its own ID must return the model's material");
         ++parts;
     }
-    for (const auto& texture : model.textures)
+    // The helmet's images are files of their own: its material uses the textures their own IDs load, once.
+    if (!model.textures.empty())
+        return fail("The helmet's external images must not be parts of the model");
+    const auto& helmetMaterial = *model.materials.front().material;
+    for (const auto& [parameter, image] : { std::pair{ assets::pbr::albedoMap, "Default_albedo.jpg" }, std::pair{ assets::pbr::normalMap, "Default_normal.jpg" } })
     {
-        const auto id = library->database().find(0, "models/damaged_helmet/DamagedHelmet.gltf", std::format("Texture/{}", std::filesystem::path{ texture.uri }.filename().generic_string()));
-        if (!id || library->loadTexture(*id).get() != texture.texture.get())
-            return fail("Loading a glTF texture by its own ID must return the model's texture");
+        const auto* texture = helmetMaterial.parameter<std::shared_ptr<assets::Texture>>(parameter);
+        const auto imageId = library->find(std::format("models/damaged_helmet/{}", image));
+        if (!texture || !*texture || !imageId || library->loadTexture(*imageId).get() != texture->get())
+            return fail(std::format("The helmet's material must use the texture of '{}' that its own ID loads", image));
     }
 
     const auto paintingId = library->id("materials/textures/painting.png");

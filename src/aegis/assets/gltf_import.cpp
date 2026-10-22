@@ -98,9 +98,8 @@ auto loadExternalBuffers(fastgltf::Asset& gltf, const std::filesystem::path& dir
 class GltfImport
 {
 public:
-    GltfImport(const fastgltf::Asset& gltf, std::filesystem::path directory, std::string_view name, std::vector<std::string> externalBuffers) :
+    GltfImport(const fastgltf::Asset& gltf, std::string_view name, std::vector<std::string> externalBuffers) :
         m_gltf{ gltf },
-        m_directory{ std::move(directory) },
         m_name{ name }
     {
         m_model.dependencies = std::move(externalBuffers);
@@ -340,39 +339,35 @@ private:
         return std::span{ buffer->bytes.data() + bufferView.byteOffset, bufferView.byteLength };
     }
 
-    auto decodeGltfImage(std::size_t imageIndex) -> std::expected<ModelImage, Error>
+    /// @brief The image 'imageIndex': an external one by its URI (its file is an asset of its own), an embedded one
+    ///        decoded.
+    auto importImage(std::size_t imageIndex) -> std::expected<ModelImage, Error>
     {
         const auto& image = m_gltf.images[imageIndex];
         ModelImage result{ .name = std::string{ image.name }, .srgb = m_srgb[imageIndex] };
 
-        auto decoded = [&]() -> std::expected<ImageData, Error> {
-            if (const auto* uri = std::get_if<fastgltf::sources::URI>(&image.data))
-            {
-                result.uri = std::string{ uri->uri.path() };
-                if (result.name.empty())
-                    result.name = uri->uri.fspath().filename().string();
-                return decodeImageFile(m_directory / uri->uri.fspath(), PixelFormat::RGBA8);
-            }
-            const auto encoded = encodedImage(image);
-            if (!encoded)
-                return std::unexpected{ encoded.error() };
-            result.encoded.assign(encoded->begin(), encoded->end());
-            return decodeImage(*encoded, image.name, PixelFormat::RGBA8);
-        }();
-        if (!decoded)
+        if (const auto* uri = std::get_if<fastgltf::sources::URI>(&image.data))
         {
-            // Fixing the file must reimport the model, which left the image out.
-            if (const auto* uri = std::get_if<fastgltf::sources::URI>(&image.data))
-                m_model.dependencies.push_back(utf8(uri->uri.fspath()));
-            return std::unexpected{ decoded.error() };
+            result.uri = utf8(uri->uri.fspath());
+            if (result.name.empty())
+                result.name = uri->uri.fspath().filename().string();
+            return result;
         }
+
+        const auto encoded = encodedImage(image);
+        if (!encoded)
+            return std::unexpected{ encoded.error() };
+        result.encoded.assign(encoded->begin(), encoded->end());
+        auto decoded = decodeImage(*encoded, image.name, PixelFormat::RGBA8);
+        if (!decoded)
+            return std::unexpected{ decoded.error() };
         if (result.name.empty())
             result.name = std::format("Image_{}", imageIndex);
         result.data = std::move(*decoded);
         return result;
     }
 
-    /// @brief The index in ModelData::images of the image behind a material's texture, decoded on first use.
+    /// @brief The index in ModelData::images of the image behind a material's texture, imported on first use.
     ///        A texture that cannot be loaded is a warning, and the material goes without it.
     auto imageFor(const auto& textureInfo, std::string_view slot, std::string_view materialName)
         -> std::expected<std::optional<std::uint32_t>, Error>
@@ -406,7 +401,7 @@ private:
         if (!m_imageAttempted[imageIndex])
         {
             m_imageAttempted[imageIndex] = true;
-            auto image = decodeGltfImage(imageIndex);
+            auto image = importImage(imageIndex);
             if (image)
             {
                 m_imageIndices[imageIndex] = static_cast<std::uint32_t>(m_model.images.size());
@@ -506,7 +501,6 @@ private:
     }
 
     const fastgltf::Asset& m_gltf;
-    std::filesystem::path m_directory;
     std::string m_name;
     ModelData m_model;
     std::vector<bool> m_srgb;                                    // Per glTF image
@@ -544,6 +538,6 @@ auto importGltf(std::span<const std::byte> bytes, const std::filesystem::path& d
     auto externalBuffers = loadExternalBuffers(asset.get(), base, name);
     if (!externalBuffers)
         return std::unexpected{ std::move(externalBuffers.error()) };
-    return GltfImport{ asset.get(), base, name, std::move(*externalBuffers) }.run();
+    return GltfImport{ asset.get(), name, std::move(*externalBuffers) }.run();
 }
 }

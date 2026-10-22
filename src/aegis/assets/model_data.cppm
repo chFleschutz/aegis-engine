@@ -1,5 +1,6 @@
 export module aegis.assets:model_data;
 import std;
+import :asset_id;
 import :error;
 import :image_data;
 import :mesh_data;
@@ -18,18 +19,25 @@ enum class AlphaMode
     Blend,  // Alpha blends with what is behind
 };
 
-/// @brief A decoded image of a model and how its pixels are to be read.
+/// @brief An image of a model and how its materials read its pixels. An image embedded in the file (data URI, GLB
+///        chunk) is decoded and belongs to the model. An external image, one the file names by URI, is a file of
+///        its own with its own Texture asset and import settings (docs/asset-system.md, "Identity"): the importer
+///        records where it is and how it is used, but does not read it.
 struct ModelImage
 {
     std::string name;
-    /// @brief Where the image came from, as the file names it: the URI of an external image relative to the
-    ///        model file, or empty for an embedded one (data URI, GLB chunk).
+    /// @brief The URI of an external image relative to the model file, or empty for an embedded one.
     std::string uri;
-    bool srgb{ false }; // Color data (base color, emissive) is sRGB; normals, metal/roughness and occlusion are linear
-    ImageData data;
+    /// @brief The usage the materials imply: color data (base color, emissive) is sRGB; normals, metal/roughness
+    ///        and occlusion are linear. An embedded image is read this way; an external one by its own settings.
+    bool srgb{ false };
+    ImageData data; // An embedded image's pixels; empty for an external one
     /// @brief The encoded bytes (PNG, JPEG, ...) of an embedded image, which the import cache keeps; empty for an
-    ///        external one, which is read again from 'uri'.
+    ///        external one.
     std::vector<std::byte> encoded;
+    /// @brief The Texture asset of an external image's file, set by resolveExternalImages; invalid for an embedded
+    ///        image, before resolving, or if no asset has that file.
+    AssetId texture;
 };
 
 /// @brief A material's PBR inputs. Images are indices into ModelData::images; none means "not set"
@@ -91,21 +99,19 @@ struct ModelData
     /// @brief The nodes of one scene in depth-first preorder, so a parent precedes its children.
     std::vector<ModelNode> nodes;
     /// @brief Files besides the model file whose contents the import depends on, relative to its directory with
-    ///        '/': a glTF's external buffers and the external images that failed to decode. The import cache hashes
-    ///        them into its key, so changing one reimports the model. Images that decoded are read again on
-    ///        every load and are not listed.
+    ///        '/': a glTF's external buffers. The import cache hashes them into its key, so changing one reimports
+    ///        the model. External images are assets of their own and not listed.
     std::vector<std::string> dependencies;
 };
 
 /// @brief Imports a glTF / GLB document held in memory.
-/// @param directory Where external buffers and images are looked up (the model file's directory). Data URIs
-///        and GLB chunks need none.
+/// @param directory Where external buffers are looked up (the model file's directory). Data URIs and GLB chunks
+///        need none. External images are recorded by URI and not read (see ModelImage).
 /// @param name Names the model in messages, and is used if the scene has no name.
 /// @note Only the default scene is imported (the first one if the file names none). Triangle lists, strips and
 ///       fans are imported (strips and fans converted to lists); other topologies are rejected. Missing
-///       normals are generated. A missing or undecodable texture is logged with aegis::log::warn and left out
-///       of its material; the model still imports. Textures only the unused parts of the file refer to are not
-///       decoded.
+///       normals are generated. An undecodable embedded texture is logged with aegis::log::warn and left out of
+///       its material; the model still imports. Textures only the unused parts of the file refer to are left out.
 /// @return ErrorCode::DecodeFailed if the document cannot be parsed, ErrorCode::UnsupportedFormat for an
 ///         unsupported topology, ErrorCode::InvalidData for inconsistent data (no scenes, a missing node,
 ///         a node reached twice, an accessor of the wrong type, no POSITION).

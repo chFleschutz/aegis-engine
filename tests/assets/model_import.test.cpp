@@ -516,20 +516,26 @@ TEST_SUITE("assets::importGltf")
         CHECK(log.mentions("color and as data"));
     }
 
-    TEST_CASE("a missing texture file is a warning, not a failure")
+    TEST_CASE("records an external image by its URI and usage without reading it")
     {
         const LogCapture log;
         const auto bytes = singleMesh(std::format(R"json({}, "material": 0)json", listPrimitive),
-            R"json("images": [ { "uri": "no_such_texture.png" } ],
+            R"json("images": [ { "uri": "textures/no_such_texture.png" } ],
   "textures": [ { "source": 0 } ],
-  "materials": [ { "name": "mat", "pbrMetallicRoughness": { "baseColorTexture": { "index": 0 } } } ])json");
+  "materials": [ { "name": "mat", "normalTexture": { "index": 0 } } ])json");
         const auto model = assets::importGltf(bytes);
         REQUIRE(model.has_value());
-        CHECK(model->images.empty());
-        REQUIRE(model->materials.size() == 1);
-        CHECK(!model->materials[0].baseColorImage.has_value());
-        CHECK(log.mentions("base color"));
-        CHECK(log.mentions("no_such_texture.png"));
+        REQUIRE(model->images.size() == 1);
+        const auto& image = model->images[0];
+        CHECK(image.uri == "textures/no_such_texture.png");
+        CHECK(image.name == "no_such_texture.png");
+        CHECK_FALSE(image.srgb);
+        CHECK(image.data.pixels.empty());
+        CHECK(image.encoded.empty());
+        CHECK_FALSE(image.texture.valid());
+        CHECK(model->materials.at(0).normalImage == 0);
+        CHECK(model->dependencies.empty());
+        CHECK(log.warnings.empty());
     }
 
     TEST_CASE("an undecodable image is a warning, not a failure")

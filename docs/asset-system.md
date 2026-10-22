@@ -5,8 +5,9 @@ Status: **decided** (D8, 2026-10-19; formats 2026-10-20; sample project 2026-10-
 `audit/backlog.md`).
 Implemented so far (#130, #137): IDs, sidecars, the database, engine content, `AssetRef`, `AssetLibrary` and
 the import cache for models; scene files and the pak are not. Changes under review: "Proposed
-changes" (P1–P3). It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md):
-assets referenced only by stable ID, one serializer for scenes and save games, a cook step for export.
+changes" (P1, P3; P2, external images as their own assets, was accepted 2026-10-22, #237). It fills
+in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md): assets referenced only by
+stable ID, one serializer for scenes and save games, a cook step for export.
 
 **Today** loaders decode and upload in one step and create entities directly, nothing is cached
 (shared glTF images load twice, A-CONTENT-04), an asset's identity is its path (`core::Asset`), and
@@ -176,6 +177,15 @@ anything else is rejected on read.
   importer; the extension only gives the default.
 - **Duplicates are rejected:** a copied file brings its IDs along, and the scan gives the copy new
   ones; the editor's "Duplicate" writes new IDs directly.
+- **External images are their own assets.** A glTF that references an image file by URI references
+  that file's `Texture` ID, resolved through the database relative to the model's folder; only images
+  embedded in the model (data URIs, `.glb` buffers) are its sub-assets. One PNG then has one ID and
+  one set of import settings, however many models and materials use it, and loads once (Unity,
+  Unreal and Godot do the same). The model importer records the usage its materials imply (color or
+  linear data) and warns, naming both files, when the image's settings disagree (a normal map
+  imported as sRGB); the image's settings win, and the editor will offer to fix them. An image used both ways is imported once per setting
+  only on request (not built). An image that isn't a texture asset of the same root is left out of
+  its materials with a warning.
 
 ```json
 {
@@ -186,7 +196,7 @@ anything else is rejected on read.
   "subAssets": {
     "StaticMesh/Helmet/0": "1f6b2c0d93ae5547",
     "Material/HelmetMat": "c4d8e1a07b2f9036",
-    "Texture/Helmet_albedo.png": "08e3f5b6a1c47d29"
+    "Texture/Helmet_albedo": "08e3f5b6a1c47d29"
   }
 }
 ```
@@ -197,7 +207,7 @@ The sidecar's `id` is the file's main asset (a glTF's `Scene`, a PNG's `Texture`
 rejects a file; it warns.
 - A key is `<Type>/<name>`, plus `/<index>` for parts that are positions inside another part (a glTF
   primitive: `StaticMesh/<mesh name>/<primitive index>`).
-- External images use their URI's file name, which is stable and almost always present.
+- Embedded images use their glTF image name.
 - A duplicate name gets `#<n>` by order of appearance (`Cube`, `Cube#1`), with a warning that
   references follow file order until the parts are renamed. An unnamed part is `#<index>` among its
   type (`Texture/#3`), with the same warning.
@@ -378,8 +388,8 @@ implemented synchronously first; the slot lets hot reload swap contents.
 - **Layout (#137):** `.aegis/cache/imported/<id>/`, one folder per source file named by its asset ID:
   `model.json` (the key, the files the import read besides the source, the node tree, materials,
   images and the blob of each primitive), `mesh-<m>-<p>.mesh` per primitive and `image-<i>.bin` with
-  an embedded image's encoded bytes. External images are decoded from their files on every load
-  until textures are cached (#169); only those that failed to decode are dependencies. The key is
+  an embedded image's encoded bytes. An external image is an asset of its own: the entry keeps its
+  URI, and changing the image reloads the texture, not the model (textures are cached in #169). The key is
   checked on every load, so a changed source, buffer or setting reimports; a reimport writes a new
   folder and moves it into place, so a second process never reads half an entry.
 - **Reimport:** the editor watches the project; a start without the editor checks the keys.
@@ -475,18 +485,6 @@ random ID per new part (changes "Identity").
 - Removed parts that come back keep their ID without a table entry. The cost is renames: a renamed
   part keeps its ID only through an explicit entry (written by the editor's reimport dialog, or by
   hand).
-
-**P2. External images are their own assets.** A glTF (or OBJ) that references an image file by URI
-references that file's `Texture` ID; only images embedded in the model (data URIs, `.glb` buffers)
-are sub-assets (changes "Identity" and the sidecar example).
-- Why: today the same PNG has two IDs, its own sidecar's and `Texture/<uri file name>` in the
-  model's sidecar, so it can be imported twice with conflicting settings. sRGB is the usual
-  conflict: the PNG's sidecar defaults to sRGB, while the glTF material uses it as a normal map.
-  Unity, Unreal and Godot all keep external images as separate assets the model references.
-- The model importer records the usage it implies (color or linear data) and warns when the
-  image's own import settings disagree; the editor offers to fix the image's sidecar. An image used
-  both ways is imported once per setting only on request.
-- Settles what the texture cache (#169) is keyed by, so it lands before #169.
 
 **P3. Cache entries by content, not by asset.** The import cache stores entries under their key,
 `.aegis/cache/imported/<key>/`, and the index maps each asset ID to its current key (changes

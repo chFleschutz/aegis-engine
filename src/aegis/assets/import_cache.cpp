@@ -226,9 +226,8 @@ auto readEntry(const std::filesystem::path& directory) -> std::expected<ModelEnt
     return entry;
 }
 
-// The model an entry holds, with its meshes and images read; any failure makes the entry a miss.
-auto readModel(const ModelEntry& entry, const std::filesystem::path& directory, const std::filesystem::path& sourceDirectory,
-    std::uint64_t key) -> std::expected<ModelData, Error>
+// The model an entry holds, with its meshes and embedded images read; any failure makes the entry a miss.
+auto readModel(const ModelEntry& entry, const std::filesystem::path& directory, std::uint64_t key) -> std::expected<ModelData, Error>
 {
     ModelData model{
         .name = entry.name,
@@ -279,18 +278,18 @@ auto readModel(const ModelEntry& entry, const std::filesystem::path& directory, 
     for (const auto& image : entry.images)
     {
         ModelImage out{ .name = image.name, .uri = image.uri, .srgb = image.srgb };
-        auto decoded = [&]() -> std::expected<ImageData, Error> {
-            if (image.embedded.empty())
-                return decodeImageFile(sourceDirectory / utf8Path(image.uri), PixelFormat::RGBA8);
+        // An external image is an asset of its own, not part of the entry.
+        if (!image.embedded.empty())
+        {
             auto bytes = readBytes(directory / image.embedded);
             if (!bytes)
                 return makeError(ErrorCode::FileNotFound, std::format("Missing image '{}'", image.embedded));
             out.encoded = std::move(*bytes);
-            return decodeImage(out.encoded, image.name, PixelFormat::RGBA8);
-        }();
-        if (!decoded)
-            return std::unexpected{ decoded.error() };
-        out.data = std::move(*decoded);
+            auto decoded = decodeImage(out.encoded, image.name, PixelFormat::RGBA8);
+            if (!decoded)
+                return std::unexpected{ decoded.error() };
+            out.data = std::move(*decoded);
+        }
         model.images.push_back(std::move(out));
     }
 
@@ -493,7 +492,7 @@ auto ImportCache::loadModel(AssetId id, const std::filesystem::path& source, con
         const auto key = keyOf(*sourceBytes, sourceDirectory, entry->dependencies, settings);
         if (entry->key == keyText(key))
         {
-            if (auto model = readModel(*entry, directory, sourceDirectory, key))
+            if (auto model = readModel(*entry, directory, key))
                 return ModelLoad{ .model = std::move(*model), .cached = true };
         }
     }

@@ -242,8 +242,18 @@ TEST_SUITE("assets::ImportCache")
             CHECK(second.model.images[i].srgb == first.model.images[i].srgb);
             CHECK(second.model.images[i].data == first.model.images[i].data);
         }
-        const auto embedded = std::ranges::count_if(second.model.images, [](const auto& image) { return image.uri.empty(); });
-        CHECK(embedded == 1);
+        CHECK(second.model.images[0].uri.empty());
+        CHECK_FALSE(second.model.images[0].data.pixels.empty());
+        CHECK(second.model.images[1].uri == "tex.png");
+        CHECK(second.model.images[1].data.pixels.empty());
+    }
+
+    TEST_CASE("changing an external image does not reimport")
+    {
+        const Fixture fixture;
+        (void)fixture.load();
+        fixture.write("tex.png", "another image");
+        CHECK(fixture.load().cached);
     }
 
     TEST_CASE("changing the model file reimports")

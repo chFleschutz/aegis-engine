@@ -6,6 +6,7 @@ aegis_add_test(assets
         asset_key.test.cpp
         defaults.test.cpp
         error.test.cpp
+        external_images.test.cpp
         gpu_types.test.cpp
         image_data.test.cpp
         import_cache.test.cpp

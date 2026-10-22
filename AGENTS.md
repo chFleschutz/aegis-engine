@@ -141,7 +141,7 @@ and caches them by ID; components store `AssetRef<T>` (`MeshRenderer`, `Sky`). I
 **a `.meta` sidecar with new IDs is written next to every source file that has none**, so a new source shows an
 untracked `.meta` file in the samples: commit it there, scenes reference assets by ID) and the read-only engine
 content folder `content/` (named in code as `assets::engine::white`, ...). A model file's meshes, materials and
-textures get sub-asset IDs, recorded in its sidecar. Missing assets fall back to engine content with one
+embedded textures get sub-asset IDs, recorded in its sidecar; an image file it names by URI is its own texture asset. Missing assets fall back to engine content with one
 warning. Loaded assets are shared: editing one (a material's parameters) changes every user, so code that
 changes one object's material gives it its own first (`assets.copyMaterial(ref)` / `createMaterial`). Sidecars and the index use glaze (`external/glaze`, include it only in `.cpp` files). Design:
 `docs/asset-system.md`.
