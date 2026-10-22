@@ -38,11 +38,11 @@ struct TempRoot
     }
 };
 
-auto sidecarOf(AssetId id, std::initializer_list<std::pair<std::string, AssetId>> parts = {}) -> Sidecar
+auto sidecarOf(AssetId id, std::initializer_list<std::pair<std::string, AssetId>> parts = {}, std::string importer = "model") -> Sidecar
 {
     Sidecar sidecar;
     sidecar.id = id;
-    sidecar.importer = "gltf";
+    sidecar.importer = std::move(importer);
     for (const auto& [key, part] : parts)
         sidecar.subAssets.emplace(key, part);
     return sidecar;
@@ -317,13 +317,171 @@ TEST_SUITE("assets::AssetDatabase")
             std::ifstream in{ indexFile, std::ios::binary };
             index.assign(std::istreambuf_iterator<char>{ in }, std::istreambuf_iterator<char>{});
         }
-        const auto version = index.find("\"version\": 2");
+        const auto version = index.find("\"version\": 3");
         REQUIRE(version != std::string::npos);
-        index.replace(version, 12, "\"version\": 1");
+        index.replace(version, 12, "\"version\": 2");
         root.write(".aegis/index", index);
 
         const auto database = AssetDatabase::scan({ .roots = { { root.path } }, .indexFile = indexFile });
         REQUIRE(database);
         CHECK(database->filesRead() == 1);
+    }
+
+    TEST_CASE("every entry has its asset type, also from the index")
+    {
+        TempRoot root;
+        root.writeSidecarFor("Helmet.gltf",
+            sidecarOf(AssetId{ 1 }, { { "StaticMesh/Body/0", AssetId{ 2 } }, { "Material/Metal", AssetId{ 3 } }, { "Texture/#0", AssetId{ 4 } },
+                                        { "Entity/Body", AssetId{ 5 } } }));
+        root.writeSidecarFor("wood.png", sidecarOf(AssetId{ 6 }, {}, "texture"));
+        root.writeSidecarFor("sky.hdr", sidecarOf(AssetId{ 7 }, {}, "environment"));
+        root.write("level.scene", R"({"type":"Scene","id":"0000000000000008","version":1})");
+        root.write("wood.material", R"({"type":"Material","id":"0000000000000009","version":1})");
+        const auto indexFile = root.path / ".aegis" / "index";
+
+        for (const auto expectedReads : { 5u, 0u })
+        {
+            const auto database = AssetDatabase::scan({ .roots = { { root.path } }, .indexFile = indexFile });
+            REQUIRE(database);
+            CHECK(database->filesRead() == expectedReads);
+            REQUIRE(database->size() == 8);
+            const auto type = [&](std::uint64_t id) { return database->find(AssetId{ id })->type; };
+            CHECK(type(1) == "Scene");
+            CHECK(type(2) == "StaticMesh");
+            CHECK(type(3) == "Material");
+            CHECK(type(4) == "Texture");
+            CHECK(type(6) == "Texture");
+            CHECK(type(7) == "Environment");
+            CHECK(type(8) == "Scene");
+            CHECK(type(9) == "Material");
+        }
+    }
+
+    TEST_CASE("every entry of the engine content has its asset type")
+    {
+        const auto database = AssetDatabase::scan({ .roots = { { std::filesystem::path{ AEGIS_TEST_CONTENT_DIR }, true } } });
+        REQUIRE(database);
+        for (const auto& entry : database->entries())
+            CHECK_MESSAGE(!entry.type.empty(), entry.path, " ", entry.key);
+
+        CHECK(database->find(engine::white)->type == "Texture");
+        CHECK(database->find(engine::cube)->type == "Scene");
+        CHECK(database->find(engine::pbrTemplate)->type == "MaterialTemplate");
+        CHECK(database->find(*database->find(0, "cube.obj", "StaticMesh/cube/0"))->type == "StaticMesh");
+        CHECK(database->find(*database->find(0, "cube.obj", SubAssetKeys::defaultMaterial))->type == "Material");
+    }
+
+    TEST_CASE("a sidecar of an unknown importer fails the scan naming the file")
+    {
+        TempRoot root;
+        root.writeSidecarFor("a.gltf", sidecarOf(AssetId{ 1 }, {}, "gltf"));
+        const auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE_FALSE(database);
+        CHECK(database.error().code == ErrorCode::InvalidData);
+        CHECK(database.error().message.contains("a.gltf.meta"));
+    }
+
+    TEST_CASE("a scene written after the scan is found by ID once added, also by the next scan from the index")
+    {
+        TempRoot root;
+        root.writeSidecarFor("a.gltf", sidecarOf(AssetId{ 1 }));
+        const auto indexFile = root.path / ".aegis" / "index";
+        auto database = AssetDatabase::scan({ .roots = { { root.path } }, .indexFile = indexFile });
+        REQUIRE(database);
+
+        root.write("levels/new.scene", R"({"type":"Scene","id":"0000000000000002","version":1})");
+        CHECK_FALSE(database->find(AssetId{ 2 }));
+        REQUIRE(database->addFile(0, "levels/new.scene"));
+        const auto* entry = database->find(AssetId{ 2 });
+        REQUIRE(entry);
+        CHECK(entry->path == "levels/new.scene");
+        CHECK(entry->type == "Scene");
+        CHECK(database->find(0, "levels/new.scene") == AssetId{ 2 });
+
+        const auto again = AssetDatabase::scan({ .roots = { { root.path } }, .indexFile = indexFile });
+        REQUIRE(again);
+        CHECK(again->filesRead() == 0);
+        CHECK(again->entries() == database->entries());
+    }
+
+    TEST_CASE("adding a rewritten file replaces its entries")
+    {
+        TempRoot root;
+        root.write("a.scene", R"({"type":"Scene","id":"0000000000000001","version":1})");
+        auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE(database);
+
+        root.write("a.scene", R"({"type":"Scene","id":"0000000000000002","version":1})");
+        REQUIRE(database->addFile(0, "a.scene"));
+        CHECK(database->size() == 1);
+        CHECK_FALSE(database->find(AssetId{ 1 }));
+        CHECK(database->find(0, "a.scene") == AssetId{ 2 });
+    }
+
+    TEST_CASE("adding a file whose ID another file has is rejected naming both")
+    {
+        TempRoot root;
+        root.write("a.scene", R"({"type":"Scene","id":"0000000000000001","version":1})");
+        auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE(database);
+
+        root.write("copy.scene", R"({"type":"Scene","id":"0000000000000001","version":1})");
+        const auto added = database->addFile(0, "copy.scene");
+        REQUIRE_FALSE(added);
+        CHECK(added.error().code == ErrorCode::InvalidData);
+        CHECK(added.error().message.contains("a.scene"));
+        CHECK(added.error().message.contains("copy.scene"));
+        CHECK(database->find(AssetId{ 1 })->path == "a.scene");
+    }
+
+    TEST_CASE("adding a file rejects a missing file, a non-asset and a case-only clash")
+    {
+        TempRoot root;
+        root.write("Level.scene", R"({"type":"Scene","id":"0000000000000001","version":1})");
+        root.write("notes.txt", "not an asset");
+        auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE(database);
+
+        const auto failure = [&](std::string_view path) -> std::optional<ErrorCode> {
+            const auto added = database->addFile(0, path);
+            return added ? std::nullopt : std::optional{ added.error().code };
+        };
+        CHECK(failure("missing.scene") == ErrorCode::FileNotFound);
+        CHECK(failure("notes.txt") == ErrorCode::InvalidData);
+        root.write("level.scene", R"({"type":"Scene","id":"0000000000000002","version":1})");
+        CHECK(failure("level.scene") == ErrorCode::InvalidData);
+        CHECK(database->size() == 1);
+    }
+
+    TEST_CASE("adding a foreign file writes its sidecar under createSidecars")
+    {
+        TempRoot root;
+        auto database = AssetDatabase::scan({ .roots = { { root.path } }, .createSidecars = true });
+        REQUIRE(database);
+
+        root.write("wood.png", "source");
+        REQUIRE(database->addFile(0, "wood.png"));
+        CHECK(std::filesystem::exists(root.path / "wood.png.meta"));
+        const auto id = database->find(0, "wood.png");
+        REQUIRE(id);
+        CHECK(database->find(*id)->type == "Texture");
+    }
+
+    TEST_CASE("a rescan finds files changed since the scan and keeps the entries if it fails")
+    {
+        TempRoot root;
+        root.write("a.scene", R"({"type":"Scene","id":"0000000000000001","version":1})");
+        auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE(database);
+
+        root.write("b.scene", R"({"type":"Scene","id":"0000000000000002","version":1})");
+        REQUIRE(database->rescan());
+        CHECK(database->size() == 2);
+        CHECK(database->find(AssetId{ 2 }));
+
+        root.write("broken.scene", "{");
+        CHECK_FALSE(database->rescan());
+        CHECK(database->size() == 2);
+        CHECK(database->roots().size() == 1);
     }
 }

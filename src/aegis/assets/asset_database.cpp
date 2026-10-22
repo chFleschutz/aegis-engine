@@ -28,8 +28,8 @@ struct IndexFileFile
     std::vector<IndexEntryFile> entries;
 };
 
-// Bumped when the shape changes; an index of another version is rebuilt.
-constexpr std::uint32_t indexVersion{ 2 };
+// Bumped when the shape or meaning changes; an index of another version is rebuilt.
+constexpr std::uint32_t indexVersion{ 3 };
 
 struct IndexFile
 {
@@ -133,12 +133,15 @@ auto readEntries(const std::filesystem::path& file, const std::string& relative,
         auto sidecar = parseSidecar(*text);
         if (!sidecar)
             return makeError(sidecar.error().code, std::format("{}: {}", relative, sidecar.error().message));
+        const auto type = typeOfImporter(sidecar->importer);
+        if (type.empty())
+            return makeError(ErrorCode::InvalidData, std::format("{}: unknown importer '{}'", relative, sidecar->importer));
         const auto source = sourceOf(relative);
-        entries.push_back({ sidecar->id, root, source, {}, {}, sidecar->settings });
+        entries.push_back({ sidecar->id, root, source, {}, std::string{ type }, sidecar->settings });
         for (const auto& [key, id] : sidecar->subAssets)
         {
             if (!SubAssetKeys::isEntityKey(key)) // A model's entity IDs, not assets
-                entries.push_back({ id, root, source, key, {}, {} });
+                entries.push_back({ id, root, source, key, std::string{ SubAssetKeys::typeOf(key) }, {} });
         }
     }
     else
@@ -150,6 +153,32 @@ auto readEntries(const std::filesystem::path& file, const std::string& relative,
     }
     return entries;
 }
+
+// Writes a sidecar with a new ID for the foreign file 'source', as the editor does on import.
+auto createSidecar(const std::filesystem::path& source) -> std::expected<std::filesystem::path, Error>
+{
+    const auto meta = sidecarPath(source);
+    const auto importer = importerFor(source);
+    Sidecar sidecar;
+    sidecar.id = AssetId::generate();
+    sidecar.importer = std::string{ importer };
+    if (importer == "texture")
+        sidecar.settings.srgb = true; // Color data is the common case
+    if (std::ofstream out{ meta, std::ios::binary })
+        out << writeSidecar(sidecar);
+    else
+        return makeError(ErrorCode::FileNotFound, std::format("cannot write '{}'", meta.generic_string()));
+    return meta;
+}
+
+// An entry as an error message names it.
+auto nameOf(const AssetEntry& entry) -> std::string
+{
+    return entry.key.empty() ? entry.path : std::format("{} ({})", entry.path, entry.key);
+}
+
+// Orders the indexed files by root and path.
+constexpr auto byRootAndPath = [](const auto& file) { return std::pair<std::size_t, std::string_view>{ file.root, file.path }; };
 
 auto stampOf(const std::filesystem::path& file) -> FileStamp
 {
@@ -219,6 +248,17 @@ auto importerFor(const std::filesystem::path& path) -> std::string_view
     return {};
 }
 
+auto typeOfImporter(std::string_view importer) -> std::string_view
+{
+    if (importer == "model")
+        return "Scene";
+    if (importer == "texture")
+        return "Texture";
+    if (importer == "environment")
+        return "Environment";
+    return {};
+}
+
 auto isNativeFile(const std::filesystem::path& path) -> bool
 {
     const auto extension = path.extension().generic_string();
@@ -228,17 +268,17 @@ auto isNativeFile(const std::filesystem::path& path) -> bool
 auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
 {
     AssetDatabase database;
-    database.m_roots = std::move(desc.roots);
+    database.m_desc = std::move(desc);
+    const auto& roots = database.m_desc.roots;
 
-    const auto cached = loadIndex(desc.indexFile);
+    const auto cached = loadIndex(database.m_desc.indexFile);
     std::map<std::pair<std::uint64_t, std::string>, const IndexFileFile*> cachedFiles;
     for (const auto& file : cached.files)
         cachedFiles.emplace(std::pair{ file.root, file.path }, &file);
 
-    IndexFile index;
-    for (std::size_t root = 0; root < database.m_roots.size(); ++root)
+    for (std::size_t root = 0; root < roots.size(); ++root)
     {
-        const auto& rootPath = database.m_roots[root].path;
+        const auto& rootPath = roots[root].path;
         std::error_code ec;
         if (!std::filesystem::is_directory(rootPath, ec))
             return makeError(ErrorCode::FileNotFound, std::format("asset root '{}' is not a folder", rootPath.generic_string()));
@@ -262,7 +302,7 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
             allPaths.push_back(relative);
             if (isSidecar(it->path()) || isNativeFile(it->path()))
                 files.push_back(it->path());
-            else if (desc.createSidecars && !database.m_roots[root].readOnly && !importerFor(it->path()).empty())
+            else if (database.m_desc.createSidecars && !roots[root].readOnly && !importerFor(it->path()).empty())
                 sources.push_back(it->path());
         }
         if (walkError)
@@ -270,21 +310,13 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
                 std::format("cannot read the asset root '{}': {}", rootPath.generic_string(), walkError.message()));
         for (const auto& source : sources)
         {
-            const auto meta = sidecarPath(source);
-            if (std::filesystem::exists(meta, ec))
+            if (std::filesystem::exists(sidecarPath(source), ec))
                 continue;
-            const auto importer = importerFor(source);
-            Sidecar sidecar;
-            sidecar.id = AssetId::generate();
-            sidecar.importer = std::string{ importer };
-            if (importer == "texture")
-                sidecar.settings.srgb = true; // Color data is the common case
-            if (std::ofstream out{ meta, std::ios::binary })
-                out << writeSidecar(sidecar);
-            else
-                return makeError(ErrorCode::FileNotFound, std::format("cannot write '{}'", meta.generic_string()));
-            allPaths.push_back(meta.lexically_relative(rootPath).generic_string());
-            files.push_back(meta);
+            auto meta = createSidecar(source);
+            if (!meta)
+                return std::unexpected{ std::move(meta.error()) };
+            allPaths.push_back(meta->lexically_relative(rootPath).generic_string());
+            files.push_back(std::move(*meta));
         }
         if (const auto clash = detail::findCaseClash(allPaths))
             return makeError(ErrorCode::InvalidData,
@@ -309,17 +341,16 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
                 ++database.m_filesRead;
             }
 
-            IndexFileFile record{ root, relative, stamp.modified, stamp.size, {}, {} };
+            IndexedFile record{ root, relative, stamp.modified, stamp.size, {} };
             for (auto& entry : *entries)
             {
-                if (entry.key.empty())
-                    record.settings = entry.settings;
-                record.entries.push_back({ entry.id.toString(), entry.key, entry.type });
+                record.entries.push_back(entry.id);
                 database.m_entries.push_back(std::move(entry));
             }
-            index.files.push_back(std::move(record));
+            database.m_files.push_back(std::move(record));
         }
     }
+    std::ranges::sort(database.m_files, {}, byRootAndPath);
 
     std::ranges::sort(database.m_entries, {}, &AssetEntry::id);
     for (std::size_t i = 1; i < database.m_entries.size(); ++i)
@@ -327,24 +358,121 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
         const auto& a = database.m_entries[i - 1];
         const auto& b = database.m_entries[i];
         if (a.id == b.id)
-        {
-            const auto name = [](const AssetEntry& e) { return e.key.empty() ? e.path : std::format("{} ({})", e.path, e.key); };
-            return makeError(ErrorCode::InvalidData, std::format("ID {} is used by both '{}' and '{}'", a.id, name(a), name(b)));
-        }
+            return makeError(ErrorCode::InvalidData, std::format("ID {} is used by both '{}' and '{}'", a.id, nameOf(a), nameOf(b)));
     }
 
-    if (!desc.indexFile.empty())
-    {
-        std::string json;
-        (void)glz::write<writeOptions>(index, json);
-        std::error_code ec;
-        std::filesystem::create_directories(desc.indexFile.parent_path(), ec);
-        if (std::ofstream out{ desc.indexFile, std::ios::binary })
-            out << json;
-        else
-            log::warn("Cannot write the asset index '{}'", desc.indexFile.generic_string());
-    }
+    database.writeIndex();
     return database;
+}
+
+auto AssetDatabase::rescan() -> std::expected<void, Error>
+{
+    auto scanned = scan(m_desc);
+    if (!scanned)
+        return std::unexpected{ std::move(scanned.error()) };
+    *this = std::move(*scanned);
+    return {};
+}
+
+auto AssetDatabase::addFile(std::size_t root, std::string_view path) -> std::expected<void, Error>
+{
+    if (root >= m_desc.roots.size())
+        return makeError(ErrorCode::InvalidArgument, std::format("there is no asset root {}", root));
+    const auto& [rootPath, readOnly] = m_desc.roots[root];
+    const std::string source{ path };
+    const auto native = isNativeFile(source);
+    if (!native && importerFor(source).empty())
+        return makeError(ErrorCode::InvalidData, std::format("'{}' is no asset file", source));
+
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(rootPath / source, ec))
+        return makeError(ErrorCode::FileNotFound, std::format("'{}' does not exist", source));
+    const auto relative = native ? source : source + std::string{ sidecarExtension };
+    const auto file = rootPath / relative;
+    if (!native && m_desc.createSidecars && !readOnly && !std::filesystem::exists(file, ec))
+    {
+        if (auto meta = createSidecar(rootPath / source); !meta)
+            return std::unexpected{ std::move(meta.error()) };
+    }
+
+    std::vector<std::string> paths{ source };
+    for (const auto& entry : m_entries)
+    {
+        if (entry.root == root)
+            paths.push_back(entry.path);
+    }
+    if (const auto clash = detail::findCaseClash(paths))
+        return makeError(ErrorCode::InvalidData,
+            std::format("'{}' and '{}' differ only in case; paths are case-sensitive", clash->first, clash->second));
+
+    auto entries = readEntries(file, relative, root);
+    if (!entries)
+        return std::unexpected{ std::move(entries.error()) };
+
+    // The file's earlier entries are replaced, so only an ID of another file clashes.
+    const auto isOwn = [&](const AssetEntry& entry) { return entry.root == root && entry.path == source; };
+    std::ranges::sort(*entries, {}, &AssetEntry::id);
+    for (std::size_t i = 0; i < entries->size(); ++i)
+    {
+        const auto& entry = (*entries)[i];
+        const auto* other = find(entry.id);
+        if (other && isOwn(*other))
+            other = nullptr;
+        if (i > 0 && (*entries)[i - 1].id == entry.id)
+            other = &(*entries)[i - 1];
+        if (other)
+            return makeError(ErrorCode::InvalidData,
+                std::format("ID {} of '{}' is already used by '{}'", entry.id, nameOf(entry), nameOf(*other)));
+    }
+
+    std::erase_if(m_entries, isOwn);
+    const auto stamp = stampOf(file);
+    IndexedFile record{ root, relative, stamp.modified, stamp.size, {} };
+    for (auto& entry : *entries)
+    {
+        record.entries.push_back(entry.id);
+        m_entries.insert(std::ranges::lower_bound(m_entries, entry.id, {}, &AssetEntry::id), std::move(entry));
+    }
+    const std::pair<std::size_t, std::string_view> key{ root, relative };
+    if (const auto it = std::ranges::lower_bound(m_files, key, {}, byRootAndPath); it != m_files.end() && byRootAndPath(*it) == key)
+        *it = std::move(record);
+    else
+        m_files.insert(it, std::move(record));
+
+    writeIndex();
+    return {};
+}
+
+auto AssetDatabase::writeIndex() const -> void
+{
+    const auto& indexFile = m_desc.indexFile;
+    if (indexFile.empty())
+        return;
+
+    IndexFile index;
+    for (const auto& file : m_files)
+    {
+        IndexFileFile record{ file.root, file.path, file.modified, file.size, {}, {} };
+        for (const auto id : file.entries)
+        {
+            const auto* entry = find(id);
+            if (!entry)
+                continue;
+            if (entry->key.empty())
+                record.settings = entry->settings;
+            record.entries.push_back({ id.toString(), entry->key, entry->type });
+        }
+        index.files.push_back(std::move(record));
+    }
+
+    std::string json;
+    (void)glz::write<writeOptions>(index, json);
+    std::error_code ec;
+    std::filesystem::create_directories(indexFile.parent_path(), ec);
+    if (std::ofstream out{ indexFile, std::ios::binary })
+        out << json;
+    else
+        log::warn("Cannot write the asset index '{}'", indexFile.generic_string());
 }
 
 auto AssetDatabase::find(AssetId id) const -> const AssetEntry*
@@ -383,6 +511,6 @@ auto AssetDatabase::addSubAssets(std::size_t root, std::string_view path, std::s
 
 auto AssetDatabase::absolutePath(const AssetEntry& entry) const -> std::filesystem::path
 {
-    return m_roots[entry.root].path / entry.path;
+    return m_desc.roots[entry.root].path / entry.path;
 }
 }

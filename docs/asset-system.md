@@ -153,7 +153,9 @@ rejects a file; it warns.
 - *Development:* the database scans `assets/` and the engine content, reading sidecars and native
   headers into `ID → path (+ key)`. It keeps the index in `.aegis/index` with each file's
   modification time and size, so a later start rereads only changed files; the editor's file watcher
-  updates it on moves and renames, which leave every reference intact.
+  updates it on moves and renames, which leave every reference intact. Until the watcher, the editor
+  adds a file it wrote (`AssetDatabase::addFile`) and rescans on request (`rescan`). Every entry
+  carries its asset type: from the sidecar's importer, the sub-asset key prefix or the native header.
 - *Shipping:* the cook writes a sorted ID table into the pak; no scan, no paths. Godot
   (`uid_cache.bin`), Unity (`Library/`) and Unreal (`AssetRegistry.bin`) do the same.
 - The index (where every asset is) is separate from the library's cache (assets now loaded). An
