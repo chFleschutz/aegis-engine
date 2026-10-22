@@ -82,6 +82,14 @@ TEST_SUITE("assets::SubAssetKeys")
         CHECK_FALSE(SubAssetKeys::isEntityKey(SubAssetKeys::defaultMaterial));
     }
 
+    TEST_CASE("a key's prefix is its asset type")
+    {
+        CHECK(SubAssetKeys::typeOf("StaticMesh/Cube/0") == "StaticMesh");
+        CHECK(SubAssetKeys::typeOf(SubAssetKeys::defaultMaterial) == "Material");
+        CHECK(SubAssetKeys::typeOf("Texture/#3") == "Texture");
+        CHECK(SubAssetKeys::typeOf("Texture/a\\/b") == "Texture");
+    }
+
     TEST_CASE("no node name produces the root entity key")
     {
         SubAssetKeys keys;
