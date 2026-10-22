@@ -1,6 +1,5 @@
 add_subdirectory(eval-scene)
 add_subdirectory(examples)
-add_subdirectory(helmets)
 add_subdirectory(template)
 
 # Every example renders headless for a fixed number of frames as a `device` test (`ctest -LE device` skips
@@ -9,7 +8,7 @@ add_subdirectory(template)
 # nothing from the pixels, and on lavapipe (CI) the run time grows with them. They load compiled
 # shaders, so they exist only when those are built.
 if(AEGIS_BUILD_TESTS AND TARGET compile_shaders)
-    foreach(example IN ITEMS Eval-Scene Helmets)
+    foreach(example IN ITEMS Eval-Scene)
         string(TOLOWER ${example} lowered)
         add_test(NAME example-${lowered} COMMAND ${example} --headless --frames 120 --width 640 --height 360)
         set_tests_properties(example-${lowered} PROPERTIES LABELS "device;example" RESOURCE_LOCK gpu TIMEOUT 300)

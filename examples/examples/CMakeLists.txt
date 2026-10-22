@@ -4,5 +4,5 @@
 aegis_add_game(Examples
     SOURCES game.cpp
     PROJECT ${PROJECT_SOURCE_DIR}/modules/aegis-assets
-    SCENES Scenes/simple.scene Scenes/sponza.scene
+    SCENES Scenes/simple.scene Scenes/sponza.scene Scenes/helmets.scene
 )
