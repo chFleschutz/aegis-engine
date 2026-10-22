@@ -28,9 +28,6 @@ it). Most cases are short, so more jobs gain little: the unit tests take about 2
 and about 6 s serially. The device tests share a `gpu` resource lock, so they never overlap each other
 within one run.
 
-Currently 117 cases across `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`, `aegis-tests-render_passes`,
-`aegis-tests-math` and `aegis-tests-world`, plus three `device`-labelled `aegis-test` runs (triangle, CPU- and GPU-driven scene).
-
 ### Device-level check
 
 Unit tests are not sufficient when a change touches live device code:

@@ -172,9 +172,8 @@ types, except `render_graph/passes/ui_pass.cpp`, which imports it for the ImGui 
 
 **Known deviations (current state):** the `Error` types differ per module (rhi struct `{code}`,
 `renderer` enum, `render_graph` `{message, rhi?}`, `assets` struct) and `platform::Window` asserts
-instead of returning one; `render_graph` imports `aegis.world` and holds `Scene&`; 
-components, `Profiler` and `Engine` sit directly in
-`aegis`; `Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
+instead of returning one; components, `Profiler` and `Engine` sit directly in `aegis`;
+`Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
 
 **Foundation (`aegis.base`, `src/aegis/base/`):** logging, flag enums, alignment, `match` and the
 profiler; any module may import it (renamed `aegis.core` once the legacy core is gone).
