@@ -427,7 +427,7 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
     auto builder = world::registerComponent<SceneInstance>(types, "SceneInstance");
     if (!builder)
         return std::unexpected{ builder.error() };
-    builder->field("scene", &SceneInstance::scene);
+    builder->displayName("Scene Instance").category("Scene").field("scene", &SceneInstance::scene);
     return builder->status();
 }
 

@@ -71,6 +71,44 @@ TEST_SUITE("world::registerComponents")
         CHECK(types.find<aegis::Camera>()->findField("aspect") == nullptr);
     }
 
+    TEST_CASE("gives the built-in types and their fields editor metadata")
+    {
+        using aegis::reflect::FieldWidget;
+        TypeRegistry types;
+        REQUIRE(aegis::world::registerComponents(types).has_value());
+
+        const auto* transform = types.find<aegis::Transform>();
+        CHECK(transform->meta.required);
+        const auto* light = types.find<aegis::PointLight>();
+        CHECK_FALSE(light->meta.required);
+        CHECK(light->displayName() == "Point Light");
+        CHECK(light->meta.category == "Lighting");
+        CHECK(light->findField("color")->meta.widget == FieldWidget::Color);
+        CHECK(light->findField("intensity")->meta.min == 0.0);
+
+        const auto& fov = types.find<aegis::Camera>()->findField("fov")->meta;
+        CHECK(fov.widget == FieldWidget::Angle);
+        REQUIRE(fov.min.has_value());
+        REQUIRE(fov.max.has_value());
+        CHECK(*fov.min > 0.0);
+        CHECK(*fov.max < std::numbers::pi); // Radians, like the field
+        const auto& ambient = types.find<aegis::AmbientLight>()->findField("intensity")->meta;
+        CHECK(ambient.widget == FieldWidget::Slider);
+
+        const auto* renderer = types.find<aegis::MeshRenderer>();
+        CHECK(renderer->findField("mesh")->assetType == "StaticMesh");
+        CHECK(renderer->findField("material")->assetType == "Material");
+        CHECK(types.find<aegis::Sky>()->findField("environment")->assetType == "Environment");
+    }
+
+    TEST_CASE("marks a game's component required when its ComponentTraits say so")
+    {
+        TypeRegistry types;
+        REQUIRE(aegis::world::registerComponent<Health>(types, "Health").has_value());
+        CHECK_FALSE(types.find<Health>()->meta.required);
+        CHECK(types.find<Health>()->displayName() == "Health");
+    }
+
     TEST_CASE("fails when a built-in name is taken")
     {
         TypeRegistry types;
@@ -163,6 +201,90 @@ TEST_SUITE("world::ComponentStorage")
         CHECK(registry.has<aegis::DynamicTag>(entity));
         CHECK(storage.find(registry, entity) != nullptr);
         storage.add(registry, entity, tag->get()); // Already there
+    }
+
+    TEST_CASE("removes a component the entity has")
+    {
+        TypeRegistry types;
+        REQUIRE(aegis::world::registerComponents(types).has_value());
+        Registry registry;
+        auto entity = registry.create();
+        registry.add<aegis::PointLight>(entity);
+        registry.add<aegis::DynamicTag>(entity);
+
+        CHECK(storageOf(types, "PointLight").remove(registry, entity));
+        CHECK_FALSE(registry.has<aegis::PointLight>(entity));
+        CHECK(storageOf(types, "DynamicTag").remove(registry, entity));
+        CHECK_FALSE(registry.has<aegis::DynamicTag>(entity));
+        CHECK_FALSE(storageOf(types, "PointLight").remove(registry, entity)); // Already gone
+    }
+
+    TEST_CASE("does not remove a required component")
+    {
+        TypeRegistry types;
+        REQUIRE(aegis::world::registerComponents(types).has_value());
+        Registry registry;
+        auto entity = registry.create();
+
+        CHECK_FALSE(storageOf(types, "Transform").remove(registry, entity));
+        CHECK(registry.has<aegis::Transform>(entity));
+    }
+
+    TEST_CASE("a changed Transform marks a static entity static-dirty")
+    {
+        TypeRegistry types;
+        REQUIRE(aegis::world::registerComponents(types).has_value());
+        Registry registry;
+        auto entity = registry.create();
+        const auto& storage = storageOf(types, "Transform");
+
+        const auto before = registry.staticVersion();
+        static_cast<aegis::Transform*>(storage.find(registry, entity))->location.x = 3.0f;
+        storage.changed(registry, entity);
+        CHECK(registry.has<aegis::StaticDirtyTag>(entity));
+        CHECK(registry.staticVersion() > before);
+    }
+
+    TEST_CASE("a changed Transform leaves a dynamic entity alone")
+    {
+        TypeRegistry types;
+        REQUIRE(aegis::world::registerComponents(types).has_value());
+        Registry registry;
+        auto entity = registry.create();
+        registry.add<aegis::DynamicTag>(entity);
+
+        const auto before = registry.staticVersion();
+        storageOf(types, "Transform").changed(registry, entity);
+        CHECK_FALSE(registry.has<aegis::StaticDirtyTag>(entity));
+        CHECK(registry.staticVersion() == before);
+    }
+
+    TEST_CASE("a changed MeshRenderer invalidates the static set")
+    {
+        TypeRegistry types;
+        REQUIRE(aegis::world::registerComponents(types).has_value());
+        Registry registry;
+        auto entity = registry.create();
+        registry.add<aegis::MeshRenderer>(entity);
+
+        const auto before = registry.staticVersion();
+        storageOf(types, "MeshRenderer").changed(registry, entity);
+        CHECK(registry.staticVersion() > before);
+        CHECK_FALSE(registry.has<aegis::StaticDirtyTag>(entity));
+    }
+
+    TEST_CASE("a changed component of another type changes nothing")
+    {
+        TypeRegistry types;
+        REQUIRE(aegis::world::registerComponents(types).has_value());
+        Registry registry;
+        auto entity = registry.create();
+        registry.add<aegis::PointLight>(entity);
+
+        const auto before = registry.staticVersion();
+        storageOf(types, "PointLight").changed(registry, entity);
+        CHECK(registry.staticVersion() == before);
+        CHECK_FALSE(registry.has<aegis::StaticDirtyTag>(entity));
     }
 
     TEST_CASE("serves a game's component registered the same way")
