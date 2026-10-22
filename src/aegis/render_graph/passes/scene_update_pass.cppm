@@ -1,11 +1,7 @@
-export module aegis.render_graph:scene_update_pass;
+export module aegis.render_passes:scene_update_pass;
 import std;
-import :frame_scene;
 import :gpu_types;
-import :render_pass;
-import :resource;
-import :declarations;
-import :resource_pool;
+import aegis.render_graph;
 
 export namespace aegis::render_graph
 {

@@ -97,7 +97,7 @@ TEST_SUITE("render_bridge::extractFrameScene")
         aegis::world::World world;
         const InstanceStore instances;
         auto& registry = world.registry();
-        const auto count = aegis::render_graph::maxPointLights + 10;
+        const std::uint32_t count{ 138 }; // More than the lighting pass shades (render_graph::maxPointLights, 128)
         for (std::uint32_t i = 0; i < count; ++i)
         {
             const auto light = registry.create("Light");

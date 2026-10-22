@@ -3,7 +3,7 @@
 #include <cstddef>
 
 import std;
-import aegis.render_graph;
+import aegis.render_passes;
 import aegis.rhi;
 import aegis.math;
 

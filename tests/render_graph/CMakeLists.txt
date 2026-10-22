@@ -11,7 +11,7 @@ aegis_add_test(render_graph
         resource_usage.test.cpp
         schedule.test.cpp
         texture_extent.test.cpp
-    LIBS aegis-render-graph
+    LIBS aegis-render-graph aegis-render-passes
 )
 
 # The checked-in plans of the default graphs (see default_graph.test.cpp).

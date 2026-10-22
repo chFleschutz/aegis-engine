@@ -3,6 +3,7 @@ module aegis.test;
 import std;
 import aegis.paths;
 import aegis.render_graph;
+import aegis.render_passes;
 import aegis.rhi;
 
 namespace aegis

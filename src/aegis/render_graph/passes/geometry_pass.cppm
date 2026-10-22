@@ -1,12 +1,8 @@
-export module aegis.render_graph:geometry_pass;
+export module aegis.render_passes:geometry_pass;
 import std;
-import :declarations;
-import :error;
 import :names;
-import :render_pass;
 import :render_system;
-import :resource;
-import :resource_pool;
+import aegis.render_graph;
 import aegis.rhi;
 
 export namespace aegis::render_graph

@@ -97,7 +97,7 @@ signal — validation errors only go to stderr. Verify RHI work with `aegis-test
 "Verifying device code").
 
 ### Shaders
-Shaders compile on every build of `aegis-engine` or `aegis-render-graph` (the `compile_shaders`
+Shaders compile on every build of `aegis-engine` or `aegis-render-passes` (the `compile_shaders`
 target they depend on) while `COMPILE_SHADERS` is ON, the default, with `slangc` from the same
 Vulkan SDK as the headers (falling back to `$VULKAN_SDK/bin`) through `aegis_add_shaders`
 (`cmake/AegisShaders.cmake`), which `shaders/` and the `aegis-test` shader both use, so one flag set

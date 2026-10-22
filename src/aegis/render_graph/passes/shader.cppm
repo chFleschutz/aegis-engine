@@ -1,6 +1,6 @@
-export module aegis.render_graph:shader;
+export module aegis.render_passes:shader;
 import std;
-import :error;
+import aegis.render_graph;
 import aegis.rhi;
 
 export namespace aegis::render_graph

@@ -1,6 +1,6 @@
-export module aegis.render_graph:default_graph;
+export module aegis.render_passes:default_graph;
 import std;
-import :graph_builder;
+import aegis.render_graph;
 import aegis.rhi;
 
 export namespace aegis::render_graph

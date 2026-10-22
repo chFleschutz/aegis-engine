@@ -1,9 +1,9 @@
 module;
 #include "aegis/base/flags.h"
 
-export module aegis.render_graph:gpu_types;
+export module aegis.render_passes:gpu_types;
 import std;
-import :frustum;
+import aegis.render_graph;
 import aegis.rhi;
 import aegis.math;
 
@@ -258,13 +258,6 @@ struct GpuTransform
     glm::vec3 normalRow2;
     InstanceFlags flags{ InstanceFlags::None };
 };
-
-/// @brief The top three rows of 'model', each with its translation in .w: how shaders, and InstanceStore,
-///        hold a model matrix.
-[[nodiscard]] inline auto toModelRows(const glm::mat4& model) -> glm::mat3x4
-{
-    return glm::mat3x4{ glm::rowMajor4(model) };
-}
 
 /// @brief The GpuTransform of a model matrix given by its top three rows (toModelRows). The normal matrix is
 ///        the inverse transpose of the upper 3x3; its rows are the columns of the inverse, which is how glm

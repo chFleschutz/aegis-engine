@@ -29,6 +29,7 @@ target_link_libraries(aegis-test
         aegis-reflect
         aegis-render-bridge
         aegis-render-graph
+        aegis-render-passes
         aegis-renderer
         aegis-rhi
         aegis-world

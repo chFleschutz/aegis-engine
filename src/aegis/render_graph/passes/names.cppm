@@ -1,4 +1,4 @@
-export module aegis.render_graph:names;
+export module aegis.render_passes:names;
 import std;
 
 /// The names of the graph resources more than one pass declares: one pass creates the resource, the others

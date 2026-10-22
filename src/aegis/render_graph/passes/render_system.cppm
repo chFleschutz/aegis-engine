@@ -1,7 +1,6 @@
-export module aegis.render_graph:render_system;
+export module aegis.render_passes:render_system;
 import std;
-import :error;
-import :frame_scene;
+import aegis.render_graph;
 import aegis.rhi;
 
 export namespace aegis::render_graph

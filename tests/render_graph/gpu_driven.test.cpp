@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.render_graph;
+import aegis.render_passes;
 
 TEST_SUITE("render_graph::detail::grownCapacity")
 {

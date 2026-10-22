@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.render_graph;
+import aegis.render_passes;
 
 // The default graphs are declared and planned with no device, then compared with a checked-in plan
 // (tests/render_graph/snapshots). A change to a pass's declarations, the order of the passes or a barrier
