@@ -71,16 +71,16 @@ TEST_SUITE("world::Registry")
         const auto second = registry.create("second");
         const auto third = registry.create("third");
 
-        registry.setParent(first, parent);
-        registry.addChild(parent, second);
-        registry.setParent(third, parent);
+        REQUIRE(registry.setParent(first, parent));
+        REQUIRE(registry.addChild(parent, second));
+        REQUIRE(registry.setParent(third, parent));
 
         checkChildren(registry, parent, { first, second, third });
         checkDetached(registry, parent);
 
         SUBCASE("ignores setting the current parent again")
         {
-            registry.setParent(second, parent);
+            REQUIRE(registry.setParent(second, parent));
             checkChildren(registry, parent, { first, second, third });
         }
     }
@@ -91,8 +91,8 @@ TEST_SUITE("world::Registry")
         const auto parent = registry.create("parent");
         const auto first = registry.create("first");
         const auto second = registry.create("second");
-        registry.setParent(first, parent);
-        registry.setParent(second, parent);
+        REQUIRE(registry.setParent(first, parent));
+        REQUIRE(registry.setParent(second, parent));
 
         registry.destroy(parent);
 
@@ -108,7 +108,7 @@ TEST_SUITE("world::Registry")
         const std::vector children{ registry.create("first"), registry.create("middle"), registry.create("last") };
         for (auto child : children)
         {
-            registry.setParent(child, parent);
+            REQUIRE(registry.setParent(child, parent));
         }
 
         auto removeAndCheck = [&](std::size_t index) {
@@ -116,12 +116,12 @@ TEST_SUITE("world::Registry")
             auto remaining = children;
             remaining.erase(remaining.begin() + static_cast<std::ptrdiff_t>(index));
 
-            registry.removeParent(removed);
+            REQUIRE(registry.removeParent(removed));
             checkChildren(registry, parent, remaining);
             checkDetached(registry, removed);
 
             // The removed child carries no stale sibling into its next parent's list.
-            registry.setParent(removed, other);
+            REQUIRE(registry.setParent(removed, other));
             checkChildren(registry, other, { removed });
             checkChildren(registry, parent, remaining);
         };
@@ -151,9 +151,9 @@ TEST_SUITE("world::Registry")
 
         SUBCASE("an only child")
         {
-            registry.setParent(child, oldParent);
+            REQUIRE(registry.setParent(child, oldParent));
             CHECK(registry.setParent(child, newParent));
-            registry.setParent(newSibling, newParent);
+            REQUIRE(registry.setParent(newSibling, newParent));
 
             checkChildren(registry, oldParent, {});
             checkChildren(registry, newParent, { child, newSibling });
@@ -162,10 +162,10 @@ TEST_SUITE("world::Registry")
         SUBCASE("a child between siblings")
         {
             const auto lastSibling = registry.create("last sibling");
-            registry.setParent(oldSibling, oldParent);
-            registry.setParent(child, oldParent);
-            registry.setParent(lastSibling, oldParent);
-            registry.setParent(newSibling, newParent);
+            REQUIRE(registry.setParent(oldSibling, oldParent));
+            REQUIRE(registry.setParent(child, oldParent));
+            REQUIRE(registry.setParent(lastSibling, oldParent));
+            REQUIRE(registry.setParent(newSibling, newParent));
 
             CHECK(registry.addChild(newParent, child));
 
@@ -175,10 +175,10 @@ TEST_SUITE("world::Registry")
 
         SUBCASE("then the old parent is destroyed")
         {
-            registry.setParent(child, oldParent);
-            registry.setParent(oldSibling, oldParent);
-            registry.setParent(child, newParent);
-            registry.setParent(newSibling, newParent);
+            REQUIRE(registry.setParent(child, oldParent));
+            REQUIRE(registry.setParent(oldSibling, oldParent));
+            REQUIRE(registry.setParent(child, newParent));
+            REQUIRE(registry.setParent(newSibling, newParent));
 
             registry.destroy(oldParent);
 
@@ -193,8 +193,8 @@ TEST_SUITE("world::Registry")
         const auto root = registry.create("root");
         const auto child = registry.create("child");
         const auto grandchild = registry.create("grandchild");
-        registry.setParent(child, root);
-        registry.setParent(grandchild, child);
+        REQUIRE(registry.setParent(child, root));
+        REQUIRE(registry.setParent(grandchild, child));
 
         SUBCASE("itself")
         {
@@ -223,6 +223,121 @@ TEST_SUITE("world::Registry")
             checkChildren(registry, root, { child, grandchild });
             checkChildren(registry, child, {});
         }
+    }
+
+    TEST_CASE("inserts a child at an index among its siblings")
+    {
+        Registry registry;
+        const auto parent = registry.create("parent");
+        const auto first = registry.create("first");
+        const auto second = registry.create("second");
+        const auto inserted = registry.create("inserted");
+        REQUIRE(registry.setParent(first, parent));
+        REQUIRE(registry.setParent(second, parent));
+
+        SUBCASE("at the front")
+        {
+            CHECK(registry.insertChild(parent, inserted, 0));
+            checkChildren(registry, parent, { inserted, first, second });
+        }
+        SUBCASE("in the middle")
+        {
+            CHECK(registry.insertChild(parent, inserted, 1));
+            checkChildren(registry, parent, { first, inserted, second });
+        }
+        SUBCASE("at the end")
+        {
+            CHECK(registry.insertChild(parent, inserted, 2));
+            checkChildren(registry, parent, { first, second, inserted });
+        }
+        SUBCASE("past the end")
+        {
+            CHECK(registry.insertChild(parent, inserted, 99));
+            checkChildren(registry, parent, { first, second, inserted });
+        }
+        SUBCASE("into a parent without children")
+        {
+            CHECK(registry.insertChild(inserted, first, 0));
+            checkChildren(registry, inserted, { first });
+            checkChildren(registry, parent, { second });
+        }
+        SUBCASE("moving it from another parent")
+        {
+            const auto other = registry.create("other");
+            REQUIRE(registry.setParent(inserted, other));
+            CHECK(registry.insertChild(parent, inserted, 1));
+            checkChildren(registry, parent, { first, inserted, second });
+            checkChildren(registry, other, {});
+        }
+    }
+
+    TEST_CASE("moves a child within its own parent")
+    {
+        Registry registry;
+        const auto parent = registry.create("parent");
+        const auto a = registry.create("a");
+        const auto b = registry.create("b");
+        const auto c = registry.create("c");
+        REQUIRE(registry.setParent(a, parent));
+        REQUIRE(registry.setParent(b, parent));
+        REQUIRE(registry.setParent(c, parent));
+
+        SUBCASE("to the front")
+        {
+            CHECK(registry.insertChild(parent, c, 0));
+            checkChildren(registry, parent, { c, a, b });
+        }
+        SUBCASE("to the end")
+        {
+            CHECK(registry.insertChild(parent, a, 2));
+            checkChildren(registry, parent, { b, c, a });
+        }
+        SUBCASE("to where it is")
+        {
+            CHECK(registry.insertChild(parent, b, 1));
+            checkChildren(registry, parent, { a, b, c });
+        }
+    }
+
+    TEST_CASE("rejects inserting an ancestor below its descendant")
+    {
+        Registry registry;
+        const auto root = registry.create("root");
+        const auto child = registry.create("child");
+        const auto grandchild = registry.create("grandchild");
+        REQUIRE(registry.setParent(child, root));
+        REQUIRE(registry.setParent(grandchild, child));
+
+        auto result = registry.insertChild(grandchild, root, 0);
+        REQUIRE_FALSE(result);
+        CHECK(result.error() == aegis::world::HierarchyError::Cycle);
+        CHECK_FALSE(registry.insertChild(child, child, 0));
+        checkDetached(registry, root);
+        checkChildren(registry, root, { child });
+        checkChildren(registry, child, { grandchild });
+    }
+
+    TEST_CASE("returns an error for a null or destroyed entity and for a missing child")
+    {
+        Registry registry;
+        const auto parent = registry.create("parent");
+        const auto child = registry.create("child");
+        const auto stranger = registry.create("stranger");
+        const auto destroyed = registry.create("destroyed");
+        registry.destroy(destroyed);
+        REQUIRE(registry.setParent(child, parent));
+        using aegis::world::HierarchyError;
+
+        CHECK(registry.insertChild(Entity{}, child, 0).error() == HierarchyError::InvalidEntity);
+        CHECK(registry.insertChild(parent, Entity{}, 0).error() == HierarchyError::InvalidEntity);
+        CHECK(registry.addChild(parent, destroyed).error() == HierarchyError::InvalidEntity);
+        CHECK(registry.setParent(child, Entity{}).error() == HierarchyError::InvalidEntity);
+        CHECK(registry.removeParent(Entity{}).error() == HierarchyError::InvalidEntity);
+        CHECK(registry.removeChild(parent, Entity{}).error() == HierarchyError::InvalidEntity);
+        CHECK(registry.removeChild(Entity{}, child).error() == HierarchyError::InvalidEntity);
+        CHECK(registry.removeChildren(destroyed).error() == HierarchyError::InvalidEntity);
+        CHECK(registry.removeChild(parent, stranger).error() == HierarchyError::NotChild);
+        checkChildren(registry, parent, { child });
     }
 
     TEST_CASE("does not count destroyed entities")

@@ -103,10 +103,10 @@ auto buildWorld(Registry& registry, const TypeRegistry& types) -> void
     const Entity bulb = registry.createWithId(bulbId, "Bulb");
     registry.add<aegis::DynamicTag>(bulb);
     const Entity crate = registry.createWithId(crateId, "Crate");
-    registry.addChild(root, lamp);
-    registry.addChild(root, floor);
-    registry.addChild(lamp, bulb);
-    registry.addChild(lamp, crate);
+    REQUIRE(registry.addChild(root, lamp));
+    REQUIRE(registry.addChild(root, floor));
+    REQUIRE(registry.addChild(lamp, bulb));
+    REQUIRE(registry.addChild(lamp, crate));
 
     auto spinner = aegis::scripting::attachScript(registry, types, bulb, "Spinner");
     REQUIRE(spinner.has_value());
