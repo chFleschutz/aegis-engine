@@ -24,6 +24,7 @@ struct SceneResult
 {
     std::vector<std::string> errors;
     rhi::Extent2D view{ viewExtent }; // --view: the view's size in the last frame
+    std::uint32_t viewShown{ 0 };     // --view: frames whose UI showed the view (Presentation::uiTexture)
 };
 
 // The test's side of the app: edits the loaded scene at the safe point (--mirror, --mutate-scene), renders it
@@ -67,6 +68,8 @@ public:
         }
 
         buildUi(frame.frameGraph);
+        if (m_options.view)
+            showView(frame);
         if (m_options.frames != 0 && m_frame + 1 == m_options.frames)
             verifyTimings(frame.frameGraph);
         ++m_frame;
@@ -140,6 +143,23 @@ private:
         for (const auto& timing : frameGraph.timings())
             ImGui::Text("%-20s %.3f ms", timing.name.c_str(), timing.gpuMs);
         ImGui::End();
+    }
+
+    // --view: the view in a window of the UI, as an editor's viewport shows it, across the halfway resize.
+    void showView(FrameContext& frame)
+    {
+        const auto final = frame.frameGraph.declarations().find(render_graph::names::finalImage);
+        if (!frame.viewExtent || !final)
+            return;
+        const auto texture = frame.presentation.uiTexture(frame.frameGraph.pool().texture(*final).view);
+        if (texture == 0)
+            return;
+        const auto extent = *frame.viewExtent;
+        ImGui::SetNextWindowPos(ImVec2{ static_cast<float>(sceneExtent.x) / 2.0f, 10.0f });
+        ImGui::Begin("View", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Image(ImTextureRef{ texture }, ImVec2{ static_cast<float>(extent.x) / 2.0f, static_cast<float>(extent.y) / 2.0f });
+        ImGui::End();
+        ++m_result.viewShown;
     }
 
     // The frame graph's own per-pass timestamps: one entry per pass, read back once complete.
@@ -332,6 +352,17 @@ auto runScene(const Options& options) -> int
     {
         std::println("{}", error);
         exitCode = exitFailure;
+    }
+    // The graph follows the view from the first frame on, so the UI can show it in every frame.
+    if (options.view && options.frames != 0)
+    {
+        if (result.viewShown != options.frames)
+        {
+            std::println("UI texture check failed: the UI showed the view in {} of {} frames", result.viewShown, options.frames);
+            exitCode = exitFailure;
+        }
+        else
+            std::println("UI texture verified: the view shown in {} frames, across a resize", result.viewShown);
     }
 
     if (options.headless && exitCode == exitSuccess)

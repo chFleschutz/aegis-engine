@@ -28,6 +28,7 @@ target_link_libraries(aegis-editor
         aegis-base
         aegis-math
         aegis-render-graph
+        aegis-render-passes # The frame graph's resource names
         aegis-renderer
         aegis-rhi
         aegis-world

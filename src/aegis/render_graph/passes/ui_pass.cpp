@@ -36,6 +36,15 @@ auto toVkFormat(rhi::Format format) -> std::optional<VkFormat>
     default: return std::nullopt;
     }
 }
+
+// Counts the backend's initializations: a registration made with an earlier one went with that one's
+// descriptor pool, so it must not be freed through the current one.
+std::uint64_t backendGeneration{ 0 };
+
+auto backendInitialized() -> bool
+{
+    return ImGui::GetCurrentContext() && ImGui::GetIO().BackendRendererUserData;
+}
 }
 
 UiPass::UiPass(ResourceDeclarations& declarations, Desc desc) :
@@ -103,6 +112,7 @@ auto UiPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
     if (!loaded || !ImGui_ImplVulkan_Init(&initInfo))
         return makeError(ErrorCode::InitializationFailed, "Failed to initialize ImGui's Vulkan backend");
     m_initialized = true;
+    ++backendGeneration;
     return {};
 }
 
@@ -124,5 +134,91 @@ auto UiPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     if (draws)
         ImGui_ImplVulkan_RenderDrawData(drawData, static_cast<VkCommandBuffer>(cmd.handle()));
     cmd.endRendering();
+}
+
+auto UiTextures::create(rhi::Device& device) -> std::expected<UiTextures, Error>
+{
+    // Filtered, as the UI rarely shows a texture at its own size; clamped, so the edges don't wrap.
+    auto sampler = device.createSampler({
+        .name = "UI Textures",
+        .addressMode = rhi::SamplerAddressMode::ClampToEdge,
+        .maxAnisotropy = 1.0f,
+    });
+    if (!sampler)
+        return makeError(ErrorCode::ResourceCreationFailed, "The UI textures' sampler", sampler.error());
+    return UiTextures{ device, *sampler };
+}
+
+UiTextures::UiTextures(rhi::Device& device, rhi::SamplerHandle sampler) :
+    m_device{ &device },
+    m_sampler{ sampler }
+{
+}
+
+UiTextures::UiTextures(UiTextures&& other) noexcept :
+    m_device{ other.m_device },
+    m_sampler{ std::exchange(other.m_sampler, {}) },
+    m_registrations{ std::move(other.m_registrations) },
+    m_frame{ other.m_frame }
+{
+    other.m_registrations.clear();
+}
+
+UiTextures::~UiTextures()
+{
+    releaseAll();
+    if (m_sampler.isValid())
+        m_device->free(m_sampler);
+}
+
+auto UiTextures::get(rhi::ImageViewHandle view) -> std::uint64_t
+{
+    if (!backendInitialized())
+        return 0;
+    const auto found = std::ranges::find(m_registrations, view, &Registration::view);
+    if (found != m_registrations.end())
+    {
+        found->lastFrame = m_frame;
+        return found->id;
+    }
+
+    // Read in the UI pass's fragment shader: every shader read state has this layout (rhi::ResourceState).
+    const auto set = ImGui_ImplVulkan_AddTexture(static_cast<VkSampler>(m_device->get(m_sampler).vk()),
+        static_cast<VkImageView>(m_device->get(view).vk()), static_cast<VkImageLayout>(vk::ImageLayout::eReadOnlyOptimal));
+    if (set == VK_NULL_HANDLE)
+        return 0;
+    const auto id = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(set));
+    m_registrations.push_back({ .view = view, .id = id, .lastFrame = m_frame, .backend = backendGeneration });
+    return id;
+}
+
+auto UiTextures::nextFrame() -> void
+{
+    ++m_frame;
+    // A frame waits for the one maxFramesInFlight before it, so as this one starts the last maxFramesInFlight
+    // frames may still run; older ones are done.
+    const auto done = [this](const Registration& registration) {
+        return m_frame - registration.lastFrame > renderer::Renderer::maxFramesInFlight;
+    };
+    for (const auto& registration : m_registrations)
+    {
+        if (done(registration))
+            release(registration);
+    }
+    std::erase_if(m_registrations, done);
+}
+
+auto UiTextures::releaseAll() -> void
+{
+    for (const auto& registration : m_registrations)
+        release(registration);
+    m_registrations.clear();
+}
+
+auto UiTextures::release(const Registration& registration) const -> void
+{
+    // A backend shut down since (the UI pass went) freed the set with its pool.
+    if (backendInitialized() && registration.backend == backendGeneration)
+        ImGui_ImplVulkan_RemoveTexture(reinterpret_cast<VkDescriptorSet>(static_cast<std::uintptr_t>(registration.id)));
 }
 }
