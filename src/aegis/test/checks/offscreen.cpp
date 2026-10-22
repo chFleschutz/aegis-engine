@@ -8,6 +8,8 @@ module aegis.test;
 
 import std;
 import aegis.renderer;
+import aegis.render_graph;
+import aegis.render_passes;
 import aegis.rhi;
 
 namespace aegis
@@ -61,10 +63,8 @@ auto Engine::compareToReference(const std::vector<std::byte>& pixels, rhi::Exten
         m_options.compare, differing, m_options.tolerance, maxDelta, note) };
 }
 
-// The only proof that offscreen frames are drawn at all: read a target back and look for the
-// triangle (its centre is covered and opaque, a corner only cleared, alpha 0), or in scene mode
-// for an image that is not one flat color. Saves it with --screenshot.
-auto Engine::verifyOffscreenFrame() -> std::expected<void, std::string>
+// The renderer's offscreen target (slot 0).
+auto Engine::readTarget() -> std::expected<Frame, std::string>
 {
     const auto& target = m_renderer->offscreenTarget(0);
     const auto extent = m_renderer->extent();
@@ -89,11 +89,66 @@ auto Engine::verifyOffscreenFrame() -> std::expected<void, std::string>
         cmd.copyImageToBuffer(target.image, m_device->get(*readback), regions);
     });
     if (!copied)
-        return copied;
+        return std::unexpected{ copied.error() };
 
-    std::vector<std::byte> pixels(byteSize);
-    m_device->get(*readback).read(pixels.data(), byteSize);
+    Frame frame{ .pixels = std::vector<std::byte>(byteSize), .extent = extent };
+    m_device->get(*readback).read(frame.pixels.data(), byteSize);
     m_device->free(*readback);
+    return frame;
+}
+
+// --view: the view's target, the graph's "Final" (RGBA16F, left sampled by the UI pass), rounded to RGBA8.
+auto Engine::readView() -> std::expected<Frame, std::string>
+{
+    const auto final = m_frameGraph->declarations().find(render_graph::names::finalImage);
+    if (!final)
+        return std::unexpected{ "the view's graph has no \"Final\"" };
+    const auto& texture = m_frameGraph->pool().texture(*final);
+    const auto extent = m_frameGraph->pool().extent(*final);
+    if (extent != m_viewExtent)
+        return std::unexpected{ std::format("the view's target is {}x{}, the view {}x{}", extent.x, extent.y, m_viewExtent.x, m_viewExtent.y) };
+
+    constexpr std::size_t channels{ 4 };
+    const auto texels = std::size_t{ extent.x } * extent.y;
+    const auto byteSize = texels * channels * sizeof(std::uint16_t);
+    auto readback = m_device->createBuffer({
+        .name = "ViewReadback",
+        .size = byteSize,
+        .usage = rhi::BufferUsage::TransferDst,
+        .memory = rhi::MemoryUsage::CpuRead,
+    });
+    if (!readback)
+        return std::unexpected{ "failed to create readback buffer" };
+
+    const std::array regions{ rhi::BufferImageCopy{ .extent = rhi::Extent3D{ extent } } };
+    auto copied = submitAndWait("ViewReadback", [&](const auto& cmd) {
+        cmd.transitionImageLayout(texture.view, rhi::ResourceState::ShaderReadFragment, rhi::ResourceState::CopySrc);
+        cmd.copyImageToBuffer(texture.image, m_device->get(*readback), regions);
+    });
+    if (!copied)
+        return std::unexpected{ copied.error() };
+
+    std::vector<std::uint16_t> halves(texels * channels);
+    m_device->get(*readback).read(reinterpret_cast<std::byte*>(halves.data()), byteSize);
+    m_device->free(*readback);
+
+    Frame frame{ .pixels = std::vector<std::byte>(halves.size()), .extent = extent };
+    std::ranges::transform(halves, frame.pixels.begin(), [](std::uint16_t half) {
+        return static_cast<std::byte>(std::lround(std::clamp(halfToFloat(half), 0.0f, 1.0f) * 255.0f));
+    });
+    return frame;
+}
+
+// The only proof that offscreen frames are drawn at all: read a target back and look for the
+// triangle (its centre is covered and opaque, a corner only cleared, alpha 0), or in scene mode
+// for an image that is not one flat color. Saves it with --screenshot.
+auto Engine::verifyOffscreenFrame() -> std::expected<void, std::string>
+{
+    const auto frame = m_options.view ? readView() : readTarget();
+    if (!frame)
+        return std::unexpected{ frame.error() };
+    const auto& [pixels, extent] = *frame;
+    constexpr std::size_t texelSize{ 4 };
 
     if (!m_options.screenshot.empty())
     {
@@ -118,7 +173,7 @@ auto Engine::verifyOffscreenFrame() -> std::expected<void, std::string>
         };
         if (texel(extent.x / 2, extent.y / 2) == texel(0, 0))
             return std::unexpected{ "the scene frame's centre and corner have the same color" };
-        std::println("Offscreen scene frame verified: {}x{} target read back, not uniform", extent.x, extent.y);
+        std::println("Offscreen scene frame verified: {}x{} {} read back, not uniform", extent.x, extent.y, m_options.view ? "view" : "target");
         return {};
     }
 

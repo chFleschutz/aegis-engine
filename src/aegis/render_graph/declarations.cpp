@@ -70,6 +70,16 @@ auto ResourceDeclarations::writes(std::uint32_t pass) const -> std::vector<Resou
     return declaredBy(*this, pass, true);
 }
 
+auto ResourceDeclarations::find(std::string_view name) const -> std::optional<ResourceId>
+{
+    const auto found = std::ranges::find_if(m_entries, [name](const Entry& entry) {
+        return entry.name == name && !std::holds_alternative<Reference>(entry.info);
+    });
+    if (found == m_entries.end())
+        return std::nullopt;
+    return ResourceId{ static_cast<std::uint32_t>(found - m_entries.begin()) };
+}
+
 auto ResourceDeclarations::describe() const -> std::vector<ResourceDescription>
 {
     std::vector<ResourceDescription> descriptions;

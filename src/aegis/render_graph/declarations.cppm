@@ -71,6 +71,8 @@ public:
     /// @brief Every declaration, in the order passes made them.
     [[nodiscard]] auto describe() const -> std::vector<ResourceDescription>;
     [[nodiscard]] auto name(ResourceId handle) const -> std::string_view { return m_entries[handle.index].name; }
+    /// @brief The declaration creating the resource 'name' (not a reference to it), or none.
+    [[nodiscard]] auto find(std::string_view name) const -> std::optional<ResourceId>;
 
 private:
     auto add(std::string_view name, Usage usage, std::variant<TextureDesc, BufferDesc, Reference> info) -> ResourceId;

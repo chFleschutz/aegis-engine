@@ -63,6 +63,10 @@ if(TARGET compile_shaders)
     aegis_add_device_test(aegis-test-scene-mutation ARGS --headless --scene --mutate-scene --frames 150)
     aegis_add_device_test(aegis-test-scene-gpu-driven-mutation ARGS --headless --gpu-driven --mutate-scene --frames 150 LABELS mesh-shaders)
 
+    # The scene through a second camera into a view of its own size, resized apart from the target.
+    aegis_add_device_test(aegis-test-scene-view ARGS --headless --scene --view --frames 120)
+    aegis_add_device_test(aegis-test-scene-gpu-driven-view ARGS --headless --gpu-driven --view --frames 120 LABELS mesh-shaders)
+
     # Reference images: the last frame against tests/golden, generated on the dev GPU (see tests/README.md). Local
     # only: the lavapipe CI job runs the other device tests but excludes these with -LE golden, since software
     # rendering differs from the dev GPU (the triangle by 1 per channel, the scenes by up to 176 on ~80k pixels:
