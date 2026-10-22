@@ -37,8 +37,10 @@ function(aegis_add_game name)
     target_link_libraries(${name}-Editor PRIVATE aegis-editor)
     target_compile_definitions(${name}-Editor PRIVATE AEGIS_LAUNCH_EDITOR)
 
-    # The test renders small like the examples' (see examples/CMakeLists.txt). It loads compiled shaders, so it
-    # exists only when those are built.
+    # Each test renders headless for a fixed number of frames; the exit code fails on a startup error, a render
+    # error or a validation error. The `gpu` lock keeps device runs from overlapping. They render at 640x360,
+    # not the 1920x1080 default: a smoke test gains nothing from the pixels, and on lavapipe (CI) the run time
+    # grows with them. They load compiled shaders, so they exist only when those are built.
     if(AEGIS_BUILD_TESTS AND TARGET compile_shaders)
         string(TOLOWER ${name} lowered)
         set(args --headless --frames 120 --width 640 --height 360)

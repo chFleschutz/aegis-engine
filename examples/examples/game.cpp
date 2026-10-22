@@ -3,6 +3,11 @@
 import std;
 import aegis.engine;
 
+namespace examples
+{
+auto registerSpawner(aegis::reflect::TypeRegistry& types) -> std::expected<void, aegis::reflect::Error>; // spawner.cpp
+}
+
 namespace
 {
 /// @brief Rotates its entity around the up axis
@@ -52,7 +57,8 @@ auto registerTypes(aegis::reflect::TypeRegistry& types) -> std::expected<void, a
     return aegis::scripting::registerScript<Rotator>(types, "Rotator")
         .and_then([](auto builder) { return builder.field("speed", &Rotator::speed).status(); })
         .and_then([&types] { return aegis::scripting::registerScript<ColorChanger>(types, "ColorChanger"); })
-        .and_then([](auto builder) { return builder.field("speed", &ColorChanger::speed).status(); });
+        .and_then([](auto builder) { return builder.field("speed", &ColorChanger::speed).status(); })
+        .and_then([&types] { return examples::registerSpawner(types); });
 }
 }
 
