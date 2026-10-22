@@ -1,7 +1,6 @@
 #include <aegis/core/assert.h>
 
 import std;
-import aegis.editor;
 import aegis.engine;
 
 /// @brief Example script to rotate the entity around the up axis
@@ -24,7 +23,6 @@ auto main(int argc, char** argv) -> int
     if (!created)
         return created.error();
     auto& engine = **created;
-    engine.pushLayer<aegis::editor::EditorLayer>();
     [[maybe_unused]] auto registered = aegis::scripting::registerScript<Rotator>(engine.types(), "Rotator").and_then([](auto builder) {
         return builder.field("speed", &Rotator::speed).status();
     });

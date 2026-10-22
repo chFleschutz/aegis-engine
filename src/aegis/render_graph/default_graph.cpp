@@ -22,8 +22,8 @@ auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> voi
     graph.add<TransparentPass>().addRenderSystem<PointLightRenderSystem>();
     graph.add<BloomPass>();
     graph.add<PostProcessingPass>();
-    if (desc.buildUi)
-        graph.add<UiPass>(UiPass::Desc{ .context = desc.context, .build = desc.buildUi });
+    if (desc.ui)
+        graph.add<UiPass>(UiPass::Desc{ .context = desc.context });
     graph.add<PresentPass>();
 }
 }

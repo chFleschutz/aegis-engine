@@ -4,9 +4,6 @@ module;
 
 #include <cstdlib>
 
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb/stb_image_write.h>
 
@@ -136,7 +133,12 @@ void Engine::resetWorld()
 
 void Engine::beginWorld()
 {
-    m_world.begin();
+    m_world.begin(m_shell->updateMode());
+}
+
+void Engine::setShell(std::unique_ptr<Shell> shell)
+{
+    m_shell = shell ? std::move(shell) : std::make_unique<GameShell>();
 }
 
 Engine::Engine(const AppDesc& desc) :
@@ -184,14 +186,13 @@ auto Engine::initialize() -> std::expected<void, EngineError>
 
 Engine::~Engine()
 {
-    // The GPU may still use what the members below free; ImGui's backends go before its context.
-    // A failed create() leaves the later members empty.
+    // The GPU may still use what the members below free. The shell ends first, while the world, the
+    // frame graph and ImGui still exist; the members then go bottom up (the UI pass before the ImGui
+    // context). A failed create() leaves the later members empty.
     if (m_device)
         m_device->waitIdle();
-    m_frameGraph.reset();
-    if (m_imguiGlfw)
-        ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    m_shell->onShutdown();
+    m_shell.reset();
 }
 
 auto Engine::useGpuDrivenRendering() const -> bool
@@ -204,6 +205,12 @@ auto Engine::run() -> int
     const bool headless = !m_window;
     std::uint32_t frames{ 0 };
     int exitCode{ exitSuccess };
+
+    if (auto started = m_shell->onStartup(*this); !started)
+    {
+        log::fatal("The shell failed to start: {}", describe(started.error()));
+        return exitFailure;
+    }
 
     if (headless)
         m_clock = base::FrameClock::fixed(HEADLESS_FRAME_DELTA_SEC);
@@ -232,18 +239,19 @@ auto Engine::run() -> int
                 }
             }
 
-            // Update: the systems run in order, scripts first: they write the transforms, the others derive
-            // from them (camera matrices included), then the layers (the editor) read the result.
-            // ImGui's flags are from the previous frame's UI; they gate the game input.
-            const auto& io = ImGui::GetIO();
-            m_input->setCaptured(io.WantCaptureKeyboard, io.WantCaptureMouse);
+            // The shell decides what the game doesn't see, from the UI it built last frame.
+            const auto capture = m_shell->inputCapture();
+            m_input->setCaptured(capture.keyboard, capture.mouse);
             m_input->update();
         }
         updateCameraAspect();
         // The clock clamps a long frame (a breakpoint, a load) so scripts and systems don't get the whole stall
         const float frameTimeSec = m_clock.tick(currentFrameBegin);
-        m_world.update(frameTimeSec);
-        m_layerStack.update(frameTimeSec);
+        // The safe point: the shell's UI and edits come before the update, so an edit shows this frame.
+        runShell(frameTimeSec);
+        // Update: the systems run phase by phase, scripts first: they write the transforms, the others derive
+        // from them (camera matrices included). In edit mode only the derived ones run.
+        m_world.update(frameTimeSec, m_shell->updateMode());
 
         // Rendering: uploads queued this frame (or while loading) go first, on the same queue.
         if (auto flushed = m_device->flushUploads(); !flushed)
@@ -308,6 +316,7 @@ auto Engine::createWindow() -> std::expected<void, EngineError>
         return std::unexpected{ makeError(EngineErrorCode::WindowFailed, std::format("Failed to create the window: {}", platform::describe(window.error()))) };
     m_window = std::make_unique<platform::Window>(std::move(*window));
     m_input = std::make_unique<platform::Input>(*m_window);
+    m_presentation.attach(*m_window); // After the input: ImGui's callbacks chain to the window's
     return {};
 }
 
@@ -354,23 +363,11 @@ auto Engine::createFrameGraph() -> std::expected<void, EngineError>
 {
     m_instanceBridge.connect(m_world.registry());
 
-    // Headless draws no UI: no window for ImGui's backends, and nothing to look at.
-    std::function<void()> buildUi;
-    if (m_window)
-    {
-        ImGui_ImplGlfw_InitForVulkan(m_window->glfwWindow(), true);
-        m_imguiGlfw = true;
-        buildUi = [this] {
-            ImGui_ImplGlfw_NewFrame();
-            m_ui.render();
-        };
-    }
-
     m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, m_renderer->extent());
     aegis::render_graph::addDefaultPasses(*m_frameGraph,
         {
             .gpuDriven = useGpuDrivenRendering(),
-            .buildUi = std::move(buildUi),
+            .ui = true, // The shell's UI, empty for a game; headless too, for screenshots of it
             .context = m_context.get(),
         });
     if (auto compiled = m_frameGraph->compile(); !compiled)
@@ -389,6 +386,20 @@ bool Engine::resize()
     if (auto resized = m_frameGraph->resized(m_renderer->extent()); !resized)
         log::fatal("Failed to resize the frame graph: {}", describe(resized.error()));
     return true;
+}
+
+void Engine::runShell(float deltaSeconds)
+{
+    m_presentation.beginFrame(m_renderer->extent(), deltaSeconds);
+    FrameContext frame{
+        .world = m_world,
+        .frameGraph = *m_frameGraph,
+        .instances = m_instances,
+        .renderer = *m_renderer,
+        .deltaSeconds = deltaSeconds,
+    };
+    m_shell->onFrame(frame);
+    m_presentation.endFrame();
 }
 
 void Engine::updateCameraAspect()

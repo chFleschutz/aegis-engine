@@ -5,6 +5,7 @@ PUBLIC
 	aegis-assets
 	aegis-base
 	aegis-core
+	aegis-engine # The shell it implements
 	aegis-platform
 	aegis-render-graph
 	aegis-renderer

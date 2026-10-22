@@ -40,7 +40,6 @@ auto toVkFormat(rhi::Format format) -> std::optional<VkFormat>
 
 UiPass::UiPass(ResourceDeclarations& declarations, Desc desc) :
     m_context{ desc.context },
-    m_build{ std::move(desc.build) },
     m_final{ declarations.addReference(names::finalImage, Usage::ColorAttachment) }
 {
 }
@@ -106,14 +105,16 @@ auto UiPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 
 auto UiPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    ImGui_ImplVulkan_NewFrame();
-    m_build();
-    ImGui::Render();
+    // The caller ended the frame (ImGui::Render); without one there is nothing to draw. An empty frame
+    // still goes through the backend, which uploads the font atlas and other textures with it.
+    auto* drawData = ImGui::GetDrawData();
+    if (!drawData || !drawData->Valid)
+        return;
 
     const auto& cmd = frameInfo.cmd;
     std::array colorAttachments{ rhi::Attachment::colorLoad(pool.texture(m_final).view) };
     cmd.beginRendering({ .colorAttachments = colorAttachments });
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cmd.handle()));
+    ImGui_ImplVulkan_RenderDrawData(drawData, static_cast<VkCommandBuffer>(cmd.handle()));
     cmd.endRendering();
 }
 }

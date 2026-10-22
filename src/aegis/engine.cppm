@@ -2,12 +2,9 @@ export module aegis.engine;
 
 import std;
 export import aegis.math;
-import aegis.ui;
 export import aegis.asset_library;
 export import aegis.scene_description;
 import aegis.core.globals;
-import aegis.core.layer;
-import aegis.core.layer_stack;
 export import aegis.paths;
 export import aegis.base;
 export import aegis.world;
@@ -29,6 +26,35 @@ import aegis.render_bridge;
 import aegis.render_graph;
 import aegis.renderer;
 import aegis.rhi;
+
+namespace aegis
+{
+/// @brief The ImGui context and its platform backend, and the UI's place in the frame: beginFrame opens it
+///        after the input was read, endFrame closes it (ImGui::Render) before the frame graph's UI pass
+///        records it. ImGui's Vulkan backend belongs to that pass (render_graph::UiPass).
+class Presentation
+{
+public:
+    Presentation();
+    Presentation(const Presentation&) = delete;
+    Presentation(Presentation&&) = delete;
+    ~Presentation();
+
+    auto operator=(const Presentation&) -> Presentation& = delete;
+    auto operator=(Presentation&&) -> Presentation& = delete;
+
+    /// @brief Follows the window's input through ImGui's GLFW backend; without it (headless) the UI is
+    ///        drawn, not interacted with.
+    void attach(platform::Window& window);
+    /// @brief Opens the frame. Headless, the display is 'extent' and time advances by 'deltaSeconds'.
+    void beginFrame(rhi::Extent2D extent, float deltaSeconds);
+    /// @brief Ends the frame: its draw data is ready for the UI pass.
+    void endFrame();
+
+private:
+    bool m_glfw{ false }; // ImGui's GLFW backend is initialized
+};
+}
 
 export namespace aegis
 {
@@ -101,6 +127,58 @@ struct GameModule
     auto (*onStartup)(Engine& engine) -> std::expected<void, EngineError>{ nullptr };
 };
 
+/// @brief Which input a shell keeps from the game this frame (its UI has it).
+struct InputCapture
+{
+    bool keyboard{ false };
+    bool mouse{ false };
+};
+
+/// @brief What a shell gets at the frame's safe point: input has been read and the ImGui frame is open,
+///        and no world is being updated or rendered, so the shell can read and write the world directly.
+struct FrameContext
+{
+    world::World& world;
+    /// @brief Read-only introspection: the passes, their resources and timings.
+    render_graph::FrameGraph& frameGraph;
+    const render_graph::InstanceStore& instances;
+    const renderer::Renderer& renderer;
+    float deltaSeconds;
+};
+
+/// @brief Decides, each frame, what the app shows around the game: its UI, how the world updates and who
+///        gets the input. The launcher picks it: the runtime installs GameShell (the default), the editor
+///        flavor installs editor::EditorShell. Install it before the first scene loads (Engine::setShell).
+class Shell
+{
+public:
+    Shell() = default;
+    Shell(const Shell&) = delete;
+    Shell(Shell&&) = delete;
+    virtual ~Shell() = default;
+
+    auto operator=(const Shell&) -> Shell& = delete;
+    auto operator=(Shell&&) -> Shell& = delete;
+
+    /// @brief Runs once Engine::run starts: after the project, the game's types and its startup scene have loaded.
+    virtual auto onStartup(Engine& engine) -> std::expected<void, EngineError> { return {}; }
+    /// @brief The safe point, once per frame: build the UI and apply edits here (see FrameContext).
+    virtual void onFrame(FrameContext& frame) = 0;
+    /// @brief How the world begins and updates: Play runs the game, Edit only the systems that opt in.
+    [[nodiscard]] virtual auto updateMode() const -> world::UpdateMode { return world::UpdateMode::Play; }
+    /// @brief The input the game doesn't see this frame; asked before the input is read.
+    [[nodiscard]] virtual auto inputCapture() const -> InputCapture { return {}; }
+    /// @brief Runs before the engine tears down, while the world, the frame graph and ImGui still exist.
+    virtual void onShutdown() {}
+};
+
+/// @brief The runtime: the game plays and gets all the input, with no UI around it.
+class GameShell final : public Shell
+{
+public:
+    void onFrame(FrameContext&) override {}
+};
+
 /// @brief parseArgs plus Engine::create for a 'main': a failure is logged and comes back as the exit code
 ///        to return (exitUsage for a bad command line, exitFailure when the engine can't start).
 [[nodiscard]] auto createEngine(int argc, char** argv) -> std::expected<std::unique_ptr<Engine>, int>;
@@ -158,16 +236,15 @@ public:
     ///         then empty.
     [[nodiscard]] auto loadScene(assets::AssetId scene) -> std::expected<void, EngineError>;
 
-    /// @brief Adds a layer built from the engine's input, renderer, frame graph, instances and world, such as
-    ///        the editor (editor::EditorLayer). Headless has no input or UI, so there it adds nothing.
-    template<std::derived_from<core::Layer> T>
-        requires std::constructible_from<T, platform::Input&, renderer::Renderer&, render_graph::FrameGraph&,
-            const render_graph::InstanceStore&, world::World&>
-    void pushLayer()
-    {
-        if (m_input)
-            m_layerStack.push<T>(*m_input, *m_renderer, *m_frameGraph, m_instances, m_world);
-    }
+    /// @brief Replaces the shell (GameShell by default), such as with the editor (editor::EditorShell). Call it
+    ///        before the first scene loads: the world begins in the shell's update mode.
+    void setShell(std::unique_ptr<Shell> shell);
+
+    /// @brief The project folder (AppDesc::project); empty for the samples.
+    [[nodiscard]] auto project() const -> const std::filesystem::path& { return m_desc.project; }
+
+    /// @brief No window, input or platform backend: frames render offscreen (AppDesc::headless).
+    [[nodiscard]] auto headless() const -> bool { return !m_window; }
 
 private:
     explicit Engine(const AppDesc& desc);
@@ -179,6 +256,8 @@ private:
     auto createFrameGraph() -> std::expected<void, EngineError>;
     bool resize();
     void updateCameraAspect();
+    /// @brief Opens the ImGui frame, lets the shell build its UI and apply its edits, and ends the frame.
+    void runShell(float deltaSeconds);
     /// @brief Empties the world and adds the engine's systems, ready for a scene's entities.
     void resetWorld();
     /// @brief Starts the world's systems.
@@ -191,13 +270,11 @@ private:
 
     // Order matters: members are destroyed bottom up, and everything holding GPU resources must go
     // before the device.
-    core::LayerStack m_layerStack{};
-    ui::UI m_ui{ m_layerStack };
     AppDesc m_desc;
     std::unique_ptr<aegis::platform::Window> m_window; // null when headless
     // Before ImGui's GLFW backend installs its callbacks, which chain to the window's. Null when headless.
     std::unique_ptr<aegis::platform::Input> m_input;
-    bool m_imguiGlfw{ false };           // ImGui's GLFW backend is initialized
+    Presentation m_presentation;         // The ImGui context: outlives the frame graph's UI pass and the shell
     std::uint32_t m_lastFrameIndex{ 0 }; // The frame slot the last frame drew into
     std::unique_ptr<aegis::rhi::Context> m_context;
     std::unique_ptr<aegis::rhi::Device> m_device;
@@ -209,5 +286,7 @@ private:
     aegis::render_graph::InstanceStore m_instances;        // Holds meshes and materials: goes before the device
     aegis::InstanceBridge m_instanceBridge{ m_instances }; // Disconnects from the world first
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
+    // Last, so it goes first, while everything it may reference (the world, the frame graph, ImGui) exists.
+    std::unique_ptr<Shell> m_shell{ std::make_unique<GameShell>() };
 };
 }

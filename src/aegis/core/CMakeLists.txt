@@ -17,8 +17,6 @@ PUBLIC
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
 		globals.cppm
-		layer.cppm
-		layer_stack.cppm
 )
 
 # TODO: remove this once everything is a module

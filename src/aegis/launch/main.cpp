@@ -1,6 +1,6 @@
 // The engine's launcher: the only main(), compiled into each game's executables by aegis_add_game. The
-// runtime flavor (<Game>) runs the game; the editor flavor (<Game>-Editor, AEGIS_LAUNCH_EDITOR) also
-// attaches the editor. AEGIS_GAME_PROJECT_DIR is the game's project folder at configure time, defined
+// runtime flavor (<Game>) runs the game in the engine's GameShell; the editor flavor (<Game>-Editor,
+// AEGIS_LAUNCH_EDITOR) installs the editor's shell instead, which edits the game's scenes. AEGIS_GAME_PROJECT_DIR is the game's project folder at configure time, defined
 // for development builds only.
 
 import std;
@@ -79,7 +79,7 @@ auto run(int argc, char** argv) -> int
         }
     }
 #ifdef AEGIS_LAUNCH_EDITOR
-    engine.pushLayer<editor::EditorLayer>();
+    engine.setShell(std::make_unique<editor::EditorShell>()); // Before the startup scene, which begins in edit mode
 #endif
     if (game.onStartup)
     {

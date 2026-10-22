@@ -5,10 +5,10 @@ module;
 
 export module aegis.editor;
 
+import std;
 import aegis.math;
-import aegis.core.layer;
 import aegis.editor.panels;
-import aegis.platform;
+import aegis.engine;
 import aegis.render_graph;
 import aegis.renderer;
 import aegis.world;
@@ -16,61 +16,80 @@ import aegis.world.systems.transform_system;
 
 export namespace aegis::editor
 {
-class EditorLayer : public core::Layer
+class EditorShell : public Shell
 {
 public:
-    EditorLayer(aegis::platform::Input& input, aegis::renderer::Renderer& renderer,
-        aegis::render_graph::FrameGraph& frameGraph, const aegis::render_graph::InstanceStore& instances,
-        world::World& scene) :
-        m_input(input),
-        m_renderer(renderer),
-        m_frameGraph(frameGraph),
-        m_instances(instances),
-        m_scene(scene)
+    [[nodiscard]] auto updateMode() const -> world::UpdateMode override { return world::UpdateMode::Edit; }
+
+    [[nodiscard]] auto inputCapture() const -> InputCapture override
     {
+        const auto& io = ImGui::GetIO();
+        return { .keyboard = io.WantCaptureKeyboard, .mouse = io.WantCaptureMouse };
     }
 
-    virtual void onUpdate(float deltaSeconds) override
+    void onFrame(FrameContext& frame) override
     {
-        m_snapping = m_input.state().keyDown(aegis::platform::Key::LeftControl);
+        ImGuizmo::BeginFrame();
+        updateGizmoMode();
 
-        if (!ImGuizmo::IsUsing())
-        {
-            if (m_input.state().keyDown(aegis::platform::Key::Q))
-                m_gizmoType = -1;
-            else if (m_input.state().keyDown(aegis::platform::Key::W))
-                m_gizmoType = ImGuizmo::OPERATION::TRANSLATE;
-            else if (m_input.state().keyDown(aegis::platform::Key::E))
-                m_gizmoType = ImGuizmo::OPERATION::ROTATE;
-            else if (m_input.state().keyDown(aegis::platform::Key::R))
-                m_gizmoType = ImGuizmo::OPERATION::SCALE;
-        }
-    }
+        // Create full screen window to receive mouse events everywhere
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+        ImGui::SetNextWindowSize(viewport->Size);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
-    virtual void onUIRender() override
-    {
+        ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+                                       ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                       ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::Begin("Main Window", nullptr, windowFlags);
+        ImGui::PopStyleVar(3);
+
         m_menuBarPanel.draw();
 
         if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Renderer))
-            m_rendererPanel.draw(m_renderer, m_frameGraph);
+            m_rendererPanel.draw(frame.renderer, frame.frameGraph);
 
         if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Scene))
-            m_scenePanel.draw(m_scene);
+            m_scenePanel.draw(frame.world);
 
         if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Statistics))
-            m_statisticsPanel.draw(m_scene.registry(), m_instances);
+            m_statisticsPanel.draw(frame.world.registry(), frame.instances);
 
         if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Profiler))
-            m_profilerPanel.draw(m_frameGraph);
+            m_profilerPanel.draw(frame.frameGraph);
 
         if (m_menuBarPanel.flagActive(editor::MenuBarPanel::Demo))
             m_demoPanel.draw();
 
         if (m_gizmoType != -1)
-            drawGizmo(m_scene);
+            drawGizmo(frame.world);
+
+        ImGui::End();
     }
 
 private:
+    void updateGizmoMode()
+    {
+        // ImGui's keys, not the game's input: typing in a text field doesn't switch the gizmo
+        const auto& io = ImGui::GetIO();
+        m_snapping = io.KeyCtrl;
+        if (ImGuizmo::IsUsing() || io.WantTextInput)
+            return;
+
+        if (ImGui::IsKeyDown(ImGuiKey_Q))
+            m_gizmoType = -1;
+        else if (ImGui::IsKeyDown(ImGuiKey_W))
+            m_gizmoType = ImGuizmo::OPERATION::TRANSLATE;
+        else if (ImGui::IsKeyDown(ImGuiKey_E))
+            m_gizmoType = ImGuizmo::OPERATION::ROTATE;
+        else if (ImGui::IsKeyDown(ImGuiKey_R))
+            m_gizmoType = ImGuizmo::OPERATION::SCALE;
+    }
+
     void drawGizmo(world::World& scene)
     {
         auto& registry = scene.registry();
@@ -119,11 +138,6 @@ private:
         }
     }
 
-    aegis::platform::Input& m_input;
-    aegis::renderer::Renderer& m_renderer;
-    aegis::render_graph::FrameGraph& m_frameGraph;
-    const aegis::render_graph::InstanceStore& m_instances;
-    world::World& m_scene;
     editor::MenuBarPanel m_menuBarPanel{};
     editor::RendererPanel m_rendererPanel{};
     editor::ScenePanel m_scenePanel{};

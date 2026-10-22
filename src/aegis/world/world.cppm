@@ -60,9 +60,8 @@ public:
     }
 
     /// @brief Queues a change of the entities for the start of the next update
-    /// @note For code that runs while the frame is in flight (the editor's UI runs inside the render
-    ///       pass): creating, destroying or removing there would change what the passes already read.
-    ///       The commands run in order, before any system.
+    /// @note For scripts and systems, which run while the world updates: creating, destroying or removing
+    ///       there would change what the other systems iterate. The commands run in order, before any system.
     void defer(std::function<void(Registry&)> command) { m_deferred.push_back(std::move(command)); }
 
     /// @brief Starts the systems that run in 'mode'

@@ -11,8 +11,9 @@ export namespace aegis::render_graph
 {
 /// @brief Draws ImGui over "Final" before it is presented. Owns ImGui's Vulkan backend on the
 ///        device: initialized in createResources, shut down with the pass.
-/// @note The ImGui context and any platform backend (e.g. ImGui_ImplGlfw) belong to the caller, and
-///       must outlive the pass.
+/// @note The ImGui context, any platform backend (e.g. ImGui_ImplGlfw) and the frame's UI belong to the
+///       caller: it builds the UI and calls ImGui::Render before the graph executes, so the pass only
+///       records the draw data. The context must outlive the pass.
 class UiPass : public RenderPass
 {
 public:
@@ -20,9 +21,6 @@ public:
     {
         /// @brief ImGui's backend takes the instance; needed by createResources, so a graph can be declared without it.
         const rhi::Context* context{ nullptr };
-        /// @brief Builds the frame's UI: the platform backend's NewFrame, ImGui::NewFrame and the
-        ///        windows. The pass then renders it (ImGui::Render ends the frame).
-        std::function<void()> build;
     };
 
     /// @brief Descriptor sets the backend may allocate: the font atlas plus textures the UI shows.
@@ -37,7 +35,6 @@ public:
 
 private:
     const rhi::Context* m_context;
-    std::function<void()> m_build;
     ResourceId m_final;
     bool m_initialized{ false };
 };

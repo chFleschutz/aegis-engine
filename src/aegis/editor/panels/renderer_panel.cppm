@@ -26,7 +26,7 @@ public:
         return "Unknown";
     }
 
-    void draw(aegis::renderer::Renderer& renderer, aegis::render_graph::FrameGraph& frameGraph)
+    void draw(const aegis::renderer::Renderer& renderer, aegis::render_graph::FrameGraph& frameGraph)
     {
         ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 10, 30), ImGuiCond_FirstUseEver, ImVec2(1.0f, 0.0f));
         if (!ImGui::Begin("Renderer"))

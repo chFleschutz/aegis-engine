@@ -82,8 +82,7 @@ auto Engine::createScene() -> std::expected<void, std::string>
     render_graph::addDefaultPasses(*m_frameGraph,
         {
             .gpuDriven = m_options.gpuDriven,
-            // Not 'this': the Engine is moved after create(). Renderer and graph live on the heap.
-            .buildUi = [renderer = m_renderer.get(), graph = m_frameGraph.get(), overlay = !m_options.noOverlay] { buildUi(*renderer, *graph, overlay); },
+            .ui = true,
             .context = m_context.get(),
         });
     if (auto compiled = m_frameGraph->compile(); !compiled)
@@ -107,21 +106,24 @@ auto Engine::instantiateModel(std::string_view path) -> std::expected<aegis::wor
     return m_assets->instantiateScene(*m_scene, m_types, *id, {});
 }
 
-// The UI pass's input: one window, so a screenshot shows ImGui drawn over the scene.
+// The UI pass's input: one window, so a screenshot shows ImGui drawn over the scene. Ends the frame
+// (ImGui::Render), so the frame graph's UI pass records it.
 auto Engine::buildUi(const renderer::Renderer& renderer, const render_graph::FrameGraph& frameGraph, bool overlay) -> void
 {
     auto& io = ImGui::GetIO();
     const auto extent = renderer.extent();
     io.DisplaySize = ImVec2{ static_cast<float>(extent.x), static_cast<float>(extent.y) };
     ImGui::NewFrame();
-    if (!overlay)
-        return;
-    ImGui::SetNextWindowPos(ImVec2{ 10.0f, 10.0f });
-    ImGui::Begin("aegis-test", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("Frame graph: %d passes", static_cast<int>(frameGraph.passes().size()));
-    for (const auto& timing : frameGraph.timings())
-        ImGui::Text("%-20s %.3f ms", timing.name.c_str(), timing.gpuMs);
-    ImGui::End();
+    if (overlay)
+    {
+        ImGui::SetNextWindowPos(ImVec2{ 10.0f, 10.0f });
+        ImGui::Begin("aegis-test", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Text("Frame graph: %d passes", static_cast<int>(frameGraph.passes().size()));
+        for (const auto& timing : frameGraph.timings())
+            ImGui::Text("%-20s %.3f ms", timing.name.c_str(), timing.gpuMs);
+        ImGui::End();
+    }
+    ImGui::Render();
 }
 
 // --mutate-scene: changes the scene the way an editor or gameplay code would, while frames are in
