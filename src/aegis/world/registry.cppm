@@ -11,6 +11,25 @@ export import aegis.world.components;
 
 export namespace aegis::world
 {
+/// @brief Why a hierarchy change (Registry::addChild, insertChild, ...) was refused
+enum class HierarchyError
+{
+    InvalidEntity, ///< An entity is null or destroyed
+    NotChild,      ///< The entity is not a child of the given parent
+    Cycle,         ///< The new parent is the entity itself or one of its descendants
+};
+
+[[nodiscard]] constexpr auto describe(HierarchyError error) -> std::string_view
+{
+    switch (error)
+    {
+    case HierarchyError::InvalidEntity: return "an entity is null or destroyed";
+    case HierarchyError::NotChild: return "the entity is not a child of the parent";
+    case HierarchyError::Cycle: return "the parent is the entity or one of its descendants";
+    }
+    return "unknown hierarchy error";
+}
+
 class Registry
 {
 public:
@@ -60,8 +79,8 @@ public:
         for (const auto& listener : m_destroyListeners)
             listener.callback(entity);
 
-        removeParent(entity);
-        removeChildren(entity);
+        detach(entity);
+        std::ignore = removeChildren(entity); // The entity is valid
 
         m_ids.erase(get<StableId>(entity).value);
         m_registry.destroy(entity.id());
@@ -163,23 +182,18 @@ public:
     }
 
     /// @brief Makes the entity the last child of parent, detaching it from its previous parent
-    /// @return False (and changes nothing) if parent is the entity itself or one of its descendants
-    auto setParent(Entity entity, Entity parent) -> bool
+    /// @return An error (and changes nothing) if either entity is null or destroyed, or parent is the entity
+    ///         itself or one of its descendants
+    auto setParent(Entity entity, Entity parent) -> std::expected<void, HierarchyError> { return addChild(parent, entity); }
+
+    /// @brief Detaches the entity from its parent (nothing happens if it has none)
+    auto removeParent(Entity entity) -> std::expected<void, HierarchyError>
     {
-        assert(entity && "Cannot set parent: Entity is null");
-        assert(parent && "Cannot set parent: Parent entity is null");
+        if (!valid(entity))
+            return std::unexpected{ HierarchyError::InvalidEntity };
 
-        return addChild(parent, entity);
-    }
-
-    void removeParent(Entity entity)
-    {
-        assert(entity && "Cannot remove parent: Entity is null");
-        assert(has<Parent>(entity) && "Cannot remove parent: Entity does not have a parent");
-
-        const Entity parent = get<Parent>(entity).entity;
-        if (parent)
-            removeChild(parent, entity);
+        detach(entity);
+        return {};
     }
 
     /// @brief Checks if the entity is root or one of root's descendants
@@ -194,79 +208,73 @@ public:
     }
 
     /// @brief Makes child the last child of the entity, detaching it from its previous parent
-    /// @return False (and changes nothing) if the entity is child itself or one of its descendants
-    auto addChild(Entity entity, Entity child) -> bool
+    /// @note A child of the entity already keeps its place
+    /// @return An error (and changes nothing) if either entity is null or destroyed, or the entity is child
+    ///         itself or one of its descendants
+    auto addChild(Entity entity, Entity child) -> std::expected<void, HierarchyError>
     {
-        assert(entity && "Cannot add child: Entity is null");
-        assert(child && "Cannot add child: Child entity is null");
+        if (valid(entity) && valid(child) && get<Parent>(child).entity == entity)
+            return {};
+
+        return insertChild(entity, child, std::numeric_limits<std::size_t>::max());
+    }
+
+    /// @brief Makes child the child of the entity at index, detaching it from its previous parent
+    /// @param index The child's position among the entity's children afterwards; past the end it becomes the last
+    /// @note A child of the entity is moved to the index (counted without it)
+    /// @return An error (and changes nothing) if either entity is null or destroyed, or the entity is child
+    ///         itself or one of its descendants
+    auto insertChild(Entity entity, Entity child, std::size_t index) -> std::expected<void, HierarchyError>
+    {
+        if (!valid(entity) || !valid(child))
+            return std::unexpected{ HierarchyError::InvalidEntity };
 
         if (isInSubtree(entity, child)) // Would create a cycle
-            return false;
+            return std::unexpected{ HierarchyError::Cycle };
 
-        if (get<Parent>(child).entity == entity) // Already added as a child
-            return true;
-
-        removeParent(child);
+        detach(child);
 
         auto& children = get<Children>(entity);
+        Entity next{}; // The child that ends up behind the new one
+        if (index < children.count)
+        {
+            next = children.first;
+            for (std::size_t i = 0; i < index; ++i)
+                next = get<Siblings>(next).next;
+        }
+        const Entity prev = next ? get<Siblings>(next).prev : children.last;
+
         get<Parent>(child).entity = entity;
-        get<Siblings>(child) = Siblings{ .next = Entity{}, .prev = children.last };
-        if (children.last)
-        {
-            get<Siblings>(children.last).next = child;
-        }
-        else // No children yet
-        {
+        get<Siblings>(child) = Siblings{ .next = next, .prev = prev };
+        if (prev)
+            get<Siblings>(prev).next = child;
+        else
             children.first = child;
-        }
-        children.last = child;
+        if (next)
+            get<Siblings>(next).prev = child;
+        else
+            children.last = child;
         children.count++;
-        return true;
+        return {};
     }
 
-    void removeChild(Entity entity, Entity child)
+    /// @return An error (and changes nothing) if either entity is null or destroyed, or child is not a child of the entity
+    auto removeChild(Entity entity, Entity child) -> std::expected<void, HierarchyError>
     {
-        assert(entity && "Cannot remove child: Entity is null");
-        assert(has<Children>(entity) && "Cannot remove child: Entity does not have children");
-        assert(child && "Cannot remove child: Child entity is null");
-        assert(has<Parent>(child) && "Cannot remove child: Entity does not have a parent");
-        assert(get<Parent>(child).entity == entity && "Cannot remove child: Entity is not a child of this entity");
+        if (!valid(entity) || !valid(child))
+            return std::unexpected{ HierarchyError::InvalidEntity };
+        if (get<Parent>(child).entity != entity)
+            return std::unexpected{ HierarchyError::NotChild };
 
-        auto& children = get<Children>(entity);
-        children.count--;
-
-        auto& siblings = get<Siblings>(child);
-        Entity prevSibling = siblings.prev;
-        Entity nextSibling = siblings.next;
-
-        // Update siblings and first/last child
-        if (prevSibling)
-        {
-            get<Siblings>(prevSibling).next = nextSibling;
-        }
-        else // First Child
-        {
-            children.first = siblings.next;
-        }
-
-        if (nextSibling)
-        {
-            get<Siblings>(nextSibling).prev = prevSibling;
-        }
-        else // Last Child
-        {
-            children.last = siblings.prev;
-        }
-
-        // Detach the child at the end
-        get<Parent>(child) = Parent{};
-        get<Siblings>(child) = Siblings{};
+        detach(child);
+        return {};
     }
 
-    void removeChildren(Entity entity)
+    /// @brief Detaches every child of the entity
+    auto removeChildren(Entity entity) -> std::expected<void, HierarchyError>
     {
-        assert(entity && "Cannot remove children: Entity is null");
-        assert(has<Children>(entity) && "Cannot remove children: Entity does not have children");
+        if (!valid(entity))
+            return std::unexpected{ HierarchyError::InvalidEntity };
 
         // This needs to be done in two steps to avoid invalidating the iterator
         auto& children = get<Children>(entity);
@@ -287,6 +295,7 @@ public:
             get<Parent>(child) = Parent{};
             get<Siblings>(child) = Siblings{};
         }
+        return {};
     }
 
     /// @brief Counts the changes to the set of static entities: it grows with every invalidateStatic()
@@ -321,6 +330,35 @@ public:
     }
 
 private:
+    /// @brief Unlinks the (valid) child from its parent's children, if it has a parent
+    void detach(Entity child)
+    {
+        const Entity parent = get<Parent>(child).entity;
+        if (!parent)
+            return;
+
+        auto& children = get<Children>(parent);
+        children.count--;
+
+        auto& siblings = get<Siblings>(child);
+        const Entity prevSibling = siblings.prev;
+        const Entity nextSibling = siblings.next;
+
+        // Update siblings and first/last child
+        if (prevSibling)
+            get<Siblings>(prevSibling).next = nextSibling;
+        else // First Child
+            children.first = nextSibling;
+
+        if (nextSibling)
+            get<Siblings>(nextSibling).prev = prevSibling;
+        else // Last Child
+            children.last = prevSibling;
+
+        get<Parent>(child) = Parent{};
+        get<Siblings>(child) = Siblings{};
+    }
+
     struct DestroyListener
     {
         const void* owner;

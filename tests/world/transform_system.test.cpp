@@ -34,7 +34,7 @@ TEST_SUITE("world::TransformSystem")
         Registry registry;
         const auto parent = registry.create("parent", { 0.0f, 0.0f, 0.0f }, quarterTurnZ(), glm::vec3{ 2.0f });
         const auto child = registry.create("child", { 1.0f, 0.0f, 0.0f });
-        registry.setParent(child, parent);
+        REQUIRE(registry.setParent(child, parent));
 
         TransformSystem system;
         system.onBegin(registry);
@@ -51,8 +51,8 @@ TEST_SUITE("world::TransformSystem")
         const auto root = registry.create("root", { 10.0f, 0.0f, 0.0f }, quarterTurnZ());
         const auto middle = registry.create("middle", { 1.0f, 0.0f, 0.0f });
         const auto leaf = registry.create("leaf", { 1.0f, 0.0f, 0.0f });
-        registry.setParent(middle, root);
-        registry.setParent(leaf, middle);
+        REQUIRE(registry.setParent(middle, root));
+        REQUIRE(registry.setParent(leaf, middle));
 
         TransformSystem system;
         system.onBegin(registry);
@@ -68,8 +68,8 @@ TEST_SUITE("world::TransformSystem")
         const auto parent = registry.create("parent", { 0.0f, 0.0f, 0.0f }, quarterTurnZ());
         const auto dynamicChild = registry.create("dynamic", { 1.0f, 0.0f, 0.0f });
         const auto staticChild = registry.create("static", { 1.0f, 0.0f, 0.0f });
-        registry.setParent(dynamicChild, parent);
-        registry.setParent(staticChild, parent);
+        REQUIRE(registry.setParent(dynamicChild, parent));
+        REQUIRE(registry.setParent(staticChild, parent));
         registry.add<DynamicTag>(parent);
         registry.add<DynamicTag>(dynamicChild);
 
@@ -96,7 +96,7 @@ TEST_SUITE("world::TransformSystem static dirty")
         Registry registry;
         const auto parent = registry.create("parent");
         const auto child = registry.create("child", { 1.0f, 0.0f, 0.0f });
-        registry.setParent(child, parent);
+        REQUIRE(registry.setParent(child, parent));
 
         TransformSystem system;
         system.onBegin(registry);

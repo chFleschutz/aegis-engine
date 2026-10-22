@@ -114,8 +114,8 @@ auto buildWorld(Registry& registry, const TypeRegistry& types) -> void
     auto crate = registry.createWithId(0x3b0f5e2a9c1d4e77, "Crate", { 2.0f, -1.0f, 0.0f });
     registry.add<Health>(crate, 75.0f, Armor::Heavy);
     registry.get<aegis::Transform>(crate).scale = glm::vec3{ 0.5f };
-    registry.addChild(lamp, bulb);
-    registry.addChild(lamp, crate);
+    REQUIRE(registry.addChild(lamp, bulb));
+    REQUIRE(registry.addChild(lamp, crate));
 
     auto spinner = aegis::scripting::attachScript(registry, types, bulb, "Spinner");
     REQUIRE(spinner.has_value());
@@ -145,6 +145,28 @@ TEST_SUITE("serialize::scene")
         Registry loaded;
         REQUIRE(aegis::serialize::instantiate(loaded, types, *scene).has_value());
         CHECK(saveText(loaded, types) == first);
+    }
+
+    TEST_CASE("keeps a reordered sibling order through a scene file")
+    {
+        TypeRegistry types;
+        registerTypes(types);
+        Registry original;
+        buildWorld(original, types);
+        const auto lamp = original.find(aegis::StableId{ 0x1c5e09b7f3a8d264 });
+        const auto crate = original.find(aegis::StableId{ 0x3b0f5e2a9c1d4e77 });
+        REQUIRE(original.insertChild(lamp, crate, 0));
+
+        auto scene = parse(saveText(original, types), types);
+        REQUIRE(scene.has_value());
+        Registry loaded;
+        REQUIRE(aegis::serialize::instantiate(loaded, types, *scene).has_value());
+
+        const auto loadedLamp = loaded.find(aegis::StableId{ 0x1c5e09b7f3a8d264 });
+        const auto first = loaded.get<aegis::Children>(loadedLamp).first;
+        REQUIRE(first);
+        CHECK(first == loaded.find(aegis::StableId{ 0x3b0f5e2a9c1d4e77 }));
+        CHECK(loaded.get<aegis::Siblings>(first).next == loaded.find(aegis::StableId{ 0x7a21e4c90d3b5f86 }));
     }
 
     TEST_CASE("restores names, values, tags, scripts and the sibling order")

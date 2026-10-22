@@ -356,27 +356,6 @@ auto withNewIds(const Scene& scene, const world::Registry& registry) -> Scene
     return copy;
 }
 
-// Makes `child` the child of `parent` at `index` among its children (the last one past their end)
-void insertChild(world::Registry& registry, world::Entity parent, world::Entity child, std::size_t index)
-{
-    registry.addChild(parent, child);
-
-    // Move the children from `index` on behind the new one
-    // TODO: Insert at the index directly once the registry can (#197)
-    std::vector<world::Entity> after;
-    std::size_t position = 0;
-    for (world::Entity sibling = registry.get<Children>(parent).first; sibling != child; sibling = registry.get<Siblings>(sibling).next)
-    {
-        if (position++ >= index)
-            after.push_back(sibling);
-    }
-    for (const world::Entity sibling : after)
-    {
-        registry.removeChild(parent, sibling);
-        registry.addChild(parent, sibling);
-    }
-}
-
 auto loadFields(const SceneComponent& component, void* object) -> std::expected<void, Error>
 {
     for (const Node& saved : component.fields.items)
@@ -476,7 +455,7 @@ private:
             {
                 const world::Entity entity = created.at(saved.id);
                 if (!m_registry.get<Parent>(entity).entity)
-                    m_registry.addChild(holder, entity);
+                    std::ignore = m_registry.addChild(holder, entity); // A new root of a new holder: no cycle
             }
         }
 
@@ -763,7 +742,7 @@ auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, 
 
     const world::Entity root = registry.find(StableId{ *rootId });
     if (parent)
-        insertChild(registry, parent, root, index);
+        std::ignore = registry.insertChild(parent, root, index);
     return root;
 }
 
@@ -776,7 +755,7 @@ auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, 
     const world::Entity holder = registry.create();
     registry.add<SceneInstance>(holder, SceneInstance{ scene });
     if (parent)
-        registry.addChild(parent, holder);
+        std::ignore = registry.addChild(parent, holder);
 
     Instantiator instantiator{ registry, types, prepare };
     if (auto placed = instantiator.place(*scene, holder); !placed)
