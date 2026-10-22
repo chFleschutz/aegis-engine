@@ -84,7 +84,9 @@ window rendered; on a build failure, surface the first real error, not the downs
 
 **Games** (`cmake/AegisGame.cmake`, D7): `aegis_add_game(<Name> SOURCES … PROJECT <dir>)` builds the
 game's sources once (an OBJECT library) into `<Name>` (runtime, no `aegis-editor`) and `<Name>-Editor`
-around the engine's launcher, `src/aegis/launch/main.cpp`, the only `main()`. One game source file ends
+around the engine's launcher, `src/aegis/launch/main.cpp`, the only `main()`. The runtime plays the game in
+the engine's `GameShell`; the editor flavor installs `editor::EditorShell` (`Engine::setShell`), which keeps
+the world in edit mode (no scripts run) and builds the editor's UI at the frame's safe point. One game source file ends
 with `AEGIS_GAME_MODULE({ .name = …, .registerTypes = …, .onStartup = … })` (`aegis/launch/game_module.h`).
 The launcher finds the project by `--project <dir>`, then `project/` next to the executable, then
 `PROJECT` (`paths::locate`); the shaders and the engine content are found the same way. Nothing is
@@ -141,7 +143,7 @@ changes one object's material gives it its own first (`assets.copyMaterial(ref)`
 The renderer was rewritten onto a new RHI; the code around it (engine, editor, world, scripting, UI)
 still follows the older style. **Match the conventions of the code you are editing.**
 
-| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/`, `test/` | Legacy — everything else (`core/`, `editor/`, `math/`, `world/`, `scripting/`, `ui/`, `utils/`, `engine.cppm`, `scene_*.cppm`, `examples/`) |
+| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/`, `editor/`, `test/` | Legacy — everything else (`core/`, `math/`, `world/`, `scripting/`, `utils/`, `engine.cppm`, `scene_*.cppm`, `examples/`) |
 |---|---|---|
 | Vulkan | vulkan-hpp `vk::raii`, `import vulkan` | none — go through `aegis::rhi` and friends |
 | Errors | `std::expected<T, Error>` + `makeError`, never throw | `AGX_ASSERT*` |
@@ -297,7 +299,7 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
 
 doctest covers **pure, GPU-independent logic** in any module. One
 executable per module (`aegis-tests-base`, `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`,
-`aegis-tests-math`, `aegis-tests-paths`, `aegis-tests-world`), each linking only that module's library. Layout, conventions, how to add a
+`aegis-tests-math`, `aegis-tests-paths`, `aegis-tests-world`, `aegis-tests-editor`), each linking only that module's library. Layout, conventions, how to add a
 module, and the full rationale: **`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*
