@@ -246,6 +246,136 @@ auto saveFields(const reflect::TypeInfo& type, const void* object) -> std::expec
 
 namespace
 {
+using StoredComponents = std::vector<std::pair<const reflect::TypeInfo*, const world::ComponentStorage*>>;
+
+// The registered components that live on entities, by name
+auto storedComponents(const reflect::TypeRegistry& types) -> StoredComponents
+{
+    StoredComponents stored;
+    for (const reflect::TypeInfo* info : types.types())
+    {
+        if (info->category != reflect::TypeCategory::Component)
+            continue;
+        if (const auto* storage = info->attachment<world::ComponentStorage>())
+            stored.emplace_back(info, storage);
+    }
+    std::ranges::sort(stored, {}, [](const auto& entry) -> const std::string& { return entry.first->name; });
+    return stored;
+}
+
+// The entity with its name, the children that are not instance members, its components and its scripts
+auto saveEntity(world::Registry& registry, const reflect::TypeRegistry& types, const StoredComponents& stored, world::Entity entity)
+    -> std::expected<SceneEntity, Error>
+{
+    SceneEntity saved{ .id = registry.get<StableId>(entity).value, .name = registry.get<Name>(entity).name };
+    for (world::Entity child = registry.get<Children>(entity).first; child; child = registry.get<Siblings>(child).next)
+    {
+        if (!registry.has<InstanceMember>(child))
+            saved.children.push_back(registry.get<StableId>(child).value);
+    }
+
+    for (const auto& [info, storage] : stored)
+    {
+        if (const void* object = storage->find(registry, entity))
+        {
+            auto component = saveFields(*info, object);
+            if (!component)
+                return std::unexpected{ component.error() };
+            saved.components.push_back(std::move(*component));
+        }
+    }
+
+    if (registry.has<scripting::Scripts>(entity))
+    {
+        for (const scripting::ScriptEntry& entry : registry.get<scripting::Scripts>(entity).entries)
+        {
+            const reflect::TypeInfo* info = types.find(entry.name);
+            if (!info || !entry.object)
+                return makeError(ErrorCode::UnknownType, std::format("the script '{}' of entity {} is not registered", entry.name, formatId(saved.id)));
+            auto script = saveFields(*info, entry.object);
+            if (!script)
+                return std::unexpected{ script.error() };
+            saved.scripts.push_back(std::move(*script));
+        }
+    }
+    return saved;
+}
+
+// The ID of the one entity of `scene` that is no entity's child
+auto findRoot(const Scene& scene) -> std::expected<std::uint64_t, Error>
+{
+    std::unordered_set<std::uint64_t> children;
+    for (const SceneEntity& entity : scene.entities)
+        children.insert_range(entity.children);
+
+    std::optional<std::uint64_t> root;
+    for (const SceneEntity& entity : scene.entities)
+    {
+        if (children.contains(entity.id))
+            continue;
+        if (root)
+            return makeError(ErrorCode::InvalidData, std::format("the subtree has more than one root ({} and {})", formatId(*root), formatId(entity.id)), entity.line);
+        root = entity.id;
+    }
+    if (!root)
+        return makeError(ErrorCode::Cycle, "the subtree has no root");
+    return *root;
+}
+
+// `scene` with a new random ID for every entity that `registry` does not use, the children lists remapped
+auto withNewIds(const Scene& scene, const world::Registry& registry) -> Scene
+{
+    static thread_local std::mt19937_64 generator{ [] {
+        std::random_device device;
+        std::seed_seq seed{ device(), device(), device(), device() };
+        return std::mt19937_64{ seed };
+    }() };
+
+    std::unordered_map<std::uint64_t, std::uint64_t> newIds;
+    std::unordered_set<std::uint64_t> taken;
+    for (const SceneEntity& entity : scene.entities)
+    {
+        std::uint64_t id = 0;
+        while (id == 0 || taken.contains(id) || registry.find(StableId{ id }))
+            id = generator();
+        taken.insert(id);
+        newIds.emplace(entity.id, id);
+    }
+
+    Scene copy = scene;
+    for (SceneEntity& entity : copy.entities)
+    {
+        entity.id = newIds.at(entity.id);
+        for (std::uint64_t& child : entity.children)
+        {
+            if (auto it = newIds.find(child); it != newIds.end())
+                child = it->second;
+        }
+    }
+    std::ranges::sort(copy.entities, {}, &SceneEntity::id);
+    return copy;
+}
+
+// Makes `child` the child of `parent` at `index` among its children (the last one past their end)
+void insertChild(world::Registry& registry, world::Entity parent, world::Entity child, std::size_t index)
+{
+    registry.addChild(parent, child);
+
+    // Move the children from `index` on behind the new one
+    // TODO: Insert at the index directly once the registry can (#197)
+    std::vector<world::Entity> after;
+    std::size_t position = 0;
+    for (world::Entity sibling = registry.get<Children>(parent).first; sibling != child; sibling = registry.get<Siblings>(sibling).next)
+    {
+        if (position++ >= index)
+            after.push_back(sibling);
+    }
+    for (const world::Entity sibling : after)
+    {
+        registry.removeChild(parent, sibling);
+        registry.addChild(parent, sibling);
+    }
+}
 
 auto loadFields(const SceneComponent& component, void* object) -> std::expected<void, Error>
 {
@@ -546,55 +676,50 @@ auto writeScene(const Scene& scene) -> std::string
 
 auto saveScene(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id) -> std::expected<Scene, Error>
 {
-    // The registered components that live on entities, by name
-    std::vector<std::pair<const reflect::TypeInfo*, const world::ComponentStorage*>> stored;
-    for (const reflect::TypeInfo* info : types.types())
-    {
-        if (info->category != reflect::TypeCategory::Component)
-            continue;
-        if (const auto* storage = info->attachment<world::ComponentStorage>())
-            stored.emplace_back(info, storage);
-    }
-    std::ranges::sort(stored, {}, [](const auto& entry) -> const std::string& { return entry.first->name; });
-
+    const auto stored = storedComponents(types);
     Scene scene{ .id = id };
     for (const auto handle : registry.view<StableId>())
     {
         const world::Entity entity{ handle };
         if (registry.has<InstanceMember>(entity))
             continue;
-        SceneEntity saved{ .id = registry.get<StableId>(entity).value, .name = registry.get<Name>(entity).name };
+        auto saved = saveEntity(registry, types, stored, entity);
+        if (!saved)
+            return std::unexpected{ std::move(saved.error()) };
+        scene.entities.push_back(std::move(*saved));
+    }
+    std::ranges::sort(scene.entities, {}, &SceneEntity::id);
+    return scene;
+}
+
+auto saveScene(world::Registry& registry, const reflect::TypeRegistry& types, world::Entity root, std::uint64_t id) -> std::expected<Scene, Error>
+{
+    if (!registry.valid(root))
+        return makeError(ErrorCode::MissingEntity, "the root of the subtree is not an entity of the world");
+    if (registry.has<InstanceMember>(root))
+    {
+        return makeError(ErrorCode::InvalidData,
+            std::format("{} belongs to a scene instance; capture its holder instead", formatId(registry.get<StableId>(root).value)));
+    }
+
+    const auto stored = storedComponents(types);
+    Scene scene{ .id = id };
+    std::vector<world::Entity> pending{ root };
+    while (!pending.empty())
+    {
+        const world::Entity entity = pending.back();
+        pending.pop_back();
+        auto saved = saveEntity(registry, types, stored, entity);
+        if (!saved)
+            return std::unexpected{ std::move(saved.error()) };
+        scene.entities.push_back(std::move(*saved));
+
+        // An instance's entities are left out, and so are theirs: all of them are instance members
         for (world::Entity child = registry.get<Children>(entity).first; child; child = registry.get<Siblings>(child).next)
         {
             if (!registry.has<InstanceMember>(child))
-                saved.children.push_back(registry.get<StableId>(child).value);
+                pending.push_back(child);
         }
-
-        for (const auto& [info, storage] : stored)
-        {
-            if (const void* object = storage->find(registry, entity))
-            {
-                auto component = saveFields(*info, object);
-                if (!component)
-                    return std::unexpected{ component.error() };
-                saved.components.push_back(std::move(*component));
-            }
-        }
-
-        if (registry.has<scripting::Scripts>(entity))
-        {
-            for (const scripting::ScriptEntry& entry : registry.get<scripting::Scripts>(entity).entries)
-            {
-                const reflect::TypeInfo* info = types.find(entry.name);
-                if (!info || !entry.object)
-                    return makeError(ErrorCode::UnknownType, std::format("the script '{}' of entity {} is not registered", entry.name, formatId(saved.id)));
-                auto script = saveFields(*info, entry.object);
-                if (!script)
-                    return std::unexpected{ script.error() };
-                saved.scripts.push_back(std::move(*script));
-            }
-        }
-        scene.entities.push_back(std::move(saved));
     }
     std::ranges::sort(scene.entities, {}, &SceneEntity::id);
     return scene;
@@ -610,6 +735,36 @@ auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, 
         return std::unexpected{ std::move(placed.error()) };
     }
     return {};
+}
+
+auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& subtree, world::Entity parent, std::size_t index,
+    EntityIds ids, const PrepareComponent& prepare) -> std::expected<world::Entity, Error>
+{
+    if (parent && !registry.valid(parent))
+        return makeError(ErrorCode::MissingEntity, "the parent of the subtree is not an entity of the world");
+    if (parent && registry.has<InstanceMember>(parent))
+    {
+        return makeError(ErrorCode::InvalidData,
+            std::format("{} belongs to a scene instance; it cannot get children of its own", formatId(registry.get<StableId>(parent).value)));
+    }
+
+    const std::optional<Scene> renamed = ids == EntityIds::New ? std::optional{ withNewIds(subtree, registry) } : std::nullopt;
+    const Scene& placed = renamed ? *renamed : subtree;
+    auto rootId = findRoot(placed);
+    if (!rootId)
+        return std::unexpected{ std::move(rootId.error()) };
+
+    Instantiator instantiator{ registry, types, prepare };
+    if (auto created = instantiator.place(placed, world::Entity{}); !created)
+    {
+        instantiator.rollback();
+        return std::unexpected{ std::move(created.error()) };
+    }
+
+    const world::Entity root = registry.find(StableId{ *rootId });
+    if (parent)
+        insertChild(registry, parent, root, index);
+    return root;
 }
 
 auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const assets::AssetRef<Scene>& scene,
