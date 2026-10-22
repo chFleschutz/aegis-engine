@@ -61,19 +61,37 @@ jobs:
         if: ${{ matrix.lavapipe }}
         run: git submodule update --init --checkout samples
 
-      # libstdc++ 14 declares std::forward_like with a deduced return type, which clang rejects
-      # across module boundaries, so the build needs libstdc++ 15.
-      - name: Install Clang, libstdc++ 15, CMake, Ninja and GLFW dependencies
+      # The downloaded .debs are cached (keyed on the runner image, the LLVM version and the package list),
+      # so a warm run installs from local files and only apt-get update touches the mirror.
+      - name: Prepare the apt package cache
+        id: apt
         run: |
-          sudo apt-get update
-          sudo apt-get install -y "clang-$LLVM_VERSION" "clang-tools-$LLVM_VERSION" libstdc++-15-dev \
-            ninja-build libwayland-dev libxkbcommon-dev xorg-dev ${{ matrix.lavapipe && 'mesa-vulkan-drivers' || '' }}
+          packages="clang-$LLVM_VERSION clang-tools-$LLVM_VERSION libstdc++-15-dev ninja-build libwayland-dev libxkbcommon-dev xorg-dev ${{ matrix.lavapipe && 'mesa-vulkan-drivers' || '' }}"
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+          echo "key=apt-$ImageVersion-$(echo "$packages" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+          mkdir -p "$HOME/apt-archives"
+
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-archives
+          key: ${{ steps.apt.outputs.key }}
+
+      # libstdc++ 14 declares std::forward_like with a deduced return type, which clang rejects
+      # across module boundaries, so the build needs libstdc++ 15. A stalled mirror fails at the
+      # timeout (retries first) instead of holding the job for many minutes. Downloads run as root
+      # so apt can write into the runner-owned cache directory.
+      - name: Install Clang, libstdc++ 15, CMake, Ninja and GLFW dependencies
+        timeout-minutes: 5
+        run: |
+          apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30             -o "Dir::Cache::archives=$HOME/apt-archives" -o APT::Sandbox::User=root)
+          sudo apt-get "${apt_opts[@]}" update
+          sudo apt-get "${apt_opts[@]}" install -y ${{ steps.apt.outputs.packages }}
           # Unversioned clang, clang++ and clang-scan-deps (module scanning) for the preset.
           echo "/usr/lib/llvm-$LLVM_VERSION/bin" >> "$GITHUB_PATH"
           # Clang picks the newest GCC installation; pin it to 15 in case the image carries a newer one.
           echo "CXXFLAGS=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/15" >> "$GITHUB_ENV"
-          curl -sSfL "https://github.com/Kitware/CMake/releases/download/v$CMAKE_VERSION/cmake-$CMAKE_VERSION-linux-x86_64.tar.gz" \
-            | tar -xz -C "$HOME"
+          curl -sSfL --retry 3 --max-time 120 "https://github.com/Kitware/CMake/releases/download/v$CMAKE_VERSION/cmake-$CMAKE_VERSION-linux-x86_64.tar.gz"             | tar -xz -C "$HOME"
           echo "$HOME/cmake-$CMAKE_VERSION-linux-x86_64/bin" >> "$GITHUB_PATH"
 
       - name: Cache Vulkan SDK
