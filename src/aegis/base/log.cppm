@@ -15,16 +15,28 @@ enum class Level
     Fatal,
 };
 
-/// @brief Receives every message instead of stderr. 'message' has no severity tag or newline.
-/// @note Called with the log mutex held, so a sink must not log itself.
+/// @brief Receives messages. 'message' has no severity tag or newline.
+/// @note Called with the log mutex held, so a sink must not log, add or remove sinks itself.
 using Sink = std::function<void(Level, std::string_view)>;
+
+/// @brief Identifies a sink added with addSink.
+enum class SinkId : std::uint32_t
+{
+};
 
 /// @brief Lower-case tag of a level as written to stderr ("info", "warn", ...).
 [[nodiscard]] auto levelName(Level level) noexcept -> std::string_view;
 
 /// @brief Replaces where messages go (tests capture output with it, an app can forward to a file).
-///        An empty sink restores stderr.
+///        An empty sink restores stderr. Sinks added with addSink are not affected.
 void setSink(Sink sink);
+
+/// @brief Adds a sink that receives every message next to stderr (or the sink set with setSink),
+///        e.g. an editor console. Sinks run in the order they were added.
+[[nodiscard]] auto addSink(Sink sink) -> SinkId;
+
+/// @brief Removes a sink added with addSink. Unknown IDs are ignored.
+void removeSink(SinkId id);
 
 namespace detail
 {
