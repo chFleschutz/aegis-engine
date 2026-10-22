@@ -26,6 +26,7 @@ target_link_libraries(aegis-editor
         aegis-engine # The shell it implements
     PRIVATE
         aegis-base
+        aegis-math
         aegis-render-graph
         aegis-renderer
         aegis-rhi
