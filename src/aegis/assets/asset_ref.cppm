@@ -93,4 +93,6 @@ struct aegis::reflect::AssetFieldTraits<aegis::assets::AssetRef<T>>
 {
     static auto id(const aegis::assets::AssetRef<T>& ref) -> std::uint64_t { return ref.id().value; }
     static auto make(std::uint64_t id) -> aegis::assets::AssetRef<T> { return aegis::assets::AssetRef<T>{ aegis::assets::AssetId{ id } }; }
+    /// @brief The asset type names itself: `static constexpr std::string_view assetType`
+    static auto assetType() -> std::string_view { return T::assetType; }
 };

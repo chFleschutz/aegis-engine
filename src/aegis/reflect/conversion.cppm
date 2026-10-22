@@ -44,9 +44,11 @@ struct FieldConversion;
 //     {
 //         static auto id(const AssetRef<T>& ref) -> std::uint64_t;   // 0 for none
 //         static auto make(std::uint64_t id) -> AssetRef<T>;         // an unresolved reference
+//         static auto assetType() -> std::string_view;              // what it accepts ("StaticMesh")
 //     };
 //
-// The serializer writes the ID, and the cook step finds a file's dependencies through these fields.
+// The serializer writes the ID, and the cook step finds a file's dependencies through these fields. The asset
+// type is editor metadata (FieldInfo::assetType): an asset picker offers only assets of that type.
 template<class T>
 struct AssetFieldTraits;
 
@@ -201,5 +203,6 @@ struct FieldConversion<T>
             return std::unexpected{ id.error() };
         return AssetFieldTraits<T>::make(*id);
     }
+    static auto assetType() -> std::string_view { return AssetFieldTraits<T>::assetType(); }
 };
 }

@@ -69,6 +69,9 @@ private:
 class Material
 {
 public:
+    /// @brief The asset type's name, for the editor (reflect::FieldInfo::assetType)
+    static constexpr std::string_view assetType{ "Material" };
+
     /// @param framesInFlight One parameter block per frame, so updating one never races a frame the
     ///        GPU is still reading (renderer::Renderer::maxFramesInFlight).
     [[nodiscard]] static auto create(rhi::Device& device, std::shared_ptr<const MaterialTemplate> materialTemplate,

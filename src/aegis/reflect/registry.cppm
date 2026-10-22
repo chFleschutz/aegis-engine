@@ -16,24 +16,25 @@ template<class T>
 class TypeBuilder
 {
 public:
-    // Registers `member` (a data member of T or of a base of T) under `name`. The member's type must
-    // have a FieldConversion; an unsupported type is a compile error here.
+    // Registers `member` (a data member of T or of a base of T) under `name`, with the editor metadata
+    // `meta`. The member's type must have a FieldConversion; an unsupported type is a compile error here.
+    // Metadata that does not fit the field's kind fails with InvalidMeta, and the field is not added.
     template<class Owner, class Member>
         requires std::derived_from<T, Owner>
-    auto field(std::string_view name, Member Owner::* member) -> TypeBuilder&
+    auto field(std::string_view name, Member Owner::* member, FieldMeta meta = {}) -> TypeBuilder&
     {
         using Conversion = FieldConversion<Member>;
 
         if (m_info->findField(name))
-        {
-            if (m_status)
-                m_status = makeError(ErrorCode::DuplicateName, std::format("type '{}' already has a field '{}'", m_info->name, name));
-            return *this;
-        }
+            return fail(ErrorCode::DuplicateName, std::format("type '{}' already has a field '{}'", m_info->name, name));
+        if (auto problem = metaProblem(Conversion::kind, meta); !problem.empty())
+            return fail(ErrorCode::InvalidMeta, std::format("field '{}' of type '{}': {}", name, m_info->name, problem));
 
-        FieldInfo info{ .name = std::string{ name }, .kind = Conversion::kind };
+        FieldInfo info{ .name = std::string{ name }, .kind = Conversion::kind, .meta = std::move(meta) };
         if constexpr (requires { Conversion::enumEntries(); })
             info.enumEntries = Conversion::enumEntries();
+        if constexpr (requires { Conversion::assetType(); })
+            info.assetType = std::string{ Conversion::assetType() };
         info.getter = [member](const void* object) -> Value { return Conversion::toValue(static_cast<const T*>(object)->*member); };
         info.setter = [member](void* object, const Value& value) -> std::expected<void, Error> {
             auto converted = Conversion::fromValue(value);
@@ -43,6 +44,27 @@ public:
             return {};
         };
         m_info->fields.push_back(std::move(info));
+        return *this;
+    }
+
+    // The name an editor shows for the type (TypeInfo::displayName), when it differs from the registered one.
+    auto displayName(std::string_view displayName) -> TypeBuilder&
+    {
+        m_info->meta.displayName = displayName;
+        return *this;
+    }
+
+    // The group the editor lists the type under ("Lighting").
+    auto category(std::string_view category) -> TypeBuilder&
+    {
+        m_info->meta.category = category;
+        return *this;
+    }
+
+    // Marks the type as one every entity has and none can remove (TypeMeta::required).
+    auto required() -> TypeBuilder&
+    {
+        m_info->meta.required = true;
         return *this;
     }
 
@@ -113,6 +135,35 @@ private:
         m_registry(registry),
         m_info(info)
     {
+    }
+
+    // Why `meta` does not fit a field of `kind`, or empty if it does.
+    [[nodiscard]] static auto metaProblem(FieldKind kind, const FieldMeta& meta) -> std::string_view
+    {
+        const bool scalar = kind == FieldKind::Int || kind == FieldKind::UInt || kind == FieldKind::Float || kind == FieldKind::Double;
+        const bool vector = kind == FieldKind::Vec2 || kind == FieldKind::Vec3 || kind == FieldKind::Vec4;
+        const bool limited = meta.min || meta.max || meta.step;
+        if (limited && !scalar && !vector)
+            return "only numbers and vectors take a min, max or step";
+        if (meta.min && meta.max && *meta.min > *meta.max)
+            return "min is above max";
+        if (meta.step && !(*meta.step > 0.0))
+            return "step must be positive";
+
+        switch (meta.widget)
+        {
+        case FieldWidget::Default:
+            return {};
+        case FieldWidget::Color:
+            return kind == FieldKind::Vec3 || kind == FieldKind::Vec4 ? std::string_view{} : "a Color widget needs a Vec3 or Vec4 field";
+        case FieldWidget::Angle:
+            return kind == FieldKind::Float || kind == FieldKind::Double ? std::string_view{} : "an Angle widget needs a Float or Double field";
+        case FieldWidget::Slider:
+            if (!scalar)
+                return "a Slider widget needs a number field";
+            return meta.min && meta.max ? std::string_view{} : "a Slider widget needs a min and a max";
+        }
+        return {};
     }
 
     auto fail(ErrorCode code, std::string message) -> TypeBuilder&

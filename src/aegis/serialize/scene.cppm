@@ -61,6 +61,8 @@ struct SceneEntity
 // into a world.
 struct Scene
 {
+    static constexpr std::string_view assetType{ "Scene" }; // For the editor (reflect::FieldInfo::assetType)
+
     std::uint64_t id{ 0 };
     std::vector<SceneEntity> entities; // Sorted by ID
 };

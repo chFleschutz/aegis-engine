@@ -21,6 +21,7 @@ constexpr auto codeName(ErrorCode code) -> std::string_view
     case ErrorCode::NotConstructible: return "NotConstructible";
     case ErrorCode::UnsupportedVersion: return "UnsupportedVersion";
     case ErrorCode::InvalidVersion: return "InvalidVersion";
+    case ErrorCode::InvalidMeta: return "InvalidMeta";
     }
     return "Unknown";
 }

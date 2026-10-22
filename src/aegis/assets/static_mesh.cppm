@@ -12,6 +12,9 @@ export namespace aegis::assets
 class StaticMesh
 {
 public:
+    /// @brief The asset type's name, for the editor (reflect::FieldInfo::assetType)
+    static constexpr std::string_view assetType{ "StaticMesh" };
+
     /// @brief What meshDataAddress() points at; the layout shaders read (scalar).
     using GpuData = MeshGpuData;
 
