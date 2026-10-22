@@ -7,6 +7,8 @@ module aegis.editor;
 import std;
 import aegis.base;
 import aegis.math;
+import aegis.render_passes;
+import aegis.rhi;
 import aegis.world;
 import aegis.world.systems.transform_system;
 import :panels;
@@ -93,6 +95,13 @@ void EditorShell::onShutdown()
     ImGui::GetIO().IniFilename = nullptr;
 }
 
+auto EditorShell::renderView() const -> std::optional<RenderView>
+{
+    if (!m_viewportExtent)
+        return std::nullopt;
+    return RenderView{ .extent = *m_viewportExtent };
+}
+
 auto EditorShell::inputCapture() const -> InputCapture
 {
     const auto& io = ImGui::GetIO();
@@ -114,6 +123,7 @@ void EditorShell::onFrame(FrameContext& frame)
         if (panel->isOpen())
             panel->draw(m_context, frame);
     }
+    drawViewport(frame);
     if (m_gizmoMode != GizmoMode::None)
         drawGizmo(frame.world);
     ImGui::End();
@@ -132,10 +142,38 @@ void EditorShell::drawMenuBar()
             if (ImGui::MenuItem(name.c_str(), nullptr, panel->isOpen()))
                 panel->setOpen(!panel->isOpen());
         }
+        if (ImGui::MenuItem("Viewport", nullptr, m_viewportOpen))
+            m_viewportOpen = !m_viewportOpen;
         ImGui::EndMenu();
     }
 
     ImGui::EndMainMenuBar();
+}
+
+// A first viewport (docs/editor.md, E2 finishes it): the scene renders into a view of the panel's size, shown in it.
+void EditorShell::drawViewport(FrameContext& frame)
+{
+    if (m_viewportOpen)
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
+        const bool visible = ImGui::Begin("Viewport", &m_viewportOpen);
+        ImGui::PopStyleVar();
+        if (visible)
+        {
+            const auto size = ImGui::GetContentRegionAvail();
+            m_viewportExtent = rhi::Extent2D{ static_cast<std::uint32_t>(std::max(size.x, 1.0f)), static_cast<std::uint32_t>(std::max(size.y, 1.0f)) };
+            // The graph renders into the view the viewport asked for last frame; until then "Final" is the window's.
+            const auto final = frame.frameGraph.declarations().find(render_graph::names::finalImage);
+            if (frame.viewExtent && final)
+            {
+                if (const auto texture = frame.presentation.uiTexture(frame.frameGraph.pool().texture(*final).view))
+                    ImGui::Image(ImTextureRef{ texture }, size);
+            }
+        }
+        ImGui::End();
+    }
+    if (!m_viewportOpen)
+        m_viewportExtent.reset();
 }
 
 void EditorShell::updateGizmoMode()

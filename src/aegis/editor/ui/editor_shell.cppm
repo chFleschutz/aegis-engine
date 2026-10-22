@@ -2,6 +2,7 @@ export module aegis.editor:editor_shell;
 import std;
 import aegis.editor.core;
 import aegis.engine;
+import aegis.rhi;
 import :panel;
 
 export namespace aegis::editor
@@ -25,6 +26,8 @@ public:
     [[nodiscard]] auto updateMode() const -> world::UpdateMode override { return world::UpdateMode::Edit; }
     /// @brief The input the editor's UI uses (ImGui's capture flags from the last frame).
     [[nodiscard]] auto inputCapture() const -> InputCapture override;
+    /// @brief The viewport's size while it is open, through the world's main camera.
+    [[nodiscard]] auto renderView() const -> std::optional<RenderView> override;
     void onShutdown() override;
 
     [[nodiscard]] auto context() -> EditorContext& { return m_context; }
@@ -39,6 +42,7 @@ private:
     };
 
     void drawMenuBar();
+    void drawViewport(FrameContext& frame);
     void updateGizmoMode();
     void drawGizmo(world::World& world);
 
@@ -47,5 +51,7 @@ private:
     std::string m_layoutFile; // UTF-8; ImGui reads and writes the layout there. Empty keeps none.
     GizmoMode m_gizmoMode{ GizmoMode::None };
     bool m_snapping{ false };
+    bool m_viewportOpen{ false };
+    std::optional<rhi::Extent2D> m_viewportExtent; // The view the viewport asks for; none while it is closed
 };
 }

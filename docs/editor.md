@@ -127,7 +127,8 @@ shell decides which worlds tick: `GameShell` the active world in `Play`, `Editor
 ### Frame loop (owned by `Engine::run`)
 
 ```
-1. platform     window events; input update. Capture flags come from the shell (viewport focus), not raw ImGui flags
+1. platform     window events; input update. Capture flags come from the shell (viewport focus), not raw ImGui flags;
+                the frame graph follows the RenderView extent the shell asked for last frame
 2. UI + edits   Presentation: ImGui NewFrame
                 shell.onFrame(frame)    <- the editor builds its UI and applies edits directly (safe point)
                 Presentation: ImGui::Render() -> draw data ready
