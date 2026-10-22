@@ -143,11 +143,25 @@ changes one object's material gives it its own first (`assets.copyMaterial(ref)`
 The renderer was rewritten onto a new RHI; the code around it (engine, editor, world, scripting, UI)
 still follows the older style. **Match the conventions of the code you are editing.**
 
-| | New RHI — `src/aegis/rhi/`, `renderer/`, `platform/`, `assets/`, `render_graph/`, `editor/`, `test/` | Legacy — everything else (`core/`, `math/`, `world/`, `scripting/`, `utils/`, `engine.cppm`, `scene_*.cppm`, `examples/`) |
+| | New style (see the list below) | Legacy — everything else |
 |---|---|---|
 | Vulkan | vulkan-hpp `vk::raii`, `import vulkan` | none — go through `aegis::rhi` and friends |
 | Errors | `std::expected<T, Error>` + `makeError`, never throw | `AGX_ASSERT*` |
 | Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm` only, dotted submodules (`aegis.world.entity`, `aegis.utils.timer`); `math` is one module |
+
+New-style folders under `src/aegis/`, one per line so moving a folder doesn't conflict with another PR
+(everything else, `examples/` included, is legacy):
+- `assets/`
+- `base/`
+- `editor/`
+- `paths/`
+- `platform/`
+- `reflect/`
+- `render_graph/`
+- `renderer/`
+- `rhi/`
+- `serialize/`
+- `test/`
 
 Both styles: lowercase `snake_case` namespaces (`aegis::rhi`, `aegis::world`) and module names
 (`aegis.rhi`, `aegis.world`), 4-space indent with un-indented namespace bodies, `m_`-prefixed
@@ -246,8 +260,9 @@ CMake or CI). Docs-only changes may be committed to `main` directly.
 design refs (D-n), the finding IDs it closes, content, out of scope, "done when" and verification.
 Labels: the kind (`bug`, `feature`, `refactor`, `cleanup`, `style`, `build`, `ci`, `tests`,
 `documentation`) matches the branch prefix; `size/*`; `area/*` (don't run two items with the same
-area in parallel); `needs-gpu` (verification needs the local device tests, which CI and cloud
-sessions can't run); `needs-design` (an open decision; don't start without the owner). **Status is
+area in parallel); `needs-gpu` (verification needs a real GPU: the reference images, a windowed run
+or Windows input, which CI's lavapipe job doesn't cover and cloud sessions can't run, see "What CI
+covers"); `needs-design` (an open decision; don't start without the owner). **Status is
 the assignee:** whoever starts an item assigns it (`gh issue edit <n> --add-assignee @me`), and an
 assigned issue is taken. `docs/audit/backlog.md` keeps the decisions (D1–D8, F1/F2) and each
 milestone's goal and order; read the decisions an issue cites. Before starting an item, read its
@@ -276,14 +291,15 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
 3. **Commit in reviewable steps.** Keep mechanical changes (whole-file reformats, renames, deletions,
    signature churn) in their own commits, separate from logic changes.
 4. **Verify each commit:** it builds clean and `ctest -LE device` passes. **Before pushing**, and for
-   any change to device code, run the full `ctest` *including* the `device` tests (CI has no GPU and
-   skips them, see "Verifying device code"), and look at the `--screenshot` output after render
-   changes. The test presets run tests in parallel; a `gpu` resource lock keeps the device tests
+   any change to device code, run the full `ctest` *including* the `device` tests (CI runs them only
+   on lavapipe, without the reference images, see "What CI covers"), and look at the `--screenshot`
+   output after render changes. The test presets run tests in parallel; a `gpu` resource lock keeps the device tests
    apart within one run. Across worktrees, run one `ctest` with device tests at a time per machine.
 5. **Format** with `tools/format.sh` (see "Formatting").
 6. **Push and open the PR** with `gh pr create`; the body says `Closes #<issue>`. CI
    (`.github/workflows/build.yml`) builds Linux and Windows, debug and release, and runs
-   `ctest -LE device`. It is the proof that Linux builds.
+   `ctest -LE device`; one more Linux debug job runs the device tests on lavapipe. It is the proof
+   that Linux builds.
 7. **Check CI** with `gh pr checks` (`--watch` to block) and report the result; work on another
    independent item meanwhile. Fix failures with new commits; don't force-push a PR under review.
 8. **The owner merges.** Agents never merge a PR or enable auto-merge (`gh pr merge`); they stop
@@ -292,8 +308,8 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
    open decisions, anything left out, and checks CI can't show (device tests run or skipped). Skip
    what the page already shows, such as CI results, test counts and the command list; the
    `/implement-issue` skill has the template. `main` is protected (required checks `Format`, `Linux`/`Windows`
-   × debug/release, branch up to date). CI has no GPU: run the full `ctest` with the device tests
-   locally first for device code. PRs land as merge commits, not squash or rebase, so commit hashes
+   × debug/release, branch up to date). CI's device tests run on a software driver only: run the
+   full `ctest` with the device tests locally first for device code. PRs land as merge commits, not squash or rebase, so commit hashes
    survive. After a PR with mechanical commits merges, add their hashes to `.git-blame-ignore-revs`
    (docs-only commit on `main`; only the owner can push to `main` past the protection). The
    `/implement-issue` skill follows this.
@@ -301,9 +317,9 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
 ## Unit tests
 
 doctest covers **pure, GPU-independent logic** in any module. One
-executable per module (`aegis-tests-base`, `aegis-tests-rhi`, `aegis-tests-assets`, `aegis-tests-render_graph`, `aegis-tests-render_passes`,
-`aegis-tests-math`, `aegis-tests-paths`, `aegis-tests-world`, `aegis-tests-editor`), each linking only that module's library. Layout, conventions, how to add a
-module, and the full rationale: **`tests/README.md`**.
+executable per module, `aegis-tests-<module>` (one directory per module under `tests/`), each linking
+only that module's library. Layout, conventions, how to add a module, and the full rationale:
+**`tests/README.md`**.
 
     cmake --build --preset windows-clang-debug            # builds all aegis-tests-*
     ctest --preset windows-clang-debug                    # runs every case in parallel, plus the device checks
@@ -344,3 +360,10 @@ it exits 0.
 - Headless does not touch surface, swapchain, acquire or present. When that code changed, also run
   `aegis-test --frames 600`: it opens a window briefly and exits by itself. On Windows it also checks
   `platform::Input` with synthetic key and mouse messages, so run it when platform code changes too.
+
+**What CI covers.** The `Linux device tests (lavapipe)` job runs every `device` test on Mesa's lavapipe,
+a software Vulkan driver, with validation (`ctest -L device -LE golden`). lavapipe has mesh shaders, so
+both geometry paths run. It does not cover, so run these on a real GPU before pushing:
+- the reference images (`golden`, generated on the dev GPU; software rendering differs in the last bits),
+- windowed runs: surface, swapchain, acquire, present and `platform::Input` (`aegis-test --frames 600`),
+- Windows drivers, and anything timing- or performance-related.
