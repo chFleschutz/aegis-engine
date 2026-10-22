@@ -63,6 +63,9 @@ public:
     // checks/input.cpp
     auto verifyInput() -> std::expected<void, std::string>;
 
+    // checks/window.cpp
+    auto verifyWindow() -> std::expected<void, std::string>;
+
     // checks/assets.cpp
     auto verifyAssets() -> std::expected<void, std::string>;
     auto verifyAssetLibrary() -> std::expected<void, std::string>;
