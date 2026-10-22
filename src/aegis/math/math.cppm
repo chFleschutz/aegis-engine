@@ -6,6 +6,7 @@ module;
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_access.hpp>
+#include <glm/gtc/packing.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/euler_angles.hpp>
@@ -50,6 +51,7 @@ using glm::radians;
 using glm::row;
 using glm::rowMajor4;
 using glm::two_pi;
+using glm::unpackHalf1x16;
 using glm::value_ptr;
 
 using glm::operator+;

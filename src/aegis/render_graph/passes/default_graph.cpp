@@ -22,6 +22,12 @@ auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> voi
     graph.add<TransparentPass>().addRenderSystem<PointLightRenderSystem>();
     graph.add<BloomPass>();
     graph.add<PostProcessingPass>();
+    if (desc.view)
+    {
+        // The frame's target shows only the UI; "Final" stays the view's, for the UI to show.
+        graph.add<UiPass>(UiPass::Desc{ .context = desc.context, .targetFormat = desc.view->targetFormat });
+        return;
+    }
     if (desc.ui)
         graph.add<UiPass>(UiPass::Desc{ .context = desc.context });
     graph.add<PresentPass>();

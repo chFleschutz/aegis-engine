@@ -40,7 +40,13 @@ struct Options
     std::string compare;       // Headless: fail unless the last frame matches this reference PNG (see compareToReference())
     int tolerance{ 0 };        // With --compare: the largest per-channel difference (0-255) a pixel may have
     bool noOverlay{ false };   // With --scene: leave the stats window out, its per-frame timings change every run
+    bool view{ false };        // With --scene: render through a second camera into a view of its own size, which
+                               // --screenshot and --compare then read (see viewExtent)
 };
+
+// --view: the view's size, unlike the target's (640x480, then 800x600), and the one it is resized to halfway.
+inline constexpr rhi::Extent2D viewExtent{ 480, 270 };
+inline constexpr rhi::Extent2D resizedViewExtent{ 400, 300 };
 
 class Engine
 {
@@ -138,7 +144,15 @@ private:
         -> std::expected<void, std::string>;
 
     // checks/offscreen.cpp
+    // The last frame as RGBA8 pixels: the offscreen target's, or with --view the view's.
+    struct Frame
+    {
+        std::vector<std::byte> pixels;
+        rhi::Extent2D extent;
+    };
     auto compareToReference(const std::vector<std::byte>& pixels, rhi::Extent2D extent) const -> std::expected<void, std::string>;
+    auto readTarget() -> std::expected<Frame, std::string>;
+    auto readView() -> std::expected<Frame, std::string>;
     auto verifyOffscreenFrame() -> std::expected<void, std::string>;
 
     Options m_options;
@@ -162,6 +176,8 @@ private:
     std::unique_ptr<aegis::world::World> m_scene;
     aegis::world::Entity m_helmet;                            // The holder of the model instance loaded with the scene
     aegis::world::Entity m_addedModel;                        // --mutate-scene: the holder of the model instance loaded later
+    aegis::world::Entity m_viewCamera;                        // --view: the camera the view renders through, not the main one
+    rhi::Extent2D m_viewExtent{ viewExtent };                 // --view: the view's size
     std::uint32_t m_staticDrawn{ 0 };                         // --mutate-scene: drawable static entities before the last change
     std::unique_ptr<render_graph::InstanceStore> m_instances; // Holds meshes and materials
     std::unique_ptr<InstanceBridge> m_instanceBridge;         // Disconnects before the scene goes

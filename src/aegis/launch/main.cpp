@@ -1,6 +1,7 @@
 // The engine's launcher: the only main(), compiled into each game's executables by aegis_add_game. The
 // runtime flavor (<Game>) runs the game in the engine's GameShell; the editor flavor (<Game>-Editor,
-// AEGIS_LAUNCH_EDITOR) installs the editor's shell instead, which edits the game's scenes. AEGIS_GAME_PROJECT_DIR is the game's project folder at configure time, defined
+// AEGIS_LAUNCH_EDITOR) installs the editor's shell instead, which edits the game's scenes. After the game's
+// onStartup it loads the scene file named by --scene, else the game's startup scene. AEGIS_GAME_PROJECT_DIR is the game's project folder at configure time, defined
 // for development builds only.
 
 import std;
@@ -97,6 +98,20 @@ auto run(int argc, char** argv) -> int
         if (auto started = game.onStartup(engine); !started)
         {
             log::fatal("{} failed to start: {}", game.name, describe(started.error()));
+            return exitFailure;
+        }
+    }
+    if (const std::string_view scene = desc->scene.empty() ? game.startupScene : desc->scene; !scene.empty())
+    {
+        const auto id = engine.assets().find(scene);
+        if (!id)
+        {
+            log::fatal("No scene file '{}' in the project of {}", scene, game.name);
+            return exitFailure;
+        }
+        if (auto loaded = engine.loadScene(*id); !loaded)
+        {
+            log::fatal("{}", describe(loaded.error()));
             return exitFailure;
         }
     }

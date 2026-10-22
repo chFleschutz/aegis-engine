@@ -234,6 +234,8 @@ auto Engine::run() -> int
             auto& registry = m_scene->registry();
             if (const auto camera = m_scene->mainCamera(); camera && registry.has<aegis::Camera>(camera))
                 registry.get<aegis::Camera>(camera).aspect = static_cast<float>(extent.x) / static_cast<float>(extent.y);
+            if (m_options.view)
+                registry.get<aegis::Camera>(m_viewCamera).aspect = static_cast<float>(m_viewExtent.x) / static_cast<float>(m_viewExtent.y);
             m_scene->update(1.0f / 60.0f);
         }
 
@@ -248,7 +250,8 @@ auto Engine::run() -> int
         }
 
         // Headless scene runs resize halfway, so the graph's resolution-dependent textures and the
-        // views passes derive from them are recreated under validation.
+        // views passes derive from them are recreated under validation. A view resizes on its own: the
+        // graph follows it, not the target.
         if (m_frameGraph && m_renderer->offscreen() && frames == m_options.frames / 2)
         {
             if (auto resized = m_renderer->resize({ 800, 600 }); !resized)
@@ -256,7 +259,9 @@ auto Engine::run() -> int
                 std::println("Renderer resize failed: {}", renderer::describe(resized.error()));
                 return 1;
             }
-            if (auto resized = m_frameGraph->resized(m_renderer->extent()); !resized)
+            if (m_options.view)
+                m_viewExtent = resizedViewExtent;
+            if (auto resized = m_frameGraph->resized(m_options.view ? m_viewExtent : m_renderer->extent()); !resized)
             {
                 std::println("Frame graph resize failed: {}", describe(resized.error()));
                 return 1;
@@ -317,13 +322,24 @@ auto Engine::drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
     {
         cmd.writeTimestamp(timer.pool, 0, rhi::TimestampStage::TopOfPipe);
         m_instanceBridge->sync();
-        const auto frameScene = extractFrameScene(*m_scene, *m_instances);
+        auto frameScene = extractFrameScene(*m_scene, *m_instances);
+        if (m_options.view)
+        {
+            // The view's camera replaces the main one, as a shell's RenderView does in aegis::Engine.
+            auto& registry = m_scene->registry();
+            const auto& camera = registry.get<aegis::Camera>(m_viewCamera);
+            frameScene.camera = render_graph::FrameScene::Camera{
+                .view = camera.viewMatrix,
+                .projection = camera.projectionMatrix,
+                .position = registry.get<aegis::GlobalTransform>(m_viewCamera).location,
+            };
+        }
         buildUi(*m_renderer, *m_frameGraph, !m_options.noOverlay);
         m_frameGraph->execute({
             .cmd = cmd,
             .frameScene = frameScene,
             .frameIndex = frameIndex,
-            .extent = extent,
+            .extent = m_options.view ? m_viewExtent : extent,
             .target = target,
         });
         m_instances->clearDirty();

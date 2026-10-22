@@ -46,6 +46,9 @@ public:
     /// @brief Follows the window's input through ImGui's GLFW backend; without it (headless) the UI is
     ///        drawn, not interacted with.
     void attach(platform::Window& window);
+    /// @brief Shuts the GLFW backend down, for attach to start it again. Shutting ImGui's Vulkan backend down (the
+    ///        UI pass, when the frame graph is rebuilt) also destroys ImGui's platform windows, the main one too.
+    void detach();
     /// @brief Opens the frame. Headless, the display is 'extent' and time advances by 'deltaSeconds'.
     void beginFrame(rhi::Extent2D extent, float deltaSeconds);
     /// @brief Ends the frame: its draw data is ready for the UI pass.
@@ -74,6 +77,9 @@ struct AppDesc
     /// @brief The project folder the assets come from, its index kept in `<project>/.aegis`; empty for
     ///        the samples (paths::assets()). A game's launcher fills it in through paths::locate.
     std::filesystem::path project;
+    /// @brief The scene file the launcher starts with, by its path in the project ("Scenes/sponza.scene");
+    ///        empty for the game's own (GameModule::startupScene).
+    std::string scene;
     /// @brief An asset ID: print the import cache entry of that model, or of that mesh of a model, instead of
     ///        running (see dumpAsset).
     std::string dumpAsset;
@@ -105,7 +111,8 @@ inline constexpr int exitUsage{ 2 };
 
 [[nodiscard]] auto describe(const EngineError& error) -> std::string;
 
-/// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n>, --project <dir> and --dump-asset <id>;
+/// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n>, --project <dir>,
+///        --scene <path> and --dump-asset <id>;
 ///        the first argument (the program name) is skipped. A headless run without --frames stops after 600 frames.
 [[nodiscard]] auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, EngineError>;
 
@@ -130,6 +137,9 @@ struct GameModule
 {
     /// @brief The game's name, also the window title.
     std::string_view name;
+    /// @brief The scene file the launcher loads after onStartup, by its path in the project; empty for none.
+    ///        --scene replaces it.
+    std::string_view startupScene;
     /// @brief Registers the game's components and scripts in the engine's types; null for none.
     auto (*registerTypes)(reflect::TypeRegistry& types) -> std::expected<void, reflect::Error>{ nullptr };
     /// @brief Runs once the engine is created and the types are registered, e.g. to load the first scene;
@@ -142,6 +152,18 @@ struct InputCapture
 {
     bool keyboard{ false };
     bool mouse{ false };
+};
+
+/// @brief What a shell renders the world through instead of the window: a camera, and a target of its own size.
+struct RenderView
+{
+    using Camera = render_graph::FrameScene::Camera;
+
+    /// @brief Replaces the world's main camera this frame; none renders through the main camera.
+    std::optional<Camera> camera;
+    /// @brief The target's size, apart from the window's; at least 1x1. The scene renders into the frame graph's
+    ///        "Final" at this size, and the window shows only the UI.
+    rhi::Extent2D extent;
 };
 
 /// @brief What a shell gets at the frame's safe point: input has been read and the ImGui frame is open,
@@ -178,6 +200,10 @@ public:
     [[nodiscard]] virtual auto updateMode() const -> world::UpdateMode { return world::UpdateMode::Play; }
     /// @brief The input the game doesn't see this frame; asked before the input is read.
     [[nodiscard]] virtual auto inputCapture() const -> InputCapture { return {}; }
+    /// @brief The view to render this frame, asked after onFrame; none renders onto the window (or, headless, the
+    ///        offscreen target). The frame graph is rebuilt when a view appears or goes, and resized when its
+    ///        extent changes, so keep the extent steady while a panel is being dragged.
+    [[nodiscard]] virtual auto renderView() const -> std::optional<RenderView> { return std::nullopt; }
     /// @brief Runs before the engine tears down, while the world, the frame graph and ImGui still exist.
     virtual void onShutdown() {}
 };
@@ -263,9 +289,13 @@ private:
     auto createWindow() -> std::expected<void, EngineError>;
     auto createRenderer() -> std::expected<void, EngineError>;
     auto createAssets() -> std::expected<void, EngineError>;
-    auto createFrameGraph() -> std::expected<void, EngineError>;
+    /// @brief Replaces the frame graph with one rendering onto the renderer's target, or into a view of 'view's extent.
+    ///        Frames in flight must have finished.
+    auto createFrameGraph(std::optional<rhi::Extent2D> view = std::nullopt) -> std::expected<void, EngineError>;
     bool resize();
-    void updateCameraAspect();
+    /// @brief Rebuilds or resizes the frame graph for the shell's view, if it changed since the last frame.
+    bool followView(const std::optional<RenderView>& view);
+    void updateCameraAspect(rhi::Extent2D extent);
     /// @brief Opens the ImGui frame, lets the shell build its UI and apply its edits, and ends the frame.
     void runShell(float deltaSeconds);
     /// @brief Empties the world and adds the engine's systems, ready for a scene's entities.
@@ -296,6 +326,7 @@ private:
     aegis::render_graph::InstanceStore m_instances;        // Holds meshes and materials: goes before the device
     aegis::InstanceBridge m_instanceBridge{ m_instances }; // Disconnects from the world first
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
+    std::optional<rhi::Extent2D> m_viewExtent; // The extent of the view the frame graph renders into; none for the target
     // Last, so it goes first, while everything it may reference (the world, the frame graph, ImGui) exists.
     std::unique_ptr<Shell> m_shell{ std::make_unique<GameShell>() };
 };

@@ -71,15 +71,16 @@ success code: test `has_value()`, read `.error()` and `*result`. Calls with seve
 (`acquireNextImage`, `QueryPool::getResults`) still return `vk::ResultValue` (`.result`, `.value`).
 
 ### Examples (visual smoke tests of the engine)
-Executable targets are the PascalCase `project()` names: `Simple-Scene`, `Sponza`, `Eval-Scene`,
-`Helmets`, plus `Template` / `Template-Editor`; each lives in `examples/<lowercased-name>`. Build one and
-run its exe:
+The examples are two games (see **Games** below), each in `examples/<lowercased-name>`: `Template` /
+`Template-Editor`, an empty project, and `Examples` / `Examples-Editor`, whose project is the
+`aegis-assets` submodule and whose examples are its scene files, picked with `--scene <path>`
+(`Scenes/simple.scene`, the default, `sponza`, `helmets`, and the stress scenes `instanced-helmets`,
+`cubes` and `dynamic-cubes`). Build one and run its exe:
 
-    cmake --build --preset windows-clang-debug --target Simple-Scene
-    build\windows-clang-debug\examples\simple-scene\Simple-Scene.exe
+    cmake --build --preset windows-clang-debug --target Examples
+    build\windows-clang-debug\examples\examples\Examples.exe --scene Scenes/sponza.scene
 
-`Template` is empty (safest smoke test); `Simple-Scene` is the simplest content scene. Content
-scenes need the `aegis-assets` submodule. Report whether it built clean (warnings are errors) and the
+`Template` is empty (safest smoke test); `Scenes/simple.scene` is the simplest content scene. Report whether it built clean (warnings are errors) and the
 window rendered; on a build failure, surface the first real error, not the downstream cascade.
 
 **Games** (`cmake/AegisGame.cmake`, D7): `aegis_add_game(<Name> SOURCES … PROJECT <dir>)` builds the
@@ -87,12 +88,13 @@ game's sources once (an OBJECT library) into `<Name>` (runtime, no `aegis-editor
 around the engine's launcher, `src/aegis/launch/main.cpp`, the only `main()`. The runtime plays the game in
 the engine's `GameShell`; the editor flavor installs `editor::EditorShell` (`Engine::setShell`), which keeps
 the world in edit mode (no scripts run) and builds the editor's UI at the frame's safe point. One game source file ends
-with `AEGIS_GAME_MODULE({ .name = …, .registerTypes = …, .onStartup = … })` (`aegis/launch/game_module.h`).
+with `AEGIS_GAME_MODULE({ .name = …, .startupScene = …, .registerTypes = …, .onStartup = … })`
+(`aegis/launch/game_module.h`); after `onStartup` the launcher loads `--scene <path>` or the `startupScene`,
+and `SCENES <path> …` makes each scene a `device` test.
 The launcher finds the project by `--project <dir>`, then `project/` next to the executable, then
 `PROJECT` (`paths::locate`); the shaders and the engine content are found the same way. Nothing is
 copied next to the executables: a development build uses the build and source trees, and laying out a
-copied or installed game is the export step (#134). `Template` is the first game; the other examples
-follow in #167.
+copied or installed game is the export step (#134). `Template` and `Examples` are the games.
 
 The examples render through the `Engine` facade, but they open a window and have no pass/fail
 signal — validation errors only go to stderr. Verify RHI work with `aegis-test` first (see

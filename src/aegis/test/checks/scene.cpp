@@ -47,6 +47,12 @@ auto Engine::createScene() -> std::expected<void, std::string>
     const auto camera = registry.create("Camera", glm::vec3{ 0.0f, -3.0f, 0.0f });
     registry.add<aegis::Camera>(camera);
     m_scene->setMainCamera(camera);
+    if (m_options.view)
+    {
+        // Ahead and to the right of the main camera, turned towards the helmet; CameraSystem keeps its matrices.
+        m_viewCamera = registry.create("View Camera", glm::vec3{ 2.2f, -2.2f, 0.3f }, glm::quat{ glm::radians(glm::vec3{ 0.0f, 0.0f, 45.0f }) });
+        registry.add<aegis::Camera>(m_viewCamera);
+    }
 
     const auto ambient = registry.create("Ambient Light");
     registry.add<aegis::AmbientLight>(ambient).intensity = 1.0f;
@@ -79,12 +85,14 @@ auto Engine::createScene() -> std::expected<void, std::string>
     m_imgui = ImGuiContextHandle{ ImGui::CreateContext() };
     ImGui::GetIO().IniFilename = nullptr;
 
-    m_frameGraph = std::make_unique<render_graph::FrameGraph>(*m_device, m_renderer->extent());
+    // A view's graph follows the view's extent, not the target's.
+    m_frameGraph = std::make_unique<render_graph::FrameGraph>(*m_device, m_options.view ? m_viewExtent : m_renderer->extent());
     render_graph::addDefaultPasses(*m_frameGraph,
         {
             .gpuDriven = m_options.gpuDriven,
             .ui = true,
             .context = m_context.get(),
+            .view = m_options.view ? std::optional{ render_graph::DefaultPassesDesc::View{ .targetFormat = m_renderer->targetFormat() } } : std::nullopt,
         });
     if (auto compiled = m_frameGraph->compile(); !compiled)
         return std::unexpected{ std::format("Frame graph: {}", describe(compiled.error())) };

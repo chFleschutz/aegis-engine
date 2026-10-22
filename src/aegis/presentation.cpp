@@ -44,6 +44,13 @@ void Presentation::attach(platform::Window& window)
     m_glfw = true;
 }
 
+void Presentation::detach()
+{
+    if (m_glfw)
+        ImGui_ImplGlfw_Shutdown();
+    m_glfw = false;
+}
+
 void Presentation::beginFrame(rhi::Extent2D extent, float deltaSeconds)
 {
     if (m_glfw)
