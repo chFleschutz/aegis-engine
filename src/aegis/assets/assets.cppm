@@ -17,6 +17,7 @@ export import :image_data;
 export import :model_data;
 export import :loader;
 export import :material;
+export import :mesh_blob;
 export import :mesh_data;
 export import :mesh_preprocessor;
 export import :sidecar;

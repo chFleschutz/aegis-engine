@@ -9,6 +9,7 @@ aegis_add_test(assets
         gpu_types.test.cpp
         image_data.test.cpp
         material.test.cpp
+        mesh_blob.test.cpp
         mesh_preprocessor.test.cpp
         model_import.test.cpp
         sidecar.test.cpp

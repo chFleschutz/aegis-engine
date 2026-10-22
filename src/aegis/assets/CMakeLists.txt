@@ -31,6 +31,7 @@ target_sources(aegis-assets
     model_data.cppm
     loader.cppm
     material.cppm
+    mesh_blob.cppm
     mesh_data.cppm
     mesh_preprocessor.cppm
     sidecar.cppm
@@ -46,6 +47,7 @@ target_sources(aegis-assets
     image_data.cpp
     loader.cpp
     material.cpp
+    mesh_blob.cpp
     mesh_preprocessor.cpp
     model_import.cpp
     obj_import.cpp
