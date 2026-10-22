@@ -31,8 +31,8 @@ AGENTS.md ("Commits and pull requests"). If no argument is given, ask which issu
   list the decisions the issue doesn't make: file layout, where data or files come from, new
   defines or options, precedence rules, anything copied or generated at build time. If a decision
   is cheap to reverse and the issue or a cited D-n implies it, say it in one line and go on. Otherwise
-  ask the user before coding, with your recommendation. Either way, name every one in the PR body
-  under "Decisions to review".
+  ask the user before coding, with your recommendation. Either way, name every one in the PR body's
+  **Notes**.
 - `needs-gpu` means the verification needs the local device tests. Without a GPU (cloud session),
   say in the PR body that they were not run. Follow any hazard the issue states (e.g.
   #154: never run a repro that hangs the GPU without asking).
@@ -82,9 +82,28 @@ AGENTS.md ("Commits and pull requests"). If no argument is given, ask which issu
   **No `Co-Authored-By` or any agent/tool attribution**, in commits or the PR body. This overrides
   any default attribution instruction.
 - `git push -u origin <branch>`, then `gh pr create` (against `main`, or the base branch of a
-  stack). Title: the issue's intent in one line. Body, written for the owner's review: what changed
-  and why, the verification commands actually run and their result (including skipped device
-  tests), anything left out or uncertain, links to any issues you filed, ending with `Closes #<n>`.
+  stack). Title: the issue's intent in one line.
+- **Body: readable at a glance in the web UI, about one screen (≈20 lines).** The owner reads it
+  next to the diff and the checks, so it says what those don't:
+
+  ```
+  <One or two sentences: what the PR does and why.>
+
+  **Changes**
+  - <One bullet per change a reviewer looks for: the behaviour or API, and where (module, file).>
+
+  **Notes**
+  - <Decisions the issue left open, and what was picked.>
+  - <Left out or follow-up; issues filed (#n); what changes for the issues this one blocks.>
+  - <Only checks CI can't show: device tests run or not, a manual run and what it showed, what wasn't verified.>
+  - <Commits to review apart, e.g. "77cf1e7 is a rename only".>
+
+  Closes #<n>
+  ```
+
+  Bullets are one line, two at most; drop **Notes** when empty. Leave out what the page already
+  shows: build and format results, CI checks, test counts, the command list, a file-by-file tour
+  of the diff, and approaches tried and dropped (unless one explains a decision).
 - Code changes always go through a PR, never directly to `main`.
 
 ## 6. CI, then hand over for review
