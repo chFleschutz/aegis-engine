@@ -43,6 +43,18 @@ TEST_SUITE("render_graph::ResourceDeclarations")
         CHECK(declarations.writes(1) == std::vector{ written });
     }
 
+    TEST_CASE("finds the declaration creating a resource, not a reference to it")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginPass("Consumer");
+        declarations.addReference("Image", Usage::SampledFragment);
+        declarations.beginPass("Producer");
+        const auto image = declarations.addTexture("Image", Usage::ColorAttachment, color);
+
+        CHECK(declarations.find("Image") == image);
+        CHECK_FALSE(declarations.find("Missing").has_value());
+    }
+
     TEST_CASE("treats creating a resource as a write whatever its usage")
     {
         ResourceDeclarations declarations;

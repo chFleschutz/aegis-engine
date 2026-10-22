@@ -40,7 +40,9 @@ auto toVkFormat(rhi::Format format) -> std::optional<VkFormat>
 
 UiPass::UiPass(ResourceDeclarations& declarations, Desc desc) :
     m_context{ desc.context },
-    m_final{ declarations.addReference(names::finalImage, Usage::ColorAttachment) }
+    m_targetFormat{ desc.targetFormat },
+    // Onto the frame's target the read only orders the scene passes first and readies "Final" to be shown.
+    m_final{ declarations.addReference(names::finalImage, desc.targetFormat ? Usage::SampledFragment : Usage::ColorAttachment) }
 {
 }
 
@@ -59,9 +61,10 @@ auto UiPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
     if (!m_context)
         return makeError(ErrorCode::InitializationFailed, "The UI pass needs the rhi::Context");
-    const auto finalFormat = toVkFormat(pool.format(m_final));
-    if (!finalFormat)
-        return makeError(ErrorCode::InitializationFailed, std::format("The UI pass cannot draw onto a {} target", rhi::formatName(pool.format(m_final))));
+    const auto targetFormat = m_targetFormat.value_or(pool.format(m_final));
+    const auto vkTargetFormat = toVkFormat(targetFormat);
+    if (!vkTargetFormat)
+        return makeError(ErrorCode::InitializationFailed, std::format("The UI pass cannot draw onto a {} target", rhi::formatName(targetFormat)));
 
     auto& device = pool.device();
 
@@ -81,7 +84,7 @@ auto UiPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
             .PipelineRenderingCreateInfo = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
                 .colorAttachmentCount = 1,
-                .pColorAttachmentFormats = &*finalFormat,
+                .pColorAttachmentFormats = &*vkTargetFormat,
             },
         },
         .UseDynamicRendering = true,
@@ -107,14 +110,19 @@ auto UiPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
     // The caller ended the frame (ImGui::Render); without one there is nothing to draw. An empty frame
     // still goes through the backend, which uploads the font atlas and other textures with it.
+    // The frame's target is cleared even then: nothing else draws onto it.
     auto* drawData = ImGui::GetDrawData();
-    if (!drawData || !drawData->Valid)
+    const bool draws = drawData && drawData->Valid;
+    if (!draws && !m_targetFormat)
         return;
 
     const auto& cmd = frameInfo.cmd;
-    std::array colorAttachments{ rhi::Attachment::colorLoad(pool.texture(m_final).view) };
+    std::array colorAttachments{ m_targetFormat
+                                     ? rhi::Attachment::color(frameInfo.target, rhi::ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f })
+                                     : rhi::Attachment::colorLoad(pool.texture(m_final).view) };
     cmd.beginRendering({ .colorAttachments = colorAttachments });
-    ImGui_ImplVulkan_RenderDrawData(drawData, static_cast<VkCommandBuffer>(cmd.handle()));
+    if (draws)
+        ImGui_ImplVulkan_RenderDrawData(drawData, static_cast<VkCommandBuffer>(cmd.handle()));
     cmd.endRendering();
 }
 }
