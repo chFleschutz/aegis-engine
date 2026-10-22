@@ -1,6 +1,8 @@
 export module aegis.editor.core:context;
 import std;
 import aegis.world;
+import :console;
+import :preferences;
 import :selection;
 
 export namespace aegis::editor
@@ -18,6 +20,16 @@ public:
     [[nodiscard]] auto selection() -> Selection& { return m_selection; }
     [[nodiscard]] auto selection() const -> const Selection& { return m_selection; }
 
+    [[nodiscard]] auto console() -> ConsoleBuffer& { return m_console; }
+    [[nodiscard]] auto console() const -> const ConsoleBuffer& { return m_console; }
+
+    [[nodiscard]] auto preferences() -> EditorPreferences& { return m_preferences; }
+    [[nodiscard]] auto preferences() const -> const EditorPreferences& { return m_preferences; }
+
+    /// @brief Whether the scene has changes that are not saved (the status bar's marker).
+    [[nodiscard]] auto unsaved() const -> bool { return m_unsaved; }
+    void setUnsaved(bool unsaved) { m_unsaved = unsaved; }
+
     /// @brief The active selected entity, or null (nothing selected, no world, or the entity is gone).
     [[nodiscard]] auto selectedEntity() const -> world::Entity;
     /// @brief Whether 'entity' is selected.
@@ -30,5 +42,8 @@ private:
 
     world::World* m_world{ nullptr };
     Selection m_selection;
+    ConsoleBuffer m_console;
+    EditorPreferences m_preferences;
+    bool m_unsaved{ false };
 };
 }
