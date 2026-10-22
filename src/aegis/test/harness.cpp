@@ -31,12 +31,12 @@ auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, 
     return buffer;
 }
 
-namespace aegis
+namespace aegis::test
 {
-auto Engine::create(const Options& options) -> std::expected<Engine, std::string>
+auto Harness::create(const Options& options) -> std::expected<Harness, std::string>
 {
-    Engine engine{};
-    engine.m_options = options;
+    Harness harness{};
+    harness.m_options = options;
 
     if (!options.headless)
     {
@@ -48,45 +48,45 @@ auto Engine::create(const Options& options) -> std::expected<Engine, std::string
         auto window = platform::Window::create(windowDesc);
         if (!window)
             return std::unexpected{ std::format("Failed to create window: {}", platform::describe(window.error())) };
-        engine.m_window = std::make_unique<platform::Window>(std::move(*window));
-        engine.m_input = std::make_unique<platform::Input>(*engine.m_window);
+        harness.m_window = std::make_unique<platform::Window>(std::move(*window));
+        harness.m_input = std::make_unique<platform::Input>(*harness.m_window);
 
-        if (auto result = engine.verifyInput(); !result)
+        if (auto result = harness.verifyInput(); !result)
             return std::unexpected{ result.error() };
-        if (auto result = engine.verifyWindow(); !result)
+        if (auto result = harness.verifyWindow(); !result)
             return std::unexpected{ result.error() };
     }
 
     auto context = rhi::Context::create({
         .appName = "TestApp",
-        .window = engine.m_window.get(),
+        .window = harness.m_window.get(),
     });
     if (!context)
         return std::unexpected{ std::format("Failed to create rhi context: {}", rhi::describe(context.error())) };
-    engine.m_context = std::move(*context);
+    harness.m_context = std::move(*context);
 
-    auto device = engine.m_context->createDevice({});
+    auto device = harness.m_context->createDevice({});
     if (!device)
         return std::unexpected{ std::format("Failed to create rhi device: {}", rhi::describe(device.error())) };
     if (options.gpuDriven && !(*device)->capabilities().meshShaders)
         return std::unexpected{ std::string{ skipMeshShaders } };
-    engine.m_device = std::move(*device);
+    harness.m_device = std::move(*device);
 
     auto renderer = renderer::Renderer::create({
-        .context = *engine.m_context,
-        .device = *engine.m_device,
-        .window = engine.m_window.get(),
+        .context = *harness.m_context,
+        .device = *harness.m_device,
+        .window = harness.m_window.get(),
         .offscreen = { .extent = { 640, 480 } },
     });
     if (!renderer)
         return std::unexpected{ std::format("Failed to create renderer: {}", renderer::describe(renderer.error())) };
-    engine.m_renderer = std::move(*renderer);
+    harness.m_renderer = std::move(*renderer);
 
     auto shader = loadSPIRV(AEGIS_TEST_SHADER_PATH);
     if (!shader)
         return std::unexpected{ std::format("Failed to load shader from {}", AEGIS_TEST_SHADER_PATH) };
 
-    auto colorAttachments = std::array{ rhi::Pipeline::ColorAttachment{ engine.m_renderer->targetFormat() } };
+    auto colorAttachments = std::array{ rhi::Pipeline::ColorAttachment{ harness.m_renderer->targetFormat() } };
     auto shaders = std::array{
         rhi::Pipeline::Shader{
             .name = "TriangleVertexShader",
@@ -107,18 +107,18 @@ auto Engine::create(const Options& options) -> std::expected<Engine, std::string
         .colorAttachments = colorAttachments,
         .depthAttachment = rhi::Format::D32_SFLOAT,
     };
-    auto pipeline = engine.m_device->createPipeline(pipelineDesc);
+    auto pipeline = harness.m_device->createPipeline(pipelineDesc);
     if (!pipeline)
         return std::unexpected{ "Failed to create pipeline" };
-    engine.m_pipeline = std::move(*pipeline);
+    harness.m_pipeline = std::move(*pipeline);
 
     // Every fixed-function field away from its default, drawn each frame so validation checks the
     // state against the render pass at draw time, not only at creation. The triangle is
     // counter-clockwise, so with a clockwise front face it is back-facing and survives front culling.
     const auto overlayAttachments = std::array{
-        rhi::Pipeline::ColorAttachment{ engine.m_renderer->targetFormat(), rhi::BlendMode::Alpha },
+        rhi::Pipeline::ColorAttachment{ harness.m_renderer->targetFormat(), rhi::BlendMode::Alpha },
     };
-    auto overlay = engine.m_device->createPipeline(rhi::Pipeline::GraphicsDesc{
+    auto overlay = harness.m_device->createPipeline(rhi::Pipeline::GraphicsDesc{
         .name = "TriangleOverlayPipeline",
         .shaders = shaders,
         .colorAttachments = overlayAttachments,
@@ -129,57 +129,57 @@ auto Engine::create(const Options& options) -> std::expected<Engine, std::string
     });
     if (!overlay)
         return std::unexpected{ "Failed to create overlay pipeline" };
-    engine.m_overlayPipeline = std::move(*overlay);
+    harness.m_overlayPipeline = std::move(*overlay);
 
-    auto depthTexture = renderer::createTexture(*engine.m_device, engine.depthDesc());
+    auto depthTexture = renderer::createTexture(*harness.m_device, harness.depthDesc());
     if (!depthTexture)
         return std::unexpected{ "Failed to create depth image" };
-    engine.m_depthTexture = std::move(*depthTexture);
+    harness.m_depthTexture = std::move(*depthTexture);
 
     for (std::uint32_t i = 0; i < renderer::Renderer::maxFramesInFlight; ++i)
     {
-        auto pool = engine.m_device->createQueryPool({ .name = "FrameTimestamps", .count = 2 });
+        auto pool = harness.m_device->createQueryPool({ .name = "FrameTimestamps", .count = 2 });
         if (!pool)
             return std::unexpected{ "Failed to create timestamp query pool" };
-        engine.m_frameTimers.push_back({ .pool = std::move(*pool) });
+        harness.m_frameTimers.push_back({ .pool = std::move(*pool) });
     }
 
-    if (auto result = engine.verifyUploads(); !result)
+    if (auto result = harness.verifyUploads(); !result)
         return std::unexpected{ result.error() };
-    if (auto result = engine.verifySamplers(); !result)
+    if (auto result = harness.verifySamplers(); !result)
         return std::unexpected{ result.error() };
-    if (auto result = engine.verifyBufferDeviceAddress(); !result)
+    if (auto result = harness.verifyBufferDeviceAddress(); !result)
         return std::unexpected{ result.error() };
-    if (auto result = engine.verifyComputeRoundTrip(); !result)
+    if (auto result = harness.verifyComputeRoundTrip(); !result)
         return std::unexpected{ result.error() };
-    if (auto result = engine.verifyValidationLog(); !result)
+    if (auto result = harness.verifyValidationLog(); !result)
         return std::unexpected{ result.error() };
-    if (auto result = engine.verifyGraphTextures(); !result)
+    if (auto result = harness.verifyGraphTextures(); !result)
         return std::unexpected{ result.error() };
-    if (auto result = engine.verifyGraphRebuild(false); !result)
+    if (auto result = harness.verifyGraphRebuild(false); !result)
         return std::unexpected{ result.error() };
-    if (engine.m_device->capabilities().meshShaders)
+    if (harness.m_device->capabilities().meshShaders)
     {
-        if (auto result = engine.verifyGraphRebuild(true); !result)
+        if (auto result = harness.verifyGraphRebuild(true); !result)
             return std::unexpected{ result.error() };
     }
-    if (auto result = engine.verifyAssets(); !result)
+    if (auto result = harness.verifyAssets(); !result)
         return std::unexpected{ result.error() };
-    if (auto result = engine.verifyAssetLibrary(); !result)
+    if (auto result = harness.verifyAssetLibrary(); !result)
         return std::unexpected{ result.error() };
-    if (auto result = engine.verifyIbl(); !result)
+    if (auto result = harness.verifyIbl(); !result)
         return std::unexpected{ result.error() };
 
     if (options.scene)
     {
-        if (auto result = engine.createScene(); !result)
+        if (auto result = harness.createScene(); !result)
             return std::unexpected{ result.error() };
     }
 
-    return engine;
+    return harness;
 }
 
-auto Engine::run() -> int
+auto Harness::run() -> int
 {
     std::uint32_t frames{ 0 };
     while (m_options.frames == 0 || frames < m_options.frames)
@@ -308,7 +308,7 @@ auto Engine::run() -> int
     return result;
 }
 
-auto Engine::drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
+auto Harness::drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
 {
     const auto& [cmd, target, frameIndex, extent] = frameInfo;
 
@@ -381,7 +381,7 @@ auto Engine::drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void
 }
 
 // The triangle's depth buffer follows the renderer's extent; recreate it after Renderer::resize.
-auto Engine::depthDesc() const -> renderer::Texture::Desc
+auto Harness::depthDesc() const -> renderer::Texture::Desc
 {
     return {
         .name = "SceneDepth",
@@ -391,7 +391,7 @@ auto Engine::depthDesc() const -> renderer::Texture::Desc
     };
 }
 
-auto Engine::recordFrameTime(FrameTimer& timer) -> void
+auto Harness::recordFrameTime(FrameTimer& timer) -> void
 {
     timer.pending = false;
     auto timestamps = timer.pool.readTimestamps(0, 2);
@@ -405,7 +405,7 @@ auto Engine::recordFrameTime(FrameTimer& timer) -> void
 }
 
 // The exit criterion for rhi:query: every frame's rendering pass was timed and read back.
-auto Engine::reportFrameTimes() const -> int
+auto Harness::reportFrameTimes() const -> int
 {
     if (m_frameTimeErrors > 0 || m_timedFrames == 0)
     {
@@ -420,7 +420,7 @@ auto Engine::reportFrameTimes() const -> int
 }
 
 // Drains the open upload batch and blocks until the GPU has consumed it.
-auto Engine::flushAndWait() -> std::expected<void, std::string>
+auto Harness::flushAndWait() -> std::expected<void, std::string>
 {
     auto flushed = m_device->flushUploads();
     if (!flushed)

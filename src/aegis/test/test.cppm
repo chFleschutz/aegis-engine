@@ -2,7 +2,7 @@ module;
 
 #include <imgui.h>
 
-// The aegis-test harness: engine.cpp sets up the device and renders frames, checks/*.cpp hold the checks it
+// The aegis-test harness: harness.cpp sets up the device and renders frames, checks/*.cpp hold the checks it
 // runs, one file per group, and main.cpp parses the arguments.
 export module aegis.test;
 
@@ -26,7 +26,7 @@ export constexpr std::string_view skipMeshShaders{ "Skipped: --gpu-driven needs 
 
 auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, std::string>;
 
-export namespace aegis
+export namespace aegis::test
 {
 struct Options
 {
@@ -48,11 +48,11 @@ struct Options
 inline constexpr rhi::Extent2D viewExtent{ 480, 270 };
 inline constexpr rhi::Extent2D resizedViewExtent{ 400, 300 };
 
-class Engine
+class Harness
 {
 public:
-    // engine.cpp
-    static auto create(const Options& options) -> std::expected<Engine, std::string>;
+    // harness.cpp
+    static auto create(const Options& options) -> std::expected<Harness, std::string>;
     auto run() -> int;
     auto drawFrame(const renderer::Renderer::FrameInfo& frameInfo) -> void;
     auto depthDesc() const -> renderer::Texture::Desc;
@@ -101,9 +101,9 @@ private:
         bool pending{ false };
     };
 
-    Engine() = default;
+    Harness() = default;
 
-    // engine.cpp
+    // harness.cpp
     auto recordFrameTime(FrameTimer& timer) -> void;
     auto reportFrameTimes() const -> int;
     auto flushAndWait() -> std::expected<void, std::string>;

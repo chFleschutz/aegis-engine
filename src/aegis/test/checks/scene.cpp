@@ -22,11 +22,11 @@ import aegis.world.systems.camera_system;
 import aegis.world.systems.transform_system;
 import aegis.world.types;
 
-namespace aegis
+namespace aegis::test
 {
 // The render graph's input: DamagedHelmet under the Kloppenheim sky, a camera and two lights,
 // and the CPU-driven frame graph to draw it.
-auto Engine::createScene() -> std::expected<void, std::string>
+auto Harness::createScene() -> std::expected<void, std::string>
 {
     constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
     auto library = AssetLibrary::create(*m_device, framesInFlight);
@@ -107,7 +107,7 @@ auto Engine::createScene() -> std::expected<void, std::string>
 }
 
 // An instance of the model file 'path' (in the assets project) in the scene, as a root entity.
-auto Engine::instantiateModel(std::string_view path) -> std::expected<aegis::world::Entity, std::string>
+auto Harness::instantiateModel(std::string_view path) -> std::expected<aegis::world::Entity, std::string>
 {
     const auto id = m_assets->find(path);
     if (!id)
@@ -117,7 +117,7 @@ auto Engine::instantiateModel(std::string_view path) -> std::expected<aegis::wor
 
 // The UI pass's input: one window, so a screenshot shows ImGui drawn over the scene. Ends the frame
 // (ImGui::Render), so the frame graph's UI pass records it.
-auto Engine::buildUi(const renderer::Renderer& renderer, const render_graph::FrameGraph& frameGraph, bool overlay) -> void
+auto Harness::buildUi(const renderer::Renderer& renderer, const render_graph::FrameGraph& frameGraph, bool overlay) -> void
 {
     auto& io = ImGui::GetIO();
     const auto extent = renderer.extent();
@@ -140,7 +140,7 @@ auto Engine::buildUi(const renderer::Renderer& renderer, const render_graph::Fra
 // Frame 30 loads a second model, 60 destroys the first one, 90 edits the second one's materials.
 // The frame after each change, the instance pass must have written as many static instances as
 // the scene holds. The last frame (--screenshot) shows the second model only, in red.
-auto Engine::mutateScene(std::uint32_t frame) -> std::expected<void, std::string>
+auto Harness::mutateScene(std::uint32_t frame) -> std::expected<void, std::string>
 {
     constexpr std::uint32_t loadFrame{ 30 };
     constexpr std::uint32_t destroyFrame{ 60 };

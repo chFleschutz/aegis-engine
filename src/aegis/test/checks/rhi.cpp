@@ -4,12 +4,12 @@ import std;
 import aegis.base;
 import aegis.rhi;
 
-namespace aegis
+namespace aegis::test
 {
 // The Desc -> Vulkan mapping returns vk:: types, so no unit test can reach it; validation of these
 // create calls is its only coverage, hence every enum value appears once. The reuse checks pin
 // that a freed bindless slot stays reserved until the GPU retires it, then returns to the heap.
-auto Engine::verifySamplers() -> std::expected<void, std::string>
+auto Harness::verifySamplers() -> std::expected<void, std::string>
 {
     auto linear = m_device->createSampler({ .name = "SamplerTestLinearRepeat" });
     auto nearest = m_device->createSampler({
@@ -71,7 +71,7 @@ auto Engine::verifySamplers() -> std::expected<void, std::string>
 // Validation is the real check: it rejects an address query on a buffer missing the usage flag,
 // or on memory allocated without VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT. verifyComputeRoundTrip
 // covers a shader actually reading and writing through the addresses.
-auto Engine::verifyBufferDeviceAddress() -> std::expected<void, std::string>
+auto Harness::verifyBufferDeviceAddress() -> std::expected<void, std::string>
 {
     constexpr rhi::Buffer::Desc desc{
         .name = "DeviceAddressTest",
@@ -100,7 +100,7 @@ auto Engine::verifyBufferDeviceAddress() -> std::expected<void, std::string>
 
 // A shader reads and writes through buffer device addresses it receives as push constants: the
 // shared pipeline layout, pushConstants, dispatch and BDA, end to end.
-auto Engine::verifyComputeRoundTrip() -> std::expected<void, std::string>
+auto Harness::verifyComputeRoundTrip() -> std::expected<void, std::string>
 {
     constexpr std::uint32_t count{ 1000 }; // Not a multiple of the group size: the bounds check matters
     constexpr std::uint32_t groupSize{ 64 };
@@ -197,7 +197,7 @@ auto Engine::verifyComputeRoundTrip() -> std::expected<void, std::string>
 }
 
 // A validation message reaches a sink added next to stderr, the way the editor console listens.
-auto Engine::verifyValidationLog() -> std::expected<void, std::string>
+auto Harness::verifyValidationLog() -> std::expected<void, std::string>
 {
     constexpr std::string_view marker = "aegis-test validation sink check";
 

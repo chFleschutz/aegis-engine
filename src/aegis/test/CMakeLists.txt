@@ -6,7 +6,7 @@ target_sources(aegis-test
     test.cppm
     PRIVATE
     main.cpp
-    engine.cpp
+    harness.cpp
     checks/assets.cpp
     checks/graph.cpp
     checks/ibl.cpp

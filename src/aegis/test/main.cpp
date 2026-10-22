@@ -1,7 +1,7 @@
 import std;
 import aegis.test;
 
-namespace aegis
+namespace aegis::test
 {
 auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
 {
@@ -81,23 +81,23 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
 
 auto main(int argc, char** argv) -> int
 {
-    const auto options = aegis::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
+    const auto options = aegis::test::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
         std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--mutate-scene] [--mirror] [--view] [--no-overlay] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 
-    auto engine = aegis::Engine::create(*options);
-    if (!engine)
+    auto harness = aegis::test::Harness::create(*options);
+    if (!harness)
     {
-        if (engine.error() == skipMeshShaders)
+        if (harness.error() == skipMeshShaders)
         {
-            std::println("{}", engine.error());
+            std::println("{}", harness.error());
             return skipExitCode;
         }
-        std::println("Failed to create engine \n{}", engine.error());
+        std::println("Failed to create the harness \n{}", harness.error());
         return 1;
     }
-    return engine->run();
+    return harness->run();
 }

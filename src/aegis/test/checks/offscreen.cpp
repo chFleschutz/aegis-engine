@@ -12,12 +12,12 @@ import aegis.render_graph;
 import aegis.render_passes;
 import aegis.rhi;
 
-namespace aegis
+namespace aegis::test
 {
 // --compare: the last frame against a reference PNG from the dev GPU (tests/golden, see tests/README.md). Passes
 // when no channel of any pixel is off by more than --tolerance; otherwise writes a diff image (the differing
 // pixels amplified, the rest dimmed) next to --screenshot, or into the working directory, and fails.
-auto Engine::compareToReference(const std::vector<std::byte>& pixels, rhi::Extent2D extent) const -> std::expected<void, std::string>
+auto Harness::compareToReference(const std::vector<std::byte>& pixels, rhi::Extent2D extent) const -> std::expected<void, std::string>
 {
     int width{ 0 };
     int height{ 0 };
@@ -64,7 +64,7 @@ auto Engine::compareToReference(const std::vector<std::byte>& pixels, rhi::Exten
 }
 
 // The renderer's offscreen target (slot 0).
-auto Engine::readTarget() -> std::expected<Frame, std::string>
+auto Harness::readTarget() -> std::expected<Frame, std::string>
 {
     const auto& target = m_renderer->offscreenTarget(0);
     const auto extent = m_renderer->extent();
@@ -98,7 +98,7 @@ auto Engine::readTarget() -> std::expected<Frame, std::string>
 }
 
 // --view: the view's target, the graph's "Final" (RGBA16F, left sampled by the UI pass), rounded to RGBA8.
-auto Engine::readView() -> std::expected<Frame, std::string>
+auto Harness::readView() -> std::expected<Frame, std::string>
 {
     const auto final = m_frameGraph->declarations().find(render_graph::names::finalImage);
     if (!final)
@@ -142,7 +142,7 @@ auto Engine::readView() -> std::expected<Frame, std::string>
 // The only proof that offscreen frames are drawn at all: read a target back and look for the
 // triangle (its centre is covered and opaque, a corner only cleared, alpha 0), or in scene mode
 // for an image that is not one flat color. Saves it with --screenshot.
-auto Engine::verifyOffscreenFrame() -> std::expected<void, std::string>
+auto Harness::verifyOffscreenFrame() -> std::expected<void, std::string>
 {
     const auto frame = m_options.view ? readView() : readTarget();
     if (!frame)

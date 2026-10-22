@@ -15,13 +15,13 @@ module aegis.test;
 import std;
 import aegis.platform;
 
-namespace aegis
+namespace aegis::test
 {
 // Posts synthetic Win32 key and mouse messages to the window and lets the real event loop process
 // them, so polling and key bindings are checked end to end without anyone at the keyboard.
 // Assumes no modifier key is physically held during the run: GLFW reads modifiers from the keyboard.
 // Windows only: X11 and Wayland have no equivalent that reaches GLFW's event loop as reliably.
-auto Engine::verifyInput() -> std::expected<void, std::string>
+auto Harness::verifyInput() -> std::expected<void, std::string>
 {
 #ifndef _WIN32
     std::println("Input check skipped: synthetic input is only implemented for Win32");
@@ -37,7 +37,7 @@ auto Engine::verifyInput() -> std::expected<void, std::string>
         PostMessageW(hwnd, message, virtualKey, lParam);
     };
 
-    // Shared, not 'this': the bindings outlive this call and the Engine is moved after create().
+    // Shared, not 'this': the bindings outlive this call and the Harness is moved after create().
     const auto presses = std::make_shared<std::uint32_t>(0);
     m_input->bind(platform::Key::K, [presses] { ++*presses; });
     m_input->bind(platform::Key::K, [presses] { ++*presses; }, platform::KeyAction::Press,

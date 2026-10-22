@@ -17,12 +17,12 @@ module aegis.test;
 import std;
 import aegis.platform;
 
-namespace aegis
+namespace aegis::test
 {
 // Checks the window's title, content scale and close veto. The scale changes and close requests are
 // synthetic Win32 messages run through the real event loop, so no one has to move the window to
 // another monitor or click its close button.
-auto Engine::verifyWindow() -> std::expected<void, std::string>
+auto Harness::verifyWindow() -> std::expected<void, std::string>
 {
     const std::string originalTitle{ m_window->title() };
     m_window->setTitle("aegis-test: window check");
