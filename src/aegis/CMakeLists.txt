@@ -59,7 +59,6 @@ add_subdirectory(render_graph)
 add_subdirectory(test)
 
 add_subdirectory(math)
-add_subdirectory(core)
 add_subdirectory(world)
 add_subdirectory(scripting)
 add_subdirectory(serialize)
@@ -81,7 +80,6 @@ PUBLIC
 	aegis-asset-library
 	aegis-assets
 	aegis-base
-	aegis-core
 	aegis-paths
 	aegis-platform
 	aegis-reflect

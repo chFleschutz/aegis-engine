@@ -1,8 +1,6 @@
 add_library(aegis-math STATIC)
 
 target_link_libraries(aegis-math 
-PUBLIC
-	aegis-assert
 PRIVATE
 	glm::glm
 )

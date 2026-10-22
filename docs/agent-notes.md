@@ -37,7 +37,7 @@ Read that file first.
   on every module.)
 - **Test configure with `--fresh` after CMake changes.** A warm cache hides ordering bugs: `slangc` was
   looked up after the subdirectory that used it, and only a fresh configure showed it.
-- **Release builds are a separate check.** `AGX_ASSERT*` compiles to nothing there, so code that only
+- **Release builds are a separate check.** `assert` compiles to nothing there, so code that only
   uses a variable in an assert can break the release build or change behaviour.
 - **A background build that exits 0 is not proof.** Check that the artifact exists: one background
   build reported success, but its executables were never linked.
@@ -106,6 +106,6 @@ Read that file first.
    wrapper.
 7. **Check the capture script into the repo** (for example `tools/run-capture.ps1`) if windowed checks
    remain necessary after idea 1.
-8. **Finish converting the legacy modules** (`core`, `editor`, `scene`, `scripting`, `ui`). Formatting
-   and naming already match the new style; what remains is `AGX_ASSERT` → `std::expected` and
-   dotted submodules → partitions, best done as part of their redesign.
+8. **Finish converting the legacy modules** (`scripting`, `world`). Formatting
+   and naming already match the new style; what remains is `assert` → `std::expected` where misuse
+   is recoverable, and dotted submodules → partitions, best done as part of their redesign.

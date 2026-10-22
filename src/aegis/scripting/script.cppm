@@ -1,6 +1,6 @@
 module;
 
-#include "core/assert.h"
+#include <cassert>
 
 export module aegis.scripting.script;
 
@@ -154,7 +154,7 @@ template<class T>
 auto attachScript(world::Registry& registry, const reflect::TypeRegistry& types, world::Entity entity, std::string_view name)
     -> std::expected<Script*, reflect::Error>
 {
-    AGX_ASSERT_X(registry.valid(entity), "Cannot attach a script: Entity is not valid");
+    assert(registry.valid(entity) && "Cannot attach a script: Entity is not valid");
 
     const reflect::TypeInfo* info = types.find(name);
     if (!info)

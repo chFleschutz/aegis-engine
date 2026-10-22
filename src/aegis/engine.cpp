@@ -1,7 +1,5 @@
 module;
 
-#include "core/assert.h"
-
 #include <cstdlib>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -356,9 +354,6 @@ auto Engine::run() -> int
             break;
         }
         ++frames;
-
-        if (!headless)
-            applyFrameBrake(currentFrameBegin);
     }
 
     m_device->waitIdle();
@@ -592,21 +587,5 @@ auto Engine::saveScreenshot() -> std::expected<void, std::string>
         return std::unexpected{ std::format("failed to write '{}'", m_desc.screenshot) };
     log::info("Screenshot saved: {}", m_desc.screenshot);
     return {};
-}
-
-void Engine::applyFrameBrake(std::chrono::steady_clock::time_point frameBegin)
-{
-    using namespace std::chrono;
-
-    ScopeProfiler frameBrake("Wait for FPS limit");
-
-    if constexpr (!core::ENABLE_FPS_LIMIT)
-        return;
-
-    // Note: This has to be a busy wait since sleep_for is not accurate enough (especially on Windows)
-    while (duration<double, std::milli>(steady_clock::now() - frameBegin).count() < core::TARGET_FRAME_TIME)
-    {
-        // busy wait
-    }
 }
 }

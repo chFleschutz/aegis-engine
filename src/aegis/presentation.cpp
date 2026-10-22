@@ -1,6 +1,6 @@
 module;
 
-#include "core/assert.h"
+#include <cassert>
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -41,7 +41,7 @@ Presentation::Presentation()
 Presentation::~Presentation()
 {
     // Its registrations went with the UI pass's backend; the engine destroys it while the device exists.
-    AGX_ASSERT_X(!m_textures, "The UI textures must be destroyed before the device");
+    assert(!m_textures && "The UI textures must be destroyed before the device");
     // The backends go before the context; the frame graph's UI pass (the Vulkan backend) is already gone.
     if (m_glfw)
         ImGui_ImplGlfw_Shutdown();
