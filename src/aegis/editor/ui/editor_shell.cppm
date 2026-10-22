@@ -1,5 +1,6 @@
 export module aegis.editor:editor_shell;
 import std;
+import aegis.core;
 import aegis.editor.core;
 import aegis.engine;
 import aegis.rhi;
@@ -9,7 +10,9 @@ export namespace aegis::editor
 {
 /// @brief The editor flavor's shell: the world stays in edit mode (no scripts run), and the editor's panels
 ///        read and edit it at the frame's safe point. The window layout is kept in
-///        `<project>/.aegis/editor/imgui.ini` (none when headless or without a project).
+///        `<project>/.aegis/editor/imgui.ini` (none when headless or without a project). Log messages fill the
+///        console next to stderr, and the user's preferences are read at startup and saved when they change
+///        (`<config>/Aegis/editor.json`, none when headless).
 class EditorShell final : public Shell
 {
 public:
@@ -42,11 +45,16 @@ private:
     };
 
     void drawMenuBar();
+    void drawStatusBar(FrameContext& frame);
+    void savePreferencesIfChanged();
     void drawViewport(FrameContext& frame);
     void updateGizmoMode();
     void drawGizmo(world::World& world);
 
     EditorContext m_context;
+    log::SinkId m_logSink{};
+    std::filesystem::path m_preferencesFile; // Empty keeps none
+    EditorPreferences m_savedPreferences;
     std::vector<std::unique_ptr<Panel>> m_panels;
     std::string m_layoutFile; // UTF-8; ImGui reads and writes the layout there. Empty keeps none.
     GizmoMode m_gizmoMode{ GizmoMode::None };
