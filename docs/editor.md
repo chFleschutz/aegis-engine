@@ -1,16 +1,15 @@
 # Editor: architecture, features and implementation plan
 
-Status: **proposal**; E1 ([#83]: R3, R4, R8) is implemented, without the action registry, theme v0,
-fonts v0 and Reset Layout. It plans the editor that M9 (D7) splits off and M10 builds.
+Status: **in progress.** E1 ([#83]) is merged; the [M10 milestone][m10] tracks the rest. It plans the
+editor that M9 (D7) splits off and M10 builds.
 It builds on [`editor-runtime-split.md`](editor-runtime-split.md) (the launcher, the type registry, play-in-editor),
 [`asset-system.md`](asset-system.md) (D8: asset IDs, scene files, `World` vs `Scene`) and
 [`engine-architecture.md`](engine-architecture.md) (services, `Presentation`). It fixes how the editor is
 built, what it does in M10, and which runtime features have to exist first.
 
 Plan items are numbered here so the issues can refer to them: **R1–R14** are runtime prerequisites,
-**E1–E9** are editor steps. Each links its issue; the new ones are in the [M10 milestone][m10].
-Baseline: `main` at `e7ccd6ea` (scene files, `FrameScene`, `InstanceStore` and scene instances
-merged).
+**E1–E9** are editor steps. **Each step's scope lives in its issue**; this document holds the design
+the issues cite and links them, and doesn't repeat their content lists.
 
 ## Goals
 
@@ -22,52 +21,19 @@ merged).
 - The logic is testable without a GPU or ImGui. Commands, undo, selection, the property model and the
   play session are pure code with doctest coverage. The ImGui layer stays thin.
 
-## Where it starts
+## Status
 
-What exists today (`src/aegis/editor/`, about 900 lines, legacy style):
+The code is the reference for the current state; this section only says which plan items are done.
 
-- **The editor is attached from outside.** Since [#182] the engine no longer links it. The launcher
-  ([#132]) builds `<Game>` without it, and `<Game>-Editor` calls
-  `Engine::pushLayer<editor::EditorLayer>()` under `AEGIS_LAUNCH_EDITOR` (`launch/main.cpp`). The
-  examples not yet ported to a game ([#167]) still push it themselves. `EditorLayer` is a legacy
-  `core::Layer` that holds references to the input, renderer, frame graph, instances and the one
-  world.
-- **The UI is built inside the render graph.** `UiPass::execute` calls the build callback
-  (`ui_pass.cpp:110`), so every panel runs while the frame is being recorded. Structural edits go
-  through `World::defer`. The gizmo still writes `Transform` mid-frame.
-- **Hand-written lists.** The inspector and the Add Component menu list each type by hand
-  (`scene_panel.cppm:158`, `:305`), and `ComponentTraits` marks the required ones.
-- **No viewport.** The scene fills the swapchain and the panels float on top of it. The gizmo draws
-  over the whole display (`editor_layer.cppm:87`) and uses the world's main camera, which is the game
-  camera and its movement script.
-- **Fragile state.** Selection is a `world::Entity`. Tree-node IDs are the truncated entt index
-  (`scene_panel.cppm:258`), so a recycled entity reopens someone else's tree state. The gizmo hotkeys
-  are read from raw input (`editor_layer.cppm:41`), so typing "w" in a text field switches the gizmo.
-- **Missing.** No undo, no saving, no asset browser. The layout is not persisted
-  (`io.IniFilename = nullptr`, `ui.cppm:29`).
-- **ImGui ownership is spread out.** `ui::UI` creates the context, `Engine` owns the GLFW backend and
-  `UiPass` owns the Vulkan backend.
-- **Worth keeping:** the renderer, profiler and statistics panels. They read
-  `FrameGraph::describePasses`, `ResourcePool::describe`, `FrameGraph::timings` and `Profiler`, and
-  port as they are.
+- **Done:** E1 ([#83]: R3, R4, R8; the action registry, theme v0, fonts v0 and Reset Layout moved to
+  [#223]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
+- **Open:** every other R- and E-item, each in its issue (see "Runtime prerequisites" and
+  "Implementation plan").
 
-Runtime state that matters for the plan:
-
-- **Types:** the built-in components are registered (`world::registerComponents`, `aegis.world.types`,
-  [#131]). Each type carries a `world::ComponentStorage` attachment (`find`, `add`, `first`,
-  `singleton`), so code can reach a component on an entity by its `TypeInfo`. There is no `remove`
-  and no change notification yet. Name, StableId and the hierarchy are entity properties in the file,
-  not registered components. Scripts reach their registered fields through `ScriptEntry::object`.
-  `FieldInfo` has no editor metadata.
-- **Serializer** (`aegis.serialize`): `saveScene(registry) -> Scene`, `writeScene`, `parseScene`,
-  `instantiate(registry, scene)` keeping IDs, and instances with derived IDs ([#183]). Entities created
-  by an instance carry `InstanceMember` and are left out on save, because the holder recreates them.
-  There is no subtree capture yet.
-- **World and rendering:** `World` is a plain object with `StableId`s ([#80], [#81]), but the engine
-  owns exactly one. `Engine::loadScene(AssetId)` replaces it. Passes read a `FrameScene` ([#181]),
-  which `aegis::extractFrameScene(world, instances)` fills once per frame from the world's main camera,
-  lights and sky, and an `InstanceStore` ([#86]) that one `InstanceBridge` keeps in step with the one
-  world. The camera always comes from the world, and the scene always renders at the swapchain's size.
+The editor started from about 900 lines of legacy code attached as a `core::Layer`, with its UI built
+inside the render graph, selection by `world::Entity` and hand-written type lists. E1 replaced the
+layer with the shell, moved the UI to the safe point and keyed the selection by `StableId`; the type
+lists go with E3 ([#133]).
 
 ## Architecture
 
@@ -78,7 +44,7 @@ Runtime state that matters for the plan:
  └─ aegis-editor        ImGui layer: EditorShell, panels, widgets, theme, gizmos   (imgui, imguizmo)
      └─ aegis-editor-core   pure model: EditorContext, selection, commands + undo,
                             property model, hierarchy model, play session, editor camera math
-         └─ runtime: aegis-app (Engine, Presentation, Shell), aegis-world, aegis-reflect,
+         └─ runtime: aegis-engine (Engine, Presentation, Shell), aegis-world, aegis-reflect,
                      serializer (#131), aegis-asset-library / aegis-assets, aegis-base
 ```
 
@@ -113,7 +79,7 @@ src/aegis/editor/
 │  ├─ play_session     Edit -> Playing <-> Paused -> Edit, step
 │  └─ editor_camera    fly/orbit/focus math -> view and projection
 └─ ui/                            aegis-editor, module aegis.editor (ImGui in .cpp only)
-   ├─ editor_shell     implements app::Shell; owns the context and the panels
+   ├─ editor_shell     implements Shell; owns the context and the panels
    ├─ actions          action registry: id, label, shortcut, enabled(), run()
    ├─ theme            colors, sizes and fonts in one place
    ├─ widgets          property grid, one widget per FieldKind, asset slot, axis-colored vec3
@@ -127,34 +93,36 @@ other: they share state only through `EditorContext` (selection, active world, p
 through commands and actions. Menus, toolbar buttons and keyboard shortcuts all trigger the same
 `Action`, so each behavior is written once (and a command palette can list the actions later).
 
-### The runtime-to-editor contract: `app::Shell`
+### The runtime-to-editor contract: `Shell`
 
-The engine gets one extension point (R4). A **shell** decides, each frame, what is simulated, what is
-rendered and who receives input. The launcher picks it: the runtime flavor installs `GameShell` (the
-engine's default), the editor flavor installs `editor::EditorShell`. The layer stack goes away ([#172]).
+The engine has one extension point (R4, [#83]). A **shell** decides, each frame, what the app shows around
+the game: its UI, how the world updates and who receives input. The launcher picks it: the runtime
+flavor keeps `GameShell` (the engine's default), the editor flavor installs `editor::EditorShell` with
+`Engine::setShell` before the startup scene loads. `Shell`, `GameShell` and `FrameContext` live in
+`aegis.engine`, next to `Engine` (`src/aegis/engine.cppm`).
 
 ```cpp
-// aegis.app (sketch, names TBD in #83)
 class Shell
 {
 public:
-    virtual ~Shell() = default;
-    // After the project and the startup scene have loaded.
-    virtual auto onStartup(Engine& engine) -> std::expected<void, Error> { return {}; }
+    // Once Engine::run starts: after the project, the game's types and its startup scene have loaded.
+    virtual auto onStartup(Engine& engine) -> std::expected<void, EngineError>;
     // The safe point: input has been read and the ImGui frame is open; no world is being updated or rendered.
     virtual void onFrame(FrameContext& frame) = 0;
-    // What to render this frame: world, camera and target per view (R5).
-    [[nodiscard]] virtual auto views() const -> std::span<const RenderView> = 0;
-    // The window asks to close; false keeps it open (unsaved changes).
-    [[nodiscard]] virtual auto canClose() -> bool { return true; }
-    virtual void onShutdown() {}
+    // Play runs every system; Edit only those that opt in (System::runsInEdit), R8.
+    virtual auto updateMode() const -> world::UpdateMode;
+    // The input the game doesn't see this frame, asked before the input is read.
+    virtual auto inputCapture() const -> InputCapture;
+    // First in the engine's teardown, while the world, the frame graph and ImGui exist.
+    virtual void onShutdown();
 };
 ```
 
-`FrameContext` hands over the services (worlds, assets, types, input, the frame clock) and an
-`update(world, dt, UpdateMode)` call. That makes "which worlds tick, and how" the shell's decision:
-`GameShell` updates the active world in `Play` mode, and `EditorShell` updates the edit world in
-`Edit` mode (R8) or the play world in `Play` mode.
+Still to come: the views to render (world, camera and target per view, R5 [#192]), a close veto
+(`canClose`, on the window's close request from [#198], with E5 [#166]), and, with several worlds (R7
+[#194]), an `update(world, dt, UpdateMode)` call in `FrameContext` that replaces `updateMode`, so the
+shell decides which worlds tick: `GameShell` the active world in `Play`, `EditorShell` the edit world in
+`Edit` or the play world in `Play`.
 
 ### Frame loop (owned by `Engine::run`)
 
@@ -461,7 +429,7 @@ instantiation (`saveScene` / `instantiate`, [#131], [#183]), the `FrameScene` ([
 | R1 | **Component storage, complete:** `remove(registry, entity)` and a change hook `changed(registry, entity)` on `world::ComponentStorage`. Transform → `markStaticDirty` unless dynamic, MeshRenderer → `invalidateStatic` | Remove Component by name; generic edits keep D2's rule | [#191] (with R2) | E3 |
 | R2 | **Type and field metadata** in `reflect`: display name, category, `required`; per field a widget hint (`Color`, `Angle`, `Slider`), min/max/step, `readOnly`, tooltip; the asset type of `AssetRef` fields. The serializer ignores it | Generated widgets; replaces `ComponentTraits` | [#191] (with R1) | E3 |
 | R3 | **UI at the safe point:** `Presentation` owns the ImGui context and both backends, builds the UI before the world update and calls `ImGui::Render` before rendering; `UiPass` only records. Headless UI with no platform backend | Edits outside the frame; headless editor screenshots | [#83] | E1 |
-| R4 | **`app::Shell`:** startup, frame safe point, views, close veto, input capture; `GameShell` default; replaces `Engine::pushLayer` and the layer stack | The editor plugs in without runtime hooks of its own | [#83] with [#132]'s flavors; layers removed in [#172] | E1 |
+| R4 | **`Shell`:** startup, frame safe point, update mode, input capture (views with R5, close veto with E5); `GameShell` default; replaces `Engine::pushLayer` and the layer stack | The editor plugs in without runtime hooks of its own | [#83] (merged, layers removed too) | E1 |
 | R5 | **Render views:** the shell supplies the camera (view, projection, position) instead of `extractFrameScene`'s main camera, and the scene renders into a graph texture of the view's own extent instead of the swapchain | Viewport texture, editor camera | [#192] | E2 |
 | R6 | **UI textures:** `Presentation::uiTexture(ImageViewHandle) -> std::uint64_t` (an `ImTextureID`) through `ImGui_ImplVulkan_AddTexture`, released after the frames in flight and re-registered on resize | Viewport image, later thumbnails | [#193] | E2 |
 | R7 | **Several worlds:** the engine creates and destroys worlds, a world-setup hook adds the engine's and the game's systems (today `Engine::resetWorld`), a clock and an `InstanceStore` with its `InstanceBridge` per world, and choosing the rendered world | Play-in-editor | [#194] | E5 |
@@ -475,79 +443,25 @@ instantiation (`saveScene` / `instantiate`, [#131], [#183]), the `FrameScene` ([
 
 ## Implementation plan
 
-The editor steps, in order, each one PR (or a short stack). The editor steps are in the
-[M10 milestone][m10] together with the R-items that needed an issue of their own. [#83] (E1), the launcher ([#132]) and the
-legacy-core removal stay in M9, the split.
+The editor steps, in order, each one PR (or a short stack). Each issue holds the step's content, out of
+scope, "done when" and verification; this table only orders them and names the R-items they need.
+[#83] (E1), the launcher ([#132]) and the legacy-core removal stay in M9, the split; the rest is in the
+[M10 milestone][m10].
 
-**Before E1:** nothing left. The launcher ([#132]: R14, the two flavors) has merged.
+| Step | Issue | Needs | What it gives |
+|---|---|---|---|
+| E1 | [#83] (merged), [#223] | R3, R4, R8 | The shell, the editor as two libraries, today's panels; actions, theme v0, fonts v0, Reset Layout in [#223] |
+| E2 | [#200] | R5, R6 | Viewport, editor camera, gizmo in the viewport, picking |
+| E3 | [#133] | R1, R2 | Inspector and Add menus generated from the type registry |
+| E4 | [#165] (fields), [#201] (structure) | R9, R11 | Undo and redo of every edit |
+| E5 | [#166] | R7, R10, R12 | Scene files, play-in-editor |
+| E6 | [#202] | R10 | Asset browser |
+| E7 | [#203] | R13 | Console, status bar, preferences |
+| E8 | [#204] | R12 | The UI design, refined on real scenes. **Required, not optional**; starts once E1–E6 are usable |
+| E9 | [#205] | | The headless editor smoke test, extended by each step |
 
-**E1. Editor as a library and the shell** ([#83], M). R3, R4, R8.
-- `Presentation` owns ImGui; the frame loop above; `GameShell` and `EditorShell`.
-- `aegis-editor-core` and `aegis-editor` targets in the new style, with the `Panel` and `Action`
-  scaffolding and `EditorContext`.
-- Port the existing panels as they are (scene panel, debug panels), with selection by `StableId`.
-- Layout persistence, Reset Layout, theme v0 (the tokens with today's values) and fonts v0.
-- Done when: `<Game>` links no editor and draws no editor UI; `<Game>-Editor` shows today's panels;
-  the edit world runs no scripts; a headless editor run renders the UI.
-
-**E2. Viewport, editor camera, gizmo, picking** ([#200], M). R5, R6.
-- Viewport panel with the offscreen texture and debounced resize; editor camera; gizmo inside the
-  viewport with focus-only hotkeys; CPU picking; light and camera icons; input routing.
-- Done when: the scene renders in the viewport at its size, the editor camera never appears in the
-  world, the gizmo moves static entities, and `editor_camera` and the picking math are unit-tested.
-
-**E3. Generated inspector and Add menus** ([#133], M). R1, R2.
-- `property_model` plus widgets; component headers with their context menu; the Scripts section;
-  instance members read-only; Add Component and Add Script from the registry; the drawer registry
-  (empty for built-ins).
-- `ComponentTraits` and the hand-written lists go.
-- Done when: as [#133] (a type registered by a test shows up with no editor code).
-
-**E4. Undo for fields and structure** ([#165] for fields, S; [#201] for structure, M). R9,
-R11.
-- The undo stack and commands in `aegis-editor-core`; merging of continuous drags; gizmo drags as one
-  command; hierarchy drag and drop and reordering; Duplicate.
-- Done when: every edit E1–E3 can make is undoable and redoable, and the pure tests cover merge, the
-  saved marker, and destroy → undo restoring the same `StableId`s.
-
-**E5. Scene files and play-in-editor** ([#166], M). R7, R10 (registering a saved file), R12 (close).
-- New/Open/Save/Save As, the dirty title, the unsaved prompt; Play/Pause/Step/Stop with the play world;
-  the play tint.
-- Done when: as [#166] (a play session leaves the edit world byte-identical on save; a saved scene
-  reopens unchanged).
-
-**E6. Asset browser** ([#202], M). R10.
-- Folder tree and file list, sub-assets, search and type filter, drag and drop into slots, the
-  viewport and the hierarchy; open scenes; Rescan.
-- Done when: dragging a scene or model from the browser into the viewport instantiates it and undo
-  removes it; a texture dropped on a field of the wrong asset type is refused.
-
-**E7. Console, status bar, preferences** ([#203], S). R13.
-- Done when: log lines show in the console with filters while stderr still gets them; preferences
-  survive a restart.
-
-**E8. Refine the UI design** ([#204], M, `needs-design`). **Required, not optional.** It starts once
-E1–E6 are usable, and earlier tweaks stay in the tokens. R12 (content scale).
-- Use the editor on the real scenes (Sponza, Helmets, Simple) for the core workflows: place a model,
-  light it, edit a script's field, play/stop, save/reopen, undo a gizmo drag.
-- Try it at 1080p, 1440p and 4K, and at 100%, 150% and 200% scaling, with `ImGui::ShowStyleEditor`
-  behind Debug for live tuning. Then bake the result into `ui/theme`.
-- Decide and record: the panel split, toolbar contents, inspector density, colors, fonts and the icon
-  set (with licenses), and which shortcuts collide.
-- Compare headless editor screenshots before and after. Keep one as a reference image, so later
-  changes to the theme are deliberate.
-- Done when: the decisions are written into this document's "UI design" section and the theme code
-  matches them.
-
-**E9. Editor smoke test in CTest** ([#205], S, after E1, extended by each step).
-- `<Game>-Editor --headless --frames 60 --screenshot` as a `device` test: it opens the example
-  project, runs the editor UI over the viewport, and exits 0 with no validation errors.
-- From E5 on, also a scripted play/stop: a CLI flag runs N frames of play, then checks that the edit
-  world is unchanged.
-
-**Then:** [#172] (the legacy core goes, including the layers) and [#85] (`aegis.base` becomes
-`aegis.core`), as already planned in M9. After M10: the nice-to-have list, starting with [#141],
-[#142] and [#143], which build on E3–E6.
+**Then:** [#172] (the legacy core goes) and [#85] (`aegis.base` becomes `aegis.core`), as planned in M9.
+After M10: the nice-to-have list, starting with [#141], [#142] and [#143], which build on E3–E6.
 
 ### Parallel work
 
@@ -559,12 +473,9 @@ in world, platform and base). That way each E-item finds its prerequisites merge
 
 ## Open decisions
 
-- **Naming:** decided in [#83]: `aegis::Shell`, `GameShell` and `FrameContext` in `aegis.engine`, next to
-  `Engine` (there is no `app` namespace yet). The world's mode is `world::UpdateMode`; until R7 a shell
-  names it for the engine's one world (`Shell::updateMode`).
-- **Edit mode when there are no game systems for it:** whether game systems can opt in to `Edit`
-  (procedural previews) from day one, or only engine systems (proposed: engine only, with the flag
-  public so games can use it later).
+Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and edit mode as a public opt-in
+(`System::runsInEdit`), which the engine's transform and camera systems use and a game's systems may.
+
 - **Play world view:** replace the viewport (proposed for M10) or a separate Game panel (once two views render in one frame).
 - **Editor-only game code:** how a game ships custom drawers. Proposed: an optional `editor/` source
   list in `aegis_add_game` that only `<Game>-Editor` compiles, with no macro in the runtime.
@@ -607,4 +518,5 @@ in world, platform and base). That way each E-item finds its prerequisites merge
 [#203]: https://github.com/chFleschutz/aegis-engine/issues/203
 [#204]: https://github.com/chFleschutz/aegis-engine/issues/204
 [#205]: https://github.com/chFleschutz/aegis-engine/issues/205
+[#223]: https://github.com/chFleschutz/aegis-engine/issues/223
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11
