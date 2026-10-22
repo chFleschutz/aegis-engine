@@ -228,6 +228,10 @@ reformat (e.g. after a `.clang-format` change) goes in its own commit and into
 `.git-blame-ignore-revs`. Guard deliberately hand-aligned blocks (e.g. enum tables —
 `AlignConsecutive*` is off) with `// clang-format off` / `on`.
 
+**Line endings are LF** in the repository and in every checkout, Windows included (`.gitattributes`
+`* text=auto eol=lf`, which overrides `core.autocrlf`; `.clang-format` `LineEnding: LF`). Scripted
+edits (sed, perl) can match `\n` alone.
+
 ## Commits and pull requests
 Keep messages short: one imperative subject line (e.g. `Add rhi sampler`), no body unless the why
 is non-obvious. **No `Co-Authored-By` or other agent/tool attribution trailers**, in commits or PR
