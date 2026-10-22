@@ -5,7 +5,7 @@ import aegis.render_graph;
 import aegis.render_passes;
 import aegis.rhi;
 
-namespace aegis
+namespace aegis::test
 {
 // Declares one texture that follows the output at half its size, with a full mip chain, and one of a fixed
 // size; verifyGraphTextures resizes a graph with it.
@@ -36,7 +36,7 @@ private:
 
 // A graph texture that follows the output: its view covers all mips and keeps its bindless slot when
 // FrameGraph::resized recreates it at the new extent, and the graph frees it again.
-auto Engine::verifyGraphTextures() -> std::expected<void, std::string>
+auto Harness::verifyGraphTextures() -> std::expected<void, std::string>
 {
     const auto liveBefore = m_device->liveResources();
     {
@@ -80,7 +80,7 @@ auto Engine::verifyGraphTextures() -> std::expected<void, std::string>
 
 // Builds, destroys and rebuilds the default graph: the graph and its passes free everything they
 // create, so the number of live device resources is the same each time. Then resizes a rebuilt graph.
-auto Engine::verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::string>
+auto Harness::verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::string>
 {
     const auto build = [&](std::unique_ptr<render_graph::FrameGraph>& graph) -> std::expected<void, std::string> {
         graph = std::make_unique<render_graph::FrameGraph>(*m_device, m_renderer->extent());

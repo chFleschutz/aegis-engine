@@ -6,7 +6,7 @@ target_sources(aegis-test
     test.cppm
     PRIVATE
     main.cpp
-    engine.cpp
+    harness.cpp
     checks/assets.cpp
     checks/graph.cpp
     checks/ibl.cpp
@@ -23,6 +23,7 @@ target_link_libraries(aegis-test
         aegis-asset-library
         aegis-assets
         aegis-base
+        aegis-engine # --scene runs through the app
         aegis-math
         aegis-paths
         aegis-platform

@@ -63,14 +63,47 @@ auto toAlphaMode(fastgltf::AlphaMode mode) -> AlphaMode
     return AlphaMode::Opaque;
 }
 
+/// @brief 'path' as UTF-8 text with '/', as ModelData::dependencies holds it.
+auto utf8(const std::filesystem::path& path) -> std::string
+{
+    const auto text = path.generic_u8string();
+    return { reinterpret_cast<const char*>(text.data()), text.size() };
+}
+
+/// @brief Reads the buffers 'gltf' keeps in files into memory, as fastgltf's Options::LoadExternalBuffers would,
+///        and returns their URIs, which fastgltf would forget (the import cache hashes these files).
+auto loadExternalBuffers(fastgltf::Asset& gltf, const std::filesystem::path& directory, std::string_view name)
+    -> std::expected<std::vector<std::string>, Error>
+{
+    std::vector<std::string> uris;
+    for (auto& buffer : gltf.buffers)
+    {
+        const auto* uri = std::get_if<fastgltf::sources::URI>(&buffer.data);
+        if (!uri)
+            continue;
+        const auto path = directory / uri->uri.fspath();
+        std::ifstream file{ path, std::ios::binary };
+        if (!file)
+            return makeError(ErrorCode::FileNotFound, std::format("glTF buffer '{}' does not exist: '{}'", uri->uri.path(), name));
+        fastgltf::StaticVector<std::byte> bytes(buffer.byteLength);
+        file.seekg(static_cast<std::streamoff>(uri->fileByteOffset));
+        if (!file.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size())))
+            return makeError(ErrorCode::DecodeFailed, std::format("glTF buffer '{}' is shorter than its byteLength: '{}'", uri->uri.path(), name));
+        uris.push_back(utf8(uri->uri.fspath()));
+        buffer.data = fastgltf::sources::Array{ .bytes = std::move(bytes), .mimeType = uri->mimeType };
+    }
+    return uris;
+}
+
 class GltfImport
 {
 public:
-    GltfImport(const fastgltf::Asset& gltf, std::filesystem::path directory, std::string_view name) :
+    GltfImport(const fastgltf::Asset& gltf, std::filesystem::path directory, std::string_view name, std::vector<std::string> externalBuffers) :
         m_gltf{ gltf },
         m_directory{ std::move(directory) },
         m_name{ name }
     {
+        m_model.dependencies = std::move(externalBuffers);
     }
 
     auto run() -> std::expected<ModelData, Error>
@@ -307,7 +340,7 @@ private:
         return std::span{ buffer->bytes.data() + bufferView.byteOffset, bufferView.byteLength };
     }
 
-    auto decodeGltfImage(std::size_t imageIndex) const -> std::expected<ModelImage, Error>
+    auto decodeGltfImage(std::size_t imageIndex) -> std::expected<ModelImage, Error>
     {
         const auto& image = m_gltf.images[imageIndex];
         ModelImage result{ .name = std::string{ image.name }, .srgb = m_srgb[imageIndex] };
@@ -323,10 +356,16 @@ private:
             const auto encoded = encodedImage(image);
             if (!encoded)
                 return std::unexpected{ encoded.error() };
+            result.encoded.assign(encoded->begin(), encoded->end());
             return decodeImage(*encoded, image.name, PixelFormat::RGBA8);
         }();
         if (!decoded)
+        {
+            // Fixing the file must reimport the model, which left the image out.
+            if (const auto* uri = std::get_if<fastgltf::sources::URI>(&image.data))
+                m_model.dependencies.push_back(utf8(uri->uri.fspath()));
             return std::unexpected{ decoded.error() };
+        }
         if (result.name.empty())
             result.name = std::format("Image_{}", imageIndex);
         result.data = std::move(*decoded);
@@ -494,7 +533,7 @@ auto importGltf(std::span<const std::byte> bytes, const std::filesystem::path& d
     }
 
     fastgltf::Parser parser;
-    constexpr auto options = fastgltf::Options::LoadExternalBuffers | fastgltf::Options::DecomposeNodeMatrices;
+    constexpr auto options = fastgltf::Options::DecomposeNodeMatrices;
     auto asset = parser.loadGltf(data.get(), base, options);
     if (asset.error() != fastgltf::Error::None)
     {
@@ -502,6 +541,9 @@ auto importGltf(std::span<const std::byte> bytes, const std::filesystem::path& d
             std::format("Failed to parse glTF '{}': {}", name, fastgltf::getErrorMessage(asset.error())));
     }
 
-    return GltfImport{ asset.get(), base, name }.run();
+    auto externalBuffers = loadExternalBuffers(asset.get(), base, name);
+    if (!externalBuffers)
+        return std::unexpected{ std::move(externalBuffers.error()) };
+    return GltfImport{ asset.get(), base, name, std::move(*externalBuffers) }.run();
 }
 }

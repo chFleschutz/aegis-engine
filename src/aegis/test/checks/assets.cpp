@@ -13,13 +13,13 @@ import aegis.world.registry;
 import aegis.world.render_components;
 import aegis.world.types;
 
-namespace aegis
+namespace aegis::test
 {
 // Renderer textures must reach shaders through bindless, cover all their mips, and keep their
 // bindless slot across a resize. The name is a temporary on purpose: the renderer must copy it.
 // aegis.assets against a real device: default assets, a texture read back after its upload left
 // it in ShaderRead, per-frame material blocks, and glTF + OBJ files instantiated as scenes.
-auto Engine::verifyAssets() -> std::expected<void, std::string>
+auto Harness::verifyAssets() -> std::expected<void, std::string>
 {
     constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
     auto defaults = assets::DefaultAssets::create(*m_device, framesInFlight);
@@ -151,7 +151,7 @@ auto Engine::verifyAssets() -> std::expected<void, std::string>
 
 // AssetLibrary against a real device: an ID loads once, the parts of a model are the assets their own IDs
 // load, and a missing ID fails loudly into engine content instead of leaving a hole.
-auto Engine::verifyAssetLibrary() -> std::expected<void, std::string>
+auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
 {
     constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
     auto library = AssetLibrary::create(*m_device, framesInFlight);

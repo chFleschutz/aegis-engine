@@ -118,7 +118,7 @@ through a pointer; keep such members as `uint64_t` addresses behind properties (
 The `aegis.paths` module (`src/aegis/paths/`) is the one reader of the build-tree locations:
 `aegis::paths::shaders()` (`<build>/shaders`), `aegis::paths::assets()`
 (`<source>/modules/aegis-assets`), `aegis::paths::content()` (`<source>/content`, the engine content) and
-`aegis::paths::cache()` (`<build>/.aegis`, the asset index). They are PRIVATE compile definitions
+`aegis::paths::cache()` (`<build>/.aegis`, the asset index and the import cache). They are PRIVATE compile definitions
 `AEGIS_SHADER_DIR`, `AEGIS_ASSETS_DIR`, `AEGIS_CONTENT_DIR` and `AEGIS_CACHE_DIR` of `aegis-paths`, read only in `paths.cpp`, so they are **absolute paths fixed at
 configure time**, derived from `PROJECT_BINARY_DIR`/`PROJECT_SOURCE_DIR` so the engine also works as an
 `add_subdirectory()` of another project. Running the exe from any cwd is fine, but moving or renaming
@@ -356,8 +356,8 @@ it exits 0.
 
 - `aegis-test --headless` renders offscreen: no window, no surface, no swapchain, and stops after
   600 frames (or `--frames <n>`). `ctest` runs it as a `device`-labelled test. Use this by default.
-- `--scene` / `--gpu-driven` render a loaded scene through `aegis.render_graph` (CPU- / GPU-driven
-  geometry) instead of the test triangle; `--screenshot <png>` saves the last headless frame — look
+- `--scene` / `--gpu-driven` load the test scene file (`Scenes/aegis-test.scene` in `aegis-assets`)
+  and run it through the app's `aegis::Engine` (CPU- / GPU-driven geometry) instead of the test triangle; `--screenshot <png>` saves the last headless frame — look
   at it after render changes. `ctest` runs both paths too.
 - Headless does not touch surface, swapchain, acquire or present. When that code changed, also run
   `aegis-test --frames 600`: it opens a window briefly and exits by itself. On Windows it also checks
