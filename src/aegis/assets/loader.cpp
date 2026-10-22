@@ -167,6 +167,11 @@ auto Loader::load(const Desc& desc, const std::filesystem::path& path) -> std::e
     auto model = importModel(path);
     if (!model)
         return std::unexpected{ std::move(model.error()) };
-    return ModelUpload{ desc, *model }.run();
+    return upload(desc, *model);
+}
+
+auto Loader::upload(const Desc& desc, const ModelData& model) -> std::expected<Model, Error>
+{
+    return ModelUpload{ desc, model }.run();
 }
 }

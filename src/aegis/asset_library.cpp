@@ -80,17 +80,19 @@ class AssetLibrary::Impl
 {
 public:
     Impl(rhi::Device& device, std::uint32_t framesInFlight, assets::DefaultAssets defaults, render_graph::Ibl ibl,
-        assets::AssetDatabase database) :
+        assets::AssetDatabase database, assets::ImportCache importCache) :
         m_device{ &device },
         m_framesInFlight{ framesInFlight },
         m_defaults{ std::move(defaults) },
         m_ibl{ std::move(ibl) },
-        m_database{ std::move(database) }
+        m_database{ std::move(database) },
+        m_importCache{ std::move(importCache) }
     {
     }
 
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return m_defaults; }
     [[nodiscard]] auto database() const -> const assets::AssetDatabase& { return m_database; }
+    [[nodiscard]] auto importCache() const -> const assets::ImportCache& { return m_importCache; }
     [[nodiscard]] auto device() -> rhi::Device& { return *m_device; }
     [[nodiscard]] auto framesInFlight() const -> std::uint32_t { return m_framesInFlight; }
 
@@ -257,8 +259,10 @@ public:
         if (!isModelFile(*entry))
             return failModel(id, std::format("'{}' is not a model file", entry->path));
 
-        auto model = assets::Loader::load(
-            { .device = *m_device, .defaults = m_defaults, .framesInFlight = m_framesInFlight }, m_database.absolutePath(*entry));
+        const auto imported = m_importCache.loadModel(id, m_database.absolutePath(*entry), entry->settings);
+        if (!imported)
+            return failModel(id, assets::describe(imported.error()));
+        auto model = assets::Loader::upload({ .device = *m_device, .defaults = m_defaults, .framesInFlight = m_framesInFlight }, imported->model);
         if (!model)
             return failModel(id, assets::describe(model.error()));
 
@@ -604,6 +608,7 @@ private:
     assets::DefaultAssets m_defaults;
     render_graph::Ibl m_ibl;
     assets::AssetDatabase m_database;
+    assets::ImportCache m_importCache;
     AssetId m_defaultEnvironment;
     std::shared_ptr<assets::Material> m_fallbackMaterial;
 
@@ -617,13 +622,19 @@ private:
 
 auto AssetLibrary::Sources::standard() -> Sources
 {
-    return { .project = paths::assets(), .engineContent = paths::content(), .indexFile = paths::cache() / "index" };
+    return {
+        .project = paths::assets(),
+        .engineContent = paths::content(),
+        .indexFile = paths::cache() / "index",
+        .importCache = paths::cache() / "imported",
+    };
 }
 
 AssetLibrary::AssetLibrary(std::unique_ptr<Impl> impl) :
     m_impl{ std::move(impl) },
     m_defaults{ &m_impl->defaults() },
-    m_database{ &m_impl->database() }
+    m_database{ &m_impl->database() },
+    m_importCache{ &m_impl->importCache() }
 {
 }
 
@@ -649,7 +660,8 @@ auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, con
     if (!ibl)
         return std::unexpected{ std::format("Failed to create the IBL pipelines: {}", describe(ibl.error())) };
 
-    return AssetLibrary{ std::make_unique<Impl>(device, framesInFlight, std::move(*defaults), std::move(*ibl), std::move(*database)) };
+    return AssetLibrary{ std::make_unique<Impl>(device, framesInFlight, std::move(*defaults), std::move(*ibl), std::move(*database),
+        assets::ImportCache{ sources.importCache }) };
 }
 
 auto AssetLibrary::find(std::string_view path, std::string_view key) const -> std::optional<AssetId>

@@ -12,6 +12,7 @@ target_link_libraries(aegis-assets
         meshoptimizer
         stb
         tinyobjloader
+        xxhash
 )
 
 target_sources(aegis-assets
@@ -28,6 +29,7 @@ target_sources(aegis-assets
     error.cppm
     gpu_types.cppm
     image_data.cppm
+    import_cache.cppm
     model_data.cppm
     loader.cppm
     material.cppm
@@ -45,6 +47,7 @@ target_sources(aegis-assets
     defaults.cpp
     gltf_import.cpp
     image_data.cpp
+    import_cache.cpp
     loader.cpp
     material.cpp
     mesh_blob.cpp

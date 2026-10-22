@@ -14,6 +14,7 @@ export import :environment;
 export import :error;
 export import :gpu_types;
 export import :image_data;
+export import :import_cache;
 export import :model_data;
 export import :loader;
 export import :material;

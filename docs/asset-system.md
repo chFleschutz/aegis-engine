@@ -2,8 +2,8 @@
 
 Status: **decided** (D8, 2026-10-19; formats 2026-10-20; sample project 2026-10-21; settles F2 in
 `audit/backlog.md`).
-Implemented so far (#130): IDs, sidecars, the database, engine content, `AssetRef` and `AssetLibrary`;
-scene files, the import cache and the pak are not. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md):
+Implemented so far (#130, #137): IDs, sidecars, the database, engine content, `AssetRef`, `AssetLibrary` and
+the import cache for models; scene files and the pak are not. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md):
 assets referenced only by stable ID, one serializer for scenes and save games, a cook step for export.
 
 **Today** loaders decode and upload in one step and create entities directly, nothing is cached
@@ -313,6 +313,13 @@ implemented synchronously first; the slot lets hot reload swap contents.
 - **Cache:** in `.aegis/`, keyed by an XXH3 hash of source bytes, settings, importer version and
   platform, so a changed importer invalidates its own entries. It holds the cooked format: one format
   for development and shipping.
+- **Layout (#137):** `.aegis/imported/<id>/`, one folder per source file named by its asset ID:
+  `model.json` (the key, the files the import read besides the source, the node tree, materials,
+  images and the blob of each primitive), `mesh-<m>-<p>.mesh` per primitive and `image-<i>.bin` with
+  an embedded image's encoded bytes. External images are decoded from their files on every load
+  until textures are cached (#169); only those that failed to decode are dependencies. The key is
+  checked on every load, so a changed source, buffer or setting reimports; a reimport writes a new
+  folder and moves it into place, so a second process never reads half an entry.
 - **Reimport:** the editor watches the project; a start without the editor checks the keys.
 - **Cook** (`<Name>-Editor --cook <out>`): follow `AssetRef`s from the project's scenes (plus an
   "always include" list), import what the cache lacks, compile native files to binary, pack with an
@@ -334,10 +341,13 @@ implemented synchronously first; the slot lets hot reload swap contents.
 - The format is chosen in one place in the serializer. glaze's templates are heavy: include it only
   in `.cpp` files. Its errors carry their location, which gives #131's line numbers.
 
-**Binary (cache and pak), details TBD:**
+**Binary (cache and pak):**
 - **Textures:** KTX2 (mips, cubes, arrays, the `VkFormat`, zstd), readable by standard tools.
-- **Meshes:** own blobs, a header `{magic, type, version, cache key}` and aligned arrays that go
-  straight into a staging buffer, compressed with meshoptimizer's vertex/index codecs and zstd.
+- **Meshes (#137):** own blobs, a 64-byte header `{magic "AEGM", type, version, cache key, counts,
+  bounds}`, then the vertices, indices, meshlets, meshlet vertices and meshlet primitives as
+  `StaticMesh` uploads them, each starting at a multiple of 16 bytes. Little-endian and uncompressed
+  for now; meshoptimizer's vertex/index codecs and zstd come later, under a new version.
+- **Model entries** are JSON (glaze) until models load as scenes (#140).
 - **Cooked scenes and save games** stay JSON at first; glaze's BEVE is the binary option.
 - **Debugging:** `<Name>-Editor --dump-asset <id>` prints a cache entry as text (#137).
 
@@ -386,12 +396,11 @@ accidental format change then fails CI instead of breaking a project.
 
 ## TBD (cheap to change, decided when built)
 
-- Cache layout and blob formats, mesh blob details (alignment, versioning).
+- Blob formats other than meshes.
 - The pak format and its ID table.
 - Blob compression settings; where per-platform texture compression runs (import or cook).
 - The library's internals and when loading becomes async.
 - glaze or the yyjson fallback (the files stay JSON either way).
-- The dump tool's output.
 
 ## Open
 

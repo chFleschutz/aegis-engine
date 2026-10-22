@@ -58,6 +58,17 @@ auto run(int argc, char** argv) -> int
         return exitFailure;
     }
     desc->project = std::move(*project);
+    if (!desc->dumpAsset.empty())
+    {
+        auto text = dumpAsset(*desc);
+        if (!text)
+        {
+            log::error("{}", describe(text.error()));
+            return exitFailure;
+        }
+        std::print("{}", *text);
+        return exitSuccess;
+    }
     desc->title = std::string{ game.name };
     log::info("Project '{}', shaders '{}', engine content '{}'", desc->project.string(), paths::shaders().string(),
         paths::content().string());

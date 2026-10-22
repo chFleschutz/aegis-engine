@@ -32,9 +32,10 @@ public:
         std::filesystem::path project;       // Scanned for assets; sidecars are created for new sources
         std::filesystem::path engineContent; // Read-only
         std::filesystem::path indexFile;     // The database's index cache; empty for none
+        std::filesystem::path importCache;   // The import cache's folder (assets::ImportCache); empty for none
 
-        /// @brief The aegis-assets submodule as the project, the engine's content folder, and the index in
-        ///        the build tree (see aegis.paths).
+        /// @brief The aegis-assets submodule as the project, the engine's content folder, and the index and the
+        ///        import cache in the build tree (see aegis.paths).
         [[nodiscard]] static auto standard() -> Sources;
     };
 
@@ -101,6 +102,7 @@ public:
 
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return *m_defaults; }
     [[nodiscard]] auto database() const -> const assets::AssetDatabase& { return *m_database; }
+    [[nodiscard]] auto importCache() const -> const assets::ImportCache& { return *m_importCache; }
 
     /// @brief A black sky; scenes replace it with an environment loaded by ID.
     [[nodiscard]] auto defaultEnvironment() -> assets::AssetRef<assets::Environment>;
@@ -123,6 +125,7 @@ private:
     std::unique_ptr<Impl> m_impl;
     const assets::DefaultAssets* m_defaults;
     const assets::AssetDatabase* m_database;
+    const assets::ImportCache* m_importCache;
 };
 
 template<class T>

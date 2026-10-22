@@ -32,6 +32,19 @@ auto parseCount(std::string_view option, std::string_view value) -> std::expecte
         return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("{} needs a positive integer, got '{}'", option, value)) };
     return count;
 }
+
+// The asset library's folders: the standard ones, or the game's project with its `.aegis` folder.
+auto assetSources(const AppDesc& desc) -> AssetLibrary::Sources
+{
+    auto sources = AssetLibrary::Sources::standard();
+    if (!desc.project.empty())
+    {
+        sources.project = desc.project;
+        sources.indexFile = desc.project / ".aegis" / "index";
+        sources.importCache = desc.project / ".aegis" / "imported";
+    }
+    return sources;
+}
 }
 
 auto describe(const EngineError& error) -> std::string
@@ -57,6 +70,10 @@ auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, Engi
         else if (arg == "--project" && hasValue)
         {
             desc.project = args[++i]; // argv is in the native narrow encoding, as path expects
+        }
+        else if (arg == "--dump-asset" && hasValue)
+        {
+            desc.dumpAsset = args[++i];
         }
         else if ((arg == "--frames" || arg == "--width" || arg == "--height") && hasValue)
         {
@@ -89,8 +106,47 @@ auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>
 
 auto usage(std::string_view program) -> std::string
 {
-    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>]",
+    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--dump-asset <id>]",
         program);
+}
+
+auto dumpAsset(const AppDesc& desc) -> std::expected<std::string, EngineError>
+{
+    const auto id = assets::AssetId::parse(desc.dumpAsset);
+    if (!id)
+        return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("--dump-asset needs an asset ID (16 lowercase hex digits), got '{}'", desc.dumpAsset)) };
+
+    const auto sources = assetSources(desc);
+    const auto database = assets::AssetDatabase::scan({
+        .roots = { { sources.project }, { sources.engineContent, true } },
+        .indexFile = sources.indexFile,
+    });
+    if (!database)
+        return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, std::format("Failed to scan the assets: {}", assets::describe(database.error()))) };
+    const auto* entry = database->find(*id);
+    if (!entry)
+        return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, std::format("No asset has the ID {}", *id)) };
+
+    // A mesh is a part of its model file's entry.
+    auto model = *id;
+    std::string_view meshKey;
+    if (!entry->key.empty())
+    {
+        const auto owner = database->find(entry->root, entry->path);
+        if (entry->type != "StaticMesh" || !owner)
+            return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, std::format("{} is '{}' of '{}'; only models and their meshes are cached", *id, entry->key, entry->path)) };
+        model = *owner;
+        meshKey = entry->key;
+    }
+    else if (assets::importerFor(entry->path) != "model")
+    {
+        return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, std::format("{} is '{}'; only models and their meshes are cached", *id, entry->path)) };
+    }
+
+    auto text = assets::ImportCache{ sources.importCache }.dump(model, meshKey);
+    if (!text)
+        return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, assets::describe(text.error())) };
+    return std::move(*text);
 }
 
 auto createEngine(int argc, char** argv) -> std::expected<std::unique_ptr<Engine>, int>
@@ -347,13 +403,7 @@ auto Engine::createRenderer() -> std::expected<void, EngineError>
 
 auto Engine::createAssets() -> std::expected<void, EngineError>
 {
-    auto sources = AssetLibrary::Sources::standard();
-    if (!m_desc.project.empty())
-    {
-        sources.project = m_desc.project;
-        sources.indexFile = m_desc.project / ".aegis" / "index";
-    }
-    auto assets = AssetLibrary::create(*m_device, FRAMES_IN_FLIGHT, sources);
+    auto assets = AssetLibrary::create(*m_device, FRAMES_IN_FLIGHT, assetSources(m_desc));
     if (!assets)
         return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, assets.error()) };
     m_assets.emplace(std::move(*assets));

@@ -73,5 +73,9 @@ public:
     ///        materials.
     /// @return The model. GPU uploads are queued; they complete with the next Device::flushUploads.
     [[nodiscard]] static auto load(const Desc& desc, const std::filesystem::path& path) -> std::expected<Model, Error>;
+
+    /// @brief Uploads the textures, meshes and materials of an imported model (importModel, ImportCache::loadModel).
+    /// @return The model. GPU uploads are queued; they complete with the next Device::flushUploads.
+    [[nodiscard]] static auto upload(const Desc& desc, const ModelData& model) -> std::expected<Model, Error>;
 };
 }
