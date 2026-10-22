@@ -199,6 +199,8 @@ Engine::~Engine()
         m_device->waitIdle();
     m_shell->onShutdown();
     m_shell.reset();
+    // Its registrations are freed through the UI pass, and its sampler through the device.
+    m_presentation.destroyTextures();
 }
 
 auto Engine::useGpuDrivenRendering() const -> bool
@@ -252,15 +254,16 @@ auto Engine::run() -> int
         }
         // The clock clamps a long frame (a breakpoint, a load) so scripts and systems don't get the whole stall
         const float frameTimeSec = m_clock.tick(currentFrameBegin);
-        // The safe point: the shell's UI and edits come before the update, so an edit shows this frame.
-        runShell(frameTimeSec);
-        // The view the shell's UI asks for this frame: the graph follows its extent, the main camera its aspect.
-        const auto view = m_shell->renderView();
-        if (!followView(view))
+        // The graph follows the view the shell's UI asked for last frame, before this frame's UI shows its textures.
+        if (!followView(m_shell->renderView()))
         {
             exitCode = exitFailure;
             break;
         }
+        // The safe point: the shell's UI and edits come before the update, so an edit shows this frame.
+        runShell(frameTimeSec);
+        // The camera the shell's UI asks for this frame; the main camera gets the graph's aspect.
+        const auto view = m_shell->renderView();
         updateCameraAspect(m_viewExtent.value_or(m_window ? rhi::Extent2D{ m_window->extent() } : m_renderer->extent()));
         // Update: the systems run phase by phase, scripts first: they write the transforms, the others derive
         // from them (camera matrices included). In edit mode only the derived ones run.
@@ -356,6 +359,9 @@ auto Engine::createRenderer() -> std::expected<void, EngineError>
     if (!renderer)
         return std::unexpected{ makeError(EngineErrorCode::RendererFailed, std::format("Failed to create the renderer: {}", aegis::renderer::describe(renderer.error()))) };
     m_renderer = std::move(*renderer);
+
+    if (auto created = m_presentation.createTextures(*m_device); !created)
+        return std::unexpected{ makeError(EngineErrorCode::RendererFailed, std::format("Failed to create the UI textures: {}", created.error())) };
     return {};
 }
 
@@ -409,8 +415,9 @@ bool Engine::followView(const std::optional<RenderView>& view)
     if (extent == m_viewExtent)
         return true;
 
-    // Frames in flight still use the graph's textures (and, rebuilding, its passes).
+    // Frames in flight still use the graph's textures (and, rebuilding, its passes), the UI's registrations too.
     m_device->waitIdle();
+    m_presentation.releaseTextures();
     if (extent.has_value() != m_viewExtent.has_value())
     {
         if (auto created = createFrameGraph(extent); !created)
@@ -439,6 +446,8 @@ bool Engine::resize()
     m_window->resetResized();
     if (m_viewExtent)
         return true; // The graph follows the view, not the window
+    // The renderer waited for the frames in flight; the graph's views are about to be recreated.
+    m_presentation.releaseTextures();
     if (auto resized = m_frameGraph->resized(m_renderer->extent()); !resized)
         log::fatal("Failed to resize the frame graph: {}", describe(resized.error()));
     return true;
@@ -450,6 +459,8 @@ void Engine::runShell(float deltaSeconds)
     FrameContext frame{
         .world = m_world,
         .frameGraph = *m_frameGraph,
+        .viewExtent = m_viewExtent,
+        .presentation = m_presentation,
         .instances = m_instances,
         .renderer = *m_renderer,
         .deltaSeconds = deltaSeconds,

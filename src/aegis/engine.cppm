@@ -27,11 +27,12 @@ import aegis.render_graph;
 import aegis.renderer;
 import aegis.rhi;
 
-namespace aegis
+export namespace aegis
 {
 /// @brief The ImGui context and its platform backend, and the UI's place in the frame: beginFrame opens it
 ///        after the input was read, endFrame closes it (ImGui::Render) before the frame graph's UI pass
-///        records it. ImGui's Vulkan backend belongs to that pass (render_graph::UiPass).
+///        records it. ImGui's Vulkan backend belongs to that pass (render_graph::UiPass); the textures the UI
+///        shows are registered with it (uiTexture).
 class Presentation
 {
 public:
@@ -54,13 +55,25 @@ public:
     /// @brief Ends the frame: its draw data is ready for the UI pass.
     void endFrame();
 
-private:
-    bool m_glfw{ false }; // ImGui's GLFW backend is initialized
-};
-}
+    /// @brief An ImTextureID showing 'view' (an image of the frame graph, say) with ImGui::Image, valid in this
+    ///        frame only: ask again in every frame that shows it. 0 before the frame graph's UI pass exists.
+    /// @note The UI pass samples it: the image must be in a shader read state by then, as a view's "Final" is.
+    [[nodiscard]] auto uiTexture(rhi::ImageViewHandle view) -> std::uint64_t;
+    /// @brief Creates what uiTexture registers with, once the device exists.
+    [[nodiscard]] auto createTextures(rhi::Device& device) -> std::expected<void, std::string>;
+    /// @brief Releases every texture uiTexture handed out. The GPU must be idle: call it before the frame graph is
+    ///        resized (its views are recreated) or rebuilt (the UI pass goes, and ImGui's backend with it).
+    void releaseTextures();
+    /// @brief Releases the textures and what they are registered with, while the device and the UI pass exist.
+    void destroyTextures();
 
-export namespace aegis
-{
+private:
+    struct Textures; // render_graph::UiTextures, kept out of this interface
+
+    bool m_glfw{ false }; // ImGui's GLFW backend is initialized
+    std::unique_ptr<Textures> m_textures;
+};
+
 /// @brief How the app starts: a window or an offscreen target, and when it stops.
 struct AppDesc
 {
@@ -161,8 +174,13 @@ struct RenderView
 struct FrameContext
 {
     world::World& world;
-    /// @brief Read-only introspection: the passes, their resources and timings.
+    /// @brief Read-only introspection: the passes, their resources and timings. It stays as it is until the
+    ///        frame has rendered, so its textures can be shown in the UI (Presentation::uiTexture).
     render_graph::FrameGraph& frameGraph;
+    /// @brief The extent of the view the frame graph renders into this frame (the shell's last RenderView); none
+    ///        when it renders onto the window. Only then is its "Final" in a state the UI can show.
+    std::optional<rhi::Extent2D> viewExtent;
+    Presentation& presentation;
     const render_graph::InstanceStore& instances;
     const renderer::Renderer& renderer;
     float deltaSeconds;
@@ -190,9 +208,11 @@ public:
     [[nodiscard]] virtual auto updateMode() const -> world::UpdateMode { return world::UpdateMode::Play; }
     /// @brief The input the game doesn't see this frame; asked before the input is read.
     [[nodiscard]] virtual auto inputCapture() const -> InputCapture { return {}; }
-    /// @brief The view to render this frame, asked after onFrame; none renders onto the window (or, headless, the
-    ///        offscreen target). The frame graph is rebuilt when a view appears or goes, and resized when its
-    ///        extent changes, so keep the extent steady while a panel is being dragged.
+    /// @brief The view to render; none renders onto the window (or, headless, the offscreen target). Asked before
+    ///        onFrame for the frame graph, which is rebuilt when a view appears or goes and resized when its extent
+    ///        changes, and after it for the camera: a change of the extent the UI makes applies from the next frame,
+    ///        so the graph's textures the UI shows stay valid until they are drawn. Keep the extent steady while a
+    ///        panel is being dragged.
     [[nodiscard]] virtual auto renderView() const -> std::optional<RenderView> { return std::nullopt; }
     /// @brief Runs before the engine tears down, while the world, the frame graph and ImGui still exist.
     virtual void onShutdown() {}
