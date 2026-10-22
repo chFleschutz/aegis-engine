@@ -150,6 +150,8 @@ auto Engine::create(const Options& options) -> std::expected<Engine, std::string
         return std::unexpected{ result.error() };
     if (auto result = engine.verifyComputeRoundTrip(); !result)
         return std::unexpected{ result.error() };
+    if (auto result = engine.verifyValidationLog(); !result)
+        return std::unexpected{ result.error() };
     if (auto result = engine.verifyGraphTextures(); !result)
         return std::unexpected{ result.error() };
     if (auto result = engine.verifyGraphRebuild(false); !result)

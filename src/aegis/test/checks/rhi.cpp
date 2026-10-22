@@ -1,6 +1,7 @@
 module aegis.test;
 
 import std;
+import aegis.base;
 import aegis.rhi;
 
 namespace aegis
@@ -192,6 +193,33 @@ auto Engine::verifyComputeRoundTrip() -> std::expected<void, std::string>
     }
 
     std::println("Compute round-trip verified: {} values read and written through device addresses", count);
+    return {};
+}
+
+// A validation message reaches a sink added next to stderr, the way the editor console listens.
+auto Engine::verifyValidationLog() -> std::expected<void, std::string>
+{
+    constexpr std::string_view marker = "aegis-test validation sink check";
+
+    std::vector<std::pair<log::Level, std::string>> received;
+    const auto sink = log::addSink([&](log::Level level, std::string_view message) {
+        if (message.contains(marker))
+            received.emplace_back(level, std::string{ message });
+    });
+    const bool submitted = m_context->submitDebugMessage(marker);
+    log::removeSink(sink);
+
+    if (!submitted)
+    {
+        std::println("Validation log check skipped: validation is off");
+        return {};
+    }
+    if (received.size() != 1)
+        return std::unexpected{ std::format("A validation message reached a log sink {} times, not once", received.size()) };
+    if (received[0].first != log::Level::Warn)
+        return std::unexpected{ std::format("A validation warning reached a log sink as {}", log::levelName(received[0].first)) };
+
+    std::println("Validation log verified: a validation warning reached a log sink next to stderr");
     return {};
 }
 }
