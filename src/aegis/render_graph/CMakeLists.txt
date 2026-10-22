@@ -18,22 +18,22 @@ target_sources(aegis-render-graph
     FILE_SET CXX_MODULES FILES
     render_graph.cppm
     declarations.cppm
-    default_graph.cppm
+    passes/default_graph.cppm
     error.cppm
     frame_graph.cppm
     frame_scene.cppm
     graph_builder.cppm
     frustum.cppm
-    gpu_types.cppm
-    ibl.cppm
+    passes/gpu_types.cppm
+    passes/ibl.cppm
     instance_store.cppm
     immediate.cppm
     render_pass.cppm
     resource.cppm
     resource_pool.cppm
-    names.cppm
+    passes/names.cppm
     schedule.cppm
-    shader.cppm
+    passes/shader.cppm
     passes/geometry_pass.cppm
     passes/gpu_driven.cppm
     passes/lighting_pass.cppm
@@ -45,13 +45,13 @@ target_sources(aegis-render-graph
     passes/ui_pass.cppm
     PRIVATE
     declarations.cpp
-    default_graph.cpp
+    passes/default_graph.cpp
     frame_graph.cpp
-    ibl.cpp
+    passes/ibl.cpp
     instance_store.cpp
     resource_pool.cpp
     schedule.cpp
-    shader.cpp
+    passes/shader.cpp
     passes/geometry_pass.cpp
     passes/gpu_driven.cpp
     passes/lighting_pass.cpp
