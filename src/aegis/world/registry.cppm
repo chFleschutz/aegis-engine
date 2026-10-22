@@ -1,6 +1,6 @@
 module;
 
-#include "core/assert.h"
+#include <cassert>
 
 export module aegis.world.registry;
 
@@ -119,7 +119,7 @@ public:
     template<typename T>
     auto get(Entity entity) -> T&
     {
-        AGX_ASSERT_X(has<T>(entity), "Cannot get Component: Entity does not have the component");
+        assert(has<T>(entity) && "Cannot get Component: Entity does not have the component");
         return m_registry.get<T>(entity.id());
     }
 
@@ -128,7 +128,7 @@ public:
     template<typename T, typename... Args>
     auto add(Entity entity, Args&&... args) -> T&
     {
-        AGX_ASSERT_X(!has<T>(entity), "Cannot add Component: Entity already has the component");
+        assert(!has<T>(entity) && "Cannot add Component: Entity already has the component");
         return m_registry.emplace<T>(entity.id(), std::forward<Args>(args)...);
     }
 
@@ -136,7 +136,7 @@ public:
     template<TagComponent T>
     void add(Entity entity)
     {
-        AGX_ASSERT_X(!has<T>(entity), "Cannot add Component: Entity already has the component");
+        assert(!has<T>(entity) && "Cannot add Component: Entity already has the component");
         m_registry.emplace<T>(entity.id());
     }
 
@@ -152,7 +152,7 @@ public:
         requires IsOptionalComponent<T>
     void remove(Entity entity)
     {
-        AGX_ASSERT_X(has<T>(entity), "Cannot remove Component: Entity does not have the component");
+        assert(has<T>(entity) && "Cannot remove Component: Entity does not have the component");
         m_registry.remove<T>(entity.id());
     }
 
@@ -166,16 +166,16 @@ public:
     /// @return False (and changes nothing) if parent is the entity itself or one of its descendants
     auto setParent(Entity entity, Entity parent) -> bool
     {
-        AGX_ASSERT_X(entity, "Cannot set parent: Entity is null");
-        AGX_ASSERT_X(parent, "Cannot set parent: Parent entity is null");
+        assert(entity && "Cannot set parent: Entity is null");
+        assert(parent && "Cannot set parent: Parent entity is null");
 
         return addChild(parent, entity);
     }
 
     void removeParent(Entity entity)
     {
-        AGX_ASSERT_X(entity, "Cannot remove parent: Entity is null");
-        AGX_ASSERT_X(has<Parent>(entity), "Cannot remove parent: Entity does not have a parent");
+        assert(entity && "Cannot remove parent: Entity is null");
+        assert(has<Parent>(entity) && "Cannot remove parent: Entity does not have a parent");
 
         const Entity parent = get<Parent>(entity).entity;
         if (parent)
@@ -197,8 +197,8 @@ public:
     /// @return False (and changes nothing) if the entity is child itself or one of its descendants
     auto addChild(Entity entity, Entity child) -> bool
     {
-        AGX_ASSERT_X(entity, "Cannot add child: Entity is null");
-        AGX_ASSERT_X(child, "Cannot add child: Child entity is null");
+        assert(entity && "Cannot add child: Entity is null");
+        assert(child && "Cannot add child: Child entity is null");
 
         if (isInSubtree(entity, child)) // Would create a cycle
             return false;
@@ -226,11 +226,11 @@ public:
 
     void removeChild(Entity entity, Entity child)
     {
-        AGX_ASSERT_X(entity, "Cannot remove child: Entity is null");
-        AGX_ASSERT_X(has<Children>(entity), "Cannot remove child: Entity does not have children");
-        AGX_ASSERT_X(child, "Cannot remove child: Child entity is null");
-        AGX_ASSERT_X(has<Parent>(child), "Cannot remove child: Entity does not have a parent");
-        AGX_ASSERT_X(get<Parent>(child).entity == entity, "Cannot remove child: Entity is not a child of this entity");
+        assert(entity && "Cannot remove child: Entity is null");
+        assert(has<Children>(entity) && "Cannot remove child: Entity does not have children");
+        assert(child && "Cannot remove child: Child entity is null");
+        assert(has<Parent>(child) && "Cannot remove child: Entity does not have a parent");
+        assert(get<Parent>(child).entity == entity && "Cannot remove child: Entity is not a child of this entity");
 
         auto& children = get<Children>(entity);
         children.count--;
@@ -265,8 +265,8 @@ public:
 
     void removeChildren(Entity entity)
     {
-        AGX_ASSERT_X(entity, "Cannot remove children: Entity is null");
-        AGX_ASSERT_X(has<Children>(entity), "Cannot remove children: Entity does not have children");
+        assert(entity && "Cannot remove children: Entity is null");
+        assert(has<Children>(entity) && "Cannot remove children: Entity does not have children");
 
         // This needs to be done in two steps to avoid invalidating the iterator
         auto& children = get<Children>(entity);

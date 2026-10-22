@@ -1,6 +1,6 @@
 module;
 
-#include "core/assert.h"
+#include <cassert>
 
 export module aegis.defaults;
 
@@ -35,7 +35,7 @@ auto addDefaultCamera(SceneContext& context) -> world::Entity
     context.scene.setMainCamera(camera);
 
     [[maybe_unused]] auto controller = scripting::attachScript(registry, context.types, camera, "KinematicMovementController");
-    AGX_ASSERT_X(controller, "The KinematicMovementController script is not registered");
+    assert(controller && "The KinematicMovementController script is not registered");
     return camera;
 }
 

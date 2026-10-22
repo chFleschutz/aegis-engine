@@ -1,7 +1,5 @@
 module;
 
-#include "core/assert.h"
-
 #include <cstdlib>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
