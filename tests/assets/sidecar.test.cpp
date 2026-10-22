@@ -42,7 +42,7 @@ TEST_SUITE("assets::Sidecar")
         REQUIRE(sidecar->subAssets.size() == 3);
         CHECK(sidecar->subAssets.at("StaticMesh/Helmet/0") == AssetId{ 0x1f6b2c0d93ae5547ULL });
         CHECK(sidecar->subAssets.at("Material/HelmetMat") == AssetId{ 0xc4d8e1a07b2f9036ULL });
-        CHECK(sidecar->subAssets.at("Texture/Helmet_albedo.png") == AssetId{ 0x08e3f5b6a1c47d29ULL });
+        CHECK(sidecar->subAssets.at("Texture/Helmet_albedo") == AssetId{ 0x08e3f5b6a1c47d29ULL });
     }
 
     TEST_CASE("the golden sidecar is written back byte for byte")

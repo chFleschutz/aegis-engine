@@ -27,6 +27,7 @@ target_sources(aegis-assets
     engine_content.cppm
     environment.cppm
     error.cppm
+    external_images.cppm
     gpu_types.cppm
     image_data.cppm
     import_cache.cppm
@@ -45,6 +46,7 @@ target_sources(aegis-assets
     asset_database.cpp
     asset_id.cpp
     defaults.cpp
+    external_images.cpp
     gltf_import.cpp
     image_data.cpp
     import_cache.cpp

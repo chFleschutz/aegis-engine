@@ -12,8 +12,8 @@ import :sidecar;
 //   imported/<id>/model.json       the model entry: its key, the files it depends on, the node tree, materials,
 //                                  images and the blob of each primitive
 //   imported/<id>/mesh-<m>-<p>.mesh the mesh blob (see :mesh_blob) of primitive p of mesh m
-//   imported/<id>/image-<i>.bin    the encoded bytes of embedded image i; external images are read from the
-//                                  source folder on every load until textures are cached (#169)
+//   imported/<id>/image-<i>.bin    the encoded bytes of embedded image i; an external image is an asset of its
+//                                  own and only its URI is kept
 //
 // An entry is used only if its key, an XXH3-64 hash of the source and its dependencies, the import settings, the
 // importer version and the platform, matches the sources as they are now. A reimport writes a new folder next to
@@ -23,7 +23,7 @@ export namespace aegis::assets
 {
 /// @brief The version of the model importer, part of every model's cache key: bump it when importing the same file
 ///        gives other data (a new vertex attribute, other meshlet limits), so every entry is made again.
-inline constexpr std::uint32_t modelImporterVersion{ 1 };
+inline constexpr std::uint32_t modelImporterVersion{ 2 };
 
 /// @brief The platform the cache's data is made for, part of every key.
 #ifdef _WIN32

@@ -12,6 +12,7 @@ export import :defaults;
 export import :engine_content;
 export import :environment;
 export import :error;
+export import :external_images;
 export import :gpu_types;
 export import :image_data;
 export import :import_cache;

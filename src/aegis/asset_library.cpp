@@ -259,10 +259,17 @@ public:
         if (!isModelFile(*entry))
             return failModel(id, std::format("'{}' is not a model file", entry->path));
 
-        const auto imported = m_importCache.loadModel(id, m_database.absolutePath(*entry), entry->settings);
+        auto imported = m_importCache.loadModel(id, m_database.absolutePath(*entry), entry->settings);
         if (!imported)
             return failModel(id, assets::describe(imported.error()));
-        auto model = assets::Loader::upload({ .device = *m_device, .defaults = m_defaults, .framesInFlight = m_framesInFlight }, imported->model);
+        // External images are textures of their own, loaded and shared by their own IDs.
+        assets::resolveExternalImages(m_database, *entry, imported->model);
+        const auto externalTexture = [this](const assets::ModelImage& image) {
+            return image.texture.valid() ? loadTexture(image.texture).shared() : nullptr;
+        };
+        auto model = assets::Loader::upload(
+            { .device = *m_device, .defaults = m_defaults, .framesInFlight = m_framesInFlight, .externalTexture = externalTexture },
+            imported->model);
         if (!model)
             return failModel(id, assets::describe(model.error()));
 
@@ -545,9 +552,7 @@ private:
         std::vector<AssetId> textureIds, materialIds;
         for (std::size_t i = 0; i < model.textures.size(); ++i)
         {
-            const auto& texture = model.textures[i];
-            const auto name = texture.uri.empty() ? texture.name : std::filesystem::path{ texture.uri }.filename().generic_string();
-            auto key = keys.name("Texture", name, i);
+            auto key = keys.name("Texture", model.textures[i].name, i);
             if (!key)
                 return std::unexpected{ std::move(key.error()) };
             textureIds.push_back(addPart(*key));

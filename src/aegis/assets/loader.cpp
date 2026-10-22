@@ -1,5 +1,6 @@
 module aegis.assets;
 import std;
+import aegis.core;
 import aegis.rhi;
 import aegis.math;
 
@@ -36,6 +37,11 @@ private:
         m_textures.reserve(m_model.images.size());
         for (const auto& image : m_model.images)
         {
+            if (!image.uri.empty())
+            {
+                m_textures.push_back(m_desc.externalTexture ? m_desc.externalTexture(image) : nullptr);
+                continue;
+            }
             // Color data is sRGB; normal, metal/roughness and occlusion data are linear.
             auto texture = Texture::create(m_desc.device, image.data,
                 Texture::ImageDesc{ .name = image.name, .format = image.srgb ? rhi::Format::RGBA8_SRGB : rhi::Format::RGBA8_UNORM });
@@ -89,7 +95,7 @@ private:
                 { pbr::emissive, data.emissive },
             };
             const auto addTexture = [&](const char* parameter, const std::optional<std::uint32_t>& image) {
-                if (image)
+                if (image && m_textures[*image])
                     overrides.push_back(Override{ parameter, m_textures[*image] });
             };
             addTexture(pbr::albedoMap, data.baseColorImage);
@@ -133,7 +139,10 @@ private:
             .nodes = m_model.nodes,
         };
         for (std::size_t i = 0; i < m_model.images.size(); ++i)
-            model.textures.push_back({ m_model.images[i].name, m_model.images[i].uri, m_textures[i] });
+        {
+            if (m_model.images[i].uri.empty())
+                model.textures.push_back({ m_model.images[i].name, m_textures[i] });
+        }
         for (std::size_t i = 0; i < m_model.materials.size(); ++i)
             model.materials.push_back({ m_model.materials[i].name, m_materials[i] });
         model.meshes.reserve(m_model.meshes.size());
@@ -155,7 +164,7 @@ private:
 
     const Loader::Desc& m_desc;
     const ModelData& m_model;
-    std::vector<std::shared_ptr<Texture>> m_textures;               // Per ModelData image
+    std::vector<std::shared_ptr<Texture>> m_textures;               // Per ModelData image; null if left out
     std::vector<std::vector<std::shared_ptr<StaticMesh>>> m_meshes; // Per ModelData mesh, one per primitive
     std::vector<std::shared_ptr<Material>> m_materials;             // Per ModelData material
     std::shared_ptr<Material> m_defaultMaterial;                    // For primitives without one
@@ -167,7 +176,21 @@ auto Loader::load(const Desc& desc, const std::filesystem::path& path) -> std::e
     auto model = importModel(path);
     if (!model)
         return std::unexpected{ std::move(model.error()) };
-    return upload(desc, *model);
+    if (desc.externalTexture)
+        return upload(desc, *model);
+
+    auto withFiles = desc;
+    withFiles.externalTexture = [&desc, directory = path.parent_path()](const ModelImage& image) -> std::shared_ptr<Texture> {
+        const auto file = directory / std::filesystem::path{ std::u8string_view{ reinterpret_cast<const char8_t*>(image.uri.data()), image.uri.size() } };
+        auto texture = Texture::loadFromFile(desc.device, file, image.srgb ? rhi::Format::RGBA8_SRGB : rhi::Format::RGBA8_UNORM);
+        if (!texture)
+        {
+            log::warn("The texture '{}' is left out ({})", file.generic_string(), describe(texture.error()));
+            return nullptr;
+        }
+        return std::move(*texture);
+    };
+    return upload(withFiles, *model);
 }
 
 auto Loader::upload(const Desc& desc, const ModelData& model) -> std::expected<Model, Error>
