@@ -2,18 +2,23 @@ module;
 
 #include <imgui.h>
 
-export module aegis.editor.panels:profiler_panel;
-
+module aegis.editor;
 import std;
 import aegis.base;
 import aegis.render_graph;
+import :panels;
 
-export namespace aegis::editor
+namespace aegis::editor
 {
-class ProfilerPanel
+namespace
+{
+// The frame time, the CPU scopes (Profiler) and the frame graph's GPU pass timings.
+class ProfilerPanel final : public Panel
 {
 public:
-    void draw(const aegis::render_graph::FrameGraph& frameGraph)
+    [[nodiscard]] auto name() const -> std::string_view override { return "Profiler"; }
+
+    void draw(EditorContext&, FrameContext& frame) override
     {
         ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 10), ImGuiCond_FirstUseEver, ImVec2(0, 1));
         if (!ImGui::Begin("Profiler"))
@@ -23,7 +28,7 @@ public:
         }
 
         auto& profiler = Profiler::instance();
-        double frameTime = profiler.time("Frame Time");
+        const double frameTime = profiler.time("Frame Time");
 
         ImGui::Text("Frame Time: %.3f ms", frameTime);
         ImGui::Text("FPS: %.1f", frameTime > 0.0 ? 1000.0 / frameTime : 0.0);
@@ -31,8 +36,8 @@ public:
         ImGui::Spacing();
 
         const ImGuiTableFlags flags = ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuterH;
-        const ImVec2 outer_size = ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 10);
-        if (ImGui::BeginTable("CPU Times", 3, flags, outer_size))
+        const ImVec2 outerSize = ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 10);
+        if (ImGui::BeginTable("CPU Times", 3, flags, outerSize))
         {
             ImGui::TableSetupScrollFreeze(0, 1); // Make top row always visible
             ImGui::TableSetupColumn("CPU Time", ImGuiTableColumnFlags_WidthStretch);
@@ -56,7 +61,7 @@ public:
 
         ImGui::Spacing();
 
-        if (ImGui::BeginTable("GPU Times", 3, flags, outer_size))
+        if (ImGui::BeginTable("GPU Times", 3, flags, outerSize))
         {
             ImGui::TableSetupScrollFreeze(0, 1); // Make top row always visible
             ImGui::TableSetupColumn("GPU Time", ImGuiTableColumnFlags_WidthStretch);
@@ -64,7 +69,7 @@ public:
             ImGui::TableSetupColumn("Frame Percent (%)", ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableHeadersRow();
 
-            for (const auto& timing : frameGraph.timings())
+            for (const auto& timing : frame.frameGraph.timings())
             {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
@@ -80,4 +85,10 @@ public:
         ImGui::End();
     }
 };
+}
+
+auto makeProfilerPanel() -> std::unique_ptr<Panel>
+{
+    return std::make_unique<ProfilerPanel>();
+}
 }

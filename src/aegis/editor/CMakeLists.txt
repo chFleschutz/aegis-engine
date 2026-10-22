@@ -1,34 +1,51 @@
+# The editor's model: selection and the shared context. No ImGui, no GPU; tested by aegis-tests-editor.
+add_library(aegis-editor-core STATIC)
+
+target_link_libraries(aegis-editor-core
+    PUBLIC
+        aegis-world
+)
+
+target_sources(aegis-editor-core
+    PUBLIC
+    FILE_SET CXX_MODULES FILES
+    core/core.cppm
+    core/context.cppm
+    core/selection.cppm
+    PRIVATE
+    core/context.cpp
+    core/selection.cpp
+)
+
+# The editor's ImGui layer: EditorShell and the panels. Only a game's <Game>-Editor links it (aegis_add_game).
 add_library(aegis-editor STATIC)
 
 target_link_libraries(aegis-editor
-PUBLIC
-	aegis-assets
-	aegis-base
-	aegis-core
-	aegis-engine # The shell it implements
-	aegis-platform
-	aegis-render-graph
-	aegis-renderer
-	aegis-world
-	imgui
-	imguizmo
-)
-
-target_include_directories(aegis-editor PRIVATE
-	${CMAKE_CURRENT_SOURCE_DIR}/..
+    PUBLIC
+        aegis-editor-core
+        aegis-engine # The shell it implements
+    PRIVATE
+        aegis-base
+        aegis-render-graph
+        aegis-renderer
+        aegis-rhi
+        aegis-world
+        imgui::imgui
+        imguizmo
 )
 
 target_sources(aegis-editor
-PUBLIC
-	FILE_SET CXX_MODULES
-	BASE_DIRS "${AEGIS_MODULE_ROOT}"
-	FILES
-		editor_layer.cppm
-		panels/demo_panel.cppm
-		panels/menu_bar_panel.cppm
-		panels/panels.cppm
-		panels/profiler_panel.cppm
-		panels/renderer_panel.cppm
-		panels/scene_panel.cppm
-		panels/statistics_panel.cppm
+    PUBLIC
+    FILE_SET CXX_MODULES FILES
+    ui/editor.cppm
+    ui/editor_shell.cppm
+    ui/panel.cppm
+    ui/panels.cppm
+    PRIVATE
+    ui/editor_shell.cpp
+    ui/panels/demo_panel.cpp
+    ui/panels/profiler_panel.cpp
+    ui/panels/renderer_panel.cpp
+    ui/panels/scene_panel.cpp
+    ui/panels/statistics_panel.cpp
 )
