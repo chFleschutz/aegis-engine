@@ -58,6 +58,10 @@ auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, Engi
         {
             desc.project = args[++i]; // argv is in the native narrow encoding, as path expects
         }
+        else if (arg == "--scene" && hasValue)
+        {
+            desc.scene = args[++i];
+        }
         else if ((arg == "--frames" || arg == "--width" || arg == "--height") && hasValue)
         {
             const auto count = parseCount(arg, args[++i]);
@@ -89,7 +93,7 @@ auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>
 
 auto usage(std::string_view program) -> std::string
 {
-    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>]",
+    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--scene <path>]",
         program);
 }
 

@@ -163,8 +163,9 @@ present. Systems register into a phase, and the editor gets a safe point between
 - assets referenced by ID
 
 **The examples become one game.** Simple, Sponza, Helmets and Eval become scene files in one project,
-and Template becomes an empty project. Procedural content (Simple-Scene's 64 random lights) becomes a
-script that spawns in `onCreate`. Each scene runs as a `device` CTest with `--headless`.
+and Template becomes an empty project. Procedural content (Eval's 10k to 1M
+instances) becomes a script that spawns in `onCreate` (`Spawner`); Simple-Scene's lights were already
+saved as data. Each scene runs as a `device` CTest with `--headless`.
 
 ## Scripting language: planned for, not built
 

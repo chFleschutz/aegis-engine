@@ -72,7 +72,7 @@ repository should stay small, and is checked out as the submodule `samples/`. It
 
 - **A project like any other.** It follows "Project layout": `samples.aegis` once project files
   exist (#132), today's asset folders under `assets/`, scene files under `scenes/` (today's
-  `Scenes/`; the other examples follow in #167), and a `.gitignore` of `/.aegis/`. One project for all examples, not one each: Sponza, the
+  `Scenes/`, which holds the examples), and a `.gitignore` of `/.aegis/`. One project for all examples, not one each: Sponza, the
   helmets and the sky are shared, and the examples become scenes in it.
 - **Sidecars are committed** in the sample repository, as in any project. IDs are random, so a
   sidecar that isn't committed gets a new ID on every clone, and scenes reference assets by ID.

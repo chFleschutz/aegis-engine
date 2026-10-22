@@ -74,6 +74,9 @@ struct AppDesc
     /// @brief The project folder the assets come from, its index kept in `<project>/.aegis`; empty for
     ///        the samples (paths::assets()). A game's launcher fills it in through paths::locate.
     std::filesystem::path project;
+    /// @brief The scene file the launcher starts with, by its path in the project ("Scenes/sponza.scene");
+    ///        empty for the game's own (GameModule::startupScene).
+    std::string scene;
 };
 
 enum class EngineErrorCode
@@ -102,7 +105,8 @@ inline constexpr int exitUsage{ 2 };
 
 [[nodiscard]] auto describe(const EngineError& error) -> std::string;
 
-/// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n> and --project <dir>;
+/// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n>, --project <dir> and
+///        --scene <path>;
 ///        the first argument (the program name) is skipped. A headless run without --frames stops after 600 frames.
 [[nodiscard]] auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, EngineError>;
 
@@ -120,6 +124,9 @@ struct GameModule
 {
     /// @brief The game's name, also the window title.
     std::string_view name;
+    /// @brief The scene file the launcher loads after onStartup, by its path in the project; empty for none.
+    ///        --scene replaces it.
+    std::string_view startupScene;
     /// @brief Registers the game's components and scripts in the engine's types; null for none.
     auto (*registerTypes)(reflect::TypeRegistry& types) -> std::expected<void, reflect::Error>{ nullptr };
     /// @brief Runs once the engine is created and the types are registered, e.g. to load the first scene;

@@ -75,7 +75,8 @@ Follow these steps to get started:
     cmake --build --preset windows-clang-debug
     ```
 
-3. Run one of the examples, e.g. `build/windows-clang-debug/examples/sponza/Sponza`.
+3. Run one of the examples, e.g. `build/windows-clang-debug/examples/examples/Examples --scene Scenes/sponza.scene`
+   (the scene files are in `modules/aegis-assets/Scenes`).
 
 4. Optionally run the tests (the `device` tests need a Vulkan GPU; `-LE device` skips them):
 
