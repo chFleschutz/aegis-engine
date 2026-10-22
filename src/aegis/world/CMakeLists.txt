@@ -22,13 +22,12 @@ target_include_directories(aegis-world PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-# PUBLIC: the module interfaces import aegis.math and aegis.core, render_components imports aegis.assets,
+# PUBLIC: the module interfaces import aegis.math, render_components imports aegis.assets,
 # types imports aegis.reflect, and they export EnTT's names.
 target_link_libraries(aegis-world
 PUBLIC
 	aegis-assets
 	aegis-base
-	aegis-core
 	aegis-math
 	aegis-reflect
 	EnTT::EnTT

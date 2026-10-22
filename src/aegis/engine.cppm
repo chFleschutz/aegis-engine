@@ -4,7 +4,6 @@ import std;
 export import aegis.math;
 export import aegis.asset_library;
 export import aegis.scene_description;
-import aegis.core.globals;
 export import aegis.paths;
 export import aegis.base;
 export import aegis.world;
@@ -66,8 +65,8 @@ struct AppDesc
 {
     std::string title{ "Aegis" };
     /// @brief Window size, or the size of the offscreen target when headless.
-    std::uint32_t width{ core::DEFAULT_WIDTH };
-    std::uint32_t height{ core::DEFAULT_HEIGHT };
+    std::uint32_t width{ 1920 };
+    std::uint32_t height{ 1080 };
     /// @brief No window, input or UI: frames render to an offscreen target and the run ends by itself.
     bool headless{ false };
     /// @brief Frames to render before run() returns; 0 runs until the window is closed (headless: 600).
@@ -305,7 +304,6 @@ private:
     /// @brief Starts the world's systems.
     void beginWorld();
     auto saveScreenshot() -> std::expected<void, std::string>;
-    void applyFrameBrake(std::chrono::steady_clock::time_point frameBegin);
 
     /// @brief Longest frame time the scene and scripts see.
     static constexpr float MAX_FRAME_DELTA_SEC{ 0.1f };
