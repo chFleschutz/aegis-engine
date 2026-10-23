@@ -336,23 +336,31 @@ public:
         ImGui::PushID(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(registry.get<StableId>(entity).value)));
         // A scene instance's entities are not saved (the holder's SceneInstance recreates them): an edit would be lost
         const bool readOnly = registry.has<serialize::InstanceMember>(entity);
-        drawHeader(registry, entity, readOnly);
+        drawHeader(registry, entity, readOnly, editor, frame);
         drawComponents(registry, entity, readOnly, editor, frame);
         drawScripts(registry, entity, readOnly, editor, frame);
         if (!readOnly)
-            drawAddMenus(registry, entity, frame);
+            drawAddMenus(registry, entity, editor, frame);
         ImGui::PopID();
         ImGui::End();
     }
 
 private:
-    static void drawHeader(world::Registry& registry, world::Entity entity, bool readOnly)
+    static void drawHeader(world::Registry& registry, world::Entity entity, bool readOnly, EditorContext& editor, FrameContext& frame)
     {
         if (registry.has<Name>(entity))
         {
             ImGui::BeginDisabled(readOnly);
             ImGui::SetNextItemWidth(-FLT_MAX);
-            ImGui::InputText("##name", &registry.get<Name>(entity).name);
+            auto name = registry.get<Name>(entity).name;
+            if (ImGui::InputText("##name", &name))
+            {
+                // Typing the name is one entry
+                if (auto renamed = renameEntity(editWorld(frame), editor.undoStack(), entity, std::move(name), ImGui::IsItemActive()); !renamed)
+                    log::warn("Cannot rename the entity: {}", renamed.error());
+            }
+            if (ImGui::IsItemDeactivated())
+                editor.undoStack().seal();
             ImGui::EndDisabled();
         }
 
@@ -384,7 +392,10 @@ private:
             ImGui::PopID();
         }
         if (removed)
-            removeComponent(*removed, registry, entity);
+        {
+            if (auto done = removeComponent(editWorld(frame), editor.undoStack(), entity, *removed); !done)
+                log::warn("Cannot remove {}: {}", removed->name, done.error());
+        }
     }
 
     static void drawScripts(world::Registry& registry, world::Entity entity, bool readOnly, EditorContext& editor, FrameContext& frame)
@@ -392,18 +403,25 @@ private:
         if (!registry.has<scripting::Scripts>(entity))
             return;
         auto& entries = registry.get<scripting::Scripts>(entity).entries;
+        std::optional<std::size_t> detached;
         for (std::size_t i = 0; i < entries.size(); ++i)
         {
             const auto* type = frame.types.find(entries[i].name);
             if (!type || !entries[i].object)
                 continue;
             ImGui::PushID(static_cast<int>(i));
-            drawSection(*type, entries[i].object, entity, i, false, readOnly, editor, frame); // Detaching is a structural edit (#201)
+            if (!drawSection(*type, entries[i].object, entity, i, !readOnly, readOnly, editor, frame))
+                detached = i;
             ImGui::PopID();
+        }
+        if (detached)
+        {
+            if (auto done = detachScript(editWorld(frame), editor.undoStack(), entity, *detached); !done)
+                log::warn("Cannot detach the script: {}", done.error());
         }
     }
 
-    static void drawAddMenus(world::Registry& registry, world::Entity entity, FrameContext& frame)
+    static void drawAddMenus(world::Registry& registry, world::Entity entity, EditorContext& editor, FrameContext& frame)
     {
         ImGui::Spacing();
         const float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
@@ -417,8 +435,8 @@ private:
         {
             if (const auto* type = pickType(addableComponents(frame.types, registry, entity)))
             {
-                if (auto added = addComponent(*type, registry, entity); !added)
-                    log::warn("Cannot add {}: {}", type->name, reflect::describe(added.error()));
+                if (auto added = addComponent(editWorld(frame), editor.undoStack(), entity, *type); !added)
+                    log::warn("Cannot add {}: {}", type->name, added.error());
             }
             ImGui::EndPopup();
         }
@@ -426,8 +444,8 @@ private:
         {
             if (const auto* type = pickType(scriptTypes(frame.types)))
             {
-                if (auto attached = scripting::attachScript(registry, frame.types, entity, type->name); !attached)
-                    log::warn("Cannot attach {}: {}", type->name, reflect::describe(attached.error()));
+                if (auto attached = attachScript(editWorld(frame), editor.undoStack(), entity, *type); !attached)
+                    log::warn("Cannot attach {}: {}", type->name, attached.error());
             }
             ImGui::EndPopup();
         }

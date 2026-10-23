@@ -2,6 +2,7 @@ export module aegis.editor:viewport;
 import std;
 import aegis.editor.core;
 import aegis.engine;
+import aegis.reflect;
 import aegis.world;
 
 export namespace aegis::editor
@@ -55,7 +56,7 @@ private:
     void focusSelection(const EditorContext& editor);
     void updateGizmoMode();
     // Whether a gizmo was drawn: the selection can be moved.
-    auto drawGizmo(EditorContext& editor, const Rect& rect) -> bool;
+    auto drawGizmo(EditorContext& editor, const reflect::TypeRegistry& types, const Rect& rect) -> bool;
     void drawToolbar(EditorContext& editor, const Rect& rect);
     [[nodiscard]] auto drawIcons(const EditorContext& editor, const Rect& rect) -> std::vector<PickIcon>;
     void pick(EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo);
@@ -72,5 +73,6 @@ private:
     bool m_flying{ false };
     bool m_orbiting{ false };
     bool m_panning{ false };
+    bool m_gizmoDragging{ false }; // As of the last frame: its end seals the drag's undo entry
 };
 }

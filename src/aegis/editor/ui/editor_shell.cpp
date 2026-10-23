@@ -141,7 +141,7 @@ void EditorShell::onFrame(FrameContext& frame)
     ImGuizmo::BeginFrame();
 
     beginMainWindow();
-    handleUndoShortcuts(frame);
+    handleShortcuts(frame);
     drawMenuBar(frame);
     for (const auto& panel : m_panels)
     {
@@ -206,7 +206,7 @@ void EditorShell::drawStatusBar(FrameContext& frame)
     ImGui::End();
 }
 
-void EditorShell::handleUndoShortcuts(FrameContext& frame)
+void EditorShell::handleShortcuts(FrameContext& frame)
 {
     // Not while a text box has the keyboard: it has its own undo
     if (ImGui::GetIO().WantTextInput)
@@ -217,6 +217,8 @@ void EditorShell::handleUndoShortcuts(FrameContext& frame)
         undoEdit(m_context, frame);
     else if (ctrl && (ImGui::IsKeyPressed(ImGuiKey_Y) || (shift && ImGui::IsKeyPressed(ImGuiKey_Z))))
         redoEdit(m_context, frame);
+    else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_D, false))
+        duplicateSelected(m_context, frame);
 }
 
 void EditorShell::drawMenuBar(FrameContext& frame)
@@ -230,6 +232,9 @@ void EditorShell::drawMenuBar(FrameContext& frame)
             undoEdit(m_context, frame);
         if (ImGui::MenuItem("Redo", "Ctrl+Y", false, m_context.undoStack().canRedo()))
             redoEdit(m_context, frame);
+        ImGui::Separator();
+        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, static_cast<bool>(m_context.selectedEntity())))
+            duplicateSelected(m_context, frame);
         ImGui::EndMenu();
     }
 

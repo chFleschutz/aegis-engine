@@ -7,6 +7,7 @@ module aegis.editor;
 import std;
 import aegis.core;
 import aegis.math;
+import aegis.reflect;
 import aegis.render_passes;
 import aegis.rhi;
 import aegis.world;
@@ -95,7 +96,7 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
         updateCamera(editor, frame.deltaSeconds);
         updateGizmoMode();
         const auto icons = drawIcons(editor, rect);
-        const bool gizmo = drawGizmo(editor, rect);
+        const bool gizmo = drawGizmo(editor, frame.types, rect);
         drawToolbar(editor, rect);
         pick(editor, rect, icons, gizmo);
     }
@@ -194,7 +195,7 @@ void Viewport::updateGizmoMode()
         m_gizmoMode = GizmoMode::Scale;
 }
 
-auto Viewport::drawGizmo(EditorContext& editor, const Rect& rect) -> bool
+auto Viewport::drawGizmo(EditorContext& editor, const reflect::TypeRegistry& types, const Rect& rect) -> bool
 {
     auto* world = editor.world();
     const auto selected = editor.selectedEntity();
@@ -237,9 +238,16 @@ auto Viewport::drawGizmo(EditorContext& editor, const Rect& rect) -> bool
 
     const bool changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), operation, mode, glm::value_ptr(matrix), nullptr,
         snapping ? snapValues.data() : nullptr);
+    // One drag is one undo entry: it stays open while the gizmo is in use
+    const bool dragging = ImGuizmo::IsUsing();
+    if (m_gizmoDragging && !dragging)
+        editor.undoStack().seal();
+    m_gizmoDragging = dragging;
     if (!changed)
         return true;
 
+    const auto* transformType = types.find("Transform");
+    const auto oldValues = transformType ? fieldValues(*transformType, &transform) : FieldValues{};
     GlobalTransform parentGlobal{};
     const auto parent = registry.get<Parent>(selected).entity;
     if (parent && registry.has<GlobalTransform>(parent))
@@ -247,6 +255,11 @@ auto Viewport::drawGizmo(EditorContext& editor, const Rect& rect) -> bool
     transform = world::detail::toLocal(parentGlobal, matrix);
     if (!registry.has<DynamicTag>(selected))
         registry.markStaticDirty(selected); // Static entities only move when told to
+    if (transformType)
+    {
+        editor.undoStack().record(ComponentEdit{ .entity = registry.get<StableId>(selected), .type = transformType->name, .oldValues = oldValues, .newValues = fieldValues(*transformType, &transform) },
+            dragging);
+    }
     return true;
 }
 

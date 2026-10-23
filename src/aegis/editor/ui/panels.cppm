@@ -24,4 +24,7 @@ namespace aegis::editor
 ///        the edit no longer applies (logged).
 auto undoEdit(EditorContext& editor, FrameContext& frame) -> bool;
 auto redoEdit(EditorContext& editor, FrameContext& frame) -> bool;
+
+/// @brief Duplicates the selected entity and selects the copy; false if nothing is selected or it failed (logged).
+auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool;
 }
