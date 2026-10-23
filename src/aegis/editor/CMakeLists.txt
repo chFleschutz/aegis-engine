@@ -24,6 +24,7 @@ target_sources(aegis-editor-core
     core/property_model.cppm
     core/selection.cppm
     core/settled_extent.cppm
+    core/undo_stack.cppm
     PRIVATE
     core/console.cpp
     core/context.cpp
@@ -34,6 +35,7 @@ target_sources(aegis-editor-core
     core/property_model.cpp
     core/selection.cpp
     core/settled_extent.cpp
+    core/undo_stack.cpp
 )
 
 # The editor's ImGui layer: EditorShell and the panels. Only a game's <Game>-Editor links it (aegis_add_game).
@@ -73,6 +75,7 @@ target_sources(aegis-editor
     ui/panels/console_panel.cpp
     ui/panels/preferences_panel.cpp
     ui/panels/demo_panel.cpp
+    ui/panels/history.cpp
     ui/panels/inspector_panel.cpp
     ui/panels/profiler_panel.cpp
     ui/panels/renderer_panel.cpp

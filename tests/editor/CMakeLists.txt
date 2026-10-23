@@ -9,5 +9,6 @@ aegis_add_test(editor
         property_model.test.cpp
         selection.test.cpp
         settled_extent.test.cpp
+        undo_stack.test.cpp
     LIBS aegis-editor-core
 )

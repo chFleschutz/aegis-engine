@@ -12,6 +12,7 @@
 //   :property_model PropertyRow: how the inspector shows a registered field (its widget, label and limits).
 //   :inspector      The components and scripts the inspector lists and offers, and edits through the registry.
 //   :editor_camera  EditorCamera: the viewport's camera (fly, orbit, pan, dolly, focus), never an entity.
+//   :undo_stack     UndoStack: the history of field edits (merged drags, the saved marker), and applyEdit.
 //   :settled_extent SettledExtent: the viewport's render size, applied once the panel's size settles.
 export module aegis.editor.core;
 
@@ -24,3 +25,4 @@ export import :preferences;
 export import :property_model;
 export import :selection;
 export import :settled_extent;
+export import :undo_stack;

@@ -225,7 +225,8 @@ auto drawValue(const PropertyRow& row, const reflect::Value& value, const assets
 }
 
 // The registered fields of 'object' (the entity's component or script of 'type') as a two-column property grid.
-void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entity, bool readOnly, FrameContext& frame)
+// Each edit is recorded in the undo stack; a widget still being dragged or typed in extends one entry.
+void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool readOnly, EditorContext& editor, FrameContext& frame)
 {
     const auto rows = propertyRows(type);
     if (rows.empty() || !ImGui::BeginTable("##fields", 2, ImGuiTableFlags_SizingStretchProp))
@@ -247,14 +248,26 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-FLT_MAX);
         ImGui::BeginDisabled(readOnly || row.readOnly);
-        const auto edited = drawValue(row, row.field->getter(object), frame.assets.database());
+        const auto current = row.field->getter(object);
+        const auto edited = drawValue(row, current, frame.assets.database());
+        const bool active = ImGui::IsItemActive();
+        const bool deactivated = ImGui::IsItemDeactivated();
         ImGui::EndDisabled();
         if (edited)
         {
             const auto prepare = row.widget == PropertyWidget::AssetSlot ? PrepareField{ resolve } : PrepareField{};
             if (auto written = setField(type, *row.field, frame.world.registry(), entity, object, *edited, prepare); !written)
+            {
                 log::warn("Cannot set {}.{}: {}", type.name, row.field->name, reflect::describe(written.error()));
+            }
+            else
+            {
+                const auto id = frame.world.registry().get<StableId>(entity);
+                editor.undoStack().record({ .entity = id, .type = type.name, .field = row.field->name, .scriptIndex = scriptIndex, .oldValue = current, .newValue = *edited }, active);
+            }
         }
+        if (deactivated)
+            editor.undoStack().seal();
         ImGui::PopID();
     }
     ImGui::EndTable();
@@ -262,13 +275,13 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
 
 // A header per type: open with its fields, a leaf for a tag (no fields), with a close button when it can be removed.
 // Returns false when its close button was clicked.
-auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity entity, bool removable, bool readOnly, FrameContext& frame) -> bool
+auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool removable, bool readOnly, EditorContext& editor, FrameContext& frame) -> bool
 {
     bool keep = true;
     const std::string title{ type.displayName() };
     const ImGuiTreeNodeFlags flags = type.fields.empty() ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_DefaultOpen;
     if (ImGui::CollapsingHeader(title.c_str(), removable ? &keep : nullptr, flags))
-        drawFields(type, object, entity, readOnly, frame);
+        drawFields(type, object, entity, scriptIndex, readOnly, editor, frame);
     ImGui::Spacing();
     return keep;
 }
@@ -324,8 +337,8 @@ public:
         // A scene instance's entities are not saved (the holder's SceneInstance recreates them): an edit would be lost
         const bool readOnly = registry.has<serialize::InstanceMember>(entity);
         drawHeader(registry, entity, readOnly);
-        drawComponents(registry, entity, readOnly, frame);
-        drawScripts(registry, entity, readOnly, frame);
+        drawComponents(registry, entity, readOnly, editor, frame);
+        drawScripts(registry, entity, readOnly, editor, frame);
         if (!readOnly)
             drawAddMenus(registry, entity, frame);
         ImGui::PopID();
@@ -359,14 +372,14 @@ private:
         ImGui::Separator();
     }
 
-    static void drawComponents(world::Registry& registry, world::Entity entity, bool readOnly, FrameContext& frame)
+    static void drawComponents(world::Registry& registry, world::Entity entity, bool readOnly, EditorContext& editor, FrameContext& frame)
     {
         const reflect::TypeInfo* removed = nullptr;
         for (const auto& section : componentSections(frame.types, registry, entity))
         {
             ImGui::PushID(section.type->name.c_str());
             const bool removable = !readOnly && !section.type->meta.required;
-            if (!drawSection(*section.type, section.object, entity, removable, readOnly, frame))
+            if (!drawSection(*section.type, section.object, entity, std::nullopt, removable, readOnly, editor, frame))
                 removed = section.type;
             ImGui::PopID();
         }
@@ -374,7 +387,7 @@ private:
             removeComponent(*removed, registry, entity);
     }
 
-    static void drawScripts(world::Registry& registry, world::Entity entity, bool readOnly, FrameContext& frame)
+    static void drawScripts(world::Registry& registry, world::Entity entity, bool readOnly, EditorContext& editor, FrameContext& frame)
     {
         if (!registry.has<scripting::Scripts>(entity))
             return;
@@ -385,7 +398,7 @@ private:
             if (!type || !entries[i].object)
                 continue;
             ImGui::PushID(static_cast<int>(i));
-            drawSection(*type, entries[i].object, entity, false, readOnly, frame); // Detaching is a command of its own (#165)
+            drawSection(*type, entries[i].object, entity, i, false, readOnly, editor, frame); // Detaching is a structural edit (#201)
             ImGui::PopID();
         }
     }
