@@ -44,6 +44,9 @@ struct Meshlet
     std::uint32_t primitiveOffset; // Into MeshData::meshletPrimitives, in bytes (3 per triangle)
     std::uint8_t vertexCount;
     std::uint8_t primitiveCount;
+    // The stride's tail, explicit and zeroed: implicit padding is copied uninitialized, so writing equal meshes
+    // to the import cache gave different bytes.
+    std::uint8_t padding[2]{};
 };
 
 /// @brief common::Mesh: a whole mesh, reached through one address (StaticMesh::meshDataAddress).

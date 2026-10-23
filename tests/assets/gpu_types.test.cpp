@@ -61,6 +61,7 @@ TEST_SUITE("assets::gpu_types")
         CHECK(offsetof(Meshlet, vertexCount) == 28);
         CHECK(offsetof(Meshlet, primitiveCount) == 29);
         CHECK(sizeof(Meshlet) == 32);
+        CHECK(offsetof(Meshlet, padding) + sizeof(Meshlet::padding) == sizeof(Meshlet)); // No implicit padding
     }
 
     TEST_CASE("MeshGpuData matches common::Mesh")
