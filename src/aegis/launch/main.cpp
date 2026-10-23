@@ -90,8 +90,10 @@ auto run(int argc, char** argv) -> int
             return exitFailure;
         }
     }
+    if (game.setupWorld)
+        engine.setWorldSetup([&engine, setup = game.setupWorld](world::World& world) { setup(engine, world); });
 #ifdef AEGIS_LAUNCH_EDITOR
-    engine.setShell(std::make_unique<editor::EditorShell>()); // Before the startup scene, which begins in edit mode
+    engine.setShell(std::make_unique<editor::EditorShell>());
 #endif
     if (game.onStartup)
     {

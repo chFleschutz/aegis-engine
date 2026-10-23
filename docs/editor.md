@@ -98,10 +98,10 @@ through commands and actions. Menus, toolbar buttons and keyboard shortcuts all 
 ### The runtime-to-editor contract: `Shell`
 
 The engine has one extension point (R4, [#83]). A **shell** decides, each frame, what the app shows around
-the game: its UI, how the world updates and who receives input. The launcher picks it: the runtime
-flavor keeps `GameShell` (the engine's default), the editor flavor installs `editor::EditorShell` with
-`Engine::setShell` before the startup scene loads. `Shell`, `GameShell` and `FrameContext` live in
-`aegis.engine`, next to `Engine` (`src/aegis/engine.cppm`).
+the game: its UI, which worlds update and render, and who receives input. The launcher picks it: the
+runtime flavor keeps `GameShell` (the engine's default), the editor flavor installs `editor::EditorShell`
+with `Engine::setShell` before `run()`. `Shell`, `GameShell` and `FrameContext` live in `aegis.engine`,
+next to `Engine` (`src/aegis/engine.cppm`).
 
 ```cpp
 class Shell
@@ -110,21 +110,23 @@ public:
     // Once Engine::run starts: after the project, the game's types and its startup scene have loaded.
     virtual auto onStartup(Engine& engine) -> std::expected<void, EngineError>;
     // The safe point: input has been read and the ImGui frame is open; no world is being updated or rendered.
+    // frame.update(world, mode) picks the worlds that update this frame: Play runs every system, Edit only
+    // those that opt in (System::runsInEdit), R8. frame.render(world) picks the one that renders.
     virtual void onFrame(FrameContext& frame) = 0;
-    // Play runs every system; Edit only those that opt in (System::runsInEdit), R8.
-    virtual auto updateMode() const -> world::UpdateMode;
     // The input the game doesn't see this frame, asked before the input is read.
     virtual auto inputCapture() const -> InputCapture;
-    // First in the engine's teardown, while the world, the frame graph and ImGui exist.
+    // First in the engine's teardown, while the worlds, the frame graph and ImGui exist.
     virtual void onShutdown();
 };
 ```
 
-Still to come: the views to render (world, camera and target per view, R5 [#192]), a close veto
-(`canClose`, on the window's close request from [#198], with E5 [#166]), and, with several worlds (R7
-[#194]), an `update(world, dt, UpdateMode)` call in `FrameContext` that replaces `updateMode`, so the
-shell decides which worlds tick: `GameShell` the active world in `Play`, `EditorShell` the edit world in
-`Edit` or the play world in `Play`.
+With several worlds (R7, [#194]) the shell decides which worlds tick, each by its own clock: `GameShell`
+the main world in `Play`, `EditorShell` the edit world in `Edit` or the play world in `Play`. A world it
+doesn't update stands still, clock included, and begins with its first update. The main world renders
+unless the shell renders another.
+
+Still to come: the views to render (world, camera and target per view, R5 [#192]) and a close veto
+(`canClose`, on the window's close request from [#198], with E5 [#166]).
 
 ### Frame loop (owned by `Engine::run`)
 
@@ -156,8 +158,8 @@ shell decides which worlds tick: `GameShell` the active world in `Play`, `Editor
 - **Edit world:** instantiated from the open scene file. It never runs scripts. In `Edit` mode only the
   systems that opt in run (TransformSystem, CameraSystem), so moved entities update and nothing plays.
 - **Play world:** Play captures the edit world with `serialize::saveScene` (in memory, no text) and
-  instantiates that `Scene` into a new `World`, which gets the engine's and the game's systems (R7) and
-  its own clock, then `begin()`. Stop destroys it. Pause stops updating it; Step runs one fixed-step
+  instantiates that `Scene` into a new `World` (`Engine::createWorld`), which gets the engine's and the
+  game's systems (R7) and its own clock, and begins with its first update in `Play`. Stop destroys it. Pause stops updating it; Step runs one fixed-step
   frame. Instances come back through their holders' `SceneInstance`, as they do when a file loads.
 - **Identity across play:** a world's root scene keeps its local IDs (D8), so the play world's
   entities have the edit world's `StableId`s. Selection survives Play and Stop unchanged.

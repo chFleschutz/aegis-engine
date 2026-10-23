@@ -134,6 +134,7 @@ void EditorShell::onFrame(FrameContext& frame)
 {
     m_context.setWorld(frame.world);
     m_context.selection().prune(frame.world.registry());
+    frame.update(frame.world, world::UpdateMode::Edit); // Moved entities update, nothing plays
 
     ImGui::GetStyle().FontScaleMain = m_context.preferences().uiScale;
     ImGuizmo::BeginFrame();

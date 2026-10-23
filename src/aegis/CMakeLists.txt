@@ -23,8 +23,9 @@ PRIVATE
 	asset_library.cpp
 )
 
-# Between the world and the render graph: the instance store that follows the world, and the per-frame FrameScene.
-# Its own target so aegis-test renders a world through it without the engine.
+# Between the world and the render graph: the instance store that follows the world, the per-frame FrameScene, and
+# the worlds an app holds, each with its own store. Its own target so aegis-test renders a world through it without
+# the engine.
 add_library(aegis-render-bridge STATIC)
 target_link_libraries(aegis-render-bridge
 PUBLIC

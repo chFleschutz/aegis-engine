@@ -1,6 +1,7 @@
 #include <doctest/doctest.h>
 
 import std;
+import aegis.core;
 import aegis.world;
 
 namespace
@@ -91,5 +92,18 @@ TEST_SUITE("world::World")
         CHECK_FALSE(registry.has<aegis::MainCamera>(first));
         scene.setMainCamera(second); // Again: still one tag
         CHECK(scene.mainCamera() == second);
+    }
+
+    TEST_CASE("each world has a clock of its own, which a reset keeps")
+    {
+        World first;
+        World second;
+        first.clock() = aegis::core::FrameClock::fixed(0.5f);
+        first.clock().tick(aegis::core::FrameClock::Clock::now());
+        CHECK(second.clock().frame() == 0);
+
+        first.reset();
+        CHECK(first.clock().isFixed());
+        CHECK(first.clock().elapsed() == 0.5);
     }
 }

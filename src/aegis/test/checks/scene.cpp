@@ -27,9 +27,46 @@ struct SceneResult
     std::uint32_t viewShown{ 0 };     // --view: frames whose UI showed the view (Presentation::uiTexture)
 };
 
+// The static entities of 'registry' a geometry pass draws: those with a mesh and a material.
+auto drawableStatic(world::Registry& registry) -> std::uint32_t
+{
+    std::uint32_t count{ 0 };
+    for (auto&& [entity, renderer] : registry.view<MeshRenderer>().each())
+    {
+        if (renderer.mesh && renderer.material && !registry.has<DynamicTag>(world::Entity{ entity }))
+            ++count;
+    }
+    return count;
+}
+
+// The static instances the instance pass wrote in the last frame; none on the CPU-driven path, which has no such pass.
+auto writtenStatic(const render_graph::FrameGraph& frameGraph) -> std::optional<std::uint32_t>
+{
+    for (const auto* pass : frameGraph.passes())
+    {
+        if (const auto* instances = dynamic_cast<const render_graph::InstanceUpdatePass*>(pass))
+            return instances->staticCount();
+    }
+    return std::nullopt;
+}
+
+// Destroys 'root' and its descendants.
+void destroySubtree(world::Registry& registry, world::Entity root)
+{
+    std::vector<world::Entity> doomed{ root };
+    for (std::size_t i = 0; i < doomed.size(); ++i)
+    {
+        for (auto child = registry.get<Children>(doomed[i]).first; child;
+            child = registry.get<Siblings>(child).next)
+            doomed.push_back(child);
+    }
+    for (const auto entity : doomed)
+        registry.destroy(entity);
+}
+
 // The test's side of the app: edits the loaded scene at the safe point (--mirror, --mutate-scene), renders it
-// through a second camera into a view of its own (--view), draws the stats window and checks the frame graph's
-// timings. Failures go to the SceneResult; the run carries on.
+// through a second camera into a view of its own (--view), renders a second world for a while (--worlds), draws the
+// stats window and checks the frame graph's timings. Failures go to the SceneResult; the run carries on.
 class SceneShell final : public Shell
 {
 public:
@@ -50,11 +87,17 @@ public:
         auto& registry = frame.world.registry();
         if (m_frame == 0)
             setUp(frame.world);
+        frame.update(frame.world, world::UpdateMode::Play);
 
         if (m_options.mutateScene)
         {
             if (auto mutated = mutateScene(frame); !mutated)
                 m_result.errors.push_back(std::format("Scene change failed: {}", mutated.error()));
+        }
+        if (m_options.worlds)
+        {
+            if (auto switched = switchWorlds(frame); !switched)
+                m_result.errors.push_back(std::format("World switch failed: {}", switched.error()));
         }
 
         if (m_options.view)
@@ -119,7 +162,7 @@ private:
             // Ahead and to the right of the main camera, turned towards the helmet; CameraSystem keeps its matrices.
             m_viewCamera = registry.create("View Camera", glm::vec3{ 2.2f, -2.2f, 0.3f }, glm::quat{ glm::radians(glm::vec3{ 0.0f, 0.0f, 45.0f }) });
             registry.add<Camera>(m_viewCamera);
-            registry.markStaticDirty(m_viewCamera); // The world has begun: a new static entity has no global transform yet
+            registry.markStaticDirty(m_viewCamera); // Once the world has begun, a new static entity needs it for its global transform
         }
     }
 
@@ -184,29 +227,12 @@ private:
         constexpr std::uint32_t editFrame{ 90 };
         auto& registry = frame.world.registry();
 
-        const auto drawableStatic = [&] {
-            std::uint32_t count{ 0 };
-            for (auto&& [entity, renderer] : registry.view<MeshRenderer>().each())
-            {
-                if (renderer.mesh && renderer.material && !registry.has<DynamicTag>(world::Entity{ entity }))
-                    ++count;
-            }
-            return count;
-        };
-        const auto writtenStatic = [&]() -> std::optional<std::uint32_t> {
-            for (auto* pass : frame.frameGraph.passes())
-            {
-                if (const auto* instances = dynamic_cast<render_graph::InstanceUpdatePass*>(pass))
-                    return instances->staticCount();
-            }
-            return std::nullopt; // The CPU-driven path has no instance pass
-        };
         // The frame after a change: the instances written for it match the scene.
         const auto verifyWritten = [&](std::string_view what, bool grew) -> std::expected<void, std::string> {
-            const auto expected = drawableStatic();
+            const auto expected = drawableStatic(registry);
             if (grew ? expected <= m_staticDrawn : expected >= m_staticDrawn)
                 return std::unexpected{ std::format("{} did not change the scene's static instances ({} before, {} after)", what, m_staticDrawn, expected) };
-            if (const auto written = writtenStatic(); written && *written != expected)
+            if (const auto written = writtenStatic(frame.frameGraph); written && *written != expected)
                 return std::unexpected{ std::format("after {}: {} static instances written, the scene has {}", what, *written, expected) };
             std::println("Scene change verified: {} -> {} static instances after {}", m_staticDrawn, expected, what);
             m_staticDrawn = expected;
@@ -215,7 +241,7 @@ private:
 
         if (m_frame == loadFrame)
         {
-            m_staticDrawn = drawableStatic();
+            m_staticDrawn = drawableStatic(registry);
             auto model = instantiateModel(frame.world, "models/sci_fi_helmet/SciFiHelmet.gltf");
             if (!model)
                 return std::unexpected{ std::format("Loading the second model: {}", model.error()) };
@@ -229,15 +255,7 @@ private:
         }
         else if (m_frame == destroyFrame)
         {
-            std::vector<world::Entity> doomed{ m_helmet };
-            for (std::size_t i = 0; i < doomed.size(); ++i)
-            {
-                for (auto child = registry.get<Children>(doomed[i]).first; child;
-                    child = registry.get<Siblings>(child).next)
-                    doomed.push_back(child);
-            }
-            for (const auto entity : doomed)
-                registry.destroy(entity);
+            destroySubtree(registry, m_helmet);
         }
         else if (m_frame == destroyFrame + 1)
         {
@@ -257,15 +275,68 @@ private:
         return {};
     }
 
+    // --worlds: a second world from the scene file, with the helmet left out so it draws fewer instances. It updates
+    // once, in the first frame (it begins: its transforms and camera matrices are set), and then renders in the middle
+    // third of the frames without updating. The main world updates in every frame and renders in the others, the
+    // last one among them (--compare checks it against the plain scene's reference). The frame after each switch, the
+    // instance pass must have written the static instances of the world it rendered. Called once per frame at the
+    // safe point; without a frame count (a windowed run until closed) the second world never renders.
+    auto switchWorlds(FrameContext& frame) -> std::expected<void, std::string>
+    {
+        const auto shownFrom = m_options.frames / 3;
+        const auto shownUntil = 2 * m_options.frames / 3;
+        if (m_frame == 0)
+        {
+            const auto scene = m_engine->assets().find(sceneFile);
+            if (!scene || !m_helmet)
+                return std::unexpected{ std::format("{} is not in the sample project, or has no helmet", sceneFile) };
+            auto& second = frame.engine.createWorld();
+            if (auto created = m_engine->assets().instantiateScene(second, m_engine->types(), *scene); !created)
+            {
+                frame.engine.destroyWorld(second);
+                return std::unexpected{ std::format("Loading the second world: {}", created.error()) };
+            }
+            // The scene's entities keep their IDs in every world it is instantiated into.
+            auto& registry = second.registry();
+            destroySubtree(registry, registry.find(frame.world.registry().get<StableId>(m_helmet)));
+            frame.update(second, world::UpdateMode::Play);
+            m_second = &second;
+        }
+        if (!m_second || m_options.frames == 0)
+            return {};
+
+        if (m_frame >= shownFrom && m_frame < shownUntil)
+            frame.render(*m_second);
+        if (m_frame == shownFrom + 1 || m_frame == shownUntil + 1)
+        {
+            const bool second = m_frame == shownFrom + 1;
+            const auto expected = drawableStatic(second ? m_second->registry() : frame.world.registry());
+            const auto* name = second ? "second" : "main";
+            if (const auto written = writtenStatic(frame.frameGraph); written && *written != expected)
+                return std::unexpected{ std::format("{} static instances written, the {} world has {}", *written, name, expected) };
+            std::println("World switch verified: the {} world rendered, {} static instances", name, expected);
+        }
+        if (m_frame + 1 == m_options.frames)
+        {
+            const auto secondUpdates = m_second->clock().frame();
+            const auto mainUpdates = frame.world.clock().frame();
+            if (secondUpdates != 1 || mainUpdates != m_frame)
+                return std::unexpected{ std::format("in {} frames the second world updated {} times, the main world {}", m_frame, secondUpdates, mainUpdates) };
+            std::println("Worlds verified: in {} frames the second world updated once, the main world in each", m_frame);
+        }
+        return {};
+    }
+
     const Options& m_options;
     SceneResult& m_result;
     Engine* m_engine{ nullptr };
     world::World* m_world{ nullptr };
-    std::uint32_t m_frame{ 0 };       // Frames begun so far
-    world::Entity m_helmet;           // The holder of the model instance the scene file holds
-    world::Entity m_addedModel;       // --mutate-scene: the holder of the model instance loaded later
-    world::Entity m_viewCamera;       // --view: the camera the view renders through, not the main one
-    std::uint32_t m_staticDrawn{ 0 }; // --mutate-scene: drawable static entities before the last change
+    std::uint32_t m_frame{ 0 };        // Frames begun so far
+    world::Entity m_helmet;            // The holder of the model instance the scene file holds
+    world::Entity m_addedModel;        // --mutate-scene: the holder of the model instance loaded later
+    world::Entity m_viewCamera;        // --view: the camera the view renders through, not the main one
+    std::uint32_t m_staticDrawn{ 0 };  // --mutate-scene: drawable static entities before the last change
+    world::World* m_second{ nullptr }; // --worlds: the second world, from the same scene file
 };
 
 // Headless: the last frame, as the engine saved it, is drawn (not one flat color), has the size it should have and,
