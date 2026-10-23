@@ -1,7 +1,7 @@
 # Foundation plan: decisions and milestones
 
 The work from [report.md](report.md) §7. The work items are GitHub issues, grouped into milestones
-(`M1`–`M10`, then "Backlog"; the numbers are IDs in creation order, not the working order), with
+(`M1`–`M14`, then "Backlog"; the numbers are IDs in creation order, not the working order), with
 their dependencies as "Blocked by" relations; labels give the kind,
 size, area and the `needs-gpu` / `needs-design` flags (AGENTS.md "Planned work"). This file keeps
 what the issues don't: the decisions with their reasons, and each milestone's goal and working
@@ -183,21 +183,61 @@ starts once [#83] (M9) has made the editor a library.
   - log sinks ([#199]).
 - **Last,** the UI design is tested and refined ([#204], `needs-design`).
 
-**Lanes.** With three agents, run one lane each: assets (M6), render (M7, then [#135]), tooling
-([#170], [#136]). M9 starts once [#131] is merged.
+**[M11. Render foundation][m11]** prepares the renderer for new materials, views and lights, so
+that each of M12's features stays one PR. It runs in parallel with M10.
+- **Render lane,** one at a time, since all are `area/render_graph`: graph resources that persist
+  across frames ([#253]), then several views per frame ([#254], `needs-design`); lights in a GPU
+  buffer, with spot lights ([#255]); post-processing settings as scene data ([#256], after #254, so
+  the settings go on the views).
+- **Pipelines per technique and material variant** ([#251]) are `area/assets` too: they go next in
+  the render lane once the assets lane is free (M6 and [#217] merged), since #135 and the shadows need
+  them. Material templates with their own shader ([#252], `needs-design`) follow #251.
+- **Build speed:** the CPU-side asset code moves off `aegis.rhi` ([#217]) in the assets lane, after
+  M6's open items.
+
+**[M12. Render features][m12]** adds what a game shows on screen, on both geometry paths:
+- alpha-mask and double-sided materials ([#135], D5, after #251);
+- shadows, cascaded for the directional light first, then spot and point lights (after #251 and
+  #254; issue to be filed);
+- blended materials in a forward pass (issue to be filed), then back-to-front sorting ([#9]);
+- vertex tangents ([#19]) at any point; they change the vertex layout and the reference images;
+- anti-aliasing and auto exposure, after #253 (issues to be filed);
+- last, clustered light culling ([#22], `needs-design`, after #255), once scenes have hundreds of
+  lights.
+
+**[M13. Gameplay foundation][m13]** gives a game a simulation loop and the services gameplay needs.
+It starts once play-in-editor ([#166]) is merged, so gameplay can be tried in the editor:
+- the fixed-step phase and the hierarchy updated in order ([#257], after [#219] and [#194]), then
+  scripts get time, spawning, lookup and events ([#258]);
+- then physics, audio and input actions (issues to be filed). The libraries are the owner's call;
+  Jolt Physics and miniaudio are the recommendation, with their headers only in `.cpp` files;
+- save games ([#168]) can start at any point; they are `area/world` too.
+
+**[M14. Vertical slice and shipping][m14]** builds a small game in the sample project on M12 and
+M13 (issue to be filed), and with it what a shipped game needs. The game is the first pass/fail
+target beyond the render tests: what it lacks becomes issues here.
+- background work: a job system ([#259]), then background asset loading ([#260], `needs-design`,
+  after [#154]);
+- the later asset features (D8): hot reload ([#143]), prefab overrides and unpacking ([#142]) and
+  native material files ([#141]);
+- last, exporting the game ([#134], D7/F1/D8, `needs-design`): the cook step, install rules and the
+  shipping build, tried on the slice.
+
+**Lanes.** With three agents, run one lane each: editor (M10), render (M11, then M12), assets (M6,
+then [#217]). M11's items that are also `area/assets` ([#251], [#252]) or `area/world` ([#255],
+[#256]) wait while the assets lane or M10's world items ([#194], [#166]) run. M13 starts once
+[#166] is merged; M14's [#259] can take the assets lane after #217.
 
 **[M8. Verification tiers][m8]** (P9, done) added local reference-image comparison and the CI
 format check. The missing-include scanner (8.2) was dropped: since PR #91, `import std` gives both
 standard libraries the same module, so the failures it was meant to catch no longer happen.
 
-**[Backlog][later]** (was "After the foundation") holds unscheduled work, in no order: alpha-mask
-and double-sided materials ([#135], D5, unblocked), lavapipe device tests in CI ([#136], not a
-priority), exporting a game ([#134], D7/F1/D8, `needs-design`), save games ([#168]), the later asset
-features (D8): native material files ([#141]), prefab overrides and unpacking ([#142]) and hot
-reload ([#143]); vertex tangents ([#19], after [#137]), back-to-front sorting of blended draws
-([#9]), clustered light culling ([#22], `needs-design`), the README usage section ([#2], after
-[#132]), and the device-lost bug ([#154]: its repro freezes the owner's PC, never run it without
-asking).
+**[Backlog][later]** (was "After the foundation") holds unscheduled work, in no order: the legacy
+modules' function bodies moved into `.cpp` files ([#219], before M13's [#257]), the Vulkan-Hpp
+module built without debug info ([#220]), reference images for the games and the editor ([#225]),
+a visible Template scene ([#224]), the README usage section ([#2]), building one target while
+iterating ([#218]), and the device-lost bug ([#154], before M14's [#260]: its repro freezes the
+owner's PC, never run it without asking).
 
 **[Ideas][ideas]** (label `idea`) holds nice-to-have work nobody has committed to, in no order:
 extracting model parts to their own files ([#245]). Once one is wanted, move it to Backlog or a
@@ -225,7 +265,8 @@ winding fix has its own issue ([#171]).
 From report §3: persistent and imported graph images, pooled pipelines and `ShaderLibrary`,
 multi-queue submit, asset streaming, job system, transient aliasing. From D7: automatic field lists
 for the type registry, a DLL/hot-reload game build, a scripting language. (Prefabs, the hierarchy's
-file format and the asset cache are now planned: [#131], [#137], [#140], [#142].)
+file format and the asset cache are now planned: [#131], [#137], [#140], [#142]. So are persistent
+and imported graph images, pooled pipelines and the job system: [#253], [#251], [#259].)
 
 [m1]: https://github.com/chFleschutz/aegis-engine/milestone/1?closed=1
 [m2]: https://github.com/chFleschutz/aegis-engine/milestone/2?closed=1
@@ -237,6 +278,10 @@ file format and the asset cache are now planned: [#131], [#137], [#140], [#142].
 [m8]: https://github.com/chFleschutz/aegis-engine/milestone/8?closed=1
 [m9]: https://github.com/chFleschutz/aegis-engine/milestone/10
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11
+[m11]: https://github.com/chFleschutz/aegis-engine/milestone/13
+[m12]: https://github.com/chFleschutz/aegis-engine/milestone/14
+[m13]: https://github.com/chFleschutz/aegis-engine/milestone/15
+[m14]: https://github.com/chFleschutz/aegis-engine/milestone/16
 [later]: https://github.com/chFleschutz/aegis-engine/milestone/9
 [ideas]: https://github.com/chFleschutz/aegis-engine/milestone/12
 [#2]: https://github.com/chFleschutz/aegis-engine/issues/2
@@ -304,7 +349,23 @@ file format and the asset cache are now planned: [#131], [#137], [#140], [#142].
 [#203]: https://github.com/chFleschutz/aegis-engine/issues/203
 [#204]: https://github.com/chFleschutz/aegis-engine/issues/204
 [#205]: https://github.com/chFleschutz/aegis-engine/issues/205
+[#217]: https://github.com/chFleschutz/aegis-engine/issues/217
+[#218]: https://github.com/chFleschutz/aegis-engine/issues/218
+[#219]: https://github.com/chFleschutz/aegis-engine/issues/219
+[#220]: https://github.com/chFleschutz/aegis-engine/issues/220
+[#224]: https://github.com/chFleschutz/aegis-engine/issues/224
+[#225]: https://github.com/chFleschutz/aegis-engine/issues/225
 [#236]: https://github.com/chFleschutz/aegis-engine/issues/236
 [#238]: https://github.com/chFleschutz/aegis-engine/issues/238
 [#244]: https://github.com/chFleschutz/aegis-engine/issues/244
 [#245]: https://github.com/chFleschutz/aegis-engine/issues/245
+[#251]: https://github.com/chFleschutz/aegis-engine/issues/251
+[#252]: https://github.com/chFleschutz/aegis-engine/issues/252
+[#253]: https://github.com/chFleschutz/aegis-engine/issues/253
+[#254]: https://github.com/chFleschutz/aegis-engine/issues/254
+[#255]: https://github.com/chFleschutz/aegis-engine/issues/255
+[#256]: https://github.com/chFleschutz/aegis-engine/issues/256
+[#257]: https://github.com/chFleschutz/aegis-engine/issues/257
+[#258]: https://github.com/chFleschutz/aegis-engine/issues/258
+[#259]: https://github.com/chFleschutz/aegis-engine/issues/259
+[#260]: https://github.com/chFleschutz/aegis-engine/issues/260
