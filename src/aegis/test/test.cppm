@@ -32,6 +32,8 @@ struct Options
     bool noOverlay{ false };   // With --scene: leave the stats window out, its per-frame timings change every run
     bool view{ false };        // With --scene: render through a second camera into a view of its own size, which
                                // --screenshot and --compare then read (see viewExtent)
+    bool worlds{ false };      // With --scene: render a second world from the scene file in the middle third of the
+                               // frames (see SceneShell::switchWorlds)
     bool noSamples{ false };   // Skip the checks that load the sample project (samples/ not checked out)
 };
 
