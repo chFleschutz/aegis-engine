@@ -3,10 +3,9 @@
 Status: **decided** (D8, 2026-10-19; formats 2026-10-20; sample project 2026-10-21; project layout
 and external images 2026-10-22; derived sub-asset IDs, settings per part and the cache by key
 2026-10-23; settles F2 in `audit/backlog.md`).
-Implemented so far (#130, #137, #237): IDs, sidecars, the database, engine content, `AssetRef`,
-`AssetLibrary`, the import cache for models and external images as their own assets; derived
-sub-asset IDs (#236), settings per part (#244), the cache by key (#238), scene files and the pak are
-not. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md): assets
+Implemented so far (#130, #137, #237, #238): IDs, sidecars, the database, engine content, `AssetRef`,
+`AssetLibrary`, the import cache for models (by key) and external images as their own assets; derived
+sub-asset IDs (#236), settings per part (#244), scene files and the pak are not. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md): assets
 referenced only by stable ID, one serializer for scenes and save games, a cook step for export.
 
 **Today** loaders decode and upload in one step and create entities directly, nothing is cached
@@ -403,13 +402,14 @@ implemented synchronously first; the slot lets hot reload swap contents.
 
 - **Cache:** in `.aegis/cache/`, keyed by an XXH3 hash of source bytes, settings, importer version and
   platform, so a changed importer invalidates its own entries. It holds the cooked format: one format
-  for development and shipping. Today it is still `<build>/.aegis/` (`paths::cache()`); moving it
-  into the project is its own item.
+  for development and shipping. A game's import cache is in its project (`.aegis/cache/imported/`),
+  or in `$AEGIS_CACHE_DIR/imported/` when that is set; runs without a project (`aegis-test`) use
+  `<build>/.aegis/imported/` (`paths::cache()`). The index is still `.aegis/index`.
 - **Layout (#137, by key in #238):** `.aegis/cache/imported/<key>/`, one folder per import result
   named by its key (#137 named it by asset ID, one version per file): `model.json` (the key, the
   files the import read besides the source, the node tree, materials, images and the blob of each
-  primitive), `mesh-<m>-<p>.mesh` per primitive and `image-<i>.bin` with an embedded image's encoded
-  bytes. Switching branches back and forth reimports nothing, and two checkouts that point
+  primitive), `mesh-<m>-<p>.mesh` per primitive, `image-<i>.bin` with an embedded image's encoded
+  bytes and the empty use marker `used`; the manifests are in `manifests/<source key>.json`. Switching branches back and forth reimports nothing, and two checkouts that point
   `AEGIS_CACHE_DIR` at one folder share it. Entries hold no asset IDs, so identical files share one.
   An external image is an asset of its own: the entry keeps its URI, and changing the image reloads
   the texture, not the model.
@@ -418,13 +418,17 @@ implemented synchronously first; the slot lets hot reload swap contents.
 - **Lookup in two steps:** the key covers the files the import read besides the source, known only
   after an import. A first key from the source bytes, settings, importer version and platform names
   a small manifest listing those files; their contents then give the entry's key. Both are checked
-  on every load, so a changed source, buffer or setting reimports.
+  on every load, so a changed source, buffer or setting reimports. Identical sources in two folders
+  with the same relative buffer paths share the manifest.
 - **Publishing:** an entry is written to a staging folder and renamed into place; if a folder with
-  that key exists, it is complete and the copy is discarded. Entries never change once written, so a
-  second process never reads half an entry.
+  that key exists, it is complete and the copy is discarded (unless this load found it damaged: then
+  it is replaced). Entries never change once written, so a second process never reads half an entry.
 - **Eviction:** each use touches a marker in the entry (file access times are unreliable and often
   off on NTFS); entries unused for some time or past a size limit are deleted, and a delete that
-  fails because another process has the file open is skipped. Thresholds are decided when built.
+  fails because another process has the file open is skipped: the entry is renamed aside before it
+  is deleted, so it goes whole or not at all. Each `AssetLibrary` start evicts entries unused for 30
+  days, then the least recently used ones until the rest fit in 8 GiB (`ImportCache::EvictDesc`);
+  manifests unused for 30 days and staging folders left for an hour go too.
   "Clear cache" deletes everything. A shared cache (a network folder or server keyed the same way)
   needs no format change later.
 - **Reimport:** the editor watches the project; a start without the editor checks the keys. The unit
