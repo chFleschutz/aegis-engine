@@ -3,7 +3,6 @@ export module aegis.world.components;
 import std;
 export import aegis.math;
 export import aegis.world.entity;
-export import aegis.world.component_traits;
 
 export namespace aegis
 {
@@ -157,46 +156,15 @@ struct Camera
     glm::mat4 projectionMatrix = glm::mat4{ 1.0f };
 };
 
-// Specialize component traits
-template<>
-struct ComponentTraits<Name>
-{
-    static constexpr bool is_required = true;
-};
+/// @brief A component of the entity's own bookkeeping: Registry::create gives every entity one and the registry
+///        relies on it until the entity is destroyed, so Registry::remove refuses it at compile time. Whether the
+///        editor may remove a registered component is its metadata's say instead (reflect::TypeMeta::required).
+template<typename T>
+concept EntityComponent = std::same_as<T, Name> || std::same_as<T, StableId> || std::same_as<T, Transform> ||
+                          std::same_as<T, GlobalTransform> || std::same_as<T, Parent> || std::same_as<T, Siblings> ||
+                          std::same_as<T, Children>;
 
-template<>
-struct ComponentTraits<StableId>
-{
-    static constexpr bool is_required = true;
-};
-
-template<>
-struct ComponentTraits<Transform>
-{
-    static constexpr bool is_required = true;
-};
-
-template<>
-struct ComponentTraits<GlobalTransform>
-{
-    static constexpr bool is_required = true;
-};
-
-template<>
-struct ComponentTraits<Parent>
-{
-    static constexpr bool is_required = true;
-};
-
-template<>
-struct ComponentTraits<Siblings>
-{
-    static constexpr bool is_required = true;
-};
-
-template<>
-struct ComponentTraits<Children>
-{
-    static constexpr bool is_required = true;
-};
+/// @brief A component with no data (a tag): it has no storage, only presence
+template<typename T>
+concept TagComponent = std::is_empty_v<T>;
 }

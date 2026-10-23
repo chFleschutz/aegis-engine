@@ -120,15 +120,6 @@ struct Scripts
 };
 }
 
-export namespace aegis
-{
-template<>
-struct ComponentTraits<scripting::Scripts>
-{
-    static constexpr bool is_required = true; // Removing it would skip onDestroy
-};
-}
-
 export namespace aegis::scripting
 {
 /// @brief Registers T as a script named `name` (see reflect::TypeRegistry::script) and records its Script

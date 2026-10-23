@@ -191,6 +191,10 @@ struct FrameContext
     Engine& engine;
     /// @brief The engine's main world (Engine::world), which scenes load into.
     world::World& world;
+    /// @brief The game's and the engine's registered components and scripts (Engine::types)
+    const reflect::TypeRegistry& types;
+    /// @brief Loads the assets the UI assigns (AssetLibrary::resolve) and names them through its database
+    AssetLibrary& assets;
     /// @brief Read-only introspection: the passes, their resources and timings. It stays as it is until the
     ///        frame has rendered, so its textures can be shown in the UI (Presentation::uiTexture).
     render_graph::FrameGraph& frameGraph;

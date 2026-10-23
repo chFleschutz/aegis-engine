@@ -126,9 +126,9 @@ public:
     }
 
     /// @brief Removes a component of type T from the entity
-    /// @note Entity MUST have the component and it MUST be an optional component
+    /// @note Entity MUST have the component, and it cannot be one of the entity's own (EntityComponent)
     template<typename T>
-        requires IsOptionalComponent<T>
+        requires(!EntityComponent<T>)
     void remove(Entity entity)
     {
         assert(has<T>(entity) && "Cannot remove Component: Entity does not have the component");

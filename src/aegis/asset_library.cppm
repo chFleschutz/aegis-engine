@@ -87,6 +87,11 @@ public:
     [[nodiscard]] auto instantiateScene(world::World& world, const reflect::TypeRegistry& types, assets::AssetId scene, world::Entity parent)
         -> std::expected<world::Entity, std::string>;
 
+    /// @brief Loads the asset references of 'component', an instance of 'type', that are IDs without a slot: what
+    ///        instantiateScene does to each component it reads (a MeshRenderer's mesh and material, a Sky's
+    ///        environment, a SceneInstance's scene). The editor calls it after assigning an asset by ID.
+    void resolve(const reflect::TypeInfo& type, void* component, const reflect::TypeRegistry& types);
+
     /// @brief Registers an asset made at run time under a new ID, so it can be referenced like a loaded one.
     ///        It is not in the database: nothing finds it by path and a scene file could not load it again.
     template<class T>

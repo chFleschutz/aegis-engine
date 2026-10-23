@@ -562,6 +562,8 @@ void Engine::runShell(float deltaSeconds)
     FrameContext frame{
         .engine = *this,
         .world = world(),
+        .types = m_types,
+        .assets = *m_assets,
         .frameGraph = *m_frameGraph,
         .viewExtent = m_viewExtent,
         .presentation = m_presentation,

@@ -701,6 +701,11 @@ auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegi
     return {};
 }
 
+void AssetLibrary::resolve(const reflect::TypeInfo& type, void* component, const reflect::TypeRegistry& types)
+{
+    m_impl->resolve(type, component, types);
+}
+
 auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegistry& types, AssetId scene, world::Entity parent)
     -> std::expected<world::Entity, std::string>
 {

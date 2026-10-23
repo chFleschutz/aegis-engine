@@ -101,12 +101,26 @@ TEST_SUITE("world::registerComponents")
         CHECK(types.find<aegis::Sky>()->findField("environment")->assetType == "Environment");
     }
 
-    TEST_CASE("marks a game's component required when its ComponentTraits say so")
+    TEST_CASE("leaves a game's component optional unless its builder marks it required")
     {
         TypeRegistry types;
         REQUIRE(aegis::world::registerComponent<Health>(types, "Health").has_value());
         CHECK_FALSE(types.find<Health>()->meta.required);
         CHECK(types.find<Health>()->displayName() == "Health");
+    }
+
+    TEST_CASE("keeps a component marked required after its storage was attached")
+    {
+        TypeRegistry types;
+        auto builder = aegis::world::registerComponent<Health>(types, "Health");
+        REQUIRE(builder.has_value());
+        builder->required();
+        Registry registry;
+        const auto entity = registry.create();
+        registry.add<Health>(entity);
+
+        CHECK_FALSE(storageOf(types, "Health").remove(registry, entity));
+        CHECK(registry.has<Health>(entity));
     }
 
     TEST_CASE("fails when a built-in name is taken")

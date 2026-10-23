@@ -6,7 +6,6 @@ PUBLIC
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
 		components.cppm
-		component_traits.cppm
 		entity.cppm
 		registry.cppm
 		render_components.cppm
