@@ -70,4 +70,57 @@ private:
 ///        Reads the world, never writes it.
 [[nodiscard]] auto extractFrameScene(world::World& world, const render_graph::InstanceStore& instances)
     -> render_graph::FrameScene;
+
+/// @brief The worlds an app holds, each with the instances drawn of it: an InstanceStore of its own, which an
+///        InstanceBridge keeps in step with the world. A world is set up (its systems added) when it is created and
+///        when it is reset, and it begins (World::begin) with its first update after that, in that update's mode.
+///        A world is named by reference, valid until it is destroyed.
+class Worlds
+{
+public:
+    /// @brief Adds the systems of a new or reset world.
+    using Setup = std::function<void(world::World& world)>;
+
+    explicit Worlds(Setup setup);
+    Worlds(const Worlds&) = delete;
+    Worlds(Worlds&&) = delete;
+    ~Worlds();
+
+    auto operator=(const Worlds&) -> Worlds& = delete;
+    auto operator=(Worlds&&) -> Worlds& = delete;
+
+    /// @brief A new, empty world, set up, with instances of its own.
+    [[nodiscard]] auto create() -> world::World&;
+    /// @brief Destroys 'world', one of these, with its instances. Its systems end what they run while its entities
+    ///        still exist (World::reset).
+    auto destroy(world::World& world) -> void;
+    /// @brief Empties 'world', one of these (World::reset), and sets it up again, ready for a scene's entities. It
+    ///        begins again with its next update.
+    auto reset(world::World& world) -> void;
+    /// @brief Updates 'world', one of these, by 'deltaSeconds' in 'mode' (World::update), beginning it in 'mode' first
+    ///        if this is its first update since it was created or reset.
+    auto update(world::World& world, float deltaSeconds, world::UpdateMode mode) -> void;
+    /// @brief Brings the instances of 'world', one of these, up to date with it (InstanceBridge::sync), after its update.
+    auto sync(world::World& world) -> void;
+
+    [[nodiscard]] auto contains(const world::World& world) const -> bool;
+    /// @brief The worlds, in the order they were created.
+    [[nodiscard]] auto all() -> std::vector<world::World*>;
+    /// @brief The instances of 'world', one of these, as its last sync() left them.
+    [[nodiscard]] auto instances(const world::World& world) -> render_graph::InstanceStore&;
+
+private:
+    struct Entry
+    {
+        world::World world;
+        render_graph::InstanceStore instances;
+        InstanceBridge bridge{ instances }; // Goes first, disconnecting from the world while it exists
+        bool begun{ false };                // Since the world was created or last reset
+    };
+
+    [[nodiscard]] auto entry(const world::World& world) -> Entry&;
+
+    Setup m_setup;
+    std::vector<std::unique_ptr<Entry>> m_entries;
+};
 }
