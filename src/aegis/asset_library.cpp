@@ -259,7 +259,7 @@ public:
         if (!isModelFile(*entry))
             return failModel(id, std::format("'{}' is not a model file", entry->path));
 
-        auto imported = m_importCache.loadModel(id, m_database.absolutePath(*entry), entry->settings);
+        auto imported = m_importCache.loadModel(m_database.absolutePath(*entry), entry->settings);
         if (!imported)
             return failModel(id, assets::describe(imported.error()));
         // External images are textures of their own, loaded and shared by their own IDs.
@@ -665,8 +665,12 @@ auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, con
     if (!ibl)
         return std::unexpected{ std::format("Failed to create the IBL pipelines: {}", describe(ibl.error())) };
 
+    // Entries unused for long, or past the size limit, are deleted once per start.
+    assets::ImportCache importCache{ sources.importCache };
+    (void)importCache.evict();
+
     return AssetLibrary{ std::make_unique<Impl>(device, framesInFlight, std::move(*defaults), std::move(*ibl), std::move(*database),
-        assets::ImportCache{ sources.importCache }) };
+        std::move(importCache)) };
 }
 
 auto AssetLibrary::find(std::string_view path, std::string_view key) const -> std::optional<AssetId>

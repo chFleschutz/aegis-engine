@@ -156,4 +156,10 @@ auto cache() -> const std::filesystem::path&
     static const auto dir = resolve("AEGIS_CACHE_DIR", u8"" AEGIS_CACHE_DIR);
     return dir;
 }
+
+auto cacheOverride() -> const std::optional<std::filesystem::path>&
+{
+    static const auto dir = fromEnvironment("AEGIS_CACHE_DIR");
+    return dir;
+}
 }

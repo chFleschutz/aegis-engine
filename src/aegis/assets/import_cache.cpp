@@ -12,9 +12,20 @@ namespace aegis::assets
 {
 namespace
 {
-/// Bumped when the model entry's JSON changes shape; an entry of another version is a miss.
+/// Bumped when the model entry's or the manifest's JSON changes shape; one of another version is a miss.
 constexpr std::uint32_t modelEntryVersion{ 1 };
+constexpr std::uint32_t manifestVersion{ 1 };
 constexpr std::string_view modelEntryFile{ "model.json" };
+constexpr std::string_view usedFile{ "used" };
+constexpr std::string_view manifestFolder{ "manifests" };
+
+// The files the import of a source read besides it, found by the source's key.
+struct ManifestEntry
+{
+    std::uint32_t version{ 0 };
+    std::string importer;
+    std::vector<std::string> dependencies;
+};
 
 // The model entry's shapes: glm types as arrays, quaternions [x, y, z, w] like the scene files.
 struct NodeEntry
@@ -130,6 +141,13 @@ struct glz::meta<aegis::assets::ModelEntry>
         "images", &T::images, "nodes", &T::nodes);
 };
 
+template<>
+struct glz::meta<aegis::assets::ManifestEntry>
+{
+    using T = aegis::assets::ManifestEntry;
+    static constexpr auto value = object("version", &T::version, "importer", &T::importer, "dependencies", &T::dependencies);
+};
+
 namespace aegis::assets
 {
 namespace
@@ -196,6 +214,86 @@ auto keyOf(std::span<const std::byte> source, const std::filesystem::path& sourc
             desc.files.emplace_back(std::nullopt);
     }
     return importCacheKey(desc);
+}
+
+// An entry's folder name: 16 lowercase hex digits.
+auto isKeyName(std::string_view name) -> bool
+{
+    return name.size() == 16 && std::ranges::all_of(name, [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
+}
+
+// A name for a folder or file being written or deleted; dot-names are skipped by lookups and cleaned up by evict.
+auto scratchName(std::string_view kind) -> std::string
+{
+    return std::format(".{}-{}", kind, AssetId::generate());
+}
+
+// Marks 'path' as used now; a failure only makes it look older to evict.
+auto touch(const std::filesystem::path& path) -> void
+{
+    std::error_code error;
+    std::filesystem::last_write_time(path, std::filesystem::file_time_type::clock::now(), error);
+}
+
+auto manifestPath(const std::filesystem::path& cache, std::uint64_t sourceKey) -> std::filesystem::path
+{
+    return cache / manifestFolder / std::format("{}.json", keyText(sourceKey));
+}
+
+auto readManifest(const std::filesystem::path& path) -> std::optional<std::vector<std::string>>
+{
+    const auto bytes = readBytes(path);
+    if (!bytes)
+        return std::nullopt;
+    const std::string_view json{ reinterpret_cast<const char*>(bytes->data()), bytes->size() };
+    ManifestEntry manifest;
+    if (glz::read<readOptions>(manifest, json) || manifest.version != manifestVersion || manifest.importer != "model")
+        return std::nullopt;
+    return std::move(manifest.dependencies);
+}
+
+// Writes the manifest at 'path' through a scratch file, replacing one that lists other files (a damaged one: the
+// source key covers everything that decides which files an import reads).
+auto writeManifest(const std::filesystem::path& path, std::span<const std::string> dependencies) -> std::expected<void, Error>
+{
+    if (const auto existing = readManifest(path); existing && std::ranges::equal(*existing, dependencies))
+        return {};
+
+    const ManifestEntry manifest{ .version = manifestVersion, .importer = "model", .dependencies = { dependencies.begin(), dependencies.end() } };
+    std::string json;
+    (void)glz::write<writeOptions>(manifest, json);
+    json.push_back('\n');
+
+    std::error_code error;
+    std::filesystem::create_directories(path.parent_path(), error);
+    const auto scratch = path.parent_path() / scratchName("staging");
+    if (!writeBytes(scratch, std::as_bytes(std::span{ json })))
+    {
+        std::filesystem::remove(scratch, error);
+        return makeError(ErrorCode::FileNotFound, std::format("Cannot write '{}'", scratch.generic_string()));
+    }
+    std::filesystem::rename(scratch, path, error);
+    if (error)
+    {
+        std::filesystem::remove(scratch, error);
+        // Another process may have written it meanwhile; it holds the same list then.
+        if (!readManifest(path))
+            return makeError(ErrorCode::FileNotFound, std::format("Cannot write '{}'", path.generic_string()));
+    }
+    return {};
+}
+
+// Deletes the entry 'directory' of 'cache' whole or not at all: it is renamed aside first, which fails while another
+// process has one of its files open (on Windows), and what is renamed aside is no entry any more.
+auto removeEntry(const std::filesystem::path& cache, const std::filesystem::path& directory) -> bool
+{
+    const auto trash = cache / scratchName("evicting");
+    std::error_code error;
+    std::filesystem::rename(directory, trash, error);
+    if (error)
+        return false;
+    std::filesystem::remove_all(trash, error); // What is left is cleaned up by a later evict
+    return true;
 }
 
 auto toEntry(const glm::quat& q) -> std::array<float, 4>
@@ -384,6 +482,8 @@ auto writeModel(const ModelData& model, const std::filesystem::path& directory, 
         });
     }
 
+    if (!writeBytes(directory / usedFile, {}))
+        return fail(std::string{ usedFile });
     std::string json;
     (void)glz::write<writeOptions>(entry, json);
     json.push_back('\n');
@@ -465,13 +565,21 @@ auto importCacheKey(const ImportCacheKeyDesc& desc) -> std::uint64_t
     return key;
 }
 
-auto ImportCache::entryDirectory(AssetId id) const -> std::filesystem::path
+auto ImportCache::entryDirectory(const std::filesystem::path& source, const ImportSettings& settings) const
+    -> std::expected<std::filesystem::path, Error>
 {
-    return m_directory / id.toString();
+    const auto sourceBytes = readBytes(source);
+    if (!sourceBytes)
+        return makeError(ErrorCode::FileNotFound, std::format("Model file does not exist: '{}'", source.string()));
+    const auto sourceDirectory = source.parent_path();
+    const auto manifest = manifestPath(m_directory, keyOf(*sourceBytes, sourceDirectory, {}, settings));
+    const auto dependencies = readManifest(manifest);
+    if (!dependencies)
+        return makeError(ErrorCode::FileNotFound, std::format("No cache manifest '{}': '{}' has not been imported as it is now", manifest.generic_string(), source.generic_string()));
+    return m_directory / keyText(keyOf(*sourceBytes, sourceDirectory, *dependencies, settings));
 }
 
-auto ImportCache::loadModel(AssetId id, const std::filesystem::path& source, const ImportSettings& settings) const
-    -> std::expected<ModelLoad, Error>
+auto ImportCache::loadModel(const std::filesystem::path& source, const ImportSettings& settings) const -> std::expected<ModelLoad, Error>
 {
     if (m_directory.empty())
     {
@@ -484,48 +592,137 @@ auto ImportCache::loadModel(AssetId id, const std::filesystem::path& source, con
     const auto sourceBytes = readBytes(source);
     if (!sourceBytes)
         return makeError(ErrorCode::FileNotFound, std::format("Model file does not exist: '{}'", source.string()));
-    const auto directory = entryDirectory(id);
     const auto sourceDirectory = source.parent_path();
 
-    if (const auto entry = readEntry(directory))
+    // The source's key names the manifest; the files it lists, as they are now, give the entry's key.
+    const auto manifest = manifestPath(m_directory, keyOf(*sourceBytes, sourceDirectory, {}, settings));
+    std::filesystem::path damaged;
+    if (const auto dependencies = readManifest(manifest))
     {
-        const auto key = keyOf(*sourceBytes, sourceDirectory, entry->dependencies, settings);
-        if (entry->key == keyText(key))
+        const auto key = keyOf(*sourceBytes, sourceDirectory, *dependencies, settings);
+        const auto directory = m_directory / keyText(key);
+        if (const auto entry = readEntry(directory); entry && entry->key == keyText(key))
         {
             if (auto model = readModel(*entry, directory, key))
+            {
+                touch(directory / usedFile);
+                touch(manifest);
                 return ModelLoad{ .model = std::move(*model), .cached = true };
+            }
         }
+        std::error_code error;
+        if (std::filesystem::exists(directory, error))
+            damaged = directory;
     }
 
     auto model = importModel(source);
     if (!model)
         return std::unexpected{ std::move(model.error()) };
-    // Written to a folder of its own and moved into place, so another process (a game next to its editor, tests
-    // in parallel) never reads a partly written entry: it finds the old entry, none, or the new one.
+
+    // Written to a folder of its own and renamed into place, so another process (a game next to its editor, tests
+    // in parallel, another checkout sharing the cache) never reads a partly written entry. An entry that is there
+    // already is complete (the same inputs gave the same data) and kept, unless it was found damaged above.
     const auto key = keyOf(*sourceBytes, sourceDirectory, model->dependencies, settings);
-    auto staging = directory;
-    staging += std::format(".tmp-{}", AssetId::generate());
+    const auto directory = m_directory / keyText(key);
+    const auto staging = m_directory / scratchName("staging");
     auto written = writeModel(*model, staging, key);
     std::error_code error;
+    if (written && directory == damaged && !removeEntry(m_directory, directory))
+        written = makeError(ErrorCode::FileNotFound, std::format("Cannot replace the damaged entry '{}', which is in use", directory.generic_string()));
     if (written)
     {
-        std::filesystem::remove_all(directory, error);
         std::filesystem::rename(staging, directory, error);
-        if (error)
+        if (error && !std::filesystem::exists(directory / modelEntryFile))
             written = makeError(ErrorCode::FileNotFound, std::format("Cannot move the entry into '{}': {}", directory.generic_string(), error.message()));
     }
+    std::filesystem::remove_all(staging, error);
+    if (written)
+        written = writeManifest(manifest, model->dependencies);
     if (!written)
-    {
-        std::filesystem::remove_all(staging, error);
         log::warn("The import of '{}' is not cached, so it is imported again next time: {}", source.generic_string(), describe(written.error()));
-    }
     return ModelLoad{ .model = std::move(*model), .cached = false };
 }
 
-auto ImportCache::dump(AssetId id, std::string_view meshKey) const -> std::expected<std::string, Error>
+auto ImportCache::evict(const EvictDesc& desc) const -> EvictResult
 {
-    const auto directory = entryDirectory(id);
-    const auto entry = readEntry(directory);
+    EvictResult result;
+    std::error_code error;
+    if (m_directory.empty() || !std::filesystem::is_directory(m_directory, error))
+        return result;
+
+    // What an interrupted write or delete left: scratch names are unique, so one this old is no one's any more.
+    const auto abandoned = desc.now - std::chrono::hours{ 1 };
+    const auto removeAbandoned = [&](const std::filesystem::directory_entry& file) {
+        std::error_code ignored;
+        if (file.path().filename().string().starts_with('.') && file.last_write_time(ignored) < abandoned)
+            std::filesystem::remove_all(file.path(), ignored);
+    };
+
+    struct Entry
+    {
+        std::filesystem::path directory;
+        std::filesystem::file_time_type used;
+        std::uint64_t bytes{ 0 };
+    };
+    std::vector<Entry> entries;
+    for (const auto& file : std::filesystem::directory_iterator{ m_directory, error })
+    {
+        if (!isKeyName(file.path().filename().string()) || !file.is_directory(error))
+        {
+            removeAbandoned(file);
+            continue;
+        }
+        Entry entry{ .directory = file.path(), .used = std::filesystem::last_write_time(file.path() / usedFile, error), .bytes = 0 };
+        if (error) // No marker: an entry of an older layout, last used when written
+            entry.used = file.last_write_time(error);
+        for (const auto& part : std::filesystem::recursive_directory_iterator{ file.path(), error })
+        {
+            if (part.is_regular_file(error))
+                entry.bytes += part.file_size(error);
+        }
+        entries.push_back(std::move(entry));
+    }
+
+    // The least recently used first: delete those too old, then until the rest fit.
+    std::ranges::sort(entries, {}, &Entry::used);
+    auto bytes = std::ranges::fold_left(entries, std::uint64_t{ 0 }, [](std::uint64_t sum, const Entry& entry) { return sum + entry.bytes; });
+    const auto oldest = desc.now - desc.maxAge;
+    for (const auto& entry : entries)
+    {
+        if ((entry.used < oldest || bytes > desc.maxBytes) && removeEntry(m_directory, entry.directory))
+        {
+            bytes -= entry.bytes;
+            ++result.removed;
+            continue;
+        }
+        ++result.kept;
+    }
+    result.bytes = bytes;
+
+    // A manifest is touched with its entry; one unused that long names entries that are gone or soon will be.
+    for (const auto& file : std::filesystem::directory_iterator{ m_directory / manifestFolder, error })
+    {
+        std::error_code ignored;
+        if (file.path().filename().string().starts_with('.'))
+            removeAbandoned(file);
+        else if (file.last_write_time(ignored) < oldest)
+            std::filesystem::remove(file.path(), ignored);
+    }
+    return result;
+}
+
+auto ImportCache::evict() const -> EvictResult
+{
+    return evict(EvictDesc{});
+}
+
+auto ImportCache::dump(const std::filesystem::path& source, const ImportSettings& settings, std::string_view meshKey) const
+    -> std::expected<std::string, Error>
+{
+    const auto directory = entryDirectory(source, settings);
+    if (!directory)
+        return std::unexpected{ directory.error() };
+    const auto entry = readEntry(*directory);
     if (!entry)
         return std::unexpected{ entry.error() };
 
@@ -534,7 +731,7 @@ auto ImportCache::dump(AssetId id, std::string_view meshKey) const -> std::expec
     std::string out;
     if (meshKey.empty())
     {
-        std::format_to(std::back_inserter(out), "Cache entry {} ({})\n", id, directory.generic_string());
+        std::format_to(std::back_inserter(out), "Cache entry of '{}' ({})\n", source.generic_string(), directory->generic_string());
         std::format_to(std::back_inserter(out), "  version {}, importer '{}', key {}, platform {}\n", entry->version, entry->importer, entry->key, importPlatform);
         std::format_to(std::back_inserter(out), "  dependencies: {}\n", entry->dependencies.empty() ? std::string{ "none" } : std::format("{}", entry->dependencies));
         const auto embedded = std::ranges::count_if(entry->images, [](const ImageEntry& image) { return !image.embedded.empty(); });
@@ -554,15 +751,15 @@ auto ImportCache::dump(AssetId id, std::string_view meshKey) const -> std::expec
             if (!meshKey.empty() && primitiveKey != meshKey)
                 continue;
             const auto& blobName = mesh.primitives[p].blob;
-            const auto bytes = readBytes(directory / blobName);
+            const auto bytes = readBytes(*directory / blobName);
             if (!bytes)
-                return makeError(ErrorCode::FileNotFound, std::format("Missing mesh blob '{}'", (directory / blobName).generic_string()));
+                return makeError(ErrorCode::FileNotFound, std::format("Missing mesh blob '{}'", (*directory / blobName).generic_string()));
             const auto header = readMeshBlobHeader(*bytes);
             if (!header)
                 return std::unexpected{ header.error() };
             if (!meshKey.empty())
             {
-                std::format_to(std::back_inserter(out), "Mesh blob {} of cache entry {} ({})\n", primitiveKey, id, (directory / blobName).generic_string());
+                std::format_to(std::back_inserter(out), "Mesh blob {} of the cache entry of '{}' ({})\n", primitiveKey, source.generic_string(), (*directory / blobName).generic_string());
                 dumpMesh(out, *bytes, *header);
                 return out;
             }
@@ -571,7 +768,7 @@ auto ImportCache::dump(AssetId id, std::string_view meshKey) const -> std::expec
         }
     }
     if (!meshKey.empty())
-        return makeError(ErrorCode::InvalidArgument, std::format("Cache entry {} has no mesh '{}'", id, meshKey));
+        return makeError(ErrorCode::InvalidArgument, std::format("The cache entry of '{}' has no mesh '{}'", source.generic_string(), meshKey));
     return out;
 }
 }

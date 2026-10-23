@@ -31,7 +31,8 @@ auto parseCount(std::string_view option, std::string_view value) -> std::expecte
     return count;
 }
 
-// The asset library's folders: the standard ones, or the game's project with its `.aegis` folder.
+// The asset library's folders: the standard ones, or the game's project with its `.aegis` folder (the import cache
+// in AEGIS_CACHE_DIR if it is set, so checkouts can share one).
 auto assetSources(const AppDesc& desc) -> AssetLibrary::Sources
 {
     auto sources = AssetLibrary::Sources::standard();
@@ -39,7 +40,7 @@ auto assetSources(const AppDesc& desc) -> AssetLibrary::Sources
     {
         sources.project = desc.project;
         sources.indexFile = desc.project / ".aegis" / "index";
-        sources.importCache = desc.project / ".aegis" / "imported";
+        sources.importCache = paths::cacheOverride().value_or(desc.project / ".aegis" / "cache") / "imported";
     }
     return sources;
 }
@@ -145,7 +146,8 @@ auto dumpAsset(const AppDesc& desc) -> std::expected<std::string, EngineError>
         return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, std::format("{} is '{}'; only models and their meshes are cached", *id, entry->path)) };
     }
 
-    auto text = assets::ImportCache{ sources.importCache }.dump(model, meshKey);
+    const auto* modelEntry = database->find(model);
+    auto text = assets::ImportCache{ sources.importCache }.dump(database->absolutePath(*modelEntry), modelEntry->settings, meshKey);
     if (!text)
         return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, assets::describe(text.error())) };
     return std::move(*text);
