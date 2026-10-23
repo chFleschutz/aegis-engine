@@ -20,13 +20,32 @@ struct SettingsFile
     std::optional<bool> srgb;
 };
 
+// A part's settings: only the ones that differ from the defaults.
+struct PartSettingsFile
+{
+    std::optional<std::string> upAxis;
+    std::optional<std::string> handedness;
+    std::optional<double> scale;
+    std::optional<bool> strictNames;
+    std::optional<bool> srgb;
+};
+
+struct PartFile
+{
+    std::string id;
+    PartSettingsFile settings;
+};
+
+// A part's entry: its ID, or its ID and settings.
+using EntryFile = std::variant<std::string, PartFile>;
+
 struct SidecarFile
 {
     std::string id;
     std::string importer;
     std::uint32_t importerVersion{ 1 };
     SettingsFile settings;
-    std::map<std::string, std::string> subAssets;
+    std::map<std::string, EntryFile> subAssets;
 };
 
 struct HeaderFile
@@ -50,6 +69,33 @@ auto parseId(const std::string& text, std::string_view what) -> std::expected<As
         return *id;
     return makeError(ErrorCode::InvalidData, std::format("{} '{}' is not 16 lowercase hex digits", what, text));
 }
+
+auto toSettings(const PartSettingsFile& file) -> ImportSettings
+{
+    ImportSettings settings;
+    settings.upAxis = file.upAxis.value_or(settings.upAxis);
+    settings.handedness = file.handedness.value_or(settings.handedness);
+    settings.scale = file.scale.value_or(settings.scale);
+    settings.strictNames = file.strictNames.value_or(settings.strictNames);
+    settings.srgb = file.srgb;
+    return settings;
+}
+
+auto toFile(const ImportSettings& settings) -> PartSettingsFile
+{
+    const ImportSettings defaults;
+    PartSettingsFile file;
+    if (settings.upAxis != defaults.upAxis)
+        file.upAxis = settings.upAxis;
+    if (settings.handedness != defaults.handedness)
+        file.handedness = settings.handedness;
+    if (settings.scale != defaults.scale)
+        file.scale = settings.scale;
+    if (settings.strictNames != defaults.strictNames)
+        file.strictNames = settings.strictNames;
+    file.srgb = settings.srgb;
+    return file;
+}
 }
 }
 
@@ -58,6 +104,20 @@ struct glz::meta<aegis::assets::SettingsFile>
 {
     using T = aegis::assets::SettingsFile;
     static constexpr auto value = object("upAxis", &T::upAxis, "handedness", &T::handedness, "scale", &T::scale, "strictNames", &T::strictNames, "srgb", &T::srgb);
+};
+
+template<>
+struct glz::meta<aegis::assets::PartSettingsFile>
+{
+    using T = aegis::assets::PartSettingsFile;
+    static constexpr auto value = object("upAxis", &T::upAxis, "handedness", &T::handedness, "scale", &T::scale, "strictNames", &T::strictNames, "srgb", &T::srgb);
+};
+
+template<>
+struct glz::meta<aegis::assets::PartFile>
+{
+    using T = aegis::assets::PartFile;
+    static constexpr auto value = object("id", &T::id, "settings", &T::settings);
 };
 
 template<>
@@ -77,6 +137,11 @@ struct glz::meta<aegis::assets::HeaderFile>
 
 namespace aegis::assets
 {
+auto textureSrgb(const ImportSettings& settings, bool usage) -> bool
+{
+    return settings.srgb.value_or(usage);
+}
+
 auto Sidecar::subAssetId(const std::string& key) -> AssetId
 {
     auto [it, inserted] = subAssets.try_emplace(key, AssetId{});
@@ -116,12 +181,15 @@ auto parseSidecar(std::string_view json) -> std::expected<Sidecar, Error>
     sidecar.importerVersion = file.importerVersion;
     sidecar.settings = ImportSettings{ std::move(file.settings.upAxis), std::move(file.settings.handedness), file.settings.scale,
         file.settings.strictNames, file.settings.srgb };
-    for (const auto& [key, text] : file.subAssets)
+    for (const auto& [key, entry] : file.subAssets)
     {
-        auto part = parseId(text, std::format("subAssets['{}']", key));
+        const auto* withSettings = std::get_if<PartFile>(&entry);
+        auto part = parseId(withSettings ? withSettings->id : std::get<std::string>(entry), std::format("subAssets['{}']", key));
         if (!part)
             return std::unexpected{ std::move(part.error()) };
         sidecar.subAssets.emplace(key, *part);
+        if (withSettings)
+            sidecar.partSettings.emplace(key, toSettings(withSettings->settings));
     }
     return sidecar;
 }
@@ -135,7 +203,12 @@ auto writeSidecar(const Sidecar& sidecar) -> std::string
         .settings = { sidecar.settings.upAxis, sidecar.settings.handedness, sidecar.settings.scale, sidecar.settings.strictNames, sidecar.settings.srgb },
     };
     for (const auto& [key, id] : sidecar.subAssets)
-        file.subAssets.emplace(key, id.toString());
+    {
+        if (const auto settings = sidecar.partSettings.find(key); settings != sidecar.partSettings.end())
+            file.subAssets.emplace(key, PartFile{ id.toString(), toFile(settings->second) });
+        else
+            file.subAssets.emplace(key, id.toString());
+    }
 
     std::string json;
     (void)glz::write<writeOptions>(file, json);
