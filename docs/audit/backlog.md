@@ -149,7 +149,8 @@ Item numbers like "6.9" are gone from the titles; refer to items by issue number
 
 **[M6. Assets and scene files (D8)][m6]**: asset IDs ([#130]) first. Then, in parallel, the
 import cache for meshes ([#137], `needs-design`) → KTX2 textures ([#169]), and scene files
-([#131]). Scene instances follow both #130 and #131, in two steps: nested instances with derived
+([#131]). Before #169: derived sub-asset IDs ([#236]) → settings per part ([#244]), and the cache by
+key ([#238]). Scene instances follow both #130 and #131, in two steps: nested instances with derived
 entity IDs ([#183]), then imported models as scene assets ([#140]).
 
 **[M7. FrameScene and render-graph split][m7]** (P8) gives passes a `FrameScene` and one
@@ -198,6 +199,10 @@ reload ([#143]); vertex tangents ([#19], after [#137]), back-to-front sorting of
 [#132]), and the device-lost bug ([#154]: its repro freezes the owner's PC, never run it without
 asking).
 
+**[Ideas][ideas]** (label `idea`) holds nice-to-have work nobody has committed to, in no order:
+extracting model parts to their own files ([#245]). Once one is wanted, move it to Backlog or a
+milestone and drop the label.
+
 ---
 
 ## Polish: fix when touching the file
@@ -233,6 +238,7 @@ file format and the asset cache are now planned: [#131], [#137], [#140], [#142].
 [m9]: https://github.com/chFleschutz/aegis-engine/milestone/10
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11
 [later]: https://github.com/chFleschutz/aegis-engine/milestone/9
+[ideas]: https://github.com/chFleschutz/aegis-engine/milestone/12
 [#2]: https://github.com/chFleschutz/aegis-engine/issues/2
 [#9]: https://github.com/chFleschutz/aegis-engine/issues/9
 [#19]: https://github.com/chFleschutz/aegis-engine/issues/19
@@ -298,3 +304,7 @@ file format and the asset cache are now planned: [#131], [#137], [#140], [#142].
 [#203]: https://github.com/chFleschutz/aegis-engine/issues/203
 [#204]: https://github.com/chFleschutz/aegis-engine/issues/204
 [#205]: https://github.com/chFleschutz/aegis-engine/issues/205
+[#236]: https://github.com/chFleschutz/aegis-engine/issues/236
+[#238]: https://github.com/chFleschutz/aegis-engine/issues/238
+[#244]: https://github.com/chFleschutz/aegis-engine/issues/244
+[#245]: https://github.com/chFleschutz/aegis-engine/issues/245

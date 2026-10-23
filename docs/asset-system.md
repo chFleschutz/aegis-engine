@@ -1,13 +1,13 @@
 # Asset system, scenes and worlds
 
 Status: **decided** (D8, 2026-10-19; formats 2026-10-20; sample project 2026-10-21; project layout
-2026-10-22; settles F2 in
-`audit/backlog.md`).
-Implemented so far (#130, #137): IDs, sidecars, the database, engine content, `AssetRef`, `AssetLibrary` and
-the import cache for models; scene files and the pak are not. Changes under review: "Proposed
-changes" (P1, P3; P2, external images as their own assets, was accepted 2026-10-22, #237). It fills
-in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md): assets referenced only by
-stable ID, one serializer for scenes and save games, a cook step for export.
+and external images 2026-10-22; derived sub-asset IDs, settings per part and the cache by key
+2026-10-23; settles F2 in `audit/backlog.md`).
+Implemented so far (#130, #137, #237): IDs, sidecars, the database, engine content, `AssetRef`,
+`AssetLibrary`, the import cache for models and external images as their own assets; derived
+sub-asset IDs (#236), settings per part (#244), the cache by key (#238), scene files and the pak are
+not. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md): assets
+referenced only by stable ID, one serializer for scenes and save games, a cook step for export.
 
 **Today** loaders decode and upload in one step and create entities directly, nothing is cached
 (shared glTF images load twice, A-CONTENT-04), an asset's identity is its path (`core::Asset`), and
@@ -74,8 +74,9 @@ my_game/
   `content/` folder (both are mounted the same way) and stays clear of the `aegis-assets` library
   and the `aegis.assets` module. Inside it, dot-files and dot-folders are skipped, and files no
   importer handles (`README.md`, `LICENSE.md`, `.blend`, `.psd`) get no sidecar and are no assets.
-- **Sources go in as they are;** the editor imports them and reimports on any change. Native files
-  (scenes, materials) are the asset and are edited in place.
+- **Sources go in as they are, and importing is automatic:** the scan gives every file an importer
+  handles its sidecar, and the editor imports it and reimports on any change; there is no manual
+  import step to forget. Native files (scenes, materials) are the asset and are edited in place.
 - **`project.aegis` has a fixed name,** like Godot's `project.godot`: `--project <dir>` finds it
   without a search, a folder can't hold two, and renaming a game doesn't rename the file. It holds
   the committed settings in sections; `config/` takes sections over only when they outgrow one file
@@ -158,25 +159,29 @@ edited and committed in place); a copy of the assets per example (shared assets 
 
 ## Identity
 
-**`AssetId` is one `std::uint64_t`,** random, for every asset and every part of a file (a glTF's
-meshes, materials, textures). In files it is exactly 16 lowercase hex digits, leading zeros included;
+**`AssetId` is one `std::uint64_t`** for every asset and every part of a file (a glTF's meshes,
+materials, textures): random for a file, derived from it for a part. In files it is exactly 16 lowercase hex digits, leading zeros included;
 anything else is rejected on read.
 
 - **64 random bits.** IDs are made on any machine without coordination; at 100,000 assets a
   collision has odds of about 3 × 10⁻¹⁰ (Godot uses 63 bits). 64 bits compare in one instruction and
   hash as they are. The scan and the cook reject duplicates, so a collision can't go unnoticed.
-  Generated with a `std::mt19937_64` seeded once from `std::random_device`.
-- **Sub-assets get their own IDs,** not a sub-index next to the file's ID: the importer assigns a
-  random ID to each new part and records `key → id` in the sidecar. Identity then doesn't depend on
-  where the data lives: "Extract material" moves a glTF material into a `.material` file that keeps
-  its ID, and every reference still works.
+  A file's ID is generated with a `std::mt19937_64` seeded once from `std::random_device`.
+- **Sub-assets get their own IDs,** not a sub-index next to the file's ID, so a reference is one ID
+  whatever it points to. The importer derives the ID of a new part from the file's ID and the part's
+  key, `XXH3_64(le(fileId) ‖ key)`, seed 0, the key as its escaped UTF-8 bytes, and records
+  `key → id` in the sidecar. Every machine and branch that meets the same new part writes the same
+  line, so merges are clean and a sidecar someone forgot to commit gives nobody other IDs (Unity
+  derives model sub-IDs from hashes for this reason). Once recorded, an ID is data and is never
+  recomputed. The table lists every part, so the scan finds a part by its ID without importing its
+  file. The function is pinned by a test with known outputs, like the entity ID derivation.
 - **The ID lives in the file when Aegis owns the format, in a sidecar when it doesn't.** One native
   file is one asset, so moving or committing it can't lose its ID (Unity's classic missing-`.meta`
   bug). Foreign files get `<file>.<ext>.meta` (full name plus `.meta`, so `Helmet.gltf` and
   `Helmet.png` don't collide); a `.slang` or `.lua` asset gets one too. The sidecar picks the
   importer; the extension only gives the default.
 - **Duplicates are rejected:** a copied file brings its IDs along, and the scan gives the copy new
-  ones; the editor's "Duplicate" writes new IDs directly.
+  ones, its parts' derived again from its new ID; the editor's "Duplicate" writes new IDs directly.
 - **External images are their own assets.** A glTF that references an image file by URI references
   that file's `Texture` ID, resolved through the database relative to the model's folder; only images
   embedded in the model (data URIs, `.glb` buffers) are its sub-assets. One PNG then has one ID and
@@ -186,6 +191,11 @@ anything else is rejected on read.
   imported as sRGB); the image's settings win, and the editor will offer to fix them. An image used both ways is imported once per setting
   only on request (not built). An image that isn't a texture asset of the same root is left out of
   its materials with a warning.
+- **Files only another file can read are no assets.** A glTF's `.bin` buffers are bytes whose
+  meaning is in the glTF's accessors: nothing references, loads or configures them alone, so they
+  get no sidecar and no ID. They are dependencies of the model's import, part of its cache key, and a
+  change to one reimports every model that reads it. The test for a file type: it is an asset if it
+  means something on its own, can be shared or has settings.
 
 ```json
 {
@@ -196,7 +206,7 @@ anything else is rejected on read.
   "subAssets": {
     "StaticMesh/Helmet/0": "1f6b2c0d93ae5547",
     "Material/HelmetMat": "c4d8e1a07b2f9036",
-    "Texture/Helmet_albedo": "08e3f5b6a1c47d29"
+    "Texture/Helmet_normal": { "id": "08e3f5b6a1c47d29", "settings": { "srgb": false } }
   }
 }
 ```
@@ -213,12 +223,22 @@ rejects a file; it warns.
   type (`Texture/#3`), with the same warning.
 - `\`, `/` and `#` inside a name are escaped with `\`.
 - The import setting `strictNames` turns the warnings into errors.
-- Entries for removed parts stay in the table, so a part that comes back keeps its ID. Rename
-  detection through content hashes can come later.
+- Entries for removed parts stay in the table, so a part that comes back keeps its ID.
+- A part renamed in the source gets a new key and a new ID, and references to the old one fall
+  back. Editing the old entry's key to the new name by hand keeps its ID. Nothing matches renames
+  automatically: guessing by content or position goes wrong too easily.
 - **A model's entities** are keyed the same way, as `Entity/<node name>` (`Entity/#root` for the
   root, plus `/<index>` for the entity of one primitive of a mesh with several). Their IDs are the
-  local entity IDs of the model's scene, kept in the same table so they survive reimports; they are
-  no assets, so the database leaves them out.
+  local entity IDs of the model's scene, derived like parts' and kept in the same table so they
+  survive reimports; they are no assets, so the database leaves them out.
+
+**Settings per part** (#244): an entry is the part's ID, or `{ "id", "settings" }` with the settings
+a standalone asset of that type has, so an embedded image's color space (and later its size and
+compression) is set in the model's sidecar like an external image's in its own. An embedded image
+defaults to the usage its materials imply (base color and emissive sRGB, the others linear); the
+model owns it, so nothing can disagree. Meshes and materials can take settings the same way later.
+Extracting a part to a file of its own ("Extract material", "Extract textures") keeps its ID and
+marks its key as extracted; it is an idea, not planned (#245).
 
 **Finding an asset by ID** goes through an index, the one place paths exist:
 - *Development:* the database scans `content/` and the engine content, reading sidecars and native
@@ -338,7 +358,7 @@ they hold.
 
 | Type | From | Notes |
 |---|---|---|
-| `Texture` | `.png` `.jpg` `.hdr`, later `.ktx2` | 2D and cube; sidecar holds sRGB, mips, sampler |
+| `Texture` | `.png` `.jpg` `.hdr`, later `.ktx2`, or an embedded image | 2D and cube; sidecar (or the model's entry) holds sRGB, mips, sampler |
 | `StaticMesh` | sub-asset of `.gltf` `.glb` `.obj` | vertices, indices, meshlets; `SkinnedMesh` later |
 | `Material` | `.material`, or a glTF sub-asset | parameter values for a template (today's `MaterialInstance`) |
 | `MaterialTemplate` | engine content (the PBR template) | parameter list and layout; no user files until custom shaders |
@@ -385,14 +405,32 @@ implemented synchronously first; the slot lets hot reload swap contents.
   platform, so a changed importer invalidates its own entries. It holds the cooked format: one format
   for development and shipping. Today it is still `<build>/.aegis/` (`paths::cache()`); moving it
   into the project is its own item.
-- **Layout (#137):** `.aegis/cache/imported/<id>/`, one folder per source file named by its asset ID:
-  `model.json` (the key, the files the import read besides the source, the node tree, materials,
-  images and the blob of each primitive), `mesh-<m>-<p>.mesh` per primitive and `image-<i>.bin` with
-  an embedded image's encoded bytes. An external image is an asset of its own: the entry keeps its
-  URI, and changing the image reloads the texture, not the model (textures are cached in #169). The key is
-  checked on every load, so a changed source, buffer or setting reimports; a reimport writes a new
-  folder and moves it into place, so a second process never reads half an entry.
-- **Reimport:** the editor watches the project; a start without the editor checks the keys.
+- **Layout (#137, by key in #238):** `.aegis/cache/imported/<key>/`, one folder per import result
+  named by its key (#137 named it by asset ID, one version per file): `model.json` (the key, the
+  files the import read besides the source, the node tree, materials, images and the blob of each
+  primitive), `mesh-<m>-<p>.mesh` per primitive and `image-<i>.bin` with an embedded image's encoded
+  bytes. Switching branches back and forth reimports nothing, and two checkouts that point
+  `AEGIS_CACHE_DIR` at one folder share it. Entries hold no asset IDs, so identical files share one.
+  An external image is an asset of its own: the entry keeps its URI, and changing the image reloads
+  the texture, not the model.
+- **Textures (#169)** are entries of their own, keyed by the image's bytes and its settings, for
+  external and embedded images alike, so changing a texture setting reprocesses that texture only.
+- **Lookup in two steps:** the key covers the files the import read besides the source, known only
+  after an import. A first key from the source bytes, settings, importer version and platform names
+  a small manifest listing those files; their contents then give the entry's key. Both are checked
+  on every load, so a changed source, buffer or setting reimports.
+- **Publishing:** an entry is written to a staging folder and renamed into place; if a folder with
+  that key exists, it is complete and the copy is discarded. Entries never change once written, so a
+  second process never reads half an entry.
+- **Eviction:** each use touches a marker in the entry (file access times are unreliable and often
+  off on NTFS); entries unused for some time or past a size limit are deleted, and a delete that
+  fails because another process has the file open is skipped. Thresholds are decided when built.
+  "Clear cache" deletes everything. A shared cache (a network folder or server keyed the same way)
+  needs no format change later.
+- **Reimport:** the editor watches the project; a start without the editor checks the keys. The unit
+  of reimport is a file: its parts are matched by key, matched parts' slots get the new contents,
+  removed parts fall back and new parts are added (hot reload, #143). The manifest maps a changed
+  `.bin` to the models that read it.
 - **Cook** (`<Name>-Editor --cook <out>`): follow `AssetRef`s from the project's scenes (plus an
   "always include" list), import what the cache lacks, compile native files to binary, pack with an
   ID table. Importers then leave the shipped executable.
@@ -421,7 +459,8 @@ implemented synchronously first; the slot lets hot reload swap contents.
   for now; meshoptimizer's vertex/index codecs and zstd come later, under a new version.
 - **Model entries** are JSON (glaze) until models load as scenes (#140).
 - **Cooked scenes and save games** stay JSON at first; glaze's BEVE is the binary option.
-- **Debugging:** `<Name>-Editor --dump-asset <id>` prints a cache entry as text (#137).
+- **Debugging:** `<Name>-Editor --dump-asset <id>` prints a cache entry as text (#137), found
+  through the asset's current key.
 
 **Libraries,** as submodules under `external/`, linked `PRIVATE`, all usable without exceptions:
 
@@ -455,49 +494,17 @@ Order:
 1. #72 → #73 (defines the sub-asset keys) → #74 → #75; #138 after #80; #139 after #74.
 2. 6.9 (#130): IDs, sidecars, the database and engine content, `AssetRef`, the library cache
    (closes A-CONTENT-04).
-3. 6.13 (#137): the import cache.
+3. 6.13 (#137): the import cache; then derived sub-asset IDs (#236) → settings per part (#244),
+   and the cache by key (#238) before KTX2 textures (#169).
 4. 6.10 (#131): scene files.
 5. 6.16 (#140): scene instances with derived entity IDs; models load as scenes.
 6. Export (#134): cook and pak.
-7. Later: material files and "Extract material" (#141), overrides and unpacking (#142), hot reload
-   (#143).
+7. Later: material files (#141), overrides and unpacking (#142), hot reload (#143). An idea, not
+   planned: extracting parts to their own files (#245).
 
 **Golden files:** a small scene, a material and a sidecar under `tests/`, with tests that must keep
 loading them unchanged (#130 for the sidecar and IDs, #131 for scene and material files). An
 accidental format change then fails CI instead of breaking a project.
-
-## Proposed changes (under review)
-
-Proposed 2026-10-22, not decided. Each changes something above; the sections above still describe
-the decided plan until one is accepted.
-
-**P1. Derived sub-asset IDs.** A sub-asset's ID is `XXH3_64(le(fileId) ‖ key)`, seed 0, instead of a
-random ID per new part (changes "Identity").
-- Why: random IDs are made wherever a part is first imported. Two branches that import the same new
-  file or the same re-export give the same key different IDs; after the merge one wins and every
-  scene that used the other breaks. Unity moved model sub-IDs to hashes of the part's path for the
-  same reason.
-- The sidecar's `subAssets` table keeps only exceptions: a part renamed in the source that keeps
-  its old ID, and an extracted part ("Extract material"), whose ID then lives in its own file. A
-  re-export adds no lines to the sidecar, and a new part needs no committed sidecar change.
-- Entity IDs of a model (`Entity/<node name>`) derive the same way.
-- The function is pinned by a test with known outputs, like the entity ID derivation.
-- Removed parts that come back keep their ID without a table entry. The cost is renames: a renamed
-  part keeps its ID only through an explicit entry (written by the editor's reimport dialog, or by
-  hand).
-
-**P3. Cache entries by content, not by asset.** The import cache stores entries under their key,
-`.aegis/cache/imported/<key>/`, and the index maps each asset ID to its current key (changes
-"Import cache and cooking").
-- Why: `imported/<id>/` holds one version per file, so switching git branches back and forth
-  reimports every time, and worktrees and CI can't share entries. Unreal's derived data cache is
-  content-addressed for this reason; Unity added a separate server (the Accelerator) to get it.
-- Entries are immutable once written, which also replaces the write-then-move step for readers in
-  another process.
-- Needs eviction: delete entries no index has used for some time, or past a size limit. "Clear
-  cache" still deletes everything.
-- Opens a shared cache later (a network folder or server keyed the same way), without format
-  changes.
 
 ## TBD (cheap to change, decided when built)
 

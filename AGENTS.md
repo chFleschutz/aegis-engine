@@ -263,13 +263,14 @@ descriptions.
 CMake or CI). Docs-only changes may be committed to `main` directly.
 
 **Planned work:** GitHub issues are the work items, grouped into milestones (`M6`, `M7`, `M9`,
-`M10`, then `Backlog`), with dependencies as "Blocked by" relations. An issue body holds the branch, size,
+`M10`, then `Backlog`; `Ideas` holds unplanned nice-to-haves), with dependencies as "Blocked by" relations. An issue body holds the branch, size,
 design refs (D-n), the finding IDs it closes, content, out of scope, "done when" and verification.
 Labels: the kind (`bug`, `feature`, `refactor`, `cleanup`, `style`, `build`, `ci`, `tests`,
 `documentation`) matches the branch prefix; `size/*`; `area/*` (don't run two items with the same
 area in parallel); `needs-gpu` (verification needs a real GPU: the reference images, a windowed run
 or Windows input, which CI's lavapipe job doesn't cover and cloud sessions can't run, see "What CI
-covers"); `needs-design` (an open decision; don't start without the owner). **Status is
+covers"); `needs-design` (an open decision; don't start without the owner); `idea` (in `Ideas`, not
+planned; don't start it unasked). **Status is
 the assignee:** whoever starts an item assigns it (`gh issue edit <n> --add-assignee @me`), and an
 assigned issue is taken. `docs/audit/backlog.md` keeps the decisions (D1–D8, F1/F2) and each
 milestone's goal and order; read the decisions an issue cites. Before starting an item, read its
