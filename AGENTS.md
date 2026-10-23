@@ -78,7 +78,9 @@ The examples are two games (see **Games** below), each in `examples/<lowercased-
 `Template-Editor`, an empty project, and `Examples` / `Examples-Editor`, whose project is the
 `samples/` submodule (built only when it is checked out) and whose examples are its scene files, picked
 with `--scene <path>` relative to its `content/` (`scenes/simple.scene`, the default, `sponza`, `helmets`,
-and the stress scenes `stress/instanced_helmets`, `stress/cubes` and `stress/dynamic_cubes`). Build one and run its exe:
+and the stress scenes `stress/instanced_helmets`, `stress/cubes` and `stress/dynamic_cubes`). Only
+`scenes/smoke.scene` (Sponza, the helmets, the sky, scripts, static and dynamic entities, a pulsing light)
+runs as the `Examples` `device` test; the others are demos. Build one and run its exe:
 
     cmake --build --preset windows-clang-debug --target Examples
     build\windows-clang-debug\examples\examples\Examples.exe --scene scenes/sponza.scene
