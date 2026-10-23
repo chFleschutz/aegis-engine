@@ -1,9 +1,10 @@
-# The editor's model: selection and the shared context. No ImGui, no GPU; tested by aegis-tests-editor.
+# The editor's model: selection, the shared context, the editor camera and picking. No ImGui, no GPU; tested by aegis-tests-editor.
 add_library(aegis-editor-core STATIC)
 
 target_link_libraries(aegis-editor-core
     PUBLIC
         aegis-core
+        aegis-math
         aegis-world
     PRIVATE
         glaze::glaze
@@ -15,13 +16,19 @@ target_sources(aegis-editor-core
     core/core.cppm
     core/console.cppm
     core/context.cppm
+    core/editor_camera.cppm
+    core/picking.cppm
     core/preferences.cppm
     core/selection.cppm
+    core/settled_extent.cppm
     PRIVATE
     core/console.cpp
     core/context.cpp
+    core/editor_camera.cpp
+    core/picking.cpp
     core/preferences.cpp
     core/selection.cpp
+    core/settled_extent.cpp
 )
 
 # The editor's ImGui layer: EditorShell and the panels. Only a game's <Game>-Editor links it (aegis_add_game).
