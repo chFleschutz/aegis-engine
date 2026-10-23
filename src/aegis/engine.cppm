@@ -156,6 +156,8 @@ struct GameModule
     std::string_view startupScene;
     /// @brief Registers the game's components and scripts in the engine's types; null for none.
     auto (*registerTypes)(reflect::TypeRegistry& types) -> std::expected<void, reflect::Error>{ nullptr };
+    /// @brief Adds the game's systems to each world, after the engine's (Engine::setWorldSetup); null for none.
+    auto (*setupWorld)(Engine& engine, world::World& world) -> void{ nullptr };
     /// @brief Runs once the engine is created and the types are registered, e.g. to load the first scene;
     ///        null for none.
     auto (*onStartup)(Engine& engine) -> std::expected<void, EngineError>{ nullptr };
@@ -181,9 +183,13 @@ struct RenderView
 };
 
 /// @brief What a shell gets at the frame's safe point: input has been read and the ImGui frame is open,
-///        and no world is being updated or rendered, so the shell can read and write the world directly.
+///        and no world is being updated or rendered, so the shell can read and write the worlds directly. Here it
+///        also decides which worlds update this frame (update) and which one renders (render).
 struct FrameContext
 {
+    /// @brief The engine, which creates and destroys worlds (Engine::createWorld).
+    Engine& engine;
+    /// @brief The engine's main world (Engine::world), which scenes load into.
     world::World& world;
     /// @brief The game's and the engine's registered components and scripts (Engine::types)
     const reflect::TypeRegistry& types;
@@ -196,14 +202,23 @@ struct FrameContext
     ///        when it renders onto the window. Only then is its "Final" in a state the UI can show.
     std::optional<rhi::Extent2D> viewExtent;
     Presentation& presentation;
+    /// @brief The main world's instances.
     const render_graph::InstanceStore& instances;
     const renderer::Renderer& renderer;
+    /// @brief The time since the last frame, which the UI runs by; each world updates by its own (World::clock).
     float deltaSeconds;
+
+    /// @brief Updates 'world', one of the engine's, in 'mode' this frame, by its own clock, once onFrame has returned
+    ///        (so this frame's edits show). A world begins with its first update. A world the shell doesn't update
+    ///        stays as it is, and its clock stands still. A second call for the same world replaces the mode.
+    void update(world::World& world, world::UpdateMode mode);
+    /// @brief Renders 'world', one of the engine's, this frame instead of the main world, as its last update left it.
+    void render(world::World& world);
 };
 
-/// @brief Decides, each frame, what the app shows around the game: its UI, how the world updates and who
-///        gets the input. The launcher picks it: the runtime installs GameShell (the default), the editor
-///        flavor installs editor::EditorShell. Install it before the first scene loads (Engine::setShell).
+/// @brief Decides, each frame, what the app shows around the game: its UI, which worlds update and render and
+///        who gets the input. The launcher picks it: the runtime installs GameShell (the default), the editor
+///        flavor installs editor::EditorShell. Install it before run() (Engine::setShell).
 class Shell
 {
 public:
@@ -217,10 +232,9 @@ public:
 
     /// @brief Runs once Engine::run starts: after the project, the game's types and its startup scene have loaded.
     virtual auto onStartup(Engine& engine) -> std::expected<void, EngineError> { return {}; }
-    /// @brief The safe point, once per frame: build the UI and apply edits here (see FrameContext).
+    /// @brief The safe point, once per frame: build the UI, apply edits and update the worlds that should: Play runs
+    ///        the game, Edit only the systems that opt in (see FrameContext).
     virtual void onFrame(FrameContext& frame) = 0;
-    /// @brief How the world begins and updates: Play runs the game, Edit only the systems that opt in.
-    [[nodiscard]] virtual auto updateMode() const -> world::UpdateMode { return world::UpdateMode::Play; }
     /// @brief The input the game doesn't see this frame; asked before the input is read.
     [[nodiscard]] virtual auto inputCapture() const -> InputCapture { return {}; }
     /// @brief The view to render; none renders onto the window (or, headless, the offscreen target). Asked before
@@ -233,11 +247,11 @@ public:
     virtual void onShutdown() {}
 };
 
-/// @brief The runtime: the game plays and gets all the input, with no UI around it.
+/// @brief The runtime: the game plays in the main world and gets all the input, with no UI around it.
 class GameShell final : public Shell
 {
 public:
-    void onFrame(FrameContext&) override {}
+    void onFrame(FrameContext& frame) override { frame.update(frame.world, world::UpdateMode::Play); }
 };
 
 /// @brief parseArgs plus Engine::create for a 'main': a failure is logged and comes back as the exit code
@@ -272,33 +286,48 @@ public:
     ///         or a validation error. The cause is logged.
     [[nodiscard]] auto run() -> int;
 
-    /// @brief Hands out the delta time of each frame. A wall clock with a clamp by default (a fixed
-    ///        step when headless); assign FrameClock::fixed(step) for a deterministic run.
-    [[nodiscard]] auto clock() -> core::FrameClock& { return m_clock; }
-
     /// @brief Finds assets by path and loads them by ID.
     [[nodiscard]] auto assets() -> AssetLibrary& { return *m_assets; }
 
-    /// @brief Creates a scene from a description
+    /// @brief The main world: scenes load into it (loadScene), and it renders unless the shell renders another
+    ///        (FrameContext::render). It exists from create() on and is never destroyed.
+    [[nodiscard]] auto world() -> world::World& { return *m_mainWorld; }
+
+    /// @brief A new, empty world beside the main one (a play-in-editor copy, a menu beside a level), with the engine's
+    ///        systems and the game's (setWorldSetup), a clock of its own (a fixed step when headless) and instances
+    ///        of its own. Fill it before run() or at the safe point (Shell::onFrame); it begins with its first
+    ///        update (FrameContext::update).
+    [[nodiscard]] auto createWorld() -> world::World&;
+
+    /// @brief Destroys a world createWorld made, with its entities and instances, before run() or at the safe point.
+    ///        This frame's update and render of it are dropped: the main world renders instead.
+    void destroyWorld(world::World& world);
+
+    /// @brief Adds the game's systems to every world, after the engine's (scripts, transforms, cameras): to the worlds
+    ///        there are and to each new one, and again to each one a scene loads into. Set it once, before the first
+    ///        scene loads; the launcher sets GameModule::setupWorld.
+    void setWorldSetup(std::function<void(world::World& world)> setup);
+
+    /// @brief Replaces the main world's entities with a scene from a description. It begins with its next update.
     /// @tparam T Description of the scene (Derived from SceneDescription)
     template<SceneDescriptionDerived T, typename... Args>
     void loadScene(Args&&... args)
     {
         resetWorld();
         T description{ std::forward<Args>(args)... };
-        SceneContext context{ .scene = m_world, .types = m_types, .assets = *m_assets };
+        SceneContext context{ .scene = world(), .types = m_types, .assets = *m_assets };
         description.initialize(context);
-        beginWorld();
     }
 
-    /// @brief Replaces the world with the scene file 'scene': its entities with the IDs, components and scripts
-    ///        the file gives them, and the assets they reference. Register the game's types first (types()).
+    /// @brief Replaces the main world's entities with the scene file 'scene': its entities with the IDs, components
+    ///        and scripts the file gives them, and the assets they reference. Register the game's types first
+    ///        (types()). The world begins with its next update.
     /// @return EngineErrorCode::SceneFailed, naming the file and line, if the file does not load; the world is
     ///         then empty.
     [[nodiscard]] auto loadScene(assets::AssetId scene) -> std::expected<void, EngineError>;
 
     /// @brief Replaces the shell (GameShell by default), such as with the editor (editor::EditorShell). Call it
-    ///        before the first scene loads: the world begins in the shell's update mode.
+    ///        before run().
     void setShell(std::unique_ptr<Shell> shell);
 
     /// @brief The project folder (AppDesc::project); empty for the samples.
@@ -308,6 +337,15 @@ public:
     [[nodiscard]] auto headless() const -> bool { return !m_window; }
 
 private:
+    friend struct FrameContext; // Its update and render ask for this frame's updates and rendered world
+
+    // FrameContext::update: a world the shell updates this frame, and how.
+    struct WorldUpdate
+    {
+        world::World* world;
+        world::UpdateMode mode;
+    };
+
     explicit Engine(const AppDesc& desc);
 
     auto initialize() -> std::expected<void, EngineError>;
@@ -320,13 +358,19 @@ private:
     bool resize();
     /// @brief Rebuilds or resizes the frame graph for the shell's view, if it changed since the last frame.
     bool followView(const std::optional<RenderView>& view);
+    /// @brief Gives every world's main camera the aspect of what the frame graph renders into.
     void updateCameraAspect(rhi::Extent2D extent);
-    /// @brief Opens the ImGui frame, lets the shell build its UI and apply its edits, and ends the frame.
+    /// @brief Opens the ImGui frame, lets the shell build its UI, apply its edits and pick the worlds that update and
+    ///        render, and ends the frame.
     void runShell(float deltaSeconds);
-    /// @brief Empties the world and adds the engine's systems, ready for a scene's entities.
+    /// @brief Updates the worlds the shell asked for, each by its own clock, ticked at 'now'; the others' clocks stand still.
+    void updateWorlds(core::FrameClock::Clock::time_point now);
+    /// @brief Restarts every clock at 'now', so the time until then (a minimized window) is no part of the next delta.
+    void resetClocks(core::FrameClock::Clock::time_point now);
+    /// @brief Adds the engine's systems and the game's (setWorldSetup) to a new or reset world.
+    void setUpWorld(world::World& world);
+    /// @brief Empties the main world and sets it up again, ready for a scene's entities.
     void resetWorld();
-    /// @brief Starts the world's systems.
-    void beginWorld();
     auto saveScreenshot() -> std::expected<void, std::string>;
 
     /// @brief Longest frame time the scene and scripts see.
@@ -345,13 +389,17 @@ private:
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
     std::optional<AssetLibrary> m_assets;
     reflect::TypeRegistry m_types;
-    core::FrameClock m_clock{ core::FrameClock::clamped(MAX_FRAME_DELTA_SEC) };
-    world::World m_world;
-    aegis::render_graph::InstanceStore m_instances;        // Holds meshes and materials: goes before the device
-    aegis::InstanceBridge m_instanceBridge{ m_instances }; // Disconnects from the world first
+    core::FrameClock m_clock{ core::FrameClock::clamped(MAX_FRAME_DELTA_SEC) }; // The UI's; each world has its own
+    std::function<void(world::World&)> m_worldSetup;                            // The game's systems
+    // Their instances hold meshes and materials: they go before the device.
+    Worlds m_worlds{ [this](world::World& world) { setUpWorld(world); } };
+    world::World* m_mainWorld{ nullptr };          // The first of m_worlds
+    std::vector<WorldUpdate> m_updates;            // This frame's, from the shell (FrameContext::update)
+    world::World* m_renderRequest{ nullptr };      // This frame's, from the shell (FrameContext::render); none for the main world
+    const world::World* m_lastRendered{ nullptr }; // The world whose instances the passes' buffers hold
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
     std::optional<rhi::Extent2D> m_viewExtent; // The extent of the view the frame graph renders into; none for the target
-    // Last, so it goes first, while everything it may reference (the world, the frame graph, ImGui) exists.
+    // Last, so it goes first, while everything it may reference (the worlds, the frame graph, ImGui) exists.
     std::unique_ptr<Shell> m_shell{ std::make_unique<GameShell>() };
 };
 }

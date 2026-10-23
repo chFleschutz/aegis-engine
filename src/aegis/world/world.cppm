@@ -9,12 +9,13 @@ export module aegis.world;
 
 import std;
 export import aegis.world.registry;
+import aegis.core;
 import aegis.math;
 export import aegis.world.system; // System and UpdateMode, which begin and update take
 
 export namespace aegis::world
 {
-/// @brief World contains all entities and systems
+/// @brief World contains all entities and systems, and the clock it runs by
 class World
 {
 public:
@@ -27,6 +28,10 @@ public:
     auto operator=(World&&) -> World& = delete;
 
     [[nodiscard]] auto registry() -> Registry& { return m_registry; }
+    /// @brief Hands out the delta time of the world's updates, apart from any other world's: a wall clock with a clamp
+    ///        by default; assign core::FrameClock::fixed(step) for a deterministic run. Whoever updates the world ticks it.
+    /// @note reset() keeps it: the clock belongs to the world, not to the scene in it.
+    [[nodiscard]] auto clock() -> core::FrameClock& { return m_clock; }
     /// @brief The entity with the MainCamera tag, the first ambient light and the first directional light
     /// @note These are queries, not stored entities: they read as null once the entity is destroyed
     ///       (or loses the component), and a scene file needs no special case for them.
@@ -72,5 +77,6 @@ private:
     Registry m_registry;
     std::vector<std::function<void(Registry&)>> m_deferred;
     std::vector<std::unique_ptr<System>> m_systems;
+    core::FrameClock m_clock{ core::FrameClock::clamped() };
 };
 }

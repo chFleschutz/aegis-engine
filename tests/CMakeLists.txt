@@ -85,6 +85,10 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
     aegis_add_device_test(aegis-test-scene-view ARGS --headless --scene --view --frames 120)
     aegis_add_device_test(aegis-test-scene-gpu-driven-view ARGS --headless --gpu-driven --view --frames 120 LABELS mesh-shaders)
 
+    # A second world from the scene file, without the helmet, renders in the middle third of the frames.
+    aegis_add_device_test(aegis-test-scene-worlds ARGS --headless --scene --worlds --frames 120)
+    aegis_add_device_test(aegis-test-scene-gpu-driven-worlds ARGS --headless --gpu-driven --worlds --frames 120 LABELS mesh-shaders)
+
     # The scene's reference images (see above).
     aegis_add_device_test(aegis-test-golden-scene
         ARGS --headless --scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene.png --tolerance 0
@@ -98,5 +102,12 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
         LABELS golden)
     aegis_add_device_test(aegis-test-golden-scene-mirrored-gpu-driven
         ARGS --headless --gpu-driven --mirror --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-mirrored-gpu-driven.png --tolerance 0
+        LABELS golden mesh-shaders)
+    # Back on the main world after the second one rendered, the last frame is the plain scene's.
+    aegis_add_device_test(aegis-test-golden-scene-worlds
+        ARGS --headless --scene --worlds --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene.png --tolerance 0
+        LABELS golden)
+    aegis_add_device_test(aegis-test-golden-scene-worlds-gpu-driven
+        ARGS --headless --gpu-driven --worlds --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-gpu-driven.png --tolerance 0
         LABELS golden mesh-shaders)
 endif()

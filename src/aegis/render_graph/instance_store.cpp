@@ -132,6 +132,12 @@ auto InstanceStore::clearDirty() noexcept -> void
     m_dynamic.dirty = {};
 }
 
+auto InstanceStore::markAllDirty() noexcept -> void
+{
+    m_static.dirty = DirtyRange::all();
+    m_dynamic.dirty = DirtyRange::all();
+}
+
 auto InstanceStore::batchId(const assets::MaterialTemplate& materialTemplate) const -> std::optional<std::uint32_t>
 {
     const auto found = m_batchIds.find(&materialTemplate);

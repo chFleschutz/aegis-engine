@@ -137,6 +137,9 @@ public:
     [[nodiscard]] auto dynamicDirty() const noexcept -> DirtyRange { return m_dynamic.dirty.clipped(dynamicInstanceCount()); }
     /// @brief Forgets the changes, once the frame that read them has been recorded.
     auto clearDirty() noexcept -> void;
+    /// @brief Marks every position of both sets as changed, for consumers that hold another store's instances: the
+    ///        passes' buffers when the app renders another world's store than in the last frame.
+    auto markAllDirty() noexcept -> void;
 
     /// @brief Every batch ever created, by id; a batch whose instances are all gone stays, with a count of 0.
     [[nodiscard]] auto batches() const noexcept -> const std::vector<DrawBatch>& { return m_batches; }

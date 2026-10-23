@@ -1,5 +1,7 @@
 module;
 
+#include <cassert>
+
 // Only the ECS headers: entt.hpp pulls in entt::meta, which crashes clang -O3 against libstdc++
 #include <entt/entity/entity.hpp>
 #include <entt/entity/registry.hpp>
@@ -241,5 +243,79 @@ auto extractFrameScene(world::World& world, const render_graph::InstanceStore& i
         }
     }
     return scene;
+}
+
+// Worlds ---------------------------------------------------------------------------------------------
+
+Worlds::Worlds(Setup setup) :
+    m_setup{ std::move(setup) }
+{
+}
+
+Worlds::~Worlds() = default;
+
+auto Worlds::create() -> world::World&
+{
+    auto& entry = *m_entries.emplace_back(std::make_unique<Entry>());
+    entry.bridge.connect(entry.world.registry());
+    m_setup(entry.world);
+    return entry.world;
+}
+
+auto Worlds::destroy(world::World& world) -> void
+{
+    const auto found = std::ranges::find(m_entries, &world, [](const auto& entry) { return &entry->world; });
+    assert(found != m_entries.end() && "Worlds::destroy: not one of these worlds");
+    m_entries.erase(found);
+}
+
+auto Worlds::reset(world::World& world) -> void
+{
+    auto& found = entry(world);
+    world.reset();
+    m_setup(world);
+    found.begun = false;
+}
+
+auto Worlds::update(world::World& world, float deltaSeconds, world::UpdateMode mode) -> void
+{
+    auto& found = entry(world);
+    if (!found.begun)
+    {
+        world.begin(mode);
+        found.begun = true;
+    }
+    world.update(deltaSeconds, mode);
+}
+
+auto Worlds::sync(world::World& world) -> void
+{
+    entry(world).bridge.sync();
+}
+
+auto Worlds::contains(const world::World& world) const -> bool
+{
+    return std::ranges::any_of(m_entries, [&world](const auto& entry) { return &entry->world == &world; });
+}
+
+auto Worlds::all() -> std::vector<world::World*>
+{
+    std::vector<world::World*> worlds;
+    worlds.reserve(m_entries.size());
+    for (const auto& entry : m_entries)
+        worlds.push_back(&entry->world);
+    return worlds;
+}
+
+auto Worlds::instances(const world::World& world) -> render_graph::InstanceStore&
+{
+    return entry(world).instances;
+}
+
+auto Worlds::entry(const world::World& world) -> Entry&
+{
+    const auto found = std::ranges::find(m_entries, &world, [](const auto& entry) -> const world::World* { return &entry->world; });
+    assert(found != m_entries.end() && "Worlds: not one of these worlds");
+    return **found;
 }
 }

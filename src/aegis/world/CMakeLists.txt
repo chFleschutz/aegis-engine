@@ -28,7 +28,7 @@ target_include_directories(aegis-world PRIVATE
 )
 
 # PUBLIC: the module interfaces import aegis.math, render_components imports aegis.assets,
-# types imports aegis.reflect, and they export EnTT's names.
+# types imports aegis.reflect, world imports aegis.core (its clock), and they export EnTT's names.
 target_link_libraries(aegis-world
 PUBLIC
 	aegis-assets

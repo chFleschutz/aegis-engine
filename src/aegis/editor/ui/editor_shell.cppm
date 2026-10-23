@@ -25,8 +25,8 @@ public:
     auto operator=(EditorShell&&) -> EditorShell& = delete;
 
     auto onStartup(Engine& engine) -> std::expected<void, EngineError> override;
+    /// @brief The editor's UI and edits; the main world updates in edit mode (no script runs).
     void onFrame(FrameContext& frame) override;
-    [[nodiscard]] auto updateMode() const -> world::UpdateMode override { return world::UpdateMode::Edit; }
     /// @brief The input the editor's UI or the viewport's camera uses (as of the last frame); the game doesn't see it.
     [[nodiscard]] auto inputCapture() const -> InputCapture override;
     /// @brief The viewport's view while it is open: the editor camera at the panel's settled size.

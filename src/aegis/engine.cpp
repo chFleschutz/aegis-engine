@@ -1,5 +1,6 @@
 module;
 
+#include <cassert>
 #include <cstdlib>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -170,31 +171,75 @@ auto createEngine(int argc, char** argv) -> std::expected<std::unique_ptr<Engine
     return std::move(*engine);
 }
 
+void FrameContext::update(world::World& world, world::UpdateMode mode)
+{
+    assert(engine.m_worlds.contains(world) && "FrameContext::update: not one of the engine's worlds");
+    auto& updates = engine.m_updates;
+    if (const auto found = std::ranges::find(updates, &world, &Engine::WorldUpdate::world); found != updates.end())
+        found->mode = mode;
+    else
+        updates.push_back({ .world = &world, .mode = mode });
+}
+
+void FrameContext::render(world::World& world)
+{
+    assert(engine.m_worlds.contains(world) && "FrameContext::render: not one of the engine's worlds");
+    engine.m_renderRequest = &world;
+}
+
 auto Engine::loadScene(assets::AssetId scene) -> std::expected<void, EngineError>
 {
     resetWorld();
-    if (auto created = m_assets->instantiateScene(m_world, m_types, scene); !created)
+    if (auto created = m_assets->instantiateScene(world(), m_types, scene); !created)
         return std::unexpected{ makeError(EngineErrorCode::SceneFailed, std::move(created.error())) };
-    beginWorld();
     return {};
+}
+
+auto Engine::createWorld() -> world::World&
+{
+    auto& created = m_worlds.create();
+    // Headless, a fixed step, so a run does not depend on the machine.
+    created.clock() = m_desc.headless ? core::FrameClock::fixed(HEADLESS_FRAME_DELTA_SEC) : core::FrameClock::clamped(MAX_FRAME_DELTA_SEC);
+    return created;
+}
+
+void Engine::destroyWorld(world::World& world)
+{
+    assert(&world != m_mainWorld && "Engine::destroyWorld: the main world is never destroyed");
+    std::erase_if(m_updates, [&world](const WorldUpdate& update) { return update.world == &world; });
+    if (m_renderRequest == &world)
+        m_renderRequest = nullptr;
+    if (m_lastRendered == &world)
+        m_lastRendered = nullptr; // A world created at its address later has other instances
+    m_worlds.destroy(world);
+}
+
+void Engine::setWorldSetup(std::function<void(world::World& world)> setup)
+{
+    m_worldSetup = std::move(setup);
+    if (!m_worldSetup)
+        return;
+    for (auto* existing : m_worlds.all())
+        m_worldSetup(*existing);
+}
+
+void Engine::setUpWorld(world::World& world)
+{
+    // The engine's systems, always present. Their phases order them (scripts, then transforms,
+    // then cameras); the game's come after them (setWorldSetup), in the phase they declare.
+    if (m_input)
+        world.addSystem<scripting::ScriptSystem>(world.registry(), m_input->state(), m_input.get());
+    else
+        world.addSystem<scripting::ScriptSystem>(world.registry()); // Scripts see no input
+    world.addSystem<world::TransformSystem>();
+    world.addSystem<world::CameraSystem>();
+    if (m_worldSetup)
+        m_worldSetup(world);
 }
 
 void Engine::resetWorld()
 {
-    m_world.reset();
-    // The engine's systems, always present. Their phases order them (scripts, then transforms,
-    // then cameras); a game adds its own systems the same way, in the phase they declare.
-    if (m_input)
-        m_world.addSystem<scripting::ScriptSystem>(m_world.registry(), m_input->state(), m_input.get());
-    else
-        m_world.addSystem<scripting::ScriptSystem>(m_world.registry()); // Scripts see no input
-    m_world.addSystem<world::TransformSystem>();
-    m_world.addSystem<world::CameraSystem>();
-}
-
-void Engine::beginWorld()
-{
-    m_world.begin(m_shell->updateMode());
+    m_worlds.reset(world());
 }
 
 void Engine::setShell(std::unique_ptr<Shell> shell)
@@ -228,7 +273,7 @@ auto Engine::initialize() -> std::expected<void, EngineError>
         return created;
     if (auto created = createAssets(); !created)
         return created;
-    m_instanceBridge.connect(m_world.registry());
+    m_mainWorld = &createWorld(); // After the input, which its scripts read
     if (auto created = createFrameGraph(); !created)
         return created;
 
@@ -248,7 +293,7 @@ auto Engine::initialize() -> std::expected<void, EngineError>
 
 Engine::~Engine()
 {
-    // The GPU may still use what the members below free. The shell ends first, while the world, the
+    // The GPU may still use what the members below free. The shell ends first, while the worlds, the
     // frame graph and ImGui still exist; the members then go bottom up (the UI pass before the ImGui
     // context). A failed create() leaves the later members empty.
     if (m_device)
@@ -278,7 +323,7 @@ auto Engine::run() -> int
 
     if (headless)
         m_clock = core::FrameClock::fixed(HEADLESS_FRAME_DELTA_SEC);
-    m_clock.reset(std::chrono::steady_clock::now());
+    resetClocks(std::chrono::steady_clock::now());
     while ((headless || !m_window->shouldClose()) && (m_desc.frames == 0 || frames < m_desc.frames))
     {
         ScopeProfiler frameTime("Frame Time");
@@ -291,7 +336,7 @@ auto Engine::run() -> int
             if (m_window->isMinimized())
             {
                 m_window->waitEvents();
-                m_clock.reset(std::chrono::steady_clock::now()); // Not part of the next frame's delta
+                resetClocks(std::chrono::steady_clock::now()); // Not part of the next frame's delta
                 continue;
             }
             if (m_window->wasResized() || m_renderer->needsResize())
@@ -308,7 +353,7 @@ auto Engine::run() -> int
             m_input->setCaptured(capture.keyboard, capture.mouse);
             m_input->update();
         }
-        // The clock clamps a long frame (a breakpoint, a load) so scripts and systems don't get the whole stall
+        // The clock clamps a long frame (a breakpoint, a load) so the UI doesn't get the whole stall; so do the worlds'.
         const float frameTimeSec = m_clock.tick(currentFrameBegin);
         // The graph follows the view the shell's UI asked for last frame, before this frame's UI shows its textures.
         if (!followView(m_shell->renderView()))
@@ -316,14 +361,15 @@ auto Engine::run() -> int
             exitCode = exitFailure;
             break;
         }
-        // The safe point: the shell's UI and edits come before the update, so an edit shows this frame.
+        // The safe point: the shell's UI and edits come before the update, so an edit shows this frame. The shell
+        // also picks the worlds that update and the one that renders.
         runShell(frameTimeSec);
-        // The camera the shell's UI asks for this frame; the main camera gets the graph's aspect.
+        // The camera the shell's UI asks for this frame; every world's main camera gets the graph's aspect.
         const auto view = m_shell->renderView();
         updateCameraAspect(m_viewExtent.value_or(m_window ? rhi::Extent2D{ m_window->extent() } : m_renderer->extent()));
-        // Update: the systems run phase by phase, scripts first: they write the transforms, the others derive
-        // from them (camera matrices included). In edit mode only the derived ones run.
-        m_world.update(frameTimeSec, m_shell->updateMode());
+        // Update: each world's systems run phase by phase, scripts first: they write the transforms, the others
+        // derive from them (camera matrices included). In edit mode only the derived ones run.
+        updateWorlds(currentFrameBegin);
 
         // Rendering: uploads queued this frame (or while loading) go first, on the same queue.
         if (auto flushed = m_device->flushUploads(); !flushed)
@@ -332,12 +378,20 @@ auto Engine::run() -> int
             exitCode = exitFailure;
             break;
         }
-        // The passes draw the instances, camera, lights and sky as the update left them.
-        m_instanceBridge.sync();
-        auto frameScene = aegis::extractFrameScene(m_world, m_instances);
+        // The passes draw one world's instances, camera, lights and sky as its last update left them.
+        auto& shown = m_renderRequest ? *m_renderRequest : world();
+        auto& instances = m_worlds.instances(shown);
+        // Another world than last frame: the passes' buffers hold the other one's instances, so all of these are written.
+        if (&shown != m_lastRendered)
+        {
+            instances.markAllDirty();
+            m_lastRendered = &shown;
+        }
+        m_worlds.sync(shown);
+        auto frameScene = aegis::extractFrameScene(shown, instances);
         if (view && view->camera)
             frameScene.camera = view->camera;
-        auto rendered = m_renderer->renderFrame([this, &frameScene](const aegis::renderer::Renderer::FrameInfo& frame) {
+        auto rendered = m_renderer->renderFrame([this, &frameScene, &instances](const aegis::renderer::Renderer::FrameInfo& frame) {
             m_lastFrameIndex = frame.frameIndex;
             m_frameGraph->execute({
                 .cmd = frame.cmd,
@@ -347,7 +401,7 @@ auto Engine::run() -> int
                 .target = frame.target,
             });
             // Recorded: the next frame needs only what changes after this one.
-            m_instances.clearDirty();
+            instances.clearDirty();
         });
         if (!rendered)
         {
@@ -502,15 +556,18 @@ bool Engine::resize()
 
 void Engine::runShell(float deltaSeconds)
 {
+    m_updates.clear();
+    m_renderRequest = nullptr;
     m_presentation.beginFrame(m_renderer->extent(), deltaSeconds);
     FrameContext frame{
-        .world = m_world,
+        .engine = *this,
+        .world = world(),
         .types = m_types,
         .assets = *m_assets,
         .frameGraph = *m_frameGraph,
         .viewExtent = m_viewExtent,
         .presentation = m_presentation,
-        .instances = m_instances,
+        .instances = m_worlds.instances(world()),
         .renderer = *m_renderer,
         .deltaSeconds = deltaSeconds,
     };
@@ -518,13 +575,36 @@ void Engine::runShell(float deltaSeconds)
     m_presentation.endFrame();
 }
 
+void Engine::updateWorlds(core::FrameClock::Clock::time_point now)
+{
+    for (auto* each : m_worlds.all())
+    {
+        const auto update = std::ranges::find(m_updates, each, &WorldUpdate::world);
+        if (update == m_updates.end())
+            each->clock().reset(now); // It stands still: the time until it updates again is no step
+        else
+            m_worlds.update(*each, each->clock().tick(now), update->mode);
+    }
+}
+
+void Engine::resetClocks(core::FrameClock::Clock::time_point now)
+{
+    m_clock.reset(now);
+    for (auto* each : m_worlds.all())
+        each->clock().reset(now);
+}
+
 void Engine::updateCameraAspect(rhi::Extent2D extent)
 {
-    auto& registry = m_world.registry();
-    const auto mainCamera = m_world.mainCamera();
-    if (extent.y == 0 || !mainCamera || !registry.has<Camera>(mainCamera))
+    if (extent.y == 0)
         return;
-    registry.get<Camera>(mainCamera).aspect = static_cast<float>(extent.x) / static_cast<float>(extent.y);
+    const auto aspect = static_cast<float>(extent.x) / static_cast<float>(extent.y);
+    for (auto* each : m_worlds.all())
+    {
+        auto& registry = each->registry();
+        if (const auto mainCamera = each->mainCamera(); mainCamera && registry.has<Camera>(mainCamera))
+            registry.get<Camera>(mainCamera).aspect = aspect;
+    }
 }
 
 // Reads the offscreen target back (the last frame's slot), or with a view the view's target, and writes it as PNG.
