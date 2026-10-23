@@ -23,7 +23,7 @@ struct ComponentStorage
     ///        is added.
     std::function<void(Registry&, Entity, void* value)> add;
     /// @brief Removes the entity's component. False (and nothing removed) if it has none or the type is required
-    ///        (ComponentTraits, reflect::TypeMeta::required).
+    ///        (reflect::TypeMeta::required, read when it is called).
     std::function<bool(Registry&, Entity)> remove;
     /// @brief Call it after writing the entity's component through find's pointer, which entt cannot observe. It
     ///        keeps the type's rule for such writes in one place (D2): a static entity's Transform marks it
@@ -59,9 +59,9 @@ auto changedHook() -> ComponentStorage::Hook
     }
 }
 
-/// @brief The ComponentStorage of T
+/// @brief The ComponentStorage of T, registered as 'type' (whose metadata says whether it is required)
 template<typename T>
-auto componentStorage() -> ComponentStorage
+auto componentStorage(const reflect::TypeInfo& type) -> ComponentStorage
 {
     ComponentStorage storage;
     if constexpr (TagComponent<T>)
@@ -85,14 +85,15 @@ auto componentStorage() -> ComponentStorage
         };
     }
 
-    if constexpr (IsRequiredComponent<T>)
+    if constexpr (EntityComponent<T>)
     {
         storage.remove = [](Registry&, Entity) { return false; };
     }
     else
     {
-        storage.remove = [](Registry& registry, Entity entity) {
-            if (!registry.has<T>(entity))
+        // The type's address is stable for its registry's lifetime; required() may come after the attach
+        storage.remove = [&type](Registry& registry, Entity entity) {
+            if (type.meta.required || !registry.has<T>(entity))
                 return false;
             registry.remove<T>(entity);
             return true;
@@ -105,16 +106,16 @@ auto componentStorage() -> ComponentStorage
 
 /// @brief Registers T as a component named `name` (see reflect::TypeRegistry::component) and attaches its
 ///        ComponentStorage, so a scene file can save and load it. Add the persistent fields and the editor
-///        metadata to the builder it returns; a required component (ComponentTraits) is marked required. A game
-///        registers its own components the same way.
+///        metadata to the builder it returns (required() for one the editor must not remove). A game registers its
+///        own components the same way, and the editor's inspector and Add menu list them with no editor code.
 template<typename T>
 [[nodiscard]] auto registerComponent(reflect::TypeRegistry& types, std::string_view name) -> std::expected<reflect::TypeBuilder<T>, reflect::Error>
 {
     auto builder = types.component<T>(name);
     if (builder)
     {
-        builder->attach(componentStorage<T>());
-        if constexpr (IsRequiredComponent<T>)
+        builder->attach(componentStorage<T>(builder->info()));
+        if constexpr (EntityComponent<T>)
             builder->required();
     }
     return builder;
@@ -127,7 +128,7 @@ template<typename T>
     auto builder = registerComponent<T>(types, name);
     if (builder)
     {
-        auto storage = componentStorage<T>();
+        auto storage = componentStorage<T>(builder->info());
         storage.singleton = true;
         builder->attach(std::move(storage));
     }
