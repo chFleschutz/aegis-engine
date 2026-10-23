@@ -25,8 +25,8 @@ public:
     auto operator=(EditorShell&&) -> EditorShell& = delete;
 
     auto onStartup(Engine& engine) -> std::expected<void, EngineError> override;
+    /// @brief The editor's UI and edits; the main world updates in edit mode (no script runs).
     void onFrame(FrameContext& frame) override;
-    [[nodiscard]] auto updateMode() const -> world::UpdateMode override { return world::UpdateMode::Edit; }
     /// @brief The input the editor's UI uses (ImGui's capture flags from the last frame).
     [[nodiscard]] auto inputCapture() const -> InputCapture override;
     /// @brief The viewport's size while it is open, through the world's main camera.

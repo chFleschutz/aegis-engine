@@ -50,6 +50,7 @@ public:
         auto& registry = frame.world.registry();
         if (m_frame == 0)
             setUp(frame.world);
+        frame.update(frame.world, world::UpdateMode::Play);
 
         if (m_options.mutateScene)
         {
@@ -119,7 +120,7 @@ private:
             // Ahead and to the right of the main camera, turned towards the helmet; CameraSystem keeps its matrices.
             m_viewCamera = registry.create("View Camera", glm::vec3{ 2.2f, -2.2f, 0.3f }, glm::quat{ glm::radians(glm::vec3{ 0.0f, 0.0f, 45.0f }) });
             registry.add<Camera>(m_viewCamera);
-            registry.markStaticDirty(m_viewCamera); // The world has begun: a new static entity has no global transform yet
+            registry.markStaticDirty(m_viewCamera); // Once the world has begun, a new static entity needs it for its global transform
         }
     }
 
