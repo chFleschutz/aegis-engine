@@ -6,9 +6,11 @@
 // Partitions:
 //   :panel          Panel, one window (or group of windows) listed in the View menu.
 //   :editor_shell   EditorShell.
+//   :viewport       Viewport: the scene view with the editor camera, the gizmo and picking; EditorShell owns it.
 //   :panels         (internal) The built-in panels, created by name.
 export module aegis.editor;
 
 export import aegis.editor.core;
 export import :editor_shell;
 export import :panel;
+export import :viewport;

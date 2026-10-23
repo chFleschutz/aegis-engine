@@ -26,7 +26,7 @@ the issues cite and links them, and doesn't repeat their content lists.
 The code is the reference for the current state; this section only says which plan items are done.
 
 - **Done:** E1 ([#83]: R3, R4, R8; the action registry, theme v0, fonts v0 and Reset Layout moved to
-  [#223]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
+  [#223]), E2 ([#200]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
 - **Open:** every other R- and E-item, each in its issue (see "Runtime prerequisites" and
   "Implementation plan").
 
@@ -77,14 +77,16 @@ src/aegis/editor/
 │  ├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, value, flags}
 │  ├─ hierarchy_model  entity tree as rows, filtered by name; pure
 │  ├─ play_session     Edit -> Playing <-> Paused -> Edit, step
-│  └─ editor_camera    fly/orbit/focus math -> view and projection
+│  ├─ editor_camera    fly/orbit/pan/dolly/focus math -> view, projection and picking rays
+│  ├─ picking          ray against bounding spheres, icon hits in screen space
+│  └─ settled_extent   the viewport's render size, applied once the panel's size settles
 └─ ui/                            aegis-editor, module aegis.editor (ImGui in .cpp only)
    ├─ editor_shell     implements Shell; owns the context and the panels
    ├─ actions          action registry: id, label, shortcut, enabled(), run()
    ├─ theme            colors, sizes and fonts in one place
    ├─ widgets          property grid, one widget per FieldKind, asset slot, axis-colored vec3
-   ├─ gizmo            ImGuizmo wrapper inside the viewport rect
-   └─ panels/          viewport, hierarchy, inspector, assets, console, renderer, profiler,
+   ├─ viewport         scene view: editor camera input, ImGuizmo inside the image rect, icons, picking
+   └─ panels/          hierarchy, inspector, assets, console, renderer, profiler,
                        statistics, project settings
 ```
 
@@ -192,8 +194,8 @@ Still to come: the views to render (world, camera and target per view, R5 [#192]
   ID buffer is a later improvement (nice to have).
 - **Input routing:** the editor camera gets input while the viewport is hovered or RMB is held. The
   play world gets game input only while the viewport is focused in play mode. Shift+F1 releases a
-  captured cursor. The shell sets the capture flags, replacing today's `setCaptured(io.WantCapture…)`
-  (`engine.cpp:231`).
+  captured cursor. The shell sets the capture flags: ImGui's, plus everything while the viewport is
+  hovered or the camera is being dragged.
 
 ### Reading and modifying data (the technical UI side)
 

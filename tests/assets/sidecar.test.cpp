@@ -90,6 +90,39 @@ TEST_SUITE("assets::Sidecar")
         CHECK(parsed->subAssetId("Material/Gone") == removed);
     }
 
+    TEST_CASE("a new part's ID is derived from the file ID and the key")
+    {
+        // Pinned: recorded IDs are data, so the derivation must never change.
+        const AssetId file{ 0xa3f09c2e4b1d7788ULL };
+        CHECK(aegis::assets::deriveSubAssetId(file, "StaticMesh/Helmet/0") == AssetId{ 0x6663531068ee810fULL });
+        CHECK(aegis::assets::deriveSubAssetId(file, "Material/HelmetMat") == AssetId{ 0x8973c6f52d1e69dbULL });
+        CHECK(aegis::assets::deriveSubAssetId(file, "Entity/#root") == AssetId{ 0x18786c54ec5e299dULL });
+        CHECK(aegis::assets::deriveSubAssetId(AssetId{ 1 }, R"(Material/a\/b)") == AssetId{ 0x5b57eda85cea2f1cULL });
+        CHECK(aegis::assets::deriveSubAssetId(AssetId{ 0xa3f09c2e4b1d7789ULL }, "StaticMesh/Helmet/0") == AssetId{ 0xf7bfcb2147a70124ULL });
+    }
+
+    TEST_CASE("two sidecars with the same file ID record the same parts identically")
+    {
+        Sidecar first;
+        first.id = AssetId{ 0xa3f09c2e4b1d7788ULL };
+        first.importer = "gltf";
+        auto second = first;
+        first.subAssetId("Material/A");
+        first.subAssetId("Entity/Body");
+        second.subAssetId("Entity/Body");
+        second.subAssetId("Material/A");
+        CHECK(aegis::assets::writeSidecar(first) == aegis::assets::writeSidecar(second));
+    }
+
+    TEST_CASE("a recorded ID is kept, not derived again")
+    {
+        Sidecar sidecar;
+        sidecar.id = AssetId{ 0xa3f09c2e4b1d7788ULL };
+        sidecar.subAssets.emplace("Material/HelmetMat", AssetId{ 0xc4d8e1a07b2f9036ULL });
+        CHECK(sidecar.subAssetId("Material/HelmetMat") == AssetId{ 0xc4d8e1a07b2f9036ULL });
+        CHECK(sidecar.subAssetId("Material/New") == aegis::assets::deriveSubAssetId(sidecar.id, "Material/New"));
+    }
+
     TEST_CASE("a malformed ID is rejected")
     {
         const auto upper = aegis::assets::parseSidecar(R"({"id":"A3F09C2E4B1D7788","importer":"gltf"})");

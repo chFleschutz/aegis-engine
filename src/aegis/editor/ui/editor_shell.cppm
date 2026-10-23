@@ -3,8 +3,8 @@ import std;
 import aegis.core;
 import aegis.editor.core;
 import aegis.engine;
-import aegis.rhi;
 import :panel;
+import :viewport;
 
 export namespace aegis::editor
 {
@@ -27,29 +27,18 @@ public:
     auto onStartup(Engine& engine) -> std::expected<void, EngineError> override;
     /// @brief The editor's UI and edits; the main world updates in edit mode (no script runs).
     void onFrame(FrameContext& frame) override;
-    /// @brief The input the editor's UI uses (ImGui's capture flags from the last frame).
+    /// @brief The input the editor's UI or the viewport's camera uses (as of the last frame); the game doesn't see it.
     [[nodiscard]] auto inputCapture() const -> InputCapture override;
-    /// @brief The viewport's size while it is open, through the world's main camera.
+    /// @brief The viewport's view while it is open: the editor camera at the panel's settled size.
     [[nodiscard]] auto renderView() const -> std::optional<RenderView> override;
     void onShutdown() override;
 
     [[nodiscard]] auto context() -> EditorContext& { return m_context; }
 
 private:
-    enum class GizmoMode
-    {
-        None,
-        Translate,
-        Rotate,
-        Scale,
-    };
-
     void drawMenuBar();
     void drawStatusBar(FrameContext& frame);
     void savePreferencesIfChanged();
-    void drawViewport(FrameContext& frame);
-    void updateGizmoMode();
-    void drawGizmo(world::World& world);
 
     EditorContext m_context;
     log::SinkId m_logSink{};
@@ -57,9 +46,6 @@ private:
     EditorPreferences m_savedPreferences;
     std::vector<std::unique_ptr<Panel>> m_panels;
     std::string m_layoutFile; // UTF-8; ImGui reads and writes the layout there. Empty keeps none.
-    GizmoMode m_gizmoMode{ GizmoMode::None };
-    bool m_snapping{ false };
-    bool m_viewportOpen{ false };
-    std::optional<rhi::Extent2D> m_viewportExtent; // The view the viewport asks for; none while it is closed
+    Viewport m_viewport;
 };
 }
