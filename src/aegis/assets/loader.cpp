@@ -42,9 +42,10 @@ private:
                 m_textures.push_back(m_desc.externalTexture ? m_desc.externalTexture(image) : nullptr);
                 continue;
             }
-            // Color data is sRGB; normal, metal/roughness and occlusion data are linear.
+            // Color data is sRGB; normal, metal/roughness and occlusion data are linear, unless the image's settings say otherwise.
+            const auto srgb = textureSrgb(image.settings, image.srgb);
             auto texture = Texture::create(m_desc.device, image.data,
-                Texture::ImageDesc{ .name = image.name, .format = image.srgb ? rhi::Format::RGBA8_SRGB : rhi::Format::RGBA8_UNORM });
+                Texture::ImageDesc{ .name = image.name, .format = srgb ? rhi::Format::RGBA8_SRGB : rhi::Format::RGBA8_UNORM });
             if (!texture)
                 return std::unexpected{ texture.error() };
             m_textures.push_back(std::move(*texture));

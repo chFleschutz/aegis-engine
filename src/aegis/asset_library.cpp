@@ -121,7 +121,7 @@ public:
             return failTexture(id, std::format("'{}' is not a texture file", entry->path));
 
         const auto path = m_database.absolutePath(*entry);
-        const auto srgb = entry->settings.srgb.value_or(true);
+        const auto srgb = assets::textureSrgb(entry->settings, true);
         auto texture = assets::Texture::loadFromFile(*m_device, path, srgb ? rhi::Format::RGBA8_SRGB : rhi::Format::RGBA8_UNORM);
         if (!texture)
             return failTexture(id, assets::describe(texture.error()));
@@ -262,8 +262,15 @@ public:
         auto imported = m_importCache.loadModel(m_database.absolutePath(*entry), entry->settings);
         if (!imported)
             return failModel(id, assets::describe(imported.error()));
-        // External images are textures of their own, loaded and shared by their own IDs.
+        // External images are textures of their own, loaded and shared by their own IDs; embedded ones are parts,
+        // with their settings in the model's sidecar.
         assets::resolveExternalImages(m_database, *entry, imported->model);
+        auto sidecar = readModelSidecar(*entry);
+        assets::SubAssetKeys keys{ sidecar.sidecar.settings.strictNames };
+        auto imageKeys = assets::embeddedImageKeys(imported->model, keys);
+        if (!imageKeys)
+            return failModel(id, assets::describe(imageKeys.error()));
+        assets::applyEmbeddedImageSettings(sidecar.sidecar, *imageKeys, imported->model);
         const auto externalTexture = [this](const assets::ModelImage& image) {
             return image.texture.valid() ? loadTexture(image.texture).shared() : nullptr;
         };
@@ -274,7 +281,7 @@ public:
             return failModel(id, assets::describe(model.error()));
 
         auto shared = std::make_shared<assets::Model>(std::move(*model));
-        if (auto registered = registerParts(*entry, *shared); !registered)
+        if (auto registered = registerParts(*entry, std::move(sidecar), keys, *imageKeys, *shared); !registered)
             return failModel(id, assets::describe(registered.error()));
         return m_models.fill(id, std::move(shared));
     }
@@ -535,12 +542,13 @@ private:
     }
 
     // Gives the parts of a freshly loaded model their IDs from the file's sidecar (new parts get new IDs,
-    // recorded in it), fills their slots, and points the model's primitives at those slots.
-    auto registerParts(const assets::AssetEntry& entry, assets::Model& model) -> std::expected<void, assets::Error>
+    // recorded in it), fills their slots, and points the model's primitives at those slots. 'keys' already has
+    // the embedded images' keys, 'imageKeys' (see assets::embeddedImageKeys).
+    auto registerParts(const assets::AssetEntry& entry, ModelSidecar modelSidecar, assets::SubAssetKeys& keys,
+        std::span<const std::string> imageKeys, assets::Model& model) -> std::expected<void, assets::Error>
     {
-        auto [sidecar, keepReason] = readModelSidecar(entry);
+        auto& [sidecar, keepReason] = modelSidecar;
         const auto known = sidecar.subAssets.size();
-        assets::SubAssetKeys keys{ sidecar.settings.strictNames };
 
         std::vector<std::pair<std::string, AssetId>> parts;
         const auto addPart = [&](const std::string& key) {
@@ -550,12 +558,10 @@ private:
         };
 
         std::vector<AssetId> textureIds, materialIds;
-        for (std::size_t i = 0; i < model.textures.size(); ++i)
+        for (const auto& key : imageKeys) // Model::textures holds the embedded images in this order
         {
-            auto key = keys.name("Texture", model.textures[i].name, i);
-            if (!key)
-                return std::unexpected{ std::move(key.error()) };
-            textureIds.push_back(addPart(*key));
+            if (!key.empty())
+                textureIds.push_back(addPart(key));
         }
         std::unordered_map<const assets::Material*, AssetRef<assets::Material>> materialRefs;
         for (std::size_t i = 0; i < model.materials.size(); ++i)

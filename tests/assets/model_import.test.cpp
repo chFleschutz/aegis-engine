@@ -688,3 +688,57 @@ TEST_SUITE("assets::importModel")
         CHECK(model->name == "aegis_model_import_test");
     }
 }
+
+TEST_SUITE("assets::applyEmbeddedImageSettings")
+{
+    // A material with an embedded albedo, an embedded normal map and an external occlusion map.
+    auto texturedModel() -> assets::ModelData
+    {
+        const auto bytes = singleMesh(std::format(R"json({}, "material": 0)json", listPrimitive),
+            std::format(R"json("images": [ {{ "name": "albedo", "uri": "{0}" }}, {{ "name": "normal", "uri": "{0}" }}, {{ "uri": "occlusion.png" }} ],
+  "textures": [ {{ "source": 0 }}, {{ "source": 1 }}, {{ "source": 2 }} ],
+  "materials": [ {{ "pbrMetallicRoughness": {{ "baseColorTexture": {{ "index": 0 }} }}, "normalTexture": {{ "index": 1 }},
+    "occlusionTexture": {{ "index": 2 }} }} ])json",
+                pngDataUri()));
+        auto model = assets::importGltf(bytes);
+        REQUIRE(model.has_value());
+        REQUIRE(model->images.size() == 3);
+        return std::move(*model);
+    }
+
+    TEST_CASE("embedded images are keyed by name and external ones have no key")
+    {
+        const auto model = texturedModel();
+        assets::SubAssetKeys keys;
+        const auto imageKeys = assets::embeddedImageKeys(model, keys);
+        REQUIRE(imageKeys.has_value());
+        CHECK(*imageKeys == std::vector<std::string>{ "Texture/albedo", "Texture/normal", "" });
+    }
+
+    TEST_CASE("an embedded normal map reads as linear by default")
+    {
+        auto model = texturedModel();
+        assets::SubAssetKeys keys;
+        const auto imageKeys = assets::embeddedImageKeys(model, keys);
+        REQUIRE(imageKeys.has_value());
+        assets::applyEmbeddedImageSettings(assets::Sidecar{}, *imageKeys, model);
+        CHECK_FALSE(assets::textureSrgb(model.images[1].settings, model.images[1].srgb));
+        CHECK(assets::textureSrgb(model.images[0].settings, model.images[0].srgb));
+    }
+
+    TEST_CASE("an embedded normal map reads as sRGB when its entry says so")
+    {
+        auto model = texturedModel();
+        assets::Sidecar sidecar;
+        sidecar.id = assets::AssetId{ 1 };
+        sidecar.partSettings["Texture/normal"].srgb = true;
+        sidecar.partSettings["Texture/albedo"].srgb = false;
+        assets::SubAssetKeys keys;
+        const auto imageKeys = assets::embeddedImageKeys(model, keys);
+        REQUIRE(imageKeys.has_value());
+        assets::applyEmbeddedImageSettings(sidecar, *imageKeys, model);
+        CHECK(assets::textureSrgb(model.images[1].settings, model.images[1].srgb));
+        CHECK_FALSE(assets::textureSrgb(model.images[0].settings, model.images[0].srgb));
+        CHECK(model.images[2].settings == assets::ImportSettings{}); // External: its own sidecar has its settings
+    }
+}

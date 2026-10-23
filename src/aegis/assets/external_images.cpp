@@ -41,7 +41,7 @@ auto resolveExternalImages(const AssetDatabase& database, const AssetEntry& mode
         }
 
         image.texture = entry->id;
-        if (const auto srgb = entry->settings.srgb.value_or(true); srgb != image.srgb)
+        if (const auto srgb = textureSrgb(entry->settings, true); srgb != image.srgb)
         {
             log::warn("'{}' uses '{}' as {}, but the image is imported as {}; set \"srgb\": {} in its sidecar to match",
                 modelEntry.path, entry->path, describeUsage(image.srgb), describeUsage(srgb), image.srgb);
