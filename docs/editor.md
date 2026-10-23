@@ -26,14 +26,14 @@ the issues cite and links them, and doesn't repeat their content lists.
 The code is the reference for the current state; this section only says which plan items are done.
 
 - **Done:** E1 ([#83]: R3, R4, R8; the action registry, theme v0, fonts v0 and Reset Layout moved to
-  [#223]), E2 ([#200]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
+  [#223]), E2 ([#200]), E3 ([#133]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
 - **Open:** every other R- and E-item, each in its issue (see "Runtime prerequisites" and
   "Implementation plan").
 
 The editor started from about 900 lines of legacy code attached as a `core::Layer`, with its UI built
 inside the render graph, selection by `world::Entity` and hand-written type lists. E1 replaced the
-layer with the shell, moved the UI to the safe point and keyed the selection by `StableId`; the type
-lists go with E3 ([#133]).
+layer with the shell, moved the UI to the safe point and keyed the selection by `StableId`; E3 ([#133])
+replaced the hand-written type lists and `ComponentTraits` with the type registry.
 
 ## Architecture
 
@@ -74,7 +74,8 @@ src/aegis/editor/
 │  ├─ commands         Command interface; SetField, Rename, Create/Destroy/Duplicate entity,
 │  │                   Add/Remove component, Attach/Detach script, Reparent
 │  ├─ undo_stack       history, merging of continuous edits, the saved marker (dirty flag)
-│  ├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, value, flags}
+│  ├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, limits, readOnly}
+│  ├─ inspector        the components and scripts an entity shows and can add; field writes + change hook
 │  ├─ hierarchy_model  entity tree as rows, filtered by name; pure
 │  ├─ play_session     Edit -> Playing <-> Paused -> Edit, step
 │  ├─ editor_camera    fly/orbit/pan/dolly/focus math -> view, projection and picking rays
