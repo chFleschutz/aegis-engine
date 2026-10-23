@@ -17,6 +17,7 @@
 # next to its executables and uses the build and source trees, so it never sees stale data; laying out a
 # copied or installed game is the export step's job (#134). With tests on, <Name> renders headless as a
 # `device` test: once per scene of SCENES (game-<name>-<scene file stem>), else once with its startup scene.
+# A missing asset only logs a warning and renders a fallback, so that warning fails the test too.
 function(aegis_add_game name)
     cmake_parse_arguments(G "" "PROJECT" "SOURCES;SCENES" ${ARGN})
     if(NOT G_SOURCES OR NOT G_PROJECT)
@@ -38,9 +39,9 @@ function(aegis_add_game name)
     target_compile_definitions(${name}-Editor PRIVATE AEGIS_LAUNCH_EDITOR)
 
     # Each test renders headless for a fixed number of frames; the exit code fails on a startup error, a render
-    # error or a validation error. The `gpu` lock keeps device runs from overlapping. They render at 640x360,
-    # not the 1920x1080 default: a smoke test gains nothing from the pixels, and on lavapipe (CI) the run time
-    # grows with them. They load compiled shaders, so they exist only when those are built.
+    # error, a validation error or an asset that failed to load. The `gpu` lock keeps device runs from
+    # overlapping. They render at 640x360, not the 1920x1080 default: a smoke test gains nothing from the
+    # pixels, and on lavapipe (CI) the run time grows with them. They load compiled shaders, so they exist only when those are built.
     if(AEGIS_BUILD_TESTS AND TARGET compile_shaders)
         string(TOLOWER ${name} lowered)
         set(args --headless --frames 120 --width 640 --height 360)
@@ -49,11 +50,13 @@ function(aegis_add_game name)
                 cmake_path(GET scene STEM stem)
                 string(TOLOWER "game-${lowered}-${stem}" test)
                 add_test(NAME ${test} COMMAND ${name} ${args} --scene ${scene})
-                set_tests_properties(${test} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300)
+                set_tests_properties(${test} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300
+                    FAIL_REGULAR_EXPRESSION "Failed to load")
             endforeach()
         else()
             add_test(NAME game-${lowered} COMMAND ${name} ${args})
-            set_tests_properties(game-${lowered} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300)
+            set_tests_properties(game-${lowered} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300
+                FAIL_REGULAR_EXPRESSION "Failed to load")
         endif()
     endif()
 endfunction()

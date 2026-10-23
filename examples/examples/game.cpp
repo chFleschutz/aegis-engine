@@ -52,12 +52,33 @@ private:
     bool m_warned{ false };
 };
 
+/// @brief Pulses the intensity of its entity's point light between zero and the intensity it started with
+class LightPulse : public aegis::scripting::Script
+{
+public:
+    float speed{ 1.0f }; // Radians per second, a registered field
+
+    void onCreate(aegis::scripting::ScriptContext& context) override { m_intensity = context.get<aegis::PointLight>().intensity; }
+
+    void onUpdate(aegis::scripting::ScriptContext& context, float deltaSeconds) override
+    {
+        m_time += deltaSeconds * speed;
+        context.get<aegis::PointLight>().intensity = m_intensity * (std::sin(m_time) + 1.0f) / 2.0f;
+    }
+
+private:
+    float m_intensity{ 0.0f };
+    float m_time{ 0.0f };
+};
+
 auto registerTypes(aegis::reflect::TypeRegistry& types) -> std::expected<void, aegis::reflect::Error>
 {
     return aegis::scripting::registerScript<Rotator>(types, "Rotator")
         .and_then([](auto builder) { return builder.field("speed", &Rotator::speed).status(); })
         .and_then([&types] { return aegis::scripting::registerScript<ColorChanger>(types, "ColorChanger"); })
         .and_then([](auto builder) { return builder.field("speed", &ColorChanger::speed).status(); })
+        .and_then([&types] { return aegis::scripting::registerScript<LightPulse>(types, "LightPulse"); })
+        .and_then([](auto builder) { return builder.field("speed", &LightPulse::speed).status(); })
         .and_then([&types] { return examples::registerSpawner(types); });
 }
 }
