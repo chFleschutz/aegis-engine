@@ -18,6 +18,10 @@ PUBLIC
 		script.cppm
 		script_system.cppm
 		movement/kinematic_movement_controller.cppm
+PRIVATE
+	script.cpp
+	script_system.cpp
+	movement/kinematic_movement_controller.cpp
 )
 
 target_include_directories(aegis-scripting PRIVATE

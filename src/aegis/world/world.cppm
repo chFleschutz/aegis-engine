@@ -10,7 +10,6 @@ export module aegis.world;
 import std;
 export import aegis.world.registry;
 import aegis.math;
-import aegis.core;
 export import aegis.world.system; // System and UpdateMode, which begin and update take
 
 export namespace aegis::world
@@ -36,19 +35,7 @@ public:
     [[nodiscard]] auto directionalLight() const -> Entity { return m_registry.first<DirectionalLight>(); }
 
     /// @brief Makes the entity the main camera: it gets the MainCamera tag, which moves off any other entity
-    void setMainCamera(Entity camera)
-    {
-        std::vector<Entity> previous;
-        for (const auto entity : m_registry.view<MainCamera>())
-        {
-            if (Entity{ entity } != camera)
-                previous.push_back(Entity{ entity });
-        }
-        for (const auto entity : previous)
-            m_registry.remove<MainCamera>(entity);
-        if (m_registry.valid(camera) && !m_registry.has<MainCamera>(camera))
-            m_registry.add<MainCamera>(camera);
-    }
+    void setMainCamera(Entity camera);
 
     template<SystemDerived T, typename... Args>
         requires std::constructible_from<T, Args...>
@@ -63,45 +50,16 @@ public:
     void defer(std::function<void(Registry&)> command) { m_deferred.push_back(std::move(command)); }
 
     /// @brief Starts the systems that run in 'mode'
-    void begin(UpdateMode mode = UpdateMode::Play)
-    {
-        for (auto& system : m_systems)
-        {
-            if (runs(*system, mode))
-                system->onBegin(m_registry);
-        }
-    }
+    void begin(UpdateMode mode = UpdateMode::Play);
 
     /// @brief Applies the deferred commands, then runs the systems of 'mode' phase by phase
-    void update(float deltaSeconds, UpdateMode mode = UpdateMode::Play)
-    {
-        aegis::ScopeProfiler profiler("Scene Update");
-
-        applyDeferred();
-        for (const auto phase : { Phase::PreUpdate, Phase::Update, Phase::PostUpdate, Phase::LateUpdate })
-        {
-            for (auto& system : m_systems)
-            {
-                if (system->phase() == phase && runs(*system, mode))
-                    system->onUpdate(m_registry, deltaSeconds);
-            }
-        }
-    }
+    void update(float deltaSeconds, UpdateMode mode = UpdateMode::Play);
 
     /// @brief Empties the scene: the systems end what they run (scripts get onDestroy) while the
     ///        entities still exist, then every entity and then every system is removed
     /// @note Slots, StableIds and the registry's destroy listeners go with the entities. The scene can be
     ///       filled again afterwards (systems included).
-    void reset()
-    {
-        for (auto& system : m_systems)
-        {
-            system->onReset(m_registry);
-        }
-        m_deferred.clear();
-        m_registry.clear();
-        m_systems.clear();
-    }
+    void reset();
 
 private:
     [[nodiscard]] static auto runs(const System& system, UpdateMode mode) -> bool
@@ -109,14 +67,7 @@ private:
         return mode == UpdateMode::Play || system.runsInEdit();
     }
 
-    void applyDeferred()
-    {
-        // A command may defer more; those wait for the next update
-        auto commands = std::move(m_deferred);
-        m_deferred.clear();
-        for (auto& command : commands)
-            command(m_registry);
-    }
+    void applyDeferred();
 
     Registry m_registry;
     std::vector<std::function<void(Registry&)>> m_deferred;

@@ -20,13 +20,7 @@ public:
     /// @param registry The registry of the world this system runs in (it must outlive the system)
     /// @param input What scripts see as input; it is read every frame, so whoever owns it updates it in place
     /// @param cursor Lets scripts change the cursor mode, or null in a world without a window
-    ScriptSystem(world::Registry& registry, const platform::InputState& input, platform::Input* cursor = nullptr) :
-        m_registry(registry),
-        m_input(input),
-        m_cursor(cursor)
-    {
-        m_registry.addDestroyListener(this, [this](world::Entity entity) { destroyScripts(entity); });
-    }
+    ScriptSystem(world::Registry& registry, const platform::InputState& input, platform::Input* cursor = nullptr);
     /// @brief For a world without a window: scripts see no input
     explicit ScriptSystem(world::Registry& registry) :
         ScriptSystem(registry, m_noInput)
@@ -35,11 +29,7 @@ public:
     ScriptSystem(const ScriptSystem&) = delete;
     ScriptSystem& operator=(const ScriptSystem&) = delete;
 
-    ~ScriptSystem() override
-    {
-        destroyAll(); // Whatever still runs ends properly
-        m_registry.removeDestroyListener(this);
-    }
+    ~ScriptSystem() override;
 
     /// @brief Creates the scripts that exist when the scene begins
     void onBegin(world::Registry& registry) override { run(registry, 0.0f, false); }
@@ -50,66 +40,12 @@ public:
 
 private:
     /// @brief Creates the scripts that need it and optionally updates them all
-    void run(world::Registry& registry, float deltaSeconds, bool update)
-    {
-        // Scripts spawn and destroy entities, which a view over Scripts must not see happen
-        m_entities.clear();
-        for (const auto entity : registry.view<Scripts>())
-            m_entities.push_back(world::Entity{ entity });
-
-        for (const auto entity : m_entities)
-        {
-            // Index-based: a hook can destroy the entity or attach scripts to it (they run in this loop),
-            // which moves or removes the entries. Scripts attached to other entities start next frame.
-            for (std::size_t i = 0; registry.valid(entity) && registry.has<Scripts>(entity) && i < registry.get<Scripts>(entity).entries.size(); i++)
-            {
-                auto& entry = registry.get<Scripts>(entity).entries[i];
-                if (entry.state == ScriptEntry::State::Destroyed)
-                    continue;
-
-                const auto script = entry.script; // Alive for the call even if the hook destroys the entity
-                ScriptContext context{ registry, entity, m_input, m_cursor };
-                if (entry.state == ScriptEntry::State::Attached)
-                {
-                    entry.state = ScriptEntry::State::Created;
-                    script->onCreate(context);
-                    if (!registry.valid(entity))
-                        break;
-                }
-                if (update)
-                    script->onUpdate(context, deltaSeconds);
-            }
-        }
-    }
+    void run(world::Registry& registry, float deltaSeconds, bool update);
 
     /// @brief Calls onDestroy on the entity's running scripts
-    void destroyScripts(world::Entity entity)
-    {
-        if (!m_registry.valid(entity) || !m_registry.has<Scripts>(entity))
-            return;
+    void destroyScripts(world::Entity entity);
 
-        for (std::size_t i = 0; i < m_registry.get<Scripts>(entity).entries.size(); i++)
-        {
-            auto& entry = m_registry.get<Scripts>(entity).entries[i];
-            const bool running = entry.state == ScriptEntry::State::Created;
-            entry.state = ScriptEntry::State::Destroyed;
-            if (!running)
-                continue;
-
-            const auto script = entry.script;
-            ScriptContext context{ m_registry, entity, m_input, m_cursor };
-            script->onDestroy(context);
-        }
-    }
-
-    void destroyAll()
-    {
-        std::vector<world::Entity> entities;
-        for (const auto entity : m_registry.view<Scripts>())
-            entities.push_back(world::Entity{ entity });
-        for (const auto entity : entities)
-            destroyScripts(entity);
-    }
+    void destroyAll();
 
     world::Registry& m_registry;
     const platform::InputState& m_input;
