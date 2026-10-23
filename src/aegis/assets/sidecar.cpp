@@ -1,6 +1,7 @@
 module;
 
 #include <glaze/glaze.hpp>
+#include <xxhash.h>
 
 module aegis.assets;
 import std;
@@ -80,8 +81,17 @@ auto Sidecar::subAssetId(const std::string& key) -> AssetId
 {
     auto [it, inserted] = subAssets.try_emplace(key, AssetId{});
     if (inserted)
-        it->second = AssetId::generate();
+        it->second = deriveSubAssetId(id, key);
     return it->second;
+}
+
+auto deriveSubAssetId(AssetId file, std::string_view key) -> AssetId
+{
+    std::string bytes(8, '\0');
+    for (std::size_t i = 0; i < 8; ++i)
+        bytes[i] = static_cast<char>(file.value >> (8 * i));
+    bytes += key;
+    return AssetId{ XXH3_64bits(bytes.data(), bytes.size()) };
 }
 
 auto sidecarPath(const std::filesystem::path& source) -> std::filesystem::path

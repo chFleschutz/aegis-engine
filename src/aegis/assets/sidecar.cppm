@@ -29,11 +29,19 @@ struct Sidecar
     ImportSettings settings;
     std::map<std::string, AssetId> subAssets; // Sorted, so saving an unchanged sidecar gives the same bytes
 
-    /// @brief The ID of the part 'key', made and recorded if the table has none.
+    /// @brief The ID of the part 'key': the table's entry, else derived (deriveSubAssetId) from 'id' and
+    ///        recorded. A recorded ID is never recomputed, so older random IDs stay as they are.
     auto subAssetId(const std::string& key) -> AssetId;
 
     [[nodiscard]] friend auto operator==(const Sidecar&, const Sidecar&) -> bool = default;
 };
+
+/// @brief The ID of a new part 'key' of the file 'file': XXH3_64 of the file's ID as little-endian bytes followed
+///        by the key's bytes (escaped, UTF-8), with seed 0. Every machine and branch that meets the same new part
+///        derives the same ID, so their sidecars agree. Recorded IDs are data, so it must never change (a test pins
+///        it). A result of zero, or one that equals another part's ID, is as unlikely as a random collision and
+///        rejected the same way, when the sidecar is read or scanned.
+[[nodiscard]] auto deriveSubAssetId(AssetId file, std::string_view key) -> AssetId;
 
 /// @brief `<source>.meta`: the full file name plus ".meta", so Helmet.gltf and Helmet.png do not collide.
 [[nodiscard]] auto sidecarPath(const std::filesystem::path& source) -> std::filesystem::path;
