@@ -88,7 +88,6 @@ struct Fixture
     std::filesystem::path root;
     std::filesystem::path model;
     ImportCache cache;
-    AssetId id{ AssetId::generate() };
 
     Fixture()
     {
@@ -96,7 +95,7 @@ struct Fixture
         root = std::filesystem::temp_directory_path() / std::format("aegis-cache-test-{}-{}", AssetId::generate().toString(), counter++);
         std::filesystem::create_directories(root / "assets");
         model = root / "assets" / "tri.gltf";
-        cache = ImportCache{ root / ".aegis" / "imported" };
+        cache = ImportCache{ root / ".aegis" / "cache" / "imported" };
         write("tri.gltf", triangleGltf());
         write("tri.bin", triangleBuffer());
         write("tex.png", std::string{ reinterpret_cast<const char*>(pngBytes.data()), pngBytes.size() });
@@ -116,16 +115,26 @@ struct Fixture
 
     auto load(const assets::ImportSettings& settings = {}) const -> ImportCache::ModelLoad
     {
-        auto loaded = cache.loadModel(id, model, settings);
+        auto loaded = cache.loadModel(model, settings);
         REQUIRE(loaded);
         return std::move(*loaded);
     }
 
+    // The folder of the model's entry as the files are now.
+    auto entryDirectory(const assets::ImportSettings& settings = {}) const -> std::filesystem::path
+    {
+        auto directory = cache.entryDirectory(model, settings);
+        REQUIRE(directory);
+        return std::move(*directory);
+    }
+
     // Every file of the entry with its bytes.
-    auto entryFiles() const -> std::map<std::string, std::string>
+    auto entryFiles() const -> std::map<std::string, std::string> { return filesOf(entryDirectory()); }
+
+    static auto filesOf(const std::filesystem::path& directory) -> std::map<std::string, std::string>
     {
         std::map<std::string, std::string> files;
-        for (const auto& file : std::filesystem::directory_iterator{ cache.entryDirectory(id) })
+        for (const auto& file : std::filesystem::directory_iterator{ directory })
         {
             std::ifstream stream{ file.path(), std::ios::binary };
             files.emplace(file.path().filename().string(), std::string{ std::istreambuf_iterator<char>{ stream }, {} });
@@ -205,7 +214,7 @@ TEST_SUITE("assets::ImportCache")
         const Fixture fixture;
         const auto first = fixture.load();
         CHECK_FALSE(first.cached);
-        CHECK(std::filesystem::exists(fixture.cache.entryDirectory(fixture.id) / "model.json"));
+        CHECK(std::filesystem::exists(fixture.entryDirectory() / "model.json"));
 
         const auto second = fixture.load();
         CHECK(second.cached);
@@ -300,7 +309,7 @@ TEST_SUITE("assets::ImportCache")
     {
         const Fixture fixture;
         (void)fixture.load();
-        std::ofstream{ fixture.cache.entryDirectory(fixture.id) / "model.json", std::ios::binary } << "{ not json";
+        std::ofstream{ fixture.entryDirectory() / "model.json", std::ios::binary } << "{ not json";
         CHECK_FALSE(fixture.load().cached);
         CHECK(fixture.load().cached);
     }
@@ -309,7 +318,7 @@ TEST_SUITE("assets::ImportCache")
     {
         const Fixture fixture;
         (void)fixture.load();
-        std::ofstream{ fixture.cache.entryDirectory(fixture.id) / "mesh-0-0.mesh", std::ios::binary } << "short";
+        std::ofstream{ fixture.entryDirectory() / "mesh-0-0.mesh", std::ios::binary } << "short";
         CHECK_FALSE(fixture.load().cached);
         CHECK(fixture.load().cached);
     }
@@ -318,14 +327,157 @@ TEST_SUITE("assets::ImportCache")
     {
         const Fixture fixture;
         const ImportCache none;
-        CHECK_FALSE(none.loadModel(fixture.id, fixture.model, {})->cached);
-        CHECK_FALSE(none.loadModel(fixture.id, fixture.model, {})->cached);
+        CHECK_FALSE(none.loadModel(fixture.model, {})->cached);
+        CHECK_FALSE(none.loadModel(fixture.model, {})->cached);
     }
 
     TEST_CASE("a missing model file is an error")
     {
         const Fixture fixture;
-        CHECK(fixture.cache.loadModel(fixture.id, fixture.root / "missing.gltf", {}).error().code == ErrorCode::FileNotFound);
+        CHECK(fixture.cache.loadModel(fixture.root / "missing.gltf", {}).error().code == ErrorCode::FileNotFound);
+    }
+
+    TEST_CASE("an entry is a folder named by its key with a manifest of the source")
+    {
+        const Fixture fixture;
+        (void)fixture.load();
+        const auto directory = fixture.entryDirectory();
+        CHECK(directory.parent_path() == fixture.cache.directory());
+        CHECK(directory.filename().string().size() == 16);
+        CHECK(std::filesystem::exists(directory / "used"));
+        const auto manifests = fixture.cache.directory() / "manifests";
+        CHECK(std::distance(std::filesystem::directory_iterator{ manifests }, std::filesystem::directory_iterator{}) == 1);
+    }
+
+    TEST_CASE("switching a file back to an earlier version reads the cache")
+    {
+        const Fixture fixture;
+        (void)fixture.load();
+        fixture.write("tri.gltf", triangleGltf("renamed"));
+        CHECK_FALSE(fixture.load().cached);
+        fixture.write("tri.gltf", triangleGltf());
+        CHECK(fixture.load().cached);
+        fixture.write("tri.bin", triangleBuffer(0.5f));
+        CHECK_FALSE(fixture.load().cached);
+        fixture.write("tri.bin", triangleBuffer());
+        CHECK(fixture.load().cached);
+    }
+
+    TEST_CASE("identical files elsewhere share the entry")
+    {
+        const Fixture fixture;
+        (void)fixture.load();
+        std::filesystem::copy(fixture.root / "assets", fixture.root / "copy");
+        const ImportCache other{ fixture.cache.directory() };
+        const auto copy = fixture.root / "copy" / "tri.gltf";
+        CHECK(other.loadModel(copy, {})->cached);
+        CHECK(other.entryDirectory(copy, {}) == fixture.entryDirectory());
+    }
+
+    TEST_CASE("an entry that exists is kept when the file is imported again")
+    {
+        const Fixture fixture;
+        (void)fixture.load();
+        const auto directory = fixture.entryDirectory();
+        std::ofstream{ directory / "marker" } << "kept";
+        std::filesystem::remove_all(fixture.cache.directory() / "manifests");
+        CHECK_FALSE(fixture.load().cached);
+        CHECK(std::filesystem::exists(directory / "marker"));
+        CHECK(fixture.load().cached);
+    }
+}
+
+TEST_SUITE("assets::ImportCache::evict")
+{
+    using namespace std::chrono_literals;
+    using Clock = std::filesystem::file_time_type::clock;
+
+    // The entries of 'fixture': the triangle as it is now, then renamed (the newer); the file is the renamed one.
+    auto twoEntries(const Fixture& fixture) -> std::pair<std::filesystem::path, std::filesystem::path>
+    {
+        (void)fixture.load();
+        auto older = fixture.entryDirectory();
+        fixture.write("tri.gltf", triangleGltf("renamed"));
+        (void)fixture.load();
+        auto newer = fixture.entryDirectory();
+        std::filesystem::last_write_time(older / "used", Clock::now() - 2h);
+        std::filesystem::last_write_time(newer / "used", Clock::now() - 1h);
+        return { std::move(older), std::move(newer) };
+    }
+
+    TEST_CASE("entries unused for too long are removed and used ones kept")
+    {
+        const Fixture fixture;
+        const auto [older, newer] = twoEntries(fixture);
+        std::filesystem::last_write_time(older / "used", Clock::now() - 24h * 31);
+        const auto result = fixture.cache.evict();
+        CHECK(result.removed == 1);
+        CHECK(result.kept == 1);
+        CHECK_FALSE(std::filesystem::exists(older));
+        CHECK(std::filesystem::exists(newer / "model.json"));
+        CHECK(fixture.load().cached);
+    }
+
+    TEST_CASE("the least recently used entries go when the cache is too large")
+    {
+        const Fixture fixture;
+        const auto [older, newer] = twoEntries(fixture);
+        const auto all = fixture.cache.evict();
+        CHECK(all.removed == 0);
+        CHECK(all.kept == 2);
+        const auto result = fixture.cache.evict({ .maxBytes = all.bytes - 1 });
+        CHECK(result.removed == 1);
+        CHECK(result.kept == 1);
+        CHECK(result.bytes < all.bytes);
+        CHECK_FALSE(std::filesystem::exists(older));
+        CHECK(std::filesystem::exists(newer));
+    }
+
+    TEST_CASE("loading an entry marks it used")
+    {
+        const Fixture fixture;
+        (void)fixture.load();
+        std::filesystem::last_write_time(fixture.entryDirectory() / "used", Clock::now() - 24h * 31);
+        CHECK(fixture.load().cached);
+        CHECK(fixture.cache.evict().removed == 0);
+        CHECK(fixture.load().cached);
+    }
+
+    TEST_CASE("abandoned staging folders are removed")
+    {
+        const Fixture fixture;
+        (void)fixture.load();
+        const auto staging = fixture.cache.directory() / ".staging-0";
+        std::filesystem::create_directories(staging);
+        std::ofstream{ staging / "model.json" } << "{}";
+        (void)fixture.cache.evict();
+        CHECK(std::filesystem::exists(staging));
+        (void)fixture.cache.evict({ .now = Clock::now() + 2h });
+        CHECK_FALSE(std::filesystem::exists(staging));
+        CHECK(fixture.load().cached);
+    }
+
+#ifdef _WIN32
+    TEST_CASE("an entry another process has open is kept whole")
+    {
+        const Fixture fixture;
+        (void)fixture.load();
+        const auto directory = fixture.entryDirectory();
+        const auto files = Fixture::filesOf(directory);
+        {
+            const std::ifstream open{ directory / "mesh-0-0.mesh", std::ios::binary };
+            const auto result = fixture.cache.evict({ .now = Clock::now() + 24h * 31 });
+            CHECK(result.removed == 0);
+            CHECK(result.kept == 1);
+        }
+        CHECK(Fixture::filesOf(directory) == files);
+    }
+#endif
+
+    TEST_CASE("a cache without a folder evicts nothing")
+    {
+        CHECK(ImportCache{}.evict().kept == 0);
+        CHECK(ImportCache{ std::filesystem::temp_directory_path() / "aegis-no-such-cache" }.evict().removed == 0);
     }
 }
 
@@ -335,9 +487,9 @@ TEST_SUITE("assets::ImportCache::dump")
     {
         const Fixture fixture;
         (void)fixture.load();
-        const auto text = fixture.cache.dump(fixture.id);
+        const auto text = fixture.cache.dump(fixture.model, {});
         REQUIRE(text);
-        CHECK(text->contains(fixture.id.toString()));
+        CHECK(text->contains(fixture.entryDirectory().filename().string()));
         CHECK(text->contains("tri.bin"));
         CHECK(text->contains("StaticMesh/tri/0: mesh-0-0.mesh, 3 vertices, 3 indices, 1 meshlets"));
     }
@@ -346,7 +498,7 @@ TEST_SUITE("assets::ImportCache::dump")
     {
         const Fixture fixture;
         (void)fixture.load();
-        const auto text = fixture.cache.dump(fixture.id, "StaticMesh/tri/0");
+        const auto text = fixture.cache.dump(fixture.model, {}, "StaticMesh/tri/0");
         REQUIRE(text);
         CHECK(text->contains("magic AEGM"));
         CHECK(text->contains("bounds: center"));
@@ -358,12 +510,12 @@ TEST_SUITE("assets::ImportCache::dump")
     {
         const Fixture fixture;
         (void)fixture.load();
-        CHECK(fixture.cache.dump(fixture.id, "StaticMesh/other/0").error().code == ErrorCode::InvalidArgument);
+        CHECK(fixture.cache.dump(fixture.model, {}, "StaticMesh/other/0").error().code == ErrorCode::InvalidArgument);
     }
 
     TEST_CASE("a model without an entry is an error")
     {
         const Fixture fixture;
-        CHECK(fixture.cache.dump(fixture.id).error().code == ErrorCode::FileNotFound);
+        CHECK(fixture.cache.dump(fixture.model, {}).error().code == ErrorCode::FileNotFound);
     }
 }

@@ -47,4 +47,8 @@ struct Lookup
 
 /// @brief Where the asset index is kept (`<build>/.aegis`). Never committed.
 [[nodiscard]] auto cache() -> const std::filesystem::path&;
+
+/// @brief AEGIS_CACHE_DIR if it is set: then a game's project keeps its import cache there too, so checkouts of one
+///        project can share it.
+[[nodiscard]] auto cacheOverride() -> const std::optional<std::filesystem::path>&;
 }
