@@ -15,6 +15,12 @@ PUBLIC
 		system.cppm
 		systems/camera_system.cppm
 		systems/transform_system.cppm
+PRIVATE
+	registry.cpp
+	types.cpp
+	world.cpp
+	systems/camera_system.cpp
+	systems/transform_system.cpp
 )
 
 # TODO: remove this once everything is a module

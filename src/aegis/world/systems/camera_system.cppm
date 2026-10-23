@@ -1,7 +1,3 @@
-module;
-
-#include <cassert>
-
 export module aegis.world.systems.camera_system;
 
 import std;
@@ -21,37 +17,11 @@ public:
     /// @brief Edited entities move in the editor too
     [[nodiscard]] auto runsInEdit() const -> bool override { return true; }
 
-    virtual void onUpdate(Registry& registry, float deltaSeconds) override
-    {
-        auto view = registry.view<GlobalTransform, Camera>();
-        for (auto&& [entity, transform, camera] : view.each())
-        {
-            calcViewMatrix(camera, transform);
-            calcPerspectiveProjection(camera);
-        }
-    }
+    virtual void onUpdate(Registry& registry, float deltaSeconds) override;
 
 private:
-    void calcViewMatrix(Camera& camera, GlobalTransform& transform)
-    {
-        camera.viewMatrix = math::viewMatrix(transform.location, transform.forward());
-        camera.inverseViewMatrix = math::inverseViewMatrix(transform.location, transform.forward());
-    }
+    void calcViewMatrix(Camera& camera, GlobalTransform& transform);
 
-    void calcPerspectiveProjection(Camera& camera)
-    {
-        assert(std::abs(camera.aspect - std::numeric_limits<float>::epsilon()) > 0.0f);
-
-        // Projection matrix for right handed system with depth range [0, 1]
-        // Note: Value [1][1] is negated because Vulkan uses a flipped y-axis
-        const float tanHalfFovy = std::tan(camera.fov / 2.0f);
-        glm::mat4 perspective{ 0.0f };
-        perspective[0][0] = 1.0f / (camera.aspect * tanHalfFovy);
-        perspective[1][1] = -1.0f / (tanHalfFovy);
-        perspective[2][2] = camera.far / (camera.near - camera.far);
-        perspective[2][3] = -1.0f;
-        perspective[3][2] = -(camera.far * camera.near) / (camera.far - camera.near);
-        camera.projectionMatrix = perspective;
-    }
+    void calcPerspectiveProjection(Camera& camera);
 };
 }
