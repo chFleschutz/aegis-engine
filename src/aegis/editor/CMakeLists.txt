@@ -57,6 +57,7 @@ target_sources(aegis-editor
     ui/editor_shell.cppm
     ui/panel.cppm
     ui/panels.cppm
+    ui/viewport.cppm
     PRIVATE
     ui/editor_shell.cpp
     ui/panels/console_panel.cpp
@@ -66,4 +67,5 @@ target_sources(aegis-editor
     ui/panels/renderer_panel.cpp
     ui/panels/scene_panel.cpp
     ui/panels/statistics_panel.cpp
+    ui/viewport.cpp
 )

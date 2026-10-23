@@ -6,11 +6,7 @@ module;
 module aegis.editor;
 import std;
 import aegis.core;
-import aegis.math;
-import aegis.render_passes;
-import aegis.rhi;
 import aegis.world;
-import aegis.world.systems.transform_system;
 import :panels;
 
 namespace aegis::editor
@@ -87,6 +83,8 @@ EditorShell::~EditorShell()
 auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
 {
     applyStyle();
+    // A drag in a window's body is the viewport's (orbit, gizmo), not a window move
+    ImGui::GetIO().ConfigWindowsMoveFromTitleBarOnly = true;
     // A headless run (a test, a screenshot) neither reads nor changes the user's layout.
     if (!engine.headless() && !engine.project().empty())
         m_layoutFile = layoutFile(engine.project());
@@ -122,15 +120,14 @@ void EditorShell::onShutdown()
 
 auto EditorShell::renderView() const -> std::optional<RenderView>
 {
-    if (!m_viewportExtent)
-        return std::nullopt;
-    return RenderView{ .extent = *m_viewportExtent };
+    return m_viewport.renderView();
 }
 
 auto EditorShell::inputCapture() const -> InputCapture
 {
     const auto& io = ImGui::GetIO();
-    return { .keyboard = io.WantCaptureKeyboard, .mouse = io.WantCaptureMouse };
+    const bool viewport = m_viewport.capturesInput();
+    return { .keyboard = io.WantCaptureKeyboard || viewport, .mouse = io.WantCaptureMouse || viewport };
 }
 
 void EditorShell::onFrame(FrameContext& frame)
@@ -140,7 +137,6 @@ void EditorShell::onFrame(FrameContext& frame)
 
     ImGui::GetStyle().FontScaleMain = m_context.preferences().uiScale;
     ImGuizmo::BeginFrame();
-    updateGizmoMode();
 
     beginMainWindow();
     drawMenuBar();
@@ -149,9 +145,7 @@ void EditorShell::onFrame(FrameContext& frame)
         if (panel->isOpen())
             panel->draw(m_context, frame);
     }
-    drawViewport(frame);
-    if (m_gizmoMode != GizmoMode::None)
-        drawGizmo(frame.world);
+    m_viewport.draw(m_context, frame);
     drawStatusBar(frame);
     ImGui::End();
 
@@ -222,109 +216,11 @@ void EditorShell::drawMenuBar()
             if (ImGui::MenuItem(name.c_str(), nullptr, panel->isOpen()))
                 panel->setOpen(!panel->isOpen());
         }
-        if (ImGui::MenuItem("Viewport", nullptr, m_viewportOpen))
-            m_viewportOpen = !m_viewportOpen;
+        if (ImGui::MenuItem("Viewport", nullptr, m_viewport.isOpen()))
+            m_viewport.setOpen(!m_viewport.isOpen());
         ImGui::EndMenu();
     }
 
     ImGui::EndMainMenuBar();
-}
-
-// A first viewport (docs/editor.md, E2 finishes it): the scene renders into a view of the panel's size, shown in it.
-void EditorShell::drawViewport(FrameContext& frame)
-{
-    if (m_viewportOpen)
-    {
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
-        const bool visible = ImGui::Begin("Viewport", &m_viewportOpen);
-        ImGui::PopStyleVar();
-        if (visible)
-        {
-            const auto size = ImGui::GetContentRegionAvail();
-            m_viewportExtent = rhi::Extent2D{ static_cast<std::uint32_t>(std::max(size.x, 1.0f)), static_cast<std::uint32_t>(std::max(size.y, 1.0f)) };
-            // The graph renders into the view the viewport asked for last frame; until then "Final" is the window's.
-            const auto final = frame.frameGraph.declarations().find(render_graph::names::finalImage);
-            if (frame.viewExtent && final)
-            {
-                if (const auto texture = frame.presentation.uiTexture(frame.frameGraph.pool().texture(*final).view))
-                    ImGui::Image(ImTextureRef{ texture }, size);
-            }
-        }
-        ImGui::End();
-    }
-    if (!m_viewportOpen)
-        m_viewportExtent.reset();
-}
-
-void EditorShell::updateGizmoMode()
-{
-    // ImGui's keys, not the game's input: typing in a text field doesn't switch the gizmo
-    const auto& io = ImGui::GetIO();
-    m_snapping = io.KeyCtrl;
-    if (ImGuizmo::IsUsing() || io.WantTextInput)
-        return;
-
-    if (ImGui::IsKeyDown(ImGuiKey_Q))
-        m_gizmoMode = GizmoMode::None;
-    else if (ImGui::IsKeyDown(ImGuiKey_W))
-        m_gizmoMode = GizmoMode::Translate;
-    else if (ImGui::IsKeyDown(ImGuiKey_E))
-        m_gizmoMode = GizmoMode::Rotate;
-    else if (ImGui::IsKeyDown(ImGuiKey_R))
-        m_gizmoMode = GizmoMode::Scale;
-}
-
-void EditorShell::drawGizmo(world::World& world)
-{
-    auto& registry = world.registry();
-    const auto selected = m_context.selectedEntity();
-    const auto mainCamera = world.mainCamera();
-    if (!registry.valid(selected) || !registry.has<Transform, GlobalTransform, Parent>(selected))
-        return;
-    if (!registry.has<Camera>(mainCamera)) // Null or without a camera
-        return;
-
-    ImGuizmo::SetOrthographic(false);
-    ImGuizmo::SetDrawlist();
-    const ImGuiIO& io = ImGui::GetIO();
-    ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-
-    auto& camera = registry.get<Camera>(mainCamera);
-    glm::mat4 projectionMatrix = camera.projectionMatrix;
-    projectionMatrix[1][1] *= -1.0f; // Flip y-axis
-
-    // The gizmo works in world space; the result is converted back to the local transform
-    auto& transform = registry.get<Transform>(selected);
-    glm::mat4 transformMatrix = registry.get<GlobalTransform>(selected).matrix();
-
-    auto operation = ImGuizmo::OPERATION::TRANSLATE;
-    const auto& preferences = m_context.preferences();
-    float snapValue = preferences.snapTranslate;
-    if (m_gizmoMode == GizmoMode::Rotate)
-    {
-        operation = ImGuizmo::OPERATION::ROTATE;
-        snapValue = preferences.snapRotate;
-    }
-    else if (m_gizmoMode == GizmoMode::Scale)
-    {
-        operation = ImGuizmo::OPERATION::SCALE;
-        snapValue = preferences.snapScale;
-    }
-    const std::array snapValues{ snapValue, snapValue, snapValue };
-
-    ImGuizmo::Manipulate(glm::value_ptr(camera.viewMatrix), glm::value_ptr(projectionMatrix), operation,
-        ImGuizmo::MODE::LOCAL, glm::value_ptr(transformMatrix), nullptr, m_snapping ? snapValues.data() : nullptr);
-
-    if (ImGuizmo::IsUsing())
-    {
-        GlobalTransform parentGlobal{};
-        const auto parent = registry.get<Parent>(selected).entity;
-        if (parent && registry.has<GlobalTransform>(parent))
-            parentGlobal = registry.get<GlobalTransform>(parent);
-
-        transform = world::detail::toLocal(parentGlobal, transformMatrix);
-        if (!registry.has<DynamicTag>(selected))
-            registry.markStaticDirty(selected); // Static entities only move when told to
-    }
 }
 }
