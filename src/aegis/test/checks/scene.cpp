@@ -27,6 +27,43 @@ struct SceneResult
     std::uint32_t viewShown{ 0 };     // --view: frames whose UI showed the view (Presentation::uiTexture)
 };
 
+// The static entities of 'registry' a geometry pass draws: those with a mesh and a material.
+auto drawableStatic(world::Registry& registry) -> std::uint32_t
+{
+    std::uint32_t count{ 0 };
+    for (auto&& [entity, renderer] : registry.view<MeshRenderer>().each())
+    {
+        if (renderer.mesh && renderer.material && !registry.has<DynamicTag>(world::Entity{ entity }))
+            ++count;
+    }
+    return count;
+}
+
+// The static instances the instance pass wrote in the last frame; none on the CPU-driven path, which has no such pass.
+auto writtenStatic(const render_graph::FrameGraph& frameGraph) -> std::optional<std::uint32_t>
+{
+    for (const auto* pass : frameGraph.passes())
+    {
+        if (const auto* instances = dynamic_cast<const render_graph::InstanceUpdatePass*>(pass))
+            return instances->staticCount();
+    }
+    return std::nullopt;
+}
+
+// Destroys 'root' and its descendants.
+void destroySubtree(world::Registry& registry, world::Entity root)
+{
+    std::vector<world::Entity> doomed{ root };
+    for (std::size_t i = 0; i < doomed.size(); ++i)
+    {
+        for (auto child = registry.get<Children>(doomed[i]).first; child;
+            child = registry.get<Siblings>(child).next)
+            doomed.push_back(child);
+    }
+    for (const auto entity : doomed)
+        registry.destroy(entity);
+}
+
 // The test's side of the app: edits the loaded scene at the safe point (--mirror, --mutate-scene), renders it
 // through a second camera into a view of its own (--view), draws the stats window and checks the frame graph's
 // timings. Failures go to the SceneResult; the run carries on.
@@ -185,29 +222,12 @@ private:
         constexpr std::uint32_t editFrame{ 90 };
         auto& registry = frame.world.registry();
 
-        const auto drawableStatic = [&] {
-            std::uint32_t count{ 0 };
-            for (auto&& [entity, renderer] : registry.view<MeshRenderer>().each())
-            {
-                if (renderer.mesh && renderer.material && !registry.has<DynamicTag>(world::Entity{ entity }))
-                    ++count;
-            }
-            return count;
-        };
-        const auto writtenStatic = [&]() -> std::optional<std::uint32_t> {
-            for (auto* pass : frame.frameGraph.passes())
-            {
-                if (const auto* instances = dynamic_cast<render_graph::InstanceUpdatePass*>(pass))
-                    return instances->staticCount();
-            }
-            return std::nullopt; // The CPU-driven path has no instance pass
-        };
         // The frame after a change: the instances written for it match the scene.
         const auto verifyWritten = [&](std::string_view what, bool grew) -> std::expected<void, std::string> {
-            const auto expected = drawableStatic();
+            const auto expected = drawableStatic(registry);
             if (grew ? expected <= m_staticDrawn : expected >= m_staticDrawn)
                 return std::unexpected{ std::format("{} did not change the scene's static instances ({} before, {} after)", what, m_staticDrawn, expected) };
-            if (const auto written = writtenStatic(); written && *written != expected)
+            if (const auto written = writtenStatic(frame.frameGraph); written && *written != expected)
                 return std::unexpected{ std::format("after {}: {} static instances written, the scene has {}", what, *written, expected) };
             std::println("Scene change verified: {} -> {} static instances after {}", m_staticDrawn, expected, what);
             m_staticDrawn = expected;
@@ -216,7 +236,7 @@ private:
 
         if (m_frame == loadFrame)
         {
-            m_staticDrawn = drawableStatic();
+            m_staticDrawn = drawableStatic(registry);
             auto model = instantiateModel(frame.world, "models/sci_fi_helmet/SciFiHelmet.gltf");
             if (!model)
                 return std::unexpected{ std::format("Loading the second model: {}", model.error()) };
@@ -230,15 +250,7 @@ private:
         }
         else if (m_frame == destroyFrame)
         {
-            std::vector<world::Entity> doomed{ m_helmet };
-            for (std::size_t i = 0; i < doomed.size(); ++i)
-            {
-                for (auto child = registry.get<Children>(doomed[i]).first; child;
-                    child = registry.get<Siblings>(child).next)
-                    doomed.push_back(child);
-            }
-            for (const auto entity : doomed)
-                registry.destroy(entity);
+            destroySubtree(registry, m_helmet);
         }
         else if (m_frame == destroyFrame + 1)
         {
