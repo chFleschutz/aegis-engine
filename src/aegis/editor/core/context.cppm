@@ -4,6 +4,7 @@ import aegis.world;
 import :console;
 import :preferences;
 import :selection;
+import :undo_stack;
 
 export namespace aegis::editor
 {
@@ -14,11 +15,15 @@ class EditorContext
 public:
     /// @brief The world the panels show and edit, or null before the first frame.
     [[nodiscard]] auto world() const -> world::World* { return m_world; }
-    /// @brief Switches to 'world'; a selection made in another world is cleared.
+    /// @brief Switches to 'world'; a selection and an undo history made in another world are cleared.
     void setWorld(world::World& world);
 
     [[nodiscard]] auto selection() -> Selection& { return m_selection; }
     [[nodiscard]] auto selection() const -> const Selection& { return m_selection; }
+
+    /// @brief The history of field edits of the world; its saved marker is the scene's dirty flag.
+    [[nodiscard]] auto undoStack() -> UndoStack& { return m_undo; }
+    [[nodiscard]] auto undoStack() const -> const UndoStack& { return m_undo; }
 
     [[nodiscard]] auto console() -> ConsoleBuffer& { return m_console; }
     [[nodiscard]] auto console() const -> const ConsoleBuffer& { return m_console; }
@@ -42,6 +47,7 @@ private:
 
     world::World* m_world{ nullptr };
     Selection m_selection;
+    UndoStack m_undo;
     ConsoleBuffer m_console;
     EditorPreferences m_preferences;
     bool m_unsaved{ false };

@@ -141,7 +141,8 @@ void EditorShell::onFrame(FrameContext& frame)
     ImGuizmo::BeginFrame();
 
     beginMainWindow();
-    drawMenuBar();
+    handleUndoShortcuts(frame);
+    drawMenuBar(frame);
     for (const auto& panel : m_panels)
     {
         if (panel->isOpen())
@@ -205,10 +206,32 @@ void EditorShell::drawStatusBar(FrameContext& frame)
     ImGui::End();
 }
 
-void EditorShell::drawMenuBar()
+void EditorShell::handleUndoShortcuts(FrameContext& frame)
+{
+    // Not while a text box has the keyboard: it has its own undo
+    if (ImGui::GetIO().WantTextInput)
+        return;
+    const bool ctrl = ImGui::GetIO().KeyCtrl;
+    const bool shift = ImGui::GetIO().KeyShift;
+    if (ctrl && ImGui::IsKeyPressed(ImGuiKey_Z) && !shift)
+        undoEdit(m_context, frame);
+    else if (ctrl && (ImGui::IsKeyPressed(ImGuiKey_Y) || (shift && ImGui::IsKeyPressed(ImGuiKey_Z))))
+        redoEdit(m_context, frame);
+}
+
+void EditorShell::drawMenuBar(FrameContext& frame)
 {
     if (!ImGui::BeginMainMenuBar())
         return;
+
+    if (ImGui::BeginMenu("Edit"))
+    {
+        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, m_context.undoStack().canUndo()))
+            undoEdit(m_context, frame);
+        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, m_context.undoStack().canRedo()))
+            redoEdit(m_context, frame);
+        ImGui::EndMenu();
+    }
 
     if (ImGui::BeginMenu("View"))
     {

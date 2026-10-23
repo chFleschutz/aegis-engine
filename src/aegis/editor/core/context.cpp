@@ -6,7 +6,10 @@ namespace aegis::editor
 void EditorContext::setWorld(world::World& world)
 {
     if (m_world != &world)
+    {
         m_selection.clear();
+        m_undo.clear();
+    }
     m_world = &world;
 }
 

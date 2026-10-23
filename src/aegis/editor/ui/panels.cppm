@@ -14,3 +14,11 @@ namespace aegis::editor
 [[nodiscard]] auto makeProfilerPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeDemoPanel() -> std::unique_ptr<Panel>;
 }
+
+namespace aegis::editor
+{
+/// @brief Steps the edit history back (or forward) and writes the value to the world; false if there is nothing to do or
+///        the edit no longer applies (logged).
+auto undoEdit(EditorContext& editor, FrameContext& frame) -> bool;
+auto redoEdit(EditorContext& editor, FrameContext& frame) -> bool;
+}

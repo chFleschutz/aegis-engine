@@ -36,7 +36,8 @@ public:
     [[nodiscard]] auto context() -> EditorContext& { return m_context; }
 
 private:
-    void drawMenuBar();
+    void handleUndoShortcuts(FrameContext& frame);
+    void drawMenuBar(FrameContext& frame);
     void drawStatusBar(FrameContext& frame);
     void savePreferencesIfChanged();
 
