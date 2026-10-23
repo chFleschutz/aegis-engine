@@ -10,7 +10,9 @@ namespace
 {
 using aegis::StableId;
 using aegis::editor::applyEdit;
+using aegis::editor::Edit;
 using aegis::editor::EditSide;
+using aegis::editor::EditWorld;
 using aegis::editor::FieldEdit;
 using aegis::editor::UndoStack;
 using aegis::reflect::TypeRegistry;
@@ -30,6 +32,15 @@ constexpr StableId entityB{ 2 };
 auto edit(StableId entity, std::string field, float from, float to) -> FieldEdit
 {
     return { .entity = entity, .type = "Health", .field = std::move(field), .oldValue = Value{ from }, .newValue = Value{ to } };
+}
+
+// The recorded field edit; the stack holds every kind of edit.
+auto field(const Edit* entry) -> const FieldEdit&
+{
+    REQUIRE(entry);
+    const auto* edit = std::get_if<FieldEdit>(entry);
+    REQUIRE(edit);
+    return *edit;
 }
 
 auto registerHealth(TypeRegistry& types) -> void
@@ -60,15 +71,15 @@ TEST_SUITE("editor::UndoStack")
 
         const auto* second = stack.undo();
         REQUIRE(second);
-        CHECK(std::get<float>(second->oldValue) == 2.0f);
+        CHECK(std::get<float>(field(second).oldValue) == 2.0f);
         const auto* first = stack.undo();
         REQUIRE(first);
-        CHECK(std::get<float>(first->oldValue) == 1.0f);
+        CHECK(std::get<float>(field(first).oldValue) == 1.0f);
         CHECK_FALSE(stack.canUndo());
 
         const auto* again = stack.redo();
         REQUIRE(again);
-        CHECK(std::get<float>(again->newValue) == 2.0f);
+        CHECK(std::get<float>(field(again).newValue) == 2.0f);
         CHECK(stack.canRedo());
     }
 
@@ -83,7 +94,7 @@ TEST_SUITE("editor::UndoStack")
         CHECK_FALSE(stack.canRedo());
         const auto* last = stack.undo();
         REQUIRE(last);
-        CHECK(std::get<float>(last->newValue) == 9.0f);
+        CHECK(std::get<float>(field(last).newValue) == 9.0f);
     }
 
     TEST_CASE("ignores an edit that changes nothing")
@@ -102,8 +113,8 @@ TEST_SUITE("editor::UndoStack")
 
         const auto* drag = stack.undo();
         REQUIRE(drag);
-        CHECK(std::get<float>(drag->oldValue) == 1.0f);
-        CHECK(std::get<float>(drag->newValue) == 4.0f);
+        CHECK(std::get<float>(field(drag).oldValue) == 1.0f);
+        CHECK(std::get<float>(field(drag).newValue) == 4.0f);
         CHECK_FALSE(stack.canUndo());
     }
 
@@ -208,12 +219,12 @@ TEST_SUITE("editor::applyEdit")
 
         const auto* undone = stack.undo();
         REQUIRE(undone);
-        CHECK(applyEdit(types, registry, *undone, EditSide::Old).has_value());
+        CHECK(applyEdit(EditWorld{ types, registry }, *undone, EditSide::Old).has_value());
         CHECK(registry.get<Health>(entity).value == 100.0f);
 
         const auto* redone = stack.redo();
         REQUIRE(redone);
-        CHECK(applyEdit(types, registry, *redone, EditSide::New).has_value());
+        CHECK(applyEdit(EditWorld{ types, registry }, *redone, EditSide::New).has_value());
         CHECK(registry.get<Health>(entity).value == 40.0f);
     }
 
@@ -226,9 +237,9 @@ TEST_SUITE("editor::applyEdit")
         const auto entity = registry.create();
         const auto id = registry.get<StableId>(entity);
 
-        CHECK_FALSE(applyEdit(types, registry, edit(id, "value", 1.0f, 2.0f), EditSide::Old).has_value()); // No Health
+        CHECK_FALSE(applyEdit(EditWorld{ types, registry }, edit(id, "value", 1.0f, 2.0f), EditSide::Old).has_value()); // No Health
         registry.destroy(entity);
-        CHECK_FALSE(applyEdit(types, registry, edit(id, "value", 1.0f, 2.0f), EditSide::Old).has_value());
+        CHECK_FALSE(applyEdit(EditWorld{ types, registry }, edit(id, "value", 1.0f, 2.0f), EditSide::Old).has_value());
     }
 
     TEST_CASE("fails for an unknown type or field")
@@ -243,7 +254,7 @@ TEST_SUITE("editor::applyEdit")
 
         auto badType = edit(id, "value", 1.0f, 2.0f);
         badType.type = "Mana";
-        CHECK_FALSE(applyEdit(types, registry, badType, EditSide::Old).has_value());
-        CHECK_FALSE(applyEdit(types, registry, edit(id, "mana", 1.0f, 2.0f), EditSide::Old).has_value());
+        CHECK_FALSE(applyEdit(EditWorld{ types, registry }, badType, EditSide::Old).has_value());
+        CHECK_FALSE(applyEdit(EditWorld{ types, registry }, edit(id, "mana", 1.0f, 2.0f), EditSide::Old).has_value());
     }
 }

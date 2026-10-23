@@ -1,4 +1,4 @@
-# The editor's model: selection, the shared context, the editor camera, picking and the inspector's property model. No ImGui, no GPU; tested by aegis-tests-editor.
+# The editor's model: selection, the shared context, the editor camera, picking, the inspector's property model, and the edits and undo history. No ImGui, no GPU; tested by aegis-tests-editor.
 add_library(aegis-editor-core STATIC)
 
 target_link_libraries(aegis-editor-core
@@ -6,8 +6,10 @@ target_link_libraries(aegis-editor-core
         aegis-core
         aegis-math
         aegis-reflect
+        aegis-serialize # Subtree snapshots of the structural edits
         aegis-world
     PRIVATE
+        aegis-scripting # Attaching and detaching scripts
         glaze::glaze
 )
 
@@ -16,7 +18,9 @@ target_sources(aegis-editor-core
     FILE_SET CXX_MODULES FILES
     core/core.cppm
     core/console.cppm
+    core/commands.cppm
     core/context.cppm
+    core/edits.cppm
     core/editor_camera.cppm
     core/inspector.cppm
     core/picking.cppm
@@ -26,8 +30,10 @@ target_sources(aegis-editor-core
     core/settled_extent.cppm
     core/undo_stack.cppm
     PRIVATE
+    core/commands.cpp
     core/console.cpp
     core/context.cpp
+    core/edits.cpp
     core/editor_camera.cpp
     core/inspector.cpp
     core/picking.cpp

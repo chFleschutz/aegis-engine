@@ -263,7 +263,7 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
             else
             {
                 const auto id = frame.world.registry().get<StableId>(entity);
-                editor.undoStack().record({ .entity = id, .type = type.name, .field = row.field->name, .scriptIndex = scriptIndex, .oldValue = current, .newValue = *edited }, active);
+                editor.undoStack().record(FieldEdit{ .entity = id, .type = type.name, .field = row.field->name, .scriptIndex = scriptIndex, .oldValue = current, .newValue = *edited }, active);
             }
         }
         if (deactivated)
