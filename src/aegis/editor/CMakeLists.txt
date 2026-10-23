@@ -44,12 +44,17 @@ target_link_libraries(aegis-editor
         aegis-editor-core
         aegis-engine # The shell it implements
     PRIVATE
+        aegis-asset-library # The inspector's asset slots
+        aegis-assets
         aegis-core
         aegis-math
+        aegis-reflect
         aegis-render-graph
         aegis-render-passes # The frame graph's resource names
         aegis-renderer
         aegis-rhi
+        aegis-scripting
+        aegis-serialize # InstanceMember
         aegis-world
         imgui::imgui
         imguizmo
@@ -68,6 +73,7 @@ target_sources(aegis-editor
     ui/panels/console_panel.cpp
     ui/panels/preferences_panel.cpp
     ui/panels/demo_panel.cpp
+    ui/panels/inspector_panel.cpp
     ui/panels/profiler_panel.cpp
     ui/panels/renderer_panel.cpp
     ui/panels/scene_panel.cpp

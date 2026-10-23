@@ -67,6 +67,7 @@ EditorShell::EditorShell()
     m_logSink = log::addSink([this](log::Level level, std::string_view message) { m_context.console().push(level, message); });
 
     m_panels.push_back(makeScenePanel());
+    m_panels.push_back(makeInspectorPanel());
     m_panels.push_back(makeConsolePanel());
     m_panels.push_back(makePreferencesPanel());
     m_panels.push_back(makeRendererPanel());

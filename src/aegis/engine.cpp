@@ -505,6 +505,8 @@ void Engine::runShell(float deltaSeconds)
     m_presentation.beginFrame(m_renderer->extent(), deltaSeconds);
     FrameContext frame{
         .world = m_world,
+        .types = m_types,
+        .assets = *m_assets,
         .frameGraph = *m_frameGraph,
         .viewExtent = m_viewExtent,
         .presentation = m_presentation,
