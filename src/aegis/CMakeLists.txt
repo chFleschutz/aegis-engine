@@ -103,6 +103,8 @@ target_sources(aegis-engine
 PRIVATE
 	engine.cpp
 	presentation.cpp
+	scene_defaults.cpp
+	scene_description.cpp
 PUBLIC 
 	FILE_SET CXX_MODULES 
 	FILES

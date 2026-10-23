@@ -2,14 +2,12 @@ module;
 
 // Keeps std::derived_from visible to this interface (see AGENTS.md, import std)
 #include <concepts>
-#include <cstdlib>
 
 export module aegis.scene_description;
 
 import std;
 import aegis.asset_library;
 import aegis.assets;
-import aegis.core;
 import aegis.world;
 import aegis.reflect;
 
@@ -28,16 +26,7 @@ struct SceneContext
 ///        scene descriptions, which have nothing to fall back on: a failure is logged and exits the process, like
 ///        AssetLibrary::id. A model that fails to load is no failure; it is replaced by the default cube.
 /// @return The entity holding the instance; move it to place the model.
-inline auto instantiate(SceneContext& context, assets::AssetId scene, world::Entity parent = {}) -> world::Entity
-{
-    auto holder = context.assets.instantiateScene(context.scene, context.types, scene, parent);
-    if (!holder)
-    {
-        log::fatal("{}", holder.error());
-        std::exit(EXIT_FAILURE);
-    }
-    return *holder;
-}
+auto instantiate(SceneContext& context, assets::AssetId scene, world::Entity parent = {}) -> world::Entity;
 
 /// @brief Base class for creating a scene
 class SceneDescription
