@@ -168,6 +168,26 @@ TEST_SUITE("render_graph::InstanceStore")
         CHECK(store.dynamicDirty().empty());
     }
 
+    TEST_CASE("markAllDirty marks every instance dirty until the dirty ranges are cleared")
+    {
+        InstanceStore store;
+        const auto material = makeTemplate();
+        add(store, material);
+        add(store, material);
+        add(store, material, 0.0f, true);
+        store.clearDirty();
+
+        store.markAllDirty();
+        CHECK(store.staticDirty() == DirtyRange{ 0, 2 });
+        CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
+        add(store, material); // Beyond the old count: still covered
+        CHECK(store.staticDirty() == DirtyRange{ 0, 3 });
+
+        store.clearDirty();
+        CHECK(store.staticDirty().empty());
+        CHECK(store.dynamicDirty().empty());
+    }
+
     TEST_CASE("an update marks the instance dirty only when it changes")
     {
         InstanceStore store;
