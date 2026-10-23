@@ -18,9 +18,15 @@ struct ImportSettings
     [[nodiscard]] friend auto operator==(const ImportSettings&, const ImportSettings&) -> bool = default;
 };
 
+/// @brief Whether a texture with 'settings' is read as sRGB: its srgb setting, else 'usage', the default its kind
+///        implies (color for a texture file, the usage its materials imply for an image embedded in a model).
+///        The one rule for external and embedded images.
+[[nodiscard]] auto textureSrgb(const ImportSettings& settings, bool usage) -> bool;
+
 /// @brief The `<file>.<ext>.meta` next to a foreign source file: the file's main ID, the importer and its
 ///        settings, and the `key → id` table of its parts (see SubAssetKeys). Entries of parts that were
-///        removed stay, so a part that comes back keeps its ID.
+///        removed stay, so a part that comes back keeps its ID. A part can have settings of its own, the ones a
+///        standalone asset of its type has (an embedded image's color space).
 struct Sidecar
 {
     AssetId id; // The file's main asset (a glTF's scene, a PNG's texture)
@@ -28,6 +34,9 @@ struct Sidecar
     std::uint32_t importerVersion{ 1 };
     ImportSettings settings;
     std::map<std::string, AssetId> subAssets; // Sorted, so saving an unchanged sidecar gives the same bytes
+    /// @brief The settings of the parts in subAssets that have any, by key. In the file a part's entry is its ID, or
+    ///        `{ "id", "settings" }` for a part listed here; only the settings that differ from the defaults are written.
+    std::map<std::string, ImportSettings> partSettings;
 
     /// @brief The ID of the part 'key': the table's entry, else derived (deriveSubAssetId) from 'id' and
     ///        recorded. A recorded ID is never recomputed, so older random IDs stay as they are.

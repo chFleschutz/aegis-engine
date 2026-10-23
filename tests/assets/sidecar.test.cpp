@@ -9,10 +9,10 @@ using aegis::assets::Sidecar;
 
 namespace
 {
-// The file's text without carriage returns, which a Windows checkout may add.
-auto readGolden() -> std::string
+// The golden file's text without carriage returns, which a Windows checkout may add.
+auto readGolden(std::string_view name = "Helmet.gltf.meta") -> std::string
 {
-    std::ifstream stream{ std::filesystem::path{ AEGIS_TEST_GOLDEN_DIR } / "Helmet.gltf.meta", std::ios::binary };
+    std::ifstream stream{ std::filesystem::path{ AEGIS_TEST_GOLDEN_DIR } / name, std::ios::binary };
     std::string text;
     for (char c; stream.get(c);)
     {
@@ -53,6 +53,25 @@ TEST_SUITE("assets::Sidecar")
         CHECK(aegis::assets::writeSidecar(*sidecar) == text);
     }
 
+    TEST_CASE("the golden sidecar with part settings keeps loading unchanged")
+    {
+        const auto text = readGolden("Embedded.glb.meta");
+        REQUIRE_FALSE(text.empty());
+
+        const auto sidecar = aegis::assets::parseSidecar(text);
+        REQUIRE(sidecar);
+        CHECK(sidecar->id == AssetId{ 0x5e21c7a9d04b8f36ULL });
+        REQUIRE(sidecar->subAssets.size() == 3);
+        CHECK(sidecar->subAssets.at("Texture/Helmet_albedo") == AssetId{ 0x08e3f5b6a1c47d29ULL });
+        CHECK(sidecar->subAssets.at("Texture/Helmet_normal") == AssetId{ 0x7a1c90e2b35f4d68ULL });
+        REQUIRE(sidecar->partSettings.size() == 1);
+        const auto& settings = sidecar->partSettings.at("Texture/Helmet_normal");
+        CHECK(settings.srgb == true);
+        CHECK(settings.upAxis == "Y");
+        CHECK(settings.scale == 1.0);
+        CHECK(aegis::assets::writeSidecar(*sidecar) == text);
+    }
+
     TEST_CASE("a sidecar round-trips")
     {
         Sidecar sidecar;
@@ -66,6 +85,72 @@ TEST_SUITE("assets::Sidecar")
         const auto parsed = aegis::assets::parseSidecar(aegis::assets::writeSidecar(sidecar));
         REQUIRE(parsed);
         CHECK(*parsed == sidecar);
+    }
+
+    TEST_CASE("a sidecar with part settings round-trips")
+    {
+        Sidecar sidecar;
+        sidecar.id = AssetId::generate();
+        sidecar.importer = "gltf";
+        sidecar.subAssetId("Texture/plain");
+        sidecar.subAssetId("Texture/linear");
+        sidecar.subAssetId("Texture/scaled");
+        sidecar.partSettings["Texture/linear"].srgb = false;
+        sidecar.partSettings["Texture/scaled"].scale = 2.0;
+
+        const auto text = aegis::assets::writeSidecar(sidecar);
+        const auto parsed = aegis::assets::parseSidecar(text);
+        REQUIRE(parsed);
+        CHECK(*parsed == sidecar);
+        CHECK_FALSE(parsed->partSettings.contains("Texture/plain"));
+        CHECK(text.contains(std::format(R"("Texture/plain": "{}")", sidecar.subAssets.at("Texture/plain").toString())));
+    }
+
+    TEST_CASE("a part entry writes only the settings that differ from the defaults")
+    {
+        Sidecar sidecar;
+        sidecar.id = AssetId{ 1 };
+        sidecar.subAssets.emplace("Texture/normal", AssetId{ 2 });
+        sidecar.partSettings["Texture/normal"].srgb = true;
+        const auto text = aegis::assets::writeSidecar(sidecar);
+        const auto entry = text.substr(text.find("\"subAssets\""));
+        CHECK(entry.contains(R"("srgb": true)"));
+        CHECK_FALSE(entry.contains("upAxis"));
+        CHECK_FALSE(entry.contains("scale"));
+    }
+
+    TEST_CASE("a part entry with settings reads with or without the plain form around it")
+    {
+        const auto parsed = aegis::assets::parseSidecar(R"({"id":"a3f09c2e4b1d7788","importer":"gltf","subAssets":{
+            "Material/A":"c4d8e1a07b2f9036",
+            "Texture/B":{"id":"08e3f5b6a1c47d29","settings":{"srgb":false}},
+            "Texture/C":{"id":"1f6b2c0d93ae5547"}}})");
+        REQUIRE(parsed);
+        CHECK(parsed->subAssets.at("Material/A") == AssetId{ 0xc4d8e1a07b2f9036ULL });
+        CHECK(parsed->subAssets.at("Texture/B") == AssetId{ 0x08e3f5b6a1c47d29ULL });
+        CHECK(parsed->partSettings.at("Texture/B").srgb == false);
+        CHECK(parsed->subAssets.at("Texture/C") == AssetId{ 0x1f6b2c0d93ae5547ULL });
+        CHECK(parsed->partSettings.at("Texture/C") == aegis::assets::ImportSettings{});
+        CHECK_FALSE(parsed->partSettings.contains("Material/A"));
+    }
+
+    TEST_CASE("a part entry with a malformed ID is rejected")
+    {
+        const auto parsed = aegis::assets::parseSidecar(
+            R"({"id":"a3f09c2e4b1d7788","importer":"gltf","subAssets":{"Texture/B":{"id":"xyz","settings":{}}}})");
+        REQUIRE_FALSE(parsed);
+        CHECK(parsed.error().code == ErrorCode::InvalidData);
+    }
+
+    TEST_CASE("a texture reads as sRGB by its setting, else by its usage")
+    {
+        aegis::assets::ImportSettings settings;
+        CHECK(aegis::assets::textureSrgb(settings, true));
+        CHECK_FALSE(aegis::assets::textureSrgb(settings, false));
+        settings.srgb = true;
+        CHECK(aegis::assets::textureSrgb(settings, false));
+        settings.srgb = false;
+        CHECK_FALSE(aegis::assets::textureSrgb(settings, true));
     }
 
     TEST_CASE("a part keeps its ID when the parts are reordered")

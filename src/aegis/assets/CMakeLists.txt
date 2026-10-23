@@ -25,6 +25,7 @@ target_sources(aegis-assets
     assets.cppm
     defaults.cppm
     engine_content.cppm
+    embedded_images.cppm
     environment.cppm
     error.cppm
     external_images.cppm
@@ -46,6 +47,7 @@ target_sources(aegis-assets
     asset_database.cpp
     asset_id.cpp
     defaults.cpp
+    embedded_images.cpp
     external_images.cpp
     gltf_import.cpp
     image_data.cpp

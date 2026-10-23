@@ -4,6 +4,7 @@ import :asset_id;
 import :error;
 import :image_data;
 import :mesh_data;
+import :sidecar;
 import aegis.math;
 
 // CPU-side model import: file bytes in, plain data out. Nothing here touches the GPU (no aegis.rhi types) or
@@ -29,8 +30,12 @@ struct ModelImage
     /// @brief The URI of an external image relative to the model file, or empty for an embedded one.
     std::string uri;
     /// @brief The usage the materials imply: color data (base color, emissive) is sRGB; normals, metal/roughness
-    ///        and occlusion are linear. An embedded image is read this way; an external one by its own settings.
+    ///        and occlusion are linear. An embedded image is read this way unless its settings say otherwise; an
+    ///        external one by its own settings (see textureSrgb).
     bool srgb{ false };
+    /// @brief An embedded image's settings as a part of the model, from the model's sidecar (applyEmbeddedImageSettings);
+    ///        defaults for an external one, which has settings of its own.
+    ImportSettings settings;
     ImageData data; // An embedded image's pixels; empty for an external one
     /// @brief The encoded bytes (PNG, JPEG, ...) of an embedded image, which the import cache keeps; empty for an
     ///        external one.

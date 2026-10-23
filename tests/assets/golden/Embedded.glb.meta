@@ -1,0 +1,21 @@
+{
+  "id": "5e21c7a9d04b8f36",
+  "importer": "gltf",
+  "importerVersion": 1,
+  "settings": {
+    "upAxis": "Y",
+    "handedness": "Right",
+    "scale": 1,
+    "strictNames": false
+  },
+  "subAssets": {
+    "Material/HelmetMat": "c4d8e1a07b2f9036",
+    "Texture/Helmet_albedo": "08e3f5b6a1c47d29",
+    "Texture/Helmet_normal": {
+      "id": "7a1c90e2b35f4d68",
+      "settings": {
+        "srgb": true
+      }
+    }
+  }
+}
