@@ -1,3 +1,7 @@
+module;
+
+#include <cassert>
+
 module aegis.editor.core;
 import std;
 
@@ -5,12 +9,28 @@ namespace aegis::editor
 {
 void EditorContext::setWorld(world::World& world)
 {
+    assert(!playing() && "EditorContext::setWorld: stop playing first (exitPlay)");
     if (m_world != &world)
     {
         m_selection.clear();
         m_undo.clear();
     }
     m_world = &world;
+}
+
+void EditorContext::enterPlay(world::World& play)
+{
+    assert(!playing() && "EditorContext::enterPlay: already playing");
+    m_editWorld = m_world;
+    m_world = &play;
+    m_editUndo = std::exchange(m_undo, UndoStack{});
+}
+
+void EditorContext::exitPlay()
+{
+    assert(playing() && "EditorContext::exitPlay: not playing");
+    m_world = std::exchange(m_editWorld, nullptr);
+    m_undo = std::exchange(m_editUndo, UndoStack{});
 }
 
 auto EditorContext::selectedEntity() const -> world::Entity

@@ -6,7 +6,7 @@ target_link_libraries(aegis-editor-core
         aegis-core
         aegis-math
         aegis-reflect
-        aegis-serialize # Subtree snapshots of the structural edits
+        aegis-serialize # Subtree snapshots of the structural edits, the play copy and scene files
         aegis-world
     PRIVATE
         aegis-scripting # Attaching and detaching scripts
@@ -24,8 +24,10 @@ target_sources(aegis-editor-core
     core/editor_camera.cppm
     core/inspector.cppm
     core/picking.cppm
+    core/play.cppm
     core/preferences.cppm
     core/property_model.cppm
+    core/scene_file.cppm
     core/selection.cppm
     core/settled_extent.cppm
     core/undo_stack.cppm
@@ -37,8 +39,10 @@ target_sources(aegis-editor-core
     core/editor_camera.cpp
     core/inspector.cpp
     core/picking.cpp
+    core/play.cpp
     core/preferences.cpp
     core/property_model.cpp
+    core/scene_file.cpp
     core/selection.cpp
     core/settled_extent.cpp
     core/undo_stack.cpp

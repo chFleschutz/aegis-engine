@@ -16,6 +16,8 @@
 //   :undo_stack     UndoStack: the history of edits (merged drags, the saved marker).
 //   :commands       The structural edits (create, destroy, duplicate, move, ...), applied and recorded.
 //   :settled_extent SettledExtent: the viewport's render size, applied once the panel's size settles.
+//   :play           PlaySession and copyWorld: play-in-editor's state and the play world's copy of the edit world.
+//   :scene_file     Writing the edited scene to its file, and Save As's file names.
 export module aegis.editor.core;
 
 export import :commands;
@@ -25,8 +27,10 @@ export import :edits;
 export import :editor_camera;
 export import :inspector;
 export import :picking;
+export import :play;
 export import :preferences;
 export import :property_model;
+export import :scene_file;
 export import :selection;
 export import :settled_extent;
 export import :undo_stack;

@@ -86,3 +86,51 @@ TEST_SUITE("editor::EditorContext")
         CHECK(context.world() == &second);
     }
 }
+
+TEST_SUITE("editor::EditorContext play")
+{
+    TEST_CASE("keeps the selection in the play world and restores the edit world on exit")
+    {
+        World edit;
+        World play;
+        EditorContext context;
+        context.setWorld(edit);
+        const auto entity = edit.registry().create("Selected");
+        const auto id = edit.registry().get<StableId>(entity);
+        play.registry().createWithId(id.value, "Selected");
+        context.select(entity);
+
+        context.enterPlay(play);
+        CHECK(context.playing());
+        CHECK(context.world() == &play);
+        CHECK(context.editWorld() == &edit);
+        CHECK(context.selectedEntity() == play.registry().find(id));
+
+        context.exitPlay();
+        CHECK_FALSE(context.playing());
+        CHECK(context.world() == &edit);
+        CHECK(context.selectedEntity() == entity);
+    }
+
+    TEST_CASE("edits while playing have their own history and leave the edit world's dirty flag")
+    {
+        World edit;
+        World play;
+        EditorContext context;
+        context.setWorld(edit);
+        const auto entity = edit.registry().create("Renamed");
+        context.undoStack().record(aegis::editor::RenameEdit{ .entity = edit.registry().get<StableId>(entity), .oldName = "Renamed", .newName = "Lamp" });
+        context.undoStack().markSaved();
+        CHECK_FALSE(context.unsaved());
+
+        context.enterPlay(play);
+        CHECK_FALSE(context.undoStack().canUndo());
+        context.undoStack().record(aegis::editor::RenameEdit{ .entity = edit.registry().get<StableId>(entity), .oldName = "Lamp", .newName = "Torch" });
+        CHECK_FALSE(context.unsaved());
+
+        context.exitPlay();
+        CHECK(context.undoStack().canUndo());
+        CHECK_FALSE(context.undoStack().canRedo());
+        CHECK_FALSE(context.unsaved());
+    }
+}
