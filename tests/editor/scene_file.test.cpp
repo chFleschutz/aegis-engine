@@ -93,6 +93,7 @@ TEST_SUITE("editor::sceneFilePath")
         CHECK_FALSE(sceneFilePath("   ").has_value());
         CHECK_FALSE(sceneFilePath("/abs.scene").has_value());
         CHECK_FALSE(sceneFilePath("C:/abs.scene").has_value());
+        CHECK_FALSE(sceneFilePath("levels/a:b.scene").has_value());
         CHECK_FALSE(sceneFilePath("../out.scene").has_value());
         CHECK_FALSE(sceneFilePath("a//b.scene").has_value());
         CHECK_FALSE(sceneFilePath("folder/").has_value());

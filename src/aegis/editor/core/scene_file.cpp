@@ -35,7 +35,8 @@ auto sceneFilePath(std::string_view typed) -> std::expected<std::string, std::st
         return std::unexpected{ std::string{ "No file name" } };
     std::string path{ typed.substr(first, typed.find_last_not_of(" \t") - first + 1) };
     std::ranges::replace(path, '\\', '/');
-    if (path.starts_with('/') || std::filesystem::path{ path }.has_root_name())
+    // A drive letter on any platform: the project must open on Windows too, where ':' names no file
+    if (path.starts_with('/') || path.contains(':'))
         return std::unexpected{ std::format("'{}' is not a path in the content folder", path) };
     if (path.ends_with('/'))
         return std::unexpected{ std::format("'{}' names a folder", path) };
