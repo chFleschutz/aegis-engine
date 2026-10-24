@@ -5,6 +5,7 @@ module;
 
 module aegis.editor;
 import std;
+import aegis.assets;
 import aegis.core;
 import aegis.world;
 import :panels;
@@ -68,6 +69,7 @@ EditorShell::EditorShell()
 
     m_panels.push_back(makeScenePanel());
     m_panels.push_back(makeInspectorPanel());
+    m_panels.push_back(makeAssetPanel());
     m_panels.push_back(makeConsolePanel());
     m_panels.push_back(makePreferencesPanel());
     m_panels.push_back(makeRendererPanel());
@@ -149,12 +151,24 @@ void EditorShell::onFrame(FrameContext& frame)
             panel->draw(m_context, frame);
     }
     m_viewport.draw(m_context, frame);
+    if (const auto scene = m_context.takeSceneRequest())
+        openScene(frame, *scene);
     drawStatusBar(frame);
     ImGui::End();
 
     // Not while a value is being dragged: that would write the file every frame
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
         savePreferencesIfChanged();
+}
+
+void EditorShell::openScene(FrameContext& frame, std::uint64_t scene)
+{
+    // The world is replaced: the history and the selection name its old entities
+    if (auto loaded = frame.engine.loadScene(assets::AssetId{ scene }); !loaded)
+        log::warn("{}", describe(loaded.error()));
+    m_context.undoStack().clear();
+    m_context.selection().clear();
+    m_viewport.resetCamera();
 }
 
 void EditorShell::savePreferencesIfChanged()

@@ -10,7 +10,8 @@ export namespace aegis::editor
 /// @brief The scene view: the world renders into a texture of the panel's size, through the editor camera, which
 ///        the viewport moves (RMB + WASD/QE fly, Alt + LMB orbit, MMB pan, wheel dolly, F focus). A click
 ///        selects the mesh or the light or camera icon under the cursor; the gizmo moves the selection
-///        (W/E/R/Q while the viewport has focus). EditorShell owns it.
+///        (W/E/R/Q while the viewport has focus). A scene or model dragged from the asset browser is instantiated
+///        on the ground under the cursor. EditorShell owns it.
 class Viewport
 {
 public:
@@ -24,6 +25,8 @@ public:
 
     [[nodiscard]] auto isOpen() const -> bool { return m_open; }
     void setOpen(bool open) { m_open = open; }
+    /// @brief Places the camera at the world's main camera again next frame (a scene was opened).
+    void resetCamera() { m_cameraPlaced = false; }
 
 private:
     enum class GizmoMode
@@ -60,6 +63,8 @@ private:
     void drawToolbar(EditorContext& editor, const Rect& rect);
     [[nodiscard]] auto drawIcons(const EditorContext& editor, const Rect& rect) -> std::vector<PickIcon>;
     void pick(EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo);
+    // A scene or model dropped from the asset browser: instantiated where the cursor points.
+    void acceptDrop(EditorContext& editor, FrameContext& frame, const Rect& rect);
 
     EditorCamera m_camera;
     SettledExtent m_extent;

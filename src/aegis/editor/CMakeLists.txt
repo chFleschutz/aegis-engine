@@ -80,6 +80,7 @@ target_sources(aegis-editor
     ui/viewport.cppm
     PRIVATE
     ui/editor_shell.cpp
+    ui/panels/asset_panel.cpp
     ui/panels/console_panel.cpp
     ui/panels/preferences_panel.cpp
     ui/panels/demo_panel.cpp
