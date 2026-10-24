@@ -1,6 +1,7 @@
 #include <doctest/doctest.h>
 
 import std;
+import aegis.assets;
 import aegis.editor.core;
 import aegis.math;
 import aegis.reflect;
@@ -26,6 +27,7 @@ using aegis::editor::detachScript;
 using aegis::editor::duplicateEntity;
 using aegis::editor::EditSide;
 using aegis::editor::EditWorld;
+using aegis::editor::instantiateEntity;
 using aegis::editor::moveEntity;
 using aegis::editor::removeComponent;
 using aegis::editor::renameEntity;
@@ -137,6 +139,99 @@ TEST_SUITE("editor::createEntity")
         REQUIRE(restored);
         CHECK(f.registry().get<Name>(restored).name == "Lamp");
         CHECK(f.childIds(parent) == std::vector{ id });
+    }
+}
+
+TEST_SUITE("editor::instantiateEntity")
+{
+    // A scene of a lamp with a bulb, as the asset library would have loaded it, and the instances of it it makes.
+    struct InstanceFixture : Fixture
+    {
+        InstanceFixture()
+        {
+            REQUIRE(aegis::serialize::registerComponents(types).has_value());
+            World source;
+            auto& registry = source.registry();
+            const auto lamp = registry.create("Lamp");
+            REQUIRE(registry.addChild(lamp, registry.create("Bulb")).has_value());
+            auto saved = aegis::serialize::saveScene(registry, types, lamp, sceneId);
+            REQUIRE(saved.has_value());
+            scene = aegis::assets::AssetRef<aegis::serialize::Scene>::ready(aegis::assets::AssetId{ sceneId }, std::make_shared<aegis::serialize::Scene>(std::move(*saved)));
+        }
+
+        // Resolves the scene of a SceneInstance read back from a snapshot, as the asset library does.
+        auto instanceEdits() -> EditWorld
+        {
+            return EditWorld{ types, registry(), [this](const aegis::reflect::TypeInfo& type, void* component) {
+                                 if (type.type == typeid(aegis::serialize::SceneInstance))
+                                     static_cast<aegis::serialize::SceneInstance*>(component)->scene = scene;
+                             } };
+        }
+
+        auto create(Entity parent) -> std::expected<Entity, std::string>
+        {
+            auto holder = aegis::serialize::instantiate(registry(), types, scene, parent);
+            if (!holder)
+                return std::unexpected{ aegis::serialize::describe(holder.error()) };
+            return *holder;
+        }
+
+        static constexpr std::uint64_t sceneId{ 0x5ce4e };
+        aegis::assets::AssetRef<aegis::serialize::Scene> scene;
+    };
+
+    TEST_CASE("undo removes the instance and redo restores the holder and the scene's entities")
+    {
+        InstanceFixture f;
+        auto& registry = f.registry();
+        const auto parent = registry.create("Parent");
+        const auto before = registry.entityCount();
+        const auto holder = instantiateEntity(f.instanceEdits(), f.history, parent, [&f](Entity at) { return f.create(at); });
+        REQUIRE(holder.has_value());
+        const auto holderId = f.idOf(*holder);
+        const auto memberIds = f.childIds(*holder);
+        CHECK(memberIds.size() == 1); // The lamp
+        CHECK(f.childIds(parent) == std::vector{ holderId });
+        CHECK(registry.entityCount() == before + 3);
+
+        const auto* undone = f.history.undo();
+        REQUIRE(undone);
+        CHECK(applyEdit(f.instanceEdits(), *undone, EditSide::Old).has_value());
+        CHECK_FALSE(f.find(holderId));
+        CHECK(registry.entityCount() == before);
+
+        const auto* redone = f.history.redo();
+        REQUIRE(redone);
+        CHECK(applyEdit(f.instanceEdits(), *redone, EditSide::New).has_value());
+        const auto restored = f.find(holderId);
+        REQUIRE(restored);
+        CHECK(f.childIds(parent) == std::vector{ holderId });
+        CHECK(f.childIds(restored) == memberIds); // Derived from the holder's ID, so the same
+        CHECK(registry.entityCount() == before + 3);
+    }
+
+    TEST_CASE("refuses a parent of a scene instance without creating anything")
+    {
+        InstanceFixture f;
+        const auto member = f.registry().create("Member");
+        f.registry().add<aegis::serialize::InstanceMember>(member);
+        bool created = false;
+        const auto holder = instantiateEntity(f.instanceEdits(), f.history, member, [&](Entity at) {
+            created = true;
+            return f.create(at);
+        });
+        CHECK_FALSE(holder.has_value());
+        CHECK_FALSE(created);
+        CHECK_FALSE(f.history.canUndo());
+    }
+
+    TEST_CASE("passes on the error of a failed instance and records nothing")
+    {
+        InstanceFixture f;
+        const auto holder = instantiateEntity(f.instanceEdits(), f.history, {}, [](Entity) -> std::expected<Entity, std::string> { return std::unexpected{ std::string{ "no such scene" } }; });
+        REQUIRE_FALSE(holder.has_value());
+        CHECK(holder.error() == "no such scene");
+        CHECK_FALSE(f.history.canUndo());
     }
 }
 

@@ -39,6 +39,8 @@ private:
     void handleShortcuts(FrameContext& frame);
     void drawMenuBar(FrameContext& frame);
     void drawStatusBar(FrameContext& frame);
+    // Replaces the world with the scene file 'scene' (an asset ID), as the asset browser asked.
+    void openScene(FrameContext& frame, std::uint64_t scene);
     void savePreferencesIfChanged();
 
     EditorContext m_context;

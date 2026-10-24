@@ -85,4 +85,14 @@ TEST_SUITE("editor::EditorContext")
         CHECK(context.selection().empty());
         CHECK(context.world() == &second);
     }
+
+    TEST_CASE("hands out a scene request once")
+    {
+        EditorContext context;
+        CHECK_FALSE(context.takeSceneRequest());
+        context.requestOpenScene(5);
+        context.requestOpenScene(7); // The later one wins
+        CHECK(context.takeSceneRequest() == std::optional<std::uint64_t>{ 7 });
+        CHECK_FALSE(context.takeSceneRequest());
+    }
 }

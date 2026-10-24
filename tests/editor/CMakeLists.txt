@@ -1,5 +1,6 @@
 aegis_add_test(editor
     SOURCES
+        asset_browser.test.cpp
         commands.test.cpp
         console.test.cpp
         context.test.cpp
