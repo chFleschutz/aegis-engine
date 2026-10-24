@@ -475,14 +475,15 @@ implemented synchronously first; the slot lets hot reload swap contents.
   through the asset's current key: a model, a mesh, or a texture (a texture file, an environment or
   a model's embedded texture).
 
-**Libraries,** as submodules under `external/`, linked `PRIVATE`, all usable without exceptions:
+**Libraries,** as submodules under `external/` (of KTX-Software only the files libktx needs, see `tools/update-ktx.sh`),
+linked `PRIVATE`, all usable without exceptions:
 
 | Need | Library |
 |---|---|
 | JSON | glaze (yyjson is the fallback if glaze's templates fight Clang modules) |
 | Hashing | xxHash (XXH3_64: cache keys and entity ID derivation) |
-| Compression | zstd |
-| Textures | KTX-Software (libktx), with Basis Universal for per-platform BC7 / ASTC |
+| Compression | zstd (also libktx's supercompression) |
+| Textures | KTX-Software (libktx: KTX2 reading and writing); a BC7 / ASTC encoder later (#269) |
 | Mesh compression | meshoptimizer (already a dependency) |
 | File watching | efsw (#143) |
 | Decoding | stb_image, fastgltf, tinyobjloader (kept; importers only, so they leave shipped games) |

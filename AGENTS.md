@@ -25,6 +25,9 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
   and the assets the device tests load) is the opt-in submodule `samples/` (`aegis-samples`, `update =
   none`): `git submodule update --init --checkout samples`. Without it configure prints that line and
   skips the `Examples` game and the device tests that load samples; the library and unit tests never need it.
+- `external/ktx` is no submodule: it holds the files of a KTX-Software release that the engine builds (libktx's
+  KTX2 reader and writer, under 1 MB of the 550 MB repository), built by `external/CMakeLists.txt` against the
+  `external/zstd` submodule. Update it with `tools/update-ktx.sh <tag>`, committed on its own.
 
 > **Vulkan SDK version matters — configure fails fast with the wrong one.** The RHI imports the
 > SDK's Vulkan-Hpp module (`import vulkan`), which still changes between SDK releases, so the build
