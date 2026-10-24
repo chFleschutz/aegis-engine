@@ -92,6 +92,7 @@ public:
 
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return m_defaults; }
     [[nodiscard]] auto database() const -> const assets::AssetDatabase& { return m_database; }
+    [[nodiscard]] auto rescan() -> std::expected<void, assets::Error> { return m_database.rescan(); }
     [[nodiscard]] auto importCache() const -> const assets::ImportCache& { return m_importCache; }
     [[nodiscard]] auto device() -> rhi::Device& { return *m_device; }
     [[nodiscard]] auto framesInFlight() const -> std::uint32_t { return m_framesInFlight; }
@@ -677,6 +678,13 @@ auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, con
 
     return AssetLibrary{ std::make_unique<Impl>(device, framesInFlight, std::move(*defaults), std::move(*ibl), std::move(*database),
         std::move(importCache)) };
+}
+
+auto AssetLibrary::rescan() -> std::expected<void, std::string>
+{
+    if (auto scanned = m_impl->rescan(); !scanned)
+        return std::unexpected{ std::format("Failed to rescan the assets: {}", describe(scanned.error())) };
+    return {};
 }
 
 auto AssetLibrary::find(std::string_view path, std::string_view key) const -> std::optional<AssetId>
