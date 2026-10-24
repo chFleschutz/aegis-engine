@@ -6,6 +6,7 @@ module;
 module aegis.editor;
 import std;
 import aegis.core;
+import aegis.reflect;
 import aegis.world;
 import :panels;
 
@@ -43,6 +44,20 @@ void beginMainWindow()
                                          ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
     ImGui::Begin("Main Window", nullptr, windowFlags);
     ImGui::PopStyleVar(3);
+}
+
+// Tints the windows while a play session runs, so nobody mistakes the play world for the edit world. Returns how
+// many colors to pop.
+auto pushPlayTint() -> int
+{
+    constexpr ImVec4 tint{ 0.45f, 0.22f, 0.05f, 1.0f };
+    constexpr std::array tinted{ ImGuiCol_WindowBg, ImGuiCol_MenuBarBg, ImGuiCol_TitleBg, ImGuiCol_TitleBgActive, ImGuiCol_TitleBgCollapsed };
+    for (const auto color : tinted)
+    {
+        const ImVec4 base = ImGui::GetStyle().Colors[color];
+        ImGui::PushStyleColor(color, ImVec4{ std::lerp(base.x, tint.x, 0.35f), std::lerp(base.y, tint.y, 0.35f), std::lerp(base.z, tint.z, 0.35f), base.w });
+    }
+    return static_cast<int>(tinted.size());
 }
 
 // The layout file of 'project' as UTF-8, which ImGui expects; its folder is created. Empty if it can't be.
@@ -127,19 +142,22 @@ auto EditorShell::renderView() const -> std::optional<RenderView>
 auto EditorShell::inputCapture() const -> InputCapture
 {
     const auto& io = ImGui::GetIO();
+    if (m_viewport.givesInputToGame())
+        return {}; // The play world's game has it
     const bool viewport = m_viewport.capturesInput();
     return { .keyboard = io.WantCaptureKeyboard || viewport, .mouse = io.WantCaptureMouse || viewport };
 }
 
 void EditorShell::onFrame(FrameContext& frame)
 {
-    m_context.setWorld(frame.world);
-    m_context.selection().prune(frame.world.registry());
-    frame.update(frame.world, world::UpdateMode::Edit); // Moved entities update, nothing plays
+    if (!m_context.playing())
+        m_context.setWorld(frame.world);
+    m_context.selection().prune(m_context.world()->registry());
 
     ImGui::GetStyle().FontScaleMain = m_context.preferences().uiScale;
     ImGuizmo::BeginFrame();
 
+    const int tint = m_context.playing() ? pushPlayTint() : 0;
     beginMainWindow();
     handleShortcuts(frame);
     drawMenuBar(frame);
@@ -151,10 +169,54 @@ void EditorShell::onFrame(FrameContext& frame)
     m_viewport.draw(m_context, frame);
     drawStatusBar(frame);
     ImGui::End();
+    ImGui::PopStyleColor(tint);
+    updateWorlds(frame);
 
     // Not while a value is being dragged: that would write the file every frame
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
         savePreferencesIfChanged();
+}
+
+void EditorShell::updateWorlds(FrameContext& frame)
+{
+    if (!m_playWorld)
+    {
+        frame.update(frame.world, world::UpdateMode::Edit); // Moved entities update, nothing plays
+        return;
+    }
+    // Paused, edits still show (as in the edit world), but nothing plays.
+    frame.update(*m_playWorld, m_play.shouldUpdate() ? world::UpdateMode::Play : world::UpdateMode::Edit);
+    frame.render(*m_playWorld);
+}
+
+void EditorShell::startPlay(FrameContext& frame)
+{
+    if (m_playWorld)
+        return;
+    auto& play = frame.engine.createWorld();
+    const auto prepare = [&frame](const reflect::TypeInfo& type, void* component) { frame.assets.resolve(type, component, frame.types); };
+    if (auto copied = copyWorld(frame.world.registry(), play.registry(), frame.types, prepare); !copied)
+    {
+        log::warn("Cannot play: {}", copied.error());
+        frame.engine.destroyWorld(play);
+        return;
+    }
+    m_context.undoStack().seal(); // An edit still being dragged ends here
+    m_context.enterPlay(play);
+    m_playWorld = &play;
+    m_play.play();
+    m_viewport.setGameView(true);
+}
+
+void EditorShell::stopPlay(FrameContext& frame)
+{
+    if (!m_playWorld)
+        return;
+    m_context.exitPlay();
+    frame.engine.destroyWorld(*m_playWorld);
+    m_playWorld = nullptr;
+    m_play.stop();
+    m_viewport.setGameView(false);
 }
 
 void EditorShell::savePreferencesIfChanged()
@@ -219,6 +281,19 @@ void EditorShell::handleShortcuts(FrameContext& frame)
         redoEdit(m_context, frame);
     else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_D, false))
         duplicateSelected(m_context, frame);
+    else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_P, false))
+    {
+        if (ImGui::GetIO().KeyAlt)
+            m_play.step();
+        else if (shift && m_play.state() == PlaySession::State::Playing)
+            m_play.pause();
+        else if (shift)
+            m_play.play();
+        else if (m_play.active())
+            stopPlay(frame);
+        else
+            startPlay(frame);
+    }
 }
 
 void EditorShell::drawMenuBar(FrameContext& frame)
@@ -238,6 +313,18 @@ void EditorShell::drawMenuBar(FrameContext& frame)
         ImGui::EndMenu();
     }
 
+    if (ImGui::BeginMenu("Play"))
+    {
+        const auto state = m_play.state();
+        if (ImGui::MenuItem(state == PlaySession::State::Stopped ? "Play" : "Stop", "Ctrl+P"))
+            state == PlaySession::State::Stopped ? startPlay(frame) : stopPlay(frame);
+        if (ImGui::MenuItem(state == PlaySession::State::Paused ? "Resume" : "Pause", "Ctrl+Shift+P", false, m_play.active()))
+            state == PlaySession::State::Paused ? m_play.play() : m_play.pause();
+        if (ImGui::MenuItem("Step", "Ctrl+Alt+P", false, state == PlaySession::State::Paused))
+            m_play.step();
+        ImGui::EndMenu();
+    }
+
     if (ImGui::BeginMenu("View"))
     {
         for (const auto& panel : m_panels)
@@ -251,6 +338,29 @@ void EditorShell::drawMenuBar(FrameContext& frame)
         ImGui::EndMenu();
     }
 
+    drawPlayControls(frame);
     ImGui::EndMainMenuBar();
+}
+
+void EditorShell::drawPlayControls(FrameContext& frame)
+{
+    const auto state = m_play.state();
+    // Their own IDs: the Play menu has the same label
+    const char* play = state == PlaySession::State::Stopped ? "Play##Button" : "Stop##Button";
+    const char* pause = state == PlaySession::State::Paused ? "Resume##Button" : "Pause##Button";
+    const auto& style = ImGui::GetStyle();
+    const float width = ImGui::CalcTextSize(play, nullptr, true).x + ImGui::CalcTextSize("Resume").x + ImGui::CalcTextSize("Step").x + 6.0f * style.FramePadding.x +
+                        2.0f * style.ItemSpacing.x;
+    ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), (ImGui::GetWindowWidth() - width) * 0.5f));
+    if (ImGui::SmallButton(play))
+        state == PlaySession::State::Stopped ? startPlay(frame) : stopPlay(frame);
+    ImGui::BeginDisabled(!m_play.active());
+    if (ImGui::SmallButton(pause))
+        state == PlaySession::State::Paused ? m_play.play() : m_play.pause();
+    ImGui::EndDisabled();
+    ImGui::BeginDisabled(state != PlaySession::State::Paused);
+    if (ImGui::SmallButton("Step##Button"))
+        m_play.step();
+    ImGui::EndDisabled();
 }
 }

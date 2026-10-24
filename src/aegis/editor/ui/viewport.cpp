@@ -53,6 +53,8 @@ auto Viewport::renderView() const -> std::optional<RenderView>
     const auto extent = m_extent.current();
     if (!m_open || !extent)
         return std::nullopt;
+    if (m_gameView)
+        return RenderView{ .camera = std::nullopt, .extent = rhi::Extent2D{ extent->width, extent->height } };
     return RenderView{
         .camera = RenderView::Camera{ .view = m_camera.view(), .projection = m_camera.projection(aspect()), .position = m_camera.position() },
         .extent = rhi::Extent2D{ extent->width, extent->height },
@@ -93,12 +95,15 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
                 ImGui::GetWindowDrawList()->AddImage(ImTextureRef{ texture }, origin, ImVec2{ rect.x + rect.width, rect.y + rect.height });
         }
 
-        updateCamera(editor, frame.deltaSeconds);
-        updateGizmoMode();
-        const auto icons = drawIcons(editor, rect);
-        const bool gizmo = drawGizmo(editor, frame.types, rect);
-        drawToolbar(editor, rect);
-        pick(editor, rect, icons, gizmo);
+        if (!m_gameView)
+        {
+            updateCamera(editor, frame.deltaSeconds);
+            updateGizmoMode();
+            const auto icons = drawIcons(editor, rect);
+            const bool gizmo = drawGizmo(editor, frame.types, rect);
+            drawToolbar(editor, rect);
+            pick(editor, rect, icons, gizmo);
+        }
     }
     else
     {
@@ -110,6 +115,13 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
         ImGui::End();
     if (!m_open)
         m_extent.reset();
+}
+
+void Viewport::setGameView(bool gameView)
+{
+    m_gameView = gameView;
+    m_flying = m_orbiting = m_panning = false;
+    m_gizmoDragging = false; // The shell seals the drag's undo entry
 }
 
 void Viewport::placeCamera(world::World& world)

@@ -19,9 +19,9 @@ class StatisticsPanel final : public Panel
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "Statistics"; }
 
-    void draw(EditorContext&, FrameContext& frame) override
+    void draw(EditorContext& editor, FrameContext& frame) override
     {
-        auto& registry = frame.world.registry();
+        auto& registry = editor.world()->registry();
         const auto& instances = frame.instances;
 
         ImGui::Begin("Scene Statistics");

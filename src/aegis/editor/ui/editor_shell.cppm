@@ -3,13 +3,15 @@ import std;
 import aegis.core;
 import aegis.editor.core;
 import aegis.engine;
+import aegis.world;
 import :panel;
 import :viewport;
 
 export namespace aegis::editor
 {
 /// @brief The editor flavor's shell: the world stays in edit mode (no scripts run), and the editor's panels
-///        read and edit it at the frame's safe point. The window layout is kept in
+///        read and edit it at the frame's safe point. Play runs a copy of it in a world of its own (the play world),
+///        which the panels then show and edit, until Stop discards it; the UI is tinted meanwhile. The window layout is kept in
 ///        `<project>/.aegis/editor/imgui.ini` (none when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
 ///        (`<config>/Aegis/editor.json`, none when headless).
@@ -38,6 +40,11 @@ public:
 private:
     void handleShortcuts(FrameContext& frame);
     void drawMenuBar(FrameContext& frame);
+    void drawPlayControls(FrameContext& frame);
+    void startPlay(FrameContext& frame);
+    void stopPlay(FrameContext& frame);
+    /// @brief Asks for this frame's updates: the edit world in edit mode, or the play world.
+    void updateWorlds(FrameContext& frame);
     void drawStatusBar(FrameContext& frame);
     void savePreferencesIfChanged();
 
@@ -48,5 +55,7 @@ private:
     std::vector<std::unique_ptr<Panel>> m_panels;
     std::string m_layoutFile; // UTF-8; ImGui reads and writes the layout there. Empty keeps none.
     Viewport m_viewport;
+    PlaySession m_play;
+    world::World* m_playWorld{ nullptr }; // While a play session runs; the engine owns it
 };
 }
