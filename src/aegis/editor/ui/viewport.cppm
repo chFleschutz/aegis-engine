@@ -29,6 +29,9 @@ public:
     ///        where it is; there is no gizmo, icon or picking in it.
     void setGameView(bool gameView);
 
+    /// @brief Places the editor camera at the world's main camera again in the next frame (another scene was opened).
+    void placeCameraAgain() { m_cameraPlaced = false; }
+
     [[nodiscard]] auto isOpen() const -> bool { return m_open; }
     void setOpen(bool open) { m_open = open; }
 

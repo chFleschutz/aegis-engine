@@ -18,6 +18,13 @@ void EditorContext::setWorld(world::World& world)
     m_world = &world;
 }
 
+void EditorContext::resetScene()
+{
+    assert(!playing() && "EditorContext::resetScene: stop playing first (exitPlay)");
+    m_selection.clear();
+    m_undo.clear();
+}
+
 void EditorContext::enterPlay(world::World& play)
 {
     assert(!playing() && "EditorContext::enterPlay: already playing");

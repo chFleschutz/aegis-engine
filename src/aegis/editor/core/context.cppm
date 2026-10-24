@@ -45,6 +45,10 @@ public:
 
     /// @brief Whether the edit world has changes that are not saved (the edit history's saved marker), also while playing.
     [[nodiscard]] auto unsaved() const -> bool { return playing() ? m_editUndo.dirty() : m_undo.dirty(); }
+    /// @brief Marks the edit world as saved (its history's saved marker), also while playing.
+    void markSaved() { (playing() ? m_editUndo : m_undo).markSaved(); }
+    /// @brief Forgets the selection and the edit history, for another scene in the same world. Not while playing.
+    void resetScene();
 
     /// @brief The active selected entity, or null (nothing selected, no world, or the entity is gone).
     [[nodiscard]] auto selectedEntity() const -> world::Entity;

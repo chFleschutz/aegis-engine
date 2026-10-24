@@ -1,6 +1,7 @@
 module;
 
 #include <imgui.h>
+#include <imgui_stdlib.h>
 #include <ImGuizmo.h>
 
 module aegis.editor;
@@ -98,6 +99,8 @@ EditorShell::~EditorShell()
 
 auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
 {
+    m_engine = &engine;
+    m_scene = engine.scene();
     applyStyle();
     // A drag in a window's body is the viewport's (orbit, gizmo), not a window move
     ImGui::GetIO().ConfigWindowsMoveFromTitleBarOnly = true;
@@ -139,6 +142,18 @@ auto EditorShell::renderView() const -> std::optional<RenderView>
     return m_viewport.renderView();
 }
 
+auto EditorShell::canClose() -> bool
+{
+    if (!m_context.unsaved())
+        return true;
+    if (!m_pending)
+    {
+        m_pending = PendingAction{ .kind = PendingAction::Kind::Close };
+        m_openPrompt = true;
+    }
+    return false;
+}
+
 auto EditorShell::inputCapture() const -> InputCapture
 {
     const auto& io = ImGui::GetIO();
@@ -168,13 +183,227 @@ void EditorShell::onFrame(FrameContext& frame)
     }
     m_viewport.draw(m_context, frame);
     drawStatusBar(frame);
+    drawOpenPopup(frame);
+    drawSaveAsPopup(frame);
+    drawUnsavedPrompt(frame);
     ImGui::End();
     ImGui::PopStyleColor(tint);
     updateWorlds(frame);
+    updateTitle();
 
     // Not while a value is being dragged: that would write the file every frame
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
         savePreferencesIfChanged();
+}
+
+void EditorShell::request(PendingAction action, FrameContext& frame)
+{
+    if (m_context.unsaved())
+    {
+        m_pending = action;
+        m_openPrompt = true;
+    }
+    else
+        run(action, frame);
+}
+
+void EditorShell::run(PendingAction action, FrameContext& frame)
+{
+    if (action.kind == PendingAction::Kind::Close)
+    {
+        frame.engine.quit();
+        return;
+    }
+    stopPlay(frame);
+    if (action.kind == PendingAction::Kind::New)
+        frame.engine.newScene();
+    else if (auto loaded = frame.engine.loadScene(action.scene); !loaded)
+        log::warn("Cannot open the scene: {}", describe(loaded.error()));
+    m_scene = frame.engine.scene();
+    m_context.resetScene();
+    m_viewport.placeCameraAgain();
+}
+
+auto EditorShell::save(FrameContext& frame) -> bool
+{
+    const auto* entry = m_scene ? frame.assets.database().find(*m_scene) : nullptr;
+    if (!entry)
+    {
+        m_openSaveAs = true;
+        return false;
+    }
+    const auto file = frame.assets.database().absolutePath(*entry);
+    if (auto written = writeSceneFile(m_context.editWorld()->registry(), frame.types, m_scene->value, file); !written)
+    {
+        log::warn("Cannot save the scene: {}", written.error());
+        return false;
+    }
+    m_context.markSaved();
+    return true;
+}
+
+auto EditorShell::saveAs(FrameContext& frame, std::string_view typed) -> std::expected<void, std::string>
+{
+    const auto path = sceneFilePath(typed);
+    if (!path)
+        return std::unexpected{ path.error() };
+    const auto& database = frame.assets.database();
+    const auto file = database.roots().front().path / std::filesystem::path{ std::u8string{ path->begin(), path->end() } };
+    std::error_code error;
+    if (std::filesystem::exists(file, error))
+        return std::unexpected{ std::format("'{}' exists already", *path) };
+    std::filesystem::create_directories(file.parent_path(), error);
+    if (error)
+        return std::unexpected{ std::format("Cannot create the folder of '{}': {}", *path, error.message()) };
+    const auto id = assets::AssetId::generate();
+    if (auto written = writeSceneFile(m_context.editWorld()->registry(), frame.types, id.value, file); !written)
+        return std::unexpected{ written.error() };
+    auto added = frame.assets.addFile(*path);
+    if (!added)
+        return std::unexpected{ std::format("Saved, but the asset database does not take it: {}", added.error()) };
+    m_scene = *added;
+    m_context.markSaved();
+    return {};
+}
+
+void EditorShell::updateTitle()
+{
+    const auto* entry = m_scene && m_engine ? m_engine->assets().database().find(*m_scene) : nullptr;
+    const auto name = entry ? std::filesystem::path{ entry->path }.filename().string() : std::string{ "Untitled" };
+    auto title = std::format("{}{} - Aegis Editor", name, m_context.unsaved() ? "*" : "");
+    if (title == m_title || !m_engine)
+        return;
+    m_title = std::move(title);
+    m_engine->setTitle(m_title);
+}
+
+void EditorShell::drawFileMenu(FrameContext& frame)
+{
+    if (!ImGui::BeginMenu("File"))
+        return;
+    if (ImGui::MenuItem("New", "Ctrl+N"))
+        request({ .kind = PendingAction::Kind::New }, frame);
+    if (ImGui::MenuItem("Open...", "Ctrl+O"))
+        m_openOpen = true;
+    ImGui::Separator();
+    if (ImGui::MenuItem("Save", "Ctrl+S"))
+        save(frame);
+    if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))
+        m_openSaveAs = true;
+    ImGui::EndMenu();
+}
+
+void EditorShell::drawOpenPopup(FrameContext& frame)
+{
+    if (std::exchange(m_openOpen, false))
+        ImGui::OpenPopup("Open Scene");
+    ImGui::SetNextWindowSize(ImVec2{ 420.0f, 360.0f }, ImGuiCond_Appearing);
+    if (!ImGui::BeginPopupModal("Open Scene"))
+        return;
+    const auto& database = frame.assets.database();
+    std::vector<const assets::AssetEntry*> scenes;
+    for (const auto& entry : database.entries())
+    {
+        if (entry.type == "Scene" && !database.roots()[entry.root].readOnly)
+            scenes.push_back(&entry);
+    }
+    std::ranges::sort(scenes, {}, &assets::AssetEntry::path);
+
+    std::optional<assets::AssetId> chosen;
+    const float buttons = ImGui::GetFrameHeightWithSpacing();
+    if (ImGui::BeginChild("##scenes", ImVec2{ 0.0f, -buttons }, ImGuiChildFlags_Borders))
+    {
+        for (const auto* entry : scenes)
+        {
+            if (ImGui::Selectable(entry->path.c_str(), m_scene == entry->id, ImGuiSelectableFlags_AllowDoubleClick) && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                chosen = entry->id;
+        }
+        if (scenes.empty())
+            ImGui::TextDisabled("The project has no scene files");
+    }
+    ImGui::EndChild();
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape))
+        ImGui::CloseCurrentPopup();
+    ImGui::SameLine();
+    ImGui::TextDisabled("Double-click a scene to open it");
+    if (chosen)
+    {
+        ImGui::CloseCurrentPopup();
+        request({ .kind = PendingAction::Kind::Open, .scene = *chosen }, frame);
+    }
+    ImGui::EndPopup();
+}
+
+void EditorShell::drawSaveAsPopup(FrameContext& frame)
+{
+    if (std::exchange(m_openSaveAs, false))
+    {
+        const auto* entry = m_scene ? frame.assets.database().find(*m_scene) : nullptr;
+        m_saveAsPath = entry ? entry->path : "scenes/untitled.scene";
+        m_fileError.clear();
+        ImGui::OpenPopup("Save Scene As");
+    }
+    if (!ImGui::BeginPopupModal("Save Scene As", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+    ImGui::TextUnformatted("A path in the project's content folder:");
+    if (ImGui::IsWindowAppearing())
+        ImGui::SetKeyboardFocusHere();
+    ImGui::SetNextItemWidth(360.0f);
+    const bool entered = ImGui::InputText("##path", &m_saveAsPath, ImGuiInputTextFlags_EnterReturnsTrue);
+    if (!m_fileError.empty())
+        ImGui::TextColored(ImVec4{ 1.0f, 0.4f, 0.4f, 1.0f }, "%s", m_fileError.c_str());
+    bool done = false;
+    if (ImGui::Button("Save") || entered)
+    {
+        if (auto saved = saveAs(frame, m_saveAsPath); saved)
+            done = true;
+        else
+            m_fileError = std::move(saved.error());
+    }
+    ImGui::SameLine();
+    const bool cancelled = ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape);
+    if (done || cancelled)
+        ImGui::CloseCurrentPopup();
+    ImGui::EndPopup();
+    // A prompt's Save that went through Save As: its action runs once saved, and is dropped when cancelled.
+    if (m_pending && !m_openPrompt && !ImGui::IsPopupOpen("Unsaved Changes"))
+    {
+        if (done)
+            run(*std::exchange(m_pending, std::nullopt), frame);
+        else if (cancelled)
+            m_pending.reset();
+    }
+}
+
+void EditorShell::drawUnsavedPrompt(FrameContext& frame)
+{
+    if (std::exchange(m_openPrompt, false))
+        ImGui::OpenPopup("Unsaved Changes");
+    if (!ImGui::BeginPopupModal("Unsaved Changes", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+    ImGui::TextUnformatted("The scene has unsaved changes. Save them first?");
+    ImGui::Spacing();
+    if (ImGui::Button("Save"))
+    {
+        ImGui::CloseCurrentPopup();
+        if (save(frame))
+            run(*std::exchange(m_pending, std::nullopt), frame);
+        else if (!m_openSaveAs)
+            m_pending.reset(); // The save failed (logged): nothing is discarded
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Don't Save"))
+    {
+        ImGui::CloseCurrentPopup();
+        run(*std::exchange(m_pending, std::nullopt), frame);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape))
+    {
+        ImGui::CloseCurrentPopup();
+        m_pending.reset();
+    }
+    ImGui::EndPopup();
 }
 
 void EditorShell::updateWorlds(FrameContext& frame)
@@ -281,6 +510,14 @@ void EditorShell::handleShortcuts(FrameContext& frame)
         redoEdit(m_context, frame);
     else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_D, false))
         duplicateSelected(m_context, frame);
+    else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_N, false))
+        request({ .kind = PendingAction::Kind::New }, frame);
+    else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O, false))
+        m_openOpen = true;
+    else if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_S, false))
+        m_openSaveAs = true;
+    else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
+        save(frame);
     else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_P, false))
     {
         if (ImGui::GetIO().KeyAlt)
@@ -300,6 +537,8 @@ void EditorShell::drawMenuBar(FrameContext& frame)
 {
     if (!ImGui::BeginMainMenuBar())
         return;
+
+    drawFileMenu(frame);
 
     if (ImGui::BeginMenu("Edit"))
     {

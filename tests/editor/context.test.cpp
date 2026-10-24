@@ -134,3 +134,38 @@ TEST_SUITE("editor::EditorContext play")
         CHECK_FALSE(context.unsaved());
     }
 }
+
+TEST_SUITE("editor::EditorContext saving")
+{
+    TEST_CASE("saving while playing marks the edit world's history")
+    {
+        World edit;
+        World play;
+        EditorContext context;
+        context.setWorld(edit);
+        const auto entity = edit.registry().create("Renamed");
+        context.undoStack().record(aegis::editor::RenameEdit{ .entity = edit.registry().get<StableId>(entity), .oldName = "Renamed", .newName = "Lamp" });
+        CHECK(context.unsaved());
+
+        context.enterPlay(play);
+        context.markSaved();
+        CHECK_FALSE(context.unsaved());
+        context.exitPlay();
+        CHECK_FALSE(context.unsaved());
+    }
+
+    TEST_CASE("another scene forgets the selection and the history")
+    {
+        World edit;
+        EditorContext context;
+        context.setWorld(edit);
+        const auto entity = edit.registry().create("Renamed");
+        context.select(entity);
+        context.undoStack().record(aegis::editor::RenameEdit{ .entity = edit.registry().get<StableId>(entity), .oldName = "Renamed", .newName = "Lamp" });
+
+        context.resetScene();
+        CHECK(context.selection().empty());
+        CHECK_FALSE(context.undoStack().canUndo());
+        CHECK_FALSE(context.unsaved());
+    }
+}
