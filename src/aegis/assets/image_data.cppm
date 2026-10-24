@@ -43,3 +43,10 @@ struct ImageData
 [[nodiscard]] auto decodeImageFile(const std::filesystem::path& path, std::optional<PixelFormat> format = std::nullopt)
     -> std::expected<ImageData, Error>;
 }
+
+export namespace aegis::assets::detail
+{
+/// @brief How many images decodeImage has decoded (or tried to) in this process, for tests that check the import
+///        cache spares the decoding.
+[[nodiscard]] auto decodedImageCount() noexcept -> std::uint64_t;
+}

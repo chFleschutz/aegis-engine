@@ -44,13 +44,31 @@ private:
             }
             // Color data is sRGB; normal, metal/roughness and occlusion data are linear, unless the image's settings say otherwise.
             const auto srgb = textureSrgb(image.settings, image.srgb);
-            auto texture = Texture::create(m_desc.device, image.data,
-                Texture::ImageDesc{ .name = image.name, .format = srgb ? rhi::Format::RGBA8_SRGB : rhi::Format::RGBA8_UNORM });
+            auto data = textureData(image, srgb);
+            if (!data)
+            {
+                log::warn("The texture '{}' is left out ({})", image.name, describe(data.error()));
+                m_textures.push_back(nullptr);
+                continue;
+            }
+            auto texture = Texture::create(m_desc.device, *data, image.name);
             if (!texture)
                 return std::unexpected{ texture.error() };
             m_textures.push_back(std::move(*texture));
         }
         return {};
+    }
+
+    // The pixels of an embedded image with all its mips: its texture entry, else made from the decoded pixels.
+    auto textureData(const ModelImage& image, bool srgb) const -> std::expected<TextureData, Error>
+    {
+        if (!m_desc.importCache)
+            return textureFromImage(image.data, { .srgb = srgb });
+        const auto* decoded = image.data.pixels.empty() ? nullptr : &image.data;
+        auto loaded = m_desc.importCache->loadTexture(image.encoded, { .name = image.name, .srgb = srgb }, decoded);
+        if (!loaded)
+            return std::unexpected{ std::move(loaded.error()) };
+        return std::move(loaded->texture);
     }
 
     auto uploadMeshes() -> std::expected<void, Error>

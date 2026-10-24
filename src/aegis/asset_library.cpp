@@ -121,9 +121,10 @@ public:
         if (assets::importerFor(entry->path) != "texture")
             return failTexture(id, std::format("'{}' is not a texture file", entry->path));
 
-        const auto path = m_database.absolutePath(*entry);
-        const auto srgb = assets::textureSrgb(entry->settings, true);
-        auto texture = assets::Texture::loadFromFile(*m_device, path, srgb ? rhi::Format::RGBA8_SRGB : rhi::Format::RGBA8_UNORM);
+        auto loaded = m_importCache.loadTextureFile(m_database.absolutePath(*entry), { .name = entry->path, .srgb = assets::textureSrgb(entry->settings, true) });
+        if (!loaded)
+            return failTexture(id, assets::describe(loaded.error()));
+        auto texture = assets::Texture::create(*m_device, loaded->texture, entry->path);
         if (!texture)
             return failTexture(id, assets::describe(texture.error()));
         return m_textures.fill(id, std::move(*texture));
@@ -243,7 +244,17 @@ public:
         if (!entry->key.empty() || assets::importerFor(entry->path) != "environment")
             return failEnvironment(id, std::format("'{}' is not an environment file", entry->path));
 
-        auto environment = m_ibl.loadEnvironment(m_database.absolutePath(*entry));
+        // The equirectangular map comes from the import cache; the cube and its maps are made on the GPU each load.
+        auto equirect = m_importCache.loadTextureFile(m_database.absolutePath(*entry), { .name = entry->path, .environment = true });
+        if (!equirect)
+            return failEnvironment(id, assets::describe(equirect.error()));
+        auto texture = assets::Texture::create(*m_device, equirect->texture, entry->path, { .addressMode = rhi::SamplerAddressMode::ClampToEdge });
+        if (!texture)
+            return failEnvironment(id, assets::describe(texture.error()));
+        auto cube = m_ibl.cubeFromEquirectangular(**texture);
+        if (!cube)
+            return failEnvironment(id, render_graph::describe(cube.error()));
+        auto environment = m_ibl.environmentFrom(std::move(*cube));
         if (!environment)
             return failEnvironment(id, render_graph::describe(environment.error()));
         return m_environments.fill(id, std::move(*environment));
@@ -276,7 +287,7 @@ public:
             return image.texture.valid() ? loadTexture(image.texture).shared() : nullptr;
         };
         auto model = assets::Loader::upload(
-            { .device = *m_device, .defaults = m_defaults, .framesInFlight = m_framesInFlight, .externalTexture = externalTexture },
+            { .device = *m_device, .defaults = m_defaults, .framesInFlight = m_framesInFlight, .externalTexture = externalTexture, .importCache = &m_importCache },
             imported->model);
         if (!model)
             return failModel(id, assets::describe(model.error()));

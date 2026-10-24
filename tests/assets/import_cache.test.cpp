@@ -148,6 +148,11 @@ auto sameMesh(const assets::MeshData& a, const assets::MeshData& b) -> bool
     return a.vertices.size() == b.vertices.size() && std::memcmp(a.vertices.data(), b.vertices.data(), a.vertices.size() * sizeof(assets::Vertex)) == 0 && a.indices == b.indices && a.meshlets.size() == b.meshlets.size() && std::memcmp(a.meshlets.data(), b.meshlets.data(), a.meshlets.size() * sizeof(assets::Meshlet)) == 0 && a.meshletVertices == b.meshletVertices && a.meshletPrimitives == b.meshletPrimitives;
 }
 
+auto png() -> std::span<const std::byte>
+{
+    return std::as_bytes(std::span{ pngBytes });
+}
+
 auto keyDesc(std::span<const std::byte> source) -> assets::ImportCacheKeyDesc
 {
     return { .importer = "model", .importerVersion = 1, .settings = {}, .platform = "windows", .files = { source } };
@@ -249,12 +254,23 @@ TEST_SUITE("assets::ImportCache")
         {
             CHECK(second.model.images[i].uri == first.model.images[i].uri);
             CHECK(second.model.images[i].srgb == first.model.images[i].srgb);
-            CHECK(second.model.images[i].data == first.model.images[i].data);
+            CHECK(second.model.images[i].encoded == first.model.images[i].encoded);
         }
         CHECK(second.model.images[0].uri.empty());
-        CHECK_FALSE(second.model.images[0].data.pixels.empty());
+        CHECK_FALSE(second.model.images[0].encoded.empty());
         CHECK(second.model.images[1].uri == "tex.png");
-        CHECK(second.model.images[1].data.pixels.empty());
+        CHECK(second.model.images[1].encoded.empty());
+    }
+
+    TEST_CASE("a cached model decodes no images")
+    {
+        const Fixture fixture;
+        CHECK_FALSE(fixture.load().cached);
+        const auto before = assets::detail::decodedImageCount();
+        const auto second = fixture.load();
+        CHECK(second.cached);
+        CHECK(second.model.images[0].data.pixels.empty());
+        CHECK(assets::detail::decodedImageCount() == before);
     }
 
     TEST_CASE("changing an external image does not reimport")
@@ -517,5 +533,149 @@ TEST_SUITE("assets::ImportCache::dump")
     {
         const Fixture fixture;
         CHECK(fixture.cache.dump(fixture.model, {}).error().code == ErrorCode::FileNotFound);
+    }
+
+    TEST_CASE("a model entry lists its embedded images")
+    {
+        const Fixture fixture;
+        (void)fixture.load();
+        const auto text = fixture.cache.dump(fixture.model, {});
+        REQUIRE(text);
+        CHECK(text->contains(std::format("Texture/Image_0: image-0.bin, {} bytes", pngBytes.size())));
+    }
+
+    TEST_CASE("an embedded image prints its texture entry")
+    {
+        const Fixture fixture;
+        const auto model = fixture.load().model;
+        // The base color image is read as sRGB, unless the part's settings say otherwise.
+        REQUIRE(fixture.cache.loadTexture(model.images[0].encoded, { .name = "image0", .srgb = true }));
+        const auto text = fixture.cache.dump(fixture.model, {}, "Texture/Image_0");
+        REQUIRE(text);
+        CHECK(text->contains("format: RGBA8Srgb (VkFormat 43), zstd"));
+        CHECK(fixture.cache.dump(fixture.model, {}, "Texture/Image_0", { .srgb = false }).error().code == ErrorCode::FileNotFound);
+    }
+}
+
+TEST_SUITE("assets::ImportCache::loadTexture")
+{
+    TEST_CASE("the first load decodes and the second reads the cache")
+    {
+        const Fixture fixture;
+        const auto first = fixture.cache.loadTexture(png(), { .name = "tex.png", .srgb = true });
+        REQUIRE(first);
+        CHECK_FALSE(first->cached);
+        CHECK(std::filesystem::exists(fixture.cache.textureEntryDirectory(png(), { .srgb = true }) / "texture.ktx2"));
+
+        const auto before = assets::detail::decodedImageCount();
+        const auto second = fixture.cache.loadTexture(png(), { .name = "tex.png", .srgb = true });
+        REQUIRE(second);
+        CHECK(second->cached);
+        CHECK(assets::detail::decodedImageCount() == before);
+        CHECK(second->texture == first->texture);
+        CHECK(second->texture.format == assets::TextureFormat::RGBA8Srgb);
+        CHECK(second->texture.mipLevels == 2);
+    }
+
+    TEST_CASE("the pixels an import decoded are used")
+    {
+        const Fixture fixture;
+        const auto image = assets::decodeImage(png(), "tex.png", assets::PixelFormat::RGBA8);
+        REQUIRE(image);
+        const auto before = assets::detail::decodedImageCount();
+        const auto loaded = fixture.cache.loadTexture(png(), { .name = "tex.png" }, &*image);
+        REQUIRE(loaded);
+        CHECK(assets::detail::decodedImageCount() == before);
+        CHECK(loaded->texture.format == assets::TextureFormat::RGBA8Unorm);
+    }
+
+    TEST_CASE("the settings are part of the key")
+    {
+        const Fixture fixture;
+        const auto& cache = fixture.cache;
+        CHECK(cache.textureEntryDirectory(png(), { .srgb = true }) != cache.textureEntryDirectory(png(), { .srgb = false }));
+        CHECK(cache.textureEntryDirectory(png(), { .srgb = false }) != cache.textureEntryDirectory(png(), { .environment = true }));
+        // The name only names the image in messages: the same bytes share one entry.
+        CHECK(cache.textureEntryDirectory(png(), { .name = "a.png" }) == cache.textureEntryDirectory(png(), { .name = "b.png" }));
+    }
+
+    TEST_CASE("an environment map is float with one mip")
+    {
+        const Fixture fixture;
+        const auto loaded = fixture.cache.loadTexture(png(), { .name = "sky", .environment = true });
+        REQUIRE(loaded);
+        CHECK(loaded->texture.format == assets::TextureFormat::RGBA32Float);
+        CHECK(loaded->texture.mipLevels == 1);
+        CHECK(fixture.cache.loadTexture(png(), { .name = "sky", .environment = true })->cached);
+    }
+
+    TEST_CASE("a deleted cache rebuilds the same entry")
+    {
+        const Fixture fixture;
+        REQUIRE(fixture.cache.loadTexture(png(), { .srgb = true }));
+        const auto directory = fixture.cache.textureEntryDirectory(png(), { .srgb = true });
+        const auto first = Fixture::filesOf(directory);
+        std::filesystem::remove_all(fixture.cache.directory());
+
+        REQUIRE_FALSE(fixture.cache.loadTexture(png(), { .srgb = true })->cached);
+        CHECK(Fixture::filesOf(directory) == first);
+    }
+
+    TEST_CASE("a damaged entry is made again")
+    {
+        const Fixture fixture;
+        REQUIRE(fixture.cache.loadTexture(png(), {}));
+        const auto blob = fixture.cache.textureEntryDirectory(png(), {}) / "texture.ktx2";
+        std::ofstream{ blob, std::ios::binary | std::ios::trunc } << "not a texture";
+
+        const auto again = fixture.cache.loadTexture(png(), {});
+        REQUIRE(again);
+        CHECK_FALSE(again->cached);
+        CHECK(fixture.cache.loadTexture(png(), {})->cached);
+    }
+
+    TEST_CASE("a texture file is loaded by its bytes")
+    {
+        const Fixture fixture;
+        const auto loaded = fixture.cache.loadTextureFile(fixture.root / "assets" / "tex.png", {});
+        REQUIRE(loaded);
+        CHECK(fixture.cache.loadTexture(png(), {})->cached);
+        CHECK(fixture.cache.loadTextureFile(fixture.root / "assets" / "none.png", {}).error().code == ErrorCode::FileNotFound);
+    }
+
+    TEST_CASE("undecodable bytes are an error")
+    {
+        const Fixture fixture;
+        const std::array junk{ std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 } };
+        CHECK(fixture.cache.loadTexture(junk, {}).error().code == ErrorCode::DecodeFailed);
+    }
+
+    TEST_CASE("without a cache folder the image is decoded each time")
+    {
+        const ImportCache cache;
+        CHECK_FALSE(cache.loadTexture(png(), {})->cached);
+        CHECK_FALSE(cache.loadTexture(png(), {})->cached);
+    }
+
+    TEST_CASE("a texture entry prints its header")
+    {
+        const Fixture fixture;
+        CHECK(fixture.cache.dumpTexture(png(), { .name = "tex.png" }).error().code == ErrorCode::FileNotFound);
+        REQUIRE(fixture.cache.loadTexture(png(), { .name = "tex.png", .srgb = true }));
+        const auto text = fixture.cache.dumpTexture(png(), { .name = "tex.png", .srgb = true });
+        REQUIRE(text);
+        CHECK(text->contains("Texture entry of 'tex.png'"));
+        CHECK(text->contains(std::format("key {}", fixture.cache.textureEntryDirectory(png(), { .srgb = true }).filename().string())));
+        CHECK(text->contains("format: RGBA8Srgb (VkFormat 43), zstd"));
+        CHECK(text->contains("extent: 2 x 2, 2 mips, 1 layers"));
+    }
+
+    TEST_CASE("texture entries are evicted like model entries")
+    {
+        const Fixture fixture;
+        REQUIRE(fixture.cache.loadTexture(png(), {}));
+        const auto result = fixture.cache.evict({ .maxAge = std::chrono::hours{ 1 }, .maxBytes = 0 });
+        CHECK(result.removed == 1);
+        CHECK_FALSE(std::filesystem::exists(fixture.cache.textureEntryDirectory(png(), {})));
     }
 }
