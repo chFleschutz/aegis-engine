@@ -6,6 +6,7 @@ module;
 
 module aegis.editor;
 import std;
+import aegis.core;
 import aegis.math;
 import aegis.world;
 import :panels;
@@ -26,6 +27,39 @@ auto nameOf(world::Registry& registry, world::Entity entity) -> const char*
     return registry.has<Name>(entity) ? registry.get<Name>(entity).name.c_str() : "Entity";
 }
 
+// The drag and drop payload of a hierarchy row: the dragged entity's StableId.
+constexpr const char* entityPayload = "AEGIS_ENTITY";
+
+// Where a row was dropped on another: before or after it among its siblings, or into it as its last child.
+enum class DropZone
+{
+    Before,
+    Into,
+    After,
+};
+
+// A drop to apply once the hierarchy is drawn: moving the entity while walking the tree would break the walk.
+struct Drop
+{
+    StableId entity;
+    std::optional<StableId> target; // None: the empty space below the rows, which makes the entity a root
+    DropZone zone{ DropZone::Into };
+};
+
+void applyDrop(const Drop& drop, EditorContext& editor, FrameContext& frame)
+{
+    auto& registry = frame.world.registry();
+    const auto entity = registry.find(drop.entity);
+    const auto target = drop.target ? registry.find(*drop.target) : world::Entity{};
+    if (!entity || (drop.target && !target))
+        return;
+    const auto edits = editWorld(frame);
+    const auto moved = drop.zone == DropZone::Into ? moveEntity(edits, editor.undoStack(), entity, target, std::numeric_limits<std::size_t>::max())
+                                                   : moveEntityBeside(edits, editor.undoStack(), entity, target, drop.zone == DropZone::After);
+    if (!moved)
+        log::warn("Cannot move '{}': {}", nameOf(registry, entity), moved.error());
+}
+
 // The hierarchy, all entities and the scene's singletons, docked with the Inspector. Edits apply directly: the panel
 // runs at the frame's safe point.
 class ScenePanel final : public Panel
@@ -38,8 +72,8 @@ public:
         auto& scene = frame.world;
         ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(400, 800));
 
-        drawHierarchy(editor, scene.registry());
-        drawAllEntities(editor, scene.registry());
+        drawHierarchy(editor, frame);
+        drawAllEntities(editor, frame);
         drawSceneSettings(editor, scene);
 
         const ImGuiID dockSpaceId = ImGui::GetID("SceneLayer");
@@ -62,7 +96,7 @@ public:
     }
 
 private:
-    static void drawHierarchy(EditorContext& editor, world::Registry& registry)
+    static void drawHierarchy(EditorContext& editor, FrameContext& frame)
     {
         if (!ImGui::Begin("Hierachy"))
         {
@@ -70,9 +104,11 @@ private:
             return;
         }
 
+        auto& registry = frame.world.registry();
         constexpr std::uint8_t NODE_OPENED = 1 << 0;
         constexpr std::uint8_t VISITED = 1 << 1;
         std::vector<std::pair<world::Entity, std::uint8_t>> stack;
+        std::optional<Drop> drop;
 
         auto view = registry.view<entt::entity>();
         stack.reserve(view.size());
@@ -103,7 +139,7 @@ private:
 
             auto& children = registry.get<Children>(entity);
             const ImGuiTreeNodeFlags treeNodeFlags = (children.count == 0) ? ImGuiTreeNodeFlags_Leaf : 0;
-            if (drawEntityTreeNode(editor, registry, entity, treeNodeFlags))
+            if (drawEntityTreeNode(editor, registry, entity, treeNodeFlags, &drop))
             {
                 flags |= NODE_OPENED;
                 auto current = children.first;
@@ -115,7 +151,18 @@ private:
             }
         }
 
-        drawEntityActions(editor, registry);
+        // The space below the rows takes drops that make the entity a root
+        ImGui::Dummy(ImGui::GetContentRegionAvail());
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const auto* payload = ImGui::AcceptDragDropPayload(entityPayload))
+                drop = Drop{ .entity = *static_cast<const StableId*>(payload->Data) };
+            ImGui::EndDragDropTarget();
+        }
+        if (drop)
+            applyDrop(*drop, editor, frame);
+
+        drawEntityActions(editor, frame);
 
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
             editor.selection().clear();
@@ -123,7 +170,7 @@ private:
         ImGui::End();
     }
 
-    static void drawAllEntities(EditorContext& editor, world::Registry& registry)
+    static void drawAllEntities(EditorContext& editor, FrameContext& frame)
     {
         if (!ImGui::Begin("All Entities"))
         {
@@ -131,6 +178,7 @@ private:
             return;
         }
 
+        auto& registry = frame.world.registry();
         auto view = registry.view<entt::entity>();
         for (auto entt : view)
         {
@@ -141,7 +189,7 @@ private:
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
             editor.selection().clear();
 
-        drawEntityActions(editor, registry);
+        drawEntityActions(editor, frame);
         ImGui::End();
     }
 
@@ -179,7 +227,8 @@ private:
             editor.select(entity);
     }
 
-    static auto drawEntityTreeNode(EditorContext& editor, world::Registry& registry, world::Entity entity, ImGuiTreeNodeFlags flags) -> bool
+    // A row of the tree; with 'drop', it can be dragged onto another row and takes drops (see Drop).
+    static auto drawEntityTreeNode(EditorContext& editor, world::Registry& registry, world::Entity entity, ImGuiTreeNodeFlags flags, std::optional<Drop>* drop = nullptr) -> bool
     {
         registry.getOrAdd<Children>(entity);
 
@@ -191,21 +240,64 @@ private:
         if (ImGui::IsItemClicked())
             editor.select(entity);
 
+        if (drop)
+            dragAndDrop(registry, entity, *drop);
+
         return isOpen;
     }
 
-    static void drawEntityActions(EditorContext& editor, world::Registry& registry)
+    // The row just drawn as a drag source and a drop target: the top and bottom quarters of the row place the
+    // dragged entity before or after it, the middle makes it the row's last child.
+    static void dragAndDrop(world::Registry& registry, world::Entity entity, std::optional<Drop>& drop)
+    {
+        const auto id = registry.get<StableId>(entity);
+        if (ImGui::BeginDragDropSource())
+        {
+            ImGui::SetDragDropPayload(entityPayload, &id, sizeof(id));
+            ImGui::TextUnformatted(nameOf(registry, entity));
+            ImGui::EndDragDropSource();
+        }
+
+        if (!ImGui::BeginDragDropTarget())
+            return;
+        const ImVec2 min = ImGui::GetItemRectMin();
+        const ImVec2 max = ImGui::GetItemRectMax();
+        const float y = (ImGui::GetMousePos().y - min.y) / std::max(max.y - min.y, 1.0f);
+        const DropZone zone = y < 0.25f ? DropZone::Before : (y > 0.75f ? DropZone::After : DropZone::Into);
+        const ImGuiDragDropFlags flags = ImGuiDragDropFlags_AcceptBeforeDelivery | (zone == DropZone::Into ? 0 : ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
+        if (const auto* payload = ImGui::AcceptDragDropPayload(entityPayload, flags))
+        {
+            if (zone != DropZone::Into)
+            {
+                const float lineY = zone == DropZone::Before ? min.y : max.y;
+                ImGui::GetWindowDrawList()->AddLine(ImVec2{ min.x, lineY }, ImVec2{ max.x, lineY }, ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f);
+            }
+            if (payload->IsDelivery())
+                drop = Drop{ .entity = *static_cast<const StableId*>(payload->Data), .target = id, .zone = zone };
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    static void drawEntityActions(EditorContext& editor, FrameContext& frame)
     {
         // Right click on window to create entity
         if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight))
         {
             if (ImGui::MenuItem("Create Entity"))
-                editor.select(registry.create("Empty Entity"));
+            {
+                if (auto created = createEntity(editWorld(frame), editor.undoStack(), "Empty Entity"))
+                    editor.select(*created);
+                else
+                    log::warn("Cannot create an entity: {}", created.error());
+            }
 
             const auto selected = editor.selectedEntity();
+            if (selected && ImGui::MenuItem("Duplicate Selected Entity", "Ctrl+D"))
+                duplicateSelected(editor, frame);
             if (selected && ImGui::MenuItem("Destroy Selected Entity"))
             {
-                registry.destroy(selected);
+                if (auto destroyed = destroyEntity(editWorld(frame), editor.undoStack(), selected); !destroyed)
+                    log::warn("Cannot destroy '{}': {}", nameOf(frame.world.registry(), selected), destroyed.error());
                 editor.selection().clear();
             }
 
@@ -213,6 +305,21 @@ private:
         }
     }
 };
+}
+
+auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool
+{
+    const auto selected = editor.selectedEntity();
+    if (!selected)
+        return false;
+    auto copy = duplicateEntity(editWorld(frame), editor.undoStack(), selected);
+    if (!copy)
+    {
+        log::warn("Cannot duplicate '{}': {}", nameOf(frame.world.registry(), selected), copy.error());
+        return false;
+    }
+    editor.select(*copy);
+    return true;
 }
 
 auto makeScenePanel() -> std::unique_ptr<Panel>

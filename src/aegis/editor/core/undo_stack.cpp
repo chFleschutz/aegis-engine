@@ -1,49 +1,85 @@
 module aegis.editor.core;
 import std;
-import aegis.reflect;
-import aegis.world;
-import aegis.world.types;
 
 namespace aegis::editor
 {
 namespace
 {
-// Whether two values are the same; aegis.math does not export the glm vector operator==, so those compare per component.
-auto sameValue(const reflect::Value& a, const reflect::Value& b) -> bool
+// Field, component and rename edits merge while continuous; they have an 'open' flag and a target.
+template<class T>
+concept Mergeable = requires(T edit) {
+    { edit.open } -> std::convertible_to<bool>;
+    { edit.sameTarget(edit) } -> std::same_as<bool>;
+};
+
+// Takes the new side of 'next', the same edit continued.
+void extendWith(FieldEdit& edit, FieldEdit&& next)
 {
-    return a.index() == b.index() && std::visit(
-                                         [&b](const auto& left) {
-                                             using T = std::decay_t<decltype(left)>;
-                                             const auto& right = std::get<T>(b);
-                                             if constexpr (std::equality_comparable<T>)
-                                             {
-                                                 return left == right;
-                                             }
-                                             else
-                                             {
-                                                 for (int i = 0; i < T::length(); ++i)
-                                                 {
-                                                     if (left[i] != right[i])
-                                                         return false;
-                                                 }
-                                                 return true;
-                                             }
-                                         },
-                                         a);
+    edit.newValue = std::move(next.newValue);
+}
+void extendWith(ComponentEdit& edit, ComponentEdit&& next)
+{
+    edit.newValues = std::move(next.newValues);
+}
+void extendWith(RenameEdit& edit, RenameEdit&& next)
+{
+    edit.newName = std::move(next.newName);
+}
+
+void setOpen(Edit& edit, bool open)
+{
+    std::visit(
+        [open](auto& entry) {
+            if constexpr (Mergeable<std::decay_t<decltype(entry)>>)
+                entry.open = open;
+        },
+        edit);
+}
+
+// Extends 'last' with 'next' if 'last' is still open on the same target.
+auto extend(Edit& last, Edit& next, bool continuous) -> bool
+{
+    return std::visit(
+        [&next, continuous](auto& previous) {
+            using T = std::decay_t<decltype(previous)>;
+            if constexpr (Mergeable<T>)
+            {
+                auto* following = std::get_if<T>(&next);
+                if (!following || !previous.open || !previous.sameTarget(*following))
+                    return false;
+                extendWith(previous, std::move(*following));
+                previous.open = continuous;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        },
+        last);
+}
+
+auto changesNothing(const Edit& edit) -> bool
+{
+    if (const auto* field = std::get_if<FieldEdit>(&edit))
+        return sameValue(field->oldValue, field->newValue);
+    if (const auto* component = std::get_if<ComponentEdit>(&edit))
+        return sameValues(component->oldValues, component->newValues);
+    if (const auto* rename = std::get_if<RenameEdit>(&edit))
+        return rename->oldName == rename->newName;
+    if (const auto* move = std::get_if<MoveEdit>(&edit))
+        return move->oldPlace.parent == move->newPlace.parent && (!move->newPlace.parent || move->oldPlace.index == move->newPlace.index);
+    return false;
 }
 }
 
-void UndoStack::record(FieldEdit edit, bool continuous)
+void UndoStack::record(Edit edit, bool continuous)
 {
-    edit.open = continuous;
-    if (m_applied > 0 && m_applied == m_edits.size() && m_edits.back().open && m_edits.back().sameTarget(edit))
-    {
-        // The drag goes on: one entry from the value before it to the latest
-        m_edits.back().newValue = std::move(edit.newValue);
-        m_edits.back().open = continuous;
+    setOpen(edit, continuous);
+    // The drag goes on: one entry from the value before it to the latest
+    if (m_applied > 0 && m_applied == m_edits.size() && extend(m_edits.back(), edit, continuous))
         return;
-    }
-    if (sameValue(edit.oldValue, edit.newValue))
+    if (changesNothing(edit))
         return;
 
     m_edits.resize(m_applied);
@@ -63,10 +99,10 @@ void UndoStack::record(FieldEdit edit, bool continuous)
 void UndoStack::seal()
 {
     if (!m_edits.empty())
-        m_edits.back().open = false;
+        setOpen(m_edits.back(), false);
 }
 
-auto UndoStack::undo() -> const FieldEdit*
+auto UndoStack::undo() -> const Edit*
 {
     if (!canUndo())
         return nullptr;
@@ -74,7 +110,7 @@ auto UndoStack::undo() -> const FieldEdit*
     return &m_edits[--m_applied];
 }
 
-auto UndoStack::redo() -> const FieldEdit*
+auto UndoStack::redo() -> const Edit*
 {
     return canRedo() ? &m_edits[m_applied++] : nullptr;
 }
@@ -90,36 +126,5 @@ void UndoStack::clear()
     m_edits.clear();
     m_applied = 0;
     m_saved = 0;
-}
-
-auto applyEdit(const reflect::TypeRegistry& types, world::Registry& registry, const FieldEdit& edit, EditSide side,
-    const std::function<void(const reflect::TypeInfo& type, void* object)>& prepare, const FindScript& findScript) -> std::expected<void, reflect::Error>
-{
-    const auto* type = types.find(edit.type);
-    if (!type)
-        return reflect::makeError(reflect::ErrorCode::UnknownType, std::format("no type '{}'", edit.type));
-    const auto* field = type->findField(edit.field);
-    if (!field)
-        return reflect::makeError(reflect::ErrorCode::UnknownField, std::format("'{}' has no field '{}'", edit.type, edit.field));
-
-    const auto entity = registry.find(edit.entity);
-    if (!entity)
-        return reflect::makeError(reflect::ErrorCode::WrongCategory, std::format("the entity of the edit of '{}.{}' is gone", edit.type, edit.field));
-
-    void* object = nullptr;
-    if (edit.scriptIndex)
-        object = findScript ? findScript(*type, registry, entity, *edit.scriptIndex) : nullptr;
-    else if (const auto* storage = type->attachment<world::ComponentStorage>())
-        object = storage->find(registry, entity);
-    if (!object)
-        return reflect::makeError(reflect::ErrorCode::WrongCategory, std::format("the entity no longer has '{}'", edit.type));
-
-    if (auto written = field->setter(object, side == EditSide::Old ? edit.oldValue : edit.newValue); !written)
-        return written;
-    if (prepare)
-        prepare(*type, object);
-    if (const auto* storage = type->attachment<world::ComponentStorage>())
-        storage->changed(registry, entity);
-    return {};
 }
 }

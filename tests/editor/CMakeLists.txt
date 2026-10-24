@@ -1,5 +1,6 @@
 aegis_add_test(editor
     SOURCES
+        commands.test.cpp
         console.test.cpp
         context.test.cpp
         editor_camera.test.cpp
@@ -10,5 +11,5 @@ aegis_add_test(editor
         selection.test.cpp
         settled_extent.test.cpp
         undo_stack.test.cpp
-    LIBS aegis-editor-core
+    LIBS aegis-editor-core aegis-scripting
 )

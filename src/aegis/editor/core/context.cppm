@@ -21,7 +21,7 @@ public:
     [[nodiscard]] auto selection() -> Selection& { return m_selection; }
     [[nodiscard]] auto selection() const -> const Selection& { return m_selection; }
 
-    /// @brief The history of field edits of the world; its saved marker is the scene's dirty flag.
+    /// @brief The history of edits of the world; its saved marker is the scene's dirty flag.
     [[nodiscard]] auto undoStack() -> UndoStack& { return m_undo; }
     [[nodiscard]] auto undoStack() const -> const UndoStack& { return m_undo; }
 
