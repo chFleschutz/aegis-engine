@@ -167,13 +167,22 @@ auto assetName(const assets::AssetDatabase& database, std::uint64_t id) -> std::
     return entry->key.empty() ? entry->path : std::format("{} : {}", entry->path, entry->key);
 }
 
-// The asset's name, and a picker of the assets of the field's type (and None).
-auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const assets::AssetDatabase& database) -> std::optional<reflect::Value>
+// The asset's name, and a picker of the assets of the field's type (and None). An 'editable' slot takes an asset of
+// its type dragged from the asset browser.
+auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const assets::AssetDatabase& database, bool editable) -> std::optional<reflect::Value>
 {
     static std::string s_filter;
     const auto current = as<std::uint64_t>(value);
     std::optional<reflect::Value> edited;
-    if (ImGui::BeginCombo("##value", assetName(database, current).c_str(), ImGuiComboFlags_HeightLarge))
+    const bool open = ImGui::BeginCombo("##value", assetName(database, current).c_str(), ImGuiComboFlags_HeightLarge);
+    if (!open && editable && ImGui::BeginDragDropTarget())
+    {
+        const auto& slotType = row.field->assetType;
+        if (const auto dropped = acceptAssetPayload([&slotType](const AssetPayload& payload) { return acceptsAsset(slotType, payload); }))
+            edited = reflect::Value{ dropped->id };
+        ImGui::EndDragDropTarget();
+    }
+    if (open)
     {
         if (ImGui::IsWindowAppearing())
         {
@@ -203,7 +212,7 @@ auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const as
 }
 
 // The row's widget for 'value'; the new value when it was edited this frame.
-auto drawValue(const PropertyRow& row, const reflect::Value& value, const assets::AssetDatabase& database) -> std::optional<reflect::Value>
+auto drawValue(const PropertyRow& row, const reflect::Value& value, const assets::AssetDatabase& database, bool editable) -> std::optional<reflect::Value>
 {
     switch (row.widget)
     {
@@ -219,7 +228,7 @@ auto drawValue(const PropertyRow& row, const reflect::Value& value, const assets
     case PropertyWidget::Rotation: return drawRotation(row, value);
     case PropertyWidget::Combo: return drawCombo(row, value);
     case PropertyWidget::Text: return drawText(value);
-    case PropertyWidget::AssetSlot: return drawAssetSlot(row, value, database);
+    case PropertyWidget::AssetSlot: return drawAssetSlot(row, value, database, editable);
     }
     return std::nullopt;
 }
@@ -249,7 +258,7 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
         ImGui::SetNextItemWidth(-FLT_MAX);
         ImGui::BeginDisabled(readOnly || row.readOnly);
         const auto current = row.field->getter(object);
-        const auto edited = drawValue(row, current, frame.assets.database());
+        const auto edited = drawValue(row, current, frame.assets.database(), !readOnly && !row.readOnly);
         const bool active = ImGui::IsItemActive();
         const bool deactivated = ImGui::IsItemDeactivated();
         ImGui::EndDisabled();

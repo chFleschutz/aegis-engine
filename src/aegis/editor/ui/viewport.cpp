@@ -1,6 +1,7 @@
 module;
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <ImGuizmo.h>
 
 module aegis.editor;
@@ -13,6 +14,7 @@ import aegis.rhi;
 import aegis.world;
 import aegis.world.render_components;
 import aegis.world.systems.transform_system;
+import :panels;
 
 namespace aegis::editor
 {
@@ -22,6 +24,9 @@ namespace
 constexpr float iconRadius{ 9.0f };
 // What a focus frames around an entity without a mesh.
 constexpr float pointFocusRadius{ 1.0f };
+// A scene dropped into the view lands on the ground under the cursor if it is this near, else this far along the ray.
+constexpr float dropMaxDistance{ 100.0f };
+constexpr float dropFallbackDistance{ 5.0f };
 
 // The local bounds of the entity's mesh in world space; none without a loaded mesh.
 auto meshBounds(world::Registry& registry, world::Entity entity) -> std::optional<Sphere>
@@ -103,6 +108,7 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
             const bool gizmo = drawGizmo(editor, frame.types, rect);
             drawToolbar(editor, rect);
             pick(editor, rect, icons, gizmo);
+            acceptDrop(editor, frame, rect);
         }
     }
     else
@@ -339,6 +345,20 @@ auto Viewport::drawIcons(const EditorContext& editor, const Rect& rect) -> std::
 
     drawList->PopClipRect();
     return icons;
+}
+
+void Viewport::acceptDrop(EditorContext& editor, FrameContext& frame, const Rect& rect)
+{
+    // The image is no item: its rectangle takes the drop
+    const ImRect bounds{ rect.x, rect.y, rect.x + rect.width, rect.y + rect.height };
+    if (!ImGui::BeginDragDropTargetCustom(bounds, ImGui::GetID("##drop")))
+        return;
+    if (const auto dropped = acceptAssetPayload([](const AssetPayload& payload) { return canInstantiate(payload); }))
+    {
+        const auto ray = m_camera.ray(toNdc(ImGui::GetIO().MousePos, rect.x, rect.y, rect.width, rect.height), aspect());
+        instantiateAsset(editor, frame, dropped->id, {}, dropPoint(ray, dropMaxDistance, dropFallbackDistance));
+    }
+    ImGui::EndDragDropTarget();
 }
 
 void Viewport::pick(EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo)

@@ -14,6 +14,16 @@ export namespace aegis::editor
 [[nodiscard]] auto createEntity(const EditWorld& world, UndoStack& history, std::string name, world::Entity parent = {})
     -> std::expected<world::Entity, std::string>;
 
+/// @brief Makes the entities of a scene or model instance under 'parent' (a root entity for a null one).
+using CreateInstance = std::function<std::expected<world::Entity, std::string>(world::Entity parent)>;
+
+/// @brief Creates an instance through 'create' (the asset library's instantiateScene) under 'parent' and records it:
+///        undo destroys the holder and its descendants, redo restores the holder with its StableId, and the holder's
+///        SceneInstance recreates the instance's entities (through EditWorld::prepare).
+/// @return The holder, or an error (and nothing changed) for a parent of a scene instance or a failed 'create'
+[[nodiscard]] auto instantiateEntity(const EditWorld& world, UndoStack& history, world::Entity parent, const CreateInstance& create)
+    -> std::expected<world::Entity, std::string>;
+
 /// @brief Destroys 'entity' and its descendants; undo restores them with their StableIds.
 auto destroyEntity(const EditWorld& world, UndoStack& history, world::Entity entity) -> std::expected<void, std::string>;
 

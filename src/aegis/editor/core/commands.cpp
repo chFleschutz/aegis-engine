@@ -93,6 +93,29 @@ auto createEntity(const EditWorld& world, UndoStack& history, std::string name, 
     return entity;
 }
 
+auto instantiateEntity(const EditWorld& world, UndoStack& history, world::Entity parent, const CreateInstance& create)
+    -> std::expected<world::Entity, std::string>
+{
+    auto& registry = world.registry;
+    if (parent)
+    {
+        if (auto editable = checkEditable(registry, parent); !editable)
+            return std::unexpected{ std::format("cannot instantiate there: {}", editable.error()) };
+    }
+
+    const auto holder = create(parent);
+    if (!holder)
+        return std::unexpected{ holder.error() };
+    auto scene = snapshot(world, *holder);
+    if (!scene)
+    {
+        destroySubtree(registry, *holder);
+        return std::unexpected{ scene.error() };
+    }
+    history.record(SubtreeEdit{ .subtree = std::move(*scene), .root = registry.get<StableId>(*holder), .parent = idOf(registry, parent), .index = indexOf(registry, *holder) });
+    return *holder;
+}
+
 auto destroyEntity(const EditWorld& world, UndoStack& history, world::Entity entity) -> std::expected<void, std::string>
 {
     auto& registry = world.registry;

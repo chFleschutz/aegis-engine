@@ -44,14 +44,29 @@ struct Drop
     StableId entity;
     std::optional<StableId> target; // None: the empty space below the rows, which makes the entity a root
     DropZone zone{ DropZone::Into };
+    std::uint64_t asset{ 0 }; // A scene or model from the asset browser, instantiated into the target, instead of 'entity'
 };
+
+// A scene or model dragged from the asset browser, dropped this frame.
+auto acceptInstance() -> std::uint64_t
+{
+    const auto dropped = acceptAssetPayload([](const AssetPayload& payload) { return canInstantiate(payload); });
+    return dropped ? dropped->id : 0;
+}
 
 void applyDrop(const Drop& drop, EditorContext& editor, FrameContext& frame)
 {
     auto& registry = editor.world()->registry();
-    const auto entity = registry.find(drop.entity);
     const auto target = drop.target ? registry.find(*drop.target) : world::Entity{};
-    if (!entity || (drop.target && !target))
+    if (drop.target && !target)
+        return;
+    if (drop.asset)
+    {
+        instantiateAsset(editor, frame, drop.asset, target);
+        return;
+    }
+    const auto entity = registry.find(drop.entity);
+    if (!entity)
         return;
     const auto edits = editWorld(editor, frame);
     const auto moved = drop.zone == DropZone::Into ? moveEntity(edits, editor.undoStack(), entity, target, std::numeric_limits<std::size_t>::max())
@@ -157,6 +172,8 @@ private:
         {
             if (const auto* payload = ImGui::AcceptDragDropPayload(entityPayload))
                 drop = Drop{ .entity = *static_cast<const StableId*>(payload->Data) };
+            else if (const auto asset = acceptInstance())
+                drop = Drop{ .asset = asset };
             ImGui::EndDragDropTarget();
         }
         if (drop)
@@ -247,7 +264,8 @@ private:
     }
 
     // The row just drawn as a drag source and a drop target: the top and bottom quarters of the row place the
-    // dragged entity before or after it, the middle makes it the row's last child.
+    // dragged entity before or after it, the middle makes it the row's last child. A scene or model dropped from the
+    // asset browser is instantiated as its last child.
     static void dragAndDrop(world::Registry& registry, world::Entity entity, std::optional<Drop>& drop)
     {
         const auto id = registry.get<StableId>(entity);
@@ -275,6 +293,8 @@ private:
             if (payload->IsDelivery())
                 drop = Drop{ .entity = *static_cast<const StableId*>(payload->Data), .target = id, .zone = zone };
         }
+        else if (const auto asset = acceptInstance()) // Instantiated as the row's last child, wherever it is dropped
+            drop = Drop{ .target = id, .asset = asset };
         ImGui::EndDragDropTarget();
     }
 

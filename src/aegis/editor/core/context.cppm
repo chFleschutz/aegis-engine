@@ -50,6 +50,12 @@ public:
     /// @brief Forgets the selection and the edit history, for another scene in the same world. Not while playing.
     void resetScene();
 
+    /// @brief Asks the shell to open the scene file 'scene' (an asset ID) once the panels are drawn: replacing the
+    ///        world while they walk it would break them. A later request this frame replaces it.
+    void requestOpenScene(std::uint64_t scene) { m_sceneRequest = scene; }
+    /// @brief The requested scene, once; none if nothing was requested since.
+    [[nodiscard]] auto takeSceneRequest() -> std::optional<std::uint64_t> { return std::exchange(m_sceneRequest, std::nullopt); }
+
     /// @brief The active selected entity, or null (nothing selected, no world, or the entity is gone).
     [[nodiscard]] auto selectedEntity() const -> world::Entity;
     /// @brief Whether 'entity' is selected.
@@ -67,5 +73,6 @@ private:
     UndoStack m_editUndo; // The edit world's history while playing
     ConsoleBuffer m_console;
     EditorPreferences m_preferences;
+    std::optional<std::uint64_t> m_sceneRequest;
 };
 }

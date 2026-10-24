@@ -6,6 +6,7 @@ module;
 
 module aegis.editor;
 import std;
+import aegis.assets;
 import aegis.core;
 import aegis.reflect;
 import aegis.world;
@@ -84,6 +85,7 @@ EditorShell::EditorShell()
 
     m_panels.push_back(makeScenePanel());
     m_panels.push_back(makeInspectorPanel());
+    m_panels.push_back(makeAssetPanel());
     m_panels.push_back(makeConsolePanel());
     m_panels.push_back(makePreferencesPanel());
     m_panels.push_back(makeRendererPanel());
@@ -182,6 +184,8 @@ void EditorShell::onFrame(FrameContext& frame)
             panel->draw(m_context, frame);
     }
     m_viewport.draw(m_context, frame);
+    if (const auto scene = m_context.takeSceneRequest())
+        request({ .kind = PendingAction::Kind::Open, .scene = assets::AssetId{ *scene } }, frame);
     drawStatusBar(frame);
     drawOpenPopup(frame);
     drawSaveAsPopup(frame);
@@ -221,7 +225,7 @@ void EditorShell::run(PendingAction action, FrameContext& frame)
         log::warn("Cannot open the scene: {}", describe(loaded.error()));
     m_scene = frame.engine.scene();
     m_context.resetScene();
-    m_viewport.placeCameraAgain();
+    m_viewport.resetCamera();
 }
 
 auto EditorShell::save(FrameContext& frame) -> bool

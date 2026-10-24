@@ -110,6 +110,10 @@ public:
     ///        its material without changing the shared one. A null 'material' gives a new PBR material.
     auto copyMaterial(const assets::AssetRef<assets::Material>& material) -> assets::AssetRef<assets::Material>;
 
+    /// @brief Scans the asset folders again, picking up files added, changed or removed since (new sources get
+    ///        sidecars). Assets already loaded stay as they are (no hot reload); on failure the database is unchanged.
+    [[nodiscard]] auto rescan() -> std::expected<void, std::string>;
+
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return *m_defaults; }
     [[nodiscard]] auto database() const -> const assets::AssetDatabase& { return *m_database; }
     [[nodiscard]] auto importCache() const -> const assets::ImportCache& { return *m_importCache; }
