@@ -17,6 +17,7 @@ target_sources(aegis-editor-core
     PUBLIC
     FILE_SET CXX_MODULES FILES
     core/core.cppm
+    core/asset_browser.cppm
     core/console.cppm
     core/commands.cppm
     core/context.cppm
@@ -30,6 +31,7 @@ target_sources(aegis-editor-core
     core/settled_extent.cppm
     core/undo_stack.cppm
     PRIVATE
+    core/asset_browser.cpp
     core/commands.cpp
     core/console.cpp
     core/context.cpp
