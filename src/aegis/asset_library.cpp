@@ -92,6 +92,7 @@ public:
 
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return m_defaults; }
     [[nodiscard]] auto database() const -> const assets::AssetDatabase& { return m_database; }
+    [[nodiscard]] auto database() -> assets::AssetDatabase& { return m_database; }
     [[nodiscard]] auto importCache() const -> const assets::ImportCache& { return m_importCache; }
     [[nodiscard]] auto device() -> rhi::Device& { return *m_device; }
     [[nodiscard]] auto framesInFlight() const -> std::uint32_t { return m_framesInFlight; }
@@ -682,6 +683,17 @@ auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, con
 auto AssetLibrary::find(std::string_view path, std::string_view key) const -> std::optional<AssetId>
 {
     return m_database->find(0, path, key);
+}
+
+auto AssetLibrary::addFile(std::string_view path) -> std::expected<AssetId, std::string>
+{
+    auto& database = m_impl->database();
+    if (auto added = database.addFile(0, path); !added)
+        return std::unexpected{ assets::describe(added.error()) };
+    const auto found = database.find(0, path);
+    if (!found)
+        return std::unexpected{ std::format("'{}' holds no asset", path) };
+    return *found;
 }
 
 auto AssetLibrary::id(std::string_view path, std::string_view key) const -> AssetId

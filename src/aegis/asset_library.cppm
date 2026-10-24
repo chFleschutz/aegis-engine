@@ -64,6 +64,11 @@ public:
     auto loadEnvironment(assets::AssetId id) -> assets::AssetRef<assets::Environment>;
     auto loadModel(assets::AssetId id) -> assets::AssetRef<assets::Model>;
 
+    /// @brief Adds the file at 'path' in the project's content folder, written after the scan (a scene the editor
+    ///        saved under a new name), to the database, or reads it again if it was there.
+    /// @return The ID of its main asset, or why the file is no asset (assets::AssetDatabase::addFile).
+    [[nodiscard]] auto addFile(std::string_view path) -> std::expected<assets::AssetId, std::string>;
+
     /// @brief Reads the scene file 'scene' (or a model file's scene, see below) and creates its entities in 'world'
     ///        with the IDs the file gives them (a world's root scene keeps its local IDs). 'types' names the components and scripts the file may
     ///        hold. The assets a MeshRenderer or Sky names are loaded before the component joins its entity, so

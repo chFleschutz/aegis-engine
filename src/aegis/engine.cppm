@@ -235,6 +235,9 @@ public:
     /// @brief The safe point, once per frame: build the UI, apply edits and update the worlds that should: Play runs
     ///        the game, Edit only the systems that opt in (see FrameContext).
     virtual void onFrame(FrameContext& frame) = 0;
+    /// @brief Asked when the user closes the window: false keeps it open, e.g. to ask about unsaved changes first and
+    ///        call Engine::quit once answered.
+    [[nodiscard]] virtual auto canClose() -> bool { return true; }
     /// @brief The input the game doesn't see this frame; asked before the input is read.
     [[nodiscard]] virtual auto inputCapture() const -> InputCapture { return {}; }
     /// @brief The view to render; none renders onto the window (or, headless, the offscreen target). Asked before
@@ -313,7 +316,7 @@ public:
     template<SceneDescriptionDerived T, typename... Args>
     void loadScene(Args&&... args)
     {
-        resetWorld();
+        newScene();
         T description{ std::forward<Args>(args)... };
         SceneContext context{ .scene = world(), .types = m_types, .assets = *m_assets };
         description.initialize(context);
@@ -325,6 +328,19 @@ public:
     /// @return EngineErrorCode::SceneFailed, naming the file and line, if the file does not load; the world is
     ///         then empty.
     [[nodiscard]] auto loadScene(assets::AssetId scene) -> std::expected<void, EngineError>;
+
+    /// @brief The scene file the main world was loaded from last (loadScene); none before, after a failed load and
+    ///        after newScene.
+    [[nodiscard]] auto scene() const -> std::optional<assets::AssetId> { return m_scene; }
+
+    /// @brief Empties the main world for a new scene that has no file yet. It begins with its next update.
+    void newScene();
+
+    /// @brief Sets the window's title; headless, nothing.
+    void setTitle(std::string_view title);
+
+    /// @brief Ends run() after this frame, without asking the shell (Shell::canClose).
+    void quit() { m_quit = true; }
 
     /// @brief Replaces the shell (GameShell by default), such as with the editor (editor::EditorShell). Call it
     ///        before run().
@@ -399,6 +415,8 @@ private:
     const world::World* m_lastRendered{ nullptr }; // The world whose instances the passes' buffers hold
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
     std::optional<rhi::Extent2D> m_viewExtent; // The extent of the view the frame graph renders into; none for the target
+    std::optional<assets::AssetId> m_scene;    // The scene file the main world was loaded from
+    bool m_quit{ false };                      // quit(): run() ends after this frame
     // Last, so it goes first, while everything it may reference (the worlds, the frame graph, ImGui) exists.
     std::unique_ptr<Shell> m_shell{ std::make_unique<GameShell>() };
 };
