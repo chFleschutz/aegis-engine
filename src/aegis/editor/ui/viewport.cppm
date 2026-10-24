@@ -18,10 +18,17 @@ public:
     /// @brief Draws the panel and applies this frame's camera moves, gizmo edits and clicks.
     void draw(EditorContext& editor, FrameContext& frame);
 
-    /// @brief The view the world renders through: the editor camera at the settled panel size; none while closed.
+    /// @brief The view the world renders through: the editor camera (in the game view, the world's main camera) at the
+    ///        settled panel size; none while closed.
     [[nodiscard]] auto renderView() const -> std::optional<RenderView>;
     /// @brief Whether the viewport takes the mouse and keyboard: it is hovered, or the camera is being dragged.
     [[nodiscard]] auto capturesInput() const -> bool { return m_hovered || cameraDragged(); }
+    /// @brief Whether the game gets the input: the game view has focus.
+    [[nodiscard]] auto givesInputToGame() const -> bool { return m_gameView && m_focused; }
+
+    /// @brief Shows the world through its main camera (while playing) instead of the editor camera, which then stays
+    ///        where it is; there is no gizmo, icon or picking in it.
+    void setGameView(bool gameView);
 
     [[nodiscard]] auto isOpen() const -> bool { return m_open; }
     void setOpen(bool open) { m_open = open; }
@@ -72,6 +79,7 @@ private:
     GizmoSpace m_gizmoSpace{ GizmoSpace::Local };
     bool m_snap{ false }; // Ctrl inverts it
     bool m_open{ true };
+    bool m_gameView{ false };
     bool m_cameraPlaced{ false };
     bool m_hovered{ false };
     bool m_focused{ false };

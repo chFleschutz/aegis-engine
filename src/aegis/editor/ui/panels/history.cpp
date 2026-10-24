@@ -10,9 +10,9 @@ namespace aegis::editor
 namespace
 {
 // The edit's side written to the world.
-auto apply(const Edit& edit, EditSide side, FrameContext& frame) -> bool
+auto apply(const Edit& edit, EditSide side, const EditorContext& editor, FrameContext& frame) -> bool
 {
-    if (auto applied = applyEdit(editWorld(frame), edit, side); !applied)
+    if (auto applied = applyEdit(editWorld(editor, frame), edit, side); !applied)
     {
         log::warn("Cannot {} {}: {}", side == EditSide::Old ? "undo" : "redo", describe(edit), applied.error());
         return false;
@@ -21,11 +21,11 @@ auto apply(const Edit& edit, EditSide side, FrameContext& frame) -> bool
 }
 }
 
-auto editWorld(FrameContext& frame) -> EditWorld
+auto editWorld(const EditorContext& editor, FrameContext& frame) -> EditWorld
 {
     return EditWorld{
         .types = frame.types,
-        .registry = frame.world.registry(),
+        .registry = editor.world()->registry(),
         .prepare = [&frame](const reflect::TypeInfo& type, void* object) { frame.assets.resolve(type, object, frame.types); },
     };
 }
@@ -33,12 +33,12 @@ auto editWorld(FrameContext& frame) -> EditWorld
 auto undoEdit(EditorContext& editor, FrameContext& frame) -> bool
 {
     const auto* edit = editor.undoStack().undo();
-    return edit && apply(*edit, EditSide::Old, frame);
+    return edit && apply(*edit, EditSide::Old, editor, frame);
 }
 
 auto redoEdit(EditorContext& editor, FrameContext& frame) -> bool
 {
     const auto* edit = editor.undoStack().redo();
-    return edit && apply(*edit, EditSide::New, frame);
+    return edit && apply(*edit, EditSide::New, editor, frame);
 }
 }

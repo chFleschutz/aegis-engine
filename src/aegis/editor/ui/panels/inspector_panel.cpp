@@ -265,13 +265,13 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
         if (edited)
         {
             const auto prepare = row.widget == PropertyWidget::AssetSlot ? PrepareField{ resolve } : PrepareField{};
-            if (auto written = setField(type, *row.field, frame.world.registry(), entity, object, *edited, prepare); !written)
+            if (auto written = setField(type, *row.field, editor.world()->registry(), entity, object, *edited, prepare); !written)
             {
                 log::warn("Cannot set {}.{}: {}", type.name, row.field->name, reflect::describe(written.error()));
             }
             else
             {
-                const auto id = frame.world.registry().get<StableId>(entity);
+                const auto id = editor.world()->registry().get<StableId>(entity);
                 editor.undoStack().record(FieldEdit{ .entity = id, .type = type.name, .field = row.field->name, .scriptIndex = scriptIndex, .oldValue = current, .newValue = *edited }, active);
             }
         }
@@ -341,7 +341,7 @@ public:
             return;
         }
 
-        auto& registry = frame.world.registry();
+        auto& registry = editor.world()->registry();
         ImGui::PushID(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(registry.get<StableId>(entity).value)));
         // A scene instance's entities are not saved (the holder's SceneInstance recreates them): an edit would be lost
         const bool readOnly = registry.has<serialize::InstanceMember>(entity);
@@ -365,7 +365,7 @@ private:
             if (ImGui::InputText("##name", &name))
             {
                 // Typing the name is one entry
-                if (auto renamed = renameEntity(editWorld(frame), editor.undoStack(), entity, std::move(name), ImGui::IsItemActive()); !renamed)
+                if (auto renamed = renameEntity(editWorld(editor, frame), editor.undoStack(), entity, std::move(name), ImGui::IsItemActive()); !renamed)
                     log::warn("Cannot rename the entity: {}", renamed.error());
             }
             if (ImGui::IsItemDeactivated())
@@ -402,7 +402,7 @@ private:
         }
         if (removed)
         {
-            if (auto done = removeComponent(editWorld(frame), editor.undoStack(), entity, *removed); !done)
+            if (auto done = removeComponent(editWorld(editor, frame), editor.undoStack(), entity, *removed); !done)
                 log::warn("Cannot remove {}: {}", removed->name, done.error());
         }
     }
@@ -425,7 +425,7 @@ private:
         }
         if (detached)
         {
-            if (auto done = detachScript(editWorld(frame), editor.undoStack(), entity, *detached); !done)
+            if (auto done = detachScript(editWorld(editor, frame), editor.undoStack(), entity, *detached); !done)
                 log::warn("Cannot detach the script: {}", done.error());
         }
     }
@@ -444,7 +444,7 @@ private:
         {
             if (const auto* type = pickType(addableComponents(frame.types, registry, entity)))
             {
-                if (auto added = addComponent(editWorld(frame), editor.undoStack(), entity, *type); !added)
+                if (auto added = addComponent(editWorld(editor, frame), editor.undoStack(), entity, *type); !added)
                     log::warn("Cannot add {}: {}", type->name, added.error());
             }
             ImGui::EndPopup();
@@ -453,7 +453,7 @@ private:
         {
             if (const auto* type = pickType(scriptTypes(frame.types)))
             {
-                if (auto attached = attachScript(editWorld(frame), editor.undoStack(), entity, *type); !attached)
+                if (auto attached = attachScript(editWorld(editor, frame), editor.undoStack(), entity, *type); !attached)
                     log::warn("Cannot attach {}: {}", type->name, attached.error());
             }
             ImGui::EndPopup();

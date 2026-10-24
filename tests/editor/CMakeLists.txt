@@ -7,8 +7,10 @@ aegis_add_test(editor
         editor_camera.test.cpp
         inspector.test.cpp
         picking.test.cpp
+        play.test.cpp
         preferences.test.cpp
         property_model.test.cpp
+        scene_file.test.cpp
         selection.test.cpp
         settled_extent.test.cpp
         undo_stack.test.cpp

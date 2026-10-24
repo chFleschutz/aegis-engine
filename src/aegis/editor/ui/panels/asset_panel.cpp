@@ -258,9 +258,9 @@ auto acceptAssetPayload(const std::function<bool(const AssetPayload& payload)>& 
 
 auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t asset, world::Entity parent, std::optional<glm::vec3> location) -> bool
 {
-    auto& registry = frame.world.registry();
+    auto& registry = editor.world()->registry();
     const auto create = [&](world::Entity at) -> std::expected<world::Entity, std::string> {
-        auto holder = frame.assets.instantiateScene(frame.world, frame.types, assets::AssetId{ asset }, at);
+        auto holder = frame.assets.instantiateScene(*editor.world(), frame.types, assets::AssetId{ asset }, at);
         if (holder && location)
         {
             registry.get<Transform>(*holder).location = *location;
@@ -269,7 +269,7 @@ auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t 
         }
         return holder;
     };
-    auto holder = instantiateEntity(editWorld(frame), editor.undoStack(), parent, create);
+    auto holder = instantiateEntity(editWorld(editor, frame), editor.undoStack(), parent, create);
     if (!holder)
     {
         log::warn("Cannot instantiate {}: {}", assets::AssetId{ asset }, holder.error());

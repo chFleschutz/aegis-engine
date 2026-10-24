@@ -56,7 +56,7 @@ auto acceptInstance() -> std::uint64_t
 
 void applyDrop(const Drop& drop, EditorContext& editor, FrameContext& frame)
 {
-    auto& registry = frame.world.registry();
+    auto& registry = editor.world()->registry();
     const auto target = drop.target ? registry.find(*drop.target) : world::Entity{};
     if (drop.target && !target)
         return;
@@ -68,7 +68,7 @@ void applyDrop(const Drop& drop, EditorContext& editor, FrameContext& frame)
     const auto entity = registry.find(drop.entity);
     if (!entity)
         return;
-    const auto edits = editWorld(frame);
+    const auto edits = editWorld(editor, frame);
     const auto moved = drop.zone == DropZone::Into ? moveEntity(edits, editor.undoStack(), entity, target, std::numeric_limits<std::size_t>::max())
                                                    : moveEntityBeside(edits, editor.undoStack(), entity, target, drop.zone == DropZone::After);
     if (!moved)
@@ -84,7 +84,7 @@ public:
 
     void draw(EditorContext& editor, FrameContext& frame) override
     {
-        auto& scene = frame.world;
+        auto& scene = *editor.world();
         ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(400, 800));
 
         drawHierarchy(editor, frame);
@@ -119,7 +119,7 @@ private:
             return;
         }
 
-        auto& registry = frame.world.registry();
+        auto& registry = editor.world()->registry();
         constexpr std::uint8_t NODE_OPENED = 1 << 0;
         constexpr std::uint8_t VISITED = 1 << 1;
         std::vector<std::pair<world::Entity, std::uint8_t>> stack;
@@ -195,7 +195,7 @@ private:
             return;
         }
 
-        auto& registry = frame.world.registry();
+        auto& registry = editor.world()->registry();
         auto view = registry.view<entt::entity>();
         for (auto entt : view)
         {
@@ -305,7 +305,7 @@ private:
         {
             if (ImGui::MenuItem("Create Entity"))
             {
-                if (auto created = createEntity(editWorld(frame), editor.undoStack(), "Empty Entity"))
+                if (auto created = createEntity(editWorld(editor, frame), editor.undoStack(), "Empty Entity"))
                     editor.select(*created);
                 else
                     log::warn("Cannot create an entity: {}", created.error());
@@ -316,8 +316,8 @@ private:
                 duplicateSelected(editor, frame);
             if (selected && ImGui::MenuItem("Destroy Selected Entity"))
             {
-                if (auto destroyed = destroyEntity(editWorld(frame), editor.undoStack(), selected); !destroyed)
-                    log::warn("Cannot destroy '{}': {}", nameOf(frame.world.registry(), selected), destroyed.error());
+                if (auto destroyed = destroyEntity(editWorld(editor, frame), editor.undoStack(), selected); !destroyed)
+                    log::warn("Cannot destroy '{}': {}", nameOf(editor.world()->registry(), selected), destroyed.error());
                 editor.selection().clear();
             }
 
@@ -332,10 +332,10 @@ auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool
     const auto selected = editor.selectedEntity();
     if (!selected)
         return false;
-    auto copy = duplicateEntity(editWorld(frame), editor.undoStack(), selected);
+    auto copy = duplicateEntity(editWorld(editor, frame), editor.undoStack(), selected);
     if (!copy)
     {
-        log::warn("Cannot duplicate '{}': {}", nameOf(frame.world.registry(), selected), copy.error());
+        log::warn("Cannot duplicate '{}': {}", nameOf(editor.world()->registry(), selected), copy.error());
         return false;
     }
     editor.select(*copy);

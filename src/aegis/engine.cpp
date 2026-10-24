@@ -189,10 +189,23 @@ void FrameContext::render(world::World& world)
 
 auto Engine::loadScene(assets::AssetId scene) -> std::expected<void, EngineError>
 {
-    resetWorld();
+    newScene();
     if (auto created = m_assets->instantiateScene(world(), m_types, scene); !created)
         return std::unexpected{ makeError(EngineErrorCode::SceneFailed, std::move(created.error())) };
+    m_scene = scene;
     return {};
+}
+
+void Engine::newScene()
+{
+    resetWorld();
+    m_scene.reset();
+}
+
+void Engine::setTitle(std::string_view title)
+{
+    if (m_window)
+        m_window->setTitle(title);
 }
 
 auto Engine::createWorld() -> world::World&
@@ -324,7 +337,7 @@ auto Engine::run() -> int
     if (headless)
         m_clock = core::FrameClock::fixed(HEADLESS_FRAME_DELTA_SEC);
     resetClocks(std::chrono::steady_clock::now());
-    while ((headless || !m_window->shouldClose()) && (m_desc.frames == 0 || frames < m_desc.frames))
+    while (!m_quit && (headless || !m_window->shouldClose()) && (m_desc.frames == 0 || frames < m_desc.frames))
     {
         ScopeProfiler frameTime("Frame Time");
 
@@ -441,6 +454,7 @@ auto Engine::createWindow() -> std::expected<void, EngineError>
         return std::unexpected{ makeError(EngineErrorCode::WindowFailed, std::format("Failed to create the window: {}", platform::describe(window.error()))) };
     m_window = std::make_unique<platform::Window>(std::move(*window));
     m_input = std::make_unique<platform::Input>(*m_window);
+    m_window->setCloseHandler([this] { return m_shell->canClose(); });
     m_presentation.attach(*m_window); // After the input: ImGui's callbacks chain to the window's
     return {};
 }
