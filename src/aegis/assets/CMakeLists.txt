@@ -9,6 +9,7 @@ target_link_libraries(aegis-assets
     PRIVATE
         fastgltf
         glaze::glaze
+        ktx
         meshoptimizer
         stb
         tinyobjloader
@@ -42,6 +43,8 @@ target_sources(aegis-assets
     static_mesh.cppm
     sub_asset_key.cppm
     texture.cppm
+    texture_blob.cppm
+    texture_data.cppm
     upload.cppm
     PRIVATE
     asset_database.cpp
@@ -62,4 +65,6 @@ target_sources(aegis-assets
     static_mesh.cpp
     sub_asset_key.cpp
     texture.cpp
+    texture_blob.cpp
+    texture_data.cpp
 )

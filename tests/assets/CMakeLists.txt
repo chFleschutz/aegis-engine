@@ -16,6 +16,8 @@ aegis_add_test(assets
         model_import.test.cpp
         sidecar.test.cpp
         sub_asset_key.test.cpp
+        texture_blob.test.cpp
+        texture_data.test.cpp
     LIBS aegis-assets
 )
 

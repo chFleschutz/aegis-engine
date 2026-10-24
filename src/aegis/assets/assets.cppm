@@ -27,3 +27,5 @@ export import :sidecar;
 export import :static_mesh;
 export import :sub_asset_key;
 export import :texture;
+export import :texture_blob;
+export import :texture_data;
