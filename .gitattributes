@@ -1,3 +1,6 @@
 # LF line endings everywhere: in the repository and in every checkout, whatever core.autocrlf says.
 # Git detects binary files and leaves them alone.
 * text=auto eol=lf
+
+# A part of KTX-Software (tools/update-ktx.sh), not our code.
+external/ktx/** linguist-vendored

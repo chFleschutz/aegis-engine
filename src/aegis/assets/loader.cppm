@@ -3,6 +3,7 @@ import std;
 import :defaults;
 import :asset_ref;
 import :error;
+import :import_cache;
 import :material;
 import :model_data;
 import :static_mesh;
@@ -68,6 +69,10 @@ public:
         /// @brief The texture of an external image (ModelImage::uri set), the asset library's texture of the image's
         ///        own asset. None, or a null texture, leaves the image out of its materials.
         std::function<std::shared_ptr<Texture>(const ModelImage&)> externalTexture{};
+        /// @brief Where the textures of embedded images are read from and written to (ImportCache::loadTexture),
+        ///        by their encoded bytes; none makes them from the decoded pixels. An image that cannot be decoded
+        ///        is logged and left out of its materials.
+        const ImportCache* importCache{ nullptr };
     };
 
     Loader() = delete;

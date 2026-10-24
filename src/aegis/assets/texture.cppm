@@ -2,6 +2,7 @@ export module aegis.assets:texture;
 import std;
 import :error;
 import :image_data;
+import :texture_data;
 import aegis.rhi;
 import aegis.math;
 
@@ -59,6 +60,12 @@ public:
     ///         match the size.
     [[nodiscard]] static auto create(rhi::Device& device, const ImageData& image, const ImageDesc& desc)
         -> std::expected<std::shared_ptr<Texture>, Error>;
+
+    /// @brief A texture of 'texture' as it is: every mip level and layer it has uploaded, none generated (a cube
+    ///        texture is a cube image).
+    /// @return ErrorCode::InvalidArgument, before anything is created, if the pixels do not match the size.
+    [[nodiscard]] static auto create(rhi::Device& device, const TextureData& texture, std::string_view name,
+        const rhi::Sampler::Desc& sampler = {}) -> std::expected<std::shared_ptr<Texture>, Error>;
 
     /// @brief Decodes a PNG/JPEG/... file (the format is detected from its contents) into an RGBA8 texture
     ///        with a full mip chain.

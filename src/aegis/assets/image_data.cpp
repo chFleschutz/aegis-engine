@@ -13,11 +13,19 @@ struct StbiDeleter
 {
     auto operator()(void* pixels) const noexcept -> void { stbi_image_free(pixels); }
 };
+
+std::atomic<std::uint64_t> decodedImages{ 0 };
+}
+
+auto detail::decodedImageCount() noexcept -> std::uint64_t
+{
+    return decodedImages.load();
 }
 
 auto decodeImage(std::span<const std::byte> encoded, std::string_view name, std::optional<PixelFormat> format)
     -> std::expected<ImageData, Error>
 {
+    ++decodedImages;
     if (encoded.empty())
         return makeError(ErrorCode::DecodeFailed, std::format("Failed to decode '{}': no data", name));
     if (encoded.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))

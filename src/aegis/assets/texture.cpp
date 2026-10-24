@@ -1,6 +1,7 @@
 module aegis.assets;
 import std;
 import :image_data;
+import :texture_data;
 import :upload;
 import aegis.core;
 import aegis.rhi;
@@ -120,6 +121,40 @@ auto Texture::create(rhi::Device& device, const ImageData& image, const ImageDes
         image.pixels);
 }
 
+auto Texture::create(rhi::Device& device, const TextureData& texture, std::string_view name, const rhi::Sampler::Desc& sampler)
+    -> std::expected<std::shared_ptr<Texture>, Error>
+{
+    const auto format = texture.format == TextureFormat::RGBA32Float ? rhi::Format::RGBA32_SFLOAT
+                        : texture.format == TextureFormat::RGBA8Srgb ? rhi::Format::RGBA8_SRGB
+                                                                     : rhi::Format::RGBA8_UNORM;
+    const Desc desc{
+        .name = name,
+        .type = texture.cube ? rhi::ImageType::Cube : rhi::ImageType::Dim2D,
+        .extent = { texture.width, texture.height, 1 },
+        .format = format,
+        .mipLevels = texture.mipLevels,
+        .arrayLayers = texture.arrayLayers,
+        .sampler = sampler,
+    };
+    // Checked before anything is created.
+    if (auto plan = rhi::detail::planImageUpload(desc.extent, desc.format, desc.mipLevels, desc.arrayLayers, false, texture.pixels.size()); !plan)
+    {
+        return std::unexpected{ Error{ .code = ErrorCode::InvalidArgument,
+            .message = std::format("Texture '{}' ({} bytes) does not match its extent, format, mips and layers", name, texture.pixels.size()),
+            .rhi = plan.error() } };
+    }
+
+    // A failed upload frees everything through the destructor.
+    auto created = create(device, desc);
+    if (!created)
+        return created;
+    auto uploaded = detail::uploadBlocking(device, (*created)->image(), std::span<const std::byte>{ texture.pixels }, false,
+        std::optional{ rhi::ResourceState::ShaderRead });
+    if (!uploaded)
+        return makeError(uploaded.error(), std::format("Failed to upload texture '{}'", name));
+    return created;
+}
+
 auto Texture::loadFromFile(rhi::Device& device, const std::filesystem::path& path, rhi::Format format)
     -> std::expected<std::shared_ptr<Texture>, Error>
 {
@@ -137,8 +172,11 @@ auto Texture::loadFromFile(rhi::Device& device, const std::filesystem::path& pat
             std::format("Load HDR environment maps with loadEquirectangular / render_graph::Ibl: '{}'", path.string()));
     }
 
-    auto texture = create(device, *image, ImageDesc{ .name = path.filename().string(), .format = format });
-    return texture;
+    // The mips the import cache's textures have.
+    auto texture = textureFromImage(*image, { .srgb = format == rhi::Format::RGBA8_SRGB });
+    if (!texture)
+        return std::unexpected{ texture.error() };
+    return create(device, *texture, path.filename().string());
 }
 
 auto Texture::loadEquirectangular(rhi::Device& device, const std::filesystem::path& path)
@@ -169,7 +207,10 @@ auto Texture::loadFromMemory(rhi::Device& device, std::span<const std::byte> enc
     if (!image)
         return std::unexpected{ image.error() };
 
-    return create(device, *image, ImageDesc{ .name = name, .format = format });
+    auto texture = textureFromImage(*image, { .srgb = format == rhi::Format::RGBA8_SRGB });
+    if (!texture)
+        return std::unexpected{ texture.error() };
+    return create(device, *texture, name);
 }
 
 auto Texture::solidColor(rhi::Device& device, glm::vec4 color, std::string_view name)

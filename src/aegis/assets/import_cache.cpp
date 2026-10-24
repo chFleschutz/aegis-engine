@@ -16,6 +16,7 @@ namespace
 constexpr std::uint32_t modelEntryVersion{ 1 };
 constexpr std::uint32_t manifestVersion{ 1 };
 constexpr std::string_view modelEntryFile{ "model.json" };
+constexpr std::string_view textureEntryFile{ "texture.ktx2" };
 constexpr std::string_view usedFile{ "used" };
 constexpr std::string_view manifestFolder{ "manifests" };
 
@@ -296,6 +297,85 @@ auto removeEntry(const std::filesystem::path& cache, const std::filesystem::path
     return true;
 }
 
+// Moves the entry 'written' to 'staging' into 'directory' and removes what is left of 'staging'. Written to a
+// folder of its own and renamed into place, so another process (a game next to its editor, tests in parallel,
+// another checkout sharing the cache) never reads a partly written entry. An entry that is there already is
+// complete (the same inputs gave the same data) and kept, unless the load found it 'damaged'; 'entryFile' is the
+// file every complete entry of its kind has.
+auto publish(const std::filesystem::path& cache, const std::filesystem::path& staging, const std::filesystem::path& directory, bool damaged,
+    std::string_view entryFile, std::expected<void, Error> written) -> std::expected<void, Error>
+{
+    std::error_code error;
+    if (written && damaged && !removeEntry(cache, directory))
+        written = makeError(ErrorCode::FileNotFound, std::format("Cannot replace the damaged entry '{}', which is in use", directory.generic_string()));
+    if (written)
+    {
+        std::filesystem::rename(staging, directory, error);
+        if (error && !std::filesystem::exists(directory / entryFile))
+            written = makeError(ErrorCode::FileNotFound, std::format("Cannot move the entry into '{}': {}", directory.generic_string(), error.message()));
+    }
+    std::filesystem::remove_all(staging, error);
+    return written;
+}
+
+auto textureKey(std::span<const std::byte> encoded, const TextureImport& import) -> std::uint64_t
+{
+    ImportCacheKeyDesc desc{
+        .importer = import.environment ? "environment" : "texture",
+        .importerVersion = textureImporterVersion,
+        .settings = { .srgb = import.environment ? std::nullopt : std::optional{ import.srgb } },
+    };
+    desc.files.emplace_back(encoded);
+    return importCacheKey(desc);
+}
+
+// The texture of the entry 'directory' with 'key'; any failure makes the entry a miss.
+auto readTexture(const std::filesystem::path& directory, std::uint64_t key) -> std::expected<TextureData, Error>
+{
+    const auto path = directory / textureEntryFile;
+    const auto bytes = readBytes(path);
+    if (!bytes)
+        return makeError(ErrorCode::FileNotFound, std::format("No cache entry '{}'", path.generic_string()));
+    const auto header = readTextureBlobHeader(*bytes);
+    if (!header)
+        return std::unexpected{ header.error() };
+    if (header->key != key)
+        return makeError(ErrorCode::InvalidData, std::format("Texture blob '{}' is of another import", path.generic_string()));
+    return readTextureBlob(*bytes);
+}
+
+// Writes the entry of 'texture' into 'directory' (a new folder), the blob last.
+auto writeTexture(const TextureData& texture, const std::filesystem::path& directory, std::uint64_t key) -> std::expected<void, Error>
+{
+    std::error_code error;
+    if (std::filesystem::create_directories(directory, error); error)
+        return makeError(ErrorCode::FileNotFound, std::format("Cannot create '{}': {}", directory.generic_string(), error.message()));
+    const auto blob = writeTextureBlob(texture, key);
+    if (!blob)
+        return std::unexpected{ blob.error() };
+    if (!writeBytes(directory / usedFile, {}) || !writeBytes(directory / textureEntryFile, *blob))
+        return makeError(ErrorCode::FileNotFound, std::format("Cannot write the texture entry '{}'", directory.generic_string()));
+    return {};
+}
+
+auto dumpTextureBlob(std::string& out, std::string_view name, const std::filesystem::path& path, const TextureImport& import) -> std::expected<void, Error>
+{
+    const auto bytes = readBytes(path);
+    if (!bytes)
+        return makeError(ErrorCode::FileNotFound, std::format("No texture entry '{}': '{}' has not been loaded as it is now", path.generic_string(), name));
+    const auto header = readTextureBlobHeader(*bytes);
+    if (!header)
+        return std::unexpected{ header.error() };
+    std::format_to(std::back_inserter(out), "Texture entry of '{}' ({})\n", name, path.generic_string());
+    std::format_to(std::back_inserter(out), "  header: KTX2, importer '{}' version {}, key {}, platform {}, {} bytes\n", import.environment ? "environment" : "texture",
+        textureImporterVersion, keyText(header->key), importPlatform, bytes->size());
+    std::format_to(std::back_inserter(out), "  format: {} (VkFormat {}), {}\n", textureFormatName(header->format), header->vkFormat,
+        header->zstd ? "zstd" : "not supercompressed");
+    std::format_to(std::back_inserter(out), "  extent: {} x {}, {} mips, {} layers{}\n", header->width, header->height, header->mipLevels, header->arrayLayers,
+        header->cube ? " (cube)" : "");
+    return {};
+}
+
 auto toEntry(const glm::quat& q) -> std::array<float, 4>
 {
     return { q.x, q.y, q.z, q.w };
@@ -324,7 +404,8 @@ auto readEntry(const std::filesystem::path& directory) -> std::expected<ModelEnt
     return entry;
 }
 
-// The model an entry holds, with its meshes and embedded images read; any failure makes the entry a miss.
+// The model an entry holds, with its meshes and the encoded bytes of its embedded images read (their pixels are in
+// texture entries of their own, see ImportCache::loadTexture); any failure makes the entry a miss.
 auto readModel(const ModelEntry& entry, const std::filesystem::path& directory, std::uint64_t key) -> std::expected<ModelData, Error>
 {
     ModelData model{
@@ -383,10 +464,6 @@ auto readModel(const ModelEntry& entry, const std::filesystem::path& directory, 
             if (!bytes)
                 return makeError(ErrorCode::FileNotFound, std::format("Missing image '{}'", image.embedded));
             out.encoded = std::move(*bytes);
-            auto decoded = decodeImage(out.encoded, image.name, PixelFormat::RGBA8);
-            if (!decoded)
-                return std::unexpected{ decoded.error() };
-            out.data = std::move(*decoded);
         }
         model.images.push_back(std::move(out));
     }
@@ -619,28 +696,74 @@ auto ImportCache::loadModel(const std::filesystem::path& source, const ImportSet
     if (!model)
         return std::unexpected{ std::move(model.error()) };
 
-    // Written to a folder of its own and renamed into place, so another process (a game next to its editor, tests
-    // in parallel, another checkout sharing the cache) never reads a partly written entry. An entry that is there
-    // already is complete (the same inputs gave the same data) and kept, unless it was found damaged above.
     const auto key = keyOf(*sourceBytes, sourceDirectory, model->dependencies, settings);
     const auto directory = m_directory / keyText(key);
     const auto staging = m_directory / scratchName("staging");
-    auto written = writeModel(*model, staging, key);
-    std::error_code error;
-    if (written && directory == damaged && !removeEntry(m_directory, directory))
-        written = makeError(ErrorCode::FileNotFound, std::format("Cannot replace the damaged entry '{}', which is in use", directory.generic_string()));
-    if (written)
-    {
-        std::filesystem::rename(staging, directory, error);
-        if (error && !std::filesystem::exists(directory / modelEntryFile))
-            written = makeError(ErrorCode::FileNotFound, std::format("Cannot move the entry into '{}': {}", directory.generic_string(), error.message()));
-    }
-    std::filesystem::remove_all(staging, error);
+    auto written = publish(m_directory, staging, directory, directory == damaged, modelEntryFile, writeModel(*model, staging, key));
     if (written)
         written = writeManifest(manifest, model->dependencies);
     if (!written)
         log::warn("The import of '{}' is not cached, so it is imported again next time: {}", source.generic_string(), describe(written.error()));
     return ModelLoad{ .model = std::move(*model), .cached = false };
+}
+
+auto ImportCache::textureEntryDirectory(std::span<const std::byte> encoded, const TextureImport& import) const -> std::filesystem::path
+{
+    return m_directory / keyText(textureKey(encoded, import));
+}
+
+auto ImportCache::loadTexture(std::span<const std::byte> encoded, const TextureImport& import, const ImageData* decoded) const
+    -> std::expected<TextureLoad, Error>
+{
+    const auto key = textureKey(encoded, import);
+    const auto directory = m_directory / keyText(key);
+    bool damaged{ false };
+    if (!m_directory.empty())
+    {
+        if (auto texture = readTexture(directory, key))
+        {
+            touch(directory / usedFile);
+            return TextureLoad{ .texture = std::move(*texture), .cached = true };
+        }
+        std::error_code error;
+        damaged = std::filesystem::exists(directory, error);
+    }
+
+    const auto pixelFormat = import.environment ? PixelFormat::RGBA32F : PixelFormat::RGBA8;
+    std::optional<ImageData> ownDecoded;
+    if (!decoded || decoded->format != pixelFormat)
+    {
+        auto image = decodeImage(encoded, import.name, pixelFormat);
+        if (!image)
+            return std::unexpected{ std::move(image.error()) };
+        decoded = &ownDecoded.emplace(std::move(*image));
+    }
+    auto texture = textureFromImage(*decoded, { .srgb = import.srgb, .mips = !import.environment });
+    if (!texture)
+        return std::unexpected{ std::move(texture.error()) };
+    if (m_directory.empty())
+        return TextureLoad{ .texture = std::move(*texture), .cached = false };
+
+    const auto staging = m_directory / scratchName("staging");
+    if (const auto written = publish(m_directory, staging, directory, damaged, textureEntryFile, writeTexture(*texture, staging, key)); !written)
+        log::warn("The texture '{}' is not cached, so it is decoded again next time: {}", import.name, describe(written.error()));
+    return TextureLoad{ .texture = std::move(*texture), .cached = false };
+}
+
+auto ImportCache::loadTextureFile(const std::filesystem::path& source, const TextureImport& import) const -> std::expected<TextureLoad, Error>
+{
+    const auto bytes = readBytes(source);
+    if (!bytes)
+        return makeError(ErrorCode::FileNotFound, std::format("Texture file does not exist: '{}'", source.string()));
+    return loadTexture(*bytes, import);
+}
+
+auto ImportCache::dumpTexture(std::span<const std::byte> encoded, const TextureImport& import) const -> std::expected<std::string, Error>
+{
+    std::string out;
+    if (auto dumped = dumpTextureBlob(out, import.name, textureEntryDirectory(encoded, import) / textureEntryFile, import); !dumped)
+        return std::unexpected{ std::move(dumped.error()) };
+    return out;
 }
 
 auto ImportCache::evict(const EvictDesc& desc) const -> EvictResult
@@ -716,8 +839,8 @@ auto ImportCache::evict() const -> EvictResult
     return evict(EvictDesc{});
 }
 
-auto ImportCache::dump(const std::filesystem::path& source, const ImportSettings& settings, std::string_view meshKey) const
-    -> std::expected<std::string, Error>
+auto ImportCache::dump(const std::filesystem::path& source, const ImportSettings& settings, std::string_view partKey,
+    const ImportSettings& partSettings) const -> std::expected<std::string, Error>
 {
     const auto directory = entryDirectory(source, settings);
     if (!directory)
@@ -726,10 +849,10 @@ auto ImportCache::dump(const std::filesystem::path& source, const ImportSettings
     if (!entry)
         return std::unexpected{ entry.error() };
 
-    // The primitives' sub-asset keys, as the asset library gives them (the other types' keys do not affect these).
+    // The parts' sub-asset keys, as the asset library gives them (one type's keys do not affect another's).
     SubAssetKeys keys;
     std::string out;
-    if (meshKey.empty())
+    if (partKey.empty())
     {
         std::format_to(std::back_inserter(out), "Cache entry of '{}' ({})\n", source.generic_string(), directory->generic_string());
         std::format_to(std::back_inserter(out), "  version {}, importer '{}', key {}, platform {}\n", entry->version, entry->importer, entry->key, importPlatform);
@@ -748,7 +871,7 @@ auto ImportCache::dump(const std::filesystem::path& source, const ImportSettings
         for (std::size_t p = 0; p < mesh.primitives.size(); ++p)
         {
             const auto primitiveKey = SubAssetKeys::withIndex(*key, p);
-            if (!meshKey.empty() && primitiveKey != meshKey)
+            if (!partKey.empty() && primitiveKey != partKey)
                 continue;
             const auto& blobName = mesh.primitives[p].blob;
             const auto bytes = readBytes(*directory / blobName);
@@ -757,7 +880,7 @@ auto ImportCache::dump(const std::filesystem::path& source, const ImportSettings
             const auto header = readMeshBlobHeader(*bytes);
             if (!header)
                 return std::unexpected{ header.error() };
-            if (!meshKey.empty())
+            if (!partKey.empty())
             {
                 std::format_to(std::back_inserter(out), "Mesh blob {} of the cache entry of '{}' ({})\n", primitiveKey, source.generic_string(), (*directory / blobName).generic_string());
                 dumpMesh(out, *bytes, *header);
@@ -767,8 +890,27 @@ auto ImportCache::dump(const std::filesystem::path& source, const ImportSettings
                 header->indexCount, header->meshletCount);
         }
     }
-    if (!meshKey.empty())
-        return makeError(ErrorCode::InvalidArgument, std::format("The cache entry of '{}' has no mesh '{}'", source.generic_string(), meshKey));
+
+    // Embedded images are numbered among themselves (see embeddedImageKeys); their pixels are texture entries.
+    std::size_t position{ 0 };
+    for (const auto& image : entry->images)
+    {
+        if (image.embedded.empty())
+            continue;
+        auto key = keys.name("Texture", image.name, position++);
+        if (!key)
+            return std::unexpected{ key.error() };
+        if (!partKey.empty() && *key != partKey)
+            continue;
+        const auto bytes = readBytes(*directory / image.embedded);
+        if (!bytes)
+            return makeError(ErrorCode::FileNotFound, std::format("Missing image '{}'", (*directory / image.embedded).generic_string()));
+        if (!partKey.empty())
+            return dumpTexture(*bytes, { .name = *key, .srgb = textureSrgb(partSettings, image.srgb) });
+        std::format_to(std::back_inserter(out), "  {}: {}, {} bytes\n", *key, image.embedded, bytes->size());
+    }
+    if (!partKey.empty())
+        return makeError(ErrorCode::InvalidArgument, std::format("The cache entry of '{}' has no part '{}'", source.generic_string(), partKey));
     return out;
 }
 }

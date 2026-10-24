@@ -42,3 +42,7 @@
 [submodule "external/xxhash"]
 	path = external/xxhash
 	url = https://github.com/Cyan4973/xxHash.git
+[submodule "external/zstd"]
+	path = external/zstd
+	url = https://github.com/facebook/zstd.git
+	shallow = true

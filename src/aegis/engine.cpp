@@ -131,24 +131,47 @@ auto dumpAsset(const AppDesc& desc) -> std::expected<std::string, EngineError>
     if (!entry)
         return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, std::format("No asset has the ID {}", *id)) };
 
-    // A mesh is a part of its model file's entry.
+    const assets::ImportCache cache{ sources.importCache };
+    const auto importer = assets::importerFor(entry->path);
+    if (entry->key.empty() && (importer == "texture" || importer == "environment"))
+    {
+        // A texture entry is found by the image's bytes and settings.
+        std::ifstream file{ database->absolutePath(*entry), std::ios::binary };
+        if (!file)
+            return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, std::format("Cannot read '{}'", entry->path)) };
+        const std::string bytes{ std::istreambuf_iterator<char>{ file }, {} };
+        auto text = cache.dumpTexture(std::as_bytes(std::span{ bytes }),
+            { .name = entry->path, .srgb = assets::textureSrgb(entry->settings, true), .environment = importer == "environment" });
+        if (!text)
+            return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, assets::describe(text.error())) };
+        return std::move(*text);
+    }
+
+    // A mesh or an embedded texture is a part of its model file's entry; a texture's settings are in the model's sidecar.
     auto model = *id;
-    std::string_view meshKey;
+    std::string_view partKey;
+    assets::ImportSettings partSettings;
     if (!entry->key.empty())
     {
         const auto owner = database->find(entry->root, entry->path);
-        if (entry->type != "StaticMesh" || !owner)
-            return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, std::format("{} is '{}' of '{}'; only models and their meshes are cached", *id, entry->key, entry->path)) };
+        if ((entry->type != "StaticMesh" && entry->type != "Texture") || !owner)
+            return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, std::format("{} is '{}' of '{}'; only models, their meshes and textures are cached", *id, entry->key, entry->path)) };
         model = *owner;
-        meshKey = entry->key;
+        partKey = entry->key;
+        std::ifstream file{ assets::sidecarPath(database->absolutePath(*entry)) };
+        if (const auto sidecar = assets::parseSidecar(std::string{ std::istreambuf_iterator<char>{ file }, {} }))
+        {
+            if (const auto found = sidecar->partSettings.find(entry->key); found != sidecar->partSettings.end())
+                partSettings = found->second;
+        }
     }
-    else if (assets::importerFor(entry->path) != "model")
+    else if (importer != "model")
     {
-        return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, std::format("{} is '{}'; only models and their meshes are cached", *id, entry->path)) };
+        return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, std::format("{} is '{}'; only models, their meshes and textures are cached", *id, entry->path)) };
     }
 
     const auto* modelEntry = database->find(model);
-    auto text = assets::ImportCache{ sources.importCache }.dump(database->absolutePath(*modelEntry), modelEntry->settings, meshKey);
+    auto text = cache.dump(database->absolutePath(*modelEntry), modelEntry->settings, partKey, partSettings);
     if (!text)
         return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, assets::describe(text.error())) };
     return std::move(*text);

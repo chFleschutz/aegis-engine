@@ -36,9 +36,11 @@ struct ModelImage
     /// @brief An embedded image's settings as a part of the model, from the model's sidecar (applyEmbeddedImageSettings);
     ///        defaults for an external one, which has settings of its own.
     ImportSettings settings;
-    ImageData data; // An embedded image's pixels; empty for an external one
-    /// @brief The encoded bytes (PNG, JPEG, ...) of an embedded image, which the import cache keeps; empty for an
-    ///        external one.
+    /// @brief An embedded image's pixels as the import decoded them; empty for an external one and for a model read
+    ///        from the import cache, whose embedded images are texture entries of their own (ImportCache::loadTexture).
+    ImageData data;
+    /// @brief The encoded bytes (PNG, JPEG, ...) of an embedded image, which the import cache keeps and keys its
+    ///        texture entry by; empty for an external one.
     std::vector<std::byte> encoded;
     /// @brief The Texture asset of an external image's file, set by resolveExternalImages; invalid for an embedded
     ///        image, before resolving, or if no asset has that file.

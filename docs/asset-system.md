@@ -409,12 +409,18 @@ implemented synchronously first; the slot lets hot reload swap contents.
   named by its key (#137 named it by asset ID, one version per file): `model.json` (the key, the
   files the import read besides the source, the node tree, materials, images and the blob of each
   primitive), `mesh-<m>-<p>.mesh` per primitive, `image-<i>.bin` with an embedded image's encoded
-  bytes and the empty use marker `used`; the manifests are in `manifests/<source key>.json`. Switching branches back and forth reimports nothing, and two checkouts that point
+  bytes and the empty use marker `used`; a texture entry holds `texture.ktx2` and `used`; the
+  manifests are in `manifests/<source key>.json`. Switching branches back and forth reimports nothing, and two checkouts that point
   `AEGIS_CACHE_DIR` at one folder share it. Entries hold no asset IDs, so identical files share one.
   An external image is an asset of its own: the entry keeps its URI, and changing the image reloads
   the texture, not the model.
 - **Textures (#169)** are entries of their own, keyed by the image's bytes and its settings, for
   external and embedded images alike, so changing a texture setting reprocesses that texture only.
+  A model entry keeps an embedded image's encoded bytes, which give the texture's key; a load reads
+  the KTX2 and decodes nothing. A miss decodes the image and makes a full mip chain on the CPU (2x2
+  averages, in linear space for sRGB data); an environment's `.hdr` becomes an RGBA32F texture with
+  one mip, and the cube and its maps are still made on the GPU at load. Entries have no manifest:
+  they depend on no other file.
 - **Lookup in two steps:** the key covers the files the import read besides the source, known only
   after an import. A first key from the source bytes, settings, importer version and platform names
   a small manifest listing those files; their contents then give the entry's key. Both are checked
@@ -456,7 +462,9 @@ implemented synchronously first; the slot lets hot reload swap contents.
   in `.cpp` files. Its errors carry their location, which gives #131's line numbers.
 
 **Binary (cache and pak):**
-- **Textures:** KTX2 (mips, cubes, arrays, the `VkFormat`, zstd), readable by standard tools.
+- **Textures (#169):** KTX2 (mips, cubes, arrays, the `VkFormat`, zstd), readable by standard tools,
+  written and read with libktx; the cache key is in the key/value data (`aegis.cacheKey`). RGBA8
+  (UNORM or sRGB) and RGBA32F for now; block compression comes later as texture settings.
 - **Meshes (#137):** own blobs, a 64-byte header `{magic "AEGM", type, version, cache key, counts,
   bounds}`, then the vertices, indices, meshlets, meshlet vertices and meshlet primitives as
   `StaticMesh` uploads them, each starting at a multiple of 16 bytes. Little-endian and uncompressed
@@ -464,16 +472,18 @@ implemented synchronously first; the slot lets hot reload swap contents.
 - **Model entries** are JSON (glaze) until models load as scenes (#140).
 - **Cooked scenes and save games** stay JSON at first; glaze's BEVE is the binary option.
 - **Debugging:** `<Name>-Editor --dump-asset <id>` prints a cache entry as text (#137), found
-  through the asset's current key.
+  through the asset's current key: a model, a mesh, or a texture (a texture file, an environment or
+  a model's embedded texture).
 
-**Libraries,** as submodules under `external/`, linked `PRIVATE`, all usable without exceptions:
+**Libraries,** as submodules under `external/` (of KTX-Software only the files libktx needs, see `tools/update-ktx.sh`),
+linked `PRIVATE`, all usable without exceptions:
 
 | Need | Library |
 |---|---|
 | JSON | glaze (yyjson is the fallback if glaze's templates fight Clang modules) |
 | Hashing | xxHash (XXH3_64: cache keys and entity ID derivation) |
-| Compression | zstd |
-| Textures | KTX-Software (libktx), with Basis Universal for per-platform BC7 / ASTC |
+| Compression | zstd (also libktx's supercompression) |
+| Textures | KTX-Software (libktx: KTX2 reading and writing); a BC7 / ASTC encoder later (#269) |
 | Mesh compression | meshoptimizer (already a dependency) |
 | File watching | efsw (#143) |
 | Decoding | stb_image, fastgltf, tinyobjloader (kept; importers only, so they leave shipped games) |
