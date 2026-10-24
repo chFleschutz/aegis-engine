@@ -26,7 +26,7 @@ the issues cite and links them, and doesn't repeat their content lists.
 The code is the reference for the current state; this section only says which plan items are done.
 
 - **Done:** E1 ([#83]: R3, R4, R8; the action registry, theme v0, fonts v0 and Reset Layout moved to
-  [#223]), E2 ([#200]), E3 ([#133]), the field half of E4 ([#165]: `undo_stack`, Ctrl+Z / Ctrl+Y, the Edit menu), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
+  [#223]), E2 ([#200]), E3 ([#133]), the field half of E4 ([#165]: `undo_stack`, Ctrl+Z / Ctrl+Y, the Edit menu), E6 ([#202]: the Assets panel; opening a scene doesn't ask about unsaved changes until [#166]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
 - **Open:** every other R- and E-item, each in its issue (see "Runtime prerequisites" and
   "Implementation plan").
 
