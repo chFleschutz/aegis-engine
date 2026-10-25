@@ -316,8 +316,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 13. **The existing debug panels** (renderer passes and resources, CPU/GPU profiler, statistics) under a
     Debug menu.
 14. **Editor preferences** (camera speed, snap values, UI scale) and high-DPI scaling.
-15. **A headless editor smoke test** (`<Game>-Editor --headless --frames 60 --screenshot`) as a
-    `device` CTest.
+15. **A headless editor smoke test** ([#205](https://github.com/chFleschutz/aegis-engine/issues/205)).
 
 ### Nice to have (after M10, mostly Backlog)
 
