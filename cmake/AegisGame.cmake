@@ -17,7 +17,7 @@
 # next to its executables and uses the build and source trees, so it never sees stale data; laying out a
 # copied or installed game is the export step's job (#134). With tests on, <Name> renders headless as a
 # `device` test: once per scene of SCENES (game-<name>-<scene file stem>), else once with its startup scene.
-# A missing asset only logs a warning and renders a fallback, so that warning fails the test too.
+# <Name>-Editor runs headless too (game-<name>-editor). A missing asset only logs a warning and renders a fallback, so that warning fails the test too.
 function(aegis_add_game name)
     cmake_parse_arguments(G "" "PROJECT" "SOURCES;SCENES" ${ARGN})
     if(NOT G_SOURCES OR NOT G_PROJECT)
@@ -58,5 +58,19 @@ function(aegis_add_game name)
             set_tests_properties(game-${lowered} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300
                 FAIL_REGULAR_EXPRESSION "Failed to load")
         endif()
+
+        # The editor flavor runs 60 frames of its UI over the viewport with every panel open and keeps the
+        # screenshot, <build>/screenshots/<test>.png, for a reviewer to look at. The first scene stands for the project.
+        set(editor_args --headless --frames 60 --width 1280 --height 720 --editor-panels all)
+        if(G_SCENES)
+            list(GET G_SCENES 0 first)
+            list(APPEND editor_args --scene ${first})
+        endif()
+        set(editor_test game-${lowered}-editor)
+        set(shot "${PROJECT_BINARY_DIR}/screenshots/${editor_test}.png")
+        file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/screenshots")
+        add_test(NAME ${editor_test} COMMAND ${name}-Editor ${editor_args} --screenshot "${shot}")
+        set_tests_properties(${editor_test} PROPERTIES LABELS "device;game;editor" RESOURCE_LOCK gpu TIMEOUT 300
+            FAIL_REGULAR_EXPRESSION "Failed to load")
     endif()
 endfunction()
