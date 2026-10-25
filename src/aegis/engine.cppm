@@ -347,6 +347,9 @@ public:
     /// @brief Sets the window's title; headless, nothing.
     void setTitle(std::string_view title);
 
+    /// @brief How much larger than 100% the window's monitor shows things (high DPI), as of now; 1 headless.
+    [[nodiscard]] auto contentScale() const -> float;
+
     /// @brief Ends run() after this frame, without asking the shell (Shell::canClose).
     void quit() { m_quit = true; }
 

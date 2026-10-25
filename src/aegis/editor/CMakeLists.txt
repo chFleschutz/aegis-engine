@@ -18,6 +18,7 @@ target_sources(aegis-editor-core
     FILE_SET CXX_MODULES FILES
     core/core.cppm
     core/asset_browser.cppm
+    core/chord.cppm
     core/console.cppm
     core/commands.cppm
     core/context.cppm
@@ -34,6 +35,7 @@ target_sources(aegis-editor-core
     core/undo_stack.cppm
     PRIVATE
     core/asset_browser.cpp
+    core/chord.cpp
     core/commands.cpp
     core/console.cpp
     core/context.cpp
@@ -62,6 +64,7 @@ target_link_libraries(aegis-editor
         aegis-assets
         aegis-core
         aegis-math
+        aegis-paths # The engine content's fonts
         aegis-reflect
         aegis-render-graph
         aegis-render-passes # The frame graph's resource names
@@ -77,12 +80,15 @@ target_link_libraries(aegis-editor
 target_sources(aegis-editor
     PUBLIC
     FILE_SET CXX_MODULES FILES
+    ui/actions.cppm
     ui/editor.cppm
     ui/editor_shell.cppm
     ui/panel.cppm
     ui/panels.cppm
+    ui/theme.cppm
     ui/viewport.cppm
     PRIVATE
+    ui/actions.cpp
     ui/editor_shell.cpp
     ui/panels/asset_panel.cpp
     ui/panels/console_panel.cpp
@@ -94,5 +100,6 @@ target_sources(aegis-editor
     ui/panels/renderer_panel.cpp
     ui/panels/scene_panel.cpp
     ui/panels/statistics_panel.cpp
+    ui/theme.cpp
     ui/viewport.cpp
 )

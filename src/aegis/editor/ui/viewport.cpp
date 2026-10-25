@@ -4,6 +4,8 @@ module;
 #include <imgui_internal.h>
 #include <ImGuizmo.h>
 
+#include "aegis/editor/ui/theme.h"
+
 module aegis.editor;
 import std;
 import aegis.core;
@@ -98,6 +100,13 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
         {
             if (const auto texture = frame.presentation.uiTexture(frame.frameGraph.pool().texture(*final).view))
                 ImGui::GetWindowDrawList()->AddImage(ImTextureRef{ texture }, origin, ImVec2{ rect.x + rect.width, rect.y + rect.height });
+        }
+        if (editor.playing())
+        {
+            // The play world is not the edit world: a frame inside the image says so
+            const float thickness = ImGui::GetFontSize() * 0.25f;
+            const float inset = thickness * 0.5f;
+            ImGui::GetWindowDrawList()->AddRect(ImVec2{ rect.x + inset, rect.y + inset }, ImVec2{ rect.x + rect.width - inset, rect.y + rect.height - inset }, theme::packed(theme::playFrame), 0.0f, 0, thickness);
         }
 
         if (!m_gameView)
@@ -286,28 +295,26 @@ void Viewport::drawToolbar(EditorContext& editor, const Rect& rect)
     const ImGuiStyle& style = ImGui::GetStyle();
     ImGui::SetCursorScreenPos(ImVec2{ rect.x + style.ItemSpacing.x, rect.y + style.ItemSpacing.y });
 
-    const auto modeButton = [this](const char* label, GizmoMode mode, const char* tooltip) {
-        const bool active = m_gizmoMode == mode;
-        if (active)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-        if (ImGui::Button(label))
+    const auto modeButton = [this](const char* icon, const char* id, GizmoMode mode, const char* tooltip) {
+        if (theme::iconButton(icon, id, m_gizmoMode == mode))
             m_gizmoMode = mode;
-        if (active)
-            ImGui::PopStyleColor();
         ImGui::SetItemTooltip("%s", tooltip);
         ImGui::SameLine();
     };
-    modeButton("Select", GizmoMode::None, "Q");
-    modeButton("Move", GizmoMode::Translate, "W");
-    modeButton("Rotate", GizmoMode::Rotate, "E");
-    modeButton("Scale", GizmoMode::Scale, "R");
+    modeButton(theme::icons::select, "select", GizmoMode::None, "Select (Q)");
+    modeButton(theme::icons::move, "move", GizmoMode::Translate, "Move (W)");
+    modeButton(theme::icons::rotate, "rotate", GizmoMode::Rotate, "Rotate (E)");
+    modeButton(theme::icons::scale, "scale", GizmoMode::Scale, "Scale (R)");
 
-    if (ImGui::Button(m_gizmoSpace == GizmoSpace::Local ? "Local" : "World"))
-        m_gizmoSpace = m_gizmoSpace == GizmoSpace::Local ? GizmoSpace::World : GizmoSpace::Local;
-    ImGui::SetItemTooltip("The gizmo's axes: the entity's own or the world's (scaling always uses the entity's)");
+    ImGui::SameLine(0.0f, style.ItemSpacing.x * 2.0f);
+    const bool local = m_gizmoSpace == GizmoSpace::Local;
+    if (theme::iconButton(local ? theme::icons::local : theme::icons::world, "space"))
+        m_gizmoSpace = local ? GizmoSpace::World : GizmoSpace::Local;
+    ImGui::SetItemTooltip("%s axes: the entity's own or the world's, click to switch (scaling always uses the entity's)", local ? "Local" : "World");
     ImGui::SameLine();
-    ImGui::Checkbox("Snap", &m_snap);
-    ImGui::SetItemTooltip("Ctrl inverts it. Steps: %.3g units, %.3g degrees, %.3g scale", editor.preferences().snapTranslate,
+    if (theme::iconButton(theme::icons::snap, "snap", m_snap))
+        m_snap = !m_snap;
+    ImGui::SetItemTooltip("Snap (Ctrl inverts it). Steps: %.3g units, %.3g degrees, %.3g scale", editor.preferences().snapTranslate,
         editor.preferences().snapRotate, editor.preferences().snapScale);
 }
 
@@ -321,7 +328,11 @@ auto Viewport::drawIcons(const EditorContext& editor, const Rect& rect) -> std::
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     drawList->PushClipRect(ImVec2{ rect.x, rect.y }, ImVec2{ rect.x + rect.width, rect.y + rect.height }, true);
 
-    const auto drawIcon = [&](entt::entity handle, const char* letter, ImU32 color) {
+    // The Lucide glyph in the merged font; the letter without it
+    const bool glyphs = theme::fonts().ui != nullptr;
+    const auto drawIcon = [&](entt::entity handle, const char* glyph, const char* letter, const ImVec4& tint) {
+        const ImU32 color = theme::packed(tint);
+        const char* label = glyphs ? glyph : letter;
         const world::Entity entity{ handle };
         if (!registry.has<GlobalTransform, StableId>(entity))
             return;
@@ -330,18 +341,18 @@ auto Viewport::drawIcons(const EditorContext& editor, const Rect& rect) -> std::
             return;
         const ImVec2 center{ rect.x + (ndc->x + 1.0f) * 0.5f * rect.width, rect.y + (1.0f - ndc->y) * 0.5f * rect.height };
         const bool selected = editor.isSelected(entity);
-        drawList->AddCircleFilled(center, iconRadius, IM_COL32(30, 30, 30, 200));
-        drawList->AddCircle(center, iconRadius, selected ? IM_COL32(255, 160, 40, 255) : color, 0, selected ? 2.5f : 1.5f);
-        const ImVec2 textSize = ImGui::CalcTextSize(letter);
-        drawList->AddText(ImVec2{ center.x - textSize.x * 0.5f, center.y - textSize.y * 0.5f }, color, letter);
+        drawList->AddCircleFilled(center, iconRadius, theme::packed(theme::iconBackdrop));
+        drawList->AddCircle(center, iconRadius, selected ? theme::packed(theme::iconSelected) : color, 0, selected ? 2.5f : 1.5f);
+        const ImVec2 textSize = ImGui::CalcTextSize(label);
+        drawList->AddText(ImVec2{ center.x - textSize.x * 0.5f, center.y - textSize.y * 0.5f }, color, label);
         icons.push_back({ .id = registry.get<StableId>(entity), .position = { center.x, center.y } });
     };
     for (const auto entity : registry.view<PointLight>())
-        drawIcon(entity, "P", IM_COL32(255, 230, 120, 255));
+        drawIcon(entity, theme::icons::light, "P", theme::lightIcon);
     for (const auto entity : registry.view<DirectionalLight>())
-        drawIcon(entity, "D", IM_COL32(255, 230, 120, 255));
+        drawIcon(entity, theme::icons::sun, "D", theme::lightIcon);
     for (const auto entity : registry.view<Camera>())
-        drawIcon(entity, "C", IM_COL32(140, 200, 255, 255));
+        drawIcon(entity, theme::icons::camera, "C", theme::cameraIcon);
 
     drawList->PopClipRect();
     return icons;

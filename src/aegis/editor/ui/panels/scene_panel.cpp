@@ -75,7 +75,7 @@ void applyDrop(const Drop& drop, EditorContext& editor, FrameContext& frame)
         log::warn("Cannot move '{}': {}", nameOf(registry, entity), moved.error());
 }
 
-// The hierarchy, all entities and the scene's singletons, docked with the Inspector. Edits apply directly: the panel
+// The hierarchy, all entities and the scene's singletons, docked as tabs (the shell's layout). Edits apply directly: the panel
 // runs at the frame's safe point.
 class ScenePanel final : public Panel
 {
@@ -84,30 +84,9 @@ public:
 
     void draw(EditorContext& editor, FrameContext& frame) override
     {
-        auto& scene = *editor.world();
-        ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(400, 800));
-
         drawHierarchy(editor, frame);
         drawAllEntities(editor, frame);
-        drawSceneSettings(editor, scene);
-
-        const ImGuiID dockSpaceId = ImGui::GetID("SceneLayer");
-        if (ImGui::DockBuilderGetNode(dockSpaceId) == nullptr)
-        {
-            ImGui::DockBuilderRemoveNode(dockSpaceId); // Clear out existing layout
-            ImGui::DockBuilderAddNode(dockSpaceId);
-            ImGui::DockBuilderSetNodePos(dockSpaceId, ImVec2(10, 30));
-            ImGui::DockBuilderSetNodeSize(dockSpaceId, ImVec2(400, 600));
-
-            ImGuiID dockMainId = dockSpaceId;
-            const ImGuiID dockBottomId = ImGui::DockBuilderSplitNode(dockSpaceId, ImGuiDir_Down, 0.50f, nullptr, &dockMainId);
-
-            ImGui::DockBuilderDockWindow("Hierarchy", dockMainId);
-            ImGui::DockBuilderDockWindow("All Entities", dockMainId);
-            ImGui::DockBuilderDockWindow("Scene Settings", dockMainId);
-            ImGui::DockBuilderDockWindow("Inspector", dockBottomId); // The Inspector panel's
-            ImGui::DockBuilderFinish(dockSpaceId);
-        }
+        drawSceneSettings(editor, *editor.world());
     }
 
 private:
@@ -314,12 +293,8 @@ private:
             const auto selected = editor.selectedEntity();
             if (selected && ImGui::MenuItem("Duplicate Selected Entity", "Ctrl+D"))
                 duplicateSelected(editor, frame);
-            if (selected && ImGui::MenuItem("Destroy Selected Entity"))
-            {
-                if (auto destroyed = destroyEntity(editWorld(editor, frame), editor.undoStack(), selected); !destroyed)
-                    log::warn("Cannot destroy '{}': {}", nameOf(editor.world()->registry(), selected), destroyed.error());
-                editor.selection().clear();
-            }
+            if (selected && ImGui::MenuItem("Destroy Selected Entity", "Del"))
+                destroySelected(editor, frame);
 
             ImGui::EndPopup();
         }
@@ -340,6 +315,21 @@ auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool
     }
     editor.select(*copy);
     return true;
+}
+
+auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool
+{
+    const auto selected = editor.selectedEntity();
+    if (!selected)
+        return false;
+    const bool destroyed = [&] {
+        auto result = destroyEntity(editWorld(editor, frame), editor.undoStack(), selected);
+        if (!result)
+            log::warn("Cannot destroy '{}': {}", nameOf(editor.world()->registry(), selected), result.error());
+        return result.has_value();
+    }();
+    editor.selection().clear();
+    return destroyed;
 }
 
 auto makeScenePanel() -> std::unique_ptr<Panel>

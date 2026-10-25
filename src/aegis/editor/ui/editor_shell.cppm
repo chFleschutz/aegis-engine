@@ -4,6 +4,7 @@ import aegis.core;
 import aegis.editor.core;
 import aegis.engine;
 import aegis.world;
+import :actions;
 import :panel;
 import :viewport;
 
@@ -17,6 +18,9 @@ export namespace aegis::editor
 ///        `<project>/.aegis/editor/imgui.ini` (none when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
 ///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every panel at startup.
+///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of
+///        `ui/theme.h` scaled by the monitor's content scale and the UI-scale preference; the menus and shortcuts
+///        come from one ActionRegistry.
 class EditorShell final : public Shell
 {
 public:
@@ -68,7 +72,13 @@ private:
     void drawUnsavedPrompt(FrameContext& frame);
     /// @brief The window title: the scene's file name, with a '*' while it has unsaved changes.
     void updateTitle();
-    void handleShortcuts(FrameContext& frame);
+    void buildActions();
+    /// @brief Rebuilds the style when the monitor's content scale or the UI-scale preference changed.
+    void updateStyle();
+    /// @brief The dockspace between the menu bar and the status bar; builds the default layout when there is none.
+    void drawDockspace();
+    void resetLayout();
+    void drawStyleEditor();
     void drawMenuBar(FrameContext& frame);
     void drawPlayControls(FrameContext& frame);
     void startPlay(FrameContext& frame);
@@ -83,7 +93,13 @@ private:
     std::filesystem::path m_preferencesFile; // Empty keeps none
     EditorPreferences m_savedPreferences;
     std::vector<std::unique_ptr<Panel>> m_panels;
-    std::string m_layoutFile; // UTF-8; ImGui reads and writes the layout there. Empty keeps none.
+    std::vector<Panel*> m_defaultOpen; // The panels open at startup; Reset Layout opens them again
+    ActionRegistry m_actions;
+    float m_contentScale{ 0.0f }; // As of the last style
+    float m_uiScale{ 0.0f };
+    bool m_resetLayout{ false };
+    bool m_styleEditor{ false }; // ImGui's style editor window, in the Debug menu
+    std::string m_layoutFile;    // UTF-8; ImGui reads and writes the layout there. Empty keeps none.
     Viewport m_viewport;
     Engine* m_engine{ nullptr };
     std::optional<assets::AssetId> m_scene; // The open scene file; none for a new scene

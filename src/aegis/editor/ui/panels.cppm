@@ -31,6 +31,10 @@ auto redoEdit(EditorContext& editor, FrameContext& frame) -> bool;
 /// @brief Duplicates the selected entity and selects the copy; false if nothing is selected or it failed (logged).
 auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool;
 
+/// @brief Destroys the selected entity and its descendants, undoably, and clears the selection; false if nothing is
+///        selected or it failed (logged).
+auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool;
+
 /// @brief The asset dragged onto the item of the open drag and drop target, once dropped, if 'accepts' takes it; one it
 ///        refuses shows a tooltip saying so while it hovers. Call between BeginDragDropTarget and EndDragDropTarget.
 [[nodiscard]] auto acceptAssetPayload(const std::function<bool(const AssetPayload& payload)>& accepts) -> std::optional<AssetPayload>;

@@ -4,6 +4,7 @@
 // point and keeps the world in edit mode. ImGui appears only in the .cpp files.
 //
 // Partitions:
+//   :actions        ActionRegistry: the actions the menus and the shortcuts share.
 //   :panel          Panel, one window (or group of windows) listed in the View menu.
 //   :editor_shell   EditorShell.
 //   :viewport       Viewport: the scene view with the editor camera, the gizmo and picking; EditorShell owns it.
@@ -11,6 +12,7 @@
 export module aegis.editor;
 
 export import aegis.editor.core;
+export import :actions;
 export import :editor_shell;
 export import :panel;
 export import :viewport;

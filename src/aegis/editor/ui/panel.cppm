@@ -19,6 +19,8 @@ public:
 
     /// @brief The name in the View menu.
     [[nodiscard]] virtual auto name() const -> std::string_view = 0;
+    /// @brief Whether it is a tool for the editor's developers (the Debug menu) rather than for the user (the View menu).
+    [[nodiscard]] virtual auto debug() const -> bool { return false; }
     /// @brief Draws the panel at the frame's safe point. Panels share state only through 'editor'.
     virtual void draw(EditorContext& editor, FrameContext& frame) = 0;
 
