@@ -14,7 +14,7 @@ namespace aegis::editor::theme
 namespace
 {
 constexpr float fontSize{ 15.0f };    // Before the scales
-constexpr float iconOffsetX{ -2.0f }; // Centers the icons in their buttons and on the text line
+constexpr float iconOffsetX{ -3.0f }; // Centers the icons in their buttons and on the text line
 constexpr float iconOffsetY{ 2.0f };
 
 // The path as the UTF-8 ImGui opens files with.
