@@ -237,6 +237,11 @@ void Engine::setTitle(std::string_view title)
         m_window->setTitle(title);
 }
 
+auto Engine::contentScale() const -> float
+{
+    return m_window ? m_window->contentScale() : 1.0f;
+}
+
 auto Engine::createWorld() -> world::World&
 {
     auto& created = m_worlds.create();

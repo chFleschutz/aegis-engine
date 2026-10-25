@@ -4,6 +4,8 @@ module;
 
 #include <imgui.h>
 
+#include "aegis/editor/ui/theme.h"
+
 module aegis.editor;
 import std;
 import aegis.core;
@@ -18,12 +20,12 @@ auto levelColor(log::Level level) -> ImVec4
     switch (level)
     {
     case log::Level::Info:
-        return ImVec4{ 0.78f, 0.78f, 0.78f, 1.0f };
+        return theme::textDim;
     case log::Level::Warn:
-        return ImVec4{ 1.0f, 0.82f, 0.3f, 1.0f };
+        return theme::warning;
     case log::Level::Error:
     case log::Level::Fatal:
-        return ImVec4{ 1.0f, 0.4f, 0.4f, 1.0f };
+        return theme::error;
     }
     std::unreachable();
 }
@@ -68,6 +70,7 @@ public:
         if (ImGui::BeginChild("Lines", ImVec2{ 0.0f, 0.0f }, ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
         {
             const bool atBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f;
+            const theme::MonospaceScope mono;
             for (const auto& entry : console.entries(m_filter))
             {
                 ImGui::PushStyleColor(ImGuiCol_Text, levelColor(entry.level));

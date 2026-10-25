@@ -5,6 +5,7 @@
 //
 // Partitions:
 //   :asset_browser  AssetTree: the asset browser's folders, files and filter, and the asset drag payload.
+//   :chord          Chord: a shortcut's key and modifiers.
 //   :console        ConsoleBuffer: the log lines the console shows, with filters.
 //   :preferences    EditorPreferences: the user's settings, kept in the config folder.
 //   :selection      The selected entities, by StableId.
@@ -22,6 +23,7 @@
 export module aegis.editor.core;
 
 export import :asset_browser;
+export import :chord;
 export import :commands;
 export import :console;
 export import :context;

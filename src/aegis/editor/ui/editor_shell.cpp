@@ -1,35 +1,27 @@
 module;
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_stdlib.h>
 #include <ImGuizmo.h>
+
+#include "aegis/editor/ui/theme.h"
 
 module aegis.editor;
 import std;
 import aegis.assets;
 import aegis.core;
+import aegis.paths;
 import aegis.reflect;
 import aegis.world;
+import :actions;
 import :panels;
+import :theme;
 
 namespace aegis::editor
 {
 namespace
 {
-// Today's look, until the editor's theme (docs/editor.md, "Visual style") replaces it.
-void applyStyle()
-{
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.WindowRounding = 4.0f;
-    style.WindowBorderSize = 0.0f;
-    style.PopupRounding = 4.0f;
-    style.FrameRounding = 2.0f;
-    style.TouchExtraPadding = ImVec2(2.0f, 2.0f);
-    style.TabBarBorderSize = 0.0f;
-    style.TabRounding = 4.0f;
-    style.DockingSeparatorSize = 0.0f;
-}
-
 // A window over the whole display, behind the panels, so mouse events reach the editor everywhere.
 void beginMainWindow()
 {
@@ -52,7 +44,7 @@ void beginMainWindow()
 // many colors to pop.
 auto pushPlayTint() -> int
 {
-    constexpr ImVec4 tint{ 0.45f, 0.22f, 0.05f, 1.0f };
+    const ImVec4 tint = theme::playTint;
     constexpr std::array tinted{ ImGuiCol_WindowBg, ImGuiCol_MenuBarBg, ImGuiCol_TitleBg, ImGuiCol_TitleBgActive, ImGuiCol_TitleBgCollapsed };
     for (const auto color : tinted)
     {
@@ -76,6 +68,36 @@ auto layoutFile(const std::filesystem::path& project) -> std::string
     const auto file = (folder / "imgui.ini").u8string();
     return std::string{ file.begin(), file.end() };
 }
+
+// The default layout in the dockspace 'dockspace' of 'size': the hierarchy on the left, the inspector on the right,
+// the assets and the console tabbed at the bottom, the viewport in the middle. The panels that start closed (renderer,
+// profiler, statistics, preferences) join the inspector's tabs when opened.
+void buildDefaultLayout(ImGuiID dockspace, ImVec2 size)
+{
+    constexpr float leftShare = 0.18f;
+    constexpr float rightShare = 0.22f;
+    constexpr float bottomShare = 0.25f;
+
+    ImGui::DockBuilderRemoveNode(dockspace);
+    ImGui::DockBuilderAddNode(dockspace, ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockspace, size);
+
+    ImGuiID center = dockspace;
+    const ImGuiID bottom = ImGui::DockBuilderSplitNode(center, ImGuiDir_Down, bottomShare, nullptr, &center);
+    const ImGuiID left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, leftShare, nullptr, &center);
+    const ImGuiID right = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, rightShare / (1.0f - leftShare), nullptr, &center);
+
+    const auto dock = [](std::initializer_list<const char*> windows, ImGuiID node) {
+        for (const char* window : windows)
+            ImGui::DockBuilderDockWindow(window, node);
+        ImGui::DockBuilderGetNode(node)->SelectedTabId = ImGui::GetID(*windows.begin()); // The first one shows
+    };
+    dock({ "Hierarchy", "All Entities", "Scene Settings" }, left);
+    dock({ "Inspector", "Renderer", "Profiler", "Scene Statistics", "Preferences" }, right);
+    dock({ "Assets", "Console" }, bottom);
+    dock({ "Viewport" }, center);
+    ImGui::DockBuilderFinish(dockspace);
+}
 }
 
 EditorShell::EditorShell()
@@ -92,6 +114,12 @@ EditorShell::EditorShell()
     m_panels.push_back(makeStatisticsPanel());
     m_panels.push_back(makeProfilerPanel());
     m_panels.push_back(makeDemoPanel());
+    for (const auto& panel : m_panels)
+    {
+        if (panel->isOpen())
+            m_defaultOpen.push_back(panel.get());
+    }
+    buildActions();
 }
 
 EditorShell::~EditorShell()
@@ -103,7 +131,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
 {
     m_engine = &engine;
     m_scene = engine.scene();
-    applyStyle();
+    theme::loadFonts(paths::content() / "fonts");
     // A drag in a window's body is the viewport's (orbit, gizmo), not a window move
     ImGui::GetIO().ConfigWindowsMoveFromTitleBarOnly = true;
     if (engine.desc().editorPanels == "all")
@@ -131,6 +159,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
             m_context.preferences().addRecentProject(engine.project());
         savePreferencesIfChanged();
     }
+    updateStyle();
     return {};
 }
 
@@ -176,13 +205,14 @@ void EditorShell::onFrame(FrameContext& frame)
         m_context.setWorld(frame.world);
     m_context.selection().prune(m_context.world()->registry());
 
-    ImGui::GetStyle().FontScaleMain = m_context.preferences().uiScale;
+    updateStyle();
     ImGuizmo::BeginFrame();
 
     const int tint = m_context.playing() ? pushPlayTint() : 0;
     beginMainWindow();
-    handleShortcuts(frame);
+    m_actions.handleShortcuts(frame);
     drawMenuBar(frame);
+    drawDockspace();
     for (const auto& panel : m_panels)
     {
         if (panel->isOpen())
@@ -195,6 +225,7 @@ void EditorShell::onFrame(FrameContext& frame)
     drawOpenPopup(frame);
     drawSaveAsPopup(frame);
     drawUnsavedPrompt(frame);
+    drawStyleEditor();
     ImGui::End();
     ImGui::PopStyleColor(tint);
     updateWorlds(frame);
@@ -290,15 +321,11 @@ void EditorShell::drawFileMenu(FrameContext& frame)
 {
     if (!ImGui::BeginMenu("File"))
         return;
-    if (ImGui::MenuItem("New", "Ctrl+N"))
-        request({ .kind = PendingAction::Kind::New }, frame);
-    if (ImGui::MenuItem("Open...", "Ctrl+O"))
-        m_openOpen = true;
+    m_actions.menuItem("file.new", frame);
+    m_actions.menuItem("file.open", frame);
     ImGui::Separator();
-    if (ImGui::MenuItem("Save", "Ctrl+S"))
-        save(frame);
-    if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))
-        m_openSaveAs = true;
+    m_actions.menuItem("file.save", frame);
+    m_actions.menuItem("file.saveAs", frame);
     ImGui::EndMenu();
 }
 
@@ -360,7 +387,7 @@ void EditorShell::drawSaveAsPopup(FrameContext& frame)
     ImGui::SetNextItemWidth(360.0f);
     const bool entered = ImGui::InputText("##path", &m_saveAsPath, ImGuiInputTextFlags_EnterReturnsTrue);
     if (!m_fileError.empty())
-        ImGui::TextColored(ImVec4{ 1.0f, 0.4f, 0.4f, 1.0f }, "%s", m_fileError.c_str());
+        ImGui::TextColored(theme::error, "%s", m_fileError.c_str());
     bool done = false;
     if (ImGui::Button("Save") || entered)
     {
@@ -476,7 +503,9 @@ void EditorShell::drawStatusBar(FrameContext& frame)
     ImGui::SetNextWindowSize(ImVec2{ viewport->Size.x, height });
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f, 2.0f });
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, theme::bgDeep);
     const bool visible = ImGui::Begin("##StatusBar", nullptr, flags);
+    ImGui::PopStyleColor();
     ImGui::PopStyleVar();
     if (visible)
     {
@@ -491,7 +520,7 @@ void EditorShell::drawStatusBar(FrameContext& frame)
         {
             const bool isWarning = problem->level == log::Level::Warn;
             ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Text, isWarning ? ImVec4{ 1.0f, 0.82f, 0.3f, 1.0f } : ImVec4{ 1.0f, 0.4f, 0.4f, 1.0f });
+            ImGui::PushStyleColor(ImGuiCol_Text, isWarning ? theme::warning : theme::error);
             ImGui::TextUnformatted(std::format("|  {}: {}", log::levelName(problem->level), problem->message).c_str());
             ImGui::PopStyleColor();
         }
@@ -506,40 +535,95 @@ void EditorShell::drawStatusBar(FrameContext& frame)
     ImGui::End();
 }
 
-void EditorShell::handleShortcuts(FrameContext& frame)
+void EditorShell::buildActions()
 {
-    // Not while a text box has the keyboard: it has its own undo
-    if (ImGui::GetIO().WantTextInput)
+    const auto chord = [](Key key, bool ctrl = true, bool shift = false, bool alt = false) { return Chord{ .key = key, .ctrl = ctrl, .shift = shift, .alt = alt }; };
+    const auto hasSelection = [this] { return static_cast<bool>(m_context.selectedEntity()); };
+
+    m_actions.add({ .id = "file.new", .label = "New", .chord = chord(Key::N), .run = [this](FrameContext& frame) { request({ .kind = PendingAction::Kind::New }, frame); } });
+    m_actions.add({ .id = "file.open", .label = "Open...", .chord = chord(Key::O), .run = [this](FrameContext&) { m_openOpen = true; } });
+    m_actions.add({ .id = "file.save", .label = "Save", .chord = chord(Key::S), .run = [this](FrameContext& frame) { save(frame); } });
+    m_actions.add({ .id = "file.saveAs", .label = "Save As...", .chord = chord(Key::S, true, true), .run = [this](FrameContext&) { m_openSaveAs = true; } });
+
+    m_actions.add({ .id = "edit.undo",
+        .label = "Undo",
+        .chord = chord(Key::Z),
+        .repeats = true,
+        .enabled = [this] { return m_context.undoStack().canUndo(); },
+        .run = [this](FrameContext& frame) { undoEdit(m_context, frame); } });
+    m_actions.add({ .id = "edit.redo",
+        .label = "Redo",
+        .chord = chord(Key::Y),
+        .alternate = chord(Key::Z, true, true),
+        .repeats = true,
+        .enabled = [this] { return m_context.undoStack().canRedo(); },
+        .run = [this](FrameContext& frame) { redoEdit(m_context, frame); } });
+    m_actions.add({ .id = "edit.duplicate", .label = "Duplicate", .chord = chord(Key::D), .enabled = hasSelection, .run = [this](FrameContext& frame) { duplicateSelected(m_context, frame); } });
+    m_actions.add({ .id = "edit.delete", .label = "Delete", .chord = chord(Key::Delete, false), .enabled = hasSelection, .run = [this](FrameContext& frame) { destroySelected(m_context, frame); } });
+    m_actions.add({ .id = "edit.rename",
+        .label = "Rename",
+        .chord = chord(Key::F2, false),
+        .enabled = hasSelection,
+        .run = [this](FrameContext&) {
+            for (const auto& panel : m_panels)
+            {
+                if (panel->name() == "Inspector")
+                    panel->setOpen(true); // The name field is there
+            }
+            m_context.requestRename();
+        } });
+
+    m_actions.add({ .id = "play.toggle", .label = "Play", .chord = chord(Key::P), .run = [this](FrameContext& frame) { m_play.active() ? stopPlay(frame) : startPlay(frame); } });
+    m_actions.add({ .id = "play.pause",
+        .label = "Pause",
+        .chord = chord(Key::P, true, true),
+        .enabled = [this] { return m_play.active(); },
+        .run = [this](FrameContext&) { m_play.state() == PlaySession::State::Paused ? m_play.play() : m_play.pause(); } });
+    m_actions.add({ .id = "play.step",
+        .label = "Step",
+        .chord = chord(Key::P, true, false, true),
+        .enabled = [this] { return m_play.state() == PlaySession::State::Paused; },
+        .run = [this](FrameContext&) { m_play.step(); } });
+}
+
+void EditorShell::updateStyle()
+{
+    const float contentScale = m_engine->contentScale();
+    const float uiScale = m_context.preferences().uiScale;
+    if (contentScale == m_contentScale && uiScale == m_uiScale)
         return;
-    const bool ctrl = ImGui::GetIO().KeyCtrl;
-    const bool shift = ImGui::GetIO().KeyShift;
-    if (ctrl && ImGui::IsKeyPressed(ImGuiKey_Z) && !shift)
-        undoEdit(m_context, frame);
-    else if (ctrl && (ImGui::IsKeyPressed(ImGuiKey_Y) || (shift && ImGui::IsKeyPressed(ImGuiKey_Z))))
-        redoEdit(m_context, frame);
-    else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_D, false))
-        duplicateSelected(m_context, frame);
-    else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_N, false))
-        request({ .kind = PendingAction::Kind::New }, frame);
-    else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_O, false))
-        m_openOpen = true;
-    else if (ctrl && shift && ImGui::IsKeyPressed(ImGuiKey_S, false))
-        m_openSaveAs = true;
-    else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
-        save(frame);
-    else if (ctrl && ImGui::IsKeyPressed(ImGuiKey_P, false))
-    {
-        if (ImGui::GetIO().KeyAlt)
-            m_play.step();
-        else if (shift && m_play.state() == PlaySession::State::Playing)
-            m_play.pause();
-        else if (shift)
-            m_play.play();
-        else if (m_play.active())
-            stopPlay(frame);
-        else
-            startPlay(frame);
-    }
+    m_contentScale = contentScale;
+    m_uiScale = uiScale;
+    theme::applyStyle(contentScale, uiScale);
+}
+
+void EditorShell::drawDockspace()
+{
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const float bar = ImGui::GetFrameHeight(); // The menu bar above and the status bar below
+    const ImVec2 size{ viewport->Size.x, std::max(viewport->Size.y - 2.0f * bar, 1.0f) };
+    ImGui::SetCursorPos(ImVec2{ 0.0f, bar });
+    const ImGuiID id = ImGui::GetID("EditorDockSpace");
+    if (std::exchange(m_resetLayout, false) || !ImGui::DockBuilderGetNode(id))
+        buildDefaultLayout(id, size);
+    ImGui::DockSpace(id, size);
+}
+
+void EditorShell::resetLayout()
+{
+    m_resetLayout = true;
+    m_viewport.setOpen(true);
+    for (auto* panel : m_defaultOpen)
+        panel->setOpen(true);
+}
+
+void EditorShell::drawStyleEditor()
+{
+    if (!m_styleEditor)
+        return;
+    if (ImGui::Begin("Style Editor", &m_styleEditor))
+        ImGui::ShowStyleEditor();
+    ImGui::End();
 }
 
 void EditorShell::drawMenuBar(FrameContext& frame)
@@ -551,25 +635,21 @@ void EditorShell::drawMenuBar(FrameContext& frame)
 
     if (ImGui::BeginMenu("Edit"))
     {
-        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, m_context.undoStack().canUndo()))
-            undoEdit(m_context, frame);
-        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, m_context.undoStack().canRedo()))
-            redoEdit(m_context, frame);
+        m_actions.menuItem("edit.undo", frame);
+        m_actions.menuItem("edit.redo", frame);
         ImGui::Separator();
-        if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, static_cast<bool>(m_context.selectedEntity())))
-            duplicateSelected(m_context, frame);
+        m_actions.menuItem("edit.duplicate", frame);
+        m_actions.menuItem("edit.delete", frame);
+        m_actions.menuItem("edit.rename", frame);
         ImGui::EndMenu();
     }
 
     if (ImGui::BeginMenu("Play"))
     {
         const auto state = m_play.state();
-        if (ImGui::MenuItem(state == PlaySession::State::Stopped ? "Play" : "Stop", "Ctrl+P"))
-            state == PlaySession::State::Stopped ? startPlay(frame) : stopPlay(frame);
-        if (ImGui::MenuItem(state == PlaySession::State::Paused ? "Resume" : "Pause", "Ctrl+Shift+P", false, m_play.active()))
-            state == PlaySession::State::Paused ? m_play.play() : m_play.pause();
-        if (ImGui::MenuItem("Step", "Ctrl+Alt+P", false, state == PlaySession::State::Paused))
-            m_play.step();
+        m_actions.menuItem("play.toggle", frame, state == PlaySession::State::Stopped ? "Play" : "Stop");
+        m_actions.menuItem("play.pause", frame, state == PlaySession::State::Paused ? "Resume" : "Pause");
+        m_actions.menuItem("play.step", frame);
         ImGui::EndMenu();
     }
 
@@ -577,12 +657,31 @@ void EditorShell::drawMenuBar(FrameContext& frame)
     {
         for (const auto& panel : m_panels)
         {
+            if (panel->debug())
+                continue;
             const std::string name{ panel->name() };
             if (ImGui::MenuItem(name.c_str(), nullptr, panel->isOpen()))
                 panel->setOpen(!panel->isOpen());
         }
         if (ImGui::MenuItem("Viewport", nullptr, m_viewport.isOpen()))
             m_viewport.setOpen(!m_viewport.isOpen());
+        ImGui::Separator();
+        if (ImGui::MenuItem("Reset Layout"))
+            resetLayout();
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Debug"))
+    {
+        for (const auto& panel : m_panels)
+        {
+            if (!panel->debug())
+                continue;
+            const std::string name{ panel->name() };
+            if (ImGui::MenuItem(name.c_str(), nullptr, panel->isOpen()))
+                panel->setOpen(!panel->isOpen());
+        }
+        ImGui::MenuItem("Style Editor", nullptr, &m_styleEditor);
         ImGui::EndMenu();
     }
 
@@ -593,22 +692,37 @@ void EditorShell::drawMenuBar(FrameContext& frame)
 void EditorShell::drawPlayControls(FrameContext& frame)
 {
     const auto state = m_play.state();
-    // Their own IDs: the Play menu has the same label
-    const char* play = state == PlaySession::State::Stopped ? "Play##Button" : "Stop##Button";
-    const char* pause = state == PlaySession::State::Paused ? "Resume##Button" : "Pause##Button";
     const auto& style = ImGui::GetStyle();
-    const float width = ImGui::CalcTextSize(play, nullptr, true).x + ImGui::CalcTextSize("Resume").x + ImGui::CalcTextSize("Step").x + 6.0f * style.FramePadding.x +
-                        2.0f * style.ItemSpacing.x;
+    const float buttonWidth = ImGui::CalcTextSize(theme::icons::play).x + 2.0f * style.FramePadding.x;
+    const float width = 3.0f * buttonWidth + 2.0f * style.ItemSpacing.x;
     ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), (ImGui::GetWindowWidth() - width) * 0.5f));
-    if (ImGui::SmallButton(play))
-        state == PlaySession::State::Stopped ? startPlay(frame) : stopPlay(frame);
+
+    // A small icon button that shows its action's name and shortcut; 'lit' colors the icon.
+    const auto button = [&](const char* icon, const char* id, std::string_view action, bool lit, const ImVec4& color) {
+        ImGui::PushID(id);
+        if (lit)
+            ImGui::PushStyleColor(ImGuiCol_Text, color);
+        const bool clicked = ImGui::SmallButton(icon);
+        if (lit)
+            ImGui::PopStyleColor();
+        ImGui::PopID();
+        ImGui::SetItemTooltip("%s", m_actions.tooltip(action).c_str());
+        return clicked;
+    };
+    const auto run = [&](std::string_view id) {
+        if (const auto* action = m_actions.find(id); action && (!action->enabled || action->enabled()))
+            action->run(frame);
+    };
+
+    if (button(state == PlaySession::State::Stopped ? theme::icons::play : theme::icons::stop, "play", "play.toggle", state != PlaySession::State::Stopped, theme::playFrame))
+        run("play.toggle");
     ImGui::BeginDisabled(!m_play.active());
-    if (ImGui::SmallButton(pause))
-        state == PlaySession::State::Paused ? m_play.play() : m_play.pause();
+    if (button(theme::icons::pause, "pause", "play.pause", state == PlaySession::State::Paused, theme::accentHover))
+        run("play.pause");
     ImGui::EndDisabled();
     ImGui::BeginDisabled(state != PlaySession::State::Paused);
-    if (ImGui::SmallButton("Step##Button"))
-        m_play.step();
+    if (button(theme::icons::step, "step", "play.step", false, theme::text))
+        run("play.step");
     ImGui::EndDisabled();
 }
 }

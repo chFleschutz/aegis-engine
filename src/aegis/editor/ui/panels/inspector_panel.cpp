@@ -5,6 +5,8 @@ module;
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
+#include "aegis/editor/ui/theme.h"
+
 module aegis.editor;
 import std;
 import aegis.asset_library;
@@ -189,7 +191,7 @@ auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const as
             s_filter.clear();
             ImGui::SetKeyboardFocusHere();
         }
-        ImGui::SetNextItemWidth(-FLT_MAX);
+        ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::InputTextWithHint("##filter", "Search", &s_filter);
         if (ImGui::Selectable("None", current == 0))
             edited = reflect::Value{ std::uint64_t{ 0 } };
@@ -255,7 +257,7 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
             ImGui::SetItemTooltip("%s", row.field->meta.tooltip.c_str());
 
         ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-FLT_MAX);
+        ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::BeginDisabled(readOnly || row.readOnly);
         const auto current = row.field->getter(object);
         const auto edited = drawValue(row, current, frame.assets.database(), !readOnly && !row.readOnly);
@@ -357,12 +359,15 @@ public:
 private:
     static void drawHeader(world::Registry& registry, world::Entity entity, bool readOnly, EditorContext& editor, FrameContext& frame)
     {
+        const bool rename = editor.takeRenameRequest();
         if (registry.has<Name>(entity))
         {
             ImGui::BeginDisabled(readOnly);
-            ImGui::SetNextItemWidth(-FLT_MAX);
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            if (rename && !readOnly)
+                ImGui::SetKeyboardFocusHere(); // F2: the name field gets the keyboard, with its text selected
             auto name = registry.get<Name>(entity).name;
-            if (ImGui::InputText("##name", &name))
+            if (ImGui::InputText("##name", &name, rename ? ImGuiInputTextFlags_AutoSelectAll : ImGuiInputTextFlags_None))
             {
                 // Typing the name is one entry
                 if (auto renamed = renameEntity(editWorld(editor, frame), editor.undoStack(), entity, std::move(name), ImGui::IsItemActive()); !renamed)
@@ -375,7 +380,10 @@ private:
 
         const auto id = std::format("{:016x}", registry.get<StableId>(entity).value);
         ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("ID %s", id.c_str());
+        {
+            const theme::MonospaceScope mono;
+            ImGui::TextDisabled("ID %s", id.c_str());
+        }
         ImGui::SameLine();
         if (ImGui::SmallButton("Copy"))
             ImGui::SetClipboardText(id.c_str());

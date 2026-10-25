@@ -56,6 +56,11 @@ public:
     /// @brief The requested scene, once; none if nothing was requested since.
     [[nodiscard]] auto takeSceneRequest() -> std::optional<std::uint64_t> { return std::exchange(m_sceneRequest, std::nullopt); }
 
+    /// @brief Asks the inspector to put the keyboard in the selected entity's name field (F2) at its next draw.
+    void requestRename() { m_renameRequest = true; }
+    /// @brief Whether a rename was requested since; once.
+    [[nodiscard]] auto takeRenameRequest() -> bool { return std::exchange(m_renameRequest, false); }
+
     /// @brief The active selected entity, or null (nothing selected, no world, or the entity is gone).
     [[nodiscard]] auto selectedEntity() const -> world::Entity;
     /// @brief Whether 'entity' is selected.
@@ -74,5 +79,6 @@ private:
     ConsoleBuffer m_console;
     EditorPreferences m_preferences;
     std::optional<std::uint64_t> m_sceneRequest;
+    bool m_renameRequest{ false };
 };
 }
