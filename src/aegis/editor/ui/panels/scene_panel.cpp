@@ -102,7 +102,7 @@ public:
             ImGuiID dockMainId = dockSpaceId;
             const ImGuiID dockBottomId = ImGui::DockBuilderSplitNode(dockSpaceId, ImGuiDir_Down, 0.50f, nullptr, &dockMainId);
 
-            ImGui::DockBuilderDockWindow("Hierachy", dockMainId);
+            ImGui::DockBuilderDockWindow("Hierarchy", dockMainId);
             ImGui::DockBuilderDockWindow("All Entities", dockMainId);
             ImGui::DockBuilderDockWindow("Scene Settings", dockMainId);
             ImGui::DockBuilderDockWindow("Inspector", dockBottomId); // The Inspector panel's
@@ -113,7 +113,7 @@ public:
 private:
     static void drawHierarchy(EditorContext& editor, FrameContext& frame)
     {
-        if (!ImGui::Begin("Hierachy"))
+        if (!ImGui::Begin("Hierarchy"))
         {
             ImGui::End();
             return;
