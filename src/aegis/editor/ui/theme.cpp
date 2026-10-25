@@ -13,7 +13,8 @@ namespace aegis::editor::theme
 {
 namespace
 {
-constexpr float fontSize{ 15.0f }; // Before the scales
+constexpr float fontSize{ 15.0f };   // Before the scales
+constexpr float iconOffsetY{ 2.0f }; // Centers the icons on the text line
 
 // The path as the UTF-8 ImGui opens files with.
 auto utf8(const std::filesystem::path& path) -> std::string
@@ -64,10 +65,10 @@ void setColors(ImGuiStyle& style)
     c[ImGuiCol_TabHovered] = dim(accent, 0.6f);
     c[ImGuiCol_Tab] = bgDeep;
     c[ImGuiCol_TabSelected] = bgWindow;
-    c[ImGuiCol_TabSelectedOverline] = accent;
+    c[ImGuiCol_TabSelectedOverline] = clear;
     c[ImGuiCol_TabDimmed] = bgDeep;
     c[ImGuiCol_TabDimmedSelected] = bgWindow;
-    c[ImGuiCol_TabDimmedSelectedOverline] = textDisabled;
+    c[ImGuiCol_TabDimmedSelectedOverline] = clear;
     c[ImGuiCol_DockingPreview] = dim(accent, 0.5f);
     c[ImGuiCol_DockingEmptyBg] = bgDeep;
     c[ImGuiCol_PlotLines] = textDim;
@@ -106,6 +107,7 @@ void setMetrics(ImGuiStyle& style)
     style.PopupBorderSize = 1.0f;
     style.FrameBorderSize = 0.0f;
     style.TabBarBorderSize = 0.0f;
+    style.TabBarOverlineSize = 0.0f; // No line over the selected tab
     style.DockingSeparatorSize = 2.0f;
 
     style.WindowRounding = 0.0f; // Docked windows are square
@@ -144,6 +146,7 @@ void loadFonts(const std::filesystem::path& folder)
         merge.MergeMode = true;
         merge.PixelSnapH = true;
         merge.GlyphMinAdvanceX = fontSize; // The icons are square
+        merge.GlyphOffset.y = iconOffsetY;
         io.Fonts->AddFontFromFileTTF(utf8(icons).c_str(), fontSize, &merge);
         io.FontDefault = loaded.ui;
     }

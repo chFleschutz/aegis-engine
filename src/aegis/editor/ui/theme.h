@@ -13,13 +13,13 @@ constexpr auto rgb(unsigned hex, float alpha = 1.0f) -> ImVec4
 }
 
 // Dark neutral grays, darkest first: the bars, the panels, the widgets, and the one border.
-inline constexpr ImVec4 bgDeep = rgb(0x151517);
-inline constexpr ImVec4 bgWindow = rgb(0x1E1E21);
-inline constexpr ImVec4 bgPopup = rgb(0x26262A);
-inline constexpr ImVec4 bgFrame = rgb(0x2D2D32);
-inline constexpr ImVec4 bgFrameHover = rgb(0x393940);
-inline constexpr ImVec4 bgFrameActive = rgb(0x45454D);
-inline constexpr ImVec4 border = rgb(0x36363C);
+inline constexpr ImVec4 bgDeep = rgb(0x0F0F11);
+inline constexpr ImVec4 bgWindow = rgb(0x1C1C20);
+inline constexpr ImVec4 bgPopup = rgb(0x232328);
+inline constexpr ImVec4 bgFrame = rgb(0x2A2A30);
+inline constexpr ImVec4 bgFrameHover = rgb(0x363640);
+inline constexpr ImVec4 bgFrameActive = rgb(0x42424D);
+inline constexpr ImVec4 border = rgb(0x2E2E35);
 inline constexpr ImVec4 text = rgb(0xE4E4E7);
 inline constexpr ImVec4 textDim = rgb(0xB4B4BB);
 inline constexpr ImVec4 textDisabled = rgb(0x7E7E87);
