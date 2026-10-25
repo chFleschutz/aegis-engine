@@ -25,8 +25,7 @@ the issues cite and links them, and doesn't repeat their content lists.
 
 The code is the reference for the current state; this section only says which plan items are done.
 
-- **Done:** E1 ([#83]: R3, R4, R8; the action registry, theme v0, fonts v0 and Reset Layout moved to
-  [#223]), E2 ([#200]), E3 ([#133]), the field half of E4 ([#165]: `undo_stack`, Ctrl+Z / Ctrl+Y, the Edit menu), E6 ([#202]: the Assets panel; opening a scene doesn't ask about unsaved changes until [#166]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
+- **Done:** E1 ([#83]: R3, R4, R8; the action registry, theme, fonts and Reset Layout came with E8, [#204]), E2 ([#200]), E3 ([#133]), the field half of E4 ([#165]: `undo_stack`, Ctrl+Z / Ctrl+Y, the Edit menu), E6 ([#202]: the Assets panel; opening a scene doesn't ask about unsaved changes until [#166]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
 - **Open:** every other R- and E-item, each in its issue (see "Runtime prerequisites" and
   "Implementation plan").
 
@@ -84,7 +83,7 @@ src/aegis/editor/
 └─ ui/                            aegis-editor, module aegis.editor (ImGui in .cpp only)
    ├─ editor_shell     implements Shell; owns the context and the panels
    ├─ actions          action registry: id, label, shortcut, enabled(), run()
-   ├─ theme            colors, sizes and fonts in one place
+   ├─ theme            colors, sizes and fonts in one place (theme.h: tokens and icons)
    ├─ widgets          property grid, one widget per FieldKind, asset slot, axis-colored vec3
    ├─ viewport         scene view: editor camera input, ImGuizmo inside the image rect, icons, picking
    └─ panels/          hierarchy, inspector, assets, console, renderer, profiler,
@@ -362,64 +361,86 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - **Out of scope for M10:** node editors and visual scripting, terrain and foliage tools, an animation
   timeline, in-editor code editing, a build/cook UI (cooking is the CLI, [#134]).
 
-## UI design: initial proposal
+## UI design
 
-This is a starting point to build against. **E8 is a required task to refine it** once the editor is
-usable: the layout, sizes and colors below are guesses until they have been tried on real scenes.
+Decided in E8 ([#204]) and built: the theme is `ui/theme.h` (the tokens) and `ui/theme.cpp` (the fonts and the
+style), the layout is `EditorShell::drawDockspace`. What the owner's workflow and scale trials show (below) tunes the
+tokens, not this structure.
 
 ### Layout
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────┐
-│ File Edit View Entity Debug Help          ▶  ❚❚  ⏭          Examples · sponza.scene* │ menu bar + play controls
+│ File Edit Play View Debug                  ▶  ❚❚  ⏭                                  │ menu bar + play controls
 ├─────────────────┬──────────────────────────────────────────────────┬───────────────┤
-│ Hierarchy       │ ✥ ⟳ ⤢ │ Local ▾ │ Snap ▾ │ Camera ▾ │ Shading ▾   │ Inspector     │ viewport toolbar
-│ [filter      ]  │ ┌──────────────────────────────────────────────┐ │ Helmet        │
-│ ▾ Sponza        │ │                                              │ │ ▾ Transform   │
-│   ▸ Helmet      │ │                                              │ │   Location …  │
-│   ▸ Lights      │ │              Viewport (scene texture)        │ │   Rotation …  │
-│     Camera  📷  │ │                    gizmo                     │ │   Scale    …  │
-│     Sun     ☀   │ │                                              │ │ ▾ MeshRenderer│
-│                 │ │                                              │ │ ▾ Scripts     │
-│                 │ └──────────────────────────────────────────────┘ │ [Add …     ▾] │
-├─────────────────┴────────────────────────────┬─────────────────────┴───────────────┤
-│ Assets   [project ▾] [search   ] [type ▾]    │ Console   [info][warn][error] [ ]   │ bottom dock, tabbed
-│ ▸ models/  ▸ scenes/   Helmet.gltf  ▸ …      │ [warn] Missing asset 1f6b… (fallback)│
-├──────────────────────────────────────────────┴─────────────────────────────────────┤
-│ 1 selected · 60 fps · GPU 4.1 ms · ⚠ last warning                         ● unsaved │ status bar
+│ Hierarchy       │ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ │                                 │ Inspector     │ viewport toolbar
+│ All Entities    │ ┌──────────────────────────────────────────────┐ │ (Renderer,    │
+│ Scene Settings  │ │                                              │ │  Profiler,    │
+│ ▾ Sponza        │ │              Viewport (scene texture)        │ │  Statistics,  │
+│   ▸ Helmet      │ │                    gizmo                     │ │  Preferences  │
+│   ▸ Lights      │ │                                              │ │  open as tabs │
+│                 │ └──────────────────────────────────────────────┘ │  here)        │
+├─────────────────┴──────────────────────────────────────────────────┴───────────────┤
+│ Assets │ Console                                                                    │ bottom dock, tabbed
+├────────────────────────────────────────────────────────────────────────────────────┤
+│ 1 selected · 60 fps · GPU 4.1 ms · last warning                           * unsaved │ status bar
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Default split:** hierarchy on the left (about 18% of the width), inspector on the right (about 22%),
-  and assets and console tabbed at the bottom (about 25% of the height). The viewport is the central
-  node and is never undocked by default. Built with `DockBuilder` on first start and by Reset Layout.
-- **Debug panels** (Renderer, Profiler, Statistics) are closed by default. They open as tabs next to
-  the inspector.
-- **Play mode:** the play controls change state, a colored frame goes around the viewport, and the menu
-  bar is tinted, so play mode is never mistaken for edit mode.
+- **Default split:** hierarchy on the left (18% of the width), inspector on the right (22%), assets and
+  console tabbed across the bottom (25% of the height). The viewport is the central node. Built with
+  `DockBuilder` on first start and by View → Reset Layout, which also reopens the panels that start open.
+  The layout is kept in `<project>/.aegis/editor/imgui.ini`.
+- **Debug panels** (Renderer, Profiler, Statistics) start closed and open as tabs beside the inspector. The
+  Debug menu holds the ImGui demo and the style editor (`ImGui::ShowStyleEditor`, for live tuning).
+- **Play mode:** the play button turns into Stop, a colored frame goes around the viewport and the windows are
+  tinted, so play mode is never mistaken for edit mode.
 
 ### Visual style
 
-- **Theme:** dark neutral grays with one accent color for selection, active tabs and the play state.
-  The rest of ImGui's default blue goes. All colors and sizes are named tokens in `ui/theme`
-  (accent, warning, error, play tint, axis X/Y/Z = red/green/blue), never inline `PushStyleColor`
-  values.
-- **Metrics:** frame padding 6×4, item spacing 8×4, window padding 8×8, rounding 3 on frames and
-  popups, 0 on docked windows, thin scrollbars. Everything is scaled by the window's content scale
-  (R12) times the UI-scale preference.
-- **Fonts:** a proportional UI font (for example Inter) at about 15 px, a monospace font for the console
-  and IDs (for example JetBrains Mono), and an icon font merged into the UI font (for example Lucide or
-  Material Symbols). They ship as engine content under OFL/ISC-style licenses. The licenses are checked
-  in E8, which makes the final pick.
-- **Inspector:** a two-column property grid (an ImGui table with labels at about 40%, widgets filling
-  the rest) instead of ImGui's labels on the right. Vectors have colored X/Y/Z labels. A component
-  header holds its name, an icon and a context-menu button. Values that differ from the default are
-  shown in bold (nice to have).
-- **Hierarchy:** an icon per entity kind (camera, light, mesh, empty, scene instance), full-width
-  selection rows, and a drop indicator line for reordering.
-- **Shortcuts:** Ctrl+N/O/S, Ctrl+Shift+S, Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z, Ctrl+D, Del, F2, F,
-  W/E/R/Q (viewport focus), Ctrl+P play/stop, Ctrl+Shift+P pause, Shift+F1 release the cursor. All
-  come from the action registry, so menus show them.
+- **Theme:** dark neutral grays with one accent, a muted blue (`#4A8CD9`), for selection and the active tab.
+  The play state has its own tint. Every color is a named token in `ui/theme.h` (backgrounds, text, accent,
+  warning, error, play tint, axis X/Y/Z, viewport icons), never an inline value.
+- **Metrics:** frame padding 6×4, item spacing 8×4, window padding 8×8, rounding 3 on frames, popups, tabs and
+  scrollbars and 0 on windows (docked windows are square), thin scrollbars. All sizes are multiplied by the
+  window's content scale times the UI-scale preference, and so are the fonts; a change of either rebuilds the
+  style (`theme::applyStyle`).
+- **Fonts and icons** (`content/fonts/`, found through `paths::content()`, each with its license):
+
+  | | Family | License | Use |
+  |---|---|---|---|
+  | UI | Inter Regular | OFL 1.1 | everything, 15 px at 100% |
+  | Monospace | JetBrains Mono Regular | OFL 1.1 | the console and IDs |
+  | Icons | Lucide | ISC (and MIT for icons derived from Feather) | merged into the UI font |
+
+  ImGui 1.92 rasterizes fonts at any size, so one file per family covers every scale. Inter has alternate
+  glyphs in the private-use area where Lucide's icons live: Inter excludes that range, so Lucide's win. The
+  codepoints the editor uses are in `ui/theme.h`.
+- **Inspector and hierarchy polish** (a two-column grid, colored X/Y/Z labels, component header icons, an icon
+  per entity kind, bold non-default values) is a follow-up, not part of E8's first pass.
+- **Shortcuts:** one action registry (`ui/actions.cppm`: id, label, chord, `enabled()`, `run()`) feeds the
+  menus, the tooltips and the shortcut handler, which skips a frame while a text box has the keyboard.
+
+  | Action | Shortcut |
+  |---|---|
+  | New, Open, Save, Save As | Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S |
+  | Undo, Redo | Ctrl+Z, Ctrl+Y (also Ctrl+Shift+Z) |
+  | Duplicate, Delete, Rename (the inspector's name field) | Ctrl+D, Del, F2 |
+  | Play/Stop, Pause/Resume, Step | Ctrl+P, Ctrl+Shift+P, Ctrl+Alt+P |
+  | Select, Move, Rotate, Scale (viewport focus) | Q, W, E, R |
+  | Focus the selection (viewport focus) | F |
+  | Fly the camera (while the right mouse button is held) | W, A, S, D, Q, E |
+
+  **Collisions:** W, E and Q fly the camera while the right mouse button is held and switch the gizmo
+  otherwise; the gizmo keys only act while the viewport is focused and not flying. The play chords differ
+  only by their modifiers (Ctrl, Ctrl+Shift, Ctrl+Alt), so a chord matches exactly its modifiers. The
+  registry asserts that no two actions share a chord.
+
+### Trials
+
+The owner runs the workflows (place a model, light it, edit a script field, play and stop, save and reopen, undo
+a gizmo drag) on Sponza, Helmets and Simple at 1080p, 1440p and 4K, at 100%, 150% and 200%, and the tokens
+are tuned from what they show. The editor's reference image comes with [#225], with the final theme.
 
 ## Runtime prerequisites
 
@@ -455,14 +476,14 @@ scope, "done when" and verification; this table only orders them and names the R
 
 | Step | Issue | Needs | What it gives |
 |---|---|---|---|
-| E1 | [#83] (merged), [#223] | R3, R4, R8 | The shell, the editor as two libraries, today's panels; actions, theme v0, fonts v0, Reset Layout in [#223] |
+| E1 | [#83] (merged) | R3, R4, R8 | The shell, the editor as two libraries, today's panels; the actions, theme, fonts and Reset Layout came with E8 |
 | E2 | [#200] | R5, R6 | Viewport, editor camera, gizmo in the viewport, picking |
 | E3 | [#133] | R1, R2 | Inspector and Add menus generated from the type registry |
 | E4 | [#165] (fields), [#201] (structure) | R9, R11 | Undo and redo of every edit |
 | E5 | [#166] | R7, R10, R12 | Scene files, play-in-editor |
 | E6 | [#202] | R10 | Asset browser |
 | E7 | [#203] | R13 | Console, status bar, preferences |
-| E8 | [#204] | R12 | The UI design, refined on real scenes. **Required, not optional**; starts once E1–E6 are usable |
+| E8 | [#204] | R12 | The UI design: theme, fonts, layout, actions, tuned on real scenes. **Required, not optional** |
 | E9 | [#205] | | The headless editor smoke test, extended by each step |
 
 **Then:** [#172] (the legacy core goes) and [#85] (`aegis.base` becomes `aegis.core`), as planned in M9.
@@ -484,8 +505,6 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 - **Play world view:** replace the viewport (proposed for M10) or a separate Game panel (once two views render in one frame).
 - **Editor-only game code:** how a game ships custom drawers. Proposed: an optional `editor/` source
   list in `aegis_add_game` that only `<Game>-Editor` compiles, with no macro in the runtime.
-- **Fonts and icons:** which families, and whether they live in engine content or `external/`
-  (decided in E8).
 
 [#80]: https://github.com/chFleschutz/aegis-engine/issues/80
 [#81]: https://github.com/chFleschutz/aegis-engine/issues/81
@@ -523,5 +542,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#203]: https://github.com/chFleschutz/aegis-engine/issues/203
 [#204]: https://github.com/chFleschutz/aegis-engine/issues/204
 [#205]: https://github.com/chFleschutz/aegis-engine/issues/205
-[#223]: https://github.com/chFleschutz/aegis-engine/issues/223
+[#225]: https://github.com/chFleschutz/aegis-engine/issues/225
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11
