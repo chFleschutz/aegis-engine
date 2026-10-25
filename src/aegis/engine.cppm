@@ -86,6 +86,9 @@ struct AppDesc
     std::uint32_t frames{ 0 };
     /// @brief Headless: save the last frame here as PNG.
     std::string screenshot;
+    /// @brief With a shell's view: the screenshot shows the view's target only, not the window's whole frame
+    ///        with the shell's UI over it.
+    bool screenshotView{ false };
     /// @brief GPU-driven rendering (mesh shaders) where the device supports it; false renders CPU-driven.
     bool gpuDriven{ true };
     /// @brief The project folder the assets come from, its index kept in `<project>/.aegis`; empty for
@@ -97,6 +100,9 @@ struct AppDesc
     /// @brief An asset ID: print the import cache entry of that model, mesh of a model, texture or environment
     ///        instead of running (see dumpAsset).
     std::string dumpAsset;
+    /// @brief "all" opens every panel of the editor at startup (a test, a screenshot); empty keeps the editor's own
+    ///        layout. The runtime flavor of a game ignores it.
+    std::string editorPanels;
 };
 
 enum class EngineErrorCode
@@ -126,7 +132,7 @@ inline constexpr int exitUsage{ 2 };
 [[nodiscard]] auto describe(const EngineError& error) -> std::string;
 
 /// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n>, --project <dir>,
-///        --scene <path> and --dump-asset <id>;
+///        --scene <path>, --dump-asset <id> and --editor-panels all;
 ///        the first argument (the program name) is skipped. A headless run without --frames stops after 600 frames.
 [[nodiscard]] auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, EngineError>;
 
@@ -350,6 +356,8 @@ public:
 
     /// @brief The project folder (AppDesc::project); empty for the samples.
     [[nodiscard]] auto project() const -> const std::filesystem::path& { return m_desc.project; }
+    /// @brief How the app was started.
+    [[nodiscard]] auto desc() const -> const AppDesc& { return m_desc; }
 
     /// @brief No window, input or platform backend: frames render offscreen (AppDesc::headless).
     [[nodiscard]] auto headless() const -> bool { return !m_window; }

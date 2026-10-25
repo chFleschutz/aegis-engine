@@ -390,6 +390,7 @@ auto runScene(const Options& options) -> int
         .headless = options.headless,
         .frames = options.frames,
         .screenshot = frameFile.string(),
+        .screenshotView = true,
         .gpuDriven = options.gpuDriven,
     });
     if (!engine)

@@ -106,6 +106,11 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     applyStyle();
     // A drag in a window's body is the viewport's (orbit, gizmo), not a window move
     ImGui::GetIO().ConfigWindowsMoveFromTitleBarOnly = true;
+    if (engine.desc().editorPanels == "all")
+    {
+        for (const auto& panel : m_panels)
+            panel->setOpen(true);
+    }
     // A headless run (a test, a screenshot) neither reads nor changes the user's layout.
     if (!engine.headless() && !engine.project().empty())
         m_layoutFile = layoutFile(engine.project());

@@ -79,6 +79,12 @@ auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, Engi
         {
             desc.dumpAsset = args[++i];
         }
+        else if (arg == "--editor-panels" && hasValue)
+        {
+            desc.editorPanels = args[++i];
+            if (desc.editorPanels != "all")
+                return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("--editor-panels takes 'all', got '{}'", desc.editorPanels)) };
+        }
         else if ((arg == "--frames" || arg == "--width" || arg == "--height") && hasValue)
         {
             const auto count = parseCount(arg, args[++i]);
@@ -110,7 +116,7 @@ auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>
 
 auto usage(std::string_view program) -> std::string
 {
-    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--scene <path>] [--dump-asset <id>]",
+    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--scene <path>] [--dump-asset <id>] [--editor-panels all]",
         program);
 }
 
@@ -644,22 +650,23 @@ void Engine::updateCameraAspect(rhi::Extent2D extent)
     }
 }
 
-// Reads the offscreen target back (the last frame's slot), or with a view the view's target, and writes it as PNG.
-// The device is idle.
+// Reads the offscreen target back (the last frame's slot), the whole frame with the shell's UI over it, or with
+// AppDesc::screenshotView the view's target, and writes it as PNG. The device is idle.
 auto Engine::saveScreenshot() -> std::expected<void, std::string>
 {
     // The target's format also decides the view's encoding (PostProcessingPass): RGBA8 gets it gamma encoded.
     if (!m_renderer->offscreen() || m_renderer->targetFormat() != rhi::Format::RGBA8_UNORM)
         return std::unexpected{ "screenshots need the headless RGBA8 target" };
 
+    const bool viewOnly = m_viewExtent && m_desc.screenshotView;
     // A view's target is the graph's "Final" (RGBA16F), left sampled by the UI pass.
     const auto final = m_frameGraph->declarations().find(render_graph::names::finalImage);
-    if (m_viewExtent && !final)
+    if (viewOnly && !final)
         return std::unexpected{ "the view's frame graph has no \"Final\"" };
-    const auto& target = m_viewExtent ? m_frameGraph->pool().texture(*final) : m_renderer->offscreenTarget(m_lastFrameIndex);
-    const auto state = m_viewExtent ? rhi::ResourceState::ShaderReadFragment : rhi::ResourceState::ColorAttachment;
-    const auto extent = m_viewExtent.value_or(m_renderer->extent());
-    const std::size_t texelSize{ m_viewExtent ? 4 * sizeof(std::uint16_t) : 4 };
+    const auto& target = viewOnly ? m_frameGraph->pool().texture(*final) : m_renderer->offscreenTarget(m_lastFrameIndex);
+    const auto state = viewOnly ? rhi::ResourceState::ShaderReadFragment : rhi::ResourceState::ColorAttachment;
+    const auto extent = viewOnly ? *m_viewExtent : m_renderer->extent();
+    const std::size_t texelSize{ viewOnly ? 4 * sizeof(std::uint16_t) : 4 };
     const auto byteSize = std::size_t{ extent.x } * extent.y * texelSize;
 
     auto readback = m_device->createBuffer({
@@ -691,7 +698,7 @@ auto Engine::saveScreenshot() -> std::expected<void, std::string>
     std::vector<std::byte> pixels(byteSize);
     m_device->get(*readback).read(pixels.data(), byteSize);
     m_device->free(*readback);
-    if (m_viewExtent)
+    if (viewOnly)
     {
         // RGBA16F to RGBA8, rounded to the nearest.
         std::vector<std::uint16_t> halves(byteSize / sizeof(std::uint16_t));

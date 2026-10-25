@@ -16,7 +16,7 @@ export namespace aegis::editor
 ///        closing the window, New or Open ask about them first. The window layout is kept in
 ///        `<project>/.aegis/editor/imgui.ini` (none when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
-///        (`<config>/Aegis/editor.json`, none when headless).
+///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every panel at startup.
 class EditorShell final : public Shell
 {
 public:
