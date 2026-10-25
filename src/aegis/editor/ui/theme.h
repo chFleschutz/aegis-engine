@@ -13,16 +13,16 @@ constexpr auto rgb(unsigned hex, float alpha = 1.0f) -> ImVec4
 }
 
 // Dark neutral grays, darkest first: the bars, the panels, the widgets, and the one border.
-inline constexpr ImVec4 bgDeep = rgb(0x0F0F11);
-inline constexpr ImVec4 bgWindow = rgb(0x1C1C20);
-inline constexpr ImVec4 bgPopup = rgb(0x232328);
-inline constexpr ImVec4 bgFrame = rgb(0x2A2A30);
-inline constexpr ImVec4 bgFrameHover = rgb(0x363640);
-inline constexpr ImVec4 bgFrameActive = rgb(0x42424D);
-inline constexpr ImVec4 border = rgb(0x2E2E35);
-inline constexpr ImVec4 text = rgb(0xE4E4E7);
-inline constexpr ImVec4 textDim = rgb(0xB4B4BB);
-inline constexpr ImVec4 textDisabled = rgb(0x7E7E87);
+inline constexpr ImVec4 bgDeep = rgb(0x0E0E0E);
+inline constexpr ImVec4 bgWindow = rgb(0x181818);
+inline constexpr ImVec4 bgPopup = rgb(0x202020);
+inline constexpr ImVec4 bgFrame = rgb(0x272727);
+inline constexpr ImVec4 bgFrameHover = rgb(0x333333);
+inline constexpr ImVec4 bgFrameActive = rgb(0x404040);
+inline constexpr ImVec4 border = rgb(0x2B2B2B);
+inline constexpr ImVec4 text = rgb(0xE6E6E6);
+inline constexpr ImVec4 textDim = rgb(0xB5B5B5);
+inline constexpr ImVec4 textDisabled = rgb(0x808080);
 
 // Selection and the active tab. The play state has its own colors.
 inline constexpr ImVec4 accent = rgb(0x4A8CD9);
@@ -96,19 +96,19 @@ inline auto iconButton(const char* icon, const char* id, bool active = false) ->
 // The Lucide icons the editor uses (lucide.dev, ISC), as UTF-8 for the private-use codepoints of the merged font.
 namespace icons
 {
-inline constexpr const char* select = ""; // mouse-pointer-2
-inline constexpr const char* move = "";   // move
-inline constexpr const char* rotate = ""; // rotate-3d
-inline constexpr const char* scale = "";  // scale
-inline constexpr const char* local = "";  // box
-inline constexpr const char* world = "";  // globe
-inline constexpr const char* snap = "";   // magnet
-inline constexpr const char* play = "";   // play
-inline constexpr const char* pause = "";  // pause
-inline constexpr const char* stop = "";   // square
-inline constexpr const char* step = "";   // step-forward
-inline constexpr const char* camera = ""; // camera
-inline constexpr const char* light = "";  // lightbulb
-inline constexpr const char* sun = "";    // sun
+inline constexpr const char* select = "\uE1C3"; // mouse-pointer-2
+inline constexpr const char* move = "\uE121";   // move
+inline constexpr const char* rotate = "\uE2EA"; // rotate-3d
+inline constexpr const char* scale = "\uE2EC";  // scaling
+inline constexpr const char* local = "\uE061";  // box
+inline constexpr const char* world = "\uE0E8";  // globe
+inline constexpr const char* snap = "\uE2B5";   // magnet
+inline constexpr const char* play = "\uE13C";   // play
+inline constexpr const char* pause = "\uE12E";  // pause
+inline constexpr const char* stop = "\uE167";   // square
+inline constexpr const char* step = "\uE3EA";   // step-forward
+inline constexpr const char* camera = "\uE064"; // camera
+inline constexpr const char* light = "\uE1C2";  // lightbulb
+inline constexpr const char* sun = "\uE178";    // sun
 }
 }
