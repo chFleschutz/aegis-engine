@@ -13,6 +13,7 @@
 //   :picking        Rays and bounding spheres: what a click in the viewport selects.
 //   :property_model PropertyRow: how the inspector shows a registered field (its widget, label and limits).
 //   :inspector      The components and scripts the inspector lists and offers, and edits through the registry.
+//   :hierarchy      HierarchyRow: the rows of the hierarchy panel, in sibling order, with the closed nodes' subtrees left out.
 //   :editor_camera  EditorCamera: the viewport's camera (fly, orbit, pan, dolly, focus), never an entity.
 //   :edits          The edits the editor makes (fields, components, scripts, names, hierarchy, subtrees) and applyEdit.
 //   :undo_stack     UndoStack: the history of edits (merged drags, the saved marker).
@@ -29,6 +30,7 @@ export import :console;
 export import :context;
 export import :edits;
 export import :editor_camera;
+export import :hierarchy;
 export import :inspector;
 export import :picking;
 export import :play;

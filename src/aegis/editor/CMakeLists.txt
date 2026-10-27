@@ -24,6 +24,7 @@ target_sources(aegis-editor-core
     core/context.cppm
     core/edits.cppm
     core/editor_camera.cppm
+    core/hierarchy.cppm
     core/inspector.cppm
     core/picking.cppm
     core/play.cppm
@@ -41,6 +42,7 @@ target_sources(aegis-editor-core
     core/context.cpp
     core/edits.cpp
     core/editor_camera.cpp
+    core/hierarchy.cpp
     core/inspector.cpp
     core/picking.cpp
     core/play.cpp
