@@ -7,6 +7,7 @@ export namespace aegis::editor
 enum class Key
 {
     D,
+    F,
     N,
     O,
     P,

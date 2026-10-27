@@ -18,6 +18,8 @@ auto toImGui(Key key) -> ImGuiKey
     {
     case Key::D:
         return ImGuiKey_D;
+    case Key::F:
+        return ImGuiKey_F;
     case Key::N:
         return ImGuiKey_N;
     case Key::O:

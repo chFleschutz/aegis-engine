@@ -22,6 +22,7 @@ TEST_SUITE("editor::Chord")
     {
         CHECK(describe(Chord{ .key = Key::Delete }) == "Del");
         CHECK(describe(Chord{ .key = Key::F2 }) == "F2");
+        CHECK(describe(Chord{ .key = Key::F }) == "F");
     }
 
     TEST_CASE("chords with different modifiers are different")

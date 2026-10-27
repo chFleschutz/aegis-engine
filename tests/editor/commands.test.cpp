@@ -140,6 +140,62 @@ TEST_SUITE("editor::createEntity")
         CHECK(f.registry().get<Name>(restored).name == "Lamp");
         CHECK(f.childIds(parent) == std::vector{ id });
     }
+
+    TEST_CASE("an entity created with components has them, and one undo removes it with them")
+    {
+        Fixture f;
+        const auto* light = f.types.find("PointLight");
+        const auto* camera = f.types.find("Camera");
+        REQUIRE(light);
+        REQUIRE(camera);
+        const std::array components{ light, camera };
+        const auto before = f.registry().entityCount();
+
+        const auto created = createEntity(f.edits(), f.history, "Lamp", {}, components);
+        REQUIRE(created.has_value());
+        CHECK(f.registry().has<aegis::PointLight>(*created));
+        CHECK(f.registry().has<aegis::Camera>(*created));
+        CHECK(f.registry().get<aegis::PointLight>(*created).intensity == aegis::PointLight{}.intensity);
+        const auto id = f.idOf(*created);
+
+        CHECK(f.undo());
+        CHECK_FALSE(f.find(id));
+        CHECK(f.registry().entityCount() == before);
+        CHECK_FALSE(f.history.canUndo()); // Creating it was the only edit
+
+        CHECK(f.redo());
+        const auto restored = f.find(id);
+        REQUIRE(restored);
+        CHECK(f.registry().has<aegis::PointLight>(restored));
+        CHECK(f.registry().has<aegis::Camera>(restored));
+        CHECK(f.registry().get<aegis::PointLight>(restored).intensity == aegis::PointLight{}.intensity);
+    }
+
+    TEST_CASE("a component of a new child is kept by undo and redo under its parent")
+    {
+        Fixture f;
+        const auto parent = f.registry().create("Parent");
+        const std::array components{ f.types.find("DirectionalLight") };
+        const auto created = createEntity(f.edits(), f.history, "Sun", parent, components);
+        REQUIRE(created.has_value());
+        const auto id = f.idOf(*created);
+
+        CHECK(f.undo());
+        CHECK(f.childIds(parent).empty());
+        CHECK(f.redo());
+        CHECK(f.childIds(parent) == std::vector{ id });
+        CHECK(f.registry().has<aegis::DirectionalLight>(f.find(id)));
+    }
+
+    TEST_CASE("a script is not a component to create an entity with")
+    {
+        Fixture f;
+        const std::array components{ f.types.find("Patrol") };
+        const auto before = f.registry().entityCount();
+        CHECK_FALSE(createEntity(f.edits(), f.history, "Guard", {}, components).has_value());
+        CHECK(f.registry().entityCount() == before);
+        CHECK_FALSE(f.history.canUndo());
+    }
 }
 
 TEST_SUITE("editor::instantiateEntity")

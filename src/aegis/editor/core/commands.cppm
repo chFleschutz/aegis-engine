@@ -10,9 +10,13 @@ import :undo_stack;
 // saved, so the change would be lost.
 export namespace aegis::editor
 {
-/// @brief Creates an entity named 'name', the last child of 'parent' (a root entity for a null one).
-[[nodiscard]] auto createEntity(const EditWorld& world, UndoStack& history, std::string name, world::Entity parent = {})
-    -> std::expected<world::Entity, std::string>;
+/// @brief Creates an entity named 'name', the last child of 'parent' (a root entity for a null one), with a default
+///        instance of each of 'components' (registered component types with storage). One undo entry: undo removes the entity with
+///        its components, redo restores it.
+/// @return The entity, or an error (and nothing changed) for a parent of a scene instance or a type that is not a
+///         component with storage
+[[nodiscard]] auto createEntity(const EditWorld& world, UndoStack& history, std::string name, world::Entity parent = {},
+    std::span<const reflect::TypeInfo* const> components = {}) -> std::expected<world::Entity, std::string>;
 
 /// @brief Makes the entities of a scene or model instance under 'parent' (a root entity for a null one).
 using CreateInstance = std::function<std::expected<world::Entity, std::string>(world::Entity parent)>;
