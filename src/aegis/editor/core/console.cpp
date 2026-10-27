@@ -4,15 +4,6 @@ import aegis.core;
 
 namespace aegis::editor
 {
-namespace
-{
-auto containsIgnoringCase(std::string_view text, std::string_view needle) -> bool
-{
-    const auto equal = [](char a, char b) { return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b)); };
-    return !std::ranges::search(text, needle, equal).empty() || needle.empty();
-}
-}
-
 auto ConsoleFilter::matches(const ConsoleEntry& entry) const -> bool
 {
     bool levelOn = error; // Error and Fatal
@@ -20,7 +11,7 @@ auto ConsoleFilter::matches(const ConsoleEntry& entry) const -> bool
         levelOn = info;
     else if (entry.level == log::Level::Warn)
         levelOn = warn;
-    return levelOn && containsIgnoringCase(entry.message, search);
+    return levelOn && core::containsIgnoringCase(entry.message, search);
 }
 
 ConsoleBuffer::ConsoleBuffer(std::size_t capacity) :
