@@ -59,18 +59,26 @@ function(aegis_add_game name)
                 FAIL_REGULAR_EXPRESSION "Failed to load")
         endif()
 
-        # The editor flavor runs 60 frames of its UI over the viewport with every panel open and keeps the
-        # screenshot, <build>/screenshots/<test>.png, for a reviewer to look at. The first scene stands for the project.
-        set(editor_args --headless --frames 60 --width 1280 --height 720 --editor-panels all)
+        # The editor flavor runs 60 frames of its UI over the viewport and keeps the screenshot,
+        # <build>/screenshots/<test>.png, for a reviewer to look at: once with every panel open, and once with the
+        # panels a fresh editor opens (no layout file in a headless run), which is what a user sees first. The first
+        # scene stands for the project.
+        set(editor_args --headless --frames 60 --width 1280 --height 720)
         if(G_SCENES)
             list(GET G_SCENES 0 first)
             list(APPEND editor_args --scene ${first})
         endif()
-        set(editor_test game-${lowered}-editor)
-        set(shot "${PROJECT_BINARY_DIR}/screenshots/${editor_test}.png")
         file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/screenshots")
-        add_test(NAME ${editor_test} COMMAND ${name}-Editor ${editor_args} --screenshot "${shot}")
-        set_tests_properties(${editor_test} PROPERTIES LABELS "device;game;editor" RESOURCE_LOCK gpu TIMEOUT 300
-            FAIL_REGULAR_EXPRESSION "Failed to load")
+        foreach(variant IN ITEMS "" "-default")
+            set(editor_test game-${lowered}-editor${variant})
+            set(variant_args ${editor_args})
+            if(NOT variant)
+                list(APPEND variant_args --editor-panels all)
+            endif()
+            add_test(NAME ${editor_test} COMMAND ${name}-Editor ${variant_args}
+                --screenshot "${PROJECT_BINARY_DIR}/screenshots/${editor_test}.png")
+            set_tests_properties(${editor_test} PROPERTIES LABELS "device;game;editor" RESOURCE_LOCK gpu TIMEOUT 300
+                FAIL_REGULAR_EXPRESSION "Failed to load")
+        endforeach()
     endif()
 endfunction()
