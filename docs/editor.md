@@ -75,7 +75,7 @@ src/aegis/editor/
 │  ├─ undo_stack       history, merging of continuous edits, the saved marker (dirty flag)
 │  ├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, limits, readOnly}
 │  ├─ inspector        the components and scripts an entity shows and can add; field writes + change hook
-│  ├─ hierarchy_model  entity tree as rows, filtered by name; pure
+│  ├─ hierarchy_model  entity tree as rows in sibling order (the name filter: #273); pure
 │  ├─ play_session     Edit -> Playing <-> Paused -> Edit, step
 │  ├─ editor_camera    fly/orbit/pan/dolly/focus math -> view, projection and picking rays
 │  ├─ picking          ray against bounding spheres, icon hits in screen space

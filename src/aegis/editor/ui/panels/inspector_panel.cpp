@@ -332,6 +332,8 @@ auto pickType(std::span<const reflect::TypeInfo* const> types) -> const reflect:
 class InspectorPanel final : public Panel
 {
 public:
+    InspectorPanel() { setOpen(true); }
+
     [[nodiscard]] auto name() const -> std::string_view override { return "Inspector"; }
 
     void draw(EditorContext& editor, FrameContext& frame) override

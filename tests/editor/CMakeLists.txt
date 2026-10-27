@@ -6,6 +6,7 @@ aegis_add_test(editor
         console.test.cpp
         context.test.cpp
         editor_camera.test.cpp
+        hierarchy.test.cpp
         inspector.test.cpp
         picking.test.cpp
         play.test.cpp

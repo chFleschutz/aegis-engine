@@ -137,7 +137,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     if (engine.desc().editorPanels == "all")
     {
         for (const auto& panel : m_panels)
-            panel->setOpen(true);
+            panel->setOpen(!panel->debug()); // Not the ImGui demo: it floats over the viewport
     }
     // A headless run (a test, a screenshot) neither reads nor changes the user's layout.
     if (!engine.headless() && !engine.project().empty())

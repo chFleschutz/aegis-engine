@@ -17,9 +17,14 @@ namespace
 {
 // The ImGui ID of an entity's row: its StableId, so an entity slot reused by another entity doesn't
 // reopen the old tree state.
+auto rowId(StableId id) -> const void*
+{
+    return reinterpret_cast<const void*>(static_cast<std::uintptr_t>(id.value));
+}
+
 auto rowId(world::Registry& registry, world::Entity entity) -> const void*
 {
-    return reinterpret_cast<const void*>(static_cast<std::uintptr_t>(registry.get<StableId>(entity).value));
+    return rowId(registry.get<StableId>(entity));
 }
 
 auto nameOf(world::Registry& registry, world::Entity entity) -> const char*
@@ -80,6 +85,8 @@ void applyDrop(const Drop& drop, EditorContext& editor, FrameContext& frame)
 class ScenePanel final : public Panel
 {
 public:
+    ScenePanel() { setOpen(true); }
+
     [[nodiscard]] auto name() const -> std::string_view override { return "Scene"; }
 
     void draw(EditorContext& editor, FrameContext& frame) override
@@ -99,50 +106,29 @@ private:
         }
 
         auto& registry = editor.world()->registry();
-        constexpr std::uint8_t NODE_OPENED = 1 << 0;
-        constexpr std::uint8_t VISITED = 1 << 1;
-        std::vector<std::pair<world::Entity, std::uint8_t>> stack;
         std::optional<Drop> drop;
 
-        auto view = registry.view<entt::entity>();
-        stack.reserve(view.size());
+        // A node is open when ImGui's tree state says so: the rows then follow it in the same frame
+        const auto rows = hierarchyRows(registry, [](StableId id) { return ImGui::GetStateStorage()->GetInt(ImGui::GetID(rowId(id)), 0) != 0; });
 
-        for (auto entt : view)
+        // A node that was just closed by a click still has its children in 'rows': they are skipped
+        std::optional<std::uint32_t> closedDepth;
+        for (const auto& row : rows)
         {
-            world::Entity entity{ entt };
-            if (registry.has<Parent>(entity) && registry.get<Parent>(entity).entity)
+            if (closedDepth && row.depth > *closedDepth)
                 continue;
+            closedDepth.reset();
 
-            stack.emplace_back(entity, 0);
-        }
+            const float indent = static_cast<float>(row.depth) * ImGui::GetStyle().IndentSpacing;
+            if (row.depth > 0)
+                ImGui::Indent(indent);
+            const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen | (row.hasChildren ? 0 : ImGuiTreeNodeFlags_Leaf);
+            const bool open = drawEntityTreeNode(editor, registry, row.entity, flags, &drop);
+            if (row.depth > 0)
+                ImGui::Unindent(indent);
 
-        while (!stack.empty())
-        {
-            auto& [entity, flags] = stack.back();
-
-            if (flags & NODE_OPENED)
-                ImGui::TreePop();
-
-            if (flags & VISITED)
-            {
-                stack.pop_back();
-                continue;
-            }
-
-            flags |= VISITED;
-
-            auto& children = registry.get<Children>(entity);
-            const ImGuiTreeNodeFlags treeNodeFlags = (children.count == 0) ? ImGuiTreeNodeFlags_Leaf : 0;
-            if (drawEntityTreeNode(editor, registry, entity, treeNodeFlags, &drop))
-            {
-                flags |= NODE_OPENED;
-                auto current = children.first;
-                while (current)
-                {
-                    stack.emplace_back(current, 0);
-                    current = registry.get<Siblings>(current).next;
-                }
-            }
+            if (row.hasChildren && !open)
+                closedDepth = row.depth;
         }
 
         // The space below the rows takes drops that make the entity a root
