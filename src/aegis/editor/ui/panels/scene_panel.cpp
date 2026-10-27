@@ -8,6 +8,7 @@ module aegis.editor;
 import std;
 import aegis.core;
 import aegis.math;
+import aegis.serialize;
 import aegis.world;
 import :panels;
 
@@ -80,24 +81,23 @@ void applyDrop(const Drop& drop, EditorContext& editor, FrameContext& frame)
         log::warn("Cannot move '{}': {}", nameOf(registry, entity), moved.error());
 }
 
-// The hierarchy, all entities and the scene's singletons, docked as tabs (the shell's layout). Edits apply directly: the panel
-// runs at the frame's safe point.
+// The hierarchy: a filter and a Create button above the tree. Edits apply directly: the panel runs at the frame's safe
+// point. A context menu opens after the rows are drawn, so the action it runs cannot change the world under the rows.
 class ScenePanel final : public Panel
 {
 public:
-    ScenePanel() { setOpen(true); }
+    explicit ScenePanel(const ActionRegistry& actions) :
+        m_actions{ actions }
+    {
+        setOpen(true);
+    }
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Scene"; }
 
-    void draw(EditorContext& editor, FrameContext& frame) override
-    {
-        drawHierarchy(editor, frame);
-        drawAllEntities(editor, frame);
-        drawSceneSettings(editor, *editor.world());
-    }
+    void draw(EditorContext& editor, FrameContext& frame) override { drawHierarchy(editor, frame); }
 
 private:
-    static void drawHierarchy(EditorContext& editor, FrameContext& frame)
+    void drawHierarchy(EditorContext& editor, FrameContext& frame)
     {
         if (!ImGui::Begin("Hierarchy"))
         {
@@ -105,11 +105,19 @@ private:
             return;
         }
 
+        drawToolbar(editor, frame);
+
         auto& registry = editor.world()->registry();
         std::optional<Drop> drop;
+        std::optional<StableId> menuRow; // The row right-clicked this frame
+
+        // While filtering, the rows are all open and keep a tree state of their own: closing one there doesn't close it in the full tree
+        const bool filtered = !m_filter.empty();
+        if (filtered)
+            ImGui::PushID("filtered");
 
         // A node is open when ImGui's tree state says so: the rows then follow it in the same frame
-        const auto rows = hierarchyRows(registry, [](StableId id) { return ImGui::GetStateStorage()->GetInt(ImGui::GetID(rowId(id)), 0) != 0; });
+        const auto rows = hierarchyRows(registry, [](StableId id) { return ImGui::GetStateStorage()->GetInt(ImGui::GetID(rowId(id)), 0) != 0; }, m_filter);
 
         // A node that was just closed by a click still has its children in 'rows': they are skipped
         std::optional<std::uint32_t> closedDepth;
@@ -122,13 +130,19 @@ private:
             const float indent = static_cast<float>(row.depth) * ImGui::GetStyle().IndentSpacing;
             if (row.depth > 0)
                 ImGui::Indent(indent);
-            const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen | (row.hasChildren ? 0 : ImGuiTreeNodeFlags_Leaf);
-            const bool open = drawEntityTreeNode(editor, registry, row.entity, flags, &drop);
+            const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen | (row.hasChildren ? (filtered ? ImGuiTreeNodeFlags_DefaultOpen : 0) : ImGuiTreeNodeFlags_Leaf);
+            const bool open = drawEntityTreeNode(editor, registry, row.entity, flags, drop, menuRow);
             if (row.depth > 0)
                 ImGui::Unindent(indent);
 
             if (row.hasChildren && !open)
                 closedDepth = row.depth;
+        }
+        if (filtered)
+        {
+            ImGui::PopID();
+            if (rows.empty())
+                ImGui::TextDisabled("No entity matches");
         }
 
         // The space below the rows takes drops that make the entity a root
@@ -144,7 +158,13 @@ private:
         if (drop)
             applyDrop(*drop, editor, frame);
 
-        drawEntityActions(editor, frame);
+        if (menuRow)
+        {
+            m_menuRow = menuRow;
+            ImGui::OpenPopup("RowMenu");
+        }
+        drawRowMenu(editor, frame);
+        drawWindowMenu(editor, frame);
 
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
             editor.selection().clear();
@@ -152,78 +172,82 @@ private:
         ImGui::End();
     }
 
-    static void drawAllEntities(EditorContext& editor, FrameContext& frame)
+    // The filter and the button that opens the Create menu.
+    void drawToolbar(EditorContext& editor, FrameContext& frame)
     {
-        if (!ImGui::Begin("All Entities"))
+        const float button = ImGui::GetFrameHeight();
+        ImGui::SetNextItemWidth(-(button + ImGui::GetStyle().ItemSpacing.x));
+        ImGui::InputTextWithHint("##filter", "Filter", &m_filter);
+        ImGui::SameLine();
+        if (ImGui::Button("+", ImVec2{ button, button }))
+            ImGui::OpenPopup("CreateMenu");
+        ImGui::SetItemTooltip("Create an entity");
+        if (ImGui::BeginPopup("CreateMenu"))
         {
-            ImGui::End();
-            return;
+            drawCreateMenu(editor, frame);
+            ImGui::EndPopup();
         }
+    }
 
+    // The menu of the row that was right-clicked (already selected, so the actions, which act on the selection, act on it).
+    void drawRowMenu(EditorContext& editor, FrameContext& frame)
+    {
+        if (!ImGui::BeginPopup("RowMenu"))
+            return;
         auto& registry = editor.world()->registry();
-        auto view = registry.view<entt::entity>();
-        for (auto entt : view)
+        const auto row = m_menuRow ? registry.find(*m_menuRow) : world::Entity{};
+        if (!row)
         {
-            if (drawEntityTreeNode(editor, registry, world::Entity{ entt }, ImGuiTreeNodeFlags_Leaf))
-                ImGui::TreePop();
-        }
-
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
-            editor.selection().clear();
-
-        drawEntityActions(editor, frame);
-        ImGui::End();
-    }
-
-    static void drawSceneSettings(EditorContext& editor, world::World& scene)
-    {
-        if (!ImGui::Begin("Scene Settings"))
-        {
-            ImGui::End();
+            ImGui::CloseCurrentPopup(); // It is gone (an undo, a scene change)
+            ImGui::EndPopup();
             return;
         }
 
-        auto& registry = scene.registry();
-        drawSingleEntity(editor, registry, scene.mainCamera());
-        drawSingleEntity(editor, registry, scene.ambientLight());
-        drawSingleEntity(editor, registry, scene.directionalLight());
-
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
-            editor.selection().clear();
-
-        ImGui::End();
+        m_actions.menuItem("edit.rename", frame);
+        m_actions.menuItem("edit.duplicate", frame);
+        m_actions.menuItem("edit.delete", frame);
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Create Child", !registry.has<serialize::InstanceMember>(row)))
+        {
+            drawCreateMenu(editor, frame, row);
+            ImGui::EndMenu();
+        }
+        ImGui::Separator();
+        m_actions.menuItem("edit.focus", frame);
+        ImGui::EndPopup();
     }
 
-    static void drawSingleEntity(EditorContext& editor, world::Registry& registry, world::Entity entity)
+    // The menu of the empty space and of the window's edge, not of the rows (their own opens there).
+    void drawWindowMenu(EditorContext& editor, FrameContext& frame)
     {
-        if (!entity) // The scene's slot is empty (its entity was destroyed)
+        if (!ImGui::BeginPopupContextWindow("WindowMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
             return;
-
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf;
-        flags |= editor.isSelected(entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
-
-        if (ImGui::TreeNodeEx(rowId(registry, entity), flags, "%s", nameOf(registry, entity)))
-            ImGui::TreePop();
-
-        if (ImGui::IsItemClicked())
-            editor.select(entity);
+        if (ImGui::BeginMenu("Create"))
+        {
+            drawCreateMenu(editor, frame);
+            ImGui::EndMenu();
+        }
+        ImGui::EndPopup();
     }
 
-    // A row of the tree; with 'drop', it can be dragged onto another row and takes drops (see Drop).
-    static auto drawEntityTreeNode(EditorContext& editor, world::Registry& registry, world::Entity entity, ImGuiTreeNodeFlags flags, std::optional<Drop>* drop = nullptr) -> bool
+    // A row of the tree: it can be dragged onto another row and takes drops (see Drop). A click selects it, a double click on its label
+    // frames it in the viewport (the arrow opens it), a right click selects it and asks for its menu ('menuRow').
+    static auto drawEntityTreeNode(EditorContext& editor, world::Registry& registry, world::Entity entity, ImGuiTreeNodeFlags flags, std::optional<Drop>& drop, std::optional<StableId>& menuRow) -> bool
     {
-        registry.getOrAdd<Children>(entity);
-
-        flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
+        flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
         flags |= editor.isSelected(entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
         const bool isOpen = ImGui::TreeNodeEx(rowId(registry, entity), flags, "%s", nameOf(registry, entity));
 
-        if (ImGui::IsItemClicked())
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
             editor.select(entity);
+        const bool onLabel = ImGui::GetMousePos().x >= ImGui::GetItemRectMin().x + ImGui::GetTreeNodeToLabelSpacing();
+        if (onLabel && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            editor.requestFocus();
+        if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+            menuRow = registry.get<StableId>(entity);
 
-        if (drop)
-            dragAndDrop(registry, entity, *drop);
+        dragAndDrop(registry, entity, drop);
 
         return isOpen;
     }
@@ -263,28 +287,9 @@ private:
         ImGui::EndDragDropTarget();
     }
 
-    static void drawEntityActions(EditorContext& editor, FrameContext& frame)
-    {
-        // Right click on window to create entity
-        if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight))
-        {
-            if (ImGui::MenuItem("Create Entity"))
-            {
-                if (auto created = createEntity(editWorld(editor, frame), editor.undoStack(), "Empty Entity"))
-                    editor.select(*created);
-                else
-                    log::warn("Cannot create an entity: {}", created.error());
-            }
-
-            const auto selected = editor.selectedEntity();
-            if (selected && ImGui::MenuItem("Duplicate Selected Entity", "Ctrl+D"))
-                duplicateSelected(editor, frame);
-            if (selected && ImGui::MenuItem("Destroy Selected Entity", "Del"))
-                destroySelected(editor, frame);
-
-            ImGui::EndPopup();
-        }
-    }
+    const ActionRegistry& m_actions;
+    std::string m_filter;
+    std::optional<StableId> m_menuRow; // The row the open context menu is for
 };
 }
 
@@ -318,8 +323,8 @@ auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool
     return destroyed;
 }
 
-auto makeScenePanel() -> std::unique_ptr<Panel>
+auto makeScenePanel(const ActionRegistry& actions) -> std::unique_ptr<Panel>
 {
-    return std::make_unique<ScenePanel>();
+    return std::make_unique<ScenePanel>(actions);
 }
 }

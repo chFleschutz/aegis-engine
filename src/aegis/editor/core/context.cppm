@@ -58,6 +58,8 @@ public:
 
     /// @brief Asks the inspector to put the keyboard in the selected entity's name field (F2) at its next draw.
     void requestRename() { m_renameRequest = true; }
+    /// @brief Whether a rename was requested and not taken yet.
+    [[nodiscard]] auto renameRequested() const -> bool { return m_renameRequest; }
     /// @brief Whether a rename was requested since; once.
     [[nodiscard]] auto takeRenameRequest() -> bool { return std::exchange(m_renameRequest, false); }
 
