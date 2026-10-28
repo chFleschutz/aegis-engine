@@ -72,7 +72,11 @@ void drawCreateMenu(EditorContext& editor, FrameContext& frame, world::Entity pa
     preset("Directional Light", "DirectionalLight");
 
     ImGui::Separator();
-    if (const auto* type = pickType(creatableComponents(frame.types, editor.world()->registry())))
+    // Its own ID scope: the category "Camera" would share an ID with the item "Camera" above
+    ImGui::PushID("components");
+    const auto* type = pickType(creatableComponents(frame.types, editor.world()->registry()));
+    ImGui::PopID();
+    if (type)
         createAndSelect(editor, frame, std::string{ type->displayName() }, std::span{ &type, 1 }, parent);
 }
 }
