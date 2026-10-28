@@ -13,7 +13,7 @@ export namespace aegis::editor
 /// @brief The editor flavor's shell: the world stays in edit mode (no scripts run), and the editor's panels
 ///        read and edit it at the frame's safe point. Play runs a copy of it in a world of its own (the play world),
 ///        which the panels then show and edit, until Stop discards it; the UI is tinted meanwhile. The File menu
-///        creates, opens and saves scene files; the window title names the scene and marks unsaved changes, and
+///        creates, opens and saves scene files; the window title and the menu bar name the scene and mark unsaved changes, and
 ///        closing the window, New or Open ask about them first. The window layout is kept in
 ///        `<project>/.aegis/editor/imgui.ini` (none when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
@@ -70,7 +70,9 @@ private:
     void drawOpenPopup(FrameContext& frame);
     void drawSaveAsPopup(FrameContext& frame);
     void drawUnsavedPrompt(FrameContext& frame);
-    /// @brief The window title: the scene's file name, with a '*' while it has unsaved changes.
+    /// @brief The open scene's file name ("Untitled" for a new scene), with a '*' while it has unsaved changes.
+    [[nodiscard]] auto sceneName() const -> std::string;
+    /// @brief The window title: the scene's name and the editor's.
     void updateTitle();
     void buildActions();
     /// @brief Rebuilds the style when the monitor's content scale or the UI-scale preference changed.
@@ -81,6 +83,8 @@ private:
     void drawStyleEditor();
     void drawMenuBar(FrameContext& frame);
     void drawPlayControls(FrameContext& frame);
+    /// @brief The scene's name at the right of the menu bar, when it fits.
+    void drawSceneName();
     void startPlay(FrameContext& frame);
     void stopPlay(FrameContext& frame);
     /// @brief Asks for this frame's updates: the edit world in edit mode, or the play world.

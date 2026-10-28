@@ -308,11 +308,16 @@ auto EditorShell::saveAs(FrameContext& frame, std::string_view typed) -> std::ex
     return {};
 }
 
-void EditorShell::updateTitle()
+auto EditorShell::sceneName() const -> std::string
 {
     const auto* entry = m_scene && m_engine ? m_engine->assets().database().find(*m_scene) : nullptr;
     const auto name = entry ? std::filesystem::path{ entry->path }.filename().string() : std::string{ "Untitled" };
-    auto title = std::format("{}{} - Aegis Editor", name, m_context.unsaved() ? "*" : "");
+    return std::format("{}{}", name, m_context.unsaved() ? "*" : "");
+}
+
+void EditorShell::updateTitle()
+{
+    auto title = std::format("{} - Aegis Editor", sceneName());
     if (title == m_title || !m_engine)
         return;
     m_title = std::move(title);
@@ -526,13 +531,6 @@ void EditorShell::drawStatusBar(FrameContext& frame)
             ImGui::TextUnformatted(std::format("|  {}: {}", log::levelName(problem->level), problem->message).c_str());
             ImGui::PopStyleColor();
         }
-
-        if (m_context.unsaved())
-        {
-            const char* marker = "* unsaved";
-            ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::CalcTextSize(marker).x - ImGui::GetStyle().WindowPadding.x);
-            ImGui::TextUnformatted(marker);
-        }
     }
     ImGui::End();
 }
@@ -689,7 +687,19 @@ void EditorShell::drawMenuBar(FrameContext& frame)
     }
 
     drawPlayControls(frame);
+    drawSceneName();
     ImGui::EndMainMenuBar();
+}
+
+void EditorShell::drawSceneName()
+{
+    const auto name = sceneName();
+    const auto& style = ImGui::GetStyle();
+    const float x = ImGui::GetWindowWidth() - ImGui::CalcTextSize(name.c_str()).x - style.WindowPadding.x;
+    if (x <= ImGui::GetCursorPosX())
+        return; // No room next to the menus and play controls
+    ImGui::SetCursorPosX(x);
+    ImGui::TextUnformatted(name.c_str());
 }
 
 void EditorShell::drawPlayControls(FrameContext& frame)
