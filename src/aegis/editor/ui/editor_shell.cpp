@@ -606,13 +606,13 @@ void EditorShell::drawDockspace()
     const ImGuiID id = ImGui::GetID("EditorDockSpace");
     if (std::exchange(m_resetLayout, false) || !ImGui::DockBuilderGetNode(id))
         buildDefaultLayout(id, size);
-    ImGui::DockSpace(id, size);
+    // The panels' tabs have their own close buttons, and the View menu lists them: no window menu or close-all per node
+    ImGui::DockSpace(id, size, ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton);
 }
 
 void EditorShell::resetLayout()
 {
     m_resetLayout = true;
-    m_viewport.setOpen(true);
     for (auto* panel : m_defaultOpen)
         panel->setOpen(true);
 }
@@ -663,8 +663,6 @@ void EditorShell::drawMenuBar(FrameContext& frame)
             if (ImGui::MenuItem(name.c_str(), nullptr, panel->isOpen()))
                 panel->setOpen(!panel->isOpen());
         }
-        if (ImGui::MenuItem("Viewport", nullptr, m_viewport.isOpen()))
-            m_viewport.setOpen(!m_viewport.isOpen());
         ImGui::Separator();
         if (ImGui::MenuItem("Reset Layout"))
             resetLayout();

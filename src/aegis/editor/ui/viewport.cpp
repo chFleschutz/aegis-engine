@@ -58,7 +58,7 @@ auto Viewport::aspect() const -> float
 auto Viewport::renderView() const -> std::optional<RenderView>
 {
     const auto extent = m_extent.current();
-    if (!m_open || !extent)
+    if (!extent)
         return std::nullopt;
     if (m_gameView)
         return RenderView{ .camera = std::nullopt, .extent = rhi::Extent2D{ extent->width, extent->height } };
@@ -73,14 +73,14 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
     if (!m_cameraPlaced)
         placeCamera(frame.world);
 
-    bool visible = false;
-    if (m_open)
-    {
-        ImGui::SetNextWindowSize(ImVec2{ 960.0f, 540.0f }, ImGuiCond_FirstUseEver);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
-        visible = ImGui::Begin("Viewport", &m_open, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-        ImGui::PopStyleVar();
-    }
+    // Alone in its dock node the viewport has no tab bar; it can't be closed, only undocked
+    ImGuiWindowClass windowClass;
+    windowClass.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_AutoHideTabBar;
+    ImGui::SetNextWindowClass(&windowClass);
+    ImGui::SetNextWindowSize(ImVec2{ 960.0f, 540.0f }, ImGuiCond_FirstUseEver);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
+    const bool visible = ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::PopStyleVar();
     if (visible)
     {
         const ImVec2 origin = ImGui::GetCursorScreenPos();
@@ -126,10 +126,7 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
         m_focused = false;
         m_flying = m_orbiting = m_panning = false;
     }
-    if (m_open)
-        ImGui::End();
-    if (!m_open)
-        m_extent.reset();
+    ImGui::End();
 }
 
 void Viewport::setGameView(bool gameView)
