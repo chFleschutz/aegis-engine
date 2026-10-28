@@ -1,5 +1,6 @@
 module aegis.editor.core;
 import std;
+import aegis.core;
 import aegis.reflect;
 import aegis.world;
 import aegis.world.types;
@@ -73,6 +74,17 @@ auto scriptTypes(const reflect::TypeRegistry& types) -> std::vector<const reflec
     }
     std::ranges::stable_sort(scripts, byCategoryThenName);
     return scripts;
+}
+
+auto filterTypes(std::span<const reflect::TypeInfo* const> types, std::string_view filter) -> std::vector<const reflect::TypeInfo*>
+{
+    std::vector<const reflect::TypeInfo*> matches;
+    for (const auto* type : types)
+    {
+        if (core::containsIgnoringCase(type->displayName(), filter) || core::containsIgnoringCase(type->name, filter) || core::containsIgnoringCase(type->meta.category, filter))
+            matches.push_back(type);
+    }
+    return matches;
 }
 
 auto addComponent(const reflect::TypeInfo& type, world::Registry& registry, world::Entity entity)

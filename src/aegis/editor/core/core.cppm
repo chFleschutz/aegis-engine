@@ -4,6 +4,7 @@
 // plain world (aegis-tests-editor).
 //
 // Partitions:
+//   :component_text The text a component's fields copy to the clipboard and paste from.
 //   :asset_browser  AssetTree: the asset browser's folders, files and filter, and the asset drag payload.
 //   :chord          Chord: a shortcut's key and modifiers.
 //   :console        ConsoleBuffer: the log lines the console shows, with filters.
@@ -26,6 +27,7 @@ export module aegis.editor.core;
 export import :asset_browser;
 export import :chord;
 export import :commands;
+export import :component_text;
 export import :console;
 export import :context;
 export import :edits;

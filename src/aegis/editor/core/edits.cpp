@@ -85,7 +85,11 @@ auto applyComponent(const EditWorld& world, const ComponentEdit& edit, EditSide 
     if (!entity)
         return std::unexpected{ entity.error() };
     const auto* storage = (*type)->attachment<world::ComponentStorage>();
-    void* object = storage ? storage->find(world.registry, *entity) : nullptr;
+    void* object = nullptr;
+    if (edit.scriptIndex)
+        object = findScript(world.registry, *entity, **type, *edit.scriptIndex);
+    else if (storage)
+        object = storage->find(world.registry, *entity);
     if (!object)
         return std::unexpected{ std::format("the entity no longer has '{}'", edit.type) };
 
@@ -93,7 +97,8 @@ auto applyComponent(const EditWorld& world, const ComponentEdit& edit, EditSide 
         return written;
     if (world.prepare)
         world.prepare(**type, object);
-    storage->changed(world.registry, *entity);
+    if (storage && !edit.scriptIndex)
+        storage->changed(world.registry, *entity);
     return {};
 }
 

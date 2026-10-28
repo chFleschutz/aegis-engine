@@ -68,6 +68,40 @@ auto defaultValues(const reflect::TypeInfo& type) -> std::expected<FieldValues, 
         return std::unexpected{ reflect::describe(instance.error()) };
     return fieldValues(type, instance->get());
 }
+
+// The entity's component 'type', or with 'scriptIndex' its script of that number and type; null if it has none.
+auto findObject(const EditWorld& world, world::Entity entity, const reflect::TypeInfo& type, std::optional<std::size_t> scriptIndex) -> void*
+{
+    if (!scriptIndex)
+    {
+        const auto* storage = type.attachment<world::ComponentStorage>();
+        return storage ? storage->find(world.registry, entity) : nullptr;
+    }
+    if (!world.registry.has<scripting::Scripts>(entity))
+        return nullptr;
+    const auto& entries = world.registry.get<scripting::Scripts>(entity).entries;
+    return *scriptIndex < entries.size() && entries[*scriptIndex].name == type.name ? entries[*scriptIndex].object : nullptr;
+}
+
+// Writes 'changes' (fields of the entity's component or script) as one edit that undo reverts whole.
+auto changeFields(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type, std::optional<std::size_t> scriptIndex, FieldValues changes) -> Result
+{
+    if (auto editable = checkEditable(world.registry, entity); !editable)
+        return editable;
+    const void* object = findObject(world, entity, type, scriptIndex);
+    if (!object)
+        return std::unexpected{ std::format("the entity has no '{}'", type.name) };
+
+    auto oldValues = fieldValues(type, object);
+    auto newValues = oldValues;
+    for (auto& changed : changes)
+    {
+        const auto field = std::ranges::find(newValues, changed.field, &FieldValue::field);
+        if (field != newValues.end())
+            field->value = std::move(changed.value);
+    }
+    return perform(world, history, ComponentEdit{ .entity = world.registry.get<StableId>(entity), .type = type.name, .scriptIndex = scriptIndex, .oldValues = std::move(oldValues), .newValues = std::move(newValues) });
+}
 }
 
 auto createEntity(const EditWorld& world, UndoStack& history, std::string name, world::Entity parent, std::span<const reflect::TypeInfo* const> components)
@@ -273,5 +307,23 @@ auto detachScript(const EditWorld& world, UndoStack& history, world::Entity enti
     if (!type || !entry.object)
         return std::unexpected{ std::format("the script '{}' is not registered", entry.name) };
     return perform(world, history, AttachScriptEdit{ .entity = registry.get<StableId>(entity), .type = type->name, .index = index, .values = fieldValues(*type, entry.object), .detach = true });
+}
+
+auto resetFields(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type, std::optional<std::size_t> scriptIndex)
+    -> std::expected<void, std::string>
+{
+    auto defaults = defaultValues(type);
+    if (!defaults)
+        return std::unexpected{ defaults.error() };
+    return changeFields(world, history, entity, type, scriptIndex, std::move(*defaults));
+}
+
+auto pasteFields(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type, std::optional<std::size_t> scriptIndex, std::string_view text)
+    -> std::expected<void, std::string>
+{
+    auto pasted = componentFromText(type, text);
+    if (!pasted)
+        return std::unexpected{ pasted.error() };
+    return changeFields(world, history, entity, type, scriptIndex, std::move(*pasted));
 }
 }

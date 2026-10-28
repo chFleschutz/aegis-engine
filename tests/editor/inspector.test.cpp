@@ -14,6 +14,7 @@ using aegis::editor::addableComponents;
 using aegis::editor::addComponent;
 using aegis::editor::componentSections;
 using aegis::editor::creatableComponents;
+using aegis::editor::filterTypes;
 using aegis::editor::removeComponent;
 using aegis::editor::scriptTypes;
 using aegis::editor::setField;
@@ -210,6 +211,34 @@ TEST_SUITE("editor::scriptTypes")
         TypeRegistry types;
         registerGame(types);
         CHECK(names(scriptTypes(types)) == std::vector<std::string>{ "Patrol" });
+    }
+}
+
+TEST_SUITE("editor::filterTypes")
+{
+    TEST_CASE("keeps every type for an empty filter")
+    {
+        TypeRegistry types;
+        registerGame(types);
+        World world;
+        const auto entity = world.registry().create();
+        const auto addable = addableComponents(types, world.registry(), entity);
+        CHECK(names(filterTypes(addable, "")) == names(addable));
+    }
+
+    TEST_CASE("matches the display name, the registered name and the category, ignoring case")
+    {
+        TypeRegistry types;
+        registerGame(types);
+        World world;
+        const auto entity = world.registry().create();
+        const auto addable = addableComponents(types, world.registry(), entity);
+
+        CHECK(names(filterTypes(addable, "hEAl")) == std::vector<std::string>{ "Health" });
+        CHECK(names(filterTypes(addable, "gameplay")) == std::vector<std::string>{ "Health" });
+        CHECK(filterTypes(addable, "no such type").empty());
+        // Scripts are filtered the same way
+        CHECK(names(filterTypes(scriptTypes(types), "PATR")) == std::vector<std::string>{ "Patrol" });
     }
 }
 
