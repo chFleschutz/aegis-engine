@@ -200,7 +200,7 @@ auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const as
             if (entry.type != row.field->assetType)
                 continue;
             const auto name = assetName(database, entry.id.value);
-            if (!s_filter.empty() && name.find(s_filter) == std::string::npos)
+            if (!containsIgnoringCase(name, s_filter))
                 continue;
             ImGui::PushID(static_cast<int>(entry.id.value ^ (entry.id.value >> 32)));
             if (ImGui::Selectable(name.c_str(), entry.id.value == current))

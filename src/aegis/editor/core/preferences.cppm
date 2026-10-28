@@ -9,7 +9,7 @@ struct EditorPreferences
 {
     /// @brief The viewport camera's speed, in units per second.
     float cameraSpeed{ 5.0f };
-    /// @brief The gizmo's snap steps while Ctrl is held: units, degrees and a scale factor.
+    /// @brief The gizmo's snap steps, used while snapping is on (the viewport toolbar's toggle, which Ctrl inverts): units, degrees and a scale factor.
     float snapTranslate{ 0.5f };
     float snapRotate{ 15.0f };
     float snapScale{ 0.1f };
