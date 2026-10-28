@@ -11,6 +11,8 @@ auto keyName(Key key) -> std::string_view
     {
     case Key::D:
         return "D";
+    case Key::F:
+        return "F";
     case Key::N:
         return "N";
     case Key::O:

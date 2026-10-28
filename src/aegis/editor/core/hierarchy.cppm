@@ -19,7 +19,11 @@ using NodeOpen = std::function<bool(StableId)>;
 
 /// @brief The rows the hierarchy shows, top to bottom: the roots, then each node's children after it, both in
 ///        sibling order (the order of the list and of the scene file). The children of a closed node are left out.
-/// @note Walks iteratively, so a deep tree cannot overflow the stack. The rows are a flat pre-order list, so a
-///       filter can drop rows and keep the ancestors of those it keeps.
-[[nodiscard]] auto hierarchyRows(world::Registry& registry, const NodeOpen& isOpen) -> std::vector<HierarchyRow>;
+///
+///        With a non-empty 'filter' only the entities whose name holds it (ignoring case) and their ancestors are
+///        listed, the ancestors open whatever 'isOpen' says (it is not asked), and a node shows only the children
+///        that are listed: hasChildren and open are about those. The children of a match are not listed for
+///        being its children.
+/// @note Walks iteratively, so a deep tree cannot overflow the stack.
+[[nodiscard]] auto hierarchyRows(world::Registry& registry, const NodeOpen& isOpen, std::string_view filter = {}) -> std::vector<HierarchyRow>;
 }

@@ -5,5 +5,6 @@ aegis_add_test(core
         frame_clock.test.cpp
         log.test.cpp
         profiler.test.cpp
+        text.test.cpp
     LIBS aegis-core
 )

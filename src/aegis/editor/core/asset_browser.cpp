@@ -1,5 +1,6 @@
 module aegis.editor.core;
 import std;
+import aegis.core;
 import aegis.math;
 import aegis.serialize;
 
@@ -7,20 +8,6 @@ namespace aegis::editor
 {
 namespace
 {
-auto lower(char c) -> char
-{
-    return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
-}
-
-// Whether 'text' holds 'part', ignoring ASCII case.
-auto containsIgnoringCase(std::string_view text, std::string_view part) -> bool
-{
-    if (part.empty())
-        return true;
-    const auto found = std::ranges::search(text, part, [](char a, char b) { return lower(a) == lower(b); });
-    return !found.empty();
-}
-
 auto fileName(std::string_view path) -> std::string_view
 {
     const auto slash = path.rfind('/');
@@ -38,7 +25,7 @@ auto AssetFilter::matches(const AssetItem& item) const -> bool
 {
     if (!type.empty() && item.type != type)
         return false;
-    return containsIgnoringCase(fileName(item.path), search) || containsIgnoringCase(item.key, search);
+    return core::containsIgnoringCase(fileName(item.path), search) || core::containsIgnoringCase(item.key, search);
 }
 
 auto AssetTree::build(std::vector<AssetItem> items, std::vector<AssetRoot> roots) -> AssetTree

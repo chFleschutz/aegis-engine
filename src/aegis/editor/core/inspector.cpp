@@ -12,6 +12,27 @@ auto byCategoryThenName(const reflect::TypeInfo* a, const reflect::TypeInfo* b) 
 {
     return std::tuple{ std::string_view{ a->meta.category }, a->displayName() } < std::tuple{ std::string_view{ b->meta.category }, b->displayName() };
 }
+
+// The components a menu offers, sorted by category, then name: not the required ones, the types without a constructor,
+// the singletons another entity has, and (with 'entity') the ones it has.
+auto addable(const reflect::TypeRegistry& types, world::Registry& registry, world::Entity entity)
+    -> std::vector<const reflect::TypeInfo*>
+{
+    std::vector<const reflect::TypeInfo*> result;
+    for (const auto* type : types.types())
+    {
+        const auto* storage = type->attachment<world::ComponentStorage>();
+        if (type->category != reflect::TypeCategory::Component || !storage || type->meta.required || !type->construct)
+            continue;
+        if (entity && storage->find(registry, entity))
+            continue;
+        if (storage->singleton && storage->first(registry))
+            continue;
+        result.push_back(type);
+    }
+    std::ranges::stable_sort(result, byCategoryThenName);
+    return result;
+}
 }
 
 auto componentSections(const reflect::TypeRegistry& types, world::Registry& registry, world::Entity entity)
@@ -33,20 +54,13 @@ auto componentSections(const reflect::TypeRegistry& types, world::Registry& regi
 auto addableComponents(const reflect::TypeRegistry& types, world::Registry& registry, world::Entity entity)
     -> std::vector<const reflect::TypeInfo*>
 {
-    std::vector<const reflect::TypeInfo*> addable;
-    for (const auto* type : types.types())
-    {
-        const auto* storage = type->attachment<world::ComponentStorage>();
-        if (type->category != reflect::TypeCategory::Component || !storage || type->meta.required || !type->construct)
-            continue;
-        if (storage->find(registry, entity))
-            continue;
-        if (storage->singleton && storage->first(registry))
-            continue;
-        addable.push_back(type);
-    }
-    std::ranges::stable_sort(addable, byCategoryThenName);
-    return addable;
+    return addable(types, registry, entity);
+}
+
+auto creatableComponents(const reflect::TypeRegistry& types, world::Registry& registry)
+    -> std::vector<const reflect::TypeInfo*>
+{
+    return addable(types, registry, {});
 }
 
 auto scriptTypes(const reflect::TypeRegistry& types) -> std::vector<const reflect::TypeInfo*>

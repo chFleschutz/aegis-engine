@@ -153,3 +153,93 @@ TEST_SUITE("editor::hierarchyRows")
         CHECK(rows.back().depth == depth);
     }
 }
+
+TEST_SUITE("editor::hierarchyRows with a filter")
+{
+    // Root > (Walls > (North Wall, South Wall), Lamp > Bulb), Floor
+    struct Scene
+    {
+        Scene()
+        {
+            root = registry.create("Root");
+            walls = registry.create("Walls");
+            lamp = registry.create("Lamp");
+            REQUIRE(registry.addChild(root, walls).has_value());
+            REQUIRE(registry.addChild(root, lamp).has_value());
+            REQUIRE(registry.addChild(walls, registry.create("North Wall")).has_value());
+            REQUIRE(registry.addChild(walls, registry.create("South Wall")).has_value());
+            REQUIRE(registry.addChild(lamp, registry.create("Bulb")).has_value());
+            registry.create("Floor");
+        }
+
+        auto rows(std::string_view filter, const std::vector<StableId>& open = {}) -> Lines
+        {
+            const auto listed = hierarchyRows(registry, [&](StableId id) { return std::ranges::contains(open, id); }, filter);
+            Lines lines;
+            for (const auto& row : listed)
+                lines.push_back(std::string(row.depth, ' ') + registry.get<aegis::Name>(row.entity).name);
+            return lines;
+        }
+
+        Registry registry;
+        Entity root, walls, lamp;
+    };
+
+    TEST_CASE("an empty filter lists the rows as without one")
+    {
+        Scene scene;
+        CHECK(scene.rows("") == Lines{ "Root", "Floor" });
+    }
+
+    TEST_CASE("a match keeps its ancestors, open")
+    {
+        Scene scene;
+        CHECK(scene.rows("bulb") == Lines{ "Root", " Lamp", "  Bulb" });
+    }
+
+    TEST_CASE("the filter ignores case")
+    {
+        Scene scene;
+        CHECK(scene.rows("NORTH") == Lines{ "Root", " Walls", "  North Wall" });
+    }
+
+    TEST_CASE("several matches share their ancestors and keep the sibling order")
+    {
+        Scene scene;
+        CHECK(scene.rows("wall") == Lines{ "Root", " Walls", "  North Wall", "  South Wall" });
+        CHECK(scene.rows("l") == Lines{ "Root", " Walls", "  North Wall", "  South Wall", " Lamp", "  Bulb", "Floor" });
+    }
+
+    TEST_CASE("the children of a match are listed only if they match")
+    {
+        Scene scene;
+        const auto lines = scene.rows("lamp");
+        CHECK(lines == Lines{ "Root", " Lamp" });
+        CHECK(scene.rows("walls") == Lines{ "Root", " Walls" });
+    }
+
+    TEST_CASE("a match without listed children is a leaf, an ancestor is open whatever the tree state")
+    {
+        Scene scene;
+        const auto rows = hierarchyRows(scene.registry, [](StableId) { return false; }, "lamp");
+        REQUIRE(rows.size() == 2);
+        CHECK(rows[0].hasChildren);
+        CHECK(rows[0].open);
+        CHECK_FALSE(rows[1].hasChildren);
+        CHECK_FALSE(rows[1].open);
+    }
+
+    TEST_CASE("no match lists nothing")
+    {
+        Scene scene;
+        CHECK(scene.rows("nothing like this").empty());
+    }
+
+    TEST_CASE("the open state is not asked while filtering")
+    {
+        Scene scene;
+        bool asked = false;
+        std::ignore = hierarchyRows(scene.registry, [&](StableId) { return asked = true; }, "bulb");
+        CHECK_FALSE(asked);
+    }
+}

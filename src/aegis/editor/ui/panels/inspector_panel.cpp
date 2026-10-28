@@ -297,36 +297,6 @@ auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity enti
     return keep;
 }
 
-// A menu of 'types', one submenu per category (those without one at the top); the type picked this frame.
-auto pickType(std::span<const reflect::TypeInfo* const> types) -> const reflect::TypeInfo*
-{
-    if (types.empty())
-        ImGui::TextDisabled("Nothing to add");
-
-    const reflect::TypeInfo* picked = nullptr;
-    for (std::size_t first = 0; first < types.size();)
-    {
-        const auto& category = types[first]->meta.category;
-        std::size_t end = first;
-        while (end < types.size() && types[end]->meta.category == category)
-            ++end;
-
-        if (category.empty() || ImGui::BeginMenu(category.c_str()))
-        {
-            for (std::size_t i = first; i < end; ++i)
-            {
-                const std::string label{ types[i]->displayName() };
-                if (ImGui::MenuItem(label.c_str()))
-                    picked = types[i];
-            }
-            if (!category.empty())
-                ImGui::EndMenu();
-        }
-        first = end;
-    }
-    return picked;
-}
-
 // The selected entity: its name and ID, its registered components and its scripts, each generated from the type
 // registry, and the Add Component and Add Script menus. Edits apply directly: the panel runs at the frame's safe point.
 class InspectorPanel final : public Panel

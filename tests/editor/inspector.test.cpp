@@ -13,6 +13,7 @@ namespace
 using aegis::editor::addableComponents;
 using aegis::editor::addComponent;
 using aegis::editor::componentSections;
+using aegis::editor::creatableComponents;
 using aegis::editor::removeComponent;
 using aegis::editor::scriptTypes;
 using aegis::editor::setField;
@@ -166,6 +167,26 @@ TEST_SUITE("editor::addableComponents")
         const auto entity = world.registry().create();
 
         CHECK_FALSE(contains(names(addableComponents(types, world.registry(), entity)), "NoDefault"));
+    }
+
+    TEST_CASE("creatableComponents offers the components for a new entity, without the required ones and a taken singleton")
+    {
+        TypeRegistry types;
+        registerGame(types);
+        World world;
+        auto& registry = world.registry();
+
+        auto offered = names(creatableComponents(types, registry));
+        CHECK(contains(offered, "Health"));
+        CHECK(contains(offered, "PointLight"));
+        CHECK(contains(offered, "Sky"));
+        CHECK_FALSE(contains(offered, "Transform"));
+        CHECK_FALSE(contains(offered, "Patrol"));
+
+        registry.add<aegis::Sky>(registry.create());
+        offered = names(creatableComponents(types, registry));
+        CHECK_FALSE(contains(offered, "Sky"));
+        CHECK(contains(offered, "Health"));
     }
 
     TEST_CASE("sorts by category, then by name")

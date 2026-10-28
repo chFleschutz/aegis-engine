@@ -70,7 +70,7 @@ auto defaultValues(const reflect::TypeInfo& type) -> std::expected<FieldValues, 
 }
 }
 
-auto createEntity(const EditWorld& world, UndoStack& history, std::string name, world::Entity parent)
+auto createEntity(const EditWorld& world, UndoStack& history, std::string name, world::Entity parent, std::span<const reflect::TypeInfo* const> components)
     -> std::expected<world::Entity, std::string>
 {
     auto& registry = world.registry;
@@ -79,8 +79,21 @@ auto createEntity(const EditWorld& world, UndoStack& history, std::string name, 
         if (auto editable = checkEditable(registry, parent); !editable)
             return std::unexpected{ std::format("cannot create a child: {}", editable.error()) };
     }
+    for (const auto* type : components)
+    {
+        if (type->category != reflect::TypeCategory::Component || !type->attachment<world::ComponentStorage>())
+            return std::unexpected{ std::format("'{}' is not a component with storage", type->name) };
+    }
 
     const auto entity = registry.create(name);
+    for (const auto* type : components)
+    {
+        if (auto added = addComponent(*type, registry, entity); !added)
+        {
+            registry.destroy(entity);
+            return std::unexpected{ reflect::describe(added.error()) };
+        }
+    }
     if (parent)
         std::ignore = registry.addChild(parent, entity); // Both are valid, and a new entity has no children
     auto scene = snapshot(world, entity);

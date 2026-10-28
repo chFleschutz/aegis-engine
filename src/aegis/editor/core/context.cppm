@@ -58,8 +58,15 @@ public:
 
     /// @brief Asks the inspector to put the keyboard in the selected entity's name field (F2) at its next draw.
     void requestRename() { m_renameRequest = true; }
+    /// @brief Whether a rename was requested and not taken yet.
+    [[nodiscard]] auto renameRequested() const -> bool { return m_renameRequest; }
     /// @brief Whether a rename was requested since; once.
     [[nodiscard]] auto takeRenameRequest() -> bool { return std::exchange(m_renameRequest, false); }
+
+    /// @brief Asks the viewport to frame the selected entity with its camera (F, a double click on a hierarchy row) at its next draw.
+    void requestFocus() { m_focusRequest = true; }
+    /// @brief Whether a focus was requested since; once.
+    [[nodiscard]] auto takeFocusRequest() -> bool { return std::exchange(m_focusRequest, false); }
 
     /// @brief The active selected entity, or null (nothing selected, no world, or the entity is gone).
     [[nodiscard]] auto selectedEntity() const -> world::Entity;
@@ -80,5 +87,6 @@ private:
     EditorPreferences m_preferences;
     std::optional<std::uint64_t> m_sceneRequest;
     bool m_renameRequest{ false };
+    bool m_focusRequest{ false };
 };
 }
