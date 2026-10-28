@@ -40,7 +40,7 @@ auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool;
 ///        selected or it failed (logged).
 auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool;
 
-/// @brief Draws 'text' dimmed and centered in the window's free space (wrapped to its width), for an empty panel. The
+/// @brief Draws 'text' dimmed in the window's free space, centered line by line and wrapped inside a margin, for an empty panel. The
 ///        cursor stays where it was, so what follows (a drop target over the free space) still covers it.
 void drawCenteredHint(std::string_view text);
 
