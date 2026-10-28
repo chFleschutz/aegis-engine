@@ -157,7 +157,9 @@ private:
                 ImGui::TextDisabled("No entity matches");
         }
 
-        if (holdsOnlyDefaults(*editor.world(), rows))
+        if (filtered && rows.empty())
+            drawCenteredHint("No matching entities");
+        else if (!filtered && holdsOnlyDefaults(*editor.world(), rows))
             drawCenteredHint("Right-click to create an entity, or drop a model here");
 
         // The space below the rows takes drops that make the entity a root
