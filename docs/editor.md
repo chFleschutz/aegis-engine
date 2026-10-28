@@ -371,19 +371,19 @@ tokens, not this structure.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────┐
-│ File Edit Play View Debug                  ▶  ❚❚  ⏭                                  │ menu bar + play controls
+│ File Edit Play View Debug                  ▶  ❚❚  ⏭                                sponza.scene* │ menu bar + play controls + scene
 ├─────────────────┬──────────────────────────────────────────────────┬───────────────┤
 │ Hierarchy       │ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ │                                 │ Inspector     │ viewport toolbar
-│ All Entities    │ ┌──────────────────────────────────────────────┐ │ (Renderer,    │
-│ Scene Settings  │ │                                              │ │  Profiler,    │
-│ ▾ Sponza        │ │              Viewport (scene texture)        │ │  Statistics,  │
-│   ▸ Helmet      │ │                    gizmo                     │ │  Preferences  │
-│   ▸ Lights      │ │                                              │ │  open as tabs │
-│                 │ └──────────────────────────────────────────────┘ │  here)        │
+│ All Entities    │ ┌──────────────────────────────────────────────┐ │               │
+│ Scene Settings  │ │                                              │ │               │
+│ ▾ Sponza        │ │              Viewport (scene texture)        │ │               │
+│   ▸ Helmet      │ │                    gizmo                     │ │               │
+│   ▸ Lights      │ │                                              │ │               │
+│                 │ └──────────────────────────────────────────────┘ │               │
 ├─────────────────┴──────────────────────────────────────────────────┴───────────────┤
-│ Assets │ Console                                                                    │ bottom dock, tabbed
+│ Assets │ Console │ Renderer │ Profiler │ Statistics                                  │ bottom dock, tabbed
 ├────────────────────────────────────────────────────────────────────────────────────┤
-│ 1 selected · 60 fps · GPU 4.1 ms · last warning                           * unsaved │ status bar
+│ 1 selected · 60 fps · GPU 4.1 ms · last warning                                    │ status bar
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -391,8 +391,15 @@ tokens, not this structure.
   console tabbed across the bottom (25% of the height). The viewport is the central node. Built with
   `DockBuilder` on first start and by View → Reset Layout, which also reopens the panels that start open.
   The layout is kept in `<project>/.aegis/editor/imgui.ini`.
-- **Debug panels** (Renderer, Profiler, Statistics) start closed and open as tabs beside the inspector. The
-  Debug menu holds the ImGui demo and the style editor (`ImGui::ShowStyleEditor`, for live tuning).
+- **Dock chrome:** the viewport is the central node and has no tab bar (it can't be closed); no node shows the
+  window menu or the close-all button, each tab has its own close button.
+- **Debug panels** (Renderer, Profiler, Statistics) start closed and open as tabs at the bottom, next to the assets
+  and the console: they are wide tables. The Debug menu lists them, the ImGui demo and the style editor
+  (`ImGui::ShowStyleEditor`, for live tuning).
+- **Preferences** is a floating, auto-sized window that Edit → Preferences… opens, not a panel.
+- **Empty states** say what to do: the inspector with nothing selected, a hierarchy with only a new scene's
+  entities, and a folder with only folders (which then lists them, a double click opens one).
+- **The open scene's name** and its unsaved mark (`*`) are at the right of the menu bar, as in the window title.
 - **Play mode:** the play button turns into Stop, a colored frame goes around the viewport and the windows are
   tinted, so play mode is never mistaken for edit mode.
 
