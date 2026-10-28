@@ -17,6 +17,7 @@ class AllEntitiesPanel final : public Panel
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "All Entities"; }
     [[nodiscard]] auto debug() const -> bool override { return true; }
+    [[nodiscard]] auto docked() const -> bool override { return false; } // It floats when opened
 
     void draw(EditorContext& editor, FrameContext&) override
     {

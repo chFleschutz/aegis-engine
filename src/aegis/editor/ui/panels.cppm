@@ -8,7 +8,8 @@ import :panel;
 
 namespace aegis::editor
 {
-// The built-in panels, in the View menu's order; each is defined in its own .cpp (ui/panels/).
+// The built-in panels, in their menus' order; each is defined in its own .cpp (ui/panels/). The preferences window is
+// not listed in a menu: Edit > Preferences... opens it.
 // The hierarchy; its menus show the actions' labels and shortcuts, so 'actions' must outlive it.
 [[nodiscard]] auto makeScenePanel(const ActionRegistry& actions) -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeAllEntitiesPanel() -> std::unique_ptr<Panel>;
@@ -38,6 +39,10 @@ auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool;
 /// @brief Destroys the selected entity and its descendants, undoably, and clears the selection; false if nothing is
 ///        selected or it failed (logged).
 auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool;
+
+/// @brief Draws 'text' dimmed in the window's free space, centered line by line and wrapped inside a margin, for an empty panel. The
+///        cursor stays where it was, so what follows (a drop target over the free space) still covers it.
+void drawCenteredHint(std::string_view text);
 
 /// @brief The items of a menu of 'types', one submenu per category (those without one at the top); the type picked this frame, if any.
 [[nodiscard]] auto pickType(std::span<const reflect::TypeInfo* const> types) -> const reflect::TypeInfo*;

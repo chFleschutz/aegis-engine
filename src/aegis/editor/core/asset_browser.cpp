@@ -108,6 +108,8 @@ auto AssetTree::rows(std::size_t folder, const AssetFilter& filter) const -> std
         return rows;
     if (!filter.active())
     {
+        for (const auto child : m_folders[folder].folders)
+            rows.push_back(AssetRow{ .folder = child });
         for (const auto file : m_folders[folder].files)
             rows.push_back(AssetRow{ .file = file, .parts = m_files[file].parts, .mainMatches = m_files[file].main.has_value() });
         return rows;

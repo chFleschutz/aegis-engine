@@ -13,11 +13,11 @@ export namespace aegis::editor
 /// @brief The editor flavor's shell: the world stays in edit mode (no scripts run), and the editor's panels
 ///        read and edit it at the frame's safe point. Play runs a copy of it in a world of its own (the play world),
 ///        which the panels then show and edit, until Stop discards it; the UI is tinted meanwhile. The File menu
-///        creates, opens and saves scene files; the window title names the scene and marks unsaved changes, and
+///        creates, opens and saves scene files; the window title and the menu bar name the scene and mark unsaved changes, and
 ///        closing the window, New or Open ask about them first. The window layout is kept in
 ///        `<project>/.aegis/editor/imgui.ini` (none when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
-///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every panel but the debug ones at startup.
+///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every docked panel at startup (not the ImGui demo).
 ///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of
 ///        `ui/theme.h` scaled by the monitor's content scale and the UI-scale preference; the menus and shortcuts
 ///        come from one ActionRegistry.
@@ -70,7 +70,9 @@ private:
     void drawOpenPopup(FrameContext& frame);
     void drawSaveAsPopup(FrameContext& frame);
     void drawUnsavedPrompt(FrameContext& frame);
-    /// @brief The window title: the scene's file name, with a '*' while it has unsaved changes.
+    /// @brief The open scene's file name ("Untitled" for a new scene), with a '*' while it has unsaved changes.
+    [[nodiscard]] auto sceneName() const -> std::string;
+    /// @brief The window title: the scene's name and the editor's.
     void updateTitle();
     void buildActions();
     /// @brief Opens the panel called 'name', if there is one.
@@ -83,6 +85,8 @@ private:
     void drawStyleEditor();
     void drawMenuBar(FrameContext& frame);
     void drawPlayControls(FrameContext& frame);
+    /// @brief The scene's name at the right of the menu bar, when it fits.
+    void drawSceneName();
     void startPlay(FrameContext& frame);
     void stopPlay(FrameContext& frame);
     /// @brief Asks for this frame's updates: the edit world in edit mode, or the play world.
@@ -95,7 +99,8 @@ private:
     std::filesystem::path m_preferencesFile; // Empty keeps none
     EditorPreferences m_savedPreferences;
     std::vector<std::unique_ptr<Panel>> m_panels;
-    std::vector<Panel*> m_defaultOpen; // The panels open at startup; Reset Layout opens them again
+    std::unique_ptr<Panel> m_preferencesWindow; // Floats; Edit > Preferences... opens it
+    std::vector<Panel*> m_defaultOpen;          // The panels open at startup; Reset Layout opens them again
     ActionRegistry m_actions;
     float m_contentScale{ 0.0f }; // As of the last style
     float m_uiScale{ 0.0f };

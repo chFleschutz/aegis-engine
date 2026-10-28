@@ -30,11 +30,15 @@ class RendererPanel final : public Panel
 {
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "Renderer"; }
+    [[nodiscard]] auto debug() const -> bool override { return true; }
 
     void draw(EditorContext&, FrameContext& frame) override
     {
         ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 10, 30), ImGuiCond_FirstUseEver, ImVec2(1.0f, 0.0f));
-        if (!ImGui::Begin("Renderer"))
+        bool open = true;
+        const bool visible = ImGui::Begin("Renderer", &open);
+        setOpen(open);
+        if (!visible)
         {
             ImGui::End();
             return;

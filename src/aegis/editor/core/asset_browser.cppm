@@ -56,9 +56,10 @@ struct AssetFilter
     [[nodiscard]] auto matches(const AssetItem& item) const -> bool;
 };
 
-/// @brief One file of the list and the parts it shows.
+/// @brief One row of the list: a subfolder of the open folder, or a file with the parts it shows.
 struct AssetRow
 {
+    std::optional<std::size_t> folder; ///< A subfolder row: its index into AssetTree::folders; the other members are unused
     std::size_t file{ 0 };
     std::vector<std::size_t> parts; ///< Indices into AssetTree::items: the parts that match the filter
     bool mainMatches{ false };      ///< Whether the file's main asset matches it
@@ -85,8 +86,9 @@ public:
     /// @brief Every asset type of the items, sorted: the type filter's choices.
     [[nodiscard]] auto types() const -> std::vector<std::string>;
 
-    /// @brief The files to list for 'folder': without an active filter its files with all their parts; with one, the
-    ///        files of it and its subfolders (depth first) whose main asset or a part matches, with those parts.
+    /// @brief The rows to list for 'folder': without an active filter its subfolders (by name), then its files with all
+    ///        their parts; with one, the files of it and its subfolders (depth first) whose main asset or a part
+    ///        matches, with those parts, and no folder rows.
     [[nodiscard]] auto rows(std::size_t folder, const AssetFilter& filter) const -> std::vector<AssetRow>;
 
 private:

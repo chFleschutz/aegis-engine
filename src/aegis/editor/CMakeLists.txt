@@ -97,6 +97,7 @@ target_sources(aegis-editor
     ui/panels/console_panel.cpp
     ui/panels/preferences_panel.cpp
     ui/panels/demo_panel.cpp
+    ui/panels/hint.cpp
     ui/panels/history.cpp
     ui/panels/inspector_panel.cpp
     ui/panels/menus.cpp

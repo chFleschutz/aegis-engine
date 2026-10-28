@@ -179,7 +179,8 @@ private:
         ImGui::TreePop();
     }
 
-    // The open folder's files (and, with a filter, its subfolders'), each with its parts.
+    // The open folder's subfolders and files (with a filter, its subfolders' files too), each file with its parts. A
+    // double click on a subfolder opens it.
     void drawFiles(EditorContext& editor)
     {
         const auto folder = m_tree.findFolder(m_root, m_folder);
@@ -189,8 +190,25 @@ private:
         if (rows.empty())
             ImGui::TextDisabled(m_filter.active() ? "No matching assets" : "No assets in this folder");
 
+        std::optional<std::size_t> entered;
         for (const auto& row : rows)
         {
+            if (row.folder)
+            {
+                const auto& subfolder = m_tree.folders()[*row.folder];
+                const bool dimmed = m_tree.roots()[subfolder.root].readOnly;
+                if (dimmed)
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+                ImGui::PushID(static_cast<int>(*row.folder));
+                ImGui::TreeNodeEx("##folder", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s/", subfolder.name.c_str());
+                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                    entered = *row.folder;
+                ImGui::PopID();
+                if (dimmed)
+                    ImGui::PopStyleColor();
+                continue;
+            }
+
             const auto& file = m_tree.files()[row.file];
             const bool readOnly = m_tree.roots()[file.root].readOnly;
             if (readOnly)
@@ -228,6 +246,11 @@ private:
             ImGui::PopID();
             if (readOnly)
                 ImGui::PopStyleColor();
+        }
+        if (entered)
+        {
+            m_root = m_tree.folders()[*entered].root;
+            m_folder = m_tree.folders()[*entered].path;
         }
     }
 

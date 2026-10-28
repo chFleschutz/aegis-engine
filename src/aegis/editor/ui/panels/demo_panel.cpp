@@ -16,6 +16,7 @@ class DemoPanel final : public Panel
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "ImGui Demo"; }
     [[nodiscard]] auto debug() const -> bool override { return true; }
+    [[nodiscard]] auto docked() const -> bool override { return false; }
 
     void draw(EditorContext&, FrameContext&) override { ImGui::ShowDemoWindow(); }
 };

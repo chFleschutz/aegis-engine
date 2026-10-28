@@ -46,13 +46,28 @@ auto folderNames(const AssetTree& tree, std::size_t folder) -> std::vector<std::
     return names;
 }
 
-// The rows' file paths.
+// The file rows' file paths.
 auto rowPaths(const AssetTree& tree, const std::vector<AssetRow>& rows) -> std::vector<std::string>
 {
     std::vector<std::string> paths;
     for (const auto& row : rows)
-        paths.push_back(tree.files()[row.file].path);
+    {
+        if (!row.folder)
+            paths.push_back(tree.files()[row.file].path);
+    }
     return paths;
+}
+
+// The folder rows' folder names.
+auto rowFolders(const AssetTree& tree, const std::vector<AssetRow>& rows) -> std::vector<std::string>
+{
+    std::vector<std::string> names;
+    for (const auto& row : rows)
+    {
+        if (row.folder)
+            names.push_back(tree.folders()[*row.folder].name);
+    }
+    return names;
 }
 
 // The IDs of a row's parts.
@@ -88,19 +103,43 @@ TEST_SUITE("editor::AssetTree")
     {
         const auto tree = sampleTree();
         const auto rows = tree.rows(*tree.findFolder(project, "models"), {});
-        REQUIRE(rows.size() == 1);
-        const auto& file = tree.files()[rows[0].file];
+        REQUIRE(rows.size() == 2); // The textures folder, then the file
+        const auto& row = rows[1];
+        const auto& file = tree.files()[row.file];
         CHECK(file.name == "helmet.gltf");
         REQUIRE(file.main);
         CHECK(tree.items()[*file.main].id == 1);
-        CHECK(rows[0].mainMatches);
-        CHECK(partIds(tree, rows[0]) == std::vector<std::uint64_t>{ 3, 2, 4 }); // Material, StaticMesh, Texture
+        CHECK(row.mainMatches);
+        CHECK(partIds(tree, row) == std::vector<std::uint64_t>{ 3, 2, 4 }); // Material, StaticMesh, Texture
     }
 
     TEST_CASE("lists only the folder's own files without a filter")
     {
         const auto tree = sampleTree();
         CHECK(rowPaths(tree, tree.rows(tree.rootFolder(project), {})) == std::vector<std::string>{ "readme.material" });
+        CHECK(rowPaths(tree, tree.rows(*tree.findFolder(project, "models"), {})) == std::vector<std::string>{ "models/helmet.gltf" });
+    }
+
+    TEST_CASE("lists the subfolders before the files without a filter")
+    {
+        const auto tree = sampleTree();
+        const auto rows = tree.rows(tree.rootFolder(project), {});
+        REQUIRE(rows.size() == 3);
+        CHECK(rowFolders(tree, rows) == std::vector<std::string>{ "models", "scenes" });
+        CHECK(rows[0].folder);
+        CHECK(rows[1].folder);
+        CHECK_FALSE(rows[2].folder);
+        CHECK(tree.folders()[*rows[1].folder].path == "scenes");
+    }
+
+    TEST_CASE("a folder with only folders lists just them")
+    {
+        const auto tree = sampleTree();
+        const auto rows = tree.rows(*tree.findFolder(project, "models"), {});
+        CHECK(rowFolders(tree, rows) == std::vector<std::string>{ "textures" });
+        CHECK(rowPaths(tree, rows) == std::vector<std::string>{ "models/helmet.gltf" });
+        CHECK(tree.rows(tree.rootFolder(engine), {}).size() == 1);
+        CHECK(tree.rows(*tree.findFolder(project, "models/textures"), {}).size() == 1);
     }
 
     TEST_CASE("lists the types of its items once each, sorted")
@@ -125,6 +164,7 @@ TEST_SUITE("editor::AssetFilter")
         const auto tree = sampleTree();
         const auto rows = tree.rows(tree.rootFolder(project), AssetFilter{ .type = "Texture" });
         CHECK(rowPaths(tree, rows) == std::vector<std::string>{ "models/helmet.gltf", "models/textures/Brick.png" });
+        CHECK(rowFolders(tree, rows).empty());
         CHECK_FALSE(rows[0].mainMatches); // The model is a Scene
         CHECK(partIds(tree, rows[0]) == std::vector<std::uint64_t>{ 4 });
         CHECK(rows[1].mainMatches);

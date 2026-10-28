@@ -10,6 +10,7 @@ import aegis.core;
 import aegis.math;
 import aegis.serialize;
 import aegis.world;
+import aegis.world.render_components;
 import :panels;
 
 namespace aegis::editor
@@ -31,6 +32,17 @@ auto rowId(world::Registry& registry, world::Entity entity) -> const void*
 auto nameOf(world::Registry& registry, world::Entity entity) -> const char*
 {
     return registry.has<Name>(entity) ? registry.get<Name>(entity).name.c_str() : "Entity";
+}
+
+// Whether the rows hold nothing but what a new scene starts with (the scene's camera and lights, a sky), or nothing at all.
+auto holdsOnlyDefaults(world::World& scene, std::span<const HierarchyRow> rows) -> bool
+{
+    auto& registry = scene.registry();
+    return std::ranges::all_of(rows, [&](const HierarchyRow& row) {
+        const auto entity = row.entity;
+        const bool isDefault = entity == scene.mainCamera() || entity == scene.ambientLight() || entity == scene.directionalLight() || registry.has<Sky>(entity);
+        return isDefault && !row.hasChildren;
+    });
 }
 
 // The drag and drop payload of a hierarchy row: the dragged entity's StableId.
@@ -144,6 +156,11 @@ private:
             if (rows.empty())
                 ImGui::TextDisabled("No entity matches");
         }
+
+        if (filtered && rows.empty())
+            drawCenteredHint("No matching entities");
+        else if (!filtered && holdsOnlyDefaults(*editor.world(), rows))
+            drawCenteredHint("Right-click to create an entity, or drop a model here");
 
         // The space below the rows takes drops that make the entity a root
         ImGui::Dummy(ImGui::GetContentRegionAvail());
