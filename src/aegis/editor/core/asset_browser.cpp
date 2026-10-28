@@ -12,15 +12,6 @@ auto lower(char c) -> char
     return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
 }
 
-// Whether 'text' holds 'part', ignoring ASCII case.
-auto containsIgnoringCase(std::string_view text, std::string_view part) -> bool
-{
-    if (part.empty())
-        return true;
-    const auto found = std::ranges::search(text, part, [](char a, char b) { return lower(a) == lower(b); });
-    return !found.empty();
-}
-
 auto fileName(std::string_view path) -> std::string_view
 {
     const auto slash = path.rfind('/');
@@ -32,6 +23,14 @@ auto parentPath(std::string_view path) -> std::string_view
     const auto slash = path.rfind('/');
     return slash == std::string_view::npos ? std::string_view{} : path.substr(0, slash);
 }
+}
+
+auto containsIgnoringCase(std::string_view text, std::string_view part) -> bool
+{
+    if (part.empty())
+        return true;
+    const auto found = std::ranges::search(text, part, [](char a, char b) { return lower(a) == lower(b); });
+    return !found.empty();
 }
 
 auto AssetFilter::matches(const AssetItem& item) const -> bool
@@ -121,6 +120,8 @@ auto AssetTree::rows(std::size_t folder, const AssetFilter& filter) const -> std
         return rows;
     if (!filter.active())
     {
+        for (const auto child : m_folders[folder].folders)
+            rows.push_back(AssetRow{ .folder = child });
         for (const auto file : m_folders[folder].files)
             rows.push_back(AssetRow{ .file = file, .parts = m_files[file].parts, .mainMatches = m_files[file].main.has_value() });
         return rows;
