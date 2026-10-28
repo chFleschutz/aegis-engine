@@ -8,7 +8,7 @@ import aegis.world;
 export namespace aegis::editor
 {
 /// @brief The scene view: the world renders into a texture of the panel's size, through the editor camera, which
-///        the viewport moves (RMB + WASD/QE fly, Alt + LMB orbit, MMB pan, wheel dolly, F focus). A click
+///        the viewport moves (RMB + WASD/QE fly, Alt + LMB orbit, MMB pan, wheel dolly; F, the focus action, frames the selection). A click
 ///        selects the mesh or the light or camera icon under the cursor; the gizmo moves the selection
 ///        (W/E/R/Q while the viewport has focus). A scene or model dragged from the asset browser is instantiated
 ///        on the ground under the cursor. EditorShell owns it.

@@ -75,6 +75,8 @@ private:
     /// @brief The window title: the scene's name and the editor's.
     void updateTitle();
     void buildActions();
+    /// @brief Opens the panel called 'name', if there is one.
+    void openPanel(std::string_view name);
     /// @brief Rebuilds the style when the monitor's content scale or the UI-scale preference changed.
     void updateStyle();
     /// @brief The dockspace between the menu bar and the status bar; builds the default layout when there is none.

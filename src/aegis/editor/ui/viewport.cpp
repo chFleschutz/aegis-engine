@@ -70,6 +70,7 @@ auto Viewport::renderView() const -> std::optional<RenderView>
 
 void Viewport::draw(EditorContext& editor, FrameContext& frame)
 {
+    const bool focusRequested = editor.takeFocusRequest(); // Taken even while the viewport can't show it
     if (!m_cameraPlaced)
         placeCamera(frame.world);
 
@@ -112,6 +113,8 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
         if (!m_gameView)
         {
             updateCamera(editor, frame.deltaSeconds);
+            if (focusRequested)
+                focusSelection(editor);
             updateGizmoMode();
             const auto icons = drawIcons(editor, rect);
             const bool gizmo = drawGizmo(editor, frame.types, rect);
@@ -184,9 +187,6 @@ void Viewport::updateCamera(EditorContext& editor, float deltaSeconds)
     m_camera.setSpeed(preferences.cameraSpeed);
     m_camera.update(input, deltaSeconds);
     preferences.cameraSpeed = std::clamp(m_camera.speed(), 0.01f, 1000.0f);
-
-    if (m_focused && !m_flying && !io.WantTextInput && ImGui::IsKeyPressed(ImGuiKey_F, false))
-        focusSelection(editor);
 }
 
 void Viewport::focusSelection(const EditorContext& editor)

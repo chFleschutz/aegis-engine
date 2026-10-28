@@ -14,6 +14,7 @@ target_sources(aegis-core
     log.cppm
     match.cppm
     profiler.cppm
+    text.cppm
     PRIVATE
     log.cpp
 )

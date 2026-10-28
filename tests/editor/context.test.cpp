@@ -178,4 +178,21 @@ TEST_SUITE("editor::EditorContext saving")
         CHECK_FALSE(context.undoStack().canUndo());
         CHECK_FALSE(context.unsaved());
     }
+
+    TEST_CASE("a rename or focus request is taken once")
+    {
+        EditorContext context;
+        CHECK_FALSE(context.takeRenameRequest());
+        CHECK_FALSE(context.takeFocusRequest());
+
+        context.requestRename();
+        CHECK_FALSE(context.takeFocusRequest());
+        CHECK(context.takeRenameRequest());
+        CHECK_FALSE(context.takeRenameRequest());
+
+        context.requestFocus();
+        context.requestFocus();
+        CHECK(context.takeFocusRequest());
+        CHECK_FALSE(context.takeFocusRequest());
+    }
 }

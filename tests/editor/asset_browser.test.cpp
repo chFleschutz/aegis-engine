@@ -13,7 +13,6 @@ using aegis::editor::AssetRoot;
 using aegis::editor::AssetRow;
 using aegis::editor::AssetTree;
 using aegis::editor::canInstantiate;
-using aegis::editor::containsIgnoringCase;
 using aegis::editor::dropPoint;
 using aegis::editor::makeAssetPayload;
 using aegis::editor::Ray;
@@ -197,23 +196,6 @@ TEST_SUITE("editor::AssetFilter")
         const auto tree = sampleTree();
         CHECK(tree.rows(tree.rootFolder(project), AssetFilter{ .search = "brick", .type = "Scene" }).empty());
         CHECK(tree.rows(tree.rootFolder(engine), AssetFilter{ .search = "checker", .type = "Texture" }).size() == 1);
-    }
-}
-
-TEST_SUITE("editor::containsIgnoringCase")
-{
-    TEST_CASE("finds a part in any case")
-    {
-        CHECK(containsIgnoringCase("Helmet Visor", "visor"));
-        CHECK(containsIgnoringCase("Helmet Visor", "HELMET V"));
-        CHECK_FALSE(containsIgnoringCase("Helmet", "visor"));
-    }
-
-    TEST_CASE("every text holds an empty part")
-    {
-        CHECK(containsIgnoringCase("Helmet", ""));
-        CHECK(containsIgnoringCase("", ""));
-        CHECK_FALSE(containsIgnoringCase("", "a"));
     }
 }
 

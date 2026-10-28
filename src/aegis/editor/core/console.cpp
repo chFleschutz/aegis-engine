@@ -11,7 +11,7 @@ auto ConsoleFilter::matches(const ConsoleEntry& entry) const -> bool
         levelOn = info;
     else if (entry.level == log::Level::Warn)
         levelOn = warn;
-    return levelOn && containsIgnoringCase(entry.message, search);
+    return levelOn && core::containsIgnoringCase(entry.message, search);
 }
 
 ConsoleBuffer::ConsoleBuffer(std::size_t capacity) :

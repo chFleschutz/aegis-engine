@@ -75,7 +75,7 @@ src/aegis/editor/
 │  ├─ undo_stack       history, merging of continuous edits, the saved marker (dirty flag)
 │  ├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, limits, readOnly}
 │  ├─ inspector        the components and scripts an entity shows and can add; field writes + change hook
-│  ├─ hierarchy_model  entity tree as rows in sibling order (the name filter: #273); pure
+│  ├─ hierarchy_model  entity tree as rows in sibling order, with the name filter; pure
 │  ├─ play_session     Edit -> Playing <-> Paused -> Edit, step
 │  ├─ editor_camera    fly/orbit/pan/dolly/focus math -> view, projection and picking rays
 │  ├─ picking          ray against bounding spheres, icon hits in screen space
@@ -264,9 +264,12 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   pure and tested on a device-less world ([#165]).
 - **Hierarchy:** rows come from `Parent` / `Children` / `Siblings`, walked iteratively (as today),
   with a name filter (matching rows keep their ancestors). Drag and drop reparents and reorders,
-  rejecting cycles (`Registry::isInSubtree`). F2 renames, Del deletes, Ctrl+D duplicates, and the
-  context menu has the Create submenu (Empty, Camera, Point Light, Directional Light, and the
-  registry's types).
+  rejecting cycles (`Registry::isInSubtree`). F2 renames, Del deletes, Ctrl+D duplicates, F frames the entity. One Create menu (Empty, Camera,
+  Point Light, Directional Light, and the registry's types by category; one undo entry each, the new entity
+  selected and named at once) sits behind the "+" button beside the filter, in the Entity menu and in the
+  window's context menu; a row's context menu selects the row first and offers Rename, Duplicate, Delete,
+  Create Child and Focus, named after the action registry. "All Entities", a flat list of every entity, is a
+  debug panel.
 - **Asset browser (R10):** a folder tree over `AssetDatabase::entries()` with two roots, the project
   and the engine content (read-only, shown dimmed). The file list shows each file's sub-assets
   expandable, with search and a type filter. A drag carries an `AssetId` payload with its type:
@@ -371,11 +374,11 @@ tokens, not this structure.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────┐
-│ File Edit Play View Debug                  ▶  ❚❚  ⏭                                sponza.scene* │ menu bar + play controls + scene
+│ File Edit Entity Play View Debug           ▶  ❚❚  ⏭                    sponza.scene* │ menu bar + play controls + scene
 ├─────────────────┬──────────────────────────────────────────────────┬───────────────┤
 │ Hierarchy       │ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ │                                 │ Inspector     │ viewport toolbar
-│ All Entities    │ ┌──────────────────────────────────────────────┐ │               │
-│ Scene Settings  │ │                                              │ │               │
+│ Filter       [+]│ ┌──────────────────────────────────────────────┐ │               │
+│                 │ │                                              │ │               │
 │ ▾ Sponza        │ │              Viewport (scene texture)        │ │               │
 │   ▸ Helmet      │ │                    gizmo                     │ │               │
 │   ▸ Lights      │ │                                              │ │               │
@@ -435,7 +438,7 @@ tokens, not this structure.
   | Duplicate, Delete, Rename (the inspector's name field) | Ctrl+D, Del, F2 |
   | Play/Stop, Pause/Resume, Step | Ctrl+P, Ctrl+Shift+P, Ctrl+Alt+P |
   | Select, Move, Rotate, Scale (viewport focus) | Q, W, E, R |
-  | Focus the selection (viewport focus) | F |
+  | Focus the selection (also a double click on a hierarchy row) | F |
   | Fly the camera (while the right mouse button is held) | W, A, S, D, Q, E |
 
   **Collisions:** W, E and Q fly the camera while the right mouse button is held and switch the gizmo

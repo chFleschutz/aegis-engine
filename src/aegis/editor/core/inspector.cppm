@@ -23,6 +23,10 @@ struct ComponentSection
 [[nodiscard]] auto addableComponents(const reflect::TypeRegistry& types, world::Registry& registry, world::Entity entity)
     -> std::vector<const reflect::TypeInfo*>;
 
+/// @brief The components the Create menu offers for a new entity: those of addableComponents, for an entity that has none.
+[[nodiscard]] auto creatableComponents(const reflect::TypeRegistry& types, world::Registry& registry)
+    -> std::vector<const reflect::TypeInfo*>;
+
 /// @brief The scripts the Add Script menu offers: every registered script, sorted by category, then name.
 [[nodiscard]] auto scriptTypes(const reflect::TypeRegistry& types) -> std::vector<const reflect::TypeInfo*>;
 

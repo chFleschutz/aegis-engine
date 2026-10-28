@@ -100,9 +100,6 @@ private:
     std::vector<AssetRoot> m_roots;
 };
 
-/// @brief Whether 'text' holds 'part', ignoring ASCII case; every text holds an empty part.
-[[nodiscard]] auto containsIgnoringCase(std::string_view text, std::string_view part) -> bool;
-
 /// @brief The ImGui drag and drop type of an asset, dragged from the browser.
 inline constexpr const char* assetPayloadType = "AEGIS_ASSET";
 

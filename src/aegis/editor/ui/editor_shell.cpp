@@ -92,7 +92,7 @@ void buildDefaultLayout(ImGuiID dockspace, ImVec2 size)
             ImGui::DockBuilderDockWindow(window, node);
         ImGui::DockBuilderGetNode(node)->SelectedTabId = ImGui::GetID(*windows.begin()); // The first one shows
     };
-    dock({ "Hierarchy", "All Entities", "Scene Settings" }, left);
+    dock({ "Hierarchy" }, left);
     dock({ "Inspector" }, right);
     dock({ "Assets", "Console", "Renderer", "Profiler", "Statistics" }, bottom);
     dock({ "Viewport" }, center);
@@ -105,13 +105,14 @@ EditorShell::EditorShell()
     // The console sees every message from here on, and the log still writes to stderr.
     m_logSink = log::addSink([this](log::Level level, std::string_view message) { m_context.console().push(level, message); });
 
-    m_panels.push_back(makeScenePanel());
+    m_panels.push_back(makeScenePanel(m_actions));
     m_panels.push_back(makeInspectorPanel());
     m_panels.push_back(makeAssetPanel());
     m_panels.push_back(makeConsolePanel());
     m_panels.push_back(makeRendererPanel());
     m_panels.push_back(makeStatisticsPanel());
     m_panels.push_back(makeProfilerPanel());
+    m_panels.push_back(makeAllEntitiesPanel());
     m_panels.push_back(makeDemoPanel());
     m_preferencesWindow = makePreferencesPanel();
     for (const auto& panel : m_panels)
@@ -211,6 +212,8 @@ void EditorShell::onFrame(FrameContext& frame)
     const int tint = m_context.playing() ? pushPlayTint() : 0;
     beginMainWindow();
     m_actions.handleShortcuts(frame);
+    if (m_context.renameRequested())
+        openPanel("Inspector"); // The name field is there
     drawMenuBar(frame);
     drawDockspace();
     for (const auto& panel : m_panels)
@@ -565,14 +568,8 @@ void EditorShell::buildActions()
         .label = "Rename",
         .chord = chord(Key::F2, false),
         .enabled = hasSelection,
-        .run = [this](FrameContext&) {
-            for (const auto& panel : m_panels)
-            {
-                if (panel->name() == "Inspector")
-                    panel->setOpen(true); // The name field is there
-            }
-            m_context.requestRename();
-        } });
+        .run = [this](FrameContext&) { m_context.requestRename(); } });
+    m_actions.add({ .id = "edit.focus", .label = "Focus", .chord = chord(Key::F, false), .enabled = hasSelection, .run = [this](FrameContext&) { m_context.requestFocus(); } });
 
     m_actions.add({ .id = "play.toggle", .label = "Play", .chord = chord(Key::P), .run = [this](FrameContext& frame) { m_play.active() ? stopPlay(frame) : startPlay(frame); } });
     m_actions.add({ .id = "play.pause",
@@ -611,6 +608,15 @@ void EditorShell::drawDockspace()
     ImGui::DockSpace(id, size, ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton);
 }
 
+void EditorShell::openPanel(std::string_view name)
+{
+    for (const auto& panel : m_panels)
+    {
+        if (panel->name() == name)
+            panel->setOpen(true);
+    }
+}
+
 void EditorShell::resetLayout()
 {
     m_resetLayout = true;
@@ -644,6 +650,14 @@ void EditorShell::drawMenuBar(FrameContext& frame)
         m_actions.menuItem("edit.rename", frame);
         ImGui::Separator();
         m_actions.menuItem("edit.preferences", frame);
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Entity"))
+    {
+        drawCreateMenu(m_context, frame);
+        ImGui::Separator();
+        m_actions.menuItem("edit.focus", frame);
         ImGui::EndMenu();
     }
 

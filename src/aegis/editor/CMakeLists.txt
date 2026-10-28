@@ -92,6 +92,7 @@ target_sources(aegis-editor
     PRIVATE
     ui/actions.cpp
     ui/editor_shell.cpp
+    ui/panels/all_entities_panel.cpp
     ui/panels/asset_panel.cpp
     ui/panels/console_panel.cpp
     ui/panels/preferences_panel.cpp
@@ -99,6 +100,7 @@ target_sources(aegis-editor
     ui/panels/hint.cpp
     ui/panels/history.cpp
     ui/panels/inspector_panel.cpp
+    ui/panels/menus.cpp
     ui/panels/profiler_panel.cpp
     ui/panels/renderer_panel.cpp
     ui/panels/scene_panel.cpp

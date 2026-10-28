@@ -200,7 +200,7 @@ auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const as
             if (entry.type != row.field->assetType)
                 continue;
             const auto name = assetName(database, entry.id.value);
-            if (!containsIgnoringCase(name, s_filter))
+            if (!core::containsIgnoringCase(name, s_filter))
                 continue;
             ImGui::PushID(static_cast<int>(entry.id.value ^ (entry.id.value >> 32)));
             if (ImGui::Selectable(name.c_str(), entry.id.value == current))
@@ -295,36 +295,6 @@ auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity enti
         drawFields(type, object, entity, scriptIndex, readOnly, editor, frame);
     ImGui::Spacing();
     return keep;
-}
-
-// A menu of 'types', one submenu per category (those without one at the top); the type picked this frame.
-auto pickType(std::span<const reflect::TypeInfo* const> types) -> const reflect::TypeInfo*
-{
-    if (types.empty())
-        ImGui::TextDisabled("Nothing to add");
-
-    const reflect::TypeInfo* picked = nullptr;
-    for (std::size_t first = 0; first < types.size();)
-    {
-        const auto& category = types[first]->meta.category;
-        std::size_t end = first;
-        while (end < types.size() && types[end]->meta.category == category)
-            ++end;
-
-        if (category.empty() || ImGui::BeginMenu(category.c_str()))
-        {
-            for (std::size_t i = first; i < end; ++i)
-            {
-                const std::string label{ types[i]->displayName() };
-                if (ImGui::MenuItem(label.c_str()))
-                    picked = types[i];
-            }
-            if (!category.empty())
-                ImGui::EndMenu();
-        }
-        first = end;
-    }
-    return picked;
 }
 
 // The selected entity: its name and ID, its registered components and its scripts, each generated from the type
