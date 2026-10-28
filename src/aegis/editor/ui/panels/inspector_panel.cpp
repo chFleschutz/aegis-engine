@@ -339,8 +339,14 @@ public:
     void draw(EditorContext& editor, FrameContext& frame) override
     {
         const auto entity = editor.selectedEntity();
-        if (!ImGui::Begin("Inspector") || !entity)
+        if (!ImGui::Begin("Inspector"))
         {
+            ImGui::End();
+            return;
+        }
+        if (!entity)
+        {
+            drawCenteredHint("Select an entity in the Hierarchy or the viewport");
             ImGui::End();
             return;
         }

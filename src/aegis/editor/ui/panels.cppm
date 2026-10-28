@@ -36,6 +36,10 @@ auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool;
 ///        selected or it failed (logged).
 auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool;
 
+/// @brief Draws 'text' dimmed and centered in the window's free space (wrapped to its width), for an empty panel. The
+///        cursor stays where it was, so what follows (a drop target over the free space) still covers it.
+void drawCenteredHint(std::string_view text);
+
 /// @brief The asset dragged onto the item of the open drag and drop target, once dropped, if 'accepts' takes it; one it
 ///        refuses shows a tooltip saying so while it hovers. Call between BeginDragDropTarget and EndDragDropTarget.
 [[nodiscard]] auto acceptAssetPayload(const std::function<bool(const AssetPayload& payload)>& accepts) -> std::optional<AssetPayload>;
