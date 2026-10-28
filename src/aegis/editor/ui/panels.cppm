@@ -6,7 +6,8 @@ import :panel;
 
 namespace aegis::editor
 {
-// The built-in panels, in the View menu's order; each is defined in its own .cpp (ui/panels/).
+// The built-in panels, in their menus' order; each is defined in its own .cpp (ui/panels/). The preferences window is
+// not listed in a menu: Edit > Preferences... opens it.
 [[nodiscard]] auto makeScenePanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeInspectorPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeAssetPanel() -> std::unique_ptr<Panel>;

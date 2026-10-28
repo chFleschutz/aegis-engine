@@ -10,7 +10,8 @@ namespace aegis::editor
 {
 namespace
 {
-// The user's editor preferences (EditorContext::preferences); the shell saves them when they change.
+// The user's editor preferences (EditorContext::preferences) in a floating window of its own, opened from Edit >
+// Preferences...; the shell saves them when they change.
 class PreferencesPanel final : public Panel
 {
 public:
@@ -19,7 +20,9 @@ public:
     void draw(EditorContext& editor, FrameContext&) override
     {
         bool open = true;
-        const bool visible = ImGui::Begin("Preferences", &open);
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2{ 0.5f, 0.5f });
+        const bool visible = ImGui::Begin("Preferences", &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings);
         setOpen(open);
         if (!visible)
         {

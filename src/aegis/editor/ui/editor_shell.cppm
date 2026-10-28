@@ -17,7 +17,7 @@ export namespace aegis::editor
 ///        closing the window, New or Open ask about them first. The window layout is kept in
 ///        `<project>/.aegis/editor/imgui.ini` (none when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
-///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every panel but the debug ones at startup.
+///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every docked panel at startup (not the ImGui demo).
 ///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of
 ///        `ui/theme.h` scaled by the monitor's content scale and the UI-scale preference; the menus and shortcuts
 ///        come from one ActionRegistry.
@@ -93,7 +93,8 @@ private:
     std::filesystem::path m_preferencesFile; // Empty keeps none
     EditorPreferences m_savedPreferences;
     std::vector<std::unique_ptr<Panel>> m_panels;
-    std::vector<Panel*> m_defaultOpen; // The panels open at startup; Reset Layout opens them again
+    std::unique_ptr<Panel> m_preferencesWindow; // Floats; Edit > Preferences... opens it
+    std::vector<Panel*> m_defaultOpen;          // The panels open at startup; Reset Layout opens them again
     ActionRegistry m_actions;
     float m_contentScale{ 0.0f }; // As of the last style
     float m_uiScale{ 0.0f };

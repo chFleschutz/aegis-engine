@@ -17,11 +17,15 @@ class ProfilerPanel final : public Panel
 {
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "Profiler"; }
+    [[nodiscard]] auto debug() const -> bool override { return true; }
 
     void draw(EditorContext&, FrameContext& frame) override
     {
         ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 10), ImGuiCond_FirstUseEver, ImVec2(0, 1));
-        if (!ImGui::Begin("Profiler"))
+        bool open = true;
+        const bool visible = ImGui::Begin("Profiler", &open);
+        setOpen(open);
+        if (!visible)
         {
             ImGui::End();
             return;

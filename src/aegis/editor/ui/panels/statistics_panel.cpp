@@ -18,13 +18,21 @@ class StatisticsPanel final : public Panel
 {
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "Statistics"; }
+    [[nodiscard]] auto debug() const -> bool override { return true; }
 
     void draw(EditorContext& editor, FrameContext& frame) override
     {
         auto& registry = editor.world()->registry();
         const auto& instances = frame.instances;
 
-        ImGui::Begin("Scene Statistics");
+        bool open = true;
+        const bool visible = ImGui::Begin("Statistics", &open);
+        setOpen(open);
+        if (!visible)
+        {
+            ImGui::End();
+            return;
+        }
         ImGui::Text("Entities: %d", static_cast<int>(registry.entityCount()));
         ImGui::Text(" - Dynamic Entities: %d", static_cast<int>(registry.view<DynamicTag>().size()));
         ImGui::Separator();

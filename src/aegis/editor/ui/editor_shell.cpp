@@ -70,8 +70,8 @@ auto layoutFile(const std::filesystem::path& project) -> std::string
 }
 
 // The default layout in the dockspace 'dockspace' of 'size': the hierarchy on the left, the inspector on the right,
-// the assets and the console tabbed at the bottom, the viewport in the middle. The panels that start closed (renderer,
-// profiler, statistics, preferences) join the inspector's tabs when opened.
+// the assets and the console tabbed at the bottom, the viewport in the middle. The debug panels (renderer, profiler,
+// statistics) start closed and join the bottom tabs when opened: they are wide tables.
 void buildDefaultLayout(ImGuiID dockspace, ImVec2 size)
 {
     constexpr float leftShare = 0.18f;
@@ -93,8 +93,8 @@ void buildDefaultLayout(ImGuiID dockspace, ImVec2 size)
         ImGui::DockBuilderGetNode(node)->SelectedTabId = ImGui::GetID(*windows.begin()); // The first one shows
     };
     dock({ "Hierarchy", "All Entities", "Scene Settings" }, left);
-    dock({ "Inspector", "Renderer", "Profiler", "Scene Statistics", "Preferences" }, right);
-    dock({ "Assets", "Console" }, bottom);
+    dock({ "Inspector" }, right);
+    dock({ "Assets", "Console", "Renderer", "Profiler", "Statistics" }, bottom);
     dock({ "Viewport" }, center);
     ImGui::DockBuilderFinish(dockspace);
 }
@@ -109,11 +109,11 @@ EditorShell::EditorShell()
     m_panels.push_back(makeInspectorPanel());
     m_panels.push_back(makeAssetPanel());
     m_panels.push_back(makeConsolePanel());
-    m_panels.push_back(makePreferencesPanel());
     m_panels.push_back(makeRendererPanel());
     m_panels.push_back(makeStatisticsPanel());
     m_panels.push_back(makeProfilerPanel());
     m_panels.push_back(makeDemoPanel());
+    m_preferencesWindow = makePreferencesPanel();
     for (const auto& panel : m_panels)
     {
         if (panel->isOpen())
@@ -137,7 +137,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     if (engine.desc().editorPanels == "all")
     {
         for (const auto& panel : m_panels)
-            panel->setOpen(!panel->debug()); // Not the ImGui demo: it floats over the viewport
+            panel->setOpen(panel->docked()); // Not the ImGui demo: it floats over the viewport
     }
     // A headless run (a test, a screenshot) neither reads nor changes the user's layout.
     if (!engine.headless() && !engine.project().empty())
@@ -218,6 +218,8 @@ void EditorShell::onFrame(FrameContext& frame)
         if (panel->isOpen())
             panel->draw(m_context, frame);
     }
+    if (m_preferencesWindow->isOpen())
+        m_preferencesWindow->draw(m_context, frame);
     m_viewport.draw(m_context, frame);
     if (const auto scene = m_context.takeSceneRequest())
         request({ .kind = PendingAction::Kind::Open, .scene = assets::AssetId{ *scene } }, frame);
@@ -560,6 +562,7 @@ void EditorShell::buildActions()
         .run = [this](FrameContext& frame) { redoEdit(m_context, frame); } });
     m_actions.add({ .id = "edit.duplicate", .label = "Duplicate", .chord = chord(Key::D), .enabled = hasSelection, .run = [this](FrameContext& frame) { duplicateSelected(m_context, frame); } });
     m_actions.add({ .id = "edit.delete", .label = "Delete", .chord = chord(Key::Delete, false), .enabled = hasSelection, .run = [this](FrameContext& frame) { destroySelected(m_context, frame); } });
+    m_actions.add({ .id = "edit.preferences", .label = "Preferences...", .run = [this](FrameContext&) { m_preferencesWindow->setOpen(true); } });
     m_actions.add({ .id = "edit.rename",
         .label = "Rename",
         .chord = chord(Key::F2, false),
@@ -641,6 +644,8 @@ void EditorShell::drawMenuBar(FrameContext& frame)
         m_actions.menuItem("edit.duplicate", frame);
         m_actions.menuItem("edit.delete", frame);
         m_actions.menuItem("edit.rename", frame);
+        ImGui::Separator();
+        m_actions.menuItem("edit.preferences", frame);
         ImGui::EndMenu();
     }
 
