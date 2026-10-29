@@ -519,23 +519,62 @@ void EditorShell::drawStatusBar(FrameContext& frame)
     ImGui::PopStyleVar();
     if (visible)
     {
-        const double frameMs = Profiler::instance().time("Frame Time");
+        ImGui::TextUnformatted(selectionLabel().c_str());
+
+        const double frameMs = Profiler::instance().time("Frame Time"); // Its rolling average
         double gpuMs = 0.0;
         for (const auto& timing : frame.frameGraph.timings())
             gpuMs += timing.gpuMs;
+        m_gpuMs.add(gpuMs);
+        const auto timing = std::format("{:.1f} fps ({:.2f} ms)  |  GPU {:.2f} ms", frameMs > 0.0 ? 1000.0 / frameMs : 0.0, frameMs, m_gpuMs.average());
+        ImGui::SameLine((ImGui::GetWindowWidth() - ImGui::CalcTextSize(timing.c_str()).x) * 0.5f);
+        ImGui::TextUnformatted(timing.c_str());
 
-        ImGui::Text("%zu selected  |  %.1f fps (%.2f ms)  |  GPU %.2f ms", m_context.selection().ids().size(), frameMs > 0.0 ? 1000.0 / frameMs : 0.0, frameMs, gpuMs);
-
-        if (const auto problem = m_context.console().lastProblem())
-        {
-            const bool isWarning = problem->level == log::Level::Warn;
-            ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Text, isWarning ? theme::warning : theme::error);
-            ImGui::TextUnformatted(std::format("|  {}: {}", log::levelName(problem->level), problem->message).c_str());
-            ImGui::PopStyleColor();
-        }
+        drawProblemCounts();
     }
     ImGui::End();
+}
+
+auto EditorShell::selectionLabel() const -> std::string
+{
+    const auto entity = m_context.selectedEntity();
+    if (!entity)
+        return "No selection";
+    auto& registry = m_context.world()->registry();
+    std::string label = registry.has<Name>(entity) ? registry.get<Name>(entity).name : "Entity";
+    if (const auto count = m_context.selection().ids().size(); count > 1)
+        label += std::format(" and {} more", count - 1);
+    return label;
+}
+
+void EditorShell::drawProblemCounts()
+{
+    const auto counts = m_context.console().counts();
+    const auto warnings = std::format("{} {}", theme::icons::warning, counts.warnings);
+    const auto errors = std::format("{} {}", theme::icons::error, counts.errors);
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float width = ImGui::CalcTextSize(warnings.c_str()).x + ImGui::CalcTextSize(errors.c_str()).x + 4.0f * style.FramePadding.x + style.ItemSpacing.x;
+    ImGui::SameLine(ImGui::GetWindowWidth() - style.WindowPadding.x - width);
+
+    const auto problem = m_context.console().lastProblem();
+    const auto tooltip = problem ? std::format("{}: {}", log::levelName(problem->level), problem->message) : std::string{ "No warnings or errors" };
+    // A count of zero is dim: only the levels that have messages draw the eye
+    const auto count = [&](const std::string& label, std::size_t value, const ImVec4& color) {
+        ImGui::PushStyleColor(ImGuiCol_Text, value > 0 ? color : theme::textDisabled);
+        const bool clicked = ImGui::SmallButton(label.c_str());
+        ImGui::PopStyleColor();
+        ImGui::SetItemTooltip("%s", tooltip.c_str());
+        if (clicked)
+        {
+            openPanel("Console");
+            m_context.requestConsoleProblems();
+        }
+    };
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
+    count(warnings, counts.warnings, theme::warning);
+    ImGui::SameLine();
+    count(errors, counts.errors, theme::error);
+    ImGui::PopStyleColor();
 }
 
 void EditorShell::buildActions()

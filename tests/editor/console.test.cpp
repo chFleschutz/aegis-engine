@@ -113,6 +113,119 @@ TEST_SUITE("editor::ConsoleBuffer")
         CHECK(console.text() == "[info] hello\n[warn] careful\n");
     }
 
+    TEST_CASE("counts the messages of each level, with fatal counting as error")
+    {
+        ConsoleBuffer console;
+        console.push(Level::Info, "i");
+        console.push(Level::Warn, "w1");
+        console.push(Level::Warn, "w2");
+        console.push(Level::Error, "e");
+        console.push(Level::Fatal, "f");
+
+        const auto counts = console.counts();
+        CHECK(counts.info == 1);
+        CHECK(counts.warnings == 2);
+        CHECK(counts.errors == 2);
+    }
+
+    TEST_CASE("keeps counting the messages the buffer dropped")
+    {
+        ConsoleBuffer console{ 2 };
+        for (int i = 0; i < 5; ++i)
+            console.push(Level::Warn, std::to_string(i));
+
+        CHECK(console.size() == 2);
+        CHECK(console.counts().warnings == 5);
+    }
+
+    TEST_CASE("clear resets the counts")
+    {
+        ConsoleBuffer console;
+        console.push(Level::Info, "i");
+        console.push(Level::Warn, "w");
+        console.push(Level::Error, "e");
+
+        console.clear();
+        const auto counts = console.counts();
+        CHECK(counts.info == 0);
+        CHECK(counts.warnings == 0);
+        CHECK(counts.errors == 0);
+
+        console.push(Level::Warn, "again");
+        CHECK(console.counts().warnings == 1);
+    }
+
+    TEST_CASE("collapse merges consecutive repeats into the first")
+    {
+        ConsoleBuffer console;
+        console.push(Level::Warn, "careful");
+        console.push(Level::Warn, "careful");
+        console.push(Level::Warn, "careful");
+        console.push(Level::Info, "done");
+
+        ConsoleFilter filter;
+        filter.collapse = true;
+        const auto entries = console.entries(filter);
+        REQUIRE(entries.size() == 2);
+        CHECK(entries[0].message == "careful");
+        CHECK(entries[0].repeats == 3);
+        CHECK(entries[0].sequence == 0);
+        CHECK(entries[1].repeats == 1);
+
+        CHECK(console.entries().size() == 4); // Off by default
+    }
+
+    TEST_CASE("collapse merges messages that differ only in their numbers")
+    {
+        ConsoleBuffer console;
+        console.push(Level::Warn, "Material 3 has no name; its key is 'material_3'");
+        console.push(Level::Warn, "Material 12 has no name; its key is 'material_12'");
+        console.push(Level::Warn, "Mesh 4 has no name; its key is 'mesh_4'");
+
+        ConsoleFilter filter;
+        filter.collapse = true;
+        const auto entries = console.entries(filter);
+        REQUIRE(entries.size() == 2);
+        CHECK(entries[0].message == "Material 3 has no name; its key is 'material_3'");
+        CHECK(entries[0].repeats == 2);
+        CHECK(entries[1].repeats == 1);
+    }
+
+    TEST_CASE("collapse keeps repeats apart when another message or level comes between")
+    {
+        ConsoleBuffer console;
+        console.push(Level::Warn, "careful");
+        console.push(Level::Info, "careful");
+        console.push(Level::Warn, "careful");
+        console.push(Level::Error, "failed");
+        console.push(Level::Warn, "careful");
+        console.push(Level::Warn, "careful 2");
+
+        ConsoleFilter filter;
+        filter.collapse = true;
+        const auto entries = console.entries(filter);
+        REQUIRE(entries.size() == 6);
+        for (const auto& entry : entries)
+            CHECK(entry.repeats == 1);
+    }
+
+    TEST_CASE("collapse merges the repeats the filter brings together")
+    {
+        ConsoleBuffer console;
+        console.push(Level::Warn, "careful");
+        console.push(Level::Info, "between");
+        console.push(Level::Warn, "careful");
+
+        ConsoleFilter filter;
+        filter.collapse = true;
+        filter.info = false;
+        const auto entries = console.entries(filter);
+        REQUIRE(entries.size() == 1);
+        CHECK(entries[0].repeats == 2);
+        CHECK(console.text(filter) == "[warn] careful (×"
+                                      "2)\n");
+    }
+
     TEST_CASE("receives messages from the log through a sink")
     {
         ConsoleBuffer console;

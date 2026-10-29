@@ -68,6 +68,11 @@ public:
     /// @brief Whether a focus was requested since; once.
     [[nodiscard]] auto takeFocusRequest() -> bool { return std::exchange(m_focusRequest, false); }
 
+    /// @brief Asks the console to come to the front showing only warnings and errors (the status bar's counts) at its next draw.
+    void requestConsoleProblems() { m_consoleProblemsRequest = true; }
+    /// @brief Whether the console was asked to show the problems since; once.
+    [[nodiscard]] auto takeConsoleProblemsRequest() -> bool { return std::exchange(m_consoleProblemsRequest, false); }
+
     /// @brief The active selected entity, or null (nothing selected, no world, or the entity is gone).
     [[nodiscard]] auto selectedEntity() const -> world::Entity;
     /// @brief Whether 'entity' is selected.
@@ -88,5 +93,6 @@ private:
     std::optional<std::uint64_t> m_sceneRequest;
     bool m_renameRequest{ false };
     bool m_focusRequest{ false };
+    bool m_consoleProblemsRequest{ false };
 };
 }
