@@ -5,6 +5,8 @@ module;
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
+#include "aegis/editor/ui/theme.h"
+
 module aegis.editor;
 import std;
 import aegis.asset_library;
@@ -40,6 +42,32 @@ auto partName(const AssetItem& item) -> std::string_view
         key.remove_prefix(item.type.size() + 1);
     return key;
 }
+
+// The icon of an asset kind.
+auto kindIcon(AssetKind kind) -> const char*
+{
+    switch (kind)
+    {
+    case AssetKind::StaticMesh:
+        return theme::icons::mesh;
+    case AssetKind::Material:
+        return theme::icons::material;
+    case AssetKind::Texture:
+        return theme::icons::texture;
+    case AssetKind::Scene:
+        return theme::icons::scene;
+    case AssetKind::Environment:
+        return theme::icons::environment;
+    case AssetKind::Model:
+        return theme::icons::model;
+    case AssetKind::Other:
+        return theme::icons::file;
+    }
+    return theme::icons::file;
+}
+
+// The folder column's width at the start, in pixels at a UI scale of 1.
+constexpr float folderColumnWidth = 200.0f;
 
 // The item just drawn as a drag source of 'item', and its tooltip.
 void dragSource(const AssetItem& item, std::string_view label)
@@ -82,8 +110,9 @@ public:
         drawToolbar(frame);
         if (ImGui::BeginTable("##browser", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV))
         {
-            ImGui::TableSetupColumn("Folders", ImGuiTableColumnFlags_WidthStretch, 0.3f);
-            ImGui::TableSetupColumn("Files", ImGuiTableColumnFlags_WidthStretch, 0.7f);
+            const ImGuiStyle& style = ImGui::GetStyle();
+            ImGui::TableSetupColumn("Folders", ImGuiTableColumnFlags_WidthFixed, folderColumnWidth * style.FontScaleDpi * style.FontScaleMain);
+            ImGui::TableSetupColumn("Files", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             if (ImGui::BeginChild("##folders"))
@@ -215,7 +244,8 @@ private:
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 
             // With a filter the rows come from several folders: show where each is
-            const std::string label = m_filter.active() ? file.path : file.name;
+            const auto kind = file.main ? assetKind(m_tree.items()[*file.main].type, file.path) : AssetKind::Other;
+            const std::string label = std::format("{}  {}", kindIcon(kind), m_filter.active() ? file.path : file.name);
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
             if (row.parts.empty())
                 flags |= ImGuiTreeNodeFlags_Leaf;
@@ -237,7 +267,7 @@ private:
                     const auto& item = m_tree.items()[part];
                     ImGui::PushID(static_cast<int>(part));
                     const auto name = partName(item);
-                    ImGui::TreeNodeEx("##part", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s", std::format("{}  ({})", name, item.type).c_str());
+                    ImGui::TreeNodeEx("##part", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s", std::format("{}  {}  ({})", kindIcon(assetKind(item.type, item.path)), name, item.type).c_str());
                     dragSource(item, name);
                     ImGui::PopID();
                 }

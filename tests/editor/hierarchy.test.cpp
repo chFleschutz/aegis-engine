@@ -2,11 +2,15 @@
 
 import std;
 import aegis.editor.core;
+import aegis.serialize;
 import aegis.world;
+import aegis.world.render_components;
 
 namespace
 {
 using aegis::StableId;
+using aegis::editor::EntityKind;
+using aegis::editor::entityKind;
 using aegis::editor::HierarchyRow;
 using aegis::editor::hierarchyRows;
 using aegis::world::Entity;
@@ -241,5 +245,61 @@ TEST_SUITE("editor::hierarchyRows with a filter")
         bool asked = false;
         std::ignore = hierarchyRows(scene.registry, [&](StableId) { return asked = true; }, "bulb");
         CHECK_FALSE(asked);
+    }
+}
+
+TEST_SUITE("editor::entityKind")
+{
+    TEST_CASE("an entity without any of the components is empty")
+    {
+        Registry registry;
+        CHECK(entityKind(registry, registry.create("Empty")) == EntityKind::Empty);
+    }
+
+    TEST_CASE("each component gives its kind")
+    {
+        Registry registry;
+        const auto camera = registry.create("Camera");
+        registry.add<aegis::Camera>(camera);
+        const auto sun = registry.create("Sun");
+        registry.add<aegis::DirectionalLight>(sun);
+        const auto lamp = registry.create("Lamp");
+        registry.add<aegis::PointLight>(lamp);
+        const auto mesh = registry.create("Mesh");
+        registry.add<aegis::MeshRenderer>(mesh);
+        const auto holder = registry.create("Holder");
+        registry.add<aegis::serialize::SceneInstance>(holder);
+
+        CHECK(entityKind(registry, camera) == EntityKind::Camera);
+        CHECK(entityKind(registry, sun) == EntityKind::DirectionalLight);
+        CHECK(entityKind(registry, lamp) == EntityKind::PointLight);
+        CHECK(entityKind(registry, mesh) == EntityKind::Mesh);
+        CHECK(entityKind(registry, holder) == EntityKind::SceneInstance);
+    }
+
+    TEST_CASE("the first kind in the priority wins")
+    {
+        Registry registry;
+        const auto entity = registry.create("Everything");
+        registry.add<aegis::serialize::SceneInstance>(entity);
+        CHECK(entityKind(registry, entity) == EntityKind::SceneInstance);
+        registry.add<aegis::MeshRenderer>(entity);
+        CHECK(entityKind(registry, entity) == EntityKind::Mesh);
+        registry.add<aegis::PointLight>(entity);
+        CHECK(entityKind(registry, entity) == EntityKind::PointLight);
+        registry.add<aegis::DirectionalLight>(entity);
+        CHECK(entityKind(registry, entity) == EntityKind::DirectionalLight);
+        registry.add<aegis::Camera>(entity);
+        CHECK(entityKind(registry, entity) == EntityKind::Camera);
+    }
+
+    TEST_CASE("a member of a scene instance is told by its components, not as a member")
+    {
+        Registry registry;
+        const auto member = registry.create("Member");
+        registry.add<aegis::serialize::InstanceMember>(member, aegis::serialize::InstanceMember{ 1 });
+        CHECK(entityKind(registry, member) == EntityKind::Empty);
+        registry.add<aegis::MeshRenderer>(member);
+        CHECK(entityKind(registry, member) == EntityKind::Mesh);
     }
 }
