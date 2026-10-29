@@ -21,6 +21,7 @@ target_sources(aegis-editor-core
     core/chord.cppm
     core/console.cppm
     core/commands.cppm
+    core/component_text.cppm
     core/context.cppm
     core/edits.cppm
     core/editor_camera.cppm
@@ -38,6 +39,7 @@ target_sources(aegis-editor-core
     core/asset_browser.cpp
     core/chord.cpp
     core/commands.cpp
+    core/component_text.cpp
     core/console.cpp
     core/context.cpp
     core/edits.cpp

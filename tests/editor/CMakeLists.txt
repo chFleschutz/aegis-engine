@@ -3,6 +3,7 @@ aegis_add_test(editor
         asset_browser.test.cpp
         chord.test.cpp
         commands.test.cpp
+        component_text.test.cpp
         console.test.cpp
         context.test.cpp
         editor_camera.test.cpp

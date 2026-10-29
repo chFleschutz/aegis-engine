@@ -21,6 +21,7 @@ using aegis::Transform;
 using aegis::editor::addComponent;
 using aegis::editor::applyEdit;
 using aegis::editor::attachScript;
+using aegis::editor::componentToText;
 using aegis::editor::createEntity;
 using aegis::editor::destroyEntity;
 using aegis::editor::detachScript;
@@ -29,8 +30,10 @@ using aegis::editor::EditSide;
 using aegis::editor::EditWorld;
 using aegis::editor::instantiateEntity;
 using aegis::editor::moveEntity;
+using aegis::editor::pasteFields;
 using aegis::editor::removeComponent;
 using aegis::editor::renameEntity;
+using aegis::editor::resetFields;
 using aegis::editor::UndoStack;
 using aegis::reflect::TypeRegistry;
 using aegis::world::Entity;
@@ -609,5 +612,168 @@ TEST_SUITE("editor::UndoStack")
         CHECK(f.redo());
         CHECK(f.redo());
         CHECK_FALSE(f.find(id));
+    }
+}
+
+TEST_SUITE("editor::resetFields")
+{
+    TEST_CASE("undo restores every field in one step and redo resets them again")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto entity = registry.create("Lamp");
+        registry.add<Health>(entity).value = 7.0f;
+        const auto* health = f.types.find("Health");
+        REQUIRE(health);
+
+        REQUIRE(resetFields(f.edits(), f.history, entity, *health).has_value());
+        CHECK(registry.get<Health>(entity).value == 100.0f);
+        CHECK(f.undo());
+        CHECK(registry.get<Health>(entity).value == 7.0f);
+        CHECK_FALSE(f.history.canUndo());
+        CHECK(f.redo());
+        CHECK(registry.get<Health>(entity).value == 100.0f);
+    }
+
+    TEST_CASE("resets all fields of a Transform as one edit")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto entity = registry.create("Lamp");
+        registry.get<Transform>(entity).location = glm::vec3{ 1.0f, 2.0f, 3.0f };
+        registry.get<Transform>(entity).scale = glm::vec3{ 4.0f };
+        const auto* transform = f.types.find("Transform");
+        REQUIRE(transform);
+
+        REQUIRE(resetFields(f.edits(), f.history, entity, *transform).has_value());
+        CHECK(near(registry.get<Transform>(entity).location, glm::vec3{ 0.0f }));
+        CHECK(near(registry.get<Transform>(entity).scale, glm::vec3{ 1.0f }));
+        CHECK(f.undo());
+        CHECK(near(registry.get<Transform>(entity).location, glm::vec3{ 1.0f, 2.0f, 3.0f }));
+        CHECK(near(registry.get<Transform>(entity).scale, glm::vec3{ 4.0f }));
+        CHECK_FALSE(f.history.canUndo());
+    }
+
+    TEST_CASE("records nothing for a component that already has its default values")
+    {
+        Fixture f;
+        const auto entity = f.registry().create("Lamp");
+        f.registry().add<Health>(entity);
+        REQUIRE(resetFields(f.edits(), f.history, entity, *f.types.find("Health")).has_value());
+        CHECK_FALSE(f.history.canUndo());
+    }
+
+    TEST_CASE("resets a script by its index")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto entity = registry.create("Guard");
+        REQUIRE(aegis::scripting::attachScript(registry, f.types, entity, "Patrol").has_value());
+        auto second = aegis::scripting::attachScript(registry, f.types, entity, "Patrol");
+        REQUIRE(second.has_value());
+        auto& entries = registry.get<aegis::scripting::Scripts>(entity).entries;
+        static_cast<Patrol*>(entries[0].object)->speed = 3.0f;
+        static_cast<Patrol*>(entries[1].object)->speed = 4.0f;
+
+        REQUIRE(resetFields(f.edits(), f.history, entity, *f.types.find("Patrol"), 1).has_value());
+        CHECK(static_cast<Patrol*>(entries[0].object)->speed == 3.0f);
+        CHECK(static_cast<Patrol*>(entries[1].object)->speed == 1.0f);
+        CHECK(f.undo());
+        CHECK(static_cast<Patrol*>(entries[1].object)->speed == 4.0f);
+        CHECK(f.redo());
+        CHECK(static_cast<Patrol*>(entries[1].object)->speed == 1.0f);
+    }
+
+    TEST_CASE("refuses a missing component and an entity of a scene instance")
+    {
+        Fixture f;
+        const auto entity = f.registry().create("Lamp");
+        CHECK_FALSE(resetFields(f.edits(), f.history, entity, *f.types.find("Health")).has_value());
+        CHECK_FALSE(resetFields(f.edits(), f.history, entity, *f.types.find("Patrol"), 0).has_value());
+
+        f.registry().add<Health>(entity).value = 2.0f;
+        f.registry().add<aegis::serialize::InstanceMember>(entity);
+        CHECK_FALSE(resetFields(f.edits(), f.history, entity, *f.types.find("Health")).has_value());
+        CHECK(f.registry().get<Health>(entity).value == 2.0f);
+        CHECK_FALSE(f.history.canUndo());
+    }
+}
+
+TEST_SUITE("editor::pasteFields")
+{
+    TEST_CASE("copies a Transform onto another entity as one undo entry")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto from = registry.create("Helmet 1");
+        const auto to = registry.create("Helmet 2");
+        registry.get<Transform>(from).location = glm::vec3{ 1.0f, 2.0f, 3.0f };
+        registry.get<Transform>(from).scale = glm::vec3{ 2.0f };
+        registry.get<Transform>(to).location = glm::vec3{ 9.0f };
+        const auto* transform = f.types.find("Transform");
+        REQUIRE(transform);
+
+        const auto text = componentToText(*transform, &registry.get<Transform>(from));
+        REQUIRE(text.has_value());
+        REQUIRE(pasteFields(f.edits(), f.history, to, *transform, std::nullopt, *text).has_value());
+        CHECK(near(registry.get<Transform>(to).location, glm::vec3{ 1.0f, 2.0f, 3.0f }));
+        CHECK(near(registry.get<Transform>(to).scale, glm::vec3{ 2.0f }));
+
+        CHECK(f.undo());
+        CHECK(near(registry.get<Transform>(to).location, glm::vec3{ 9.0f }));
+        CHECK(near(registry.get<Transform>(to).scale, glm::vec3{ 1.0f }));
+        CHECK_FALSE(f.history.canUndo());
+        CHECK(f.redo());
+        CHECK(near(registry.get<Transform>(to).location, glm::vec3{ 1.0f, 2.0f, 3.0f }));
+    }
+
+    TEST_CASE("pastes a script onto another script of its type")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto entity = registry.create("Guard");
+        REQUIRE(aegis::scripting::attachScript(registry, f.types, entity, "Patrol").has_value());
+        REQUIRE(aegis::scripting::attachScript(registry, f.types, entity, "Patrol").has_value());
+        auto& entries = registry.get<aegis::scripting::Scripts>(entity).entries;
+        static_cast<Patrol*>(entries[0].object)->speed = 6.0f;
+        const auto* patrol = f.types.find("Patrol");
+        const auto text = componentToText(*patrol, entries[0].object);
+        REQUIRE(text.has_value());
+
+        REQUIRE(pasteFields(f.edits(), f.history, entity, *patrol, 1, *text).has_value());
+        CHECK(static_cast<Patrol*>(entries[1].object)->speed == 6.0f);
+        CHECK(f.undo());
+        CHECK(static_cast<Patrol*>(entries[1].object)->speed == 1.0f);
+        CHECK_FALSE(f.history.canUndo());
+    }
+
+    TEST_CASE("rejects text of another type without changing anything")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto entity = registry.create("Lamp");
+        registry.add<Health>(entity);
+        const auto text = componentToText(*f.types.find("Transform"), &registry.get<Transform>(entity));
+        REQUIRE(text.has_value());
+
+        CHECK_FALSE(pasteFields(f.edits(), f.history, entity, *f.types.find("Health"), std::nullopt, *text).has_value());
+        CHECK_FALSE(pasteFields(f.edits(), f.history, entity, *f.types.find("Health"), std::nullopt, "not a component").has_value());
+        CHECK_FALSE(f.history.canUndo());
+    }
+
+    TEST_CASE("refuses an entity of a scene instance")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto entity = registry.create("Lamp");
+        registry.add<Health>(entity).value = 5.0f;
+        const auto text = componentToText(*f.types.find("Health"), &registry.get<Health>(entity));
+        REQUIRE(text.has_value());
+        registry.get<Health>(entity).value = 1.0f;
+        registry.add<aegis::serialize::InstanceMember>(entity);
+
+        CHECK_FALSE(pasteFields(f.edits(), f.history, entity, *f.types.find("Health"), std::nullopt, *text).has_value());
+        CHECK(registry.get<Health>(entity).value == 1.0f);
+        CHECK_FALSE(f.history.canUndo());
     }
 }

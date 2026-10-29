@@ -18,7 +18,7 @@ struct ComponentSection
 [[nodiscard]] auto componentSections(const reflect::TypeRegistry& types, world::Registry& registry, world::Entity entity)
     -> std::vector<ComponentSection>;
 
-/// @brief The components the Add Component menu offers for 'entity': the registered ones it does not have that can be
+/// @brief The components the Add menu offers for 'entity': the registered ones it does not have that can be
 ///        created, except required ones and singletons another entity already has. Sorted by category, then name.
 [[nodiscard]] auto addableComponents(const reflect::TypeRegistry& types, world::Registry& registry, world::Entity entity)
     -> std::vector<const reflect::TypeInfo*>;
@@ -27,8 +27,12 @@ struct ComponentSection
 [[nodiscard]] auto creatableComponents(const reflect::TypeRegistry& types, world::Registry& registry)
     -> std::vector<const reflect::TypeInfo*>;
 
-/// @brief The scripts the Add Script menu offers: every registered script, sorted by category, then name.
+/// @brief The scripts the Add menu offers: every registered script, sorted by category, then name.
 [[nodiscard]] auto scriptTypes(const reflect::TypeRegistry& types) -> std::vector<const reflect::TypeInfo*>;
+
+/// @brief The types of 'types' (in their order) whose display name, registered name or category holds 'filter',
+///        ignoring case: what the Add menu lists while a search is typed. All of them for an empty 'filter'.
+[[nodiscard]] auto filterTypes(std::span<const reflect::TypeInfo* const> types, std::string_view filter) -> std::vector<const reflect::TypeInfo*>;
 
 /// @brief Gives 'entity' a default instance of the component 'type'.
 /// @return WrongCategory for a type without a ComponentStorage, NotConstructible for one that cannot be created

@@ -240,8 +240,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   `ComponentTraits`. Tag types (DynamicTag, MainCamera) are components with no fields: they show a
   header without a body.
 - **Scripts:** a "Scripts" section lists the entity's `ScriptEntry`s, each with its registered fields
-  through `ScriptEntry::object`. "Add Script" lists the registry's script types. Attach and detach are
-  commands.
+  through `ScriptEntry::object`. The one "Add..." popup lists the registry's script types after the components. Attach
+  and detach are commands.
 - **Instance members are read-only** until overrides exist ([#142]). Entities created by a scene
   instance carry `InstanceMember`, and `saveScene` leaves them out, so an edit to them would be lost
   without warning. The inspector shows them disabled, with a note naming the instanced scene, and the
@@ -251,9 +251,12 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   A drawer registry keyed by type name (editor-side) exists for the few that need more (a future
   `SkinnedMesh`, curves). A game registers drawers from its editor-only sources. Nothing in the
   runtime knows about them.
-- **Reset and copy:** the component context menu offers Reset (values from a default instance,
-  `TypeInfo::create`), Copy and Paste (field values as text through `toText` / `fromText`) and Remove.
-  All of these are commands.
+- **Reset and copy:** a ⋮ button at the right of each component and script header (and a right click on it) opens a
+  menu of Reset (the values of a default instance, `TypeInfo::create`), Copy and Paste (field values as one JSON object
+  of `toText` text on the system clipboard, in `core/component_text`; a paste only applies to the same type and skips
+  read-only fields) and Remove (Detach for a script). Reset and Paste are one `ComponentEdit` each, so one undo
+  reverts them. An entity's ⋮ menu beside its name offers Copy ID; the ID otherwise shows in the name's tooltip.
+  The "Add..." popup's search field filters components and scripts by name and category; Enter adds the first match.
 - **Structural edits are commands too:** Create, Destroy and Duplicate store the entity's subtree as a
   `serialize::Scene` snapshot (R9), so undo restores it with its IDs and Duplicate gives the copy new
   ones.
@@ -306,7 +309,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 4. **Hierarchy:** tree, selection, create/destroy/duplicate, rename, drag-and-drop reparenting and
    reordering, name filter.
 5. **Inspector generated from the registry,** with metadata-driven widgets, scripts and their fields,
-   and Add Component and Add Script menus ([#133]).
+   and the Add menu ([#133], [#275]).
 6. **Transform gizmos** (translate/rotate/scale, local/world, snapping), undoable.
 7. **Click picking** in the viewport, plus icons for lights and cameras.
 8. **Undo/redo of every edit:** fields ([#165]), and structural edits (a new item).
@@ -553,4 +556,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#204]: https://github.com/chFleschutz/aegis-engine/issues/204
 [#205]: https://github.com/chFleschutz/aegis-engine/issues/205
 [#225]: https://github.com/chFleschutz/aegis-engine/issues/225
+[#275]: https://github.com/chFleschutz/aegis-engine/issues/275
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11

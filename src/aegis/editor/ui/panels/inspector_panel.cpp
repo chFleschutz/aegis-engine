@@ -284,21 +284,115 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
     ImGui::EndTable();
 }
 
-// A header per type: open with its fields, a leaf for a tag (no fields), with a close button when it can be removed.
-// Returns false when its close button was clicked.
-auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool removable, bool readOnly, EditorContext& editor, FrameContext& frame) -> bool
+// The Add menu's items: 'types' (sorted by category) as selectable rows, under a heading per category when
+// 'categories'. 'highlighted' (the first match) is drawn selected. The type clicked this frame, if any.
+auto drawTypeGroups(std::span<const reflect::TypeInfo* const> types, const reflect::TypeInfo* highlighted, bool categories) -> const reflect::TypeInfo*
 {
-    bool keep = true;
-    const std::string title{ type.displayName() };
-    const ImGuiTreeNodeFlags flags = type.fields.empty() ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_DefaultOpen;
-    if (ImGui::CollapsingHeader(title.c_str(), removable ? &keep : nullptr, flags))
-        drawFields(type, object, entity, scriptIndex, readOnly, editor, frame);
-    ImGui::Spacing();
-    return keep;
+    const reflect::TypeInfo* picked = nullptr;
+    const std::string* category = nullptr;
+    for (const auto* type : types)
+    {
+        if (categories && (!category || *category != type->meta.category))
+        {
+            category = &type->meta.category;
+            ImGui::SeparatorText(category->empty() ? "General" : category->c_str());
+        }
+        const std::string label{ type->displayName() };
+        ImGui::PushID(type->name.c_str());
+        if (ImGui::Selectable(label.c_str(), type == highlighted))
+            picked = type;
+        ImGui::PopID();
+    }
+    return picked;
 }
 
-// The selected entity: its name and ID, its registered components and its scripts, each generated from the type
-// registry, and the Add Component and Add Script menus. Edits apply directly: the panel runs at the frame's safe point.
+// A square "more" button (three dots) of 'side' at the cursor: true when clicked. 'id' is unique among the window's items.
+auto menuButton(const char* id, float side) -> bool
+{
+    const bool pressed = ImGui::InvisibleButton(id, ImVec2{ side, side });
+    const ImVec2 min = ImGui::GetItemRectMin();
+    const ImVec2 max = ImGui::GetItemRectMax();
+    auto* drawList = ImGui::GetWindowDrawList();
+    if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+        drawList->AddRectFilled(min, max, ImGui::GetColorU32(ImGui::IsItemActive() ? ImGuiCol_ButtonActive : ImGuiCol_ButtonHovered), ImGui::GetStyle().FrameRounding);
+    const float radius = std::max(1.0f, std::round(side * 0.075f));
+    const float spacing = radius * 3.0f;
+    const ImVec2 center{ (min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f };
+    for (int i = -1; i <= 1; ++i)
+        drawList->AddCircleFilled(ImVec2{ center.x, center.y + static_cast<float>(i) * spacing }, radius, ImGui::GetColorU32(ImGuiCol_Text));
+    return pressed;
+}
+
+// What a section's menu asks for.
+enum class SectionAction
+{
+    None,
+    Remove, ///< Remove the component, detach the script
+};
+
+// The menu of a section: Reset, Copy, Paste and Remove (Detach for a script), applied to the entity's component or
+// script 'type' at 'object'. Reset and Paste are one undo entry each.
+auto drawSectionMenu(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool readOnly, EditorContext& editor, FrameContext& frame) -> SectionAction
+{
+    auto action = SectionAction::None;
+    if (!ImGui::BeginPopup("##section"))
+        return action;
+
+    const bool hasFields = !type.fields.empty();
+    if (ImGui::MenuItem("Reset", nullptr, false, !readOnly && hasFields))
+    {
+        if (auto reset = resetFields(editWorld(editor, frame), editor.undoStack(), entity, type, scriptIndex); !reset)
+            log::warn("Cannot reset {}: {}", type.name, reset.error());
+    }
+    if (ImGui::MenuItem("Copy", nullptr, false, hasFields))
+    {
+        if (auto text = componentToText(type, object))
+            ImGui::SetClipboardText(text->c_str());
+        else
+            log::warn("{}", text.error());
+    }
+    const char* clipboard = ImGui::GetClipboardText();
+    const bool pastable = !readOnly && hasFields && clipboard && componentFromText(type, clipboard).has_value();
+    if (ImGui::MenuItem("Paste", nullptr, false, pastable))
+    {
+        if (auto pasted = pasteFields(editWorld(editor, frame), editor.undoStack(), entity, type, scriptIndex, clipboard); !pasted)
+            log::warn("Cannot paste {}: {}", type.name, pasted.error());
+    }
+    ImGui::Separator();
+    const bool removable = !readOnly && !type.meta.required;
+    if (ImGui::MenuItem(scriptIndex ? "Detach" : "Remove", nullptr, false, removable))
+        action = SectionAction::Remove;
+    ImGui::EndPopup();
+    return action;
+}
+
+// A header per type: open with its fields, a leaf for a tag (no fields), with the ⋮ button and a right click opening its
+// menu. Returns false when the menu asked to remove the component or detach the script.
+auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool readOnly, EditorContext& editor, FrameContext& frame) -> bool
+{
+    const std::string title{ type.displayName() };
+    const ImGuiTreeNodeFlags flags = (type.fields.empty() ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_DefaultOpen) | ImGuiTreeNodeFlags_AllowOverlap;
+    const bool open = ImGui::CollapsingHeader(title.c_str(), flags);
+    bool menuRequested = ImGui::IsItemClicked(ImGuiMouseButton_Right);
+
+    // The button sits at the right end of the header's row, over the header
+    const ImVec2 min = ImGui::GetItemRectMin();
+    const ImVec2 max = ImGui::GetItemRectMax();
+    const float side = max.y - min.y;
+    ImGui::SetCursorScreenPos(ImVec2{ max.x - side, min.y });
+    menuRequested |= menuButton("##menu", side);
+    if (menuRequested)
+        ImGui::OpenPopup("##section");
+    const auto action = drawSectionMenu(type, object, entity, scriptIndex, readOnly, editor, frame);
+
+    if (open)
+        drawFields(type, object, entity, scriptIndex, readOnly, editor, frame);
+    ImGui::Spacing();
+    return action != SectionAction::Remove;
+}
+
+// The selected entity: its name (the ID in a tooltip), its registered components and its scripts, each generated from the type
+// registry, and the Add menu. Edits apply directly: the panel runs at the frame's safe point.
 class InspectorPanel final : public Panel
 {
 public:
@@ -329,7 +423,7 @@ public:
         drawComponents(registry, entity, readOnly, editor, frame);
         drawScripts(registry, entity, readOnly, editor, frame);
         if (!readOnly)
-            drawAddMenus(registry, entity, editor, frame);
+            drawAddMenu(registry, entity, editor, frame);
         ImGui::PopID();
         ImGui::End();
     }
@@ -338,10 +432,12 @@ private:
     static void drawHeader(world::Registry& registry, world::Entity entity, bool readOnly, EditorContext& editor, FrameContext& frame)
     {
         const bool rename = editor.takeRenameRequest();
+        const auto id = std::format("{:016x}", registry.get<StableId>(entity).value);
+        const float side = ImGui::GetFrameHeight();
+        ImGui::SetNextItemWidth(-(side + ImGui::GetStyle().ItemSpacing.x));
         if (registry.has<Name>(entity))
         {
             ImGui::BeginDisabled(readOnly);
-            ImGui::SetNextItemWidth(-FLT_MIN);
             if (rename && !readOnly)
                 ImGui::SetKeyboardFocusHere(); // F2: the name field gets the keyboard, with its text selected
             auto name = registry.get<Name>(entity).name;
@@ -355,16 +451,32 @@ private:
                 editor.undoStack().seal();
             ImGui::EndDisabled();
         }
-
-        const auto id = std::format("{:016x}", registry.get<StableId>(entity).value);
-        ImGui::AlignTextToFramePadding();
+        else
         {
-            const theme::MonospaceScope mono;
-            ImGui::TextDisabled("ID %s", id.c_str());
+            ImGui::BeginDisabled();
+            std::string unnamed = "Unnamed";
+            ImGui::InputText("##name", &unnamed, ImGuiInputTextFlags_ReadOnly);
+            ImGui::EndDisabled();
         }
+        // The ID is rarely needed: it shows when the name is hovered, also while the field is disabled
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled) && ImGui::BeginTooltip())
+        {
+            {
+                const theme::MonospaceScope mono; // Popped before EndTooltip: the font stack is per window
+                ImGui::Text("ID %s", id.c_str());
+            }
+            ImGui::EndTooltip();
+        }
+
         ImGui::SameLine();
-        if (ImGui::SmallButton("Copy"))
-            ImGui::SetClipboardText(id.c_str());
+        if (menuButton("##entityMenu", side))
+            ImGui::OpenPopup("##entity");
+        if (ImGui::BeginPopup("##entity"))
+        {
+            if (ImGui::MenuItem("Copy ID"))
+                ImGui::SetClipboardText(id.c_str());
+            ImGui::EndPopup();
+        }
 
         if (readOnly)
         {
@@ -381,8 +493,7 @@ private:
         for (const auto& section : componentSections(frame.types, registry, entity))
         {
             ImGui::PushID(section.type->name.c_str());
-            const bool removable = !readOnly && !section.type->meta.required;
-            if (!drawSection(*section.type, section.object, entity, std::nullopt, removable, readOnly, editor, frame))
+            if (!drawSection(*section.type, section.object, entity, std::nullopt, readOnly, editor, frame))
                 removed = section.type;
             ImGui::PopID();
         }
@@ -405,7 +516,7 @@ private:
             if (!type || !entries[i].object)
                 continue;
             ImGui::PushID(static_cast<int>(i));
-            if (!drawSection(*type, entries[i].object, entity, i, !readOnly, readOnly, editor, frame))
+            if (!drawSection(*type, entries[i].object, entity, i, readOnly, editor, frame))
                 detached = i;
             ImGui::PopID();
         }
@@ -416,34 +527,55 @@ private:
         }
     }
 
-    static void drawAddMenus(world::Registry& registry, world::Entity entity, EditorContext& editor, FrameContext& frame)
+    // One full-width button opening a popup with a search field and every component and script the entity can get.
+    static void drawAddMenu(world::Registry& registry, world::Entity entity, EditorContext& editor, FrameContext& frame)
     {
-        ImGui::Spacing();
-        const float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
-        if (ImGui::Button("Add Component", ImVec2{ buttonWidth, 0.0f }))
-            ImGui::OpenPopup("AddComponent");
-        ImGui::SameLine();
-        if (ImGui::Button("Add Script", ImVec2{ buttonWidth, 0.0f }))
-            ImGui::OpenPopup("AddScript");
+        static std::string s_filter;
 
-        if (ImGui::BeginPopup("AddComponent"))
+        ImGui::Spacing();
+        if (ImGui::Button("Add...", ImVec2{ -FLT_MIN, 0.0f }))
+            ImGui::OpenPopup("##add");
+
+        ImGui::SetNextWindowSizeConstraints(ImVec2{ ImGui::GetItemRectSize().x, 0.0f }, ImVec2{ FLT_MAX, ImGui::GetTextLineHeightWithSpacing() * 20.0f });
+        ImGui::SetNextWindowPos(ImVec2{ ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y }, ImGuiCond_Appearing); // Under the button, as wide as it
+        if (!ImGui::BeginPopup("##add"))
+            return;
+
+        if (ImGui::IsWindowAppearing())
         {
-            if (const auto* type = pickType(addableComponents(frame.types, registry, entity)))
-            {
-                if (auto added = addComponent(editWorld(editor, frame), editor.undoStack(), entity, *type); !added)
-                    log::warn("Cannot add {}: {}", type->name, added.error());
-            }
-            ImGui::EndPopup();
+            s_filter.clear();
+            ImGui::SetKeyboardFocusHere();
         }
-        if (ImGui::BeginPopup("AddScript"))
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        const bool confirmed = ImGui::InputTextWithHint("##filter", "Search", &s_filter, ImGuiInputTextFlags_EnterReturnsTrue);
+
+        const auto components = filterTypes(addableComponents(frame.types, registry, entity), s_filter);
+        const auto scripts = filterTypes(scriptTypes(frame.types), s_filter);
+        if (components.empty() && scripts.empty())
+            ImGui::TextDisabled(s_filter.empty() ? "Nothing to add" : "No match");
+
+        // The first match is what Enter adds
+        const reflect::TypeInfo* first = !components.empty() ? components.front() : !scripts.empty() ? scripts.front()
+                                                                                                     : nullptr;
+        const reflect::TypeInfo* picked = confirmed ? first : nullptr;
+        if (const auto* type = drawTypeGroups(components, first, true))
+            picked = type;
+        if (!scripts.empty())
         {
-            if (const auto* type = pickType(scriptTypes(frame.types)))
-            {
-                if (auto attached = attachScript(editWorld(editor, frame), editor.undoStack(), entity, *type); !attached)
-                    log::warn("Cannot attach {}: {}", type->name, attached.error());
-            }
-            ImGui::EndPopup();
+            ImGui::SeparatorText("Scripts");
+            if (const auto* type = drawTypeGroups(scripts, first, false))
+                picked = type;
         }
+
+        if (picked)
+        {
+            const bool script = picked->category == reflect::TypeCategory::Script;
+            auto added = script ? attachScript(editWorld(editor, frame), editor.undoStack(), entity, *picked) : addComponent(editWorld(editor, frame), editor.undoStack(), entity, *picked);
+            if (!added)
+                log::warn("Cannot {} {}: {}", script ? "attach" : "add", picked->name, added.error());
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
     }
 };
 }

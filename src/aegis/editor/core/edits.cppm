@@ -34,16 +34,21 @@ struct FieldEdit
     }
 };
 
-/// @brief Every field of a component written at once: a gizmo drag writes the whole Transform.
+/// @brief Every field of a component or script written at once: a gizmo drag writes the whole Transform, Reset and
+///        Paste write the fields they change.
 struct ComponentEdit
 {
     StableId entity;
-    std::string type; ///< The registered component type
+    std::string type;                       ///< The registered component or script type
+    std::optional<std::size_t> scriptIndex; ///< Which of the entity's scripts, for a script type
     FieldValues oldValues;
     FieldValues newValues;
     bool open{ false }; ///< A continuous edit (a drag) that the next edit of the same component extends
 
-    [[nodiscard]] auto sameTarget(const ComponentEdit& other) const -> bool { return entity == other.entity && type == other.type; }
+    [[nodiscard]] auto sameTarget(const ComponentEdit& other) const -> bool
+    {
+        return entity == other.entity && type == other.type && scriptIndex == other.scriptIndex;
+    }
 };
 
 /// @brief A component added with its field values, or removed (then undo adds it back with them).

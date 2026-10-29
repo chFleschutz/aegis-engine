@@ -59,6 +59,17 @@ auto addComponent(const EditWorld& world, UndoStack& history, world::Entity enti
 auto removeComponent(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type)
     -> std::expected<void, std::string>;
 
+/// @brief Sets every field of the entity's component 'type' (or, with 'scriptIndex', its script of that number and
+///        type) to the values of a default instance. One undo entry; none if they already are the defaults.
+auto resetFields(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type,
+    std::optional<std::size_t> scriptIndex = std::nullopt) -> std::expected<void, std::string>;
+
+/// @brief Writes the fields that 'text' (componentToText of the same type, copied from any entity) holds to the
+///        entity's component 'type' or script, as resetFields does; the other fields keep their values. One undo entry.
+/// @return Why 'text' does not apply (see componentFromText); nothing is changed then
+auto pasteFields(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type,
+    std::optional<std::size_t> scriptIndex, std::string_view text) -> std::expected<void, std::string>;
+
 /// @brief Attaches a new script of type 'type' to 'entity', after its other scripts.
 auto attachScript(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type)
     -> std::expected<void, std::string>;
