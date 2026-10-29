@@ -455,8 +455,10 @@ private:
         // The ID is rarely needed: it shows when the name is hovered, also while the field is disabled
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled) && ImGui::BeginTooltip())
         {
-            const theme::MonospaceScope mono;
-            ImGui::Text("ID %s", id.c_str());
+            {
+                const theme::MonospaceScope mono; // Popped before EndTooltip: the font stack is per window
+                ImGui::Text("ID %s", id.c_str());
+            }
             ImGui::EndTooltip();
         }
 
