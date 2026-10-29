@@ -19,6 +19,7 @@ target_sources(aegis-editor-core
     core/core.cppm
     core/asset_browser.cppm
     core/chord.cppm
+    core/color.cppm
     core/console.cppm
     core/commands.cppm
     core/context.cppm
@@ -37,6 +38,7 @@ target_sources(aegis-editor-core
     PRIVATE
     core/asset_browser.cpp
     core/chord.cpp
+    core/color.cpp
     core/commands.cpp
     core/console.cpp
     core/context.cpp
