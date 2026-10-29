@@ -115,4 +115,26 @@ TEST_SUITE("editor::EditorPreferences")
         preferences.addRecentProject("d", 3);
         CHECK(preferences.recentProjects == std::vector<std::string>{ "d", "a", "c" });
     }
+
+    TEST_CASE("finds the UI scale among the steps")
+    {
+        CHECK(aegis::editor::uiScaleStep(0.75f) == 0);
+        CHECK(aegis::editor::uiScaleStep(1.0f) == 1);
+        CHECK(aegis::editor::uiScaleStep(2.0f) == 5);
+        CHECK_FALSE(aegis::editor::uiScaleStep(1.3f));
+        CHECK_FALSE(aegis::editor::uiScaleStep(4.0f));
+    }
+
+    TEST_CASE("labels a step by its percentage and any other scale as custom")
+    {
+        CHECK(aegis::editor::uiScaleLabel(1.0f) == "100%");
+        CHECK(aegis::editor::uiScaleLabel(1.75f) == "175%");
+        CHECK(aegis::editor::uiScaleLabel(1.3f) == "Custom (1.30)");
+    }
+
+    TEST_CASE("labels the effective scale with the monitor's")
+    {
+        CHECK(aegis::editor::effectiveScaleLabel(1.5f, 1.5f) == "\u00D7 1.5 monitor = 225%");
+        CHECK(aegis::editor::effectiveScaleLabel(1.0f, 0.75f) == "\u00D7 1 monitor = 75%");
+    }
 }

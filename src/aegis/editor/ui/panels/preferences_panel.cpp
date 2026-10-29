@@ -2,6 +2,8 @@ module;
 
 #include <imgui.h>
 
+#include "aegis/editor/ui/theme.h"
+
 module aegis.editor;
 import std;
 import :panels;
@@ -35,7 +37,7 @@ public:
         ImGui::DragFloat("Snap move", &preferences.snapTranslate, 0.01f, 0.001f, 1000.0f, "%.3f units");
         ImGui::DragFloat("Snap rotate", &preferences.snapRotate, 0.1f, 0.01f, 180.0f, "%.2f deg");
         ImGui::DragFloat("Snap scale", &preferences.snapScale, 0.01f, 0.001f, 100.0f, "%.3f");
-        ImGui::DragFloat("UI scale", &preferences.uiScale, 0.01f, 0.5f, 4.0f, "%.2f");
+        drawUiScale(preferences.uiScale);
 
         if (!preferences.recentProjects.empty())
         {
@@ -44,6 +46,28 @@ public:
                 ImGui::TextUnformatted(project.c_str());
         }
         ImGui::End();
+    }
+
+private:
+    // A combo of steps: only a choice changes the scale, so the widget doesn't move while it is open. A value from a
+    // hand-edited file shows as custom. The effective scale next to it includes the monitor's.
+    static void drawUiScale(float& uiScale)
+    {
+        const auto current = uiScaleStep(uiScale);
+        if (ImGui::BeginCombo("UI scale", uiScaleLabel(uiScale).c_str()))
+        {
+            for (std::size_t i = 0; i < uiScaleSteps.size(); ++i)
+            {
+                const bool selected = current == i;
+                if (ImGui::Selectable(uiScaleLabel(uiScaleSteps[i]).c_str(), selected))
+                    uiScale = uiScaleSteps[i];
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", effectiveScaleLabel(theme::contentScale(), uiScale).c_str());
     }
 };
 }
