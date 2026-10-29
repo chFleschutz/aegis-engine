@@ -13,6 +13,8 @@ struct EditorPreferences
     float snapTranslate{ 0.5f };
     float snapRotate{ 15.0f };
     float snapScale{ 0.1f };
+    /// @brief Whether the viewport shows the light and camera icons (the toolbar's toggle); hidden ones can't be clicked.
+    bool showIcons{ true };
     /// @brief Scales the whole UI (fonts and sizes), 1 is unscaled.
     float uiScale{ 1.0f };
     /// @brief Project folders as UTF-8, the most recent first.

@@ -42,14 +42,14 @@ auto pickNearest(const Ray& ray, std::span<const PickTarget> targets) -> std::op
     return nearest;
 }
 
-auto pickIcon(const glm::vec2& cursor, std::span<const PickIcon> icons, float radius) -> std::optional<StableId>
+auto pickIcon(const glm::vec2& cursor, std::span<const PickIcon> icons) -> std::optional<StableId>
 {
     std::optional<StableId> nearest;
-    float nearestDistance = radius;
+    float nearestDistance = std::numeric_limits<float>::max();
     for (const auto& icon : icons)
     {
         const float distance = glm::length(icon.position - cursor);
-        if (distance <= nearestDistance)
+        if (distance <= icon.radius && distance <= nearestDistance)
         {
             nearestDistance = distance;
             nearest = icon.id;

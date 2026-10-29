@@ -18,4 +18,9 @@ export namespace aegis::editor
 ///        left alone keeps its stored value exactly, so touching one channel doesn't move the others by the
 ///        rounding of a round trip.
 [[nodiscard]] auto linearAfterEdit(const glm::vec3& stored, const glm::vec3& shown, const glm::vec3& edited) -> glm::vec3;
+
+/// @brief A light's linear color as its viewport icon shows it, in sRGB: at full brightness (the largest channel 1,
+///        whatever the intensity) and mixed a quarter with white, so a dark or deeply saturated color still reads on
+///        the icon's dark backdrop. Black or a negative color gives white.
+[[nodiscard]] auto iconTint(const glm::vec3& linear) -> glm::vec3;
 }
