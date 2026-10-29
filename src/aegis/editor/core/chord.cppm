@@ -15,6 +15,7 @@ enum class Key
     Y,
     Z,
     Delete,
+    F1,
     F2,
 };
 
@@ -31,4 +32,11 @@ struct Chord
 
 /// @brief The chord as menus show it: "Ctrl+Shift+S", "Del", "F2".
 [[nodiscard]] auto describe(const Chord& chord) -> std::string;
+
+/// @brief Whether 'chord' holds Ctrl, Shift or Alt. While the game has the keyboard only these run in the editor; a
+///        plain key (Del, F2, F) is the game's.
+[[nodiscard]] constexpr auto hasModifier(const Chord& chord) -> bool
+{
+    return chord.ctrl || chord.shift || chord.alt;
+}
 }

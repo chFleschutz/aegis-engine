@@ -36,6 +36,7 @@ public:
     /// @brief The editor's UI and edits; the main world updates in edit mode (no script runs).
     void onFrame(FrameContext& frame) override;
     /// @brief The input the editor's UI or the viewport's camera uses (as of the last frame); the game doesn't see it.
+    ///        While the game has the input (the focused viewport, in play), only an editor chord's key until it is released.
     [[nodiscard]] auto inputCapture() const -> InputCapture override;
     /// @brief The viewport's view while it is open: the editor camera at the panel's settled size.
     [[nodiscard]] auto renderView() const -> std::optional<RenderView> override;

@@ -193,9 +193,14 @@ Still to come: the views to render (world, camera and target per view, R5 [#192]
   cameras get screen-space icons drawn with the viewport draw list, and those are clickable too. A GPU
   ID buffer is a later improvement (nice to have).
 - **Input routing:** the editor camera gets input while the viewport is hovered or RMB is held. The
-  play world gets game input only while the viewport is focused in play mode. Shift+F1 releases a
-  captured cursor. The shell sets the capture flags: ImGui's, plus everything while the viewport is
-  hovered or the camera is being dragged.
+  play world gets game input only while the viewport is focused in play mode; it shows "Shift+F1 releases
+  the input" meanwhile. Shift+F1 drops the viewport's focus and shows the cursor again, and a click on the
+  viewport gives the input back. The shell sets the capture flags: ImGui's, plus everything while the
+  viewport is hovered or the camera is being dragged. While the game has the input, only chords with a
+  modifier run in the editor (plain keys are the game's), and the key of one is kept from the game from
+  the frame it is pressed (the engine asks for the capture again after the shell's frame) until it is
+  released. Holding Ctrl alone still reaches the game, which may use it (the movement controller's slow
+  walk).
 
 ### Reading and modifying data (the technical UI side)
 
@@ -441,6 +446,7 @@ tokens, not this structure.
   | Undo, Redo | Ctrl+Z, Ctrl+Y (also Ctrl+Shift+Z) |
   | Duplicate, Delete, Rename (the inspector's name field) | Ctrl+D, Del, F2 |
   | Play/Stop, Pause/Resume, Step | Ctrl+P, Ctrl+Shift+P, Ctrl+Alt+P |
+  | Release the game's input (while playing) | Shift+F1 |
   | Select, Move, Rotate, Scale (viewport focus) | Q, W, E, R |
   | Focus the selection (also a double click on a hierarchy row) | F |
   | Fly the camera (while the right mouse button is held) | W, A, S, D, Q, E |

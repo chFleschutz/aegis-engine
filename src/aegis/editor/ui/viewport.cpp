@@ -109,6 +109,8 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
             const float inset = thickness * 0.5f;
             ImGui::GetWindowDrawList()->AddRect(ImVec2{ rect.x + inset, rect.y + inset }, ImVec2{ rect.x + rect.width - inset, rect.y + rect.height - inset }, theme::packed(theme::playFrame), 0.0f, 0, thickness);
         }
+        if (givesInputToGame())
+            drawReleaseHint(rect);
 
         if (!m_gameView)
         {
@@ -130,6 +132,12 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
         m_flying = m_orbiting = m_panning = false;
     }
     ImGui::End();
+}
+
+void Viewport::releaseInput()
+{
+    ImGui::SetWindowFocus(nullptr);
+    m_focused = false;
 }
 
 void Viewport::setGameView(bool gameView)
@@ -313,6 +321,20 @@ void Viewport::drawToolbar(EditorContext& editor, const Rect& rect)
         m_snap = !m_snap;
     ImGui::SetItemTooltip("Snap (Ctrl inverts it). Steps: %.3g units, %.3g degrees, %.3g scale", editor.preferences().snapTranslate,
         editor.preferences().snapRotate, editor.preferences().snapScale);
+}
+
+void Viewport::drawReleaseHint(const Rect& rect) const
+{
+    if (m_releaseHint.empty())
+        return;
+    // In the bottom left corner, inside the play frame, on the icons' backdrop so it reads over any scene
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const ImVec2 size = ImGui::CalcTextSize(m_releaseHint.c_str());
+    const ImVec2 min{ rect.x + style.ItemSpacing.x * 2.0f, rect.y + rect.height - style.ItemSpacing.y * 2.0f - size.y - style.FramePadding.y * 2.0f };
+    const ImVec2 max{ min.x + size.x + style.FramePadding.x * 2.0f, min.y + size.y + style.FramePadding.y * 2.0f };
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->AddRectFilled(min, max, theme::packed(theme::iconBackdrop), style.FrameRounding);
+    drawList->AddText(ImVec2{ min.x + style.FramePadding.x, min.y + style.FramePadding.y }, theme::packed(theme::textDim), m_releaseHint.c_str());
 }
 
 auto Viewport::drawIcons(const EditorContext& editor, const Rect& rect) -> std::vector<PickIcon>

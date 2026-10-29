@@ -121,6 +121,7 @@ EditorShell::EditorShell()
             m_defaultOpen.push_back(panel.get());
     }
     buildActions();
+    m_viewport.setReleaseHint(std::format("{} releases the input", m_actions.shortcut("play.release")));
 }
 
 EditorShell::~EditorShell()
@@ -194,8 +195,9 @@ auto EditorShell::canClose() -> bool
 auto EditorShell::inputCapture() const -> InputCapture
 {
     const auto& io = ImGui::GetIO();
+    // The play world's game has it, but for the key of an editor chord until it is released
     if (m_viewport.givesInputToGame())
-        return {}; // The play world's game has it
+        return { .keyboard = m_actions.chordHeld() };
     const bool viewport = m_viewport.capturesInput();
     return { .keyboard = io.WantCaptureKeyboard || viewport, .mouse = io.WantCaptureMouse || viewport };
 }
@@ -211,7 +213,7 @@ void EditorShell::onFrame(FrameContext& frame)
 
     const int tint = m_context.playing() ? pushPlayTint() : 0;
     beginMainWindow();
-    m_actions.handleShortcuts(frame);
+    m_actions.handleShortcuts(frame, m_viewport.givesInputToGame());
     if (m_context.renameRequested())
         openPanel("Inspector"); // The name field is there
     drawMenuBar(frame);
@@ -492,6 +494,7 @@ void EditorShell::stopPlay(FrameContext& frame)
     m_playWorld = nullptr;
     m_play.stop();
     m_viewport.setGameView(false);
+    frame.engine.restoreCursor(); // The game may have hidden it
 }
 
 void EditorShell::savePreferencesIfChanged()
@@ -621,6 +624,13 @@ void EditorShell::buildActions()
         .chord = chord(Key::P, true, false, true),
         .enabled = [this] { return m_play.state() == PlaySession::State::Paused; },
         .run = [this](FrameContext&) { m_play.step(); } });
+    m_actions.add({ .id = "play.release",
+        .label = "Release Input",
+        .chord = chord(Key::F1, false, true),
+        .enabled = [this] { return m_play.active(); },
+        .run = [this](FrameContext& frame) {
+            m_viewport.releaseInput();
+            frame.engine.restoreCursor(); } });
 }
 
 void EditorShell::updateStyle()
@@ -706,6 +716,8 @@ void EditorShell::drawMenuBar(FrameContext& frame)
         m_actions.menuItem("play.toggle", frame, state == PlaySession::State::Stopped ? "Play" : "Stop");
         m_actions.menuItem("play.pause", frame, state == PlaySession::State::Paused ? "Resume" : "Pause");
         m_actions.menuItem("play.step", frame);
+        ImGui::Separator();
+        m_actions.menuItem("play.release", frame);
         ImGui::EndMenu();
     }
 
@@ -763,14 +775,26 @@ void EditorShell::drawPlayControls(FrameContext& frame)
     const float width = 3.0f * buttonWidth + 2.0f * style.ItemSpacing.x;
     ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), (ImGui::GetWindowWidth() - width) * 0.5f));
 
-    // A small icon button that shows its action's name and shortcut; 'lit' colors the icon.
-    const auto button = [&](const char* icon, const char* id, std::string_view action, bool lit, const ImVec4& color) {
+    // A small icon button that shows its action's name and shortcut; 'lit' colors the icon, 'filled' fills the button
+    // with the play color instead.
+    const auto button = [&](const char* icon, const char* id, std::string_view action, bool lit, const ImVec4& color, bool filled = false) {
         ImGui::PushID(id);
-        if (lit)
+        int colors = 0;
+        if (filled)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::bgDeep);
+            ImGui::PushStyleColor(ImGuiCol_Button, theme::playFrame);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::playHover);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::playActive);
+            colors = 4;
+        }
+        else if (lit)
+        {
             ImGui::PushStyleColor(ImGuiCol_Text, color);
+            colors = 1;
+        }
         const bool clicked = ImGui::SmallButton(icon);
-        if (lit)
-            ImGui::PopStyleColor();
+        ImGui::PopStyleColor(colors);
         ImGui::PopID();
         ImGui::SetItemTooltip("%s", m_actions.tooltip(action).c_str());
         return clicked;
@@ -780,7 +804,8 @@ void EditorShell::drawPlayControls(FrameContext& frame)
             action->run(frame);
     };
 
-    if (button(state == PlaySession::State::Stopped ? theme::icons::play : theme::icons::stop, "play", "play.toggle", state != PlaySession::State::Stopped, theme::playFrame))
+    const bool active = state != PlaySession::State::Stopped;
+    if (button(active ? theme::icons::stop : theme::icons::play, "play", "play.toggle", false, theme::text, active))
         run("play.toggle");
     ImGui::BeginDisabled(!m_play.active());
     if (button(theme::icons::pause, "pause", "play.pause", state == PlaySession::State::Paused, theme::accentHover))
@@ -790,5 +815,10 @@ void EditorShell::drawPlayControls(FrameContext& frame)
     if (button(theme::icons::step, "step", "play.step", false, theme::text))
         run("play.step");
     ImGui::EndDisabled();
+    if (active)
+    {
+        ImGui::SameLine();
+        ImGui::TextColored(theme::playFrame, "%s", state == PlaySession::State::Paused ? "Paused" : "Playing");
+    }
 }
 }
