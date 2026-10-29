@@ -130,9 +130,11 @@ private:
     bool m_openPrompt{ false };             // Open the prompt, the Open or the Save As popup in this frame
     bool m_openOpen{ false };
     bool m_openSaveAs{ false };
-    std::string m_saveAsPath; // What Save As shows
-    std::string m_fileError;  // Why the last Save As failed, in its popup
-    std::string m_title;      // The window's, as last set
+    std::string m_openSearch;                       // What the Open popup lists
+    std::optional<assets::AssetId> m_openSelection; // Its selected scene
+    std::string m_saveAsPath;                       // What Save As shows
+    std::string m_fileError;                        // Why the last Save As failed, in its popup
+    std::string m_title;                            // The window's, as last set
     PlaySession m_play;
     world::World* m_playWorld{ nullptr }; // While a play session runs; the engine owns it
     RollingAverage<20> m_gpuMs;           // The frame graph's GPU time, which varies from frame to frame

@@ -1,5 +1,7 @@
 module;
 
+#include <cfloat>
+
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
@@ -407,18 +409,40 @@ void EditorShell::saveRecentScenes()
 void EditorShell::drawOpenPopup(FrameContext& frame)
 {
     if (std::exchange(m_openOpen, false))
+    {
+        m_openSearch.clear();
+        m_openSelection = m_scene;
         ImGui::OpenPopup("Open Scene");
+    }
     ImGui::SetNextWindowSize(ImVec2{ 420.0f * theme::scale(), 360.0f * theme::scale() }, ImGuiCond_Appearing);
     if (!ImGui::BeginPopupModal("Open Scene"))
         return;
+    if (ImGui::IsWindowAppearing())
+        ImGui::SetKeyboardFocusHere();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputTextWithHint("##search", "Search", &m_openSearch);
+
     const auto& database = frame.assets.database();
     std::vector<const assets::AssetEntry*> scenes;
     for (const auto& entry : database.entries())
     {
-        if (entry.type == "Scene" && !database.roots()[entry.root].readOnly)
+        if (entry.type == "Scene" && !database.roots()[entry.root].readOnly && core::containsIgnoringCase(entry.path, m_openSearch))
             scenes.push_back(&entry);
     }
     std::ranges::sort(scenes, {}, &assets::AssetEntry::path);
+
+    // The selection is one of the listed scenes: a search selects the first match, the arrow keys move it
+    auto selected = std::ranges::find_if(scenes, [this](const assets::AssetEntry* entry) { return m_openSelection == entry->id; });
+    if (selected == scenes.end())
+        selected = scenes.begin();
+    const bool down = ImGui::IsKeyPressed(ImGuiKey_DownArrow) && selected != scenes.end() && std::next(selected) != scenes.end();
+    const bool up = ImGui::IsKeyPressed(ImGuiKey_UpArrow) && selected != scenes.begin();
+    if (down)
+        ++selected;
+    else if (up)
+        --selected;
+    const bool moved = down || up;
+    m_openSelection = selected != scenes.end() ? std::optional{ (*selected)->id } : std::nullopt;
 
     std::optional<assets::AssetId> chosen;
     const float buttons = ImGui::GetFrameHeightWithSpacing();
@@ -426,17 +450,34 @@ void EditorShell::drawOpenPopup(FrameContext& frame)
     {
         for (const auto* entry : scenes)
         {
-            if (ImGui::Selectable(entry->path.c_str(), m_scene == entry->id, ImGuiSelectableFlags_AllowDoubleClick) && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                chosen = entry->id;
+            const bool current = m_openSelection == entry->id;
+            if (ImGui::Selectable(entry->path.c_str(), current, ImGuiSelectableFlags_AllowDoubleClick))
+            {
+                m_openSelection = entry->id;
+                if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                    chosen = entry->id;
+            }
+            if (current && (moved || ImGui::IsWindowAppearing()))
+                ImGui::SetScrollHereY();
         }
         if (scenes.empty())
-            ImGui::TextDisabled("The project has no scene files");
+            ImGui::TextDisabled("%s", m_openSearch.empty() ? "The project has no scene files" : "No scene matches the search");
     }
     ImGui::EndChild();
+
+    // Open is the default: Enter takes it, and it has the accent
+    ImGui::BeginDisabled(!m_openSelection);
+    ImGui::PushStyleColor(ImGuiCol_Button, theme::accent);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentHover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentActive);
+    const bool open = ImGui::Button("Open") || ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter);
+    ImGui::PopStyleColor(3);
+    ImGui::EndDisabled();
+    if (open && m_openSelection)
+        chosen = m_openSelection;
+    ImGui::SameLine();
     if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape))
         ImGui::CloseCurrentPopup();
-    ImGui::SameLine();
-    ImGui::TextDisabled("Double-click a scene to open it");
     if (chosen)
     {
         ImGui::CloseCurrentPopup();
