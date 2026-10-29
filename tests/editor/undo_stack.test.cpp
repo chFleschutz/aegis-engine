@@ -83,6 +83,26 @@ TEST_SUITE("editor::UndoStack")
         CHECK(stack.canRedo());
     }
 
+    TEST_CASE("names the edits undo and redo take next without taking them")
+    {
+        UndoStack stack;
+        CHECK(stack.nextUndo() == nullptr);
+        CHECK(stack.nextRedo() == nullptr);
+        stack.record(edit(entityA, "value", 1.0f, 2.0f));
+        stack.record(edit(entityA, "armor", 0.0f, 5.0f));
+
+        CHECK(field(stack.nextUndo()).field == "armor");
+        CHECK(stack.nextRedo() == nullptr);
+        CHECK(stack.canUndo()); // Looking does not step
+
+        (void)stack.undo();
+        CHECK(field(stack.nextUndo()).field == "value");
+        CHECK(field(stack.nextRedo()).field == "armor");
+        (void)stack.undo();
+        CHECK(stack.nextUndo() == nullptr);
+        CHECK(field(stack.nextRedo()).field == "value");
+    }
+
     TEST_CASE("a new edit drops what was undone")
     {
         UndoStack stack;
