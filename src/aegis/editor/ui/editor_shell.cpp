@@ -775,14 +775,26 @@ void EditorShell::drawPlayControls(FrameContext& frame)
     const float width = 3.0f * buttonWidth + 2.0f * style.ItemSpacing.x;
     ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), (ImGui::GetWindowWidth() - width) * 0.5f));
 
-    // A small icon button that shows its action's name and shortcut; 'lit' colors the icon.
-    const auto button = [&](const char* icon, const char* id, std::string_view action, bool lit, const ImVec4& color) {
+    // A small icon button that shows its action's name and shortcut; 'lit' colors the icon, 'filled' fills the button
+    // with the play color instead.
+    const auto button = [&](const char* icon, const char* id, std::string_view action, bool lit, const ImVec4& color, bool filled = false) {
         ImGui::PushID(id);
-        if (lit)
+        int colors = 0;
+        if (filled)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::bgDeep);
+            ImGui::PushStyleColor(ImGuiCol_Button, theme::playFrame);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::playHover);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::playActive);
+            colors = 4;
+        }
+        else if (lit)
+        {
             ImGui::PushStyleColor(ImGuiCol_Text, color);
+            colors = 1;
+        }
         const bool clicked = ImGui::SmallButton(icon);
-        if (lit)
-            ImGui::PopStyleColor();
+        ImGui::PopStyleColor(colors);
         ImGui::PopID();
         ImGui::SetItemTooltip("%s", m_actions.tooltip(action).c_str());
         return clicked;
@@ -792,7 +804,8 @@ void EditorShell::drawPlayControls(FrameContext& frame)
             action->run(frame);
     };
 
-    if (button(state == PlaySession::State::Stopped ? theme::icons::play : theme::icons::stop, "play", "play.toggle", state != PlaySession::State::Stopped, theme::playFrame))
+    const bool active = state != PlaySession::State::Stopped;
+    if (button(active ? theme::icons::stop : theme::icons::play, "play", "play.toggle", false, theme::text, active))
         run("play.toggle");
     ImGui::BeginDisabled(!m_play.active());
     if (button(theme::icons::pause, "pause", "play.pause", state == PlaySession::State::Paused, theme::accentHover))
@@ -802,5 +815,10 @@ void EditorShell::drawPlayControls(FrameContext& frame)
     if (button(theme::icons::step, "step", "play.step", false, theme::text))
         run("play.step");
     ImGui::EndDisabled();
+    if (active)
+    {
+        ImGui::SameLine();
+        ImGui::TextColored(theme::playFrame, "%s", state == PlaySession::State::Paused ? "Paused" : "Playing");
+    }
 }
 }

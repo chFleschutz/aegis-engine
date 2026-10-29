@@ -32,9 +32,12 @@ inline constexpr ImVec4 accentActive = rgb(0x3A74B8);
 inline constexpr ImVec4 warning = rgb(0xFFD24D);
 inline constexpr ImVec4 error = rgb(0xFF6B6B);
 
-// The tint mixed into the windows while a play session runs, and the frame around the viewport.
+// The tint mixed into the windows while a play session runs, and the frame around the viewport, which also fills
+// the Stop button and colors the play state's label; the button's hovered and pressed fills.
 inline constexpr ImVec4 playTint = rgb(0x733813);
 inline constexpr ImVec4 playFrame = rgb(0xE8873A);
+inline constexpr ImVec4 playHover = rgb(0xF0A060);
+inline constexpr ImVec4 playActive = rgb(0xC96E28);
 
 inline constexpr ImVec4 axisX = rgb(0xE5534B);
 inline constexpr ImVec4 axisY = rgb(0x6CC24A);
