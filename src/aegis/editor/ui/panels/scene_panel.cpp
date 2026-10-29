@@ -294,7 +294,8 @@ private:
         const ImU32 textColor = ImGui::GetColorU32(member ? ImGuiCol_TextDisabled : ImGuiCol_Text);
 
         const ImVec2 min = ImGui::GetItemRectMin();
-        const ImVec2 position{ min.x + ImGui::GetTreeNodeToLabelSpacing(), min.y + ImGui::GetStyle().FramePadding.y };
+        // Centered on the row: a tree node has no vertical padding of its own
+        const ImVec2 position{ min.x + ImGui::GetTreeNodeToLabelSpacing(), min.y + (ImGui::GetItemRectSize().y - ImGui::GetTextLineHeight()) * 0.5f };
         const char* icon = kindIcon(kind);
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddText(position, ImGui::ColorConvertFloat4ToU32(iconColor), icon);
