@@ -2,6 +2,7 @@ aegis_add_test(editor
     SOURCES
         asset_browser.test.cpp
         chord.test.cpp
+        color.test.cpp
         commands.test.cpp
         component_text.test.cpp
         console.test.cpp
