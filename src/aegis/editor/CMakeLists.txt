@@ -32,6 +32,7 @@ target_sources(aegis-editor-core
     core/play.cppm
     core/preferences.cppm
     core/property_model.cppm
+    core/recent_scenes.cppm
     core/scene_file.cppm
     core/selection.cppm
     core/settled_extent.cppm
@@ -52,6 +53,7 @@ target_sources(aegis-editor-core
     core/play.cpp
     core/preferences.cpp
     core/property_model.cpp
+    core/recent_scenes.cpp
     core/scene_file.cpp
     core/selection.cpp
     core/settled_extent.cpp

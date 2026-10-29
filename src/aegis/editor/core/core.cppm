@@ -10,6 +10,7 @@
 //   :color          The sRGB transfer function, and the edit of a linear color shown in sRGB.
 //   :console        ConsoleBuffer: the log lines the console shows, with filters.
 //   :preferences    EditorPreferences: the user's settings, kept in the config folder.
+//   :recent_scenes  RecentScenes: the project's scenes opened or saved last, for File > Open Recent.
 //   :selection      The selected entities, by StableId.
 //   :context        EditorContext: the edited world and the selection, shared by the panels.
 //   :picking        Rays and bounding spheres: what a click in the viewport selects.
@@ -40,6 +41,7 @@ export import :picking;
 export import :play;
 export import :preferences;
 export import :property_model;
+export import :recent_scenes;
 export import :scene_file;
 export import :selection;
 export import :settled_extent;
