@@ -285,8 +285,9 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   (an in-editor path field inside the project, which writes a new native file with a new ID and adds
   it to the database). The title bar and the scene tab show `*` while dirty. Open, New and closing the
   window ask about unsaved changes (`Shell::canClose`, R12). There are no native file dialogs.
-- **Console:** a log sink (R13) feeds a ring buffer with level filters, search, clear and copy, while
-  stderr output continues. The status bar shows the last warning or error.
+- **Console:** a log sink (R13) feeds a ring buffer with level filters and counts, search, clear, copy and a
+  Collapse toggle that merges repeated messages, while stderr output continues. The status bar shows the
+  warning and error counts, with the last one as their tooltip; clicking them shows them in the console ([#279]).
 
 ### Persistence
 
@@ -389,7 +390,7 @@ tokens, not this structure.
 ├─────────────────┴──────────────────────────────────────────────────┴───────────────┤
 │ Assets │ Console │ Renderer │ Profiler │ Statistics                                  │ bottom dock, tabbed
 ├────────────────────────────────────────────────────────────────────────────────────┤
-│ 1 selected · 60 fps · GPU 4.1 ms · last warning                                    │ status bar
+│ Sponza                    60 fps · GPU 4.1 ms                    warn 25 · error 0 │ status bar
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -557,4 +558,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#205]: https://github.com/chFleschutz/aegis-engine/issues/205
 [#225]: https://github.com/chFleschutz/aegis-engine/issues/225
 [#275]: https://github.com/chFleschutz/aegis-engine/issues/275
+[#279]: https://github.com/chFleschutz/aegis-engine/issues/279
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11
