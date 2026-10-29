@@ -422,6 +422,11 @@ void EditorShell::drawOpenPopup(FrameContext& frame)
     ImGui::SetNextWindowSize(ImVec2{ 420.0f * theme::scale(), 360.0f * theme::scale() }, ImGuiCond_Appearing);
     if (!ImGui::BeginPopupModal("Open Scene"))
         return;
+    // The arrow keys move the selection, not the keyboard focus: the popup owns them, so ImGui's keyboard navigation
+    // (which reads only keys nobody owns) leaves them alone from the next frame on
+    const ImGuiID arrowsOwner = ImGui::GetID("##arrows");
+    ImGui::SetKeyOwner(ImGuiKey_UpArrow, arrowsOwner);
+    ImGui::SetKeyOwner(ImGuiKey_DownArrow, arrowsOwner);
     if (ImGui::IsWindowAppearing())
         ImGui::SetKeyboardFocusHere();
     ImGui::SetNextItemWidth(-FLT_MIN);
@@ -440,8 +445,8 @@ void EditorShell::drawOpenPopup(FrameContext& frame)
     auto selected = std::ranges::find_if(scenes, [this](const assets::AssetEntry* entry) { return m_openSelection == entry->id; });
     if (selected == scenes.end())
         selected = scenes.begin();
-    const bool down = ImGui::IsKeyPressed(ImGuiKey_DownArrow) && selected != scenes.end() && std::next(selected) != scenes.end();
-    const bool up = ImGui::IsKeyPressed(ImGuiKey_UpArrow) && selected != scenes.begin();
+    const bool down = ImGui::IsKeyPressed(ImGuiKey_DownArrow, ImGuiInputFlags_Repeat, arrowsOwner) && selected != scenes.end() && std::next(selected) != scenes.end();
+    const bool up = ImGui::IsKeyPressed(ImGuiKey_UpArrow, ImGuiInputFlags_Repeat, arrowsOwner) && selected != scenes.begin();
     if (down)
         ++selected;
     else if (up)
