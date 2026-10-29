@@ -38,13 +38,7 @@ public:
         ImGui::DragFloat("Snap rotate", &preferences.snapRotate, 0.1f, 0.01f, 180.0f, "%.2f deg");
         ImGui::DragFloat("Snap scale", &preferences.snapScale, 0.01f, 0.001f, 100.0f, "%.3f");
         drawUiScale(preferences.uiScale);
-
-        if (!preferences.recentProjects.empty())
-        {
-            ImGui::SeparatorText("Recent projects");
-            for (const auto& project : preferences.recentProjects)
-                ImGui::TextUnformatted(project.c_str());
-        }
+        // The recent projects stay stored, but nothing opens them yet (a welcome screen or project switcher will)
         ImGui::End();
     }
 
