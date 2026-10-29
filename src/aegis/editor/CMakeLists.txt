@@ -85,6 +85,9 @@ target_link_libraries(aegis-editor
         imguizmo
 )
 
+# The version Help > About shows
+target_compile_definitions(aegis-editor PRIVATE AEGIS_VERSION="${AegisEngine_VERSION}")
+
 target_sources(aegis-editor
     PUBLIC
     FILE_SET CXX_MODULES FILES
@@ -98,6 +101,7 @@ target_sources(aegis-editor
     PRIVATE
     ui/actions.cpp
     ui/editor_shell.cpp
+    ui/panels/about_panel.cpp
     ui/panels/all_entities_panel.cpp
     ui/panels/asset_panel.cpp
     ui/panels/console_panel.cpp
@@ -110,6 +114,7 @@ target_sources(aegis-editor
     ui/panels/profiler_panel.cpp
     ui/panels/renderer_panel.cpp
     ui/panels/scene_panel.cpp
+    ui/panels/shortcuts_panel.cpp
     ui/panels/statistics_panel.cpp
     ui/theme.cpp
     ui/viewport.cpp

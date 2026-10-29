@@ -32,6 +32,8 @@ public:
     void add(Action action);
 
     [[nodiscard]] auto find(std::string_view id) const -> const Action*;
+    /// @brief Every action, in the order they were added (the shortcut table's).
+    [[nodiscard]] auto actions() const -> std::span<const Action> { return m_actions; }
     /// @brief The action's chord as menus show it ("Ctrl+S"); empty if it has none.
     [[nodiscard]] auto shortcut(std::string_view id) const -> std::string;
     /// @brief "Label (Ctrl+S)", for a tooltip.

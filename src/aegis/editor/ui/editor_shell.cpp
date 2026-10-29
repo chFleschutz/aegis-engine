@@ -133,6 +133,8 @@ EditorShell::EditorShell()
     m_panels.push_back(makeAllEntitiesPanel());
     m_panels.push_back(makeDemoPanel());
     m_preferencesWindow = makePreferencesPanel();
+    m_shortcutsWindow = makeShortcutsPanel(m_actions);
+    m_aboutWindow = makeAboutPanel();
     for (const auto& panel : m_panels)
     {
         if (panel->isOpen())
@@ -249,8 +251,11 @@ void EditorShell::onFrame(FrameContext& frame)
         if (panel->isOpen())
             panel->draw(m_context, frame);
     }
-    if (m_preferencesWindow->isOpen())
-        m_preferencesWindow->draw(m_context, frame);
+    for (auto* window : { m_preferencesWindow.get(), m_shortcutsWindow.get(), m_aboutWindow.get() })
+    {
+        if (window->isOpen())
+            window->draw(m_context, frame);
+    }
     m_viewport.draw(m_context, frame);
     if (const auto scene = m_context.takeSceneRequest())
         request({ .kind = PendingAction::Kind::Open, .scene = assets::AssetId{ *scene } }, frame);
@@ -717,6 +722,9 @@ void EditorShell::buildActions()
         .run = [this](FrameContext&) { m_context.requestRename(); } });
     m_actions.add({ .id = "edit.focus", .label = "Focus", .chord = chord(Key::F, false), .enabled = hasSelection, .run = [this](FrameContext&) { m_context.requestFocus(); } });
 
+    m_actions.add({ .id = "help.shortcuts", .label = "Keyboard Shortcuts", .run = [this](FrameContext&) { m_shortcutsWindow->setOpen(true); } });
+    m_actions.add({ .id = "help.about", .label = "About", .run = [this](FrameContext&) { m_aboutWindow->setOpen(true); } });
+
     m_actions.add({ .id = "play.toggle", .label = "Play", .chord = chord(Key::P), .run = [this](FrameContext& frame) { m_play.active() ? stopPlay(frame) : startPlay(frame); } });
     m_actions.add({ .id = "play.pause",
         .label = "Pause",
@@ -852,6 +860,14 @@ void EditorShell::drawMenuBar(FrameContext& frame)
                 panel->setOpen(!panel->isOpen());
         }
         ImGui::MenuItem("Style Editor", nullptr, &m_styleEditor);
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Help"))
+    {
+        m_actions.menuItem("help.shortcuts", frame);
+        ImGui::Separator();
+        m_actions.menuItem("help.about", frame);
         ImGui::EndMenu();
     }
 

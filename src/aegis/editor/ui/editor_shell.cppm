@@ -114,7 +114,9 @@ private:
     EditorPreferences m_savedPreferences;
     std::vector<std::unique_ptr<Panel>> m_panels;
     std::unique_ptr<Panel> m_preferencesWindow; // Floats; Edit > Preferences... opens it
-    std::vector<Panel*> m_defaultOpen;          // The panels open at startup; Reset Layout opens them again
+    std::unique_ptr<Panel> m_shortcutsWindow;   // Float; the Help menu opens them
+    std::unique_ptr<Panel> m_aboutWindow;
+    std::vector<Panel*> m_defaultOpen; // The panels open at startup; Reset Layout opens them again
     ActionRegistry m_actions;
     float m_contentScale{ 0.0f }; // As of the last style
     float m_uiScale{ 0.0f };
