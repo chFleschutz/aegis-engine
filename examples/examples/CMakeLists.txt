@@ -6,4 +6,5 @@ aegis_add_game(Examples
     SOURCES game.cpp spawner.cpp
     PROJECT ${PROJECT_SOURCE_DIR}/samples
     SCENES scenes/smoke.scene
+    EDITOR_SELECT "Pulsing Light" # A point light with a script: its Inspector shows both
 )

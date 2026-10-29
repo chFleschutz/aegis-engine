@@ -98,7 +98,11 @@ the engine's `GameShell`; the editor flavor installs `editor::EditorShell` (`Eng
 the world in edit mode (no scripts run) and builds the editor's UI at the frame's safe point. One game source file ends
 with `AEGIS_GAME_MODULE({ .name = …, .startupScene = …, .registerTypes = …, .onStartup = … })`
 (`aegis/launch/game_module.h`); after `onStartup` the launcher loads `--scene <path>` or the `startupScene`,
-and `SCENES <path> …` makes each scene a `device` test.
+and `SCENES <path> …` makes each scene a `device` test. The editor flavor runs headless as the `editor`-labelled
+tests `game-<name>-editor` (`--editor-panels all`, every docked panel open, plus `--editor-select <name>`, which
+selects the entity `EDITOR_SELECT <name>` names), `-editor-default` (the panels a fresh editor opens) and
+`-editor-play` (`--editor-play`, play from the second frame), each saving `<build>/screenshots/<test>.png`. The
+runtime ignores the `--editor-*` options.
 The launcher finds the project by `--project <dir>`, then `project/` next to the executable, then
 `PROJECT` (`paths::locate`); the shaders and the engine content are found the same way. Nothing is
 copied next to the executables: a development build uses the build and source trees, and laying out a
