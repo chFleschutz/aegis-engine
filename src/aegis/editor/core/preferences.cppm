@@ -26,6 +26,19 @@ struct EditorPreferences
     [[nodiscard]] auto operator==(const EditorPreferences&) const -> bool = default;
 };
 
+/// @brief The UI scales the preferences offer, the steps of the "UI scale" combo. A hand-edited file may hold any
+///        other value in range (EditorPreferences::clamp keeps it).
+inline constexpr std::array<float, 6> uiScaleSteps{ 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f };
+
+/// @brief The index in uiScaleSteps of 'scale'; empty when it is none of them.
+[[nodiscard]] auto uiScaleStep(float scale) -> std::optional<std::size_t>;
+
+/// @brief 'scale' as the combo shows it: "125%" for a step, "Custom (1.30)" for any other value.
+[[nodiscard]] auto uiScaleLabel(float scale) -> std::string;
+
+/// @brief The scale the UI ends up at, from the monitor's content scale and the user's UI scale: "\u00D7 1.5 monitor = 225%".
+[[nodiscard]] auto effectiveScaleLabel(float contentScale, float uiScale) -> std::string;
+
 /// @brief `<config>/Aegis/editor.json`: %APPDATA% on Windows, $XDG_CONFIG_HOME or ~/.config (as `aegis`) on
 ///        Linux. Empty if the platform names no config folder.
 [[nodiscard]] auto preferencesPath() -> std::filesystem::path;

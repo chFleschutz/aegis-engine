@@ -52,6 +52,21 @@ inline auto packed(const ImVec4& color) -> ImU32
     return ImGui::ColorConvertFloat4ToU32(color);
 }
 
+// The factor the metrics are multiplied by: the monitor's content scale times the user's UI scale, as of the last
+// applyStyle (1 before it). Anything that draws in pixels, or sizes a window or widget by a number, multiplies by it;
+// sizes taken from the style or the font (GetFrameHeight, GetFontSize) already include it.
+inline auto scale() -> float
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    return style.FontScaleDpi * style.FontScaleMain;
+}
+
+// The monitor's part of scale(): the window's content scale as of the last applyStyle.
+inline auto contentScale() -> float
+{
+    return ImGui::GetStyle().FontScaleDpi;
+}
+
 // The font families. They stay null (ImGui's default font) until loadFonts found the files.
 struct Fonts
 {

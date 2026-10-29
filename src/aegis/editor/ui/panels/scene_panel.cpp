@@ -351,7 +351,7 @@ private:
             if (zone != DropZone::Into)
             {
                 const float lineY = zone == DropZone::Before ? min.y : max.y;
-                ImGui::GetWindowDrawList()->AddLine(ImVec2{ min.x, lineY }, ImVec2{ max.x, lineY }, ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f);
+                ImGui::GetWindowDrawList()->AddLine(ImVec2{ min.x, lineY }, ImVec2{ max.x, lineY }, ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f * theme::scale());
             }
             if (payload->IsDelivery())
                 drop = Drop{ .entity = *static_cast<const StableId*>(payload->Data), .target = id, .zone = zone };

@@ -343,7 +343,7 @@ void EditorShell::drawOpenPopup(FrameContext& frame)
 {
     if (std::exchange(m_openOpen, false))
         ImGui::OpenPopup("Open Scene");
-    ImGui::SetNextWindowSize(ImVec2{ 420.0f, 360.0f }, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(ImVec2{ 420.0f * theme::scale(), 360.0f * theme::scale() }, ImGuiCond_Appearing);
     if (!ImGui::BeginPopupModal("Open Scene"))
         return;
     const auto& database = frame.assets.database();
@@ -394,7 +394,7 @@ void EditorShell::drawSaveAsPopup(FrameContext& frame)
     ImGui::TextUnformatted("A path in the project's content folder:");
     if (ImGui::IsWindowAppearing())
         ImGui::SetKeyboardFocusHere();
-    ImGui::SetNextItemWidth(360.0f);
+    ImGui::SetNextItemWidth(360.0f * theme::scale());
     const bool entered = ImGui::InputText("##path", &m_saveAsPath, ImGuiInputTextFlags_EnterReturnsTrue);
     if (!m_fileError.empty())
         ImGui::TextColored(theme::error, "%s", m_fileError.c_str());
@@ -512,7 +512,7 @@ void EditorShell::drawStatusBar(FrameContext& frame)
     ImGui::SetNextWindowPos(ImVec2{ viewport->Pos.x, viewport->Pos.y + viewport->Size.y - height });
     ImGui::SetNextWindowSize(ImVec2{ viewport->Size.x, height });
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f, 2.0f });
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f * theme::scale(), 2.0f * theme::scale() });
     ImGui::PushStyleColor(ImGuiCol_WindowBg, theme::bgDeep);
     const bool visible = ImGui::Begin("##StatusBar", nullptr, flags);
     ImGui::PopStyleColor();

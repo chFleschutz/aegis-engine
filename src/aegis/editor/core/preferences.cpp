@@ -62,6 +62,28 @@ void EditorPreferences::clamp()
     fix(uiScale, 0.5f, 4.0f, defaults.uiScale);
 }
 
+auto uiScaleStep(float scale) -> std::optional<std::size_t>
+{
+    for (std::size_t i = 0; i < uiScaleSteps.size(); ++i)
+    {
+        if (std::abs(uiScaleSteps[i] - scale) < 0.001f)
+            return i;
+    }
+    return std::nullopt;
+}
+
+auto uiScaleLabel(float scale) -> std::string
+{
+    if (const auto step = uiScaleStep(scale))
+        return std::format("{}%", std::lround(uiScaleSteps[*step] * 100.0f));
+    return std::format("Custom ({:.2f})", scale);
+}
+
+auto effectiveScaleLabel(float contentScale, float uiScale) -> std::string
+{
+    return std::format("\u00D7 {:g} monitor = {}%", contentScale, std::lround(contentScale * uiScale * 100.0f));
+}
+
 auto preferencesPath() -> std::filesystem::path
 {
 #ifdef _WIN32

@@ -158,7 +158,7 @@ private:
         ImGui::SetItemTooltip("Scan the asset folders again for added, changed and removed files");
 
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(160.0f);
+        ImGui::SetNextItemWidth(160.0f * theme::scale());
         if (ImGui::BeginCombo("##type", m_filter.type.empty() ? "All types" : m_filter.type.c_str()))
         {
             if (ImGui::Selectable("All types", m_filter.type.empty()))
