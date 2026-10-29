@@ -24,6 +24,10 @@ public:
     [[nodiscard]] auto canUndo() const -> bool { return m_applied > 0; }
     [[nodiscard]] auto canRedo() const -> bool { return m_applied < m_edits.size(); }
 
+    /// @brief The edit undo (or redo) would revert (or reapply) next, or null. Valid until the next change.
+    [[nodiscard]] auto nextUndo() const -> const Edit* { return canUndo() ? &m_edits[m_applied - 1] : nullptr; }
+    [[nodiscard]] auto nextRedo() const -> const Edit* { return canRedo() ? &m_edits[m_applied] : nullptr; }
+
     /// @brief Steps back and returns the edit to revert (write its old side), or null. Valid until the next change.
     [[nodiscard]] auto undo() -> const Edit*;
     /// @brief Steps forward and returns the edit to reapply (write its new side), or null. Valid until the next change.

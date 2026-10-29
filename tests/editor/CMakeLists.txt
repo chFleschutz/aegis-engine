@@ -8,12 +8,14 @@ aegis_add_test(editor
         console.test.cpp
         context.test.cpp
         editor_camera.test.cpp
+        edits.test.cpp
         hierarchy.test.cpp
         inspector.test.cpp
         picking.test.cpp
         play.test.cpp
         preferences.test.cpp
         property_model.test.cpp
+        recent_scenes.test.cpp
         scene_file.test.cpp
         selection.test.cpp
         settled_extent.test.cpp

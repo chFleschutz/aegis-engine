@@ -1,5 +1,7 @@
 module;
 
+#include <cfloat>
+
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
@@ -69,6 +71,22 @@ auto layoutFile(const std::filesystem::path& project) -> std::string
     return std::string{ file.begin(), file.end() };
 }
 
+// The scene file at 'path' in one of the project's (writable) roots, if the database has it and it is still there.
+auto findProjectScene(const assets::AssetDatabase& database, std::string_view path) -> std::optional<assets::AssetId>
+{
+    for (std::size_t root = 0; root < database.roots().size(); ++root)
+    {
+        if (database.roots()[root].readOnly)
+            continue;
+        const auto id = database.find(root, path);
+        const auto* entry = id ? database.find(*id) : nullptr;
+        std::error_code error;
+        if (entry && entry->type == "Scene" && std::filesystem::exists(database.absolutePath(*entry), error))
+            return id;
+    }
+    return std::nullopt;
+}
+
 // The default layout in the dockspace 'dockspace' of 'size': the hierarchy on the left, the inspector on the right,
 // the assets and the console tabbed at the bottom, the viewport in the middle. The debug panels (renderer, profiler,
 // statistics) start closed and join the bottom tabs when opened: they are wide tables.
@@ -115,6 +133,8 @@ EditorShell::EditorShell()
     m_panels.push_back(makeAllEntitiesPanel());
     m_panels.push_back(makeDemoPanel());
     m_preferencesWindow = makePreferencesPanel();
+    m_shortcutsWindow = makeShortcutsPanel(m_actions);
+    m_aboutWindow = makeAboutPanel();
     for (const auto& panel : m_panels)
     {
         if (panel->isOpen())
@@ -143,7 +163,14 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     }
     // A headless run (a test, a screenshot) neither reads nor changes the user's layout.
     if (!engine.headless() && !engine.project().empty())
+    {
         m_layoutFile = layoutFile(engine.project());
+        m_recentFile = recentScenesPath(engine.project());
+        if (auto loaded = loadRecentScenes(m_recentFile))
+            m_recent = std::move(*loaded);
+        else
+            log::warn("The recent scenes are reset: {}", loaded.error());
+    }
     ImGui::GetIO().IniFilename = m_layoutFile.empty() ? nullptr : m_layoutFile.c_str();
 
     // Likewise the preferences: a headless run neither reads nor changes them.
@@ -161,6 +188,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
             m_context.preferences().addRecentProject(engine.project());
         savePreferencesIfChanged();
     }
+    rememberScene(engine.assets().database());
     updateStyle();
     return {};
 }
@@ -223,8 +251,11 @@ void EditorShell::onFrame(FrameContext& frame)
         if (panel->isOpen())
             panel->draw(m_context, frame);
     }
-    if (m_preferencesWindow->isOpen())
-        m_preferencesWindow->draw(m_context, frame);
+    for (auto* window : { m_preferencesWindow.get(), m_shortcutsWindow.get(), m_aboutWindow.get() })
+    {
+        if (window->isOpen())
+            window->draw(m_context, frame);
+    }
     m_viewport.draw(m_context, frame);
     if (const auto scene = m_context.takeSceneRequest())
         request({ .kind = PendingAction::Kind::Open, .scene = assets::AssetId{ *scene } }, frame);
@@ -267,6 +298,7 @@ void EditorShell::run(PendingAction action, FrameContext& frame)
     else if (auto loaded = frame.engine.loadScene(action.scene); !loaded)
         log::warn("Cannot open the scene: {}", describe(loaded.error()));
     m_scene = frame.engine.scene();
+    rememberScene(frame.assets.database());
     m_context.resetScene();
     m_viewport.resetCamera();
 }
@@ -286,6 +318,7 @@ auto EditorShell::save(FrameContext& frame) -> bool
         return false;
     }
     m_context.markSaved();
+    rememberScene(frame.assets.database());
     return true;
 }
 
@@ -310,6 +343,7 @@ auto EditorShell::saveAs(FrameContext& frame, std::string_view typed) -> std::ex
         return std::unexpected{ std::format("Saved, but the asset database does not take it: {}", added.error()) };
     m_scene = *added;
     m_context.markSaved();
+    rememberScene(database);
     return {};
 }
 
@@ -335,27 +369,90 @@ void EditorShell::drawFileMenu(FrameContext& frame)
         return;
     m_actions.menuItem("file.new", frame);
     m_actions.menuItem("file.open", frame);
+    drawOpenRecentMenu(frame);
     ImGui::Separator();
     m_actions.menuItem("file.save", frame);
     m_actions.menuItem("file.saveAs", frame);
     ImGui::EndMenu();
 }
 
+void EditorShell::drawOpenRecentMenu(FrameContext& frame)
+{
+    const auto& database = frame.assets.database();
+    if (m_recent.prune([&database](std::string_view path) { return findProjectScene(database, path).has_value(); }))
+        saveRecentScenes();
+    if (!ImGui::BeginMenu("Open Recent", !m_recent.paths.empty()))
+        return;
+    std::optional<assets::AssetId> chosen;
+    for (const auto& path : m_recent.paths)
+    {
+        if (ImGui::MenuItem(path.c_str(), nullptr, m_scene && findProjectScene(database, path) == m_scene))
+            chosen = findProjectScene(database, path);
+    }
+    ImGui::EndMenu();
+    if (chosen)
+        request({ .kind = PendingAction::Kind::Open, .scene = *chosen }, frame);
+}
+
+void EditorShell::rememberScene(const assets::AssetDatabase& database)
+{
+    const auto* entry = m_scene ? database.find(*m_scene) : nullptr;
+    if (!entry || database.roots()[entry->root].readOnly)
+        return;
+    m_recent.add(entry->path);
+    saveRecentScenes();
+}
+
+void EditorShell::saveRecentScenes()
+{
+    if (m_recentFile.empty())
+        return;
+    if (const auto saved = aegis::editor::saveRecentScenes(m_recent, m_recentFile); !saved)
+        log::warn("The recent scenes are not saved: {}", saved.error());
+}
+
 void EditorShell::drawOpenPopup(FrameContext& frame)
 {
     if (std::exchange(m_openOpen, false))
+    {
+        m_openSearch.clear();
+        m_openSelection = m_scene;
         ImGui::OpenPopup("Open Scene");
+    }
     ImGui::SetNextWindowSize(ImVec2{ 420.0f * theme::scale(), 360.0f * theme::scale() }, ImGuiCond_Appearing);
     if (!ImGui::BeginPopupModal("Open Scene"))
         return;
+    // The arrow keys move the selection, not the keyboard focus: the popup owns them, so ImGui's keyboard navigation
+    // (which reads only keys nobody owns) leaves them alone from the next frame on
+    const ImGuiID arrowsOwner = ImGui::GetID("##arrows");
+    ImGui::SetKeyOwner(ImGuiKey_UpArrow, arrowsOwner);
+    ImGui::SetKeyOwner(ImGuiKey_DownArrow, arrowsOwner);
+    if (ImGui::IsWindowAppearing())
+        ImGui::SetKeyboardFocusHere();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputTextWithHint("##search", "Search", &m_openSearch);
+
     const auto& database = frame.assets.database();
     std::vector<const assets::AssetEntry*> scenes;
     for (const auto& entry : database.entries())
     {
-        if (entry.type == "Scene" && !database.roots()[entry.root].readOnly)
+        if (entry.type == "Scene" && !database.roots()[entry.root].readOnly && core::containsIgnoringCase(entry.path, m_openSearch))
             scenes.push_back(&entry);
     }
     std::ranges::sort(scenes, {}, &assets::AssetEntry::path);
+
+    // The selection is one of the listed scenes: a search selects the first match, the arrow keys move it
+    auto selected = std::ranges::find_if(scenes, [this](const assets::AssetEntry* entry) { return m_openSelection == entry->id; });
+    if (selected == scenes.end())
+        selected = scenes.begin();
+    const bool down = ImGui::IsKeyPressed(ImGuiKey_DownArrow, ImGuiInputFlags_Repeat, arrowsOwner) && selected != scenes.end() && std::next(selected) != scenes.end();
+    const bool up = ImGui::IsKeyPressed(ImGuiKey_UpArrow, ImGuiInputFlags_Repeat, arrowsOwner) && selected != scenes.begin();
+    if (down)
+        ++selected;
+    else if (up)
+        --selected;
+    const bool moved = down || up;
+    m_openSelection = selected != scenes.end() ? std::optional{ (*selected)->id } : std::nullopt;
 
     std::optional<assets::AssetId> chosen;
     const float buttons = ImGui::GetFrameHeightWithSpacing();
@@ -363,17 +460,34 @@ void EditorShell::drawOpenPopup(FrameContext& frame)
     {
         for (const auto* entry : scenes)
         {
-            if (ImGui::Selectable(entry->path.c_str(), m_scene == entry->id, ImGuiSelectableFlags_AllowDoubleClick) && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                chosen = entry->id;
+            const bool current = m_openSelection == entry->id;
+            if (ImGui::Selectable(entry->path.c_str(), current, ImGuiSelectableFlags_AllowDoubleClick))
+            {
+                m_openSelection = entry->id;
+                if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                    chosen = entry->id;
+            }
+            if (current && (moved || ImGui::IsWindowAppearing()))
+                ImGui::SetScrollHereY();
         }
         if (scenes.empty())
-            ImGui::TextDisabled("The project has no scene files");
+            ImGui::TextDisabled("%s", m_openSearch.empty() ? "The project has no scene files" : "No scene matches the search");
     }
     ImGui::EndChild();
+
+    // Open is the default: Enter takes it, and it has the accent
+    ImGui::BeginDisabled(!m_openSelection);
+    ImGui::PushStyleColor(ImGuiCol_Button, theme::accent);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentHover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentActive);
+    const bool open = ImGui::Button("Open") || ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter);
+    ImGui::PopStyleColor(3);
+    ImGui::EndDisabled();
+    if (open && m_openSelection)
+        chosen = m_openSelection;
+    ImGui::SameLine();
     if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape))
         ImGui::CloseCurrentPopup();
-    ImGui::SameLine();
-    ImGui::TextDisabled("Double-click a scene to open it");
     if (chosen)
     {
         ImGui::CloseCurrentPopup();
@@ -613,6 +727,9 @@ void EditorShell::buildActions()
         .run = [this](FrameContext&) { m_context.requestRename(); } });
     m_actions.add({ .id = "edit.focus", .label = "Focus", .chord = chord(Key::F, false), .enabled = hasSelection, .run = [this](FrameContext&) { m_context.requestFocus(); } });
 
+    m_actions.add({ .id = "help.shortcuts", .label = "Keyboard Shortcuts", .run = [this](FrameContext&) { m_shortcutsWindow->setOpen(true); } });
+    m_actions.add({ .id = "help.about", .label = "About", .run = [this](FrameContext&) { m_aboutWindow->setOpen(true); } });
+
     m_actions.add({ .id = "play.toggle", .label = "Play", .chord = chord(Key::P), .run = [this](FrameContext& frame) { m_play.active() ? stopPlay(frame) : startPlay(frame); } });
     m_actions.add({ .id = "play.pause",
         .label = "Pause",
@@ -691,8 +808,8 @@ void EditorShell::drawMenuBar(FrameContext& frame)
 
     if (ImGui::BeginMenu("Edit"))
     {
-        m_actions.menuItem("edit.undo", frame);
-        m_actions.menuItem("edit.redo", frame);
+        m_actions.menuItem("edit.undo", frame, editLabel("Undo", m_context.undoStack().nextUndo()));
+        m_actions.menuItem("edit.redo", frame, editLabel("Redo", m_context.undoStack().nextRedo()));
         ImGui::Separator();
         m_actions.menuItem("edit.duplicate", frame);
         m_actions.menuItem("edit.delete", frame);
@@ -751,9 +868,24 @@ void EditorShell::drawMenuBar(FrameContext& frame)
         ImGui::EndMenu();
     }
 
+    if (ImGui::BeginMenu("Help"))
+    {
+        m_actions.menuItem("help.shortcuts", frame);
+        ImGui::Separator();
+        m_actions.menuItem("help.about", frame);
+        ImGui::EndMenu();
+    }
+
     drawPlayControls(frame);
     drawSceneName();
     ImGui::EndMainMenuBar();
+}
+
+auto EditorShell::editLabel(std::string_view verb, const Edit* edit) const -> std::string
+{
+    if (!edit)
+        return std::string{ verb };
+    return std::format("{} {}", verb, editTitle(*edit, m_context.world()->registry()));
 }
 
 void EditorShell::drawSceneName()

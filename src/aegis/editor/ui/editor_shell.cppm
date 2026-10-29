@@ -13,7 +13,8 @@ export namespace aegis::editor
 /// @brief The editor flavor's shell: the world stays in edit mode (no scripts run), and the editor's panels
 ///        read and edit it at the frame's safe point. Play runs a copy of it in a world of its own (the play world),
 ///        which the panels then show and edit, until Stop discards it; the UI is tinted meanwhile. The File menu
-///        creates, opens and saves scene files; the window title and the menu bar name the scene and mark unsaved changes, and
+///        creates, opens and saves scene files, and reopens the project's recent ones (kept in
+///        `<project>/.aegis/editor/recent_scenes.json`); the window title and the menu bar name the scene and mark unsaved changes, and
 ///        closing the window, New or Open ask about them first. The window layout is kept in
 ///        `<project>/.aegis/editor/imgui.ini` (none when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
@@ -68,6 +69,11 @@ private:
     /// @brief Writes the edit world to a new file at 'typed' in the project's content folder and opens that.
     auto saveAs(FrameContext& frame, std::string_view typed) -> std::expected<void, std::string>;
     void drawFileMenu(FrameContext& frame);
+    /// @brief The project's recent scenes, the most recent first; one that is gone is dropped from the list.
+    void drawOpenRecentMenu(FrameContext& frame);
+    /// @brief Puts the open scene first in the recent scenes, if it is a file of the project.
+    void rememberScene(const assets::AssetDatabase& database);
+    void saveRecentScenes();
     void drawOpenPopup(FrameContext& frame);
     void drawSaveAsPopup(FrameContext& frame);
     void drawUnsavedPrompt(FrameContext& frame);
@@ -85,6 +91,8 @@ private:
     void resetLayout();
     void drawStyleEditor();
     void drawMenuBar(FrameContext& frame);
+    /// @brief "Undo Move 'Helmet'": 'verb' and the title of the edit it would take, or 'verb' alone without one.
+    [[nodiscard]] auto editLabel(std::string_view verb, const Edit* edit) const -> std::string;
     void drawPlayControls(FrameContext& frame);
     /// @brief The scene's name at the right of the menu bar, when it fits.
     void drawSceneName();
@@ -106,13 +114,17 @@ private:
     EditorPreferences m_savedPreferences;
     std::vector<std::unique_ptr<Panel>> m_panels;
     std::unique_ptr<Panel> m_preferencesWindow; // Floats; Edit > Preferences... opens it
-    std::vector<Panel*> m_defaultOpen;          // The panels open at startup; Reset Layout opens them again
+    std::unique_ptr<Panel> m_shortcutsWindow;   // Float; the Help menu opens them
+    std::unique_ptr<Panel> m_aboutWindow;
+    std::vector<Panel*> m_defaultOpen; // The panels open at startup; Reset Layout opens them again
     ActionRegistry m_actions;
     float m_contentScale{ 0.0f }; // As of the last style
     float m_uiScale{ 0.0f };
     bool m_resetLayout{ false };
-    bool m_styleEditor{ false }; // ImGui's style editor window, in the Debug menu
-    std::string m_layoutFile;    // UTF-8; ImGui reads and writes the layout there. Empty keeps none.
+    bool m_styleEditor{ false };        // ImGui's style editor window, in the Debug menu
+    std::string m_layoutFile;           // UTF-8; ImGui reads and writes the layout there. Empty keeps none.
+    std::filesystem::path m_recentFile; // Next to the layout; empty keeps none
+    RecentScenes m_recent;
     Viewport m_viewport;
     Engine* m_engine{ nullptr };
     std::optional<assets::AssetId> m_scene; // The open scene file; none for a new scene
@@ -120,9 +132,11 @@ private:
     bool m_openPrompt{ false };             // Open the prompt, the Open or the Save As popup in this frame
     bool m_openOpen{ false };
     bool m_openSaveAs{ false };
-    std::string m_saveAsPath; // What Save As shows
-    std::string m_fileError;  // Why the last Save As failed, in its popup
-    std::string m_title;      // The window's, as last set
+    std::string m_openSearch;                       // What the Open popup lists
+    std::optional<assets::AssetId> m_openSelection; // Its selected scene
+    std::string m_saveAsPath;                       // What Save As shows
+    std::string m_fileError;                        // Why the last Save As failed, in its popup
+    std::string m_title;                            // The window's, as last set
     PlaySession m_play;
     world::World* m_playWorld{ nullptr }; // While a play session runs; the engine owns it
     RollingAverage<20> m_gpuMs;           // The frame graph's GPU time, which varies from frame to frame

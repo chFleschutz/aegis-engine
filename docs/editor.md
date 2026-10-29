@@ -269,7 +269,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   sibling index (R11).
 - **Undo stack:** commands with `apply` / `revert` on a `World`, merged by key (same entity, type and
   field, within one interaction), with a saved marker. The dirty flag is "position != saved". It is
-  pure and tested on a device-less world ([#165]).
+  pure and tested on a device-less world ([#165]). Edit → Undo and Redo name the edit they would take
+  ("Undo Move 'Helmet'", `editTitle` in `core/edits`; [#281]).
 - **Hierarchy:** rows come from `Parent` / `Children` / `Siblings`, walked iteratively (as today),
   with a name filter (matching rows keep their ancestors). Drag and drop reparents and reorders,
   rejecting cycles (`Registry::isInSubtree`). F2 renames, Del deletes, Ctrl+D duplicates, F frames the entity. One Create menu (Empty, Camera,
@@ -301,7 +302,10 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   `DockBuilder`.
 - **Preferences** (camera speed, snap values, recent projects, UI scale) go in the user config folder
   (`%APPDATA%/Aegis/editor.json`, `$XDG_CONFIG_HOME/aegis/editor.json`), as JSON through glaze in a
-  `.cpp`.
+  `.cpp`. The Preferences window doesn't list the recent projects until something opens them (a welcome
+  screen or a project switcher).
+- **Recent scenes** (File → Open Recent: the last 10 opened or saved, most recent first, missing ones
+  dropped) are per project, in `<project>/.aegis/editor/recent_scenes.json` ([#281]).
 - **Nothing editor-only goes in scene files.** That covers the editor camera, selection, expanded tree
   nodes and gizmo mode. The camera per scene can be remembered in `.aegis/editor/` (nice to have).
 
@@ -383,7 +387,7 @@ tokens, not this structure.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────┐
-│ File Edit Entity Play View Debug           ▶  ❚❚  ⏭                    sponza.scene* │ menu bar + play controls + scene
+│ File Edit Entity Play View Debug Help      ▶  ❚❚  ⏭                    sponza.scene* │ menu bar + play controls + scene
 ├─────────────────┬──────────────────────────────────────────────────┬───────────────┤
 │ Hierarchy       │ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ │                                 │ Inspector     │ viewport toolbar
 │ Filter       [+]│ ┌──────────────────────────────────────────────┐ │               │
@@ -408,7 +412,11 @@ tokens, not this structure.
 - **Debug panels** (Renderer, Profiler, Statistics) start closed and open as tabs at the bottom, next to the assets
   and the console: they are wide tables. The Debug menu lists them, the ImGui demo and the style editor
   (`ImGui::ShowStyleEditor`, for live tuning).
-- **Preferences** is a floating, auto-sized window that Edit → Preferences… opens, not a panel.
+- **Preferences** is a floating, auto-sized window that Edit → Preferences… opens, not a panel. So are Help →
+  Keyboard Shortcuts (the registry's chords and the viewport's controls) and Help → About (the version and the
+  fonts' licenses).
+- **Open Scene** lists the project's scenes under a search field: a click selects, Enter or **Open** opens the
+  selection, a double click opens at once.
 - **Empty states** say what to do: the inspector with nothing selected, a hierarchy with only a new scene's
   entities, and a folder with only folders (which then lists them, a double click opens one).
 - **The open scene's name** and its unsaved mark (`*`) are at the right of the menu bar, as in the window title.
@@ -565,4 +573,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#225]: https://github.com/chFleschutz/aegis-engine/issues/225
 [#275]: https://github.com/chFleschutz/aegis-engine/issues/275
 [#279]: https://github.com/chFleschutz/aegis-engine/issues/279
+[#281]: https://github.com/chFleschutz/aegis-engine/issues/281
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11

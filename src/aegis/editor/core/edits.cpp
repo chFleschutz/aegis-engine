@@ -237,6 +237,50 @@ auto rootName(const SubtreeEdit& edit) -> std::string_view
     const auto root = std::ranges::find(edit.subtree.entities, edit.root.value, &serialize::SceneEntity::id);
     return root != edit.subtree.entities.end() ? std::string_view{ root->name } : std::string_view{ "Entity" };
 }
+
+// The gizmo mode's name for an edit of one Transform field; empty for any other field.
+auto transformVerb(std::string_view type, std::string_view field) -> std::string_view
+{
+    if (type != "Transform")
+        return {};
+    if (field == "location")
+        return "Move";
+    if (field == "rotation")
+        return "Rotate";
+    if (field == "scale")
+        return "Scale";
+    return {};
+}
+
+// The one field whose value differs between the two sides, or empty when none or several do.
+auto onlyChangedField(const FieldValues& oldValues, const FieldValues& newValues) -> std::string_view
+{
+    std::string_view changed;
+    for (const auto& value : newValues)
+    {
+        const auto old = std::ranges::find(oldValues, value.field, &FieldValue::field);
+        if (old != oldValues.end() && sameValue(old->value, value.value))
+            continue;
+        if (!changed.empty())
+            return {};
+        changed = value.field;
+    }
+    return changed;
+}
+
+// " 'Helmet'" for the entity's name; empty when it is gone or unnamed.
+auto nameSuffix(const world::Registry& registry, StableId id) -> std::string
+{
+    const auto entity = registry.find(id);
+    if (!entity || !registry.has<Name>(entity) || registry.get<Name>(entity).name.empty())
+        return {};
+    return std::format(" '{}'", registry.get<Name>(entity).name);
+}
+
+auto nameSuffix(std::string_view name) -> std::string
+{
+    return name.empty() ? std::string{} : std::format(" '{}'", name);
+}
 }
 
 auto describe(const Edit& edit) -> std::string
@@ -258,6 +302,40 @@ auto describe(const Edit& edit) -> std::string
                 return std::format("moving the entity {:016x}", entry.entity.value);
             else
                 return std::format("{} '{}'", entry.destroy ? "destroying" : "creating", rootName(entry));
+        },
+        edit);
+}
+
+auto editTitle(const Edit& edit, const world::Registry& registry) -> std::string
+{
+    return std::visit(
+        [&registry](const auto& entry) -> std::string {
+            using T = std::decay_t<decltype(entry)>;
+            if constexpr (std::same_as<T, FieldEdit> || std::same_as<T, ComponentEdit>)
+            {
+                std::string_view field;
+                if constexpr (std::same_as<T, FieldEdit>)
+                    field = entry.field;
+                else
+                    field = onlyChangedField(entry.oldValues, entry.newValues);
+                const auto name = nameSuffix(registry, entry.entity);
+                if (const auto verb = transformVerb(entry.type, field); !verb.empty())
+                    return std::format("{}{}", verb, name);
+                if constexpr (std::same_as<T, FieldEdit>)
+                    return std::format("Edit {}.{}{}", entry.type, entry.field, name);
+                else
+                    return std::format("Edit {}{}", entry.type, name);
+            }
+            else if constexpr (std::same_as<T, AddComponentEdit>)
+                return std::format("{} {}{}", entry.remove ? "Remove" : "Add", entry.type, nameSuffix(registry, entry.entity));
+            else if constexpr (std::same_as<T, AttachScriptEdit>)
+                return std::format("{} {}{}", entry.detach ? "Detach" : "Attach", entry.type, nameSuffix(registry, entry.entity));
+            else if constexpr (std::same_as<T, RenameEdit>)
+                return std::format("Rename{}", nameSuffix(entry.oldName));
+            else if constexpr (std::same_as<T, MoveEdit>)
+                return std::format("{}{}", entry.oldPlace.parent == entry.newPlace.parent ? "Reorder" : "Reparent", nameSuffix(registry, entry.entity));
+            else
+                return std::format("{}{}", entry.destroy ? "Delete" : "Create", nameSuffix(rootName(entry)));
         },
         edit);
 }

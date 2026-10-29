@@ -129,6 +129,11 @@ struct EditWorld
 /// @brief What 'edit' does, for messages: "Health.value", "add Health", "destroy 'Lamp'".
 [[nodiscard]] auto describe(const Edit& edit) -> std::string;
 
+/// @brief What 'edit' does, for a menu item ("Undo Move 'Helmet'"): a verb, what it changed and the name of its
+///        entity in 'registry' (left out when the entity is gone or unnamed). A Transform edit of only its location,
+///        rotation or scale is a Move, Rotate or Scale, as the gizmo's modes call them.
+[[nodiscard]] auto editTitle(const Edit& edit, const world::Registry& registry) -> std::string;
+
 /// @brief The values of every registered field of 'object', an instance of 'type'.
 [[nodiscard]] auto fieldValues(const reflect::TypeInfo& type, const void* object) -> FieldValues;
 

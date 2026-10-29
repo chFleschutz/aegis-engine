@@ -102,6 +102,13 @@ public:
         return m_registry.get<T>(entity.id());
     }
 
+    template<typename T>
+    auto get(Entity entity) const -> const T&
+    {
+        assert(has<T>(entity) && "Cannot get Component: Entity does not have the component");
+        return m_registry.get<T>(entity.id());
+    }
+
     /// @brief Adds a component of type T to the entity
     /// @return A refrence to the new component
     template<typename T, typename... Args>
