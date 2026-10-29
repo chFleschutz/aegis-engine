@@ -691,8 +691,8 @@ void EditorShell::drawMenuBar(FrameContext& frame)
 
     if (ImGui::BeginMenu("Edit"))
     {
-        m_actions.menuItem("edit.undo", frame);
-        m_actions.menuItem("edit.redo", frame);
+        m_actions.menuItem("edit.undo", frame, editLabel("Undo", m_context.undoStack().nextUndo()));
+        m_actions.menuItem("edit.redo", frame, editLabel("Redo", m_context.undoStack().nextRedo()));
         ImGui::Separator();
         m_actions.menuItem("edit.duplicate", frame);
         m_actions.menuItem("edit.delete", frame);
@@ -754,6 +754,13 @@ void EditorShell::drawMenuBar(FrameContext& frame)
     drawPlayControls(frame);
     drawSceneName();
     ImGui::EndMainMenuBar();
+}
+
+auto EditorShell::editLabel(std::string_view verb, const Edit* edit) const -> std::string
+{
+    if (!edit)
+        return std::string{ verb };
+    return std::format("{} {}", verb, editTitle(*edit, m_context.world()->registry()));
 }
 
 void EditorShell::drawSceneName()
