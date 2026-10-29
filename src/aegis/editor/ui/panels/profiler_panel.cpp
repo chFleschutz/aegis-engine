@@ -2,6 +2,8 @@ module;
 
 #include <imgui.h>
 
+#include "aegis/editor/ui/theme.h"
+
 module aegis.editor;
 import std;
 import aegis.core;
@@ -21,7 +23,7 @@ public:
 
     void draw(EditorContext&, FrameContext& frame) override
     {
-        ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 10), ImGuiCond_FirstUseEver, ImVec2(0, 1));
+        ImGui::SetNextWindowPos(ImVec2(10.0f * theme::scale(), ImGui::GetIO().DisplaySize.y - 10.0f * theme::scale()), ImGuiCond_FirstUseEver, ImVec2(0, 1));
         bool open = true;
         const bool visible = ImGui::Begin("Profiler", &open);
         setOpen(open);

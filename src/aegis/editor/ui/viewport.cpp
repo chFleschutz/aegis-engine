@@ -22,7 +22,7 @@ namespace aegis::editor
 {
 namespace
 {
-// Light and camera icons: their radius in pixels, which is also how near a click has to be.
+// Light and camera icons: their radius in pixels at 100%, which scaled is also how near a click has to be.
 constexpr float iconRadius{ 9.0f };
 // What a focus frames around an entity without a mesh.
 constexpr float pointFocusRadius{ 1.0f };
@@ -78,7 +78,7 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
     ImGuiWindowClass windowClass;
     windowClass.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_AutoHideTabBar;
     ImGui::SetNextWindowClass(&windowClass);
-    ImGui::SetNextWindowSize(ImVec2{ 960.0f, 540.0f }, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2{ 960.0f * theme::scale(), 540.0f * theme::scale() }, ImGuiCond_FirstUseEver);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
     const bool visible = ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleVar();
@@ -338,8 +338,9 @@ auto Viewport::drawIcons(const EditorContext& editor, const Rect& rect) -> std::
             return;
         const ImVec2 center{ rect.x + (ndc->x + 1.0f) * 0.5f * rect.width, rect.y + (1.0f - ndc->y) * 0.5f * rect.height };
         const bool selected = editor.isSelected(entity);
-        drawList->AddCircleFilled(center, iconRadius, theme::packed(theme::iconBackdrop));
-        drawList->AddCircle(center, iconRadius, selected ? theme::packed(theme::iconSelected) : color, 0, selected ? 2.5f : 1.5f);
+        const float radius = iconRadius * theme::scale();
+        drawList->AddCircleFilled(center, radius, theme::packed(theme::iconBackdrop));
+        drawList->AddCircle(center, radius, selected ? theme::packed(theme::iconSelected) : color, 0, (selected ? 2.5f : 1.5f) * theme::scale());
         const ImVec2 textSize = ImGui::CalcTextSize(label);
         drawList->AddText(ImVec2{ center.x - textSize.x * 0.5f, center.y - textSize.y * 0.5f }, color, label);
         icons.push_back({ .id = registry.get<StableId>(entity), .position = { center.x, center.y } });
@@ -380,7 +381,7 @@ void Viewport::pick(EditorContext& editor, const Rect& rect, std::span<const Pic
     if (!world)
         return;
 
-    auto picked = pickIcon({ cursor.x, cursor.y }, icons, iconRadius);
+    auto picked = pickIcon({ cursor.x, cursor.y }, icons, iconRadius * theme::scale());
     if (!picked)
     {
         auto& registry = world->registry();

@@ -2,6 +2,8 @@ module;
 
 #include <imgui.h>
 
+#include "aegis/editor/ui/theme.h"
+
 module aegis.editor;
 import std;
 import aegis.render_graph;
@@ -34,7 +36,7 @@ public:
 
     void draw(EditorContext&, FrameContext& frame) override
     {
-        ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 10, 30), ImGuiCond_FirstUseEver, ImVec2(1.0f, 0.0f));
+        ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 10.0f * theme::scale(), 30.0f * theme::scale()), ImGuiCond_FirstUseEver, ImVec2(1.0f, 0.0f));
         bool open = true;
         const bool visible = ImGui::Begin("Renderer", &open);
         setOpen(open);

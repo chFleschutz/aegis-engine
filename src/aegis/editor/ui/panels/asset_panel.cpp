@@ -5,6 +5,8 @@ module;
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
+#include "aegis/editor/ui/theme.h"
+
 module aegis.editor;
 import std;
 import aegis.asset_library;
@@ -129,7 +131,7 @@ private:
         ImGui::SetItemTooltip("Scan the asset folders again for added, changed and removed files");
 
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(160.0f);
+        ImGui::SetNextItemWidth(160.0f * theme::scale());
         if (ImGui::BeginCombo("##type", m_filter.type.empty() ? "All types" : m_filter.type.c_str()))
         {
             if (ImGui::Selectable("All types", m_filter.type.empty()))
