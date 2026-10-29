@@ -85,6 +85,14 @@ auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, Engi
             if (desc.editorPanels != "all")
                 return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("--editor-panels takes 'all', got '{}'", desc.editorPanels)) };
         }
+        else if (arg == "--editor-select" && hasValue)
+        {
+            desc.editorSelect = args[++i];
+        }
+        else if (arg == "--editor-play")
+        {
+            desc.editorPlay = true;
+        }
         else if ((arg == "--frames" || arg == "--width" || arg == "--height") && hasValue)
         {
             const auto count = parseCount(arg, args[++i]);
@@ -116,7 +124,7 @@ auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>
 
 auto usage(std::string_view program) -> std::string
 {
-    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--scene <path>] [--dump-asset <id>] [--editor-panels all]",
+    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--scene <path>] [--dump-asset <id>] [--editor-panels all] [--editor-select <name>] [--editor-play]",
         program);
 }
 

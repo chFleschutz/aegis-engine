@@ -161,6 +161,10 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
         for (const auto& panel : m_panels)
             panel->setOpen(panel->docked()); // Not the ImGui demo: it floats over the viewport
     }
+    m_context.setWorld(engine.world()); // Now, so the first frame keeps a selection made here
+    if (const auto& name = engine.desc().editorSelect; !name.empty())
+        selectByName(name);
+    m_playAfterFirstFrame = engine.desc().editorPlay;
     // A headless run (a test, a screenshot) neither reads nor changes the user's layout.
     if (!engine.headless() && !engine.project().empty())
     {
@@ -267,6 +271,9 @@ void EditorShell::onFrame(FrameContext& frame)
     ImGui::End();
     ImGui::PopStyleColor(tint);
     updateWorlds(frame);
+    // --editor-play: the first frame shows edit mode, the next ones play
+    if (std::exchange(m_playAfterFirstFrame, false))
+        startPlay(frame);
     updateTitle();
 
     // Not while a value is being dragged: that would write the file every frame
@@ -609,6 +616,23 @@ void EditorShell::stopPlay(FrameContext& frame)
     m_play.stop();
     m_viewport.setGameView(false);
     frame.engine.restoreCursor(); // The game may have hidden it
+}
+
+void EditorShell::selectByName(std::string_view name)
+{
+    auto& registry = m_context.world()->registry();
+    // The view runs from the newest entity to the oldest, so its last match is the first one created
+    std::optional<StableId> found;
+    for (const auto handle : registry.view<StableId>())
+    {
+        const world::Entity entity{ handle };
+        if (registry.has<Name>(entity) && registry.get<Name>(entity).name == name)
+            found = registry.get<StableId>(entity);
+    }
+    if (found)
+        m_context.selection().select(*found);
+    else
+        log::warn("--editor-select: no entity is called '{}'", name);
 }
 
 void EditorShell::savePreferencesIfChanged()

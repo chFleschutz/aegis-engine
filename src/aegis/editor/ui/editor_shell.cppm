@@ -18,7 +18,8 @@ export namespace aegis::editor
 ///        closing the window, New or Open ask about them first. The window layout is kept in
 ///        `<project>/.aegis/editor/imgui.ini` (none when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
-///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every docked panel at startup (not the ImGui demo).
+///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every docked panel at startup (not the ImGui demo),
+///        `--editor-select <name>` selects the first entity of that name and `--editor-play` enters play after the first frame.
 ///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of
 ///        `ui/theme.h` scaled by the monitor's content scale and the UI-scale preference; the menus and shortcuts
 ///        come from one ActionRegistry.
@@ -98,6 +99,8 @@ private:
     void drawSceneName();
     void startPlay(FrameContext& frame);
     void stopPlay(FrameContext& frame);
+    /// @brief Selects the first entity created with that Name, or warns that there is none (--editor-select).
+    void selectByName(std::string_view name);
     /// @brief Asks for this frame's updates: the edit world in edit mode, or the play world.
     void updateWorlds(FrameContext& frame);
     /// @brief The selection at the left, the average frame and GPU times in the middle, the warning and error counts at the right.
@@ -139,6 +142,7 @@ private:
     std::string m_title;                            // The window's, as last set
     PlaySession m_play;
     world::World* m_playWorld{ nullptr }; // While a play session runs; the engine owns it
+    bool m_playAfterFirstFrame{ false };  // --editor-play
     RollingAverage<20> m_gpuMs;           // The frame graph's GPU time, which varies from frame to frame
 };
 }

@@ -103,6 +103,11 @@ struct AppDesc
     /// @brief "all" opens every panel of the editor at startup (a test, a screenshot); empty keeps the editor's own
     ///        layout. The runtime flavor of a game ignores it.
     std::string editorPanels;
+    /// @brief The editor selects the first entity of this Name once the scene has loaded (a test, a screenshot of the
+    ///        Inspector and the gizmo); empty selects none. The runtime flavor of a game ignores it.
+    std::string editorSelect;
+    /// @brief The editor enters play after its first frame (a screenshot of play mode). The runtime flavor of a game ignores it.
+    bool editorPlay{ false };
 };
 
 enum class EngineErrorCode
@@ -132,7 +137,7 @@ inline constexpr int exitUsage{ 2 };
 [[nodiscard]] auto describe(const EngineError& error) -> std::string;
 
 /// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n>, --project <dir>,
-///        --scene <path>, --dump-asset <id> and --editor-panels all;
+///        --scene <path>, --dump-asset <id>, --editor-panels all, --editor-select <name> and --editor-play;
 ///        the first argument (the program name) is skipped. A headless run without --frames stops after 600 frames.
 [[nodiscard]] auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, EngineError>;
 
