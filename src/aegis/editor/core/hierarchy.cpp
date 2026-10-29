@@ -1,7 +1,9 @@
 module aegis.editor.core;
 import std;
 import aegis.core;
+import aegis.serialize;
 import aegis.world;
+import aegis.world.render_components;
 
 namespace aegis::editor
 {
@@ -44,6 +46,21 @@ auto matchesAndAncestors(world::Registry& registry, std::string_view filter) -> 
     }
     return kept;
 }
+}
+
+auto entityKind(world::Registry& registry, world::Entity entity) -> EntityKind
+{
+    if (registry.has<Camera>(entity))
+        return EntityKind::Camera;
+    if (registry.has<DirectionalLight>(entity))
+        return EntityKind::DirectionalLight;
+    if (registry.has<PointLight>(entity))
+        return EntityKind::PointLight;
+    if (registry.has<MeshRenderer>(entity))
+        return EntityKind::Mesh;
+    if (registry.has<serialize::SceneInstance>(entity))
+        return EntityKind::SceneInstance;
+    return EntityKind::Empty;
 }
 
 auto hierarchyRows(world::Registry& registry, const NodeOpen& isOpen, std::string_view filter) -> std::vector<HierarchyRow>

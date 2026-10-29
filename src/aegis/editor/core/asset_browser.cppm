@@ -16,6 +16,22 @@ struct AssetItem
     std::string type;      ///< Asset type (`Texture`, `Scene`, ...)
 };
 
+/// @brief What an asset is, for its icon in the list.
+enum class AssetKind
+{
+    StaticMesh,
+    Material,
+    Texture,
+    Scene,
+    Environment,
+    Model, ///< A model file's main asset: a scene of its nodes, but not from a scene file
+    Other,
+};
+
+/// @brief The kind of an asset of type 'type' (AssetItem::type) in the file at 'path'. A model file's scene is told from a
+///        scene file's by the extension.
+[[nodiscard]] auto assetKind(std::string_view type, std::string_view path) -> AssetKind;
+
 /// @brief A root folder of the browser: the project's content or the engine content.
 struct AssetRoot
 {

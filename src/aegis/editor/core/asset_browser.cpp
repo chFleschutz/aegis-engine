@@ -21,6 +21,21 @@ auto parentPath(std::string_view path) -> std::string_view
 }
 }
 
+auto assetKind(std::string_view type, std::string_view path) -> AssetKind
+{
+    if (type == "StaticMesh")
+        return AssetKind::StaticMesh;
+    if (type == "Material")
+        return AssetKind::Material;
+    if (type == "Texture")
+        return AssetKind::Texture;
+    if (type == "Environment")
+        return AssetKind::Environment;
+    if (type == serialize::Scene::assetType)
+        return path.ends_with(".scene") ? AssetKind::Scene : AssetKind::Model;
+    return AssetKind::Other;
+}
+
 auto AssetFilter::matches(const AssetItem& item) const -> bool
 {
     if (!type.empty() && item.type != type)

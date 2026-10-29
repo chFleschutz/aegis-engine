@@ -4,6 +4,8 @@ module;
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
 
+#include "aegis/editor/ui/theme.h"
+
 module aegis.editor;
 import std;
 import aegis.core;
@@ -32,6 +34,41 @@ auto rowId(world::Registry& registry, world::Entity entity) -> const void*
 auto nameOf(world::Registry& registry, world::Entity entity) -> const char*
 {
     return registry.has<Name>(entity) ? registry.get<Name>(entity).name.c_str() : "Entity";
+}
+
+auto kindIcon(EntityKind kind) -> const char*
+{
+    switch (kind)
+    {
+    case EntityKind::Camera:
+        return theme::icons::camera;
+    case EntityKind::DirectionalLight:
+        return theme::icons::sun;
+    case EntityKind::PointLight:
+        return theme::icons::light;
+    case EntityKind::Mesh:
+        return theme::icons::mesh;
+    case EntityKind::SceneInstance:
+        return theme::icons::instance;
+    case EntityKind::Empty:
+        return theme::icons::empty;
+    }
+    return theme::icons::empty;
+}
+
+// The icon's color: the viewport's for the cameras and lights, the dimmed text's for the rest.
+auto kindColor(EntityKind kind) -> ImVec4
+{
+    switch (kind)
+    {
+    case EntityKind::Camera:
+        return theme::cameraIcon;
+    case EntityKind::DirectionalLight:
+    case EntityKind::PointLight:
+        return theme::lightIcon;
+    default:
+        return theme::textDim;
+    }
 }
 
 // Whether the rows hold nothing but what a new scene starts with (the scene's camera and lights, a sky), or nothing at all.
@@ -247,6 +284,23 @@ private:
         ImGui::EndPopup();
     }
 
+    // The kind's icon and the name on the row just drawn, which has no label of its own. The members of a scene instance
+    // are dimmed: the Inspector shows them read-only.
+    static void drawRowLabel(world::Registry& registry, world::Entity entity)
+    {
+        const auto kind = entityKind(registry, entity);
+        const bool member = registry.has<serialize::InstanceMember>(entity);
+        const ImVec4 iconColor = member ? ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled) : kindColor(kind);
+        const ImU32 textColor = ImGui::GetColorU32(member ? ImGuiCol_TextDisabled : ImGuiCol_Text);
+
+        const ImVec2 min = ImGui::GetItemRectMin();
+        const ImVec2 position{ min.x + ImGui::GetTreeNodeToLabelSpacing(), min.y + ImGui::GetStyle().FramePadding.y };
+        const char* icon = kindIcon(kind);
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        drawList->AddText(position, ImGui::ColorConvertFloat4ToU32(iconColor), icon);
+        drawList->AddText(ImVec2{ position.x + ImGui::CalcTextSize(icon).x + ImGui::GetStyle().ItemInnerSpacing.x, position.y }, textColor, nameOf(registry, entity));
+    }
+
     // A row of the tree: it can be dragged onto another row and takes drops (see Drop). A click selects it, a double click on its label
     // frames it in the viewport (the arrow opens it), a right click selects it and asks for its menu ('menuRow').
     static auto drawEntityTreeNode(EditorContext& editor, world::Registry& registry, world::Entity entity, ImGuiTreeNodeFlags flags, std::optional<Drop>& drop, std::optional<StableId>& menuRow) -> bool
@@ -254,7 +308,9 @@ private:
         flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
         flags |= editor.isSelected(entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
 
-        const bool isOpen = ImGui::TreeNodeEx(rowId(registry, entity), flags, "%s", nameOf(registry, entity));
+        // The label is drawn by hand: the kind's icon comes first, in its own color
+        const bool isOpen = ImGui::TreeNodeEx(rowId(registry, entity), flags, "");
+        drawRowLabel(registry, entity);
 
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
             editor.select(entity);

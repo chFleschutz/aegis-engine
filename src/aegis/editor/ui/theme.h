@@ -110,5 +110,18 @@ inline constexpr const char* step = "\uE3EA";   // step-forward
 inline constexpr const char* camera = "\uE064"; // camera
 inline constexpr const char* light = "\uE1C2";  // lightbulb
 inline constexpr const char* sun = "\uE178";    // sun
+
+// The kinds of entities in the hierarchy (the camera, light and sun above are the rest).
+inline constexpr const char* mesh = "\uE524";     // cuboid
+inline constexpr const char* instance = "\uE2AD"; // component
+inline constexpr const char* empty = "\uE4B0";    // circle-dashed
+
+// The kinds of assets in the asset list (the mesh above is the static mesh).
+inline constexpr const char* material = "\uE1DD";    // palette
+inline constexpr const char* texture = "\uE0F6";     // image
+inline constexpr const char* scene = "\uE29B";       // clapperboard
+inline constexpr const char* environment = "\uE216"; // cloud-sun
+inline constexpr const char* model = "\uE2D0";       // boxes
+inline constexpr const char* file = "\uE0C0";        // file
 }
 }

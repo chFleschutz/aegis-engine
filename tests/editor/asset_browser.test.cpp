@@ -9,6 +9,8 @@ namespace
 using aegis::editor::acceptsAsset;
 using aegis::editor::AssetFilter;
 using aegis::editor::AssetItem;
+using aegis::editor::AssetKind;
+using aegis::editor::assetKind;
 using aegis::editor::AssetRoot;
 using aegis::editor::AssetRow;
 using aegis::editor::AssetTree;
@@ -246,5 +248,29 @@ TEST_SUITE("editor::dropPoint")
         CHECK(dropPoint(level, 100.0f, 5.0f).x == doctest::Approx(5.0f));
         const Ray far{ .origin = { 0.0f, 0.0f, 1000.0f }, .direction = { 0.0f, 0.0f, -1.0f } };
         CHECK(dropPoint(far, 100.0f, 5.0f).z == doctest::Approx(995.0f));
+    }
+}
+
+TEST_SUITE("editor::assetKind")
+{
+    TEST_CASE("each asset type has its kind")
+    {
+        CHECK(assetKind("StaticMesh", "models/helmet.gltf") == AssetKind::StaticMesh);
+        CHECK(assetKind("Material", "models/helmet.gltf") == AssetKind::Material);
+        CHECK(assetKind("Texture", "textures/checker.png") == AssetKind::Texture);
+        CHECK(assetKind("Environment", "sky/studio.hdr") == AssetKind::Environment);
+    }
+
+    TEST_CASE("a scene from a scene file is a scene, from any other file a model")
+    {
+        CHECK(assetKind("Scene", "scenes/simple.scene") == AssetKind::Scene);
+        CHECK(assetKind("Scene", "models/helmet.gltf") == AssetKind::Model);
+        CHECK(assetKind("Scene", "models/cube.obj") == AssetKind::Model);
+    }
+
+    TEST_CASE("any other type is other")
+    {
+        CHECK(assetKind("Shader", "shaders/lit.slang") == AssetKind::Other);
+        CHECK(assetKind("", "readme.txt") == AssetKind::Other);
     }
 }

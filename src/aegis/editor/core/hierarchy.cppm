@@ -14,6 +14,21 @@ struct HierarchyRow
     bool open{ false }; ///< Whether its children follow it in the rows (never for a node without children)
 };
 
+/// @brief What an entity is, for the icon of its row.
+enum class EntityKind
+{
+    Camera,
+    DirectionalLight,
+    PointLight,
+    Mesh,
+    SceneInstance, ///< The holder of a scene instance (serialize::SceneInstance)
+    Empty,
+};
+
+/// @brief The kind of 'entity': the first of Camera, DirectionalLight, PointLight, Mesh (a MeshRenderer) and
+///        SceneInstance it has a component for, else Empty.
+[[nodiscard]] auto entityKind(world::Registry& registry, world::Entity entity) -> EntityKind;
+
 /// @brief Whether the hierarchy node of an entity is open, asked once per node that has children.
 using NodeOpen = std::function<bool(StableId)>;
 
