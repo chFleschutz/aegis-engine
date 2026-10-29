@@ -66,13 +66,96 @@ auto dragValues(const PropertyRow& row, T* values, int count) -> bool
     return ImGui::DragScalarN("##value", dataType<T>(), values, count, static_cast<float>(row.step), minPtr, maxPtr, format, ImGuiSliderFlags_AlwaysClamp);
 }
 
+// The letter of the strip before a vector's component.
+auto axisLetter(int component) -> const char*
+{
+    constexpr std::array letters{ "X", "Y", "Z", "W" };
+    return letters[static_cast<std::size_t>(component)];
+}
+
+// The color of that strip: the axis colors, and a neutral for W.
+auto axisColor(int component) -> ImVec4
+{
+    switch (component)
+    {
+    case 0: return theme::axisX;
+    case 1: return theme::axisY;
+    case 2: return theme::axisZ;
+    default: return theme::textDisabled;
+    }
+}
+
+// Drags the 'count' components of a vector, each after a strip with its axis letter and color, sharing the width
+// equally. A click on the letter resets that component to its value in 'defaults', which is called only while a
+// letter is hovered or clicked. The components form one group, so the caller sees the whole vector as one item: a drag stays
+// one undo entry.
+template<class Defaults>
+auto dragAxes(const PropertyRow& row, float* values, int count, Defaults&& defaults) -> bool
+{
+    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+    const float stripWidth = ImGui::GetFrameHeight();
+    const float componentWidth = (ImGui::GetContentRegionAvail().x - spacing * static_cast<float>(count - 1)) / static_cast<float>(count);
+    const float dragWidth = std::max(componentWidth - stripWidth, 1.0f);
+
+    bool changed = false;
+    ImGui::BeginGroup();
+    for (int i = 0; i < count; ++i)
+    {
+        ImGui::PushID(i);
+        if (i > 0)
+            ImGui::SameLine(0.0f, spacing);
+
+        const ImVec4 color = axisColor(i);
+        ImGui::PushStyleColor(ImGuiCol_Button, color);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ std::min(color.x * 1.2f, 1.0f), std::min(color.y * 1.2f, 1.0f), std::min(color.z * 1.2f, 1.0f), color.w });
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, color);
+        ImGui::PushStyleColor(ImGuiCol_Text, theme::bgDeep);
+        const bool reset = ImGui::Button(axisLetter(i), ImVec2{ stripWidth, 0.0f });
+        ImGui::PopStyleColor(4);
+        if (reset)
+        {
+            values[i] = defaults()[i];
+            changed = true;
+        }
+        else if (ImGui::BeginItemTooltip())
+        {
+            ImGui::Text("Reset %s to %g", axisLetter(i), static_cast<double>(defaults()[i]));
+            ImGui::EndTooltip();
+        }
+
+        ImGui::SameLine(0.0f, 0.0f);
+        ImGui::SetNextItemWidth(dragWidth);
+        changed |= dragValues(row, &values[i], 1);
+        ImGui::PopID();
+    }
+    ImGui::EndGroup();
+    return changed;
+}
+
+// The vector field 'row' in a default-constructed instance of its type, padded with zeros to four components.
+auto fieldDefaults(const reflect::TypeInfo& type, const PropertyRow& row) -> glm::vec4
+{
+    glm::vec4 defaults{ 0.0f };
+    const auto instance = type.create();
+    if (!instance)
+        return defaults;
+    const auto value = row.field->getter(instance->get());
+    if (const auto* v2 = std::get_if<glm::vec2>(&value))
+        defaults = glm::vec4{ *v2, 0.0f, 0.0f };
+    else if (const auto* v3 = std::get_if<glm::vec3>(&value))
+        defaults = glm::vec4{ *v3, 0.0f };
+    else if (const auto* v4 = std::get_if<glm::vec4>(&value))
+        defaults = *v4;
+    return defaults;
+}
+
 template<class T>
-auto dragValue(const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>
+auto dragValue(const reflect::TypeInfo& type, const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>
 {
     T edited = as<T>(value);
     if constexpr (std::same_as<T, glm::vec2> || std::same_as<T, glm::vec3> || std::same_as<T, glm::vec4>)
     {
-        if (dragValues(row, &edited.x, row.components))
+        if (dragAxes(row, &edited.x, row.components, [&] { return fieldDefaults(type, row); }))
             return reflect::Value{ edited };
     }
     else if (dragValues(row, &edited, 1))
@@ -82,17 +165,17 @@ auto dragValue(const PropertyRow& row, const reflect::Value& value) -> std::opti
     return std::nullopt;
 }
 
-auto drawNumber(const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>
+auto drawNumber(const reflect::TypeInfo& type, const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>
 {
     switch (row.field->kind)
     {
-    case reflect::FieldKind::Int: return dragValue<std::int64_t>(row, value);
-    case reflect::FieldKind::UInt: return dragValue<std::uint64_t>(row, value);
-    case reflect::FieldKind::Float: return dragValue<float>(row, value);
-    case reflect::FieldKind::Double: return dragValue<double>(row, value);
-    case reflect::FieldKind::Vec2: return dragValue<glm::vec2>(row, value);
-    case reflect::FieldKind::Vec3: return dragValue<glm::vec3>(row, value);
-    case reflect::FieldKind::Vec4: return dragValue<glm::vec4>(row, value);
+    case reflect::FieldKind::Int: return dragValue<std::int64_t>(type, row, value);
+    case reflect::FieldKind::UInt: return dragValue<std::uint64_t>(type, row, value);
+    case reflect::FieldKind::Float: return dragValue<float>(type, row, value);
+    case reflect::FieldKind::Double: return dragValue<double>(type, row, value);
+    case reflect::FieldKind::Vec2: return dragValue<glm::vec2>(type, row, value);
+    case reflect::FieldKind::Vec3: return dragValue<glm::vec3>(type, row, value);
+    case reflect::FieldKind::Vec4: return dragValue<glm::vec4>(type, row, value);
     default: return std::nullopt;
     }
 }
@@ -109,16 +192,25 @@ auto drawAngle(const PropertyRow& row, const reflect::Value& value) -> std::opti
     return isDouble ? reflect::Value{ edited } : reflect::Value{ static_cast<float>(edited) };
 }
 
+// A linear color, shown and picked in sRGB: the swatch and hex, with floats in the picker, converted back on an edit.
+// A channel the pick leaves alone keeps its stored value, so an unchanged pick writes nothing.
 auto drawColor(const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>
 {
-    constexpr ImGuiColorEditFlags flags = ImGuiColorEditFlags_Float;
-    if (row.field->kind == reflect::FieldKind::Vec4)
-    {
-        auto color = as<glm::vec4>(value);
-        return ImGui::ColorEdit4("##value", &color.x, flags) ? std::optional{ reflect::Value{ color } } : std::nullopt;
-    }
-    auto color = as<glm::vec3>(value);
-    return ImGui::ColorEdit3("##value", &color.x, flags) ? std::optional{ reflect::Value{ color } } : std::nullopt;
+    const bool isVec4 = row.field->kind == reflect::FieldKind::Vec4;
+    const glm::vec4 stored = isVec4 ? as<glm::vec4>(value) : glm::vec4{ as<glm::vec3>(value), 1.0f };
+    // A color above 1, or a field allowed above 1, is HDR: no clamping, and shown as floats since hex cannot
+    const bool hdr = (row.max && *row.max > 1.0) || std::max({ stored.r, stored.g, stored.b }) > 1.0f;
+    const ImGuiColorEditFlags flags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoTooltip | (hdr ? ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_DisplayRGB : ImGuiColorEditFlags_DisplayHex);
+
+    const glm::vec3 shown = linearToSrgb(glm::vec3{ stored });
+    glm::vec4 edited{ shown, stored.a };
+    const bool changed = isVec4 ? ImGui::ColorEdit4("##value", &edited.x, flags) : ImGui::ColorEdit3("##value", &edited.x, flags);
+    ImGui::SetItemTooltip("Stored linear");
+    if (!changed)
+        return std::nullopt;
+
+    const glm::vec3 linear = linearAfterEdit(glm::vec3{ stored }, shown, glm::vec3{ edited });
+    return isVec4 ? reflect::Value{ glm::vec4{ linear, edited.a } } : reflect::Value{ linear };
 }
 
 auto drawRotation(const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>
@@ -126,7 +218,7 @@ auto drawRotation(const PropertyRow& row, const reflect::Value& value) -> std::o
     static RotationDrag s_drag;
     const ImGuiID id = ImGui::GetID("##value");
     glm::vec3 euler = s_drag.id == id ? s_drag.euler : glm::degrees(glm::eulerAngles(as<glm::quat>(value)));
-    const bool changed = dragValues(row, &euler.x, 3);
+    const bool changed = dragAxes(row, &euler.x, 3, [] { return glm::vec4{ 0.0f }; });
     if (ImGui::IsItemActive())
         s_drag = { .id = id, .euler = euler };
     else if (s_drag.id == id)
@@ -214,7 +306,7 @@ auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const as
 }
 
 // The row's widget for 'value'; the new value when it was edited this frame.
-auto drawValue(const PropertyRow& row, const reflect::Value& value, const assets::AssetDatabase& database, bool editable) -> std::optional<reflect::Value>
+auto drawValue(const reflect::TypeInfo& type, const PropertyRow& row, const reflect::Value& value, const assets::AssetDatabase& database, bool editable) -> std::optional<reflect::Value>
 {
     switch (row.widget)
     {
@@ -224,7 +316,7 @@ auto drawValue(const PropertyRow& row, const reflect::Value& value, const assets
         return ImGui::Checkbox("##value", &checked) ? std::optional{ reflect::Value{ checked } } : std::nullopt;
     }
     case PropertyWidget::Drag:
-    case PropertyWidget::Slider: return drawNumber(row, value);
+    case PropertyWidget::Slider: return drawNumber(type, row, value);
     case PropertyWidget::Angle: return drawAngle(row, value);
     case PropertyWidget::Color: return drawColor(row, value);
     case PropertyWidget::Rotation: return drawRotation(row, value);
@@ -260,7 +352,7 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
         ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::BeginDisabled(readOnly || row.readOnly);
         const auto current = row.field->getter(object);
-        const auto edited = drawValue(row, current, frame.assets.database(), !readOnly && !row.readOnly);
+        const auto edited = drawValue(type, row, current, frame.assets.database(), !readOnly && !row.readOnly);
         const bool active = ImGui::IsItemActive();
         const bool deactivated = ImGui::IsItemDeactivated();
         ImGui::EndDisabled();
