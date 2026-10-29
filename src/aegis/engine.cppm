@@ -246,7 +246,8 @@ public:
     /// @brief Asked when the user closes the window: false keeps it open, e.g. to ask about unsaved changes first and
     ///        call Engine::quit once answered.
     [[nodiscard]] virtual auto canClose() -> bool { return true; }
-    /// @brief The input the game doesn't see this frame; asked before the input is read.
+    /// @brief The input the game doesn't see this frame; asked before the input is read, and again after onFrame,
+    ///        before the worlds update, so a shortcut the UI ran this frame keeps its key from the game.
     [[nodiscard]] virtual auto inputCapture() const -> InputCapture { return {}; }
     /// @brief The view to render; none renders onto the window (or, headless, the offscreen target). Asked before
     ///        onFrame for the frame graph, which is rebuilt when a view appears or goes and resized when its extent
@@ -347,6 +348,10 @@ public:
     /// @brief Sets the window's title; headless, nothing.
     void setTitle(std::string_view title);
 
+    /// @brief Shows the cursor over the window again (platform::CursorMode::Normal) after a game hid or disabled it;
+    ///        headless, nothing.
+    void restoreCursor();
+
     /// @brief How much larger than 100% the window's monitor shows things (high DPI), as of now; 1 headless.
     [[nodiscard]] auto contentScale() const -> float;
 
@@ -392,6 +397,8 @@ private:
     /// @brief Opens the ImGui frame, lets the shell build its UI, apply its edits and pick the worlds that update and
     ///        render, and ends the frame.
     void runShell(float deltaSeconds);
+    /// @brief Keeps from the game what the shell's inputCapture asks for. Not headless.
+    void captureInput();
     /// @brief Updates the worlds the shell asked for, each by its own clock, ticked at 'now'; the others' clocks stand still.
     void updateWorlds(core::FrameClock::Clock::time_point now);
     /// @brief Restarts every clock at 'now', so the time until then (a minimized window) is no part of the next delta.

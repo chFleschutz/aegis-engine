@@ -27,6 +27,8 @@ auto keyName(Key key) -> std::string_view
         return "Z";
     case Key::Delete:
         return "Del";
+    case Key::F1:
+        return "F1";
     case Key::F2:
         return "F2";
     }

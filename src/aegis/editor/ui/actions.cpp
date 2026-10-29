@@ -34,6 +34,8 @@ auto toImGui(Key key) -> ImGuiKey
         return ImGuiKey_Z;
     case Key::Delete:
         return ImGuiKey_Delete;
+    case Key::F1:
+        return ImGuiKey_F1;
     case Key::F2:
         return ImGuiKey_F2;
     }
@@ -98,18 +100,29 @@ void ActionRegistry::menuItem(std::string_view id, FrameContext& frame, std::str
         action->run(frame);
 }
 
-void ActionRegistry::handleShortcuts(FrameContext& frame) const
+void ActionRegistry::handleShortcuts(FrameContext& frame, bool gameHasKeyboard)
 {
+    if (m_heldKey && !ImGui::IsKeyDown(toImGui(*m_heldKey)))
+        m_heldKey.reset();
     if (ImGui::GetIO().WantTextInput)
         return;
+    const auto hit = [gameHasKeyboard](const std::optional<Chord>& chord, bool repeats) {
+        return chord && (!gameHasKeyboard || hasModifier(*chord)) && pressed(*chord, repeats);
+    };
     for (const auto& action : m_actions)
     {
-        const bool hit = (action.chord && pressed(*action.chord, action.repeats)) || (action.alternate && pressed(*action.alternate, action.repeats));
-        if (hit && canRun(action))
-        {
+        const auto& chord = hit(action.chord, action.repeats) ? action.chord : action.alternate;
+        if (!hit(chord, action.repeats))
+            continue;
+        m_heldKey = chord->key;
+        if (canRun(action))
             action.run(frame);
-            return;
-        }
+        return;
     }
+}
+
+auto ActionRegistry::chordHeld() const -> bool
+{
+    return m_heldKey && ImGui::IsKeyDown(toImGui(*m_heldKey));
 }
 }

@@ -121,6 +121,7 @@ EditorShell::EditorShell()
             m_defaultOpen.push_back(panel.get());
     }
     buildActions();
+    m_viewport.setReleaseHint(std::format("{} releases the input", m_actions.shortcut("play.release")));
 }
 
 EditorShell::~EditorShell()
@@ -194,8 +195,9 @@ auto EditorShell::canClose() -> bool
 auto EditorShell::inputCapture() const -> InputCapture
 {
     const auto& io = ImGui::GetIO();
+    // The play world's game has it, but for the key of an editor chord until it is released
     if (m_viewport.givesInputToGame())
-        return {}; // The play world's game has it
+        return { .keyboard = m_actions.chordHeld() };
     const bool viewport = m_viewport.capturesInput();
     return { .keyboard = io.WantCaptureKeyboard || viewport, .mouse = io.WantCaptureMouse || viewport };
 }
@@ -211,7 +213,7 @@ void EditorShell::onFrame(FrameContext& frame)
 
     const int tint = m_context.playing() ? pushPlayTint() : 0;
     beginMainWindow();
-    m_actions.handleShortcuts(frame);
+    m_actions.handleShortcuts(frame, m_viewport.givesInputToGame());
     if (m_context.renameRequested())
         openPanel("Inspector"); // The name field is there
     drawMenuBar(frame);
@@ -492,6 +494,7 @@ void EditorShell::stopPlay(FrameContext& frame)
     m_playWorld = nullptr;
     m_play.stop();
     m_viewport.setGameView(false);
+    frame.engine.restoreCursor(); // The game may have hidden it
 }
 
 void EditorShell::savePreferencesIfChanged()
@@ -621,6 +624,13 @@ void EditorShell::buildActions()
         .chord = chord(Key::P, true, false, true),
         .enabled = [this] { return m_play.state() == PlaySession::State::Paused; },
         .run = [this](FrameContext&) { m_play.step(); } });
+    m_actions.add({ .id = "play.release",
+        .label = "Release Input",
+        .chord = chord(Key::F1, false, true),
+        .enabled = [this] { return m_play.active(); },
+        .run = [this](FrameContext& frame) {
+            m_viewport.releaseInput();
+            frame.engine.restoreCursor(); } });
 }
 
 void EditorShell::updateStyle()
@@ -706,6 +716,8 @@ void EditorShell::drawMenuBar(FrameContext& frame)
         m_actions.menuItem("play.toggle", frame, state == PlaySession::State::Stopped ? "Play" : "Stop");
         m_actions.menuItem("play.pause", frame, state == PlaySession::State::Paused ? "Resume" : "Pause");
         m_actions.menuItem("play.step", frame);
+        ImGui::Separator();
+        m_actions.menuItem("play.release", frame);
         ImGui::EndMenu();
     }
 

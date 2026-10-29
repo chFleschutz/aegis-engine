@@ -25,6 +25,10 @@ public:
     [[nodiscard]] auto capturesInput() const -> bool { return m_hovered || cameraDragged(); }
     /// @brief Whether the game gets the input: the game view has focus.
     [[nodiscard]] auto givesInputToGame() const -> bool { return m_gameView && m_focused; }
+    /// @brief Takes the input back from the game: the viewport loses its focus until it is clicked again.
+    void releaseInput();
+    /// @brief What the viewport shows in a corner while the game has the input: how to take it back.
+    void setReleaseHint(std::string hint) { m_releaseHint = std::move(hint); }
 
     /// @brief Shows the world through its main camera (while playing) instead of the editor camera, which then stays
     ///        where it is; there is no gizmo, icon or picking in it.
@@ -66,6 +70,7 @@ private:
     // Whether a gizmo was drawn: the selection can be moved.
     auto drawGizmo(EditorContext& editor, const reflect::TypeRegistry& types, const Rect& rect) -> bool;
     void drawToolbar(EditorContext& editor, const Rect& rect);
+    void drawReleaseHint(const Rect& rect) const;
     [[nodiscard]] auto drawIcons(const EditorContext& editor, const Rect& rect) -> std::vector<PickIcon>;
     void pick(EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo);
     // A scene or model dropped from the asset browser: instantiated where the cursor points.
@@ -84,5 +89,6 @@ private:
     bool m_orbiting{ false };
     bool m_panning{ false };
     bool m_gizmoDragging{ false }; // As of the last frame: its end seals the drag's undo entry
+    std::string m_releaseHint;
 };
 }

@@ -237,6 +237,12 @@ void Engine::setTitle(std::string_view title)
         m_window->setTitle(title);
 }
 
+void Engine::restoreCursor()
+{
+    if (m_input)
+        m_input->setCursorMode(platform::CursorMode::Normal);
+}
+
 auto Engine::contentScale() const -> float
 {
     return m_window ? m_window->contentScale() : 1.0f;
@@ -396,8 +402,7 @@ auto Engine::run() -> int
             }
 
             // The shell decides what the game doesn't see, from the UI it built last frame.
-            const auto capture = m_shell->inputCapture();
-            m_input->setCaptured(capture.keyboard, capture.mouse);
+            captureInput();
             m_input->update();
         }
         // The clock clamps a long frame (a breakpoint, a load) so the UI doesn't get the whole stall; so do the worlds'.
@@ -411,6 +416,9 @@ auto Engine::run() -> int
         // The safe point: the shell's UI and edits come before the update, so an edit shows this frame. The shell
         // also picks the worlds that update and the one that renders.
         runShell(frameTimeSec);
+        // A shortcut the shell ran this frame keeps its key from the game's update too.
+        if (!headless)
+            captureInput();
         // The camera the shell's UI asks for this frame; every world's main camera gets the graph's aspect.
         const auto view = m_shell->renderView();
         updateCameraAspect(m_viewExtent.value_or(m_window ? rhi::Extent2D{ m_window->extent() } : m_renderer->extent()));
@@ -600,6 +608,12 @@ bool Engine::resize()
     if (auto resized = m_frameGraph->resized(m_renderer->extent()); !resized)
         log::fatal("Failed to resize the frame graph: {}", describe(resized.error()));
     return true;
+}
+
+void Engine::captureInput()
+{
+    const auto capture = m_shell->inputCapture();
+    m_input->setCaptured(capture.keyboard, capture.mouse);
 }
 
 void Engine::runShell(float deltaSeconds)
