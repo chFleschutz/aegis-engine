@@ -138,5 +138,9 @@ inline constexpr const char* scene = "\uE29B";       // clapperboard
 inline constexpr const char* environment = "\uE216"; // cloud-sun
 inline constexpr const char* model = "\uE2D0";       // boxes
 inline constexpr const char* file = "\uE0C0";        // file
+
+// The status bar's warning and error counts.
+inline constexpr const char* warning = "\uE193"; // triangle-alert
+inline constexpr const char* error = "\uE084";   // circle-x
 }
 }

@@ -91,7 +91,12 @@ private:
     void stopPlay(FrameContext& frame);
     /// @brief Asks for this frame's updates: the edit world in edit mode, or the play world.
     void updateWorlds(FrameContext& frame);
+    /// @brief The selection at the left, the average frame and GPU times in the middle, the warning and error counts at the right.
     void drawStatusBar(FrameContext& frame);
+    /// @brief The active entity's name ("No selection" without one), and how many more are selected.
+    [[nodiscard]] auto selectionLabel() const -> std::string;
+    /// @brief The console's warning and error counts, with the last one as their tooltip; a click shows them in the console.
+    void drawProblemCounts();
     void savePreferencesIfChanged();
 
     EditorContext m_context;
@@ -119,5 +124,6 @@ private:
     std::string m_title;      // The window's, as last set
     PlaySession m_play;
     world::World* m_playWorld{ nullptr }; // While a play session runs; the engine owns it
+    RollingAverage<20> m_gpuMs;           // The frame graph's GPU time, which varies from frame to frame
 };
 }
