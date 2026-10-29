@@ -22,8 +22,16 @@ namespace aegis::editor
 {
 namespace
 {
-// Light and camera icons: their radius in pixels at 100%, which scaled is also how near a click has to be.
+// Light and camera icons: their radius in pixels at 100%, which scaled is also how near a click has to be. Icons
+// farther from the camera than iconFadeStart shrink and fade linearly until iconFadeEnd, from where on they keep
+// these shares of their radius and opacity.
 constexpr float iconRadius{ 9.0f };
+constexpr float iconFadeStart{ 10.0f };
+constexpr float iconFadeEnd{ 40.0f };
+constexpr float iconMinScale{ 0.4f };
+constexpr float iconMinAlpha{ 0.35f };
+// How long the camera speed shows while flying after the wheel changed it, in seconds.
+constexpr double speedLabelSeconds{ 1.0 };
 // What a focus frames around an entity without a mesh.
 constexpr float pointFocusRadius{ 1.0f };
 // A scene dropped into the view lands on the ground under the cursor if it is this near, else this far along the ray.
@@ -109,8 +117,8 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
             const float inset = thickness * 0.5f;
             ImGui::GetWindowDrawList()->AddRect(ImVec2{ rect.x + inset, rect.y + inset }, ImVec2{ rect.x + rect.width - inset, rect.y + rect.height - inset }, theme::packed(theme::playFrame), 0.0f, 0, thickness);
         }
-        if (givesInputToGame())
-            drawReleaseHint(rect);
+        if (givesInputToGame() && !m_releaseHint.empty())
+            drawCornerLabel(rect, m_releaseHint);
 
         if (!m_gameView)
         {
@@ -121,6 +129,11 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
             const auto icons = drawIcons(editor, rect);
             const bool gizmo = drawGizmo(editor, frame.types, rect);
             drawToolbar(editor, rect);
+            if (m_flying && ImGui::GetTime() < m_speedShownUntil)
+            {
+                const float speed = editor.preferences().cameraSpeed;
+                drawCornerLabel(rect, std::format("Speed {:.{}f} u/s", speed, speed < 1.0f ? 2 : 1));
+            }
             pick(editor, rect, icons, gizmo);
             acceptDrop(editor, frame, rect);
         }
@@ -192,9 +205,15 @@ void Viewport::updateCamera(EditorContext& editor, float deltaSeconds)
     }
 
     auto& preferences = editor.preferences();
-    m_camera.setSpeed(preferences.cameraSpeed);
+    const float speed = preferences.cameraSpeed;
+    m_camera.setSpeed(speed);
     m_camera.update(input, deltaSeconds);
     preferences.cameraSpeed = std::clamp(m_camera.speed(), 0.01f, 1000.0f);
+    // The wheel changes the speed while flying: it shows for a moment
+    if (!m_flying)
+        m_speedShownUntil = 0.0;
+    else if (preferences.cameraSpeed != speed)
+        m_speedShownUntil = ImGui::GetTime() + speedLabelSeconds;
 }
 
 void Viewport::focusSelection(const EditorContext& editor)
@@ -321,59 +340,92 @@ void Viewport::drawToolbar(EditorContext& editor, const Rect& rect)
         m_snap = !m_snap;
     ImGui::SetItemTooltip("Snap (Ctrl inverts it). Steps: %.3g units, %.3g degrees, %.3g scale", editor.preferences().snapTranslate,
         editor.preferences().snapRotate, editor.preferences().snapScale);
+    ImGui::SameLine();
+    bool& showIcons = editor.preferences().showIcons;
+    if (theme::iconButton(showIcons ? theme::icons::shown : theme::icons::hidden, "icons"))
+        showIcons = !showIcons;
+    ImGui::SetItemTooltip("Light and camera icons: %s, click to %s them", showIcons ? "shown" : "hidden", showIcons ? "hide" : "show");
 }
 
-void Viewport::drawReleaseHint(const Rect& rect) const
+void Viewport::drawCornerLabel(const Rect& rect, const std::string& text) const
 {
-    if (m_releaseHint.empty())
-        return;
     // In the bottom left corner, inside the play frame, on the icons' backdrop so it reads over any scene
     const ImGuiStyle& style = ImGui::GetStyle();
-    const ImVec2 size = ImGui::CalcTextSize(m_releaseHint.c_str());
+    const ImVec2 size = ImGui::CalcTextSize(text.c_str());
     const ImVec2 min{ rect.x + style.ItemSpacing.x * 2.0f, rect.y + rect.height - style.ItemSpacing.y * 2.0f - size.y - style.FramePadding.y * 2.0f };
     const ImVec2 max{ min.x + size.x + style.FramePadding.x * 2.0f, min.y + size.y + style.FramePadding.y * 2.0f };
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     drawList->AddRectFilled(min, max, theme::packed(theme::iconBackdrop), style.FrameRounding);
-    drawList->AddText(ImVec2{ min.x + style.FramePadding.x, min.y + style.FramePadding.y }, theme::packed(theme::textDim), m_releaseHint.c_str());
+    drawList->AddText(ImVec2{ min.x + style.FramePadding.x, min.y + style.FramePadding.y }, theme::packed(theme::textDim), text.c_str());
 }
 
 auto Viewport::drawIcons(const EditorContext& editor, const Rect& rect) -> std::vector<PickIcon>
 {
     std::vector<PickIcon> icons;
     auto* world = editor.world();
-    if (!world)
-        return icons;
+    if (!world || !editor.preferences().showIcons)
+        return icons; // Hidden icons can't be clicked either
     auto& registry = world->registry();
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    drawList->PushClipRect(ImVec2{ rect.x, rect.y }, ImVec2{ rect.x + rect.width, rect.y + rect.height }, true);
 
     // The Lucide glyph in the merged font; the letter without it
     const bool glyphs = theme::fonts().ui != nullptr;
-    const auto drawIcon = [&](entt::entity handle, const char* glyph, const char* letter, const ImVec4& tint) {
-        const ImU32 color = theme::packed(tint);
-        const char* label = glyphs ? glyph : letter;
+    struct Icon
+    {
+        PickIcon pick;
+        const char* label{ nullptr };
+        ImVec4 tint;
+        float scale{ 1.0f }; // Of the radius and the glyph
+        bool selected{ false };
+    };
+    std::vector<Icon> shown;
+    const auto addIcon = [&](entt::entity handle, const char* glyph, const char* letter, ImVec4 tint) {
         const world::Entity entity{ handle };
         if (!registry.has<GlobalTransform, StableId>(entity))
             return;
-        const auto ndc = m_camera.project(registry.get<GlobalTransform>(entity).location, aspect());
+        const glm::vec3 location = registry.get<GlobalTransform>(entity).location;
+        const auto ndc = m_camera.project(location, aspect());
         if (!ndc || std::abs(ndc->x) > 1.0f || std::abs(ndc->y) > 1.0f)
             return;
-        const ImVec2 center{ rect.x + (ndc->x + 1.0f) * 0.5f * rect.width, rect.y + (1.0f - ndc->y) * 0.5f * rect.height };
+        const glm::vec2 center{ rect.x + (ndc->x + 1.0f) * 0.5f * rect.width, rect.y + (1.0f - ndc->y) * 0.5f * rect.height };
+        const float fade = std::clamp((glm::length(location - m_camera.position()) - iconFadeStart) / (iconFadeEnd - iconFadeStart), 0.0f, 1.0f);
+        const float scale = std::lerp(1.0f, iconMinScale, fade);
         const bool selected = editor.isSelected(entity);
-        const float radius = iconRadius * theme::scale();
-        drawList->AddCircleFilled(center, radius, theme::packed(theme::iconBackdrop));
-        drawList->AddCircle(center, radius, selected ? theme::packed(theme::iconSelected) : color, 0, (selected ? 2.5f : 1.5f) * theme::scale());
-        const ImVec2 textSize = ImGui::CalcTextSize(label);
-        drawList->AddText(ImVec2{ center.x - textSize.x * 0.5f, center.y - textSize.y * 0.5f }, color, label);
-        icons.push_back({ .id = registry.get<StableId>(entity), .position = { center.x, center.y } });
+        tint.w *= selected ? 1.0f : std::lerp(1.0f, iconMinAlpha, fade); // The selection never fades
+        shown.push_back({
+            .pick = { .id = registry.get<StableId>(entity), .position = center, .radius = iconRadius * theme::scale() * scale },
+            .label = glyphs ? glyph : letter,
+            .tint = tint,
+            .scale = scale,
+            .selected = selected,
+        });
+    };
+    const auto lightTint = [](const glm::vec3& color) {
+        const glm::vec3 tint = iconTint(color);
+        return ImVec4{ tint.x, tint.y, tint.z, 1.0f };
     };
     for (const auto entity : registry.view<PointLight>())
-        drawIcon(entity, theme::icons::light, "P", theme::lightIcon);
+        addIcon(entity, theme::icons::light, "P", lightTint(registry.get<PointLight>(world::Entity{ entity }).color));
     for (const auto entity : registry.view<DirectionalLight>())
-        drawIcon(entity, theme::icons::sun, "D", theme::lightIcon);
+        addIcon(entity, theme::icons::sun, "D", lightTint(registry.get<DirectionalLight>(world::Entity{ entity }).color));
     for (const auto entity : registry.view<Camera>())
-        drawIcon(entity, theme::icons::camera, "C", theme::cameraIcon);
+        addIcon(entity, theme::icons::camera, "C", theme::cameraIcon);
+    // The selected icon draws last, on top
+    std::ranges::stable_partition(shown, [](const Icon& icon) { return !icon.selected; });
 
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->PushClipRect(ImVec2{ rect.x, rect.y }, ImVec2{ rect.x + rect.width, rect.y + rect.height }, true);
+    for (const auto& icon : shown)
+    {
+        const ImVec2 center{ icon.pick.position.x, icon.pick.position.y };
+        const ImU32 color = theme::packed(icon.tint);
+        ImVec4 backdrop = theme::iconBackdrop;
+        backdrop.w *= icon.tint.w;
+        drawList->AddCircleFilled(center, icon.pick.radius, theme::packed(backdrop));
+        drawList->AddCircle(center, icon.pick.radius, icon.selected ? theme::packed(theme::iconSelected) : color, 0, (icon.selected ? 2.5f : 1.5f) * theme::scale());
+        const ImVec2 textSize = ImGui::CalcTextSize(icon.label);
+        drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize() * icon.scale, ImVec2{ center.x - textSize.x * icon.scale * 0.5f, center.y - textSize.y * icon.scale * 0.5f }, color, icon.label);
+        icons.push_back(icon.pick);
+    }
     drawList->PopClipRect();
     return icons;
 }
@@ -403,7 +455,7 @@ void Viewport::pick(EditorContext& editor, const Rect& rect, std::span<const Pic
     if (!world)
         return;
 
-    auto picked = pickIcon({ cursor.x, cursor.y }, icons, iconRadius * theme::scale());
+    auto picked = pickIcon({ cursor.x, cursor.y }, icons);
     if (!picked)
     {
         auto& registry = world->registry();

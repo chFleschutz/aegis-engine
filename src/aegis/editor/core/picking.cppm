@@ -26,11 +26,12 @@ struct PickTarget
     Sphere bounds;
 };
 
-/// @brief An entity's icon in the viewport (a light, a camera), in pixels.
+/// @brief An entity's icon in the viewport (a light, a camera), in pixels: a click this near its center hits it.
 struct PickIcon
 {
     StableId id;
     glm::vec2 position{ 0.0f };
+    float radius{ 0.0f };
 };
 
 /// @brief 'local' (in a mesh's space) moved into world space by 'transform': the radius grows with the largest
@@ -43,6 +44,6 @@ struct PickIcon
 /// @brief The target whose sphere 'ray' enters first, or none.
 [[nodiscard]] auto pickNearest(const Ray& ray, std::span<const PickTarget> targets) -> std::optional<StableId>;
 
-/// @brief The icon closest to 'cursor' within 'radius' pixels, or none.
-[[nodiscard]] auto pickIcon(const glm::vec2& cursor, std::span<const PickIcon> icons, float radius) -> std::optional<StableId>;
+/// @brief The icon closest to 'cursor' among those it is within the radius of, or none.
+[[nodiscard]] auto pickIcon(const glm::vec2& cursor, std::span<const PickIcon> icons) -> std::optional<StableId>;
 }

@@ -47,6 +47,7 @@ TEST_SUITE("editor::EditorPreferences")
         saved.snapTranslate = 0.25f;
         saved.snapRotate = 45.0f;
         saved.snapScale = 0.5f;
+        saved.showIcons = false;
         saved.uiScale = 1.5f;
         saved.recentProjects = { "C:/games/one", "C:/games/two" };
         REQUIRE(aegis::editor::savePreferences(saved, file));
@@ -57,6 +58,7 @@ TEST_SUITE("editor::EditorPreferences")
         CHECK(loaded->snapTranslate == saved.snapTranslate);
         CHECK(loaded->snapRotate == saved.snapRotate);
         CHECK(loaded->snapScale == saved.snapScale);
+        CHECK(loaded->showIcons == saved.showIcons);
         CHECK(loaded->uiScale == saved.uiScale);
         CHECK(loaded->recentProjects == saved.recentProjects);
     }
@@ -80,6 +82,18 @@ TEST_SUITE("editor::EditorPreferences")
         REQUIRE(loaded);
         CHECK(loaded->uiScale == 2.0f);
         CHECK(loaded->cameraSpeed == EditorPreferences{}.cameraSpeed);
+    }
+
+    TEST_CASE("reads the viewport icons' toggle by its key")
+    {
+        TempFolder folder;
+        const auto file = folder.path() / "editor.json";
+        write(file, R"({ "showIcons": false })");
+
+        const auto loaded = aegis::editor::loadPreferences(file);
+        REQUIRE(loaded);
+        CHECK_FALSE(loaded->showIcons);
+        CHECK(EditorPreferences{}.showIcons);
     }
 
     TEST_CASE("reports a file that is not valid")

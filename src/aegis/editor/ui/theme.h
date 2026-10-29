@@ -43,7 +43,7 @@ inline constexpr ImVec4 axisX = rgb(0xE5534B);
 inline constexpr ImVec4 axisY = rgb(0x6CC24A);
 inline constexpr ImVec4 axisZ = rgb(0x4A8CD9);
 
-// The light and camera icons in the viewport.
+// The light and camera icons in the hierarchy; in the viewport a light's icon takes the light's color.
 inline constexpr ImVec4 lightIcon = rgb(0xFFE678);
 inline constexpr ImVec4 cameraIcon = rgb(0x8CC8FF);
 inline constexpr ImVec4 iconBackdrop = rgb(0x1E1E1E, 0.78f);
@@ -121,6 +121,8 @@ inline constexpr const char* scale = "\uE2EC";  // scaling
 inline constexpr const char* local = "\uE061";  // box
 inline constexpr const char* world = "\uE0E8";  // globe
 inline constexpr const char* snap = "\uE2B5";   // magnet
+inline constexpr const char* shown = "\uE0BA";  // eye
+inline constexpr const char* hidden = "\uE0BB"; // eye-off
 inline constexpr const char* play = "\uE13C";   // play
 inline constexpr const char* pause = "\uE12E";  // pause
 inline constexpr const char* stop = "\uE167";   // square

@@ -70,7 +70,8 @@ private:
     // Whether a gizmo was drawn: the selection can be moved.
     auto drawGizmo(EditorContext& editor, const reflect::TypeRegistry& types, const Rect& rect) -> bool;
     void drawToolbar(EditorContext& editor, const Rect& rect);
-    void drawReleaseHint(const Rect& rect) const;
+    // 'text' in the bottom left corner: how to take the input back from the game, the camera speed while it changes.
+    void drawCornerLabel(const Rect& rect, const std::string& text) const;
     [[nodiscard]] auto drawIcons(const EditorContext& editor, const Rect& rect) -> std::vector<PickIcon>;
     void pick(EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo);
     // A scene or model dropped from the asset browser: instantiated where the cursor points.
@@ -88,7 +89,8 @@ private:
     bool m_flying{ false };
     bool m_orbiting{ false };
     bool m_panning{ false };
-    bool m_gizmoDragging{ false }; // As of the last frame: its end seals the drag's undo entry
+    bool m_gizmoDragging{ false };   // As of the last frame: its end seals the drag's undo entry
+    double m_speedShownUntil{ 0.0 }; // ImGui's time until which the camera speed shows while flying
     std::string m_releaseHint;
 };
 }

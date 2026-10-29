@@ -182,16 +182,20 @@ Still to come: the views to render (world, camera and target per view, R5 [#192]
   script. Its `RenderView` replaces the `FrameScene`'s camera that `extractFrameScene` takes from the
   world. In play mode the viewport shows
   the world's main camera, and "eject" switches back to the editor camera while playing (nice to have).
-- **Controls:** RMB + WASD/QE to fly (wheel changes the speed), Alt + LMB to orbit, MMB to pan, wheel to
-  dolly, F to focus the selection (its bounding sphere). Z is up, matching D8.
+- **Controls:** RMB + WASD/QE to fly (wheel changes the speed, which shows at the bottom left for a second),
+  Alt + LMB to orbit, MMB to pan, wheel to dolly, F to focus the selection (its bounding sphere). Z is up,
+  matching D8.
 - **Gizmos:** ImGuizmo, drawn into the viewport window's draw list and clipped to the image rect. It has
   translate, rotate and scale, a local/world toggle, and per-mode snap values from the editor
   preferences (Ctrl inverts snapping). W/E/R/Q work only while the viewport is focused. One drag is one
   undo command: the transform is captured when the drag starts and committed when it ends.
 - **Picking:** at first a CPU ray against each `MeshRenderer`'s world-space bounding sphere
   (`StaticMesh::bounds()`), nearest hit, with Alt-click cycling through overlapping hits. Lights and
-  cameras get screen-space icons drawn with the viewport draw list, and those are clickable too. A GPU
-  ID buffer is a later improvement (nice to have).
+  cameras get screen-space icons drawn with the viewport draw list, and those are clickable too, each within
+  its drawn radius. A light's icon takes the light's color; icons farther than 10 units shrink and fade, down
+  to 40% of the size and 35% of the opacity at 40 units, and the selected one draws on top. The toolbar's eye
+  button hides them (hidden icons can't be clicked), remembered in the preferences. A GPU ID buffer is a
+  later improvement (nice to have).
 - **Input routing:** the editor camera gets input while the viewport is hovered or RMB is held. The
   play world gets game input only while the viewport is focused in play mode; it shows "Shift+F1 releases
   the input" meanwhile. Shift+F1 drops the viewport's focus and shows the cursor again, and a click on the
@@ -300,7 +304,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - **Layout:** `imgui.ini` goes in `<project>/.aegis/editor/imgui.ini` (per project, per machine, never
   committed, D8's one ignored folder). A View → Reset Layout action rebuilds the default with
   `DockBuilder`.
-- **Preferences** (camera speed, snap values, recent projects, UI scale) go in the user config folder
+- **Preferences** (camera speed, snap values, the viewport icons' toggle, recent projects, UI scale) go in the user config folder
   (`%APPDATA%/Aegis/editor.json`, `$XDG_CONFIG_HOME/aegis/editor.json`), as JSON through glaze in a
   `.cpp`. The Preferences window doesn't list the recent projects until something opens them (a welcome
   screen or a project switcher).
@@ -389,7 +393,7 @@ tokens, not this structure.
 ┌────────────────────────────────────────────────────────────────────────────────────┐
 │ File Edit Entity Play View Debug Help      ▶  ❚❚  ⏭                    sponza.scene* │ menu bar + play controls + scene
 ├─────────────────┬──────────────────────────────────────────────────┬───────────────┤
-│ Hierarchy       │ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ │                                 │ Inspector     │ viewport toolbar
+│ Hierarchy       │ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                               │ Inspector     │ viewport toolbar
 │ Filter       [+]│ ┌──────────────────────────────────────────────┐ │               │
 │                 │ │                                              │ │               │
 │ ▾ Sponza        │ │              Viewport (scene texture)        │ │               │

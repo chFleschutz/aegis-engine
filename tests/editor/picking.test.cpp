@@ -87,16 +87,38 @@ TEST_SUITE("editor::pickIcon")
     TEST_CASE("picks the icon closest to the cursor")
     {
         const std::array icons{
-            PickIcon{ .id = a, .position = { 100.0f, 100.0f } },
-            PickIcon{ .id = b, .position = { 106.0f, 100.0f } },
+            PickIcon{ .id = a, .position = { 100.0f, 100.0f }, .radius = 10.0f },
+            PickIcon{ .id = b, .position = { 106.0f, 100.0f }, .radius = 10.0f },
         };
-        CHECK(pickIcon({ 104.0f, 100.0f }, icons, 10.0f) == b);
+        CHECK(pickIcon({ 104.0f, 100.0f }, icons) == b);
     }
 
     TEST_CASE("picks nothing beyond the radius")
     {
-        const std::array icons{ PickIcon{ .id = a, .position = { 100.0f, 100.0f } } };
-        CHECK_FALSE(pickIcon({ 120.0f, 100.0f }, icons, 10.0f));
+        const std::array icons{ PickIcon{ .id = a, .position = { 100.0f, 100.0f }, .radius = 10.0f } };
+        CHECK_FALSE(pickIcon({ 120.0f, 100.0f }, icons));
+        CHECK_FALSE(aegis::editor::pickIcon({ 100.0f, 100.0f }, {}));
+    }
+
+    TEST_CASE("measures each icon by its own radius")
+    {
+        const std::array icons{
+            PickIcon{ .id = a, .position = { 100.0f, 100.0f }, .radius = 4.0f },
+            PickIcon{ .id = b, .position = { 112.0f, 100.0f }, .radius = 10.0f },
+        };
+        CHECK(pickIcon({ 105.0f, 100.0f }, icons) == b); // Nearer a, but outside its small radius
+        CHECK(pickIcon({ 103.0f, 100.0f }, icons) == a);
+        CHECK_FALSE(pickIcon({ 100.0f, 106.0f }, icons));
+    }
+
+    TEST_CASE("picks the nearer center where two icons overlap")
+    {
+        const std::array icons{
+            PickIcon{ .id = a, .position = { 100.0f, 100.0f }, .radius = 20.0f },
+            PickIcon{ .id = b, .position = { 108.0f, 100.0f }, .radius = 4.0f },
+        };
+        CHECK(pickIcon({ 107.0f, 100.0f }, icons) == b);
+        CHECK(pickIcon({ 103.0f, 100.0f }, icons) == a);
     }
 }
 
