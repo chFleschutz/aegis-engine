@@ -322,12 +322,12 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
    that review, readable at a glance (about one screen): what changed and why, then short notes on
    open decisions, anything left out, and checks CI can't show (device tests run or skipped). Skip
    what the page already shows, such as CI results, test counts and the command list; the
-   `/implement-issue` skill has the template. `main` is protected (required checks `Format`, `Linux`/`Windows`
+   `/implement` skill has the template. `main` is protected (required checks `Format`, `Linux`/`Windows`
    × debug/release, branch up to date). CI's device tests run on a software driver only: run the
    full `ctest` with the device tests locally first for device code. PRs land as merge commits, not squash or rebase, so commit hashes
    survive. After a PR with mechanical commits merges, add their hashes to `.git-blame-ignore-revs`
    (docs-only commit on `main`; only the owner can push to `main` past the protection). The
-   `/implement-issue` skill follows this.
+   `/implement` skill follows this.
 
 ## Unit tests
 
