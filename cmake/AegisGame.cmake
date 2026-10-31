@@ -3,7 +3,8 @@
 #   aegis_add_game(<Name>
 #       SOURCES <a.cpp> ...     # the game's code; one file uses AEGIS_GAME_MODULE (aegis/launch/game_module.h)
 #       PROJECT <dir>           # the game's project folder, its data
-#       [SCENES <path> ...])    # scene files of the project to run as device tests (--scene)
+#       [SCENES <path> ...]     # scene files of the project to run as device tests (--scene)
+#       [EDITOR_SELECT <name>]) # an entity of the first scene the editor test selects (--editor-select)
 #
 # Creates
 # - <Name>-module: the game's sources, compiled once. An OBJECT library, because a static one would let the
@@ -17,9 +18,9 @@
 # next to its executables and uses the build and source trees, so it never sees stale data; laying out a
 # copied or installed game is the export step's job (#134). With tests on, <Name> renders headless as a
 # `device` test: once per scene of SCENES (game-<name>-<scene file stem>), else once with its startup scene.
-# <Name>-Editor runs headless too (game-<name>-editor). A missing asset only logs a warning and renders a fallback, so that warning fails the test too.
+# <Name>-Editor runs headless too (game-<name>-editor, -editor-default and -editor-play). A missing asset only logs a warning and renders a fallback, so that warning fails the test too.
 function(aegis_add_game name)
-    cmake_parse_arguments(G "" "PROJECT" "SOURCES;SCENES" ${ARGN})
+    cmake_parse_arguments(G "" "PROJECT;EDITOR_SELECT" "SOURCES;SCENES" ${ARGN})
     if(NOT G_SOURCES OR NOT G_PROJECT)
         message(FATAL_ERROR "aegis_add_game(${name}) needs SOURCES and PROJECT")
     endif()
@@ -60,20 +61,25 @@ function(aegis_add_game name)
         endif()
 
         # The editor flavor runs 60 frames of its UI over the viewport and keeps the screenshot,
-        # <build>/screenshots/<test>.png, for a reviewer to look at: once with every panel open, and once with the
-        # panels a fresh editor opens (no layout file in a headless run), which is what a user sees first. The first
-        # scene stands for the project.
+        # <build>/screenshots/<test>.png, for a reviewer to look at: once with every panel open and EDITOR_SELECT's
+        # entity selected (its Inspector and gizmo), once with the panels a fresh editor opens (no layout file in a
+        # headless run), which is what a user sees first, and once in play mode. The first scene stands for the project.
         set(editor_args --headless --frames 60 --width 1280 --height 720)
         if(G_SCENES)
             list(GET G_SCENES 0 first)
             list(APPEND editor_args --scene ${first})
         endif()
         file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/screenshots")
-        foreach(variant IN ITEMS "" "-default")
+        foreach(variant IN ITEMS "" "-default" "-play")
             set(editor_test game-${lowered}-editor${variant})
             set(variant_args ${editor_args})
             if(NOT variant)
                 list(APPEND variant_args --editor-panels all)
+                if(G_EDITOR_SELECT)
+                    list(APPEND variant_args --editor-select "${G_EDITOR_SELECT}")
+                endif()
+            elseif(variant STREQUAL "-play")
+                list(APPEND variant_args --editor-play)
             endif()
             add_test(NAME ${editor_test} COMMAND ${name}-Editor ${variant_args}
                 --screenshot "${PROJECT_BINARY_DIR}/screenshots/${editor_test}.png")
