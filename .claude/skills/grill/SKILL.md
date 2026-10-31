@@ -8,4 +8,4 @@ The subject is `$ARGUMENTS`: an issue number (read it with
 `gh issue view <n> --json title,body,comments`, and the D-n decisions it cites in
 `docs/audit/backlog.md`), or else the plan in this conversation.
 
-Call the Skill tool with "grilling".
+Call the Skill tool twice, for "grilling" and "domain-modeling".

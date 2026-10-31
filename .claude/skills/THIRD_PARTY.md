@@ -8,7 +8,8 @@ and move the commit here.
 | Skill | Upstream skill | How close |
 | --- | --- | --- |
 | `diagnose` | `skills/engineering/diagnosing-bugs` | Same phases; aegis's feedback loops, plus the GPU hang hazard |
-| `grill` | `skills/productivity/grill-me` | A wrapper, as upstream, that also names the subject |
+| `domain-modeling` | `skills/engineering/domain-modeling` | Same discipline; one glossary, and D-n decisions instead of ADRs |
+| `grill` | `skills/engineering/grill-with-docs` | A wrapper, as upstream, that also names the subject |
 | `grilling` | `skills/productivity/grilling` | Verbatim |
 | `retro` | `skills/engineering/retro` | Same steps; aegis's categories and where findings go |
 | `writing-for-agents` | `skills/productivity/writing-for-agents` | Nearly verbatim |
