@@ -1,5 +1,6 @@
 # Build results
 [Bb]uild/
+!.claude/skills/build/
 [Oo]ut/
 [Bb]in/
 [Dd]ebug/
