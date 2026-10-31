@@ -1,5 +1,5 @@
 ---
-name: implement-issue
+name: implement
 description: Fetch a GitHub issue, implement it, verify, commit, push and open a PR that closes it. Use with an issue number to take a planned work item from issue to PR.
 argument-hint: [issue-number]
 disable-model-invocation: true
