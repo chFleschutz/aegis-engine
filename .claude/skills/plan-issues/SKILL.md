@@ -13,7 +13,8 @@ into GitHub **issues**: each one PR, each declaring the issues that **block** it
 
 Read the source in full; for an issue, `gh issue view <n> --json title,body,comments`. Then read what
 it leans on: the design docs and decisions it cites, `GLOSSARY.md` for names, and enough of the code
-to know what exists. Check the open issues for work that already covers a piece.
+to know what exists. Check the open issues: a piece one already covers stays in that issue, which you
+list in the breakdown and leave unedited; it can still block a new one.
 
 Done when you can say, for each piece, what exists today and what changes.
 
@@ -24,6 +25,7 @@ first: make the change easy, then make the easy change. Give each issue its **bl
 ones that genuinely gate it; an issue with none can start at once.
 
 A decision only the owner can make stays open: name it in the body and label the issue `needs-design`.
+Where the plan is merely unclear, pick a reading and put it to the owner in step 3.
 
 A **wide mechanical change** can't land green as one slice of the work, so sequence it: add the new
 form beside the old, migrate the callers in batches (per module or folder), each its own issue blocked
@@ -82,5 +84,5 @@ Labels, explained in AGENTS.md "Planned work":
 - `area/*` when the issue sits in one area, from `gh label list`;
 - `needs-gpu` when the verification needs a real GPU, `needs-design` for an open decision.
 
-Each issue also gets a milestone (`gh api repos/{owner}/{repo}/milestones --jq '.[].title'`); take
-`Backlog` when the plan names none.
+Each issue also gets a milestone (`gh api repos/{owner}/{repo}/milestones --jq '.[].title'`). Take
+`Backlog` when the plan names none, or `Ideas` with the `idea` label for an unplanned nice-to-have.
