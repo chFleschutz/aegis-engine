@@ -1,35 +1,35 @@
-# Build results
-[Bb]uild/
-[Oo]ut/
-[Bb]in/
-[Dd]ebug/
-[Rr]elease/
-x64/
-x86/
-[Oo]bj/
-[Ll]og/
-[Ll]ogs/
+# Build results, at the repository root only (the leading / leaves these names free for source folders)
+/[Bb]uild/
+/[Oo]ut/
+/[Bb]in/
+/[Dd]ebug/
+/[Rr]elease/
+/x64/
+/x86/
+/[Oo]bj/
+/[Ll]og/
+/[Ll]ogs/
 *.pdb
 
 # SPIRV compiled shader files
 shaders/**/*.spv
 
 # Install directory
-[Ii]nstall/
+/[Ii]nstall/
 
 # Temporary files
-[Tt]emp/
-[Tt]mp/
+/[Tt]emp/
+/[Tt]mp/
 
 # IDE specific files
-.vs/
+/.vs/
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/*.code-snippets
-.idea/
+/.idea/
 
-# Asset index and import cache
+# Asset index and import cache, in each project's folder
 .aegis/
