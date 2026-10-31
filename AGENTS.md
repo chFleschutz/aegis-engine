@@ -6,6 +6,9 @@ Aegis Engine is a cross-platform (Windows and Linux) C++23 Vulkan render engine.
 **C++20/23 modules-only** (every subsystem ships `.cppm` module files) and treats **warnings as
 errors** — your edits must compile clean.
 
+`GLOSSARY.md` defines the engine's terms: read it when a term here is unclear or before naming a
+new concept, and use its names in code, docs and issues.
+
 ## Build & run
 
 CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets (`build/<preset>/`). Default preset: `windows-clang-debug`; on Linux
@@ -93,9 +96,8 @@ window rendered; on a build failure, surface the first real error, not the downs
 
 **Games** (`cmake/AegisGame.cmake`, D7): `aegis_add_game(<Name> SOURCES … PROJECT <dir>)` builds the
 game's sources once (an OBJECT library) into `<Name>` (runtime, no `aegis-editor`) and `<Name>-Editor`
-around the engine's launcher, `src/aegis/launch/main.cpp`, the only `main()`. The runtime plays the game in
-the engine's `GameShell`; the editor flavor installs `editor::EditorShell` (`Engine::setShell`), which keeps
-the world in edit mode (no scripts run) and builds the editor's UI at the frame's safe point. One game source file ends
+around the launcher. The runtime keeps `GameShell`; the editor flavor installs `editor::EditorShell`
+(`Engine::setShell`). One game source file ends
 with `AEGIS_GAME_MODULE({ .name = …, .startupScene = …, .registerTypes = …, .onStartup = … })`
 (`aegis/launch/game_module.h`); after `onStartup` the launcher loads `--scene <path>` or the `startupScene`,
 and `SCENES <path> …` makes each scene a `device` test. The editor flavor runs headless as the `editor`-labelled
@@ -138,7 +140,7 @@ the source tree or the build dir breaks asset/shader loading unless you re-run c
 environment variables of the same names, which override the baked-in values at
 run time. Shaders and content are looked up first in `shaders/` and `content/` next to the executable
 (after the variable, before the baked-in path), for a copied or installed game; a development build
-has nothing there. A project's assets are in its `content/` folder (`paths::projectContent`), the only one scanned.
+has nothing there. Project content (`paths::projectContent`) is the only project folder scanned.
 Examples name assets through the library, by path inside it (`assets.id("models/basic/cube.obj")`, then
 `aegis::instantiate(context, id)` for a model or scene file / `assets.loadEnvironment(id)`); never add another `-D` path.
 `aegis-test` still has its own `AEGIS_TEST_SHADER_PATH` for its fixture shader (built next to it).
@@ -146,18 +148,17 @@ Examples name assets through the library, by path inside it (`assets.id("models/
 ### Assets by ID
 `aegis::AssetLibrary` (`src/aegis/asset_library.*`, target `aegis-asset-library`) loads assets by `AssetId`
 and caches them by ID; components store `AssetRef<T>` (`MeshRenderer`, `Sky`). It scans two roots through
-`assets::AssetDatabase`: the project's `content/` folder (the samples for now; dot-files and dot-folders are skipped;
-**a `.meta` sidecar with new IDs is written next to every source file that has none**, so a new source shows an
-untracked `.meta` file in the samples: commit it there, scenes reference assets by ID) and the read-only engine
-content folder `content/` (named in code as `assets::engine::white`, ...). A model file's meshes, materials and
-embedded textures get sub-asset IDs, recorded in its sidecar; an image file it names by URI is its own texture asset. Missing assets fall back to engine content with one
+`assets::AssetDatabase`: the project content (the samples for now; dot-files and dot-folders are skipped;
+**a sidecar with new IDs is written next to every source file that has none**, so a new source shows an
+untracked `.meta` file in the samples: commit it there, scenes reference assets by ID) and the engine
+content (named in code as `assets::engine::white`, ...). An image file a model names by URI is no
+sub-asset but its own texture asset. Missing assets fall back to engine content with one
 warning. Loaded assets are shared: editing one (a material's parameters) changes every user, so code that
 changes one object's material gives it its own first (`assets.copyMaterial(ref)` / `createMaterial`). Sidecars and the index use glaze (`external/glaze`, include it only in `.cpp` files). Design:
 `docs/asset-system.md`.
 
 ## Two code styles (most important)
-The renderer was rewritten onto a new RHI; the code around it (engine, editor, world, scripting, UI)
-still follows the older style. **Match the conventions of the code you are editing.**
+**Match the conventions of the code you are editing.**
 
 | | New style (see the list below) | Legacy — everything else |
 |---|---|---|
@@ -189,13 +190,10 @@ descriptors**. Every pipeline shares one layout (the bindless set plus 128 bytes
 so `Pipeline::*Desc` names no layout; shaders get addresses and descriptor indices through push
 constants. Convention: `shaders/modules/README.md`.
 
-**`…Handle` vs `…Descriptor` (naming rule):** `…Handle` always means a pooled, generational
-resource reference resolved through `Device::get` (`BufferHandle`, `ImageViewHandle`,
-`SamplerHandle`). `…Descriptor` always means a bindless slot index a shader consumes
-(`Descriptor<T>`: `SampledImageDescriptor`, `StorageImageDescriptor`, `SamplerDescriptor`). A
-resource *owns* its descriptors (`ImageView::sampledDescriptor()`, `Sampler::descriptor()`). Never
-call a slot index a handle. The rule covers GPU resources; CPU assets are shared through
-`shared_ptr`. A plain vector index is an `…Id` (`render_graph::ResourceId`), not a handle.
+**`…Handle`, `…Descriptor` and `…Id` (naming rule):** each suffix always means its glossary term.
+A resource *owns* its descriptors (`ImageView::sampledDescriptor()`, `Sampler::descriptor()`). Never
+call a slot index or a vector index a handle. The rule covers GPU resources; CPU assets are shared
+through `shared_ptr`.
 
 **Never `#include <vulkan/vulkan.h>` directly** — use `import vulkan`, and only inside the new
 RHI modules. rhi classes expose native `vk::` handles for interop (`Device::device()`,
@@ -222,7 +220,7 @@ profiler; any module may import it.
   rhi}` (rhi keeps `{code, debug location}`), built with `makeError(code, msg)` /
   `makeError(lowerError, msg)` and printed only through the module's `describe(const Error&)`. A
   layer adds context and copies the cause; it never re-stringifies.
-- *Static/dynamic entities:* static entities stay frozen after `begin`. Entity create/destroy and
+- *Static/dynamic entities:* entity create/destroy and
   `Mesh`/`Material` add/remove bump a static-set version through the entt signals and the static set
   is rebuilt. Moving a static entity is explicit: the editor calls `markStaticDirty(entity)` after
   gizmo/inspector edits, and scripts that move their entity use `DynamicTag`.
@@ -382,6 +380,6 @@ it exits 0.
 **What CI covers.** The `Linux device tests (lavapipe)` job runs every `device` test on Mesa's lavapipe,
 a software Vulkan driver, with validation (`ctest -L device -LE golden`). lavapipe has mesh shaders, so
 both geometry paths run. It does not cover, so run these on a real GPU before pushing:
-- the reference images (`golden`, generated on the dev GPU; software rendering differs in the last bits),
+- the reference images (`golden`; software rendering differs in the last bits),
 - windowed runs: surface, swapchain, acquire, present and `platform::Input` (`aegis-test --frames 600`),
 - Windows drivers, and anything timing- or performance-related.
