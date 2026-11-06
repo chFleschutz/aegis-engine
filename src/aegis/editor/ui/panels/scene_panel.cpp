@@ -14,6 +14,7 @@ import aegis.serialize;
 import aegis.world;
 import aegis.world.render_components;
 import :panels;
+import :theme;
 
 namespace aegis::editor
 {

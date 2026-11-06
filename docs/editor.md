@@ -83,7 +83,7 @@ src/aegis/editor/
 └─ ui/                            aegis-editor, module aegis.editor (ImGui in .cpp only)
    ├─ editor_shell     implements Shell; owns the context and the panels
    ├─ actions          action registry: id, label, shortcut, enabled(), run()
-   ├─ theme            colors, sizes and fonts in one place (theme.h: tokens and icons)
+   ├─ theme            colors, sizes, fonts and icons in one place (theme.h: tokens)
    ├─ widgets          property grid, one widget per FieldKind, asset slot, axis-colored vec3
    ├─ viewport         scene view: editor camera input, ImGuizmo inside the image rect, icons, picking
    └─ panels/          hierarchy, inspector, assets, console, renderer, profiler,
@@ -383,8 +383,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 
 ## UI design
 
-Decided in E8 ([#204]) and built: the theme is `ui/theme.h` (the tokens) and `ui/theme.cpp` (the fonts and the
-style), the layout is `EditorShell::drawDockspace`. What the owner's workflow and scale trials show (below) tunes the
+Decided in E8 ([#204]) and built: the theme is `ui/theme.h` (the tokens), `ui/theme.cppm` (the icons) and `ui/theme.cpp` (the
+fonts and the style), the layout is `EditorShell::drawDockspace`. What the owner's workflow and scale trials show (below) tunes the
 tokens, not this structure.
 
 ### Layout
@@ -446,10 +446,10 @@ tokens, not this structure.
 
   ImGui 1.92 rasterizes fonts at any size, so one file per family covers every scale. Inter has alternate
   glyphs in the private-use area where Lucide's icons live: Inter excludes that range, so Lucide's win. The
-  codepoints are generated, never typed: `tools/update-lucide.py` reads the font's glyph names into `ui/lucide.h`
-  (every icon, `lucide::mousePointer2`), and `ui/theme.h` names the ones the editor uses
+  codepoints are generated, never typed: `tools/update-lucide.py` reads the font's glyph names into the partition
+  `:lucide` (`ui/lucide.cppm`: every icon, `lucide::mousePointer2`), and `:theme` names the ones the editor uses
   (`icons::select = lucide::mousePointer2`). `content/fonts/Lucide-VERSION.txt` records the release and the font's
-  hash; `tools/update-lucide.py <version>` updates the font, its license and the header in one step.
+  hash; `tools/update-lucide.py <version>` updates the font, its license and the module in one step.
 - **Inspector and hierarchy polish** (a two-column grid, colored X/Y/Z labels, component header icons, an icon
   per entity kind, bold non-default values) is a follow-up, not part of E8's first pass.
 - **Shortcuts:** one action registry (`ui/actions.cppm`: id, label, chord, `enabled()`, `run()`) feeds the

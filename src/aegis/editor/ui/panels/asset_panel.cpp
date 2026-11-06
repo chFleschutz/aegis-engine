@@ -16,6 +16,7 @@ import aegis.math;
 import aegis.serialize;
 import aegis.world;
 import :panels;
+import :theme;
 
 namespace aegis::editor
 {

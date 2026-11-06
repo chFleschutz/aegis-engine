@@ -33,8 +33,8 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
   `external/zstd` submodule. Update it with `tools/update-ktx.sh <tag>`, committed on its own.
 - The editor's icon font `content/fonts/Lucide.ttf` is a `lucide-static` release, recorded in `Lucide-VERSION.txt`.
   `tools/update-lucide.py` (needs `pip install fonttools`) generates its codepoints into
-  `src/aegis/editor/ui/lucide.h` (don't edit it); `tools/update-lucide.py <version>` updates the font, its license
-  and the header, committed on its own.
+  `src/aegis/editor/ui/lucide.cppm` (don't edit it); `tools/update-lucide.py <version>` updates the font, its
+  license and the module, committed on its own.
 
 > **Vulkan SDK version matters — configure fails fast with the wrong one.** The RHI imports the
 > SDK's Vulkan-Hpp module (`import vulkan`), which still changes between SDK releases, so the build
