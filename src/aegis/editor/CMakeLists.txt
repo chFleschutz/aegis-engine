@@ -94,6 +94,7 @@ target_sources(aegis-editor
     ui/actions.cppm
     ui/editor.cppm
     ui/editor_shell.cppm
+    ui/lucide.cppm
     ui/panel.cppm
     ui/panels.cppm
     ui/theme.cppm

@@ -17,6 +17,7 @@ import aegis.world;
 import aegis.world.render_components;
 import aegis.world.systems.transform_system;
 import :panels;
+import :theme;
 
 namespace aegis::editor
 {

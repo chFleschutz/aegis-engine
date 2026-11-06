@@ -2,8 +2,8 @@
 
 #include <imgui.h>
 
-// The editor's look as named tokens (docs/editor.md, "UI design"): colors, the fonts and the Lucide icons. The editor
-// takes every color from here, never an inline value. The metrics and the style built from these are in :theme.
+// The editor's look as named tokens (docs/editor.md, "UI design"): colors and the fonts. The editor takes every color
+// from here, never an inline value. The metrics, the style built from these and the icons are in :theme.
 namespace aegis::editor::theme
 {
 // '0xRRGGBB' as the ImVec4 ImGui takes.
@@ -109,43 +109,5 @@ inline auto iconButton(const char* icon, const char* id, bool active = false) ->
     if (active)
         ImGui::PopStyleColor(3);
     return pressed;
-}
-
-// The Lucide icons the editor uses (lucide.dev, ISC), as UTF-8 for the private-use codepoints of the merged font.
-namespace icons
-{
-inline constexpr const char* select = "\uE1C3"; // mouse-pointer-2
-inline constexpr const char* move = "\uE121";   // move
-inline constexpr const char* rotate = "\uE2EA"; // rotate-3d
-inline constexpr const char* scale = "\uE2EC";  // scaling
-inline constexpr const char* local = "\uE061";  // box
-inline constexpr const char* world = "\uE0E8";  // globe
-inline constexpr const char* snap = "\uE2B5";   // magnet
-inline constexpr const char* shown = "\uE0BA";  // eye
-inline constexpr const char* hidden = "\uE0BB"; // eye-off
-inline constexpr const char* play = "\uE13C";   // play
-inline constexpr const char* pause = "\uE12E";  // pause
-inline constexpr const char* stop = "\uE167";   // square
-inline constexpr const char* step = "\uE3EA";   // step-forward
-inline constexpr const char* camera = "\uE064"; // camera
-inline constexpr const char* light = "\uE1C2";  // lightbulb
-inline constexpr const char* sun = "\uE178";    // sun
-
-// The kinds of entities in the hierarchy (the camera, light and sun above are the rest).
-inline constexpr const char* mesh = "\uE524";     // cuboid
-inline constexpr const char* instance = "\uE2AD"; // component
-inline constexpr const char* empty = "\uE4B0";    // circle-dashed
-
-// The kinds of assets in the asset list (the mesh above is the static mesh).
-inline constexpr const char* material = "\uE1DD";    // palette
-inline constexpr const char* texture = "\uE0F6";     // image
-inline constexpr const char* scene = "\uE29B";       // clapperboard
-inline constexpr const char* environment = "\uE216"; // cloud-sun
-inline constexpr const char* model = "\uE2D0";       // boxes
-inline constexpr const char* file = "\uE0C0";        // file
-
-// The status bar's warning and error counts.
-inline constexpr const char* warning = "\uE193"; // triangle-alert
-inline constexpr const char* error = "\uE084";   // circle-x
 }
 }
