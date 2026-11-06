@@ -18,7 +18,7 @@ order. Status lives only in the issues: an assigned issue is being worked on.
   code at the start of each PR. PR #91 (`import std`, CMake 4.5, Vulkan SDK 1.4.363) has since
   touched 167 files, mostly includes, so expect most line numbers to be off.
 
-How to work an item: AGENTS.md "Commits and pull requests" and the `/implement-issue` skill. Up to
+How to work an item: AGENTS.md "Commits and pull requests" and the `/implement` skill. Up to
 about three items run in parallel, one worktree each, never two with the same `area/*` label.
 
 ## Decisions
