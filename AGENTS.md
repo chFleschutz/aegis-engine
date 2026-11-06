@@ -31,6 +31,10 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
 - `external/ktx` is no submodule: it holds the files of a KTX-Software release that the engine builds (libktx's
   KTX2 reader and writer, under 1 MB of the 550 MB repository), built by `external/CMakeLists.txt` against the
   `external/zstd` submodule. Update it with `tools/update-ktx.sh <tag>`, committed on its own.
+- The editor's icon font `content/fonts/Lucide.ttf` is a `lucide-static` release, recorded in `Lucide-VERSION.txt`.
+  `tools/update-lucide.py` (needs `pip install fonttools`) generates its codepoints into
+  `src/aegis/editor/ui/lucide.h` (don't edit it); `tools/update-lucide.py <version>` updates the font, its license
+  and the header, committed on its own.
 
 > **Vulkan SDK version matters — configure fails fast with the wrong one.** The RHI imports the
 > SDK's Vulkan-Hpp module (`import vulkan`), which still changes between SDK releases, so the build

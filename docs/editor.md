@@ -446,7 +446,10 @@ tokens, not this structure.
 
   ImGui 1.92 rasterizes fonts at any size, so one file per family covers every scale. Inter has alternate
   glyphs in the private-use area where Lucide's icons live: Inter excludes that range, so Lucide's win. The
-  codepoints the editor uses are in `ui/theme.h`.
+  codepoints are generated, never typed: `tools/update-lucide.py` reads the font's glyph names into `ui/lucide.h`
+  (every icon, `lucide::mousePointer2`), and `ui/theme.h` names the ones the editor uses
+  (`icons::select = lucide::mousePointer2`). `content/fonts/Lucide-VERSION.txt` records the release and the font's
+  hash; `tools/update-lucide.py <version>` updates the font, its license and the header in one step.
 - **Inspector and hierarchy polish** (a two-column grid, colored X/Y/Z labels, component header icons, an icon
   per entity kind, bold non-default values) is a follow-up, not part of E8's first pass.
 - **Shortcuts:** one action registry (`ui/actions.cppm`: id, label, chord, `enabled()`, `run()`) feeds the

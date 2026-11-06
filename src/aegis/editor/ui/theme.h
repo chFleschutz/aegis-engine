@@ -2,6 +2,8 @@
 
 #include <imgui.h>
 
+#include "aegis/editor/ui/lucide.h"
+
 // The editor's look as named tokens (docs/editor.md, "UI design"): colors, the fonts and the Lucide icons. The editor
 // takes every color from here, never an inline value. The metrics and the style built from these are in :theme.
 namespace aegis::editor::theme
@@ -111,41 +113,42 @@ inline auto iconButton(const char* icon, const char* id, bool active = false) ->
     return pressed;
 }
 
-// The Lucide icons the editor uses (lucide.dev, ISC), as UTF-8 for the private-use codepoints of the merged font.
+// The Lucide icons the editor uses (lucide.dev, ISC) under the editor's names. lucide.h, generated from the font by
+// tools/update-lucide.py, has every icon as UTF-8 for its private-use codepoint in the merged font.
 namespace icons
 {
-inline constexpr const char* select = "\uE1C3"; // mouse-pointer-2
-inline constexpr const char* move = "\uE121";   // move
-inline constexpr const char* rotate = "\uE2EA"; // rotate-3d
-inline constexpr const char* scale = "\uE2EC";  // scaling
-inline constexpr const char* local = "\uE061";  // box
-inline constexpr const char* world = "\uE0E8";  // globe
-inline constexpr const char* snap = "\uE2B5";   // magnet
-inline constexpr const char* shown = "\uE0BA";  // eye
-inline constexpr const char* hidden = "\uE0BB"; // eye-off
-inline constexpr const char* play = "\uE13C";   // play
-inline constexpr const char* pause = "\uE12E";  // pause
-inline constexpr const char* stop = "\uE167";   // square
-inline constexpr const char* step = "\uE3EA";   // step-forward
-inline constexpr const char* camera = "\uE064"; // camera
-inline constexpr const char* light = "\uE1C2";  // lightbulb
-inline constexpr const char* sun = "\uE178";    // sun
+inline constexpr const char* select = lucide::mousePointer2;
+inline constexpr const char* move = lucide::move;
+inline constexpr const char* rotate = lucide::rotate3D;
+inline constexpr const char* scale = lucide::scaling;
+inline constexpr const char* local = lucide::box;
+inline constexpr const char* world = lucide::globe;
+inline constexpr const char* snap = lucide::magnet;
+inline constexpr const char* shown = lucide::eye;
+inline constexpr const char* hidden = lucide::eyeOff;
+inline constexpr const char* play = lucide::play;
+inline constexpr const char* pause = lucide::pause;
+inline constexpr const char* stop = lucide::square;
+inline constexpr const char* step = lucide::stepForward;
+inline constexpr const char* camera = lucide::camera;
+inline constexpr const char* light = lucide::lightbulb;
+inline constexpr const char* sun = lucide::sun;
 
 // The kinds of entities in the hierarchy (the camera, light and sun above are the rest).
-inline constexpr const char* mesh = "\uE524";     // cuboid
-inline constexpr const char* instance = "\uE2AD"; // component
-inline constexpr const char* empty = "\uE4B0";    // circle-dashed
+inline constexpr const char* mesh = lucide::cuboid;
+inline constexpr const char* instance = lucide::component;
+inline constexpr const char* empty = lucide::circleDashed;
 
 // The kinds of assets in the asset list (the mesh above is the static mesh).
-inline constexpr const char* material = "\uE1DD";    // palette
-inline constexpr const char* texture = "\uE0F6";     // image
-inline constexpr const char* scene = "\uE29B";       // clapperboard
-inline constexpr const char* environment = "\uE216"; // cloud-sun
-inline constexpr const char* model = "\uE2D0";       // boxes
-inline constexpr const char* file = "\uE0C0";        // file
+inline constexpr const char* material = lucide::palette;
+inline constexpr const char* texture = lucide::image;
+inline constexpr const char* scene = lucide::clapperboard;
+inline constexpr const char* environment = lucide::cloudSun;
+inline constexpr const char* model = lucide::boxes;
+inline constexpr const char* file = lucide::file;
 
 // The status bar's warning and error counts.
-inline constexpr const char* warning = "\uE193"; // triangle-alert
-inline constexpr const char* error = "\uE084";   // circle-x
+inline constexpr const char* warning = lucide::alertTriangle;
+inline constexpr const char* error = lucide::circleX;
 }
 }
