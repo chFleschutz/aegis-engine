@@ -483,7 +483,7 @@ auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity enti
     return action != SectionAction::Remove;
 }
 
-// The selected entity: its name (the ID in a tooltip), its registered components and its scripts, each generated from the type
+// The active selected entity, with the size of a larger selection: its name (the ID in a tooltip), its registered components and its scripts, each generated from the type
 // registry, and the Add menu. Edits apply directly: the panel runs at the frame's safe point.
 class InspectorPanel final : public Panel
 {
@@ -512,6 +512,9 @@ public:
         // A scene instance's entities are not saved (the holder's SceneInstance recreates them): an edit would be lost
         const bool readOnly = registry.has<serialize::InstanceMember>(entity);
         drawHeader(registry, entity, readOnly, editor, frame);
+        // It shows the active entity of a larger selection
+        if (const auto count = editor.selection().ids().size(); count > 1)
+            ImGui::TextDisabled("%zu selected", count);
         drawComponents(registry, entity, readOnly, editor, frame);
         drawScripts(registry, entity, readOnly, editor, frame);
         if (!readOnly)

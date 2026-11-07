@@ -36,11 +36,12 @@ namespace aegis::editor
 auto undoEdit(EditorContext& editor, FrameContext& frame) -> bool;
 auto redoEdit(EditorContext& editor, FrameContext& frame) -> bool;
 
-/// @brief Duplicates the selected entity and selects the copy; false if nothing is selected or it failed (logged).
+/// @brief Duplicates the selected roots (selectedRoots) as one undo entry and selects the copies; false if nothing is
+///        selected or every copy failed (logged).
 auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool;
 
-/// @brief Destroys the selected entity and its descendants, undoably, and clears the selection; false if nothing is
-///        selected or it failed (logged).
+/// @brief Destroys the selected roots (selectedRoots) and their descendants as one undo entry and clears the
+///        selection; false if nothing is selected or every destroy failed (logged).
 auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool;
 
 /// @brief Draws 'text' dimmed in the window's free space, centered line by line and wrapped inside a margin, for an empty panel. The

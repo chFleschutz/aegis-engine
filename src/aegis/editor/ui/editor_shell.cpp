@@ -632,7 +632,8 @@ void EditorShell::startPlay(FrameContext& frame)
         frame.engine.destroyWorld(play);
         return;
     }
-    m_context.undoStack().seal(); // An edit still being dragged ends here
+    m_viewport.endGizmoDrag(m_context, frame); // An edit still being dragged ends here
+    m_context.undoStack().seal();
     m_context.enterPlay(play);
     m_playWorld = &play;
     m_play.play();

@@ -121,14 +121,37 @@ void applyDrop(const Drop& drop, EditorContext& editor, FrameContext& frame)
         instantiateAsset(editor, frame, drop.asset, target);
         return;
     }
-    const auto entity = registry.find(drop.entity);
-    if (!entity)
+    const auto dragged = registry.find(drop.entity);
+    if (!dragged)
         return;
+    // A selected row takes the other selected roots along, in their order; one that is not selected moves alone
+    const auto entities = editor.isSelected(dragged) ? selectedRoots(registry, editor.selection()) : std::vector{ dragged };
     const auto edits = editWorld(editor, frame);
-    const auto moved = drop.zone == DropZone::Into ? moveEntity(edits, editor.undoStack(), entity, target, std::numeric_limits<std::size_t>::max())
-                                                   : moveEntityBeside(edits, editor.undoStack(), entity, target, drop.zone == DropZone::After);
-    if (!moved)
-        log::warn("Cannot move '{}': {}", nameOf(registry, entity), moved.error());
+    auto& history = editor.undoStack();
+    std::optional<UndoGroup> group;
+    if (entities.size() > 1)
+        group.emplace(history, std::format("Move {} entities", entities.size()));
+
+    // Before or after the target the first one goes there, and each next one after the one before it
+    world::Entity previous;
+    for (const auto entity : entities)
+    {
+        std::expected<void, std::string> moved;
+        if (drop.zone == DropZone::Into || !target)
+        {
+            if (entity == target)
+                continue; // The row dropped into, also selected
+            moved = moveEntity(edits, history, entity, target, std::numeric_limits<std::size_t>::max());
+        }
+        else if (previous)
+            moved = moveEntityBeside(edits, history, entity, previous, true);
+        else
+            moved = moveEntityBeside(edits, history, entity, target, drop.zone == DropZone::After);
+        if (moved)
+            previous = entity;
+        else
+            log::warn("Cannot move '{}': {}", nameOf(registry, entity), moved.error());
+    }
 }
 
 // The hierarchy: a filter and a Create button above the tree. Edits apply directly: the panel runs at the frame's safe
@@ -181,13 +204,15 @@ private:
             if (row.depth > 0)
                 ImGui::Indent(indent);
             const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen | (row.hasChildren ? (filtered ? ImGuiTreeNodeFlags_DefaultOpen : 0) : ImGuiTreeNodeFlags_Leaf);
-            const bool open = drawEntityTreeNode(editor, registry, row.entity, flags, drop, menuRow);
+            const bool open = drawEntityTreeNode(editor, registry, rows, row.entity, flags, drop, menuRow);
             if (row.depth > 0)
                 ImGui::Unindent(indent);
 
             if (row.hasChildren && !open)
                 closedDepth = row.depth;
         }
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            m_narrowOnRelease.reset(); // Released over no row, or the row is gone
         if (filtered)
         {
             ImGui::PopID();
@@ -244,7 +269,8 @@ private:
         }
     }
 
-    // The menu of the row that was right-clicked (already selected, so the actions, which act on the selection, act on it).
+    // The menu of the row that was right-clicked (selected by the click, so the actions, which act on the selection, act on
+    // it and on the other selected rows).
     void drawRowMenu(EditorContext& editor, FrameContext& frame)
     {
         if (!ImGui::BeginPopup("RowMenu"))
@@ -303,9 +329,10 @@ private:
         drawList->AddText(ImVec2{ position.x + ImGui::CalcTextSize(icon).x + ImGui::GetStyle().ItemInnerSpacing.x, position.y }, textColor, nameOf(registry, entity));
     }
 
-    // A row of the tree: it can be dragged onto another row and takes drops (see Drop). A click selects it, a double click on its label
-    // frames it in the viewport (the arrow opens it), a right click selects it and asks for its menu ('menuRow').
-    static auto drawEntityTreeNode(EditorContext& editor, world::Registry& registry, world::Entity entity, ImGuiTreeNodeFlags flags, std::optional<Drop>& drop, std::optional<StableId>& menuRow) -> bool
+    // A row of the tree: it can be dragged onto another row and takes drops (see Drop). A click selects it (see select), a double
+    // click on its label frames the selection in the viewport (the arrow opens it), a right click asks for its menu ('menuRow').
+    auto drawEntityTreeNode(EditorContext& editor, world::Registry& registry, std::span<const HierarchyRow> rows, world::Entity entity, ImGuiTreeNodeFlags flags,
+        std::optional<Drop>& drop, std::optional<StableId>& menuRow) -> bool
     {
         flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
         flags |= editor.isSelected(entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
@@ -314,29 +341,66 @@ private:
         const bool isOpen = ImGui::TreeNodeEx(rowId(registry, entity), flags, "");
         drawRowLabel(registry, entity);
 
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
-            editor.select(entity);
+        select(editor.selection(), rows, registry.get<StableId>(entity));
         const bool onLabel = ImGui::GetMousePos().x >= ImGui::GetItemRectMin().x + ImGui::GetTreeNodeToLabelSpacing();
         if (onLabel && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             editor.requestFocus();
         if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
             menuRow = registry.get<StableId>(entity);
 
-        dragAndDrop(registry, entity, drop);
+        dragAndDrop(editor, registry, entity, drop);
 
         return isOpen;
     }
 
+    // The clicks on the row just drawn, the row of 'id': a click selects it alone, Ctrl+click adds or removes it,
+    // Shift+click selects the rows from the active one to it. A click on one of several selected rows selects it alone
+    // only when the button is released without a drag, so a drag moves them all. A right click on a selected row keeps
+    // the selection (its menu acts on all of it) and makes the row the active one.
+    void select(Selection& selection, std::span<const HierarchyRow> rows, StableId id)
+    {
+        const ImGuiIO& io = ImGui::GetIO();
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+        {
+            if (io.KeyCtrl)
+                selection.toggle(id);
+            else if (io.KeyShift)
+                selection.assign(rangeSelection(rows, selection.active().value_or(id), id));
+            else if (selection.contains(id) && selection.ids().size() > 1)
+                m_narrowOnRelease = id;
+            else
+                selection.select(id);
+        }
+        if (m_narrowOnRelease == id && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+        {
+            if (ImGui::IsItemHovered() && !ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Left))
+                selection.select(id);
+            m_narrowOnRelease.reset();
+        }
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        {
+            if (selection.contains(id))
+                selection.add(id);
+            else
+                selection.select(id);
+        }
+    }
+
     // The row just drawn as a drag source and a drop target: the top and bottom quarters of the row place the
-    // dragged entity before or after it, the middle makes it the row's last child. A scene or model dropped from the
-    // asset browser is instantiated as its last child.
-    static void dragAndDrop(world::Registry& registry, world::Entity entity, std::optional<Drop>& drop)
+    // dragged entity before or after it, the middle makes it the row's last child. A selected row drags the other
+    // selected roots along (see applyDrop). A scene or model dropped from the asset browser is instantiated as its last
+    // child.
+    static void dragAndDrop(EditorContext& editor, world::Registry& registry, world::Entity entity, std::optional<Drop>& drop)
     {
         const auto id = registry.get<StableId>(entity);
         if (ImGui::BeginDragDropSource())
         {
             ImGui::SetDragDropPayload(entityPayload, &id, sizeof(id));
-            ImGui::TextUnformatted(nameOf(registry, entity));
+            const auto count = editor.isSelected(entity) ? selectedRoots(registry, editor.selection()).size() : 1;
+            if (count > 1)
+                ImGui::Text("%s and %zu more", nameOf(registry, entity), count - 1);
+            else
+                ImGui::TextUnformatted(nameOf(registry, entity));
             ImGui::EndDragDropSource();
         }
 
@@ -364,36 +428,60 @@ private:
 
     const ActionRegistry& m_actions;
     std::string m_filter;
-    std::optional<StableId> m_menuRow; // The row the open context menu is for
+    std::optional<StableId> m_menuRow;         // The row the open context menu is for
+    std::optional<StableId> m_narrowOnRelease; // One of several selected rows, pressed: selected alone if released without a drag
 };
 }
 
 auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool
 {
-    const auto selected = editor.selectedEntity();
-    if (!selected)
+    if (!editor.world())
         return false;
-    auto copy = duplicateEntity(editWorld(editor, frame), editor.undoStack(), selected);
-    if (!copy)
+    auto& registry = editor.world()->registry();
+    const auto roots = selectedRoots(registry, editor.selection());
+    if (roots.empty())
+        return false;
+    auto& history = editor.undoStack();
+    std::optional<UndoGroup> group;
+    if (roots.size() > 1)
+        group.emplace(history, std::format("Duplicate {} entities", roots.size()));
+
+    std::vector<StableId> copies;
+    for (const auto root : roots)
     {
-        log::warn("Cannot duplicate '{}': {}", nameOf(editor.world()->registry(), selected), copy.error());
-        return false;
+        if (auto copy = duplicateEntity(editWorld(editor, frame), history, root))
+            copies.push_back(registry.get<StableId>(*copy));
+        else
+            log::warn("Cannot duplicate '{}': {}", nameOf(registry, root), copy.error());
     }
-    editor.select(*copy);
+    if (copies.empty())
+        return false;
+    editor.selection().assign(copies);
     return true;
 }
 
 auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool
 {
-    const auto selected = editor.selectedEntity();
-    if (!selected)
+    if (!editor.world())
         return false;
-    const bool destroyed = [&] {
-        auto result = destroyEntity(editWorld(editor, frame), editor.undoStack(), selected);
-        if (!result)
-            log::warn("Cannot destroy '{}': {}", nameOf(editor.world()->registry(), selected), result.error());
-        return result.has_value();
-    }();
+    auto& registry = editor.world()->registry();
+    const auto roots = selectedRoots(registry, editor.selection());
+    if (roots.empty())
+        return false;
+    auto& history = editor.undoStack();
+    std::optional<UndoGroup> group;
+    if (roots.size() > 1)
+        group.emplace(history, std::format("Delete {} entities", roots.size()));
+
+    bool destroyed = false;
+    for (const auto root : roots)
+    {
+        const std::string name = nameOf(registry, root);
+        if (auto result = destroyEntity(editWorld(editor, frame), history, root))
+            destroyed = true;
+        else
+            log::warn("Cannot destroy '{}': {}", name, result.error());
+    }
     editor.selection().clear();
     return destroyed;
 }
