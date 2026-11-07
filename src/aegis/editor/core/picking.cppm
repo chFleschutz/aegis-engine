@@ -38,6 +38,9 @@ struct PickIcon
 ///        axis scale, so the sphere still holds the mesh.
 [[nodiscard]] auto transformSphere(const Sphere& local, const glm::mat4& transform) -> Sphere;
 
+/// @brief The smallest sphere that holds both 'a' and 'b'.
+[[nodiscard]] auto enclose(const Sphere& a, const Sphere& b) -> Sphere;
+
 /// @brief The distance along 'ray' at which it enters 'sphere'; 0 if it starts inside, none if it misses.
 [[nodiscard]] auto intersect(const Ray& ray, const Sphere& sphere) -> std::optional<float>;
 

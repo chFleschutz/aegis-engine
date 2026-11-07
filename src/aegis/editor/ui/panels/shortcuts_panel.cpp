@@ -21,6 +21,7 @@ constexpr std::array viewportControls{
     ViewportControl{ "Q / W / E / R", "Select, Move, Rotate, Scale (the gizmo)" },
     ViewportControl{ "Ctrl (dragging the gizmo)", "Snap, or not while snapping is on" },
     ViewportControl{ "Left click", "Select" },
+    ViewportControl{ "Ctrl + left click", "Add to the selection, or remove from it" },
     ViewportControl{ "Right mouse + drag", "Look around" },
     ViewportControl{ "Right mouse + W / A / S / D", "Fly" },
     ViewportControl{ "Right mouse + Q / E", "Fly down, up" },

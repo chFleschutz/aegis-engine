@@ -1,6 +1,7 @@
 export module aegis.editor.core:hierarchy;
 import std;
 import aegis.world;
+import :selection;
 
 export namespace aegis::editor
 {
@@ -41,4 +42,13 @@ using NodeOpen = std::function<bool(StableId)>;
 ///        being its children.
 /// @note Walks iteratively, so a deep tree cannot overflow the stack.
 [[nodiscard]] auto hierarchyRows(world::Registry& registry, const NodeOpen& isOpen, std::string_view filter = {}) -> std::vector<HierarchyRow>;
+
+/// @brief The rows from the one of 'from' to the one of 'to', both included, in that order (a Shift+click from the
+///        active row): the last is 'to'. Only 'to' when 'from' is not among the rows (under a closed node, filtered
+///        out); empty when 'to' is not among them.
+[[nodiscard]] auto rangeSelection(std::span<const HierarchyRow> rows, StableId from, StableId to) -> std::vector<StableId>;
+
+/// @brief The selected entities that have no selected ancestor, top to bottom as the hierarchy lists them: what Delete,
+///        Duplicate and a drag act on (a selected entity's descendants go with it). Ids of no entity are skipped.
+[[nodiscard]] auto selectedRoots(world::Registry& registry, const Selection& selection) -> std::vector<world::Entity>;
 }

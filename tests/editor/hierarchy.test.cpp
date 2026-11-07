@@ -303,3 +303,154 @@ TEST_SUITE("editor::entityKind")
         CHECK(entityKind(registry, member) == EntityKind::Mesh);
     }
 }
+
+namespace
+{
+using aegis::editor::rangeSelection;
+using aegis::editor::selectedRoots;
+using aegis::editor::Selection;
+
+// The names of 'ids', in their order.
+auto namesOf(Registry& registry, std::span<const StableId> ids) -> Lines
+{
+    Lines names;
+    for (const auto id : ids)
+        names.push_back(registry.get<aegis::Name>(registry.find(id)).name);
+    return names;
+}
+
+auto namesOf(Registry& registry, std::span<const Entity> entities) -> Lines
+{
+    Lines names;
+    for (const auto entity : entities)
+        names.push_back(registry.get<aegis::Name>(entity).name);
+    return names;
+}
+
+// A { B { C } }, D: the tree the range cases share.
+struct Tree
+{
+    Registry registry;
+    Entity a = registry.create("A");
+    Entity b = registry.create("B");
+    Entity c = registry.create("C");
+    Entity d = registry.create("D");
+
+    Tree()
+    {
+        REQUIRE(registry.addChild(a, b).has_value());
+        REQUIRE(registry.addChild(b, c).has_value());
+    }
+
+    auto rows(const std::vector<Entity>& open) -> std::vector<HierarchyRow>
+    {
+        return hierarchyRows(registry, [&](StableId id) { return std::ranges::any_of(open, [&](Entity entity) { return idOf(registry, entity) == id; }); });
+    }
+
+    auto range(std::span<const HierarchyRow> rows, Entity from, Entity to) -> Lines
+    {
+        return namesOf(registry, rangeSelection(rows, idOf(registry, from), idOf(registry, to)));
+    }
+};
+}
+
+TEST_SUITE("editor::rangeSelection")
+{
+    TEST_CASE("runs from the first row to the second, both included")
+    {
+        Tree tree;
+        const auto rows = tree.rows({ tree.a, tree.b });
+        CHECK(tree.range(rows, tree.a, tree.d) == Lines{ "A", "B", "C", "D" });
+    }
+
+    TEST_CASE("runs upwards when the second row comes first, ending at it")
+    {
+        Tree tree;
+        const auto rows = tree.rows({ tree.a, tree.b });
+        CHECK(tree.range(rows, tree.d, tree.b) == Lines{ "D", "C", "B" });
+    }
+
+    TEST_CASE("spans the depths of nested rows")
+    {
+        Tree tree;
+        const auto rows = tree.rows({ tree.a, tree.b });
+        CHECK(tree.range(rows, tree.c, tree.d) == Lines{ "C", "D" });
+        CHECK(tree.range(rows, tree.c, tree.a) == Lines{ "C", "B", "A" });
+    }
+
+    TEST_CASE("leaves out the children of a closed node")
+    {
+        Tree tree;
+        const auto rows = tree.rows({ tree.a }); // B is closed: C is no row
+        CHECK(tree.range(rows, tree.a, tree.d) == Lines{ "A", "B", "D" });
+    }
+
+    TEST_CASE("is the clicked row alone when the active one is not a row")
+    {
+        Tree tree;
+        const auto rows = tree.rows({}); // A is closed: B and C are no rows
+        CHECK(tree.range(rows, tree.c, tree.d) == Lines{ "D" });
+    }
+
+    TEST_CASE("is empty when the clicked row is not a row")
+    {
+        Tree tree;
+        const auto rows = tree.rows({});
+        CHECK(tree.range(rows, tree.a, tree.c).empty());
+    }
+
+    TEST_CASE("is the row alone from itself to itself")
+    {
+        Tree tree;
+        const auto rows = tree.rows({});
+        CHECK(tree.range(rows, tree.d, tree.d) == Lines{ "D" });
+    }
+}
+
+TEST_SUITE("editor::selectedRoots")
+{
+    TEST_CASE("drops the descendants of a selected entity")
+    {
+        Tree tree;
+        Selection selection;
+        selection.add(idOf(tree.registry, tree.c));
+        selection.add(idOf(tree.registry, tree.a));
+        selection.add(idOf(tree.registry, tree.d));
+        CHECK(namesOf(tree.registry, selectedRoots(tree.registry, selection)) == Lines{ "A", "D" });
+    }
+
+    TEST_CASE("keeps a child whose parent is not selected")
+    {
+        Tree tree;
+        Selection selection;
+        selection.add(idOf(tree.registry, tree.b));
+        CHECK(namesOf(tree.registry, selectedRoots(tree.registry, selection)) == Lines{ "B" });
+    }
+
+    TEST_CASE("lists the roots top to bottom, whatever order they were selected in")
+    {
+        Registry registry;
+        const auto parent = registry.create("Parent");
+        const auto first = registry.create("First");
+        const auto second = registry.create("Second");
+        const auto last = registry.create("Last");
+        REQUIRE(registry.addChild(parent, first).has_value());
+        REQUIRE(registry.addChild(parent, second).has_value());
+
+        Selection selection;
+        selection.add(idOf(registry, last));
+        selection.add(idOf(registry, second));
+        selection.add(idOf(registry, first));
+        CHECK(namesOf(registry, selectedRoots(registry, selection)) == Lines{ "First", "Second", "Last" });
+    }
+
+    TEST_CASE("skips ids of no entity")
+    {
+        Tree tree;
+        Selection selection;
+        selection.add(StableId{ 0 }); // Never an entity's
+        selection.add(idOf(tree.registry, tree.d));
+        CHECK(namesOf(tree.registry, selectedRoots(tree.registry, selection)) == Lines{ "D" });
+        CHECK(selectedRoots(tree.registry, Selection{}).empty());
+    }
+}
