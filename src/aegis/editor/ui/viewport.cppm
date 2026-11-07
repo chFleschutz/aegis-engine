@@ -69,7 +69,7 @@ private:
     void focusSelection(const EditorContext& editor);
     void updateGizmoMode();
     // Whether a gizmo was drawn: the selection can be moved.
-    auto drawGizmo(EditorContext& editor, const reflect::TypeRegistry& types, const Rect& rect) -> bool;
+    auto drawGizmo(EditorContext& editor, FrameContext& frame, const Rect& rect) -> bool;
     void drawToolbar(EditorContext& editor, const Rect& rect);
     // A row across the panel at the cursor, on its own background, holding what 'bar' draws; the cursor ends below it.
     static void drawBar(const std::function<void()>& bar);

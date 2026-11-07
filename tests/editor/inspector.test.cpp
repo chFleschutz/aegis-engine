@@ -18,6 +18,7 @@ using aegis::editor::filterTypes;
 using aegis::editor::removeComponent;
 using aegis::editor::scriptTypes;
 using aegis::editor::setField;
+using aegis::editor::writeComponent;
 using aegis::reflect::TypeInfo;
 using aegis::reflect::TypeRegistry;
 using aegis::world::World;
@@ -406,5 +407,63 @@ TEST_SUITE("editor::setField")
 
         REQUIRE(setField(type, *type.findField("speed"), registry, entity, &patrol, aegis::reflect::Value{ 3.0f }).has_value());
         CHECK(patrol.speed == 3.0f);
+    }
+}
+
+TEST_SUITE("editor::writeComponent")
+{
+    TEST_CASE("writes the values, prepares the component and marks a static entity's Transform static-dirty")
+    {
+        TypeRegistry types;
+        registerGame(types);
+        World world;
+        auto& registry = world.registry();
+        const auto entity = registry.create();
+        const auto& type = *types.find<aegis::Transform>();
+        auto& transform = registry.get<aegis::Transform>(entity);
+
+        bool dirtyWhenPrepared = true;
+        const auto prepare = [&](const TypeInfo&, void*) { dirtyWhenPrepared = registry.has<aegis::StaticDirtyTag>(entity); };
+        const aegis::editor::FieldValues values{ { .field = "location", .value = aegis::reflect::Value{ glm::vec3{ 1.0f, 2.0f, 3.0f } } },
+            { .field = "scale", .value = aegis::reflect::Value{ glm::vec3{ 2.0f } } } };
+        REQUIRE(writeComponent(type, registry, entity, &transform, values, prepare).has_value());
+        CHECK(transform.location.y == 2.0f);
+        CHECK(transform.scale.x == 2.0f);
+        CHECK_FALSE(dirtyWhenPrepared);
+        CHECK(registry.has<aegis::StaticDirtyTag>(entity));
+    }
+
+    TEST_CASE("leaves a dynamic entity's Transform unmarked")
+    {
+        TypeRegistry types;
+        registerGame(types);
+        World world;
+        auto& registry = world.registry();
+        const auto entity = registry.create();
+        registry.add<aegis::DynamicTag>(entity);
+        const auto& type = *types.find<aegis::Transform>();
+        auto& transform = registry.get<aegis::Transform>(entity);
+
+        const aegis::editor::FieldValues values{ { .field = "location", .value = aegis::reflect::Value{ glm::vec3{ 1.0f } } } };
+        REQUIRE(writeComponent(type, registry, entity, &transform, values).has_value());
+        CHECK(transform.location.x == 1.0f);
+        CHECK_FALSE(registry.has<aegis::StaticDirtyTag>(entity));
+    }
+
+    TEST_CASE("fails for a field the type does not have, without the change hook")
+    {
+        TypeRegistry types;
+        registerGame(types);
+        World world;
+        auto& registry = world.registry();
+        const auto entity = registry.create();
+        const auto& type = *types.find<aegis::Transform>();
+        auto& transform = registry.get<aegis::Transform>(entity);
+
+        const aegis::editor::FieldValues values{ { .field = "height", .value = aegis::reflect::Value{ 1.0f } } };
+        const auto written = writeComponent(type, registry, entity, &transform, values);
+        REQUIRE_FALSE(written.has_value());
+        CHECK(written.error().code == aegis::reflect::ErrorCode::UnknownField);
+        CHECK_FALSE(registry.has<aegis::StaticDirtyTag>(entity));
     }
 }

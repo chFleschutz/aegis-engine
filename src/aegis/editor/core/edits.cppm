@@ -7,16 +7,6 @@ import :inspector;
 
 export namespace aegis::editor
 {
-/// @brief A field's value, by the field's name.
-struct FieldValue
-{
-    std::string field;
-    reflect::Value value;
-};
-
-/// @brief The values of a component's or script's registered fields, in registration order.
-using FieldValues = std::vector<FieldValue>;
-
 /// @brief One edited field, recorded through the type registry: nothing here is editor- or game-specific.
 struct FieldEdit
 {

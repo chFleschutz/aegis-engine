@@ -43,6 +43,16 @@ struct ComponentSection
 ///        has no ComponentStorage.
 auto removeComponent(const reflect::TypeInfo& type, world::Registry& registry, world::Entity entity) -> bool;
 
+/// @brief A field's value, by the field's name.
+struct FieldValue
+{
+    std::string field;
+    reflect::Value value;
+};
+
+/// @brief The values of a component's or script's registered fields, in registration order.
+using FieldValues = std::vector<FieldValue>;
+
 /// @brief Finishes a written component before its change hook runs: the asset library loads a new asset reference
 ///        there (AssetLibrary::resolve).
 using PrepareField = std::function<void(const reflect::TypeInfo& type, void* object)>;
@@ -52,4 +62,12 @@ using PrepareField = std::function<void(const reflect::TypeInfo& type, void* obj
 /// @return The setter's error (a value of the wrong kind); nothing is written then
 [[nodiscard]] auto setField(const reflect::TypeInfo& type, const reflect::FieldInfo& field, world::Registry& registry,
     world::Entity entity, void* object, const reflect::Value& value, const PrepareField& prepare = {}) -> std::expected<void, reflect::Error>;
+
+/// @brief Writes 'values' to the fields of 'object', the entity's component or script of 'type', runs 'prepare' on it,
+///        then the component's change hook, like setField: the one way the editor writes a component it did not just
+///        create (D2).
+/// @return UnknownField for a value of no registered field, or a setter's error; the fields before it are written
+///         then, and neither 'prepare' nor the hook runs
+[[nodiscard]] auto writeComponent(const reflect::TypeInfo& type, world::Registry& registry, world::Entity entity, void* object,
+    const FieldValues& values, const PrepareField& prepare = {}) -> std::expected<void, reflect::Error>;
 }
