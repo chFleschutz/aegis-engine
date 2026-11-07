@@ -113,13 +113,20 @@ public:
         {
             const bool atBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f;
             const theme::MonospaceScope mono;
-            for (const auto& entry : console.entries(m_filter))
+            refilter(console);
+            ImGuiListClipper clipper; // Only the lines in view are drawn
+            clipper.Begin(static_cast<int>(m_lines.size()));
+            while (clipper.Step())
             {
-                ImGui::PushStyleColor(ImGuiCol_Text, levelColor(entry.level));
-                ImGui::TextUnformatted(std::format("[{}] {}", log::levelName(entry.level), entry.message).c_str());
-                ImGui::PopStyleColor();
-                if (entry.repeats > 1)
-                    drawRepeats(entry.repeats);
+                for (int line = clipper.DisplayStart; line < clipper.DisplayEnd; ++line)
+                {
+                    const auto& entry = m_lines[static_cast<std::size_t>(line)];
+                    ImGui::PushStyleColor(ImGuiCol_Text, levelColor(entry.level));
+                    ImGui::TextUnformatted(std::format("[{}] {}", log::levelName(entry.level), entry.message).c_str());
+                    ImGui::PopStyleColor();
+                    if (entry.repeats > 1)
+                        drawRepeats(entry.repeats);
+                }
             }
             if (atBottom) // Follows new lines until the user scrolls up
                 ImGui::SetScrollHereY(1.0f);
@@ -129,7 +136,21 @@ public:
     }
 
 private:
+    // Keeps the lines the filter shows until entries arrive or the filter changes.
+    void refilter(const ConsoleBuffer& console)
+    {
+        const auto revision = console.revision(); // Before the entries: one that arrives in between refilters next frame
+        if (m_linesRevision == revision && m_linesFilter == m_filter)
+            return;
+        m_lines = console.entries(m_filter);
+        m_linesRevision = revision;
+        m_linesFilter = m_filter;
+    }
+
     ConsoleFilter m_filter;
+    std::vector<ConsoleEntry> m_lines;            // The entries m_linesFilter shows, at m_linesRevision
+    std::optional<std::uint64_t> m_linesRevision; // None until the first filtering
+    ConsoleFilter m_linesFilter;
 };
 }
 

@@ -62,6 +62,7 @@ void ConsoleBuffer::push(log::Level level, std::string_view message)
     if (m_entries.size() == m_capacity)
         m_entries.pop_front();
     m_entries.push_back(std::move(entry));
+    ++m_revision;
 }
 
 void ConsoleBuffer::clear()
@@ -70,6 +71,7 @@ void ConsoleBuffer::clear()
     m_entries.clear();
     m_lastProblem.reset();
     m_counts = {};
+    ++m_revision;
 }
 
 auto ConsoleBuffer::entries(const ConsoleFilter& filter) const -> std::vector<ConsoleEntry>
@@ -103,6 +105,12 @@ auto ConsoleBuffer::size() const -> std::size_t
 {
     std::lock_guard lock{ m_mutex };
     return m_entries.size();
+}
+
+auto ConsoleBuffer::revision() const -> std::uint64_t
+{
+    std::lock_guard lock{ m_mutex };
+    return m_revision;
 }
 
 auto ConsoleBuffer::counts() const -> ConsoleCounts

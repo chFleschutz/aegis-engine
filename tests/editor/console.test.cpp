@@ -240,4 +240,39 @@ TEST_SUITE("editor::ConsoleBuffer")
         CHECK(entries[0].level == Level::Warn);
         CHECK(entries[0].message == "value 7");
     }
+
+    TEST_CASE("the revision moves on a push and a clear, not on a read")
+    {
+        ConsoleBuffer console{ 2 };
+        const auto empty = console.revision();
+        console.push(Level::Info, "first");
+        const auto pushed = console.revision();
+        CHECK(pushed != empty);
+
+        std::ignore = console.entries();
+        std::ignore = console.text();
+        CHECK(console.revision() == pushed);
+
+        console.push(Level::Info, "second");
+        console.push(Level::Info, "third"); // Drops the first: the size stays, the revision moves
+        const auto full = console.revision();
+        CHECK(full != pushed);
+
+        console.clear();
+        CHECK(console.revision() != full);
+    }
+}
+
+TEST_SUITE("editor::ConsoleFilter")
+{
+    TEST_CASE("filters are equal when every setting is")
+    {
+        ConsoleFilter filter;
+        CHECK(filter == ConsoleFilter{});
+        filter.search = "x";
+        CHECK(filter != ConsoleFilter{});
+        filter = {};
+        filter.collapse = true;
+        CHECK(filter != ConsoleFilter{});
+    }
 }
