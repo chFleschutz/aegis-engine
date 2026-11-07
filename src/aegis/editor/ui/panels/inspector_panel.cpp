@@ -261,6 +261,21 @@ auto assetName(const assets::AssetDatabase& database, std::uint64_t id) -> std::
     return entry->key.empty() ? entry->path : std::format("{} : {}", entry->path, entry->key);
 }
 
+// The assets an asset slot's picker lists: those of its type whose name holds its search.
+struct PickerList
+{
+    struct Asset
+    {
+        std::uint64_t id{ 0 };
+        std::string name;
+    };
+
+    std::string type;
+    std::string filter;
+    std::size_t databaseSize{ 0 };
+    std::vector<Asset> assets;
+};
+
 // The asset's name, and a picker of the assets of the field's type (and None). An 'editable' slot takes an asset of
 // its type dragged from the asset browser.
 auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const assets::AssetDatabase& database, bool editable) -> std::optional<reflect::Value>
@@ -287,17 +302,33 @@ auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const as
         ImGui::InputTextWithHint("##filter", "Search", &s_filter);
         if (ImGui::Selectable("None", current == 0))
             edited = reflect::Value{ std::uint64_t{ 0 } };
-        for (const auto& entry : database.entries())
+
+        // The matching assets, listed again when the picker opens or the search, the slot's type or the database changed
+        static PickerList s_list;
+        if (ImGui::IsWindowAppearing() || s_list.filter != s_filter || s_list.type != row.field->assetType || s_list.databaseSize != database.size())
         {
-            if (entry.type != row.field->assetType)
-                continue;
-            const auto name = assetName(database, entry.id.value);
-            if (!core::containsIgnoringCase(name, s_filter))
-                continue;
-            ImGui::PushID(static_cast<int>(entry.id.value ^ (entry.id.value >> 32)));
-            if (ImGui::Selectable(name.c_str(), entry.id.value == current))
-                edited = reflect::Value{ entry.id.value };
-            ImGui::PopID();
+            s_list = PickerList{ .type = row.field->assetType, .filter = s_filter, .databaseSize = database.size() };
+            for (const auto& entry : database.entries())
+            {
+                if (entry.type != row.field->assetType)
+                    continue;
+                auto name = assetName(database, entry.id.value);
+                if (core::containsIgnoringCase(name, s_filter))
+                    s_list.assets.push_back({ .id = entry.id.value, .name = std::move(name) });
+            }
+        }
+        ImGuiListClipper clipper; // Only the assets in view are drawn
+        clipper.Begin(static_cast<int>(s_list.assets.size()));
+        while (clipper.Step())
+        {
+            for (int index = clipper.DisplayStart; index < clipper.DisplayEnd; ++index)
+            {
+                const auto& asset = s_list.assets[static_cast<std::size_t>(index)];
+                ImGui::PushID(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(asset.id)));
+                if (ImGui::Selectable(asset.name.c_str(), asset.id == current))
+                    edited = reflect::Value{ asset.id };
+                ImGui::PopID();
+            }
         }
         ImGui::EndCombo();
     }

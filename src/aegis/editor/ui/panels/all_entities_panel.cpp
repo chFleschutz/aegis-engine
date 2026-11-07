@@ -31,13 +31,20 @@ public:
         }
 
         auto& registry = editor.world()->registry();
-        for (const auto handle : registry.view<StableId>())
+        const auto view = registry.view<StableId>();
+        ImGuiListClipper clipper; // Only the entities in view are drawn: the view is indexed, not walked
+        clipper.Begin(static_cast<int>(view.size()));
+        while (clipper.Step())
         {
-            const world::Entity entity{ handle };
-            const auto id = registry.get<StableId>(entity);
-            const std::string label = std::format("{}##{}", registry.has<Name>(entity) ? registry.get<Name>(entity).name : std::string{ "Entity" }, id.value);
-            if (ImGui::Selectable(label.c_str(), editor.isSelected(entity)))
-                editor.select(entity);
+            for (int index = clipper.DisplayStart; index < clipper.DisplayEnd; ++index)
+            {
+                const world::Entity entity{ view.begin()[index] };
+                const auto id = registry.get<StableId>(entity);
+                ImGui::PushID(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(id.value)));
+                if (ImGui::Selectable(registry.has<Name>(entity) ? registry.get<Name>(entity).name.c_str() : "Entity", editor.isSelected(entity)))
+                    editor.select(entity);
+                ImGui::PopID();
+            }
         }
         ImGui::End();
     }
