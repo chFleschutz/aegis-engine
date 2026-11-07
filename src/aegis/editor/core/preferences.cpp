@@ -60,6 +60,7 @@ void EditorPreferences::clamp()
     fix(snapRotate, 0.01f, 180.0f, defaults.snapRotate);
     fix(snapScale, 0.001f, 100.0f, defaults.snapScale);
     fix(uiScale, 0.5f, 4.0f, defaults.uiScale);
+    autosaveMinutes = std::clamp(autosaveMinutes, 0, maxAutosaveMinutes);
 }
 
 auto uiScaleStep(float scale) -> std::optional<std::size_t>

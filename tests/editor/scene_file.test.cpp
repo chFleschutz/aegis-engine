@@ -12,6 +12,7 @@ namespace
 {
 using aegis::editor::sceneFilePath;
 using aegis::editor::sceneText;
+using aegis::editor::writeFileAtomically;
 using aegis::editor::writeSceneFile;
 using aegis::reflect::TypeRegistry;
 using aegis::world::World;
@@ -42,6 +43,45 @@ public:
 private:
     std::filesystem::path m_path;
 };
+
+// A fresh folder under the temp directory, removed afterwards.
+class TempFolder
+{
+public:
+    TempFolder() :
+        m_path{ std::filesystem::temp_directory_path() / std::format("aegis-atomic-{}", std::chrono::steady_clock::now().time_since_epoch().count()) }
+    {
+        std::filesystem::create_directories(m_path);
+    }
+    TempFolder(const TempFolder&) = delete;
+    auto operator=(const TempFolder&) -> TempFolder& = delete;
+    ~TempFolder()
+    {
+        std::error_code ignored;
+        std::filesystem::remove_all(m_path, ignored);
+    }
+
+    [[nodiscard]] auto path() const -> const std::filesystem::path& { return m_path; }
+
+private:
+    std::filesystem::path m_path;
+};
+
+auto read(const std::filesystem::path& file) -> std::string
+{
+    std::ifstream stream{ file, std::ios::binary };
+    return std::string{ std::istreambuf_iterator<char>{ stream }, std::istreambuf_iterator<char>{} };
+}
+
+// The names in 'folder', sorted: what a write left there.
+auto entries(const std::filesystem::path& folder) -> std::vector<std::string>
+{
+    std::vector<std::string> names;
+    for (const auto& entry : std::filesystem::directory_iterator{ folder })
+        names.push_back(entry.path().filename().string());
+    std::ranges::sort(names);
+    return names;
+}
 }
 
 TEST_SUITE("editor::writeSceneFile")
@@ -75,6 +115,44 @@ TEST_SUITE("editor::writeSceneFile")
         World edited;
         const auto missing = std::filesystem::temp_directory_path() / "aegis-no-such-folder" / "a.scene";
         CHECK_FALSE(writeSceneFile(edited.registry(), types, 7, missing).has_value());
+        CHECK_FALSE(std::filesystem::exists(missing.parent_path()));
+    }
+}
+
+TEST_SUITE("editor::writeFileAtomically")
+{
+    TEST_CASE("replaces the file and leaves no temp file")
+    {
+        TempFolder folder;
+        const auto file = folder.path() / "level.scene";
+        std::ofstream{ file, std::ios::binary } << "old";
+
+        REQUIRE(writeFileAtomically(file, "new text").has_value());
+        CHECK(read(file) == "new text");
+        CHECK(entries(folder.path()) == std::vector<std::string>{ "level.scene" });
+    }
+
+    TEST_CASE("creates a file that does not exist yet")
+    {
+        TempFolder folder;
+        const auto file = folder.path() / "level.scene";
+        REQUIRE(writeFileAtomically(file, "text").has_value());
+        CHECK(read(file) == "text");
+        CHECK(entries(folder.path()) == std::vector<std::string>{ "level.scene" });
+    }
+
+    TEST_CASE("a write that fails leaves the old file unchanged and no temp file")
+    {
+        // The target is a folder: the temp file is written, but it can't replace the target
+        TempFolder folder;
+        const auto target = folder.path() / "level.scene";
+        std::filesystem::create_directories(target);
+        std::ofstream{ target / "kept.txt", std::ios::binary } << "old";
+
+        CHECK_FALSE(writeFileAtomically(target, "new text").has_value());
+        CHECK(std::filesystem::is_directory(target));
+        CHECK(read(target / "kept.txt") == "old");
+        CHECK(entries(folder.path()) == std::vector<std::string>{ "level.scene" });
     }
 }
 

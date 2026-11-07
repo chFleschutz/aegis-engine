@@ -23,10 +23,12 @@
 //   :commands       The structural edits (create, destroy, duplicate, move, ...), applied and recorded.
 //   :settled_extent SettledExtent: the viewport's render size, applied once the panel's size settles.
 //   :play           PlaySession and copyWorld: play-in-editor's state and the play world's copy of the edit world.
-//   :scene_file     Writing the edited scene to its file, and Save As's file names.
+//   :scene_file     Writing the edited scene to its file (atomically), and Save As's file names.
+//   :autosave       The autosaves of the edited scenes: their files, which one to offer, and the recovery bar's text.
 export module aegis.editor.core;
 
 export import :asset_browser;
+export import :autosave;
 export import :chord;
 export import :color;
 export import :commands;

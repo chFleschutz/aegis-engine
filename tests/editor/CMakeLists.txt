@@ -1,6 +1,7 @@
 aegis_add_test(editor
     SOURCES
         asset_browser.test.cpp
+        autosave.test.cpp
         chord.test.cpp
         color.test.cpp
         commands.test.cpp
