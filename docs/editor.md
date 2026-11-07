@@ -294,7 +294,16 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - **Scene files:** New, Open (a picker over the database's `Scene` entries), Save (Ctrl+S), and Save As
   (an in-editor path field inside the project, which writes a new native file with a new ID and adds
   it to the database). The title bar and the scene tab show `*` while dirty. Open, New and closing the
-  window ask about unsaved changes (`Shell::canClose`, R12). There are no native file dialogs.
+  window ask about unsaved changes (`Shell::canClose`, R12). There are no native file dialogs. A save
+  writes `.<name>.tmp` next to the scene and renames it over the scene, so a failed save leaves the
+  last good file ([#307]).
+- **Autosave and recovery** ([#307]): while the edit world is dirty, every few minutes (a preference,
+  0 turns it off) and on entering Play, the editor writes it to
+  `<project>/.aegis/editor/autosave/<scene ID>.scene` (`untitled.scene` for a scene never saved), never
+  to the scene's file. Save, Save As and Don't Save delete it. At startup and when a scene opens, an
+  autosave newer than the scene's file shows a bar above the viewport: Restore opens it as the scene,
+  unsaved, with an empty history; Discard deletes it; an edit hides the bar. Headless runs neither
+  write nor read autosaves.
 - **Console:** a log sink (R13) feeds a ring buffer with level filters and counts, search, clear, copy and a
   Collapse toggle that merges repeated messages, while stderr output continues. The status bar shows the
   warning and error counts, with the last one as their tooltip; clicking them shows them in the console ([#279]).
@@ -304,7 +313,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - **Layout:** `imgui.ini` goes in `<project>/.aegis/editor/imgui.ini` (per project, per machine, never
   committed, D8's one ignored folder). A View → Reset Layout action rebuilds the default with
   `DockBuilder`.
-- **Preferences** (camera speed, snap values, the viewport icons' toggle, recent projects, UI scale) go in the user config folder
+- **Preferences** (camera speed, snap values, the viewport icons' toggle, recent projects, UI scale, the autosave interval) go in the user config folder
   (`%APPDATA%/Aegis/editor.json`, `$XDG_CONFIG_HOME/aegis/editor.json`), as JSON through glaze in a
   `.cpp`. The Preferences window doesn't list the recent projects until something opens them (a welcome
   screen or a project switcher).
@@ -581,4 +590,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#275]: https://github.com/chFleschutz/aegis-engine/issues/275
 [#279]: https://github.com/chFleschutz/aegis-engine/issues/279
 [#281]: https://github.com/chFleschutz/aegis-engine/issues/281
+[#307]: https://github.com/chFleschutz/aegis-engine/issues/307
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11

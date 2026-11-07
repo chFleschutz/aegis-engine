@@ -15,8 +15,12 @@ export namespace aegis::editor
 ///        which the panels then show and edit, until Stop discards it; the UI is tinted meanwhile. The File menu
 ///        creates, opens and saves scene files, and reopens the project's recent ones (kept in
 ///        `<project>/.aegis/editor/recent_scenes.json`); the window title and the menu bar name the scene and mark unsaved changes, and
-///        closing the window, New or Open ask about them first. The window layout is kept in
-///        `<project>/.aegis/editor/imgui.ini` (none when headless or without a project). Log messages fill the
+///        closing the window, New or Open ask about them first. A save replaces the file atomically. While the scene has
+///        unsaved changes, the edit world is autosaved every few minutes (a preference) and on entering Play, to
+///        `<project>/.aegis/editor/autosave/` (never the scene's file); Save, Save As and Don't Save delete the autosave.
+///        At startup and when a scene opens, a bar above the viewport offers an autosave newer than the scene's file:
+///        Restore opens it as the scene, unsaved; Discard deletes it; an edit hides the bar. The window layout is kept in
+///        `<project>/.aegis/editor/imgui.ini` (none, like the autosaves, when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
 ///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every docked panel at startup (not the ImGui demo),
 ///        `--editor-select <name>` selects the first entity of that name and `--editor-play` enters play after the first frame.
@@ -78,7 +82,9 @@ private:
     void drawOpenPopup(FrameContext& frame);
     void drawSaveAsPopup(FrameContext& frame);
     void drawUnsavedPrompt(FrameContext& frame);
-    /// @brief The open scene's file name ("Untitled" for a new scene), with a '*' while it has unsaved changes.
+    /// @brief The open scene's file name ("Untitled" for a new scene).
+    [[nodiscard]] auto sceneFileName() const -> std::string;
+    /// @brief sceneFileName, with a '*' while the scene has unsaved changes.
     [[nodiscard]] auto sceneName() const -> std::string;
     /// @brief The window title: the scene's name and the editor's.
     void updateTitle();
@@ -110,6 +116,21 @@ private:
     /// @brief The console's warning and error counts, with the last one as their tooltip; a click shows them in the console.
     void drawProblemCounts();
     void savePreferencesIfChanged();
+    /// @brief The autosave of the scene file 'scene' (none for an untitled scene); empty without an autosave folder.
+    [[nodiscard]] auto autosaveFile(std::optional<assets::AssetId> scene) const -> std::filesystem::path;
+    /// @brief Autosaves the edit world when it has had unsaved changes for the preference's minutes since they began
+    ///        or since the last autosave.
+    void updateAutosave(FrameContext& frame);
+    /// @brief Writes the edit world to the open scene's autosave (unless autosaving is off).
+    void autosave(FrameContext& frame);
+    /// @brief Deletes the autosave of 'scene' (its changes were saved or discarded), and the bar that offers it.
+    void deleteAutosave(std::optional<assets::AssetId> scene);
+    /// @brief Shows the recovery bar when the open scene has an autosave newer than its file; hides it otherwise.
+    void offerRecovery(const assets::AssetDatabase& database);
+    /// @brief The recovery bar's text, Restore and Discard; the viewport draws it above its image.
+    void drawRecoveryBar();
+    /// @brief Opens the offered autosave as the open scene: its file and ID stay, it is unsaved, its history empty.
+    void restoreAutosave(FrameContext& frame);
 
     EditorContext m_context;
     log::SinkId m_logSink{};
@@ -140,6 +161,22 @@ private:
     std::string m_saveAsPath;                       // What Save As shows
     std::string m_fileError;                        // Why the last Save As failed, in its popup
     std::string m_title;                            // The window's, as last set
+    // The autosave the recovery bar offers
+    struct Recovery
+    {
+        std::filesystem::path file;
+        std::string label; // What the bar says
+    };
+    enum class RecoveryChoice
+    {
+        None,
+        Restore,
+        Discard,
+    };
+    std::filesystem::path m_autosaveFolder;                              // Empty keeps none (headless, no project)
+    std::optional<std::chrono::steady_clock::time_point> m_autosaveFrom; // When the unsaved changes began, or the last autosave
+    std::optional<Recovery> m_recovery;                                  // While the bar shows
+    RecoveryChoice m_recoveryChoice{ RecoveryChoice::None };             // Clicked in the bar, run once the panels are drawn
     PlaySession m_play;
     world::World* m_playWorld{ nullptr }; // While a play session runs; the engine owns it
     bool m_playAfterFirstFrame{ false };  // --editor-play

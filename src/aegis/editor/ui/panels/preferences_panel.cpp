@@ -38,6 +38,8 @@ public:
         ImGui::DragFloat("Snap rotate", &preferences.snapRotate, 0.1f, 0.01f, 180.0f, "%.2f deg");
         ImGui::DragFloat("Snap scale", &preferences.snapScale, 0.01f, 0.001f, 100.0f, "%.3f");
         drawUiScale(preferences.uiScale);
+        ImGui::DragInt("Autosave", &preferences.autosaveMinutes, 0.1f, 0, maxAutosaveMinutes, preferences.autosaveMinutes == 0 ? "Off" : "every %d min");
+        ImGui::SetItemTooltip("While the scene has unsaved changes, and on entering Play, to the project's .aegis/editor/autosave; 0 turns it off");
         // The recent projects stay stored, but nothing opens them yet (a welcome screen or project switcher will)
         ImGui::End();
     }

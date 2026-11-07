@@ -15,6 +15,7 @@ import aegis.assets;
 import aegis.core;
 import aegis.paths;
 import aegis.reflect;
+import aegis.serialize;
 import aegis.world;
 import :actions;
 import :panels;
@@ -170,6 +171,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     {
         m_layoutFile = layoutFile(engine.project());
         m_recentFile = recentScenesPath(engine.project());
+        m_autosaveFolder = autosaveFolder(engine.project());
         if (auto loaded = loadRecentScenes(m_recentFile))
             m_recent = std::move(*loaded);
         else
@@ -193,6 +195,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
         savePreferencesIfChanged();
     }
     rememberScene(engine.assets().database());
+    offerRecovery(engine.assets().database());
     updateStyle();
     return {};
 }
@@ -239,6 +242,9 @@ void EditorShell::onFrame(FrameContext& frame)
     if (!m_context.playing())
         m_context.setWorld(frame.world);
     m_context.selection().prune(m_context.world()->registry());
+    // An edit instead of Restore: the autosave stays until the next one replaces it
+    if (m_recovery && m_context.unsaved())
+        m_recovery.reset();
 
     updateStyle();
     ImGuizmo::BeginFrame();
@@ -260,7 +266,21 @@ void EditorShell::onFrame(FrameContext& frame)
         if (window->isOpen())
             window->draw(m_context, frame);
     }
-    m_viewport.draw(m_context, frame);
+    std::function<void()> bar;
+    if (m_recovery)
+        bar = [this] { drawRecoveryBar(); };
+    m_viewport.draw(m_context, frame, bar);
+    switch (std::exchange(m_recoveryChoice, RecoveryChoice::None))
+    {
+    case RecoveryChoice::Restore:
+        restoreAutosave(frame);
+        break;
+    case RecoveryChoice::Discard:
+        deleteAutosave(m_scene);
+        break;
+    case RecoveryChoice::None:
+        break;
+    }
     if (const auto scene = m_context.takeSceneRequest())
         request({ .kind = PendingAction::Kind::Open, .scene = assets::AssetId{ *scene } }, frame);
     drawStatusBar(frame);
@@ -275,6 +295,7 @@ void EditorShell::onFrame(FrameContext& frame)
     if (std::exchange(m_playAfterFirstFrame, false))
         startPlay(frame);
     updateTitle();
+    updateAutosave(frame);
 
     // Not while a value is being dragged: that would write the file every frame
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
@@ -308,6 +329,7 @@ void EditorShell::run(PendingAction action, FrameContext& frame)
     rememberScene(frame.assets.database());
     m_context.resetScene();
     m_viewport.resetCamera();
+    offerRecovery(frame.assets.database());
 }
 
 auto EditorShell::save(FrameContext& frame) -> bool
@@ -325,6 +347,7 @@ auto EditorShell::save(FrameContext& frame) -> bool
         return false;
     }
     m_context.markSaved();
+    deleteAutosave(m_scene);
     rememberScene(frame.assets.database());
     return true;
 }
@@ -343,6 +366,7 @@ auto EditorShell::saveAs(FrameContext& frame, std::string_view typed) -> std::ex
     if (error)
         return std::unexpected{ std::format("Cannot create the folder of '{}': {}", *path, error.message()) };
     const auto id = assets::AssetId::generate();
+    const auto before = m_scene; // Its autosave holds the changes this saves
     if (auto written = writeSceneFile(m_context.editWorld()->registry(), frame.types, id.value, file); !written)
         return std::unexpected{ written.error() };
     auto added = frame.assets.addFile(*path);
@@ -350,15 +374,20 @@ auto EditorShell::saveAs(FrameContext& frame, std::string_view typed) -> std::ex
         return std::unexpected{ std::format("Saved, but the asset database does not take it: {}", added.error()) };
     m_scene = *added;
     m_context.markSaved();
+    deleteAutosave(before);
     rememberScene(database);
     return {};
 }
 
-auto EditorShell::sceneName() const -> std::string
+auto EditorShell::sceneFileName() const -> std::string
 {
     const auto* entry = m_scene && m_engine ? m_engine->assets().database().find(*m_scene) : nullptr;
-    const auto name = entry ? std::filesystem::path{ entry->path }.filename().string() : std::string{ "Untitled" };
-    return std::format("{}{}", name, m_context.unsaved() ? "*" : "");
+    return entry ? std::filesystem::path{ entry->path }.filename().string() : std::string{ "Untitled" };
+}
+
+auto EditorShell::sceneName() const -> std::string
+{
+    return std::format("{}{}", sceneFileName(), m_context.unsaved() ? "*" : "");
 }
 
 void EditorShell::updateTitle()
@@ -564,6 +593,7 @@ void EditorShell::drawUnsavedPrompt(FrameContext& frame)
     if (ImGui::Button("Don't Save"))
     {
         ImGui::CloseCurrentPopup();
+        deleteAutosave(m_scene);
         run(*std::exchange(m_pending, std::nullopt), frame);
     }
     ImGui::SameLine();
@@ -591,6 +621,9 @@ void EditorShell::startPlay(FrameContext& frame)
 {
     if (m_playWorld)
         return;
+    // The game's code runs in this process from here on: a crash must not take the unsaved changes with it
+    if (m_context.unsaved())
+        autosave(frame);
     auto& play = frame.engine.createWorld();
     const auto prepare = [&frame](const reflect::TypeInfo& type, void* component) { frame.assets.resolve(type, component, frame.types); };
     if (auto copied = copyWorld(frame.world.registry(), play.registry(), frame.types, prepare); !copied)
@@ -644,6 +677,120 @@ void EditorShell::savePreferencesIfChanged()
     m_savedPreferences = preferences; // Also after a failure: it is reported once, not every frame
     if (const auto saved = savePreferences(preferences, m_preferencesFile); !saved)
         log::warn("The editor preferences are not saved: {}", saved.error());
+}
+
+auto EditorShell::autosaveFile(std::optional<assets::AssetId> scene) const -> std::filesystem::path
+{
+    if (m_autosaveFolder.empty())
+        return {};
+    return autosavePath(m_autosaveFolder, scene ? std::optional{ scene->value } : std::nullopt);
+}
+
+void EditorShell::updateAutosave(FrameContext& frame)
+{
+    if (m_autosaveFolder.empty() || !m_context.unsaved())
+    {
+        m_autosaveFrom.reset();
+        return;
+    }
+    const auto now = std::chrono::steady_clock::now();
+    if (!m_autosaveFrom)
+        m_autosaveFrom = now;
+    const int minutes = m_context.preferences().autosaveMinutes;
+    if (minutes > 0 && now - *m_autosaveFrom >= std::chrono::minutes{ minutes })
+        autosave(frame);
+}
+
+void EditorShell::autosave(FrameContext& frame)
+{
+    m_autosaveFrom = std::chrono::steady_clock::now(); // Also after a failure: it is retried at the next interval
+    if (m_autosaveFolder.empty() || m_context.preferences().autosaveMinutes == 0)
+        return;
+    const auto file = autosaveFile(m_scene);
+    if (auto written = writeAutosave(m_context.editWorld()->registry(), frame.types, m_scene ? m_scene->value : 0, file); !written)
+        log::warn("The scene is not autosaved: {}", written.error());
+}
+
+void EditorShell::deleteAutosave(std::optional<assets::AssetId> scene)
+{
+    if (m_autosaveFolder.empty())
+        return;
+    const auto file = autosaveFile(scene);
+    std::error_code error;
+    std::filesystem::remove(file, error);
+    if (error)
+        log::warn("Cannot delete the autosave '{}': {}", file.string(), error.message());
+    if (m_recovery && m_recovery->file == file)
+        m_recovery.reset();
+}
+
+void EditorShell::offerRecovery(const assets::AssetDatabase& database)
+{
+    m_recovery.reset();
+    if (m_autosaveFolder.empty())
+        return;
+    const auto file = autosaveFile(m_scene);
+    const auto* entry = m_scene ? database.find(*m_scene) : nullptr;
+    const auto written = findAutosave(file, entry ? database.absolutePath(*entry) : std::filesystem::path{});
+    if (!written)
+        return;
+    const auto* zone = std::chrono::current_zone();
+    const auto local = zone->to_local(std::chrono::clock_cast<std::chrono::system_clock>(*written));
+    const auto today = std::chrono::floor<std::chrono::days>(zone->to_local(std::chrono::system_clock::now()));
+    m_recovery = Recovery{ .file = file, .label = recoveryLabel(sceneFileName(), std::chrono::floor<std::chrono::seconds>(local), today) };
+}
+
+void EditorShell::drawRecoveryBar()
+{
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextColored(theme::warning, "%s", theme::icons::recovery);
+    ImGui::SameLine();
+    ImGui::TextUnformatted(m_recovery->label.c_str());
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, theme::accent);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentHover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentActive);
+    if (ImGui::Button("Restore"))
+        m_recoveryChoice = RecoveryChoice::Restore;
+    ImGui::PopStyleColor(3);
+    ImGui::SetItemTooltip("Open the autosaved changes as the scene, unsaved");
+    ImGui::SameLine();
+    if (ImGui::Button("Discard"))
+        m_recoveryChoice = RecoveryChoice::Discard;
+    ImGui::SetItemTooltip("Delete the autosave");
+}
+
+void EditorShell::restoreAutosave(FrameContext& frame)
+{
+    if (!m_recovery)
+        return;
+    const auto file = std::exchange(m_recovery, std::nullopt)->file;
+    const auto text = readAutosave(file);
+    if (!text)
+    {
+        log::warn("Cannot restore the autosave: {}", text.error());
+        return;
+    }
+    const auto scene = serialize::parseScene(*text, frame.types);
+    if (!scene)
+    {
+        log::warn("Cannot restore the autosave '{}': {}", file.string(), serialize::describe(scene.error()));
+        return;
+    }
+    stopPlay(frame);
+    const auto opened = m_scene; // The scene keeps its file and ID: Save writes the restored changes there
+    frame.engine.newScene();
+    const auto prepare = [&frame](const reflect::TypeInfo& type, void* component) { frame.assets.resolve(type, component, frame.types); };
+    if (auto created = serialize::instantiate(frame.world.registry(), frame.types, *scene, prepare); !created)
+    {
+        // Nothing was created: the scene as its file has it again, and the bar with it
+        log::warn("Cannot restore the autosave '{}': {}", file.string(), serialize::describe(created.error()));
+        run(opened ? PendingAction{ .kind = PendingAction::Kind::Open, .scene = *opened } : PendingAction{ .kind = PendingAction::Kind::New }, frame);
+        return;
+    }
+    m_scene = opened;
+    m_context.resetScene();
+    m_context.undoStack().markUnsaved(); // The saved state is the file, which is not in the history
 }
 
 void EditorShell::drawStatusBar(FrameContext& frame)

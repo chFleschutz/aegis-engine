@@ -43,6 +43,9 @@ inline constexpr const char* file = lucide::file;
 // The status bar's warning and error counts.
 inline constexpr const char* warning = lucide::alertTriangle;
 inline constexpr const char* error = lucide::circleX;
+
+// The recovery bar's mark: an autosave of unsaved changes.
+inline constexpr const char* recovery = lucide::history;
 }
 
 /// @brief The UI font (Inter) with the Lucide icons merged into it, and the monospace font (JetBrains Mono), from

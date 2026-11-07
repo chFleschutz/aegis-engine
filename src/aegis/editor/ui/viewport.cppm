@@ -15,8 +15,9 @@ export namespace aegis::editor
 class Viewport
 {
 public:
-    /// @brief Draws the panel and applies this frame's camera moves, gizmo edits and clicks.
-    void draw(EditorContext& editor, FrameContext& frame);
+    /// @brief Draws the panel and applies this frame's camera moves, gizmo edits and clicks. With 'bar', a row above the
+    ///        image holds what it draws (the recovery bar's text and buttons), and the image is that much shorter.
+    void draw(EditorContext& editor, FrameContext& frame, const std::function<void()>& bar = {});
 
     /// @brief The view the world renders through: the editor camera (in the game view, the world's main camera) at the
     ///        settled panel size; none until the panel has a size.
@@ -70,6 +71,8 @@ private:
     // Whether a gizmo was drawn: the selection can be moved.
     auto drawGizmo(EditorContext& editor, const reflect::TypeRegistry& types, const Rect& rect) -> bool;
     void drawToolbar(EditorContext& editor, const Rect& rect);
+    // A row across the panel at the cursor, on its own background, holding what 'bar' draws; the cursor ends below it.
+    static void drawBar(const std::function<void()>& bar);
     // 'text' in the bottom left corner: how to take the input back from the game, the camera speed while it changes.
     void drawCornerLabel(const Rect& rect, const std::string& text) const;
     [[nodiscard]] auto drawIcons(const EditorContext& editor, const Rect& rect) -> std::vector<PickIcon>;
