@@ -105,16 +105,46 @@ auto hierarchyRows(world::Registry& registry, const NodeOpen& isOpen, std::strin
     return rows;
 }
 
+auto closeRows(std::span<const HierarchyRow> rows, const NodeOpen& isOpen) -> std::vector<HierarchyRow>
+{
+    std::vector<HierarchyRow> result;
+    result.reserve(rows.size());
+    std::optional<std::uint32_t> closedDepth; // Of the closed node whose subtree is being skipped
+    for (auto row : rows)
+    {
+        if (closedDepth && row.depth > *closedDepth)
+            continue;
+        closedDepth.reset();
+        if (row.open && !isOpen(row.id))
+        {
+            row.open = false;
+            closedDepth = row.depth;
+        }
+        result.push_back(row);
+    }
+    return result;
+}
+
+auto rowIndex(std::span<const HierarchyRow> rows, StableId id) -> std::optional<std::size_t>
+{
+    const auto row = std::ranges::find(rows, id, &HierarchyRow::id);
+    return row == rows.end() ? std::nullopt : std::optional{ static_cast<std::size_t>(row - rows.begin()) };
+}
+
+auto ancestorIds(world::Registry& registry, world::Entity entity) -> std::vector<StableId>
+{
+    std::vector<StableId> ancestors;
+    for (auto node = registry.get<Parent>(entity).entity; node; node = registry.get<Parent>(node).entity)
+        ancestors.push_back(registry.get<StableId>(node));
+    return ancestors;
+}
+
 auto rangeSelection(std::span<const HierarchyRow> rows, StableId from, StableId to) -> std::vector<StableId>
 {
-    const auto indexOf = [&rows](StableId id) -> std::optional<std::size_t> {
-        const auto row = std::ranges::find(rows, id, &HierarchyRow::id);
-        return row == rows.end() ? std::nullopt : std::optional{ static_cast<std::size_t>(row - rows.begin()) };
-    };
-    const auto last = indexOf(to);
+    const auto last = rowIndex(rows, to);
     if (!last)
         return {};
-    const auto first = indexOf(from).value_or(*last);
+    const auto first = rowIndex(rows, from).value_or(*last);
 
     std::vector<StableId> range;
     const auto [low, high] = std::minmax(first, *last);

@@ -70,6 +70,8 @@ struct AssetFilter
     [[nodiscard]] auto active() const -> bool { return !search.empty() || !type.empty(); }
     /// @brief Whether 'item' is of the type, and its file name or key holds the search.
     [[nodiscard]] auto matches(const AssetItem& item) const -> bool;
+
+    friend auto operator==(const AssetFilter&, const AssetFilter&) -> bool = default;
 };
 
 /// @brief One row of the list: a subfolder of the open folder, or a file with the parts it shows.

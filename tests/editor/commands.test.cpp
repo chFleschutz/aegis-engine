@@ -494,6 +494,23 @@ TEST_SUITE("editor::renameEntity")
         CHECK(f.redo());
         CHECK(f.registry().get<Name>(entity).name == "Light");
     }
+
+    TEST_CASE("a rename, its undo and its redo move the hierarchy version")
+    {
+        Fixture f;
+        const auto entity = f.registry().create("Lamp");
+        auto before = f.registry().hierarchyVersion();
+        REQUIRE(renameEntity(f.edits(), f.history, entity, "Light").has_value());
+        CHECK(f.registry().hierarchyVersion() != before);
+
+        before = f.registry().hierarchyVersion();
+        CHECK(f.undo());
+        CHECK(f.registry().hierarchyVersion() != before);
+
+        before = f.registry().hierarchyVersion();
+        CHECK(f.redo());
+        CHECK(f.registry().hierarchyVersion() != before);
+    }
 }
 
 TEST_SUITE("editor::moveEntity")

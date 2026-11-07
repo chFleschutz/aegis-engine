@@ -66,6 +66,8 @@ private:
         assets::AssetId scene{}; // Open's
     };
 
+    /// @brief The frame's UI: the menus, the panels, the viewport and the popups, timed as "Editor UI" in the profiler.
+    void drawUi(FrameContext& frame);
     /// @brief Runs 'action' now, or once the user saved or discarded the unsaved changes.
     void request(PendingAction action, FrameContext& frame);
     void run(PendingAction action, FrameContext& frame);

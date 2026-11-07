@@ -68,6 +68,12 @@ auto kindIcon(AssetKind kind) -> const char*
     return theme::icons::file;
 }
 
+// The ImGui ID of an asset's line: its asset ID, which survives a rescan.
+auto assetId(const AssetItem& item) -> const void*
+{
+    return reinterpret_cast<const void*>(static_cast<std::uintptr_t>(item.id));
+}
+
 // The folder column's width at the start, in pixels at a UI scale of 1.
 constexpr float folderColumnWidth = 200.0f;
 
@@ -136,6 +142,7 @@ private:
     void rebuild(const assets::AssetDatabase& database)
     {
         m_tree = buildTree(database);
+        ++m_treeVersion; // The cached lines index the old tree
         m_built = true;
         m_builtSize = database.size();
         if (!m_tree.findFolder(m_root, m_folder))
@@ -193,7 +200,10 @@ private:
 
         if (readOnly)
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-        const bool open = ImGui::TreeNodeEx(reinterpret_cast<const void*>(index), flags, "%s", folder.name.c_str());
+        // Identified by its root and path, so its open state stays with it when a rescan or an import adds folders
+        ImGui::PushID(static_cast<int>(folder.root));
+        const bool open = ImGui::TreeNodeEx(folder.path.c_str(), flags, "%s", folder.name.c_str());
+        ImGui::PopID();
         if (readOnly)
             ImGui::PopStyleColor();
         if (!folder.parent && readOnly)
@@ -210,74 +220,86 @@ private:
         ImGui::TreePop();
     }
 
-    // The open folder's subfolders and files (with a filter, its subfolders' files too), each file with its parts. A
-    // double click on a subfolder opens it.
+    // A line of the file list: a row of m_rows, or one of its file's parts.
+    struct FileLine
+    {
+        std::size_t row{ 0 };
+        std::optional<std::size_t> part; // An index into AssetTree::items
+    };
+
+    // A file's key for its open state: its root and path, which survive a rebuild.
+    using FileKey = std::pair<std::size_t, std::string>;
+
+    [[nodiscard]] static auto keyOf(const AssetFile& file) -> FileKey { return { file.root, file.path }; }
+
+    // Whether a file's parts are listed below it: closed by default, but open while filtering (the parts that match are
+    // why the file is listed), each with a state of its own.
+    [[nodiscard]] auto fileOpen(const AssetFile& file) const -> bool
+    {
+        return m_filter.active() ? !m_closedWhileFiltered.contains(keyOf(file)) : m_openFiles.contains(keyOf(file));
+    }
+
+    // Without a filter the open files are remembered, with one the closed ones.
+    void setFileOpen(const AssetFile& file, bool open)
+    {
+        const bool filtered = m_filter.active();
+        auto& files = filtered ? m_closedWhileFiltered : m_openFiles;
+        if (open != filtered)
+            files.insert(keyOf(file));
+        else
+            files.erase(keyOf(file));
+        m_linesDirty = true;
+    }
+
+    // The lines of the open folder, rebuilt only when the tree, the folder, the filter or an open file changed.
+    auto cachedLines(std::size_t folder) -> const std::vector<FileLine>&
+    {
+        if (!m_linesDirty && m_linesTreeVersion == m_treeVersion && m_linesFolder == folder && m_linesFilter == m_filter)
+            return m_lines;
+        m_rows = m_tree.rows(folder, m_filter);
+        m_lines.clear();
+        for (std::size_t row = 0; row < m_rows.size(); ++row)
+        {
+            m_lines.push_back({ .row = row });
+            if (m_rows[row].folder || !fileOpen(m_tree.files()[m_rows[row].file]))
+                continue;
+            for (const auto part : m_rows[row].parts)
+                m_lines.push_back({ .row = row, .part = part });
+        }
+        m_linesTreeVersion = m_treeVersion;
+        m_linesFolder = folder;
+        m_linesFilter = m_filter;
+        m_linesDirty = false;
+        return m_lines;
+    }
+
+    // The open folder's subfolders and files (with a filter, its subfolders' files too), each open file with its parts,
+    // as flat lines of which only those in view are drawn. A double click on a subfolder opens it.
     void drawFiles(EditorContext& editor)
     {
         const auto folder = m_tree.findFolder(m_root, m_folder);
         if (!folder)
             return;
-        const auto rows = m_tree.rows(*folder, m_filter);
-        if (rows.empty())
+        const auto& lines = cachedLines(*folder);
+        if (lines.empty())
             ImGui::TextDisabled(m_filter.active() ? "No matching assets" : "No assets in this folder");
 
         std::optional<std::size_t> entered;
-        for (const auto& row : rows)
+        ImGuiListClipper clipper;
+        clipper.Begin(static_cast<int>(lines.size()));
+        while (clipper.Step())
         {
-            if (row.folder)
+            for (int index = clipper.DisplayStart; index < clipper.DisplayEnd; ++index)
             {
-                const auto& subfolder = m_tree.folders()[*row.folder];
-                const bool dimmed = m_tree.roots()[subfolder.root].readOnly;
-                if (dimmed)
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-                ImGui::PushID(static_cast<int>(*row.folder));
-                ImGui::TreeNodeEx("##folder", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s/", subfolder.name.c_str());
-                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                    entered = *row.folder;
-                ImGui::PopID();
-                if (dimmed)
-                    ImGui::PopStyleColor();
-                continue;
+                const auto& line = lines[static_cast<std::size_t>(index)];
+                const auto& row = m_rows[line.row];
+                if (row.folder)
+                    drawSubfolder(*row.folder, entered);
+                else if (line.part)
+                    drawPart(m_tree.files()[row.file], *line.part);
+                else
+                    drawFile(editor, row);
             }
-
-            const auto& file = m_tree.files()[row.file];
-            const bool readOnly = m_tree.roots()[file.root].readOnly;
-            if (readOnly)
-                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-
-            // With a filter the rows come from several folders: show where each is
-            const auto kind = file.main ? assetKind(m_tree.items()[*file.main].type, file.path) : AssetKind::Other;
-            const std::string label = std::format("{}  {}", kindIcon(kind), m_filter.active() ? file.path : file.name);
-            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-            if (row.parts.empty())
-                flags |= ImGuiTreeNodeFlags_Leaf;
-            if (m_filter.active() && !row.parts.empty())
-                flags |= ImGuiTreeNodeFlags_DefaultOpen;
-            ImGui::PushID(static_cast<int>(row.file));
-            const bool open = ImGui::TreeNodeEx("##file", flags, "%s", label.c_str());
-            if (file.main)
-            {
-                const auto& main = m_tree.items()[*file.main];
-                dragSource(main, file.name);
-                if (main.type == serialize::Scene::assetType && file.path.ends_with(".scene") && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                    editor.requestOpenScene(main.id);
-            }
-            if (open)
-            {
-                for (const auto part : row.parts)
-                {
-                    const auto& item = m_tree.items()[part];
-                    ImGui::PushID(static_cast<int>(part));
-                    const auto name = partName(item);
-                    ImGui::TreeNodeEx("##part", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s", std::format("{}  {}  ({})", kindIcon(assetKind(item.type, item.path)), name, item.type).c_str());
-                    dragSource(item, name);
-                    ImGui::PopID();
-                }
-                ImGui::TreePop();
-            }
-            ImGui::PopID();
-            if (readOnly)
-                ImGui::PopStyleColor();
         }
         if (entered)
         {
@@ -286,10 +308,92 @@ private:
         }
     }
 
+    // A subfolder's line, identified by its path; a double click enters it.
+    void drawSubfolder(std::size_t index, std::optional<std::size_t>& entered)
+    {
+        const auto& subfolder = m_tree.folders()[index];
+        const bool dimmed = m_tree.roots()[subfolder.root].readOnly;
+        if (dimmed)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        ImGui::PushID(subfolder.path.c_str());
+        ImGui::TreeNodeEx("##folder", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s/", subfolder.name.c_str());
+        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            entered = index;
+        ImGui::PopID();
+        if (dimmed)
+            ImGui::PopStyleColor();
+    }
+
+    // A file's line, identified by its main asset's ID (by its path without one); its arrow lists its parts below it.
+    void drawFile(EditorContext& editor, const AssetRow& row)
+    {
+        const auto& file = m_tree.files()[row.file];
+        const bool readOnly = m_tree.roots()[file.root].readOnly;
+        if (readOnly)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+
+        // With a filter the rows come from several folders: show where each is
+        const auto kind = file.main ? assetKind(m_tree.items()[*file.main].type, file.path) : AssetKind::Other;
+        const std::string label = std::format("{}  {}", kindIcon(kind), m_filter.active() ? file.path : file.name);
+        const bool hasParts = !row.parts.empty();
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+        if (!hasParts)
+            flags |= ImGuiTreeNodeFlags_Leaf;
+        const bool wasOpen = hasParts && fileOpen(file);
+        if (hasParts)
+            ImGui::SetNextItemOpen(wasOpen);
+        if (file.main)
+            ImGui::PushID(assetId(m_tree.items()[*file.main]));
+        else
+            ImGui::PushID(file.path.c_str());
+        const bool open = ImGui::TreeNodeEx("##file", flags, "%s", label.c_str());
+        if (file.main)
+        {
+            const auto& main = m_tree.items()[*file.main];
+            dragSource(main, file.name);
+            if (main.type == serialize::Scene::assetType && file.path.ends_with(".scene") && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                editor.requestOpenScene(main.id);
+        }
+        ImGui::PopID();
+        if (readOnly)
+            ImGui::PopStyleColor();
+        if (hasParts && open != wasOpen) // The parts follow from the next frame
+            setFileOpen(file, open);
+    }
+
+    // A part's line, indented below its file and identified by its asset ID.
+    void drawPart(const AssetFile& file, std::size_t part)
+    {
+        const auto& item = m_tree.items()[part];
+        const bool readOnly = m_tree.roots()[file.root].readOnly;
+        if (readOnly)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        const float indent = ImGui::GetStyle().IndentSpacing;
+        ImGui::Indent(indent);
+        ImGui::PushID(assetId(item));
+        const auto name = partName(item);
+        ImGui::TreeNodeEx("##part", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s", std::format("{}  {}  ({})", kindIcon(assetKind(item.type, item.path)), name, item.type).c_str());
+        dragSource(item, name);
+        ImGui::PopID();
+        ImGui::Unindent(indent);
+        if (readOnly)
+            ImGui::PopStyleColor();
+    }
+
     AssetTree m_tree;
+    std::uint64_t m_treeVersion{ 0 }; // Counts the rebuilds of m_tree
     bool m_built{ false };
     std::size_t m_builtSize{ 0 };
     AssetFilter m_filter;
+    // The file list, see cachedLines
+    std::vector<AssetRow> m_rows;
+    std::vector<FileLine> m_lines;
+    std::uint64_t m_linesTreeVersion{ 0 };
+    std::size_t m_linesFolder{ 0 };
+    AssetFilter m_linesFilter;
+    bool m_linesDirty{ true };
+    std::set<FileKey> m_openFiles;           // Without a filter: the files whose parts are listed
+    std::set<FileKey> m_closedWhileFiltered; // With one: the files whose parts are not
     // The open folder, by root and path so it survives a rebuild
     std::size_t m_root{ 0 };
     std::string m_folder;

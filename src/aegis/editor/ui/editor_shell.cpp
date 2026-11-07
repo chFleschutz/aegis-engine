@@ -246,6 +246,22 @@ void EditorShell::onFrame(FrameContext& frame)
     if (m_recovery && m_context.unsaved())
         m_recovery.reset();
 
+    drawUi(frame);
+    updateWorlds(frame);
+    // --editor-play: the first frame shows edit mode, the next ones play
+    if (std::exchange(m_playAfterFirstFrame, false))
+        startPlay(frame);
+    updateTitle();
+    updateAutosave(frame);
+
+    // Not while a value is being dragged: that would write the file every frame
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        savePreferencesIfChanged();
+}
+
+void EditorShell::drawUi(FrameContext& frame)
+{
+    const ScopeProfiler profiler{ "Editor UI" };
     updateStyle();
     ImGuizmo::BeginFrame();
 
@@ -290,16 +306,6 @@ void EditorShell::onFrame(FrameContext& frame)
     drawStyleEditor();
     ImGui::End();
     ImGui::PopStyleColor(tint);
-    updateWorlds(frame);
-    // --editor-play: the first frame shows edit mode, the next ones play
-    if (std::exchange(m_playAfterFirstFrame, false))
-        startPlay(frame);
-    updateTitle();
-    updateAutosave(frame);
-
-    // Not while a value is being dragged: that would write the file every frame
-    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
-        savePreferencesIfChanged();
 }
 
 void EditorShell::request(PendingAction action, FrameContext& frame)

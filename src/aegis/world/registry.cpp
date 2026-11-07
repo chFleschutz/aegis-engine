@@ -4,6 +4,24 @@ import std;
 
 namespace aegis::world
 {
+namespace
+{
+// The last hierarchy version handed out to any registry: each change takes the next, so no two registries share one
+std::atomic<std::uint64_t> g_lastHierarchyVersion{ 0 };
+}
+
+Registry::Registry()
+{
+    // Creating or destroying an entity adds or removes its StableId; its own components can't be removed (EntityComponent)
+    m_registry.on_construct<StableId>().connect<&Registry::onHierarchySignal>(*this);
+    m_registry.on_destroy<StableId>().connect<&Registry::onHierarchySignal>(*this);
+    m_registry.on_update<Name>().connect<&Registry::onHierarchySignal>(*this);
+    m_registry.on_update<Parent>().connect<&Registry::onHierarchySignal>(*this);
+    m_registry.on_update<Siblings>().connect<&Registry::onHierarchySignal>(*this);
+    m_registry.on_update<Children>().connect<&Registry::onHierarchySignal>(*this);
+    invalidateHierarchy();
+}
+
 auto Registry::createWithId(std::uint64_t id, const std::string& name, const glm::vec3& location, const glm::quat& rotation,
     const glm::vec3& scale) -> Entity
 {
@@ -39,6 +57,7 @@ void Registry::clear()
     m_registry.clear();
     m_ids.clear();
     invalidateStatic();
+    invalidateHierarchy();
 }
 
 void Registry::addDestroyListener(const void* owner, std::function<void(Entity)> callback)
@@ -115,6 +134,7 @@ auto Registry::insertChild(Entity entity, Entity child, std::size_t index) -> st
     else
         children.last = child;
     children.count++;
+    invalidateHierarchy(); // Written in place: entt sends no signal
     return {};
 }
 
@@ -153,7 +173,19 @@ auto Registry::removeChildren(Entity entity) -> std::expected<void, HierarchyErr
         get<Parent>(child) = Parent{};
         get<Siblings>(child) = Siblings{};
     }
+    if (!childrenToRemove.empty())
+        invalidateHierarchy();
     return {};
+}
+
+auto Registry::invalidateHierarchy() noexcept -> void
+{
+    m_hierarchyVersion = g_lastHierarchyVersion.fetch_add(1, std::memory_order_relaxed) + 1;
+}
+
+void Registry::onHierarchySignal(entt::registry&, entt::entity)
+{
+    invalidateHierarchy();
 }
 
 auto Registry::markStaticDirty(Entity entity) -> void
@@ -191,6 +223,7 @@ void Registry::detach(Entity child)
 
     get<Parent>(child) = Parent{};
     get<Siblings>(child) = Siblings{};
+    invalidateHierarchy();
 }
 
 auto Registry::makeIdGenerator() -> std::mt19937_64

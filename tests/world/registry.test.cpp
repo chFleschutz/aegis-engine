@@ -9,6 +9,7 @@ using aegis::Children;
 using aegis::Parent;
 using aegis::Siblings;
 using aegis::world::Entity;
+using aegis::world::HierarchyError;
 using aegis::world::Registry;
 
 // Bound for the list walks, so a corrupted (cyclic) sibling list fails a check instead of hanging.
@@ -401,5 +402,86 @@ TEST_SUITE("world::Registry")
         const auto before = registry.staticVersion();
         registry.invalidateStatic();
         CHECK(registry.staticVersion() != before);
+    }
+}
+
+TEST_SUITE("world::Registry::hierarchyVersion")
+{
+    TEST_CASE("moves when an entity is created or destroyed")
+    {
+        Registry registry;
+        const auto empty = registry.hierarchyVersion();
+        const auto entity = registry.create("A");
+        const auto created = registry.hierarchyVersion();
+        CHECK(created != empty);
+
+        registry.destroy(entity);
+        CHECK(registry.hierarchyVersion() != created);
+    }
+
+    TEST_CASE("moves when an entity is reparented, detached or reordered")
+    {
+        Registry registry;
+        const auto parent = registry.create("Parent");
+        const auto first = registry.create("First");
+        const auto second = registry.create("Second");
+
+        auto before = registry.hierarchyVersion();
+        REQUIRE(registry.setParent(first, parent).has_value());
+        CHECK(registry.hierarchyVersion() != before);
+
+        REQUIRE(registry.setParent(second, parent).has_value());
+        before = registry.hierarchyVersion();
+        REQUIRE(registry.insertChild(parent, second, 0).has_value());
+        CHECK(registry.hierarchyVersion() != before);
+
+        before = registry.hierarchyVersion();
+        REQUIRE(registry.removeParent(first).has_value());
+        CHECK(registry.hierarchyVersion() != before);
+
+        before = registry.hierarchyVersion();
+        REQUIRE(registry.removeChildren(parent).has_value());
+        CHECK(registry.hierarchyVersion() != before);
+    }
+
+    TEST_CASE("moves when the entities are cleared")
+    {
+        Registry registry;
+        registry.create();
+        const auto before = registry.hierarchyVersion();
+        registry.clear();
+        CHECK(registry.hierarchyVersion() != before);
+    }
+
+    TEST_CASE("stays the same on a Transform write and on a refused change")
+    {
+        Registry registry;
+        const auto parent = registry.create("Parent");
+        const auto child = registry.create("Child");
+        REQUIRE(registry.setParent(child, parent).has_value());
+        const auto before = registry.hierarchyVersion();
+
+        registry.get<aegis::Transform>(child).location = glm::vec3{ 1.0f, 2.0f, 3.0f };
+        registry.markStaticDirty(child);
+        CHECK(registry.setParent(parent, child).error() == HierarchyError::Cycle);
+        CHECK(registry.setParent(child, parent).has_value()); // Its parent already
+        CHECK(registry.hierarchyVersion() == before);
+    }
+
+    TEST_CASE("invalidateHierarchy moves it, for a name written in place")
+    {
+        Registry registry;
+        const auto entity = registry.create("Old");
+        const auto before = registry.hierarchyVersion();
+        registry.get<aegis::Name>(entity).name = "New";
+        registry.invalidateHierarchy();
+        CHECK(registry.hierarchyVersion() != before);
+    }
+
+    TEST_CASE("differs between registries, so a cache of one notices another")
+    {
+        const Registry first;
+        const Registry second;
+        CHECK(first.hierarchyVersion() != second.hierarchyVersion());
     }
 }

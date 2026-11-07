@@ -454,3 +454,89 @@ TEST_SUITE("editor::selectedRoots")
         CHECK(selectedRoots(tree.registry, Selection{}).empty());
     }
 }
+
+namespace
+{
+using aegis::editor::ancestorIds;
+using aegis::editor::closeRows;
+using aegis::editor::rowIndex;
+
+// The rows' names indented by depth, a closed node with children marked '+'.
+auto outlineOf(Registry& registry, std::span<const HierarchyRow> rows) -> Lines
+{
+    Lines lines;
+    for (const auto& row : rows)
+        lines.push_back(std::string(row.depth, ' ') + registry.get<aegis::Name>(row.entity).name + (row.hasChildren && !row.open ? "+" : ""));
+    return lines;
+}
+}
+
+TEST_SUITE("editor::closeRows")
+{
+    TEST_CASE("leaves the rows as they are when every node stays open")
+    {
+        Tree tree;
+        const auto rows = tree.rows({ tree.a, tree.b });
+        CHECK(outlineOf(tree.registry, closeRows(rows, [](StableId) { return true; })) == Lines{ "A", " B", "  C", "D" });
+    }
+
+    TEST_CASE("drops the subtree of a closed node and marks it closed")
+    {
+        Tree tree;
+        const auto rows = tree.rows({ tree.a, tree.b });
+        const auto b = idOf(tree.registry, tree.b);
+        CHECK(outlineOf(tree.registry, closeRows(rows, [&](StableId id) { return id != b; })) == Lines{ "A", " B+", "D" });
+    }
+
+    TEST_CASE("closes a filtered hierarchy, which lists every node open")
+    {
+        Tree tree;
+        const auto rows = hierarchyRows(tree.registry, {}, "C");
+        REQUIRE(outlineOf(tree.registry, rows) == Lines{ "A", " B", "  C" });
+        const auto a = idOf(tree.registry, tree.a);
+        CHECK(outlineOf(tree.registry, closeRows(rows, [&](StableId id) { return id != a; })) == Lines{ "A+" });
+    }
+
+    TEST_CASE("does not ask about a node inside a closed one, nor about closed and leaf rows")
+    {
+        Tree tree;
+        const auto rows = tree.rows({ tree.a, tree.b });
+        const auto a = idOf(tree.registry, tree.a);
+        std::vector<StableId> asked;
+        std::ignore = closeRows(rows, [&](StableId id) {
+            asked.push_back(id);
+            return id != a;
+        });
+        CHECK(asked == std::vector{ a });
+    }
+}
+
+TEST_SUITE("editor::rowIndex")
+{
+    TEST_CASE("finds a listed row and nothing for one under a closed node")
+    {
+        Tree tree;
+        const auto rows = tree.rows({ tree.a });
+        CHECK(rowIndex(rows, idOf(tree.registry, tree.b)) == 1);
+        CHECK(rowIndex(rows, idOf(tree.registry, tree.d)) == 2);
+        CHECK_FALSE(rowIndex(rows, idOf(tree.registry, tree.c)).has_value());
+    }
+}
+
+TEST_SUITE("editor::ancestorIds")
+{
+    TEST_CASE("lists the ancestors from the parent up, and none for a root")
+    {
+        Tree tree;
+        CHECK(ancestorIds(tree.registry, tree.c) == std::vector{ idOf(tree.registry, tree.b), idOf(tree.registry, tree.a) });
+        CHECK(ancestorIds(tree.registry, tree.a).empty());
+    }
+
+    TEST_CASE("opening them lists the row")
+    {
+        Tree tree;
+        auto open = ancestorIds(tree.registry, tree.c);
+        const auto rows = hierarchyRows(tree.registry, [&](StableId id) { return std::ranges::contains(open, id); });
+        CHECK(rowIndex(rows, idOf(tree.registry, tree.c)) == 2);
+    }
+}

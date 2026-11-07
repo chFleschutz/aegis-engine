@@ -36,6 +36,8 @@ struct ConsoleFilter
     bool collapse{ false };
 
     [[nodiscard]] auto matches(const ConsoleEntry& entry) const -> bool;
+
+    friend auto operator==(const ConsoleFilter&, const ConsoleFilter&) -> bool = default;
 };
 
 /// @brief The most recent log messages, up to a capacity (the oldest are dropped). Safe to fill from any
@@ -55,6 +57,8 @@ public:
     /// @brief The entries 'filter' accepts as lines of `[level] message`, for copying.
     [[nodiscard]] auto text(const ConsoleFilter& filter = {}) const -> std::string;
     [[nodiscard]] auto size() const -> std::size_t;
+    /// @brief Changes with every push and clear: a view that keeps its filtered entries refilters when it differs.
+    [[nodiscard]] auto revision() const -> std::uint64_t;
     [[nodiscard]] auto counts() const -> ConsoleCounts;
     /// @brief The latest warning or error, which stays after the buffer dropped it; none after clear.
     [[nodiscard]] auto lastProblem() const -> std::optional<ConsoleEntry>;
@@ -66,5 +70,6 @@ private:
     std::optional<ConsoleEntry> m_lastProblem;
     ConsoleCounts m_counts;
     std::uint64_t m_nextSequence{ 0 };
+    std::uint64_t m_revision{ 0 };
 };
 }

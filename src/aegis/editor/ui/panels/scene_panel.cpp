@@ -184,42 +184,45 @@ private:
         std::optional<Drop> drop;
         std::optional<StableId> menuRow; // The row right-clicked this frame
 
-        // While filtering, the rows are all open and keep a tree state of their own: closing one there doesn't close it in the full tree
         const bool filtered = !m_filter.empty();
-        if (filtered)
-            ImGui::PushID("filtered");
-
-        // A node is open when ImGui's tree state says so: the rows then follow it in the same frame
-        const auto rows = hierarchyRows(registry, [](StableId id) { return ImGui::GetStateStorage()->GetInt(ImGui::GetID(rowId(id)), 0) != 0; }, m_filter);
+        followSelection(editor, registry, filtered);
+        const auto& rows = cachedRows(registry);
         m_rowClicked = false;
+        const auto scrollTo = m_scrollTo ? rowIndex(rows, *m_scrollTo) : std::nullopt;
+        m_scrollTo.reset();
 
-        // A node that was just closed by a click still has its children in 'rows': they are skipped
-        std::optional<std::uint32_t> closedDepth;
-        for (const auto& row : rows)
+        // Only the rows in view are drawn. The rows are flat, each indented by its depth rather than nested in its parent's
+        // tree node, so any of them can be skipped
+        ImGuiListClipper clipper;
+        clipper.Begin(static_cast<int>(rows.size()));
+        if (scrollTo)
+            clipper.IncludeItemByIndex(static_cast<int>(*scrollTo));
+        while (clipper.Step())
         {
-            if (closedDepth && row.depth > *closedDepth)
-                continue;
-            closedDepth.reset();
+            for (int index = clipper.DisplayStart; index < clipper.DisplayEnd; ++index)
+            {
+                const auto& row = rows[static_cast<std::size_t>(index)];
+                const float indent = static_cast<float>(row.depth) * ImGui::GetStyle().IndentSpacing;
+                if (row.depth > 0)
+                    ImGui::Indent(indent);
+                if (row.hasChildren)
+                    ImGui::SetNextItemOpen(row.open);
+                const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen | (row.hasChildren ? 0 : ImGuiTreeNodeFlags_Leaf);
+                const bool open = drawEntityTreeNode(editor, registry, rows, row.entity, flags, drop, menuRow);
+                if (scrollTo == static_cast<std::size_t>(index))
+                    ImGui::ScrollToItem(ImGuiScrollFlags_KeepVisibleCenterY);
+                if (row.depth > 0)
+                    ImGui::Unindent(indent);
 
-            const float indent = static_cast<float>(row.depth) * ImGui::GetStyle().IndentSpacing;
-            if (row.depth > 0)
-                ImGui::Indent(indent);
-            const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen | (row.hasChildren ? (filtered ? ImGuiTreeNodeFlags_DefaultOpen : 0) : ImGuiTreeNodeFlags_Leaf);
-            const bool open = drawEntityTreeNode(editor, registry, rows, row.entity, flags, drop, menuRow);
-            if (row.depth > 0)
-                ImGui::Unindent(indent);
-
-            if (row.hasChildren && !open)
-                closedDepth = row.depth;
+                // Opened or closed by a click: the rows follow from the next frame
+                if (row.hasChildren && open != row.open)
+                    setNodeOpen(row.id, open, filtered);
+            }
         }
         if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
             m_narrowOnRelease.reset(); // Released over no row, or the row is gone
-        if (filtered)
-        {
-            ImGui::PopID();
-            if (rows.empty())
-                ImGui::TextDisabled("No entity matches");
-        }
+        if (filtered && rows.empty())
+            ImGui::TextDisabled("No entity matches");
 
         if (filtered && rows.empty())
             drawCenteredHint("No matching entities");
@@ -251,8 +254,59 @@ private:
         // item (ImGui's tree nodes take no click with a modifier), so the window still counts as hovered then
         if (!m_rowClicked && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
             editor.selection().clear();
+        m_followed = editor.selection().active(); // What the rows did to the selection needs no following
 
         ImGui::End();
+    }
+
+    // The rows to draw, rebuilt only when the hierarchy (Registry::hierarchyVersion, which also tells another world), the
+    // open nodes or the filter changed. While filtering, the nodes keep a tree state of their own: closing one there
+    // doesn't close it in the full tree.
+    auto cachedRows(world::Registry& registry) -> const std::vector<HierarchyRow>&
+    {
+        const auto version = registry.hierarchyVersion();
+        if (!m_rowsDirty && m_rowsVersion == version && m_rowsFilter == m_filter)
+            return m_rows;
+        if (m_filter.empty())
+            m_rows = hierarchyRows(registry, [this](StableId id) { return m_openNodes.contains(id.value); });
+        else
+            m_rows = closeRows(hierarchyRows(registry, {}, m_filter), [this](StableId id) { return !m_closedWhileFiltered.contains(id.value); });
+        m_rowsVersion = version;
+        m_rowsFilter = m_filter;
+        m_rowsDirty = false;
+        return m_rows;
+    }
+
+    // The full tree remembers the open nodes, the filtered rows the closed ones.
+    void setNodeOpen(StableId id, bool open, bool filtered)
+    {
+        auto& nodes = filtered ? m_closedWhileFiltered : m_openNodes;
+        if (open != filtered)
+            nodes.insert(id.value);
+        else
+            nodes.erase(id.value);
+        m_rowsDirty = true;
+    }
+
+    // A selection made elsewhere (a pick in the viewport, a shortcut, an undo) opens the nodes above its active entity and
+    // scrolls to its row. While filtering, a row that the filter hides stays hidden.
+    void followSelection(EditorContext& editor, world::Registry& registry, bool filtered)
+    {
+        const auto active = editor.selection().active();
+        if (active == m_followed)
+            return;
+        m_followed = active;
+        const auto entity = active ? registry.find(*active) : world::Entity{};
+        if (!entity)
+            return;
+        for (const auto ancestor : ancestorIds(registry, entity))
+        {
+            if (filtered)
+                m_rowsDirty |= m_closedWhileFiltered.erase(ancestor.value) > 0;
+            else
+                m_rowsDirty |= m_openNodes.insert(ancestor.value).second;
+        }
+        m_scrollTo = active;
     }
 
     // The filter and the button that opens the Create menu.
@@ -432,9 +486,17 @@ private:
 
     const ActionRegistry& m_actions;
     std::string m_filter;
-    std::optional<StableId> m_menuRow;         // The row the open context menu is for
-    std::optional<StableId> m_narrowOnRelease; // One of several selected rows, pressed: selected alone if released without a drag
-    bool m_rowClicked{ false };                // A row took this frame's left click
+    std::vector<HierarchyRow> m_rows;                        // The rows drawn, see cachedRows
+    std::uint64_t m_rowsVersion{ 0 };                        // The hierarchy version m_rows were built at
+    std::string m_rowsFilter;                                // And the filter
+    bool m_rowsDirty{ true };                                // A node opened or closed since
+    std::unordered_set<std::uint64_t> m_openNodes;           // By StableId; the others are closed
+    std::unordered_set<std::uint64_t> m_closedWhileFiltered; // By StableId: closed in the filtered rows, which open the others
+    std::optional<StableId> m_followed;                      // The active entity the rows last showed, see followSelection
+    std::optional<StableId> m_scrollTo;                      // The row to scroll to this frame
+    std::optional<StableId> m_menuRow;                       // The row the open context menu is for
+    std::optional<StableId> m_narrowOnRelease;               // One of several selected rows, pressed: selected alone if released without a drag
+    bool m_rowClicked{ false };                              // A row took this frame's left click
 };
 }
 
