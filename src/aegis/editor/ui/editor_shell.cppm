@@ -98,8 +98,9 @@ private:
     void resetLayout();
     void drawStyleEditor();
     void drawMenuBar(FrameContext& frame);
-    /// @brief "Undo Move 'Helmet'": 'verb' and the title of the edit it would take, or 'verb' alone without one.
-    [[nodiscard]] auto editLabel(std::string_view verb, const Edit* edit) const -> std::string;
+    /// @brief "Undo Move 'Helmet'": 'verb' and the title of the entry it would take (its edits and group title), or
+    ///        'verb' alone without one.
+    [[nodiscard]] auto editLabel(std::string_view verb, std::span<const Edit> edits, std::string_view title) const -> std::string;
     void drawPlayControls(FrameContext& frame);
     /// @brief The scene's name at the right of the menu bar, when it fits.
     void drawSceneName();

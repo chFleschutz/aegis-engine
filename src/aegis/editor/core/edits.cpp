@@ -424,4 +424,26 @@ auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::
         },
         edit);
 }
+
+auto entryTitle(std::span<const Edit> edits, std::string_view groupTitle, const world::Registry& registry) -> std::string
+{
+    if (!groupTitle.empty())
+        return std::string{ groupTitle };
+    return edits.empty() ? std::string{} : editTitle(edits.front(), registry);
+}
+
+auto applyEdits(const EditWorld& world, std::span<const Edit> edits, EditSide side) -> std::vector<std::string>
+{
+    std::vector<std::string> failures;
+    const auto applyOne = [&](const Edit& edit) {
+        if (auto applied = applyEdit(world, edit, side); !applied)
+            failures.push_back(std::format("{}: {}", describe(edit), applied.error()));
+    };
+    // An edit may need the ones before it (a component of an entity the group created)
+    if (side == EditSide::Old)
+        std::ranges::for_each(std::views::reverse(edits), applyOne);
+    else
+        std::ranges::for_each(edits, applyOne);
+    return failures;
+}
 }
