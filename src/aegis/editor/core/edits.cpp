@@ -172,6 +172,7 @@ auto applyRename(const EditWorld& world, const RenameEdit& edit, EditSide side) 
     if (!entity)
         return std::unexpected{ entity.error() };
     world.registry.getOrAdd<Name>(*entity).name = side == EditSide::Old ? edit.oldName : edit.newName;
+    world.registry.invalidateHierarchy(); // Written in place: entt sends no signal
     return {};
 }
 

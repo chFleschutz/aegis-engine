@@ -33,7 +33,7 @@ enum class HierarchyError
 class Registry
 {
 public:
-    Registry() = default;
+    Registry();
     Registry(const Registry&) = delete;
     Registry(Registry&&) = delete;
 
@@ -190,6 +190,16 @@ public:
     ///        descendants' are recomputed by the TransformSystem, and the static set is invalidated.
     auto markStaticDirty(Entity entity) -> void;
 
+    /// @brief Changes whenever what a hierarchy view shows may have changed: an entity created or destroyed, a parent
+    ///        or the order of children changed (the hierarchy methods above), a Name, Parent, Siblings or Children
+    ///        replaced or patched through entt, and invalidateHierarchy(). A Transform write leaves it. Consumers that
+    ///        cache rows of the hierarchy (the editor's Scene panel) rebuild them when it differs from the one they built.
+    /// @note Its values are unique across registries, so a cache of one registry also notices another in its place.
+    [[nodiscard]] auto hierarchyVersion() const noexcept -> std::uint64_t { return m_hierarchyVersion; }
+
+    /// @brief What a hierarchy view shows changed by a write entt doesn't see (a Name written through get<Name>()).
+    auto invalidateHierarchy() noexcept -> void;
+
     template<typename Component>
     auto onConstruct()
     {
@@ -212,6 +222,9 @@ private:
         std::function<void(Entity)> callback;
     };
 
+    /// @brief The listener of the entt signals that change the hierarchy
+    void onHierarchySignal(entt::registry& registry, entt::entity entity);
+
     static auto makeIdGenerator() -> std::mt19937_64;
 
     auto randomId() -> std::uint64_t;
@@ -221,5 +234,6 @@ private:
     std::mt19937_64 m_idGenerator{ makeIdGenerator() };
     std::vector<DestroyListener> m_destroyListeners;
     std::uint64_t m_staticVersion{ 0 };
+    std::uint64_t m_hierarchyVersion{ 0 };
 };
 }
