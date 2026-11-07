@@ -35,6 +35,9 @@ public:
 
     /// @brief Marks the current state as the saved one (the scene was written).
     void markSaved();
+    /// @brief Marks the current state as unsaved, with the saved state outside the history (a scene restored from
+    ///        its autosave): dirty until the next markSaved, whatever undo and redo do.
+    void markUnsaved();
     /// @brief Whether the state differs from the saved one: false right after markSaved, and again after undoing or
     ///        redoing back to it; always true once the saved state was dropped from the history.
     [[nodiscard]] auto dirty() const -> bool { return m_saved != m_applied; }

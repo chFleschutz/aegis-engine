@@ -77,7 +77,7 @@ auto Viewport::renderView() const -> std::optional<RenderView>
     };
 }
 
-void Viewport::draw(EditorContext& editor, FrameContext& frame)
+void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::function<void()>& bar)
 {
     const bool focusRequested = editor.takeFocusRequest(); // Taken even while the viewport can't show it
     if (!m_cameraPlaced)
@@ -93,6 +93,8 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame)
     ImGui::PopStyleVar();
     if (visible)
     {
+        if (bar)
+            drawBar(bar);
         const ImVec2 origin = ImGui::GetCursorScreenPos();
         const ImVec2 size = ImGui::GetContentRegionAvail();
         const Rect rect{ .x = origin.x, .y = origin.y, .width = std::max(size.x, 1.0f), .height = std::max(size.y, 1.0f) };
@@ -346,6 +348,21 @@ void Viewport::drawToolbar(EditorContext& editor, const Rect& rect)
     if (theme::iconButton(showIcons ? theme::icons::shown : theme::icons::hidden, "icons"))
         showIcons = !showIcons;
     ImGui::SetItemTooltip("Light and camera icons: %s, click to %s them", showIcons ? "shown" : "hidden", showIcons ? "hide" : "show");
+}
+
+void Viewport::drawBar(const std::function<void()>& bar)
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const ImVec2 start = ImGui::GetCursorScreenPos();
+    const ImVec2 size{ ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight() + 2.0f * style.FramePadding.y };
+    ImGui::GetWindowDrawList()->AddRectFilled(start, ImVec2{ start.x + size.x, start.y + size.y }, theme::packed(theme::bgPopup));
+    ImGui::SetCursorScreenPos(ImVec2{ start.x + style.ItemSpacing.x, start.y + style.FramePadding.y });
+    bar();
+    // An item the size of the row moves the cursor below it, where the image starts
+    ImGui::SetCursorScreenPos(start);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0.0f, 0.0f });
+    ImGui::Dummy(size);
+    ImGui::PopStyleVar();
 }
 
 void Viewport::drawCornerLabel(const Rect& rect, const std::string& text) const

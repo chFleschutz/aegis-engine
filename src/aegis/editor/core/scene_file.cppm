@@ -10,7 +10,12 @@ export namespace aegis::editor
 [[nodiscard]] auto sceneText(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id)
     -> std::expected<std::string, std::string>;
 
-/// @brief Writes the scene file of 'registry' (sceneText) to 'file', replacing it.
+/// @brief Writes 'text' to 'file' through a temp file next to it, `.<name>.tmp` (a dot-file, which the asset scan
+///        skips), renamed over 'file' once written and closed. On failure the temp file is removed and 'file' is as
+///        it was.
+[[nodiscard]] auto writeFileAtomically(const std::filesystem::path& file, std::string_view text) -> std::expected<void, std::string>;
+
+/// @brief Writes the scene file of 'registry' (sceneText) to 'file', replacing it atomically (writeFileAtomically).
 [[nodiscard]] auto writeSceneFile(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id,
     const std::filesystem::path& file) -> std::expected<void, std::string>;
 

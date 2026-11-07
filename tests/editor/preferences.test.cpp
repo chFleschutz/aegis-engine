@@ -49,6 +49,7 @@ TEST_SUITE("editor::EditorPreferences")
         saved.snapScale = 0.5f;
         saved.showIcons = false;
         saved.uiScale = 1.5f;
+        saved.autosaveMinutes = 5;
         saved.recentProjects = { "C:/games/one", "C:/games/two" };
         REQUIRE(aegis::editor::savePreferences(saved, file));
 
@@ -60,6 +61,7 @@ TEST_SUITE("editor::EditorPreferences")
         CHECK(loaded->snapScale == saved.snapScale);
         CHECK(loaded->showIcons == saved.showIcons);
         CHECK(loaded->uiScale == saved.uiScale);
+        CHECK(loaded->autosaveMinutes == saved.autosaveMinutes);
         CHECK(loaded->recentProjects == saved.recentProjects);
     }
 
@@ -109,12 +111,25 @@ TEST_SUITE("editor::EditorPreferences")
     {
         TempFolder folder;
         const auto file = folder.path() / "editor.json";
-        write(file, R"({ "uiScale": 100.0, "snapTranslate": -1.0 })");
+        write(file, R"({ "uiScale": 100.0, "snapTranslate": -1.0, "autosaveMinutes": 1000 })");
 
         const auto loaded = aegis::editor::loadPreferences(file);
         REQUIRE(loaded);
         CHECK(loaded->uiScale <= 4.0f);
         CHECK(loaded->snapTranslate > 0.0f);
+        CHECK(loaded->autosaveMinutes == aegis::editor::maxAutosaveMinutes);
+    }
+
+    TEST_CASE("autosaves every two minutes by default and keeps zero as off")
+    {
+        CHECK(EditorPreferences{}.autosaveMinutes == 2);
+        EditorPreferences preferences;
+        preferences.autosaveMinutes = 0;
+        preferences.clamp();
+        CHECK(preferences.autosaveMinutes == 0);
+        preferences.autosaveMinutes = -5;
+        preferences.clamp();
+        CHECK(preferences.autosaveMinutes == 0);
     }
 
     TEST_CASE("lists the most recent project first, once, up to a limit")

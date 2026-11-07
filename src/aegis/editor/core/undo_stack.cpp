@@ -121,6 +121,12 @@ void UndoStack::markSaved()
     m_saved = m_applied;
 }
 
+void UndoStack::markUnsaved()
+{
+    seal();
+    m_saved.reset();
+}
+
 void UndoStack::clear()
 {
     m_edits.clear();

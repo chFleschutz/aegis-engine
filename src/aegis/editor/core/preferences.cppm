@@ -17,6 +17,9 @@ struct EditorPreferences
     bool showIcons{ true };
     /// @brief Scales the whole UI (fonts and sizes), 1 is unscaled.
     float uiScale{ 1.0f };
+    /// @brief How often the edited scene is autosaved while it has unsaved changes, in minutes (it also is on entering
+    ///        Play); 0 turns autosaving off.
+    int autosaveMinutes{ 2 };
     /// @brief Project folders as UTF-8, the most recent first.
     std::vector<std::string> recentProjects;
 
@@ -27,6 +30,9 @@ struct EditorPreferences
 
     [[nodiscard]] auto operator==(const EditorPreferences&) const -> bool = default;
 };
+
+/// @brief The longest autosave interval, in minutes (EditorPreferences::clamp keeps it).
+inline constexpr int maxAutosaveMinutes = 60;
 
 /// @brief The UI scales the preferences offer, the steps of the "UI scale" combo. A hand-edited file may hold any
 ///        other value in range (EditorPreferences::clamp keeps it).

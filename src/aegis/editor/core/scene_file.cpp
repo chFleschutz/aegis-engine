@@ -6,6 +6,41 @@ import aegis.world;
 
 namespace aegis::editor
 {
+namespace
+{
+// `.<name>.tmp` next to 'file'.
+auto tempFile(const std::filesystem::path& file) -> std::filesystem::path
+{
+    std::filesystem::path name{ "." };
+    name += file.filename();
+    name += ".tmp";
+    return file.parent_path() / name;
+}
+}
+
+auto writeFileAtomically(const std::filesystem::path& file, std::string_view text) -> std::expected<void, std::string>
+{
+    const auto temp = tempFile(file);
+    std::error_code ignored;
+    std::ofstream stream{ temp, std::ios::binary | std::ios::trunc };
+    stream.write(text.data(), static_cast<std::streamsize>(text.size()));
+    stream.close();
+    if (!stream)
+    {
+        std::filesystem::remove(temp, ignored);
+        return std::unexpected{ std::format("Cannot write '{}'", temp.string()) };
+    }
+    // Replaces 'file' on both platforms (MoveFileEx's MOVEFILE_REPLACE_EXISTING on Windows)
+    std::error_code error;
+    std::filesystem::rename(temp, file, error);
+    if (error)
+    {
+        std::filesystem::remove(temp, ignored);
+        return std::unexpected{ std::format("Cannot replace '{}': {}", file.string(), error.message()) };
+    }
+    return {};
+}
+
 auto sceneText(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id) -> std::expected<std::string, std::string>
 {
     const auto scene = serialize::saveScene(registry, types, id);
@@ -20,12 +55,7 @@ auto writeSceneFile(world::Registry& registry, const reflect::TypeRegistry& type
     const auto text = sceneText(registry, types, id);
     if (!text)
         return std::unexpected{ text.error() };
-    std::ofstream stream{ file, std::ios::binary | std::ios::trunc };
-    stream.write(text->data(), static_cast<std::streamsize>(text->size()));
-    stream.close();
-    if (!stream)
-        return std::unexpected{ std::format("Cannot write '{}'", file.string()) };
-    return {};
+    return writeFileAtomically(file, *text);
 }
 
 auto sceneFilePath(std::string_view typed) -> std::expected<std::string, std::string>

@@ -211,6 +211,25 @@ TEST_SUITE("editor::UndoStack")
         CHECK(entries == UndoStack::maxDepth);
     }
 
+    TEST_CASE("markUnsaved makes the stack dirty until the next save")
+    {
+        UndoStack stack;
+        stack.markUnsaved();
+        CHECK(stack.dirty());
+
+        // Undo and redo never reach a saved state: it is not in the history
+        stack.record(edit(entityA, "value", 1.0f, 2.0f));
+        (void)stack.undo();
+        CHECK(stack.dirty());
+        (void)stack.redo();
+        CHECK(stack.dirty());
+
+        stack.markSaved();
+        CHECK_FALSE(stack.dirty());
+        (void)stack.undo();
+        CHECK(stack.dirty());
+    }
+
     TEST_CASE("clear forgets the history and counts as saved")
     {
         UndoStack stack;
