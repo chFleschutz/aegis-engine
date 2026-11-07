@@ -88,7 +88,8 @@ The examples are two games (see **Games** below), each in `examples/<lowercased-
 `Template-Editor`, an empty project, and `Examples` / `Examples-Editor`, whose project is the
 `samples/` submodule (built only when it is checked out) and whose examples are its scene files, picked
 with `--scene <path>` relative to its `content/` (`scenes/simple.scene`, the default, `sponza`, `helmets`,
-and the stress scenes `stress/instanced_helmets`, `stress/cubes` and `stress/dynamic_cubes`). Only
+and the stress scenes `stress/instanced_helmets`, `stress/cubes`, `stress/dynamic_cubes` and `stress/hierarchy`, a
+10,000-entity edit world for the editor's UI cost that `tools/generate-hierarchy-scene.py` writes). Only
 `scenes/smoke.scene` (Sponza, the helmets, the sky, scripts, static and dynamic entities, a pulsing light)
 runs as the `Examples` `device` test; the others are demos. Build one and run its exe:
 
