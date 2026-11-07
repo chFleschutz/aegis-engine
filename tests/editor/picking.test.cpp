@@ -143,3 +143,23 @@ TEST_SUITE("editor::transformSphere")
         CHECK(sphere.radius == doctest::Approx(1.5f));
     }
 }
+
+TEST_SUITE("editor::enclose")
+{
+    TEST_CASE("spans two separate spheres from far side to far side")
+    {
+        const auto both = enclose(Sphere{ .center = { 0.0f, 0.0f, 0.0f }, .radius = 1.0f }, Sphere{ .center = { 10.0f, 0.0f, 0.0f }, .radius = 2.0f });
+        CHECK(both.radius == doctest::Approx(6.5f));
+        CHECK(both.center.x == doctest::Approx(5.5f));
+        CHECK(both.center.y == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("is the larger sphere when it holds the other")
+    {
+        const Sphere large{ .center = { 1.0f, 0.0f, 0.0f }, .radius = 5.0f };
+        const Sphere small{ .center = { 2.0f, 0.0f, 0.0f }, .radius = 1.0f };
+        CHECK(enclose(large, small).radius == doctest::Approx(5.0f));
+        CHECK(enclose(small, large).center.x == doctest::Approx(1.0f));
+        CHECK(enclose(large, large).radius == doctest::Approx(5.0f));
+    }
+}

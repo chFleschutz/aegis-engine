@@ -63,6 +63,29 @@ TEST_SUITE("editor::Selection")
         CHECK(selection.active() == a);
     }
 
+    TEST_CASE("toggle adds an unselected id as the active one and removes a selected one")
+    {
+        Selection selection;
+        selection.add(a);
+        selection.toggle(b);
+        CHECK(selection.contains(b));
+        CHECK(selection.active() == b);
+        selection.toggle(a);
+        CHECK_FALSE(selection.contains(a));
+        CHECK(selection.active() == b);
+    }
+
+    TEST_CASE("assign selects only the ids, the last one active")
+    {
+        Selection selection;
+        selection.add(c);
+        const std::array ids{ a, b };
+        selection.assign(ids);
+        CHECK(selection.ids().size() == 2);
+        CHECK_FALSE(selection.contains(c));
+        CHECK(selection.active() == b);
+    }
+
     TEST_CASE("clear empties it")
     {
         Selection selection;

@@ -14,6 +14,10 @@ public:
     /// @brief Adds 'id' to the selection and makes it the active one.
     void add(StableId id);
     void remove(StableId id);
+    /// @brief Removes 'id' if it is selected, else adds it as the active one (a Ctrl+click).
+    void toggle(StableId id);
+    /// @brief Selects only 'ids', in their order: the last becomes the active one.
+    void assign(std::span<const StableId> ids);
     void clear();
 
     [[nodiscard]] auto contains(StableId id) const -> bool;

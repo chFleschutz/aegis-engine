@@ -104,4 +104,67 @@ auto hierarchyRows(world::Registry& registry, const NodeOpen& isOpen, std::strin
     }
     return rows;
 }
+
+auto rangeSelection(std::span<const HierarchyRow> rows, StableId from, StableId to) -> std::vector<StableId>
+{
+    const auto indexOf = [&rows](StableId id) -> std::optional<std::size_t> {
+        const auto row = std::ranges::find(rows, id, &HierarchyRow::id);
+        return row == rows.end() ? std::nullopt : std::optional{ static_cast<std::size_t>(row - rows.begin()) };
+    };
+    const auto last = indexOf(to);
+    if (!last)
+        return {};
+    const auto first = indexOf(from).value_or(*last);
+
+    std::vector<StableId> range;
+    const auto [low, high] = std::minmax(first, *last);
+    for (auto index = low; index <= high; ++index)
+        range.push_back(rows[index].id);
+    if (first > *last)
+        std::ranges::reverse(range);
+    return range;
+}
+
+auto selectedRoots(world::Registry& registry, const Selection& selection) -> std::vector<world::Entity>
+{
+    const auto parentOf = [&registry](world::Entity entity) { return registry.has<Parent>(entity) ? registry.get<Parent>(entity).entity : world::Entity{}; };
+
+    std::unordered_set<std::uint64_t> selected;
+    for (const auto id : selection.ids())
+        selected.insert(id.value);
+
+    std::vector<world::Entity> roots;
+    std::unordered_set<std::uint64_t> rootIds;
+    std::unordered_set<std::uint64_t> ancestors; // Of the roots: the nodes to open to reach them in the rows
+    for (const auto id : selection.ids())
+    {
+        const auto entity = registry.find(id);
+        if (!entity)
+            continue;
+        std::vector<std::uint64_t> chain;
+        bool covered = false;
+        for (auto node = parentOf(entity); node && !covered; node = parentOf(node))
+        {
+            const auto value = registry.get<StableId>(node).value;
+            covered = selected.contains(value);
+            chain.push_back(value);
+        }
+        if (covered)
+            continue;
+        roots.push_back(entity);
+        rootIds.insert(id.value);
+        ancestors.insert(chain.begin(), chain.end());
+    }
+    if (roots.size() <= 1)
+        return roots;
+
+    // In the order of the rows, with only the roots' ancestors open
+    roots.clear();
+    for (const auto& row : hierarchyRows(registry, [&ancestors](StableId id) { return ancestors.contains(id.value); }))
+    {
+        if (rootIds.contains(row.id.value))
+            roots.push_back(row.entity);
+    }
+    return roots;
+}
 }

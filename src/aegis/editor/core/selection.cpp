@@ -19,6 +19,21 @@ void Selection::remove(StableId id)
     std::erase(m_ids, id);
 }
 
+void Selection::toggle(StableId id)
+{
+    if (contains(id))
+        remove(id);
+    else
+        m_ids.push_back(id);
+}
+
+void Selection::assign(std::span<const StableId> ids)
+{
+    m_ids.clear();
+    for (const auto id : ids)
+        add(id);
+}
+
 void Selection::clear()
 {
     m_ids.clear();

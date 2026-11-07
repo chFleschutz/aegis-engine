@@ -2,6 +2,7 @@ export module aegis.editor:viewport;
 import std;
 import aegis.editor.core;
 import aegis.engine;
+import aegis.math;
 import aegis.reflect;
 import aegis.world;
 
@@ -9,8 +10,8 @@ export namespace aegis::editor
 {
 /// @brief The scene view: the world renders into a texture of the panel's size, through the editor camera, which
 ///        the viewport moves (RMB + WASD/QE fly, Alt + LMB orbit, MMB pan, wheel dolly; F, the focus action, frames the selection). A click
-///        selects the mesh or the light or camera icon under the cursor; the gizmo moves the selection
-///        (W/E/R/Q while the viewport has focus). A scene or model dragged from the asset browser is instantiated
+///        selects the mesh or the light or camera icon under the cursor, Ctrl+click adds it to the selection or removes it; the gizmo
+///        sits on the active entity and moves every selected root with it (W/E/R/Q while the viewport has focus). A scene or model dragged from the asset browser is instantiated
 ///        on the ground under the cursor. EditorShell owns it.
 class Viewport
 {
@@ -28,6 +29,9 @@ public:
     [[nodiscard]] auto givesInputToGame() const -> bool { return m_gameView && m_focused; }
     /// @brief Takes the input back from the game: the viewport loses its focus until it is clicked again.
     void releaseInput();
+    /// @brief Records the gizmo drag still going, if any, as one undo entry: when the gizmo is released, or before the
+    ///        world the panels show is switched (play).
+    void endGizmoDrag(EditorContext& editor, FrameContext& frame);
     /// @brief What the viewport shows in a corner while the game has the input: how to take it back.
     void setReleaseHint(std::string hint) { m_releaseHint = std::move(hint); }
 
@@ -70,6 +74,8 @@ private:
     void updateGizmoMode();
     // Whether a gizmo was drawn: the selection can be moved.
     auto drawGizmo(EditorContext& editor, FrameContext& frame, const Rect& rect) -> bool;
+    // A gizmo drag starts with the active entity's world matrix 'start': it keeps the selected roots' as they are now.
+    void beginGizmoDrag(EditorContext& editor, const reflect::TypeInfo& transformType, const glm::mat4& start);
     void drawToolbar(EditorContext& editor, const Rect& rect);
     // A row across the panel at the cursor, on its own background, holding what 'bar' draws; the cursor ends below it.
     static void drawBar(const std::function<void()>& bar);
@@ -92,8 +98,21 @@ private:
     bool m_flying{ false };
     bool m_orbiting{ false };
     bool m_panning{ false };
-    bool m_gizmoDragging{ false };   // As of the last frame: its end seals the drag's undo entry
-    double m_speedShownUntil{ 0.0 }; // ImGui's time until which the camera speed shows while flying
+    // A drag of the gizmo: it sits on the active entity and moves every selected root (selectedRoots) with it.
+    struct GizmoRoot
+    {
+        StableId id;
+        glm::mat4 start{ 1.0f }; // Its world matrix when the drag began
+        FieldValues oldValues;   // Its Transform then
+    };
+    struct GizmoDrag
+    {
+        glm::mat4 start{ 1.0f }; // The active entity's world matrix when it began
+        std::vector<GizmoRoot> roots;
+        std::string verb; // Of its undo entry: Move, Rotate or Scale
+    };
+    std::optional<GizmoDrag> m_gizmoDrag; // Recorded when the gizmo is released
+    double m_speedShownUntil{ 0.0 };      // ImGui's time until which the camera speed shows while flying
     std::string m_releaseHint;
 };
 }

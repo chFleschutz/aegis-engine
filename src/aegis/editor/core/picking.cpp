@@ -10,6 +10,19 @@ auto transformSphere(const Sphere& local, const glm::mat4& transform) -> Sphere
     return { .center = glm::vec3{ transform * glm::vec4{ local.center, 1.0f } }, .radius = local.radius * scale };
 }
 
+auto enclose(const Sphere& a, const Sphere& b) -> Sphere
+{
+    const glm::vec3 offset = b.center - a.center;
+    const float distance = glm::length(offset);
+    if (distance + b.radius <= a.radius)
+        return a;
+    if (distance + a.radius <= b.radius)
+        return b;
+    // From the far side of 'a' to the far side of 'b', along the line through both centers
+    const float radius = (distance + a.radius + b.radius) * 0.5f;
+    return { .center = a.center + offset * ((radius - a.radius) / distance), .radius = radius };
+}
+
 auto intersect(const Ray& ray, const Sphere& sphere) -> std::optional<float>
 {
     // |origin + t * direction - center|^2 = radius^2, with a unit direction
