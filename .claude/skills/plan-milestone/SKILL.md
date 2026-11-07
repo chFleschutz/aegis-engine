@@ -41,14 +41,13 @@ proposal or in one "passed over" line with its reason. When the owner picks one,
 
 ## Plan the target
 
-1. **Check the slot.** If a Planning milestone is already open, this target becomes a roadmap
+1. **Check the slot.** If two `M` milestones are already open, Active and Planning, this target becomes a roadmap
    paragraph: draft step 2's description only, and after the owner's OK add it to the roadmap at the
    place they choose, as a docs-only commit on `main`.
-2. **Draft the milestone.** Title `M<n>: <name>`, `n` one past the highest `M` number of any milestone,
-   open or closed. Description:
+2. **Draft the milestone.** Title `M<n>: <name>`, numbered by AGENTS.md "Milestones". Description:
 
    ```md
-   Planning. **Target:** <the outcome, in a sentence>
+   **Target:** <the outcome, in a sentence>
 
    **Done when:**
    - <a result someone can check: a scene that renders, an editor flow, a test or reference image>
@@ -68,7 +67,8 @@ proposal or in one "passed over" line with its reason. When the owner picks one,
 
 ## Activate
 
-Only when no Active milestone is open; otherwise name it and stop. Activation is where the Planning
+Run once the Active milestone has closed, leaving the Planning one as the only open `M` milestone;
+otherwise name the open ones and stop. Activation is where the Planning
 milestone's detail gets written, against the code as it is now.
 
 1. **Re-check the target.** Compare the Planning milestone's target and "done when" with the current
@@ -79,8 +79,7 @@ milestone's detail gets written, against the code as it is now.
    fix the blockers.
 3. **Show and wait** as in [Plan the target](#plan-the-target) step 4, marking what changed from the
    outlines.
-4. **Apply:** rewrite each issue (`gh issue edit`), fix the relations and labels, and change the
-   description's first word from `Planning.` to `Active.`.
+4. **Apply:** rewrite each issue (`gh issue edit`) and fix the relations and labels.
 
 Done when every issue in the milestone has a full body and none is still an outline. Then tell the
 owner the Planning slot is free and `/plan-milestone` suggests the next target.

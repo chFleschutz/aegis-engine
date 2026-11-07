@@ -293,7 +293,8 @@ issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*
 `verify-*.md`), then re-check them against the current code. Feature PRs don't edit `backlog.md`.
 
 **Milestones:** at most two are open besides `Backlog`, which never closes: the **Active** one being
-worked on and the next one in **Planning**. A milestone's description gives its target, a checkable
+worked on and the next one in **Planning**. Milestones are titled `M<n>: <name>`, each `n` one past
+the highest ever used, so of the two the lower number is Active. A milestone's description gives its target, a checkable
 "done when" (a result, not its list of issues) and what is out of scope. Planning issues may be
 outlines. Activating a milestone re-checks its target against the code and writes the full issue
 bodies; from then on its scope is frozen. An issue joins the Active milestone only if its "done when"
