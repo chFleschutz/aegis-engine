@@ -43,6 +43,17 @@ using NodeOpen = std::function<bool(StableId)>;
 /// @note Walks iteratively, so a deep tree cannot overflow the stack.
 [[nodiscard]] auto hierarchyRows(world::Registry& registry, const NodeOpen& isOpen, std::string_view filter = {}) -> std::vector<HierarchyRow>;
 
+/// @brief 'rows' with the nodes 'isOpen' calls closed closed: their rows' open turns false and their subtrees are left
+///        out. 'isOpen' is asked once per open row that is not left out. For a filtered hierarchy, whose rows are all open
+///        (hierarchyRows), with a tree state of its own.
+[[nodiscard]] auto closeRows(std::span<const HierarchyRow> rows, const NodeOpen& isOpen) -> std::vector<HierarchyRow>;
+
+/// @brief The index of the row of 'id' in 'rows', or none: where a list scrolls to show it.
+[[nodiscard]] auto rowIndex(std::span<const HierarchyRow> rows, StableId id) -> std::optional<std::size_t>;
+
+/// @brief The ancestors of 'entity', its parent first: the nodes to open for its row to be listed.
+[[nodiscard]] auto ancestorIds(world::Registry& registry, world::Entity entity) -> std::vector<StableId>;
+
 /// @brief The rows from the one of 'from' to the one of 'to', both included, in that order (a Shift+click from the
 ///        active row): the last is 'to'. Only 'to' when 'from' is not among the rows (under a closed node, filtered
 ///        out); empty when 'to' is not among them.
