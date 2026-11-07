@@ -116,7 +116,8 @@ copied or installed game is the export step (#134). `Template` and `Examples` ar
 
 The examples render through the `Engine` facade, but they open a window and have no pass/fail
 signal — validation errors only go to stderr. Verify RHI work with `aegis-test` first (see
-"Verifying device code").
+"Verifying device code"). **Seeing a windowed run** (what headless skips, such as the editor's
+recovery bar): `tools/capture-window.ps1` saves the window as a PNG and reports stderr's `[error]` lines.
 
 ### Shaders
 Shaders compile on every build of `aegis-engine` or `aegis-render-passes` (the `compile_shaders`

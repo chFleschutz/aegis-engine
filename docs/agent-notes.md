@@ -74,13 +74,11 @@ Read that file first.
 
 ## Verifying
 
-- **Examples have no pass/fail signal.** I checked them with a scratchpad PowerShell script, rewritten
-  each session, that:
-  - starts the exe and waits;
-  - captures the window with `PrintWindow(hwnd, hdc, 3)` (`PW_RENDERFULLCONTENT` is required, because
-    a plain capture of a Vulkan window comes out black);
-  - closes it with `CloseMainWindow`;
-  - counts `Vulkan … Error|Warning` lines on stderr.
+- **Windowed runs: `tools/capture-window.ps1`.** It starts the exe (or attaches to a running one with
+  `-Name`), captures the window with `PrintWindow(hwnd, hdc, 3)` (`PW_RENDERFULLCONTENT` is required,
+  because a plain capture of a Vulkan window comes out black), closes it with `CloseMainWindow` and
+  lists stderr's `[error]` lines. A planted file can stage what needs clicks: a copy of a scene in
+  `<project>/.aegis/editor/autosave/<scene ID>.scene`, newer than the scene, shows the recovery bar.
 - **Look at the screenshot after any render change.** Exit 0 with an empty stderr does not catch
   wrong output.
 - **Check post-compaction summaries against the code.** After a context compaction, the summary
@@ -104,8 +102,6 @@ Read that file first.
    no longer have a source.
 6. **Make `git clang-format` work:** disable the Store `python` alias, or add a `tools/format.sh`
    wrapper.
-7. **Check the capture script into the repo** (for example `tools/run-capture.ps1`) if windowed checks
-   remain necessary after idea 1.
-8. **Finish converting the legacy modules** (`scripting`, `world`). Formatting
+7. **Finish converting the legacy modules** (`scripting`, `world`). Formatting
    and naming already match the new style; what remains is `assert` → `std::expected` where misuse
    is recoverable, and dotted submodules → partitions, best done as part of their redesign.

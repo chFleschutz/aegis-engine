@@ -9,8 +9,9 @@
 # main checkout's copy of the same submodule, so its objects stay in the main checkout (git
 # alternates): nothing is downloaded or copied, and the worktree's git data stays around 1 MB. The
 # submodules check out in parallel. Submodules already checked out are left alone, so a second run
-# does nothing. In the main checkout itself, or for a submodule the main checkout lacks, it falls
-# back to a normal clone.
+# does nothing. In the main checkout itself, for a submodule the main checkout lacks, and for one
+# whose copy there is shallow (`shallow = true` in .gitmodules: git takes no shallow repository as a
+# reference), it falls back to a normal clone, at the depth .gitmodules recommends.
 #
 # The worktree's submodules depend on the main checkout's submodule object stores. To make one
 # self-contained: `git -C <path> repack -a -d`, then delete objects/info/alternates in its git dir.
@@ -75,7 +76,8 @@ git submodule init --quiet -- "${missing[@]}"
 checkout() {
     local path=$1
     local reference=()
-    if [[ "$top" != "$main" ]] && checked_out "$main/$path"; then
+    if [[ "$top" != "$main" ]] && checked_out "$main/$path" &&
+        [[ $(git -C "$main/$path" rev-parse --is-shallow-repository) == false ]]; then
         local gitdir
         gitdir=$(git -C "$main/$path" rev-parse --path-format=absolute --git-dir) || return
         reference=(--reference "$gitdir")
