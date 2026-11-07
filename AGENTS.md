@@ -302,6 +302,7 @@ a related follow-up or a new feature included, goes to Planning or `Backlog`. `B
 worked beside the Active milestone without joining it. Once "done when" is met the milestone closes,
 even with issues left, which move to Planning or `Backlog`; Planning becomes Active, the roadmap's
 next target becomes Planning, and the roadmap drops the closed milestone (a docs-only commit).
+`/plan-milestone` suggests targets, plans the Planning milestone, activates it and breaks plans into issues.
 
 1. **One worktree per PR.** `tools/new-worktree.sh <branch> [base]` creates
    `../aegis-engine.worktrees/<branch>` from `origin/main` with submodules, then configures and

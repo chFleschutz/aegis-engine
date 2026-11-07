@@ -12,7 +12,7 @@ and move the commit here.
 | `grill` | `skills/engineering/grill-with-docs` | A wrapper, as upstream, that also names the subject |
 | `grilling` | `skills/productivity/grilling` | Verbatim |
 | `implement` | `skills/engineering/code-review`, `skills/engineering/tdd` | Only the spec check (the Spec axis) and the test-first step; the rest is aegis's own |
-| `plan-issues` | `skills/engineering/to-tickets`, `skills/engineering/to-spec` | Same process; aegis's issue format, labels and relations |
+| `plan-milestone` | `skills/engineering/to-tickets`, `skills/engineering/to-spec` | Same process for issues, with aegis's format, labels and relations; the milestone branches are aegis's own |
 | `retro` | `skills/engineering/retro` | Same steps; aegis's categories and where findings go |
 | `writing-for-agents` | `skills/productivity/writing-for-agents` | Nearly verbatim |
 
