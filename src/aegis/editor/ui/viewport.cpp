@@ -130,7 +130,7 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
                 focusSelection(editor);
             updateGizmoMode();
             const auto icons = drawIcons(editor, rect);
-            const bool gizmo = drawGizmo(editor, frame.types, rect);
+            const bool gizmo = drawGizmo(editor, frame, rect);
             drawToolbar(editor, rect);
             if (m_flying && ImGui::GetTime() < m_speedShownUntil)
             {
@@ -249,7 +249,7 @@ void Viewport::updateGizmoMode()
         m_gizmoMode = GizmoMode::Scale;
 }
 
-auto Viewport::drawGizmo(EditorContext& editor, const reflect::TypeRegistry& types, const Rect& rect) -> bool
+auto Viewport::drawGizmo(EditorContext& editor, FrameContext& frame, const Rect& rect) -> bool
 {
     auto* world = editor.world();
     const auto selected = editor.selectedEntity();
@@ -300,20 +300,24 @@ auto Viewport::drawGizmo(EditorContext& editor, const reflect::TypeRegistry& typ
     if (!changed)
         return true;
 
-    const auto* transformType = types.find("Transform");
-    const auto oldValues = transformType ? fieldValues(*transformType, &transform) : FieldValues{};
+    const auto* transformType = frame.types.find<Transform>();
+    if (!transformType)
+        return true;
     GlobalTransform parentGlobal{};
     const auto parent = registry.get<Parent>(selected).entity;
     if (parent && registry.has<GlobalTransform>(parent))
         parentGlobal = registry.get<GlobalTransform>(parent);
-    transform = world::detail::toLocal(parentGlobal, matrix);
-    if (!registry.has<DynamicTag>(selected))
-        registry.markStaticDirty(selected); // Static entities only move when told to
-    if (transformType)
+    const Transform moved = world::detail::toLocal(parentGlobal, matrix);
+    auto oldValues = fieldValues(*transformType, &transform);
+    auto newValues = fieldValues(*transformType, &moved);
+    // Through the change hook: a static entity only moves when told to
+    if (auto written = writeComponent(*transformType, registry, selected, &transform, newValues, editWorld(editor, frame).prepare); !written)
     {
-        editor.undoStack().record(ComponentEdit{ .entity = registry.get<StableId>(selected), .type = transformType->name, .oldValues = oldValues, .newValues = fieldValues(*transformType, &transform) },
-            dragging);
+        log::warn("Cannot move the entity: {}", reflect::describe(written.error()));
+        return true;
     }
+    editor.undoStack().record(ComponentEdit{ .entity = registry.get<StableId>(selected), .type = transformType->name, .oldValues = std::move(oldValues), .newValues = std::move(newValues) },
+        dragging);
     return true;
 }
 

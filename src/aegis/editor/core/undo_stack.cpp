@@ -76,20 +76,44 @@ auto changesNothing(const Edit& edit) -> bool
 void UndoStack::record(Edit edit, bool continuous)
 {
     setOpen(edit, continuous);
-    // The drag goes on: one entry from the value before it to the latest
-    if (m_applied > 0 && m_applied == m_edits.size() && extend(m_edits.back(), edit, continuous))
-        return;
+    // The entry this edit may extend: the open group's once it has one, or the last one outside a group
+    const bool grouped = m_groupDepth > 0;
+    if ((!grouped || m_groupRecorded) && m_applied > 0 && m_applied == m_entries.size())
+    {
+        // The drag goes on: one edit from the value before it to the latest
+        auto& edits = m_entries.back().edits;
+        for (auto& previous : std::views::reverse(edits))
+        {
+            if (extend(previous, edit, continuous))
+                return;
+        }
+    }
     if (changesNothing(edit))
         return;
 
-    m_edits.resize(m_applied);
+    if (grouped && m_groupRecorded && m_applied == m_entries.size())
+    {
+        m_entries.back().edits.push_back(std::move(edit));
+        return;
+    }
+    Entry entry;
+    entry.edits.push_back(std::move(edit));
+    if (grouped)
+        entry.title = m_groupTitle;
+    push(std::move(entry));
+    m_groupRecorded = grouped;
+}
+
+void UndoStack::push(Entry entry)
+{
+    m_entries.resize(m_applied);
     if (m_saved && *m_saved > m_applied)
         m_saved.reset();
-    m_edits.push_back(std::move(edit));
+    m_entries.push_back(std::move(entry));
     ++m_applied;
-    if (m_edits.size() > maxDepth)
+    if (m_entries.size() > maxDepth)
     {
-        m_edits.erase(m_edits.begin());
+        m_entries.erase(m_entries.begin());
         --m_applied;
         if (m_saved)
             m_saved = *m_saved > 0 ? std::optional{ *m_saved - 1 } : std::nullopt;
@@ -98,21 +122,45 @@ void UndoStack::record(Edit edit, bool continuous)
 
 void UndoStack::seal()
 {
-    if (!m_edits.empty())
-        setOpen(m_edits.back(), false);
+    if (m_entries.empty())
+        return;
+    for (auto& edit : m_entries.back().edits)
+        setOpen(edit, false);
 }
 
-auto UndoStack::undo() -> const Edit*
+void UndoStack::beginGroup(std::string title)
+{
+    if (m_groupDepth++ > 0)
+        return; // Joins the open group
+    seal();     // Nothing before the group extends into it
+    m_groupTitle = std::move(title);
+    m_groupRecorded = false;
+}
+
+void UndoStack::endGroup()
+{
+    if (m_groupDepth == 0 || --m_groupDepth > 0)
+        return;
+    seal(); // Nothing after the group extends into it
+    m_groupTitle.clear();
+    m_groupRecorded = false;
+}
+
+auto UndoStack::undo() -> std::span<const Edit>
 {
     if (!canUndo())
-        return nullptr;
+        return {};
     seal();
-    return &m_edits[--m_applied];
+    m_groupRecorded = false;
+    return m_entries[--m_applied].edits;
 }
 
-auto UndoStack::redo() -> const Edit*
+auto UndoStack::redo() -> std::span<const Edit>
 {
-    return canRedo() ? &m_edits[m_applied++] : nullptr;
+    if (!canRedo())
+        return {};
+    m_groupRecorded = false;
+    return m_entries[m_applied++].edits;
 }
 
 void UndoStack::markSaved()
@@ -129,8 +177,9 @@ void UndoStack::markUnsaved()
 
 void UndoStack::clear()
 {
-    m_edits.clear();
+    m_entries.clear();
     m_applied = 0;
     m_saved = 0;
+    m_groupRecorded = false;
 }
 }

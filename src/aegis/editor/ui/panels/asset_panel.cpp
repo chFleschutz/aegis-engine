@@ -13,6 +13,7 @@ import aegis.asset_library;
 import aegis.assets;
 import aegis.core;
 import aegis.math;
+import aegis.reflect;
 import aegis.serialize;
 import aegis.world;
 import :panels;
@@ -313,17 +314,19 @@ auto acceptAssetPayload(const std::function<bool(const AssetPayload& payload)>& 
 auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t asset, world::Entity parent, std::optional<glm::vec3> location) -> bool
 {
     auto& registry = editor.world()->registry();
+    const auto edits = editWorld(editor, frame);
     const auto create = [&](world::Entity at) -> std::expected<world::Entity, std::string> {
         auto holder = frame.assets.instantiateScene(*editor.world(), frame.types, assets::AssetId{ asset }, at);
-        if (holder && location)
+        const auto* transformType = frame.types.find<Transform>();
+        if (holder && location && transformType)
         {
-            registry.get<Transform>(*holder).location = *location;
-            if (!registry.has<DynamicTag>(*holder))
-                registry.markStaticDirty(*holder);
+            const FieldValues values{ { .field = "location", .value = reflect::Value{ *location } } };
+            if (auto written = writeComponent(*transformType, registry, *holder, &registry.get<Transform>(*holder), values, edits.prepare); !written)
+                log::warn("Cannot place the instance: {}", reflect::describe(written.error()));
         }
         return holder;
     };
-    auto holder = instantiateEntity(editWorld(editor, frame), editor.undoStack(), parent, create);
+    auto holder = instantiateEntity(edits, editor.undoStack(), parent, create);
     if (!holder)
     {
         log::warn("Cannot instantiate {}: {}", assets::AssetId{ asset }, holder.error());

@@ -93,12 +93,8 @@ auto applyComponent(const EditWorld& world, const ComponentEdit& edit, EditSide 
     if (!object)
         return std::unexpected{ std::format("the entity no longer has '{}'", edit.type) };
 
-    if (auto written = writeValues(**type, object, side == EditSide::Old ? edit.oldValues : edit.newValues); !written)
-        return written;
-    if (world.prepare)
-        world.prepare(**type, object);
-    if (storage && !edit.scriptIndex)
-        storage->changed(world.registry, *entity);
+    if (auto written = writeComponent(**type, world.registry, *entity, object, side == EditSide::Old ? edit.oldValues : edit.newValues, world.prepare); !written)
+        return std::unexpected{ reflect::describe(written.error()) };
     return {};
 }
 
@@ -181,6 +177,9 @@ auto applyRename(const EditWorld& world, const RenameEdit& edit, EditSide side) 
 
 auto applyMove(const EditWorld& world, const MoveEdit& edit, EditSide side) -> Result
 {
+    const auto* transformType = world.types.find<Transform>();
+    if (!transformType)
+        return std::unexpected{ "Transform is not registered" };
     const auto entity = findEntity(world.registry, edit.entity);
     if (!entity)
         return std::unexpected{ entity.error() };
@@ -202,9 +201,8 @@ auto applyMove(const EditWorld& world, const MoveEdit& edit, EditSide side) -> R
     if (!moved)
         return std::unexpected{ std::string{ world::describe(moved.error()) } };
 
-    registry.get<Transform>(*entity) = place.transform;
-    if (!registry.has<DynamicTag>(*entity))
-        registry.markStaticDirty(*entity);
+    if (auto written = writeComponent(*transformType, registry, *entity, &registry.get<Transform>(*entity), fieldValues(*transformType, &place.transform), world.prepare); !written)
+        return std::unexpected{ reflect::describe(written.error()) };
     return {};
 }
 
@@ -425,5 +423,27 @@ auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::
                 return applySubtree(world, entry, side);
         },
         edit);
+}
+
+auto entryTitle(std::span<const Edit> edits, std::string_view groupTitle, const world::Registry& registry) -> std::string
+{
+    if (!groupTitle.empty())
+        return std::string{ groupTitle };
+    return edits.empty() ? std::string{} : editTitle(edits.front(), registry);
+}
+
+auto applyEdits(const EditWorld& world, std::span<const Edit> edits, EditSide side) -> std::vector<std::string>
+{
+    std::vector<std::string> failures;
+    const auto applyOne = [&](const Edit& edit) {
+        if (auto applied = applyEdit(world, edit, side); !applied)
+            failures.push_back(std::format("{}: {}", describe(edit), applied.error()));
+    };
+    // An edit may need the ones before it (a component of an entity the group created)
+    if (side == EditSide::Old)
+        std::ranges::for_each(std::views::reverse(edits), applyOne);
+    else
+        std::ranges::for_each(edits, applyOne);
+    return failures;
 }
 }

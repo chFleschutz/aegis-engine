@@ -979,8 +979,8 @@ void EditorShell::drawMenuBar(FrameContext& frame)
 
     if (ImGui::BeginMenu("Edit"))
     {
-        m_actions.menuItem("edit.undo", frame, editLabel("Undo", m_context.undoStack().nextUndo()));
-        m_actions.menuItem("edit.redo", frame, editLabel("Redo", m_context.undoStack().nextRedo()));
+        m_actions.menuItem("edit.undo", frame, editLabel("Undo", m_context.undoStack().nextUndo(), m_context.undoStack().nextUndoTitle()));
+        m_actions.menuItem("edit.redo", frame, editLabel("Redo", m_context.undoStack().nextRedo(), m_context.undoStack().nextRedoTitle()));
         ImGui::Separator();
         m_actions.menuItem("edit.duplicate", frame);
         m_actions.menuItem("edit.delete", frame);
@@ -1052,11 +1052,11 @@ void EditorShell::drawMenuBar(FrameContext& frame)
     ImGui::EndMainMenuBar();
 }
 
-auto EditorShell::editLabel(std::string_view verb, const Edit* edit) const -> std::string
+auto EditorShell::editLabel(std::string_view verb, std::span<const Edit> edits, std::string_view title) const -> std::string
 {
-    if (!edit)
+    if (edits.empty())
         return std::string{ verb };
-    return std::format("{} {}", verb, editTitle(*edit, m_context.world()->registry()));
+    return std::format("{} {}", verb, entryTitle(edits, title, m_context.world()->registry()));
 }
 
 void EditorShell::drawSceneName()

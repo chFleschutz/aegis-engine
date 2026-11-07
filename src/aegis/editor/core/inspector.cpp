@@ -117,4 +117,22 @@ auto setField(const reflect::TypeInfo& type, const reflect::FieldInfo& field, wo
         storage->changed(registry, entity);
     return {};
 }
+
+auto writeComponent(const reflect::TypeInfo& type, world::Registry& registry, world::Entity entity, void* object,
+    const FieldValues& values, const PrepareField& prepare) -> std::expected<void, reflect::Error>
+{
+    for (const auto& [name, value] : values)
+    {
+        const auto* field = type.findField(name);
+        if (!field)
+            return reflect::makeError(reflect::ErrorCode::UnknownField, std::format("'{}' has no field '{}'", type.name, name));
+        if (auto written = field->setter(object, value); !written)
+            return written;
+    }
+    if (prepare)
+        prepare(type, object);
+    if (const auto* storage = type.attachment<world::ComponentStorage>())
+        storage->changed(registry, entity);
+    return {};
+}
 }

@@ -20,6 +20,7 @@ using aegis::StableId;
 using aegis::Transform;
 using aegis::editor::addComponent;
 using aegis::editor::applyEdit;
+using aegis::editor::applyEdits;
 using aegis::editor::attachScript;
 using aegis::editor::componentToText;
 using aegis::editor::createEntity;
@@ -80,14 +81,14 @@ struct Fixture
 
     auto undo() -> bool
     {
-        const auto* edit = history.undo();
-        return edit && applyEdit(edits(), *edit, EditSide::Old).has_value();
+        const auto entry = history.undo();
+        return !entry.empty() && applyEdits(edits(), entry, EditSide::Old).empty();
     }
 
     auto redo() -> bool
     {
-        const auto* edit = history.redo();
-        return edit && applyEdit(edits(), *edit, EditSide::New).has_value();
+        const auto entry = history.redo();
+        return !entry.empty() && applyEdits(edits(), entry, EditSide::New).empty();
     }
 
     // The StableIds of the entity's children, in sibling order.
@@ -253,15 +254,15 @@ TEST_SUITE("editor::instantiateEntity")
         CHECK(f.childIds(parent) == std::vector{ holderId });
         CHECK(registry.entityCount() == before + 3);
 
-        const auto* undone = f.history.undo();
-        REQUIRE(undone);
-        CHECK(applyEdit(f.instanceEdits(), *undone, EditSide::Old).has_value());
+        const auto undone = f.history.undo();
+        REQUIRE_FALSE(undone.empty());
+        CHECK(applyEdit(f.instanceEdits(), undone.front(), EditSide::Old).has_value());
         CHECK_FALSE(f.find(holderId));
         CHECK(registry.entityCount() == before);
 
-        const auto* redone = f.history.redo();
-        REQUIRE(redone);
-        CHECK(applyEdit(f.instanceEdits(), *redone, EditSide::New).has_value());
+        const auto redone = f.history.redo();
+        REQUIRE_FALSE(redone.empty());
+        CHECK(applyEdit(f.instanceEdits(), redone.front(), EditSide::New).has_value());
         const auto restored = f.find(holderId);
         REQUIRE(restored);
         CHECK(f.childIds(parent) == std::vector{ holderId });

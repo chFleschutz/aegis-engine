@@ -7,16 +7,6 @@ import :inspector;
 
 export namespace aegis::editor
 {
-/// @brief A field's value, by the field's name.
-struct FieldValue
-{
-    std::string field;
-    reflect::Value value;
-};
-
-/// @brief The values of a component's or script's registered fields, in registration order.
-using FieldValues = std::vector<FieldValue>;
-
 /// @brief One edited field, recorded through the type registry: nothing here is editor- or game-specific.
 struct FieldEdit
 {
@@ -134,6 +124,10 @@ struct EditWorld
 ///        rotation or scale is a Move, Rotate or Scale, as the gizmo's modes call them.
 [[nodiscard]] auto editTitle(const Edit& edit, const world::Registry& registry) -> std::string;
 
+/// @brief What an undo entry does, for a menu item: the title of the group that recorded it, or else editTitle of its
+///        first edit (an entry recorded outside a group has one); empty for no edits.
+[[nodiscard]] auto entryTitle(std::span<const Edit> edits, std::string_view groupTitle, const world::Registry& registry) -> std::string;
+
 /// @brief The values of every registered field of 'object', an instance of 'type'.
 [[nodiscard]] auto fieldValues(const reflect::TypeInfo& type, const void* object) -> FieldValues;
 
@@ -154,4 +148,9 @@ void destroySubtree(world::Registry& registry, world::Entity root);
 ///         a restored ID is taken); nothing is changed then, except the fields a component edit wrote before the
 ///         one that failed
 [[nodiscard]] auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::expected<void, std::string>;
+
+/// @brief Writes one side of every edit of an undo entry (UndoStack::undo, redo): the old sides last to first, the new
+///        sides first to last. An edit that no longer applies is skipped and the others are still written.
+/// @return Why each skipped edit no longer applies, as "<describe(edit)>: <reason>"; empty when every edit applied
+[[nodiscard]] auto applyEdits(const EditWorld& world, std::span<const Edit> edits, EditSide side) -> std::vector<std::string>;
 }
