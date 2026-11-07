@@ -28,6 +28,8 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
   and the assets the device tests load) is the opt-in submodule `samples/` (`aegis-samples`, `update =
   none`): `git submodule update --init --checkout samples`. Without it configure prints that line and
   skips the `Examples` game and the device tests that load samples; the library and unit tests never need it.
+  A change to the samples is a PR in aegis-samples (branch from its `origin/main`); the engine PR bumps the
+  `samples` pointer to that commit and says to merge the samples PR first.
 - `external/ktx` is no submodule: it holds the files of a KTX-Software release that the engine builds (libktx's
   KTX2 reader and writer, under 1 MB of the 550 MB repository), built by `external/CMakeLists.txt` against the
   `external/zstd` submodule. Update it with `tools/update-ktx.sh <tag>`, committed on its own.
@@ -155,7 +157,8 @@ Examples name assets through the library, by path inside it (`assets.id("models/
 `aegis::AssetLibrary` (`src/aegis/asset_library.*`, target `aegis-asset-library`) loads assets by `AssetId`
 and caches them by ID; components store `AssetRef<T>` (`MeshRenderer`, `Sky`). It scans two roots through
 `assets::AssetDatabase`: the project content (the samples for now; dot-files and dot-folders are skipped;
-**a sidecar with new IDs is written next to every source file that has none**, so a new source shows an
+**a sidecar with new IDs is written next to every source file that has none** (a scene file carries its ID
+inside and gets none), so a new source shows an
 untracked `.meta` file in the samples: commit it there, scenes reference assets by ID) and the engine
 content (named in code as `assets::engine::white`, ...). An image file a model names by URI is no
 sub-asset but its own texture asset. Missing assets fall back to engine content with one
@@ -346,7 +349,11 @@ only that module's library. Layout, conventions, how to add a module, and the fu
     ctest --preset windows-clang-debug                    # runs every case in parallel, plus the device checks
     ctest --preset windows-clang-debug -LE device         # skips the device checks (no GPU needed)
     cmake --build --preset windows-clang-debug --target aegis-tests-rhi   # iterate one module
-    ctest --preset windows-clang-debug -L rhi             # one module (by label; -R "rhi::" matches nothing)
+    ctest --preset windows-clang-debug -L rhi             # one module, by label
+    ctest --preset windows-clang-debug -R "<case words>"  # cases by their TEST_CASE text
+
+CTest names each case by its `TEST_CASE` text alone, without its suite: select a module with `-L <module>`, a case
+with `-R` and words from its name.
 
 - **Scope:** only logic needing no live `rhi::Device`. Invariants guarded by `assert` (e.g.
   `ResourcePool` stale-handle rejection) abort rather than return — test around them, not the abort.
