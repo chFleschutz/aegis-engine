@@ -191,6 +191,7 @@ private:
 
         // A node is open when ImGui's tree state says so: the rows then follow it in the same frame
         const auto rows = hierarchyRows(registry, [](StableId id) { return ImGui::GetStateStorage()->GetInt(ImGui::GetID(rowId(id)), 0) != 0; }, m_filter);
+        m_rowClicked = false;
 
         // A node that was just closed by a click still has its children in 'rows': they are skipped
         std::optional<std::uint32_t> closedDepth;
@@ -246,7 +247,9 @@ private:
         drawRowMenu(editor, frame);
         drawWindowMenu(editor, frame);
 
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
+        // A click on the empty space clears the selection. A row clicked with Ctrl or Shift held doesn't become the active
+        // item (ImGui's tree nodes take no click with a modifier), so the window still counts as hovered then
+        if (!m_rowClicked && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
             editor.selection().clear();
 
         ImGui::End();
@@ -362,6 +365,7 @@ private:
         const ImGuiIO& io = ImGui::GetIO();
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         {
+            m_rowClicked = true;
             if (io.KeyCtrl)
                 selection.toggle(id);
             else if (io.KeyShift)
@@ -430,6 +434,7 @@ private:
     std::string m_filter;
     std::optional<StableId> m_menuRow;         // The row the open context menu is for
     std::optional<StableId> m_narrowOnRelease; // One of several selected rows, pressed: selected alone if released without a drag
+    bool m_rowClicked{ false };                // A row took this frame's left click
 };
 }
 
