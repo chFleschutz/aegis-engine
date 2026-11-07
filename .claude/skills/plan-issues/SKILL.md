@@ -84,5 +84,11 @@ Labels, explained in AGENTS.md "Planned work":
 - `area/*` when the issue sits in one area, from `gh label list`;
 - `needs-gpu` when the verification needs a real GPU, `needs-design` for an open decision.
 
-Each issue also gets a milestone (`gh api repos/{owner}/{repo}/milestones --jq '.[].title'`). Take
-`Backlog` when the plan names none, or `Ideas` with the `idea` label for an unplanned nice-to-have.
+Each issue also gets a milestone (`gh api repos/{owner}/{repo}/milestones --jq '.[].title'`), by the
+rules in AGENTS.md "Milestones": the Planning milestone when the plan is its work, otherwise
+`Backlog`, with the `idea` label for an unplanned nice-to-have. The Active milestone's scope is
+frozen: take it only when its "done when" can't be met without the issue, and say why in step 3.
+
+When the plan is activating the Planning milestone, its issues already exist as outlines: rewrite
+their bodies in the format below (`gh issue edit <n> --body-file <file>`, after the same OK) instead
+of creating new ones.

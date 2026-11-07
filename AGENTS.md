@@ -278,20 +278,30 @@ descriptions.
 **Code changes go through a PR** (anything under `src/`, `shaders/`, `tests/`, `examples/`, `tools/`,
 CMake or CI). Docs-only changes may be committed to `main` directly.
 
-**Planned work:** GitHub issues are the work items, grouped into milestones (`M6`, `M7`, `M9`,
-`M10`, then `Backlog`; `Ideas` holds unplanned nice-to-haves), with dependencies as "Blocked by" relations. An issue body holds the branch, size,
+**Planned work:** GitHub issues are the work items, grouped into milestones (see **Milestones** below), with dependencies as "Blocked by" relations. An issue body holds the branch, size,
 design refs (D-n), the finding IDs it closes, content, out of scope, "done when" and verification.
 Labels: the kind (`bug`, `feature`, `refactor`, `cleanup`, `style`, `build`, `ci`, `tests`,
 `documentation`) matches the branch prefix; `size/*`; `area/*` (don't run two items with the same
 area in parallel); `needs-gpu` (verification needs a real GPU: the reference images, a windowed run
 or Windows input, which CI's lavapipe job doesn't cover and cloud sessions can't run, see "What CI
-covers"); `needs-design` (an open decision; don't start without the owner); `idea` (in `Ideas`, not
+covers"); `needs-design` (an open decision; don't start without the owner); `idea` (in `Backlog`, not
 planned; don't start it unasked). **Status is
 the assignee:** whoever starts an item assigns it (`gh issue edit <n> --add-assignee @me`), and an
-assigned issue is taken. `docs/audit/backlog.md` keeps the decisions (D1–D8, F1/F2) and each
-milestone's goal and order; read the decisions an issue cites. Before starting an item, read its
+assigned issue is taken. `docs/audit/backlog.md` keeps the decisions (D1–D8, F1/F2) and the
+roadmap, the targets after Planning in order; read the decisions an issue cites. Before starting an item, read its
 issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*.md`, corrected by
 `verify-*.md`), then re-check them against the current code. Feature PRs don't edit `backlog.md`.
+
+**Milestones:** at most two are open besides `Backlog`, which never closes: the **Active** one being
+worked on and the next one in **Planning**. A milestone's description gives its target, a checkable
+"done when" (a result, not its list of issues) and what is out of scope. Planning issues may be
+outlines. Activating a milestone re-checks its target against the code and writes the full issue
+bodies; from then on its scope is frozen. An issue joins the Active milestone only if its "done when"
+can't be met without it: a bug the milestone's own work caused, a missing prerequisite. Anything else,
+a related follow-up or a new feature included, goes to Planning or `Backlog`. `Backlog` bugs may be
+worked beside the Active milestone without joining it. Once "done when" is met the milestone closes,
+even with issues left, which move to Planning or `Backlog`; Planning becomes Active, the roadmap's
+next target becomes Planning, and the roadmap drops the closed milestone (a docs-only commit).
 
 1. **One worktree per PR.** `tools/new-worktree.sh <branch> [base]` creates
    `../aegis-engine.worktrees/<branch>` from `origin/main` with submodules, then configures and
