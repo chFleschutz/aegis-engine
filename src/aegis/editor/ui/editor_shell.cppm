@@ -23,7 +23,8 @@ export namespace aegis::editor
 ///        `<project>/.aegis/editor/imgui.ini` (none, like the autosaves, when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
 ///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every docked panel at startup (not the ImGui demo),
-///        `--editor-select <name>` selects the first entity of that name and `--editor-play` enters play after the first frame.
+///        `--editor-select <name>` selects the first entity of that name, `--editor-play` enters play after the first frame
+///        and `--editor-fold` starts with the right column folded and the Inspector in the flyout.
 ///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of
 ///        `ui/theme.h` scaled by the monitor's content scale and the UI-scale preference; the menus and shortcuts
 ///        come from one ActionRegistry. The drawer panels (Assets, Console, the debug panels) open in the drawer, a
@@ -271,6 +272,7 @@ private:
     PlaySession m_play;
     world::World* m_playWorld{ nullptr }; // While a play session runs; the engine owns it
     bool m_playAfterFirstFrame{ false };  // --editor-play
+    bool m_foldOnFirstFrame{ false };     // --editor-fold
     RollingAverage<20> m_gpuMs;           // The frame graph's GPU time, which varies from frame to frame
 };
 }

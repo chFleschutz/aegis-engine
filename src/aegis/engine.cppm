@@ -110,6 +110,9 @@ struct AppDesc
     bool editorPlay{ false };
     /// @brief The editor starts in full viewport (a screenshot of it). The runtime flavor of a game ignores it.
     bool editorFullViewport{ false };
+    /// @brief The editor starts with the right column folded into the side rail and the Inspector in its flyout (a
+    ///        screenshot of them). The runtime flavor of a game ignores it.
+    bool editorFold{ false };
 };
 
 enum class EngineErrorCode
@@ -139,8 +142,8 @@ inline constexpr int exitUsage{ 2 };
 [[nodiscard]] auto describe(const EngineError& error) -> std::string;
 
 /// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n>, --project <dir>,
-///        --scene <path>, --dump-asset <id>, --editor-panels all, --editor-select <name>, --editor-play and
-///        --editor-full-viewport; the first argument (the program name) is skipped. A headless run without --frames
+///        --scene <path>, --dump-asset <id>, --editor-panels all, --editor-select <name>, --editor-play,
+///        --editor-full-viewport and --editor-fold; the first argument (the program name) is skipped. A headless run without --frames
 ///        stops after 600 frames.
 [[nodiscard]] auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, EngineError>;
 

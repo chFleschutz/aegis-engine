@@ -239,6 +239,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     m_playAfterFirstFrame = engine.desc().editorPlay;
     if (engine.desc().editorFullViewport)
         toggleFullViewport();
+    m_foldOnFirstFrame = engine.desc().editorFold;
     // A headless run (a test, a screenshot) neither reads nor changes the user's layout.
     if (!engine.headless() && !engine.project().empty())
     {
@@ -373,6 +374,13 @@ void EditorShell::drawUi(FrameContext& frame)
 
     const int tint = m_context.playing() ? pushPlayTint() : 0;
     beginMainWindow();
+    // --editor-fold: on the first frame, once ImGui read the layout file, which keeps the folded state too
+    if (std::exchange(m_foldOnFirstFrame, false))
+    {
+        m_rail.setFolded(true);
+        m_rail.show("Inspector");
+        m_focusFlyout = true;
+    }
     drawDragTooltip(frame); // First, so a drop target's own tooltip replaces it
     m_actions.handleShortcuts(frame, m_viewport.givesInputToGame());
     if (m_context.renameRequested())

@@ -97,6 +97,10 @@ auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, Engi
         {
             desc.editorFullViewport = true;
         }
+        else if (arg == "--editor-fold")
+        {
+            desc.editorFold = true;
+        }
         else if ((arg == "--frames" || arg == "--width" || arg == "--height") && hasValue)
         {
             const auto count = parseCount(arg, args[++i]);
@@ -128,7 +132,7 @@ auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>
 
 auto usage(std::string_view program) -> std::string
 {
-    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--scene <path>] [--dump-asset <id>] [--editor-panels all] [--editor-select <name>] [--editor-play] [--editor-full-viewport]",
+    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--scene <path>] [--dump-asset <id>] [--editor-panels all] [--editor-select <name>] [--editor-play] [--editor-full-viewport] [--editor-fold]",
         program);
 }
 
