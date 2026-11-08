@@ -30,7 +30,8 @@ export namespace aegis::editor
 ///        window over the bottom of the viewport, from the status bar's buttons or their chords, or dock below the
 ///        viewport while pinned; `--editor-panels all` pins them. Full viewport (F11) gives the viewport the whole
 ///        window, with play controls in a bar at its top; the panels stay in the layout below it, and
-///        `--editor-full-viewport` starts in it.
+///        `--editor-full-viewport` starts in it. Ctrl+B folds the right column into the side rail, whose buttons open
+///        the Hierarchy and the Inspector in a flyout over the viewport's right edge; the layout file keeps it folded.
 class EditorShell final : public Shell
 {
 public:
@@ -111,6 +112,21 @@ private:
     void leaveFullViewportOnEscape(bool drawerWasShown);
     /// @brief Full viewport's top bar: the play controls and the button that leaves it, with its shortcut.
     void drawFullViewportBar(FrameContext& frame);
+    /// @brief Folds the right column into the side rail, or unfolds it (Ctrl+B, the menu bar's button).
+    void toggleFold();
+    /// @brief Whether the window 'title' is docked in the right column while it is folded: its contents go in the flyout.
+    [[nodiscard]] auto inFoldedColumn(std::string_view title) const -> bool;
+    /// @brief The column panel whose window is titled 'title'; null if there is none.
+    [[nodiscard]] auto findColumnPanel(std::string_view title) const -> Panel*;
+    /// @brief A rail button: shows the panel in the flyout, or closes it; a panel outside the folded column (floating,
+    ///        docked elsewhere) gets the focus instead.
+    void toggleFlyout(std::string_view title);
+    /// @brief The rail at the right edge while folded: a button per column panel, lit while the flyout shows it.
+    void drawRail();
+    /// @brief The flyout over the viewport's right edge, as wide as the column, with the panel the rail shows, and its
+    ///        closing rules: Esc (once the drawer is closed), its rail button, and for the Hierarchy a click into the
+    ///        viewport. Losing the focus doesn't close it.
+    void drawFlyout(FrameContext& frame, bool drawerWasShown);
     /// @brief Docks the drawer panel 'name' into the layout, and returns it to the drawer.
     void pin(std::string_view name);
     void unpin(std::string_view name);
@@ -146,7 +162,8 @@ private:
     void drawPlayControls(FrameContext& frame);
     /// @brief Play or Stop, Pause and Step, and "Playing" or "Paused" while a session runs.
     void drawPlayButtons(FrameContext& frame);
-    /// @brief The full viewport button and the scene's name left of it at the right of the menu bar, each when it fits.
+    /// @brief The fold and full viewport buttons and the scene's name left of them at the right of the menu bar, each when
+    ///        it fits.
     void drawSceneName(FrameContext& frame);
     /// @brief Runs the action 'id' if it can run now.
     void runAction(std::string_view id, FrameContext& frame);
@@ -209,6 +226,8 @@ private:
     std::uint32_t m_dockspace{ 0 }; // The dockspace's ImGui ID, once drawn
     Drawers m_drawers;
     FullViewport m_fullViewport;
+    SideRail m_rail;
+    bool m_focusFlyout{ false };                // The flyout takes the focus next frame
     std::uint32_t m_pinNode{ 0 };               // The node the last pinned panel was docked into; 0 for none
     std::vector<std::string> m_dockRequests;    // Pinned panels to dock before the next dockspace update
     std::string m_focusPinned;                  // The pinned panel whose window takes the focus next frame

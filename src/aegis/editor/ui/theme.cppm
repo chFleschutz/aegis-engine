@@ -26,6 +26,11 @@ inline constexpr const char* step = lucide::stepForward;
 // The menu bar's full viewport button, and the button in full viewport's top bar that leaves it.
 inline constexpr const char* fullViewport = lucide::maximize2;
 inline constexpr const char* leaveFullViewport = lucide::minimize2;
+// The menu bar's button that folds the right column into the side rail, and unfolds it; the rail's panel buttons.
+inline constexpr const char* foldColumn = lucide::panelRightClose;
+inline constexpr const char* unfoldColumn = lucide::panelRightOpen;
+inline constexpr const char* hierarchy = lucide::listTree;
+inline constexpr const char* inspector = lucide::slidersHorizontal;
 inline constexpr const char* camera = lucide::camera;
 inline constexpr const char* light = lucide::lightbulb;
 inline constexpr const char* sun = lucide::sun;
