@@ -20,6 +20,8 @@ struct EditorPreferences
     /// @brief How often the edited scene is autosaved while it has unsaved changes, in minutes (it also is on entering
     ///        Play); 0 turns autosaving off.
     int autosaveMinutes{ 2 };
+    /// @brief The drawer's height (Assets, Console), as a share of the viewport's; dragging its top edge changes it.
+    float drawerHeight{ 0.4f };
     /// @brief Project folders as UTF-8, the most recent first.
     std::vector<std::string> recentProjects;
 
@@ -33,6 +35,10 @@ struct EditorPreferences
 
 /// @brief The longest autosave interval, in minutes (EditorPreferences::clamp keeps it).
 inline constexpr int maxAutosaveMinutes = 60;
+
+/// @brief The range EditorPreferences::clamp keeps the drawer's height in, as shares of the viewport's.
+inline constexpr float minDrawerHeight = 0.1f;
+inline constexpr float maxDrawerHeight = 0.9f;
 
 /// @brief The UI scales the preferences offer, the steps of the "UI scale" combo. A hand-edited file may hold any
 ///        other value in range (EditorPreferences::clamp keeps it).

@@ -151,6 +151,7 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
         const ImVec2 origin = ImGui::GetCursorScreenPos();
         const ImVec2 size = ImGui::GetContentRegionAvail();
         const Rect rect{ .x = origin.x, .y = origin.y, .width = std::max(size.x, 1.0f), .height = std::max(size.y, 1.0f) };
+        m_imageRect = rect;
         m_extent.update({ static_cast<std::uint32_t>(rect.width), static_cast<std::uint32_t>(rect.height) });
 
         // Not an item: ImGuizmo only starts a drag while no item is hovered (windows move by their title bar only)
@@ -198,6 +199,7 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
     }
     else
     {
+        m_imageRect.reset();
         m_hovered = false;
         m_focused = false;
         m_flying = m_orbiting = m_panning = false;

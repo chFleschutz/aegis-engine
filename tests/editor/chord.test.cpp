@@ -24,6 +24,7 @@ TEST_SUITE("editor::Chord")
         CHECK(describe(Chord{ .key = Key::F1, .shift = true }) == "Shift+F1");
         CHECK(describe(Chord{ .key = Key::F2 }) == "F2");
         CHECK(describe(Chord{ .key = Key::F }) == "F");
+        CHECK(describe(Chord{ .key = Key::Space, .ctrl = true, .shift = true }) == "Ctrl+Shift+Space");
     }
 
     TEST_CASE("chords with different modifiers are different")

@@ -19,20 +19,13 @@ class StatisticsPanel final : public Panel
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "Statistics"; }
     [[nodiscard]] auto debug() const -> bool override { return true; }
+    [[nodiscard]] auto drawer() const -> bool override { return true; }
 
     void draw(EditorContext& editor, FrameContext& frame) override
     {
         auto& registry = editor.world()->registry();
         const auto& instances = frame.instances;
 
-        bool open = true;
-        const bool visible = ImGui::Begin("Statistics", &open);
-        setOpen(open);
-        if (!visible)
-        {
-            ImGui::End();
-            return;
-        }
         ImGui::Text("Entities: %d", static_cast<int>(registry.entityCount()));
         ImGui::Text(" - Dynamic Entities: %d", static_cast<int>(registry.view<DynamicTag>().size()));
         ImGui::Separator();
@@ -44,7 +37,6 @@ public:
         ImGui::Text("Total Instances: %d", static_cast<int>(instances.instanceCount()));
         ImGui::Text(" - Static Instances: %d", static_cast<int>(instances.staticInstanceCount()));
         ImGui::Text(" - Dynamic Instances: %d", static_cast<int>(instances.dynamicInstanceCount()));
-        ImGui::End();
     }
 };
 }

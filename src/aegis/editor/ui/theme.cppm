@@ -40,6 +40,12 @@ inline constexpr const char* environment = lucide::cloudSun;
 inline constexpr const char* model = lucide::boxes;
 inline constexpr const char* file = lucide::file;
 
+// The status bar's drawer buttons, and the drawer's pin and close buttons.
+inline constexpr const char* assets = lucide::folder;
+inline constexpr const char* console = lucide::terminal;
+inline constexpr const char* pin = lucide::pin;
+inline constexpr const char* close = lucide::x;
+
 // The status bar's warning and error counts.
 inline constexpr const char* warning = lucide::alertTriangle;
 inline constexpr const char* error = lucide::circleX;

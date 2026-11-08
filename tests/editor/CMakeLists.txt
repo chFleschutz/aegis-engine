@@ -8,6 +8,7 @@ aegis_add_test(editor
         component_text.test.cpp
         console.test.cpp
         context.test.cpp
+        drawers.test.cpp
         editor_camera.test.cpp
         edits.test.cpp
         hierarchy.test.cpp

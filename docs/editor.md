@@ -308,15 +308,16 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   unsaved, with an empty history; Discard deletes it; an edit hides the bar. Headless runs neither
   write nor read autosaves.
 - **Console:** a log sink (R13) feeds a ring buffer with level filters and counts, search, clear, copy and a
-  Collapse toggle that merges repeated messages, while stderr output continues. The status bar shows the
-  warning and error counts, with the last one as their tooltip; clicking them shows them in the console ([#279]).
+  Collapse toggle that merges repeated messages, while stderr output continues. The status bar's Console button
+  carries the warning and error counts, with the last one as their tooltip; clicking them opens the console with
+  only those on ([#279], [#322]).
 
 ### Persistence
 
 - **Layout:** `imgui.ini` goes in `<project>/.aegis/editor/imgui.ini` (per project, per machine, never
-  committed, D8's one ignored folder). A View → Reset Layout action rebuilds the default with
-  `DockBuilder`.
-- **Preferences** (camera speed, snap values, the viewport icons' toggle, recent projects, UI scale, the autosave interval) go in the user config folder
+  committed, D8's one ignored folder), with the pinned drawer panels in its `[Aegis][Drawers]` section. A View →
+  Reset Layout action rebuilds the default with `DockBuilder`.
+- **Preferences** (camera speed, snap values, the viewport icons' toggle, recent projects, UI scale, the autosave interval, the drawer's height) go in the user config folder
   (`%APPDATA%/Aegis/editor.json`, `$XDG_CONFIG_HOME/aegis/editor.json`), as JSON through glaze in a
   `.cpp`. The Preferences window doesn't list the recent projects until something opens them (a welcome
   screen or a project switcher).
@@ -410,27 +411,47 @@ tokens, not this structure.
 │ │                                                          │ │ ▾ Sponza            │
 │ │                 Viewport (scene texture)                 │ │   ▸ Helmet          │
 │ │                          gizmo                           │ ├─────────────────────┤
-│ │                                                          │ │ Inspector           │
+│ ├──────────────────────────────────────────────────────────┤ │ Inspector           │
+│ │ Assets │ Console                                   📌  ✕ │ │                     │ the drawer, while open:
+│ │ Rescan  All types  Search                                │ │                     │ over the viewport
 │ └──────────────────────────────────────────────────────────┘ │                     │
-├──────────────────────────────────────────────────────────────┤                     │
-│ Assets │ Console │ Renderer │ Profiler │ Statistics          │                     │ bottom dock, tabbed
 ├──────────────────────────────────────────────────────────────┴─────────────────────┤
-│ Sponza                    60 fps · GPU 4.1 ms                    warn 25 · error 0 │ status bar
+│ 📁 >_ ⚠ 25 ⊗ 0  Sponza       Q W E R select, move…  F focus      60 fps · GPU 4.1 ms │ status bar
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 - **Default split:** one column on the right over the full height, the hierarchy on top (40% of its height) and
-  the inspector below ([#321]); assets and console tabbed below the viewport (25% of the height). The column is
+  the inspector below ([#321]), and the viewport in the rest: there is no bottom dock ([#322]). The column is
   360 px wide times `theme::scale()`, at most 30% of the window, and keeps its width when the window is resized:
   ImGui gives the change to the viewport, the central node. Built with `DockBuilder` on first start and by
-  View → Reset Layout, which also reopens the panels that start open.
+  View → Reset Layout, which also reopens the panels that start open, unpins the drawer panels and closes the drawer.
   The layout is kept in `<project>/.aegis/editor/imgui.ini`. A change to the default doesn't replace a kept layout:
-  View → Reset Layout builds the new one.
+  View → Reset Layout builds the new one. (A bottom node left from an older default stays hidden while nothing is
+  docked in it.)
+- **Drawer** ([#322]): Assets, Console and the debug panels open in a drawer instead of a dock node, as Unreal's
+  Content Drawer does. It is a window over the bottom of the viewport and as wide, so it covers the image instead of
+  shrinking it (the render extent stays) and the right column stays usable (drag a material from the drawer onto an
+  inspector slot). Its height is a share of the viewport's, dragged at its top edge and kept in the preferences. It
+  shows one panel at a time, with a tab per drawer panel that is open and not pinned (the debug panels' tabs close),
+  a pin button and a close button. The status bar's buttons, their chords and the View menu open it; Esc, the
+  chord again, the close button or a click into the viewport close it; losing the focus doesn't, since popups, the
+  asset picker and drag and drop take it. A drag that leaves the drawer closes it, and its drop still lands in the
+  viewport or on an inspector slot (ImGui keeps the payload while the button is held). There is no animation.
+- **Pinned drawer panels** dock into a node below the viewport, split off when the first one is pinned (or the one
+  a panel was pinned in before), as tabs; a lit pin button over the right end of their first row returns them to
+  the drawer. Like any docked panel they can be dragged to another node; one that appears floating (pinned in the
+  layout file without a node, or dragged out before) docks below the viewport again. The pinned panels are kept
+  with the layout. `--editor-panels all` pins every drawer panel, so the
+  `game-<name>-editor` screenshot shows them.
 - **Dock chrome:** the viewport is the central node and has no tab bar (it can't be closed); no node shows the
   window menu or the close-all button, each tab has its own close button.
-- **Debug panels** (Renderer, Profiler, Statistics) start closed and open as tabs at the bottom, next to the assets
-  and the console: they are wide tables. The Debug menu lists them, the ImGui demo and the style editor
-  (`ImGui::ShowStyleEditor`, for live tuning).
+- **Debug panels** (Renderer, Profiler, Statistics) start closed; the Debug menu opens them in the drawer (they
+  are wide tables) and lists the ImGui demo and the style editor (`ImGui::ShowStyleEditor`, for live tuning).
+- **Status bar:** the Assets and Console buttons at the left (Lucide `folder` and `terminal`, lit while the drawer
+  shows their panel), the console's warning and error counts on the Console button, then the selection. The middle shows the
+  keys for what the cursor is over: the gizmo and camera keys over the viewport, the fly keys while the right mouse
+  button is held, F2 and drag to reparent over the hierarchy (the chords from the action registry). The frame and
+  GPU times are at the right.
 - **Preferences** is a floating, auto-sized window that Edit → Preferences… opens, not a panel. So are Help →
   Keyboard Shortcuts (the registry's chords and the viewport's controls) and Help → About (the version and the
   fonts' licenses).
@@ -479,6 +500,8 @@ tokens, not this structure.
   | Undo, Redo | Ctrl+Z, Ctrl+Y (also Ctrl+Shift+Z) |
   | Duplicate, Delete, Rename (the inspector's name field) | Ctrl+D, Del, F2 |
   | Play/Stop, Pause/Resume, Step | Ctrl+P, Ctrl+Shift+P, Ctrl+Alt+P |
+  | Open or close the Assets, Console drawer | Ctrl+Space, Ctrl+Shift+Space |
+  | Close the drawer | Esc |
   | Release the game's input (while playing) | Shift+F1 |
   | Select, Move, Rotate, Scale (viewport focus) | Q, W, E, R |
   | Focus the selection (also a double click on a hierarchy row) | F |
@@ -601,4 +624,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#281]: https://github.com/chFleschutz/aegis-engine/issues/281
 [#307]: https://github.com/chFleschutz/aegis-engine/issues/307
 [#321]: https://github.com/chFleschutz/aegis-engine/issues/321
+[#322]: https://github.com/chFleschutz/aegis-engine/issues/322
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11

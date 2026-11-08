@@ -34,6 +34,8 @@ auto toImGui(Key key) -> ImGuiKey
         return ImGuiKey_Z;
     case Key::Delete:
         return ImGuiKey_Delete;
+    case Key::Space:
+        return ImGuiKey_Space;
     case Key::F1:
         return ImGuiKey_F1;
     case Key::F2:

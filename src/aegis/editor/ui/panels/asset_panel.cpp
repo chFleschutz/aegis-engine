@@ -1,7 +1,5 @@
 module;
 
-#include <cfloat>
-
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
@@ -106,18 +104,10 @@ public:
     AssetPanel() { setOpen(true); }
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Assets"; }
+    [[nodiscard]] auto drawer() const -> bool override { return true; }
 
     void draw(EditorContext& editor, FrameContext& frame) override
     {
-        bool open = isOpen();
-        if (!ImGui::Begin("Assets", &open))
-        {
-            ImGui::End();
-            setOpen(open);
-            return;
-        }
-        setOpen(open);
-
         // Importing a model adds its parts to the database, so it changes outside a rescan too
         const auto& database = frame.assets.database();
         if (!m_built || database.size() != m_builtSize)
@@ -143,7 +133,6 @@ public:
             ImGui::EndChild();
             ImGui::EndTable();
         }
-        ImGui::End();
     }
 
 private:
@@ -189,7 +178,7 @@ private:
         }
 
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::SetNextItemWidth(fillWidth());
         ImGui::InputTextWithHint("##search", "Search", &m_filter.search);
     }
 

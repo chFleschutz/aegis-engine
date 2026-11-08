@@ -24,13 +24,25 @@ public:
     /// @brief Whether it has its place in the default layout; one that floats over the other panels (the ImGui demo) is
     ///        not opened by `--editor-panels all`.
     [[nodiscard]] virtual auto docked() const -> bool { return true; }
+    /// @brief Whether it opens in the drawer over the bottom of the viewport, or pinned in a bottom node of the layout,
+    ///        instead of a window of its own (Assets, Console, the debug panels). The shell begins and ends its window;
+    ///        draw draws only its contents.
+    [[nodiscard]] virtual auto drawer() const -> bool { return false; }
     /// @brief Draws the panel at the frame's safe point. Panels share state only through 'editor'.
     virtual void draw(EditorContext& editor, FrameContext& frame) = 0;
 
     [[nodiscard]] auto isOpen() const -> bool { return m_open; }
     void setOpen(bool open) { m_open = open; }
 
+    /// @brief For a drawer panel: the width its first row leaves free at the right, where the pin button of a pinned
+    ///        panel sits; 0 in the drawer, whose header holds the button.
+    [[nodiscard]] auto trailingWidth() const -> float { return m_trailingWidth; }
+    void setTrailingWidth(float width) { m_trailingWidth = width; }
+    /// @brief The width of a first-row item that fills the rest of the row (SetNextItemWidth), short of trailingWidth.
+    [[nodiscard]] auto fillWidth() const -> float { return m_trailingWidth > 0.0f ? -m_trailingWidth : -std::numeric_limits<float>::min(); }
+
 private:
     bool m_open{ false };
+    float m_trailingWidth{ 0.0f };
 };
 }

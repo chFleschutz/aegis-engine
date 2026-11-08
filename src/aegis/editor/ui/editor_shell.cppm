@@ -26,7 +26,9 @@ export namespace aegis::editor
 ///        `--editor-select <name>` selects the first entity of that name and `--editor-play` enters play after the first frame.
 ///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of
 ///        `ui/theme.h` scaled by the monitor's content scale and the UI-scale preference; the menus and shortcuts
-///        come from one ActionRegistry.
+///        come from one ActionRegistry. The drawer panels (Assets, Console, the debug panels) open in the drawer, a
+///        window over the bottom of the viewport, from the status bar's buttons or their chords, or dock below the
+///        viewport while pinned; `--editor-panels all` pins them.
 class EditorShell final : public Shell
 {
 public:
@@ -91,8 +93,33 @@ private:
     /// @brief The window title: the scene's name and the editor's.
     void updateTitle();
     void buildActions();
+    /// @brief The panel called 'name'; null if there is none.
+    [[nodiscard]] auto findPanel(std::string_view name) const -> Panel*;
     /// @brief Opens the panel called 'name', if there is one.
     void openPanel(std::string_view name);
+    /// @brief Opens the drawer panel 'name': the drawer shows it, or, pinned, its window gets the focus.
+    void showDrawer(std::string_view name);
+    /// @brief Like showDrawer, but closes the drawer when it already shows 'name' (the status bar's buttons, the chords).
+    void toggleDrawer(std::string_view name);
+    /// @brief Docks the drawer panel 'name' into the layout, and returns it to the drawer.
+    void pin(std::string_view name);
+    void unpin(std::string_view name);
+    /// @brief The drawer over the bottom of the viewport, with a tab per open drawer panel that is not pinned, and its
+    ///        closing rules: Esc, a click into the viewport, and a drag that leaves it (its drop still lands).
+    void drawDrawer(FrameContext& frame);
+    /// @brief The drawer's top edge, which a drag moves (EditorPreferences::drawerHeight).
+    void drawDrawerResize(const Viewport::Rect& viewport, float top);
+    /// @brief A pinned drawer panel's docked window, with the pin button over the right end of its first row.
+    void drawPinned(Panel& panel, FrameContext& frame);
+    /// @brief The node a pinned panel docks into: where it was docked last, else the other pinned panels' node, else a
+    ///        new one split off below the viewport.
+    [[nodiscard]] auto pinNode(std::string_view name) -> std::uint32_t;
+    /// @brief Docks the panels queued by pin (and pinned ones found undocked) before the dockspace updates.
+    void dockPinned();
+    /// @brief The asset still being dragged after the drawer it came from closed, as the drag's tooltip.
+    void drawDragTooltip(FrameContext& frame);
+    /// @brief Keeps the pinned panels in the layout file, next to the dock nodes they are docked in.
+    void addSettingsHandler();
     /// @brief Rebuilds the style when the monitor's content scale or the UI-scale preference changed.
     void updateStyle();
     /// @brief The dockspace between the menu bar and the status bar; builds the default layout when there is none.
@@ -112,12 +139,26 @@ private:
     void selectByName(std::string_view name);
     /// @brief Asks for this frame's updates: the edit world in edit mode, or the play world.
     void updateWorlds(FrameContext& frame);
-    /// @brief The selection at the left, the average frame and GPU times in the middle, the warning and error counts at the right.
+    /// @brief The drawer buttons and the selection at the left, the keys for what the cursor is over in the middle, the
+    ///        average frame and GPU times at the right.
     void drawStatusBar(FrameContext& frame);
     /// @brief The active entity's name ("No selection" without one), and how many more are selected.
     [[nodiscard]] auto selectionLabel() const -> std::string;
+    /// @brief The Assets and Console buttons, lit while the drawer shows them, and the console's
+    ///        warning and error counts on the Console button.
+    void drawDrawerButtons();
     /// @brief The console's warning and error counts, with the last one as their tooltip; a click shows them in the console.
     void drawProblemCounts();
+    // A key and what it does there, for the status bar.
+    struct KeyHint
+    {
+        std::string keys;
+        std::string_view does;
+    };
+    /// @brief The keys for what the cursor is over: the viewport's camera and gizmo, flying, the hierarchy's rows.
+    [[nodiscard]] auto keyHints() const -> std::vector<KeyHint>;
+    /// @brief 'hints' between 'left' and 'right' (window x), centered; none when they don't fit.
+    static void drawKeyHints(const std::vector<KeyHint>& hints, float left, float right);
     void savePreferencesIfChanged();
     /// @brief The autosave of the scene file 'scene' (none for an untitled scene); empty without an autosave folder.
     [[nodiscard]] auto autosaveFile(std::optional<assets::AssetId> scene) const -> std::filesystem::path;
@@ -148,9 +189,19 @@ private:
     float m_contentScale{ 0.0f }; // As of the last style
     float m_uiScale{ 0.0f };
     bool m_resetLayout{ false };
-    bool m_styleEditor{ false };        // ImGui's style editor window, in the Debug menu
-    std::string m_layoutFile;           // UTF-8; ImGui reads and writes the layout there. Empty keeps none.
-    std::filesystem::path m_recentFile; // Next to the layout; empty keeps none
+    std::uint32_t m_dockspace{ 0 }; // The dockspace's ImGui ID, once drawn
+    Drawers m_drawers;
+    std::uint32_t m_pinNode{ 0 };               // The node the last pinned panel was docked into; 0 for none
+    std::vector<std::string> m_dockRequests;    // Pinned panels to dock before the next dockspace update
+    std::string m_focusPinned;                  // The pinned panel whose window takes the focus next frame
+    bool m_focusDrawer{ false };                // The drawer takes the focus next frame
+    bool m_selectDrawerTab{ false };            // The drawer's tab bar selects the shown panel's tab, which may take a frame
+    std::optional<Viewport::Rect> m_drawerRect; // As of the last frame; none while closed
+    bool m_dragFromDrawer{ false };             // The drag going on began in the drawer
+    bool m_dragHidDrawer{ false };              // ... and left it, which closed it
+    bool m_styleEditor{ false };                // ImGui's style editor window, in the Debug menu
+    std::string m_layoutFile;                   // UTF-8; ImGui reads and writes the layout there. Empty keeps none.
+    std::filesystem::path m_recentFile;         // Next to the layout; empty keeps none
     RecentScenes m_recent;
     Viewport m_viewport;
     Engine* m_engine{ nullptr };

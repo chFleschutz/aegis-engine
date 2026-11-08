@@ -9,6 +9,7 @@
 //   :chord          Chord: a shortcut's key and modifiers.
 //   :color          The sRGB transfer function, and the edit of a linear color shown in sRGB.
 //   :console        ConsoleBuffer: the log lines the console shows, with filters.
+//   :drawers        Drawers: which drawer panel the drawer shows and which ones are pinned into the layout.
 //   :preferences    EditorPreferences: the user's settings, kept in the config folder.
 //   :recent_scenes  RecentScenes: the project's scenes opened or saved last, for File > Open Recent.
 //   :selection      The selected entities, by StableId.
@@ -36,6 +37,7 @@ export import :commands;
 export import :component_text;
 export import :console;
 export import :context;
+export import :drawers;
 export import :edits;
 export import :editor_camera;
 export import :hierarchy;

@@ -50,6 +50,7 @@ TEST_SUITE("editor::EditorPreferences")
         saved.showIcons = false;
         saved.uiScale = 1.5f;
         saved.autosaveMinutes = 5;
+        saved.drawerHeight = 0.6f;
         saved.recentProjects = { "C:/games/one", "C:/games/two" };
         REQUIRE(aegis::editor::savePreferences(saved, file));
 
@@ -62,6 +63,7 @@ TEST_SUITE("editor::EditorPreferences")
         CHECK(loaded->showIcons == saved.showIcons);
         CHECK(loaded->uiScale == saved.uiScale);
         CHECK(loaded->autosaveMinutes == saved.autosaveMinutes);
+        CHECK(loaded->drawerHeight == saved.drawerHeight);
         CHECK(loaded->recentProjects == saved.recentProjects);
     }
 
@@ -111,13 +113,14 @@ TEST_SUITE("editor::EditorPreferences")
     {
         TempFolder folder;
         const auto file = folder.path() / "editor.json";
-        write(file, R"({ "uiScale": 100.0, "snapTranslate": -1.0, "autosaveMinutes": 1000 })");
+        write(file, R"({ "uiScale": 100.0, "snapTranslate": -1.0, "autosaveMinutes": 1000, "drawerHeight": 2.0 })");
 
         const auto loaded = aegis::editor::loadPreferences(file);
         REQUIRE(loaded);
         CHECK(loaded->uiScale <= 4.0f);
         CHECK(loaded->snapTranslate > 0.0f);
         CHECK(loaded->autosaveMinutes == aegis::editor::maxAutosaveMinutes);
+        CHECK(loaded->drawerHeight == aegis::editor::maxDrawerHeight);
     }
 
     TEST_CASE("autosaves every two minutes by default and keeps zero as off")
