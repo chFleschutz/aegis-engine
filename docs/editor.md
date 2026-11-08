@@ -445,8 +445,8 @@ tokens, not this structure.
   window menu or the close-all button, each tab has its own close button.
 - **Debug panels** (Renderer, Profiler, Statistics) start closed; the Debug menu opens them in the drawer (they
   are wide tables) and lists the ImGui demo and the style editor (`ImGui::ShowStyleEditor`, for live tuning).
-- **Status bar:** the Assets and Console buttons at the left (Lucide `folder` and `terminal`, lit while their panel
-  shows), the console's warning and error counts on the Console button, then the selection. The middle shows the
+- **Status bar:** the Assets and Console buttons at the left (Lucide `folder` and `terminal`, lit while the drawer
+  shows their panel), the console's warning and error counts on the Console button, then the selection. The middle shows the
   keys for what the cursor is over: the gizmo and camera keys over the viewport, the fly keys while the right mouse
   button is held, F2 and drag to reparent over the hierarchy (the chords from the action registry). The frame and
   GPU times are at the right.

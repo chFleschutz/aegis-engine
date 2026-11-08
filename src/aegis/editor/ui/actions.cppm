@@ -39,9 +39,8 @@ public:
     /// @brief "Label (Ctrl+S)", for a tooltip.
     [[nodiscard]] auto tooltip(std::string_view id) const -> std::string;
 
-    /// @brief A menu item for the action: its label (or 'label') and shortcut, checked while 'selected', disabled while
-    ///        it can't run; a click runs it.
-    void menuItem(std::string_view id, FrameContext& frame, std::string_view label = {}, bool selected = false) const;
+    /// @brief A menu item for the action: its label (or 'label') and shortcut, disabled while it can't run; a click runs it.
+    void menuItem(std::string_view id, FrameContext& frame, std::string_view label = {}) const;
     /// @brief Runs the action whose chord was pressed this frame. Not while a text box has the keyboard (it has its own
     ///        undo). While 'gameHasKeyboard' only chords with a modifier run (hasModifier): plain keys are the game's.
     void handleShortcuts(FrameContext& frame, bool gameHasKeyboard = false);

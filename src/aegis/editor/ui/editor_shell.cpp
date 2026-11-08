@@ -893,7 +893,7 @@ void EditorShell::drawDrawerButtons()
 {
     // Small buttons, as tall as the bar's text; lit while their panel shows
     const auto button = [this](const char* icon, std::string_view panel, std::string_view action) {
-        const bool lit = m_drawers.isShown(panel) || (m_drawers.isPinned(panel) && findPanel(panel) && findPanel(panel)->isOpen());
+        const bool lit = m_drawers.isShown(panel);
         if (lit)
         {
             ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
@@ -1111,10 +1111,14 @@ void EditorShell::showDrawer(std::string_view name)
 
 void EditorShell::toggleDrawer(std::string_view name)
 {
-    if (m_drawers.isShown(name))
-        m_drawers.close();
-    else
-        showDrawer(name);
+    openPanel(name);
+    if (!m_drawers.toggle(name))
+        m_focusPinned = name; // Pinned: its tab shows
+    else if (m_drawers.isShown(name))
+    {
+        m_selectDrawerTab = true;
+        m_focusDrawer = true;
+    }
 }
 
 void EditorShell::pin(std::string_view name)
@@ -1426,9 +1430,10 @@ void EditorShell::drawMenuBar(FrameContext& frame)
             const std::string name{ panel->name() };
             if (panel->drawer())
             {
-                // Opens the drawer, as the status bar's button does
-                const bool shows = m_drawers.isShown(name) || m_drawers.isPinned(name);
-                m_actions.menuItem(name == "Assets" ? "view.assets" : "view.console", frame, {}, shows);
+                // Opens the drawer (its button and chord also close it)
+                const auto chord = m_actions.shortcut(name == "Assets" ? "view.assets" : "view.console");
+                if (ImGui::MenuItem(name.c_str(), chord.c_str(), m_drawers.isShown(name) || m_drawers.isPinned(name)))
+                    showDrawer(name);
                 continue;
             }
             if (ImGui::MenuItem(name.c_str(), nullptr, panel->isOpen()))

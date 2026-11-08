@@ -144,7 +144,7 @@ private:
     void drawStatusBar(FrameContext& frame);
     /// @brief The active entity's name ("No selection" without one), and how many more are selected.
     [[nodiscard]] auto selectionLabel() const -> std::string;
-    /// @brief The Assets and Console buttons, lit while the drawer shows them (or they are pinned), and the console's
+    /// @brief The Assets and Console buttons, lit while the drawer shows them, and the console's
     ///        warning and error counts on the Console button.
     void drawDrawerButtons();
     /// @brief The console's warning and error counts, with the last one as their tooltip; a click shows them in the console.

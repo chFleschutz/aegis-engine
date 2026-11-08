@@ -90,7 +90,7 @@ auto ActionRegistry::tooltip(std::string_view id) const -> std::string
     return action->chord ? std::format("{} ({})", action->label, describe(*action->chord)) : action->label;
 }
 
-void ActionRegistry::menuItem(std::string_view id, FrameContext& frame, std::string_view label, bool selected) const
+void ActionRegistry::menuItem(std::string_view id, FrameContext& frame, std::string_view label) const
 {
     const auto* action = find(id);
     assert(action && "Unknown action");
@@ -98,7 +98,7 @@ void ActionRegistry::menuItem(std::string_view id, FrameContext& frame, std::str
         return;
     const std::string text{ label.empty() ? std::string_view{ action->label } : label };
     const std::string chord = shortcut(id);
-    if (ImGui::MenuItem(text.c_str(), chord.empty() ? nullptr : chord.c_str(), selected, canRun(*action)))
+    if (ImGui::MenuItem(text.c_str(), chord.empty() ? nullptr : chord.c_str(), false, canRun(*action)))
         action->run(frame);
 }
 
