@@ -28,7 +28,9 @@ export namespace aegis::editor
 ///        `ui/theme.h` scaled by the monitor's content scale and the UI-scale preference; the menus and shortcuts
 ///        come from one ActionRegistry. The drawer panels (Assets, Console, the debug panels) open in the drawer, a
 ///        window over the bottom of the viewport, from the status bar's buttons or their chords, or dock below the
-///        viewport while pinned; `--editor-panels all` pins them.
+///        viewport while pinned; `--editor-panels all` pins them. Full viewport (F11) gives the viewport the whole
+///        window, with play controls in a bar at its top; the panels stay in the layout below it, and
+///        `--editor-full-viewport` starts in it.
 class EditorShell final : public Shell
 {
 public:
@@ -101,6 +103,14 @@ private:
     void showDrawer(std::string_view name);
     /// @brief Like showDrawer, but closes the drawer when it already shows 'name' (the status bar's buttons, the chords).
     void toggleDrawer(std::string_view name);
+    /// @brief Gives the viewport the whole window, or the layout back (F11, the menu bar's button).
+    void toggleFullViewport();
+    /// @brief Makes the viewport follow m_fullViewport after it changed; entering closes the drawer.
+    void syncFullViewport();
+    /// @brief Esc leaves full viewport, once the drawer and the popups are closed and while the game doesn't have the keyboard.
+    void leaveFullViewportOnEscape(bool drawerWasShown);
+    /// @brief Full viewport's top bar: the play controls and the button that leaves it, with its shortcut.
+    void drawFullViewportBar(FrameContext& frame);
     /// @brief Docks the drawer panel 'name' into the layout, and returns it to the drawer.
     void pin(std::string_view name);
     void unpin(std::string_view name);
@@ -130,9 +140,14 @@ private:
     /// @brief "Undo Move 'Helmet'": 'verb' and the title of the entry it would take (its edits and group title), or
     ///        'verb' alone without one.
     [[nodiscard]] auto editLabel(std::string_view verb, std::span<const Edit> edits, std::string_view title) const -> std::string;
+    /// @brief The play controls in the middle of the menu bar.
     void drawPlayControls(FrameContext& frame);
-    /// @brief The scene's name at the right of the menu bar, when it fits.
-    void drawSceneName();
+    /// @brief Play or Stop, Pause and Step, and "Playing" or "Paused" while a session runs.
+    void drawPlayButtons(FrameContext& frame);
+    /// @brief The full viewport button and the scene's name at the right of the menu bar, when they fit.
+    void drawSceneName(FrameContext& frame);
+    /// @brief Runs the action 'id' if it can run now.
+    void runAction(std::string_view id, FrameContext& frame);
     void startPlay(FrameContext& frame);
     void stopPlay(FrameContext& frame);
     /// @brief Selects the first entity created with that Name, or warns that there is none (--editor-select).
@@ -191,6 +206,7 @@ private:
     bool m_resetLayout{ false };
     std::uint32_t m_dockspace{ 0 }; // The dockspace's ImGui ID, once drawn
     Drawers m_drawers;
+    FullViewport m_fullViewport;
     std::uint32_t m_pinNode{ 0 };               // The node the last pinned panel was docked into; 0 for none
     std::vector<std::string> m_dockRequests;    // Pinned panels to dock before the next dockspace update
     std::string m_focusPinned;                  // The pinned panel whose window takes the focus next frame

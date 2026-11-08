@@ -317,7 +317,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - **Layout:** `imgui.ini` goes in `<project>/.aegis/editor/imgui.ini` (per project, per machine, never
   committed, D8's one ignored folder), with the pinned drawer panels in its `[Aegis][Drawers]` section. A View →
   Reset Layout action rebuilds the default with `DockBuilder`.
-- **Preferences** (camera speed, snap values, the viewport icons' toggle, recent projects, UI scale, the autosave interval, the drawer's height) go in the user config folder
+- **Preferences** (camera speed, snap values, the viewport icons' toggle, recent projects, UI scale, the autosave interval, the drawer's height, full viewport on play) go in the user config folder
   (`%APPDATA%/Aegis/editor.json`, `$XDG_CONFIG_HOME/aegis/editor.json`), as JSON through glaze in a
   `.cpp`. The Preferences window doesn't list the recent projects until something opens them (a welcome
   screen or a project switcher).
@@ -404,7 +404,7 @@ tokens, not this structure.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────┐
-│ File Edit Entity Play View Debug Help      ▶  ❚❚  ⏭                    sponza.scene* │ menu bar + play controls + scene
+│ File Edit Entity Play View Debug Help      ▶  ❚❚  ⏭                  ⤢ sponza.scene* │ menu bar + play controls + scene
 ├──────────────────────────────────────────────────────────────┬─────────────────────┤
 │ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                                           │ Hierarchy           │ viewport toolbar
 │ ┌──────────────────────────────────────────────────────────┐ │ Filter           [+]│
@@ -452,6 +452,17 @@ tokens, not this structure.
   keys for what the cursor is over: the gizmo and camera keys over the viewport, the fly keys while the right mouse
   button is held, F2 and drag to reparent over the hierarchy (the chords from the action registry). The frame and
   GPU times are at the right.
+- **Full viewport** ([#323]): F11, the menu bar's button left of the scene name (Lucide `maximize-2`) or View →
+  Full Viewport give the viewport the whole window. The menu bar, the status bar and every panel are hidden, and the
+  viewport keeps its toolbar, icons and gizmo. A small bar centered at its top holds Play, Pause and Step and the
+  button that leaves (`minimize-2`), with its shortcut next to it; F11 or Esc leave too (Esc closes the drawer or a
+  popup first; while the game has the input, both reach the editor only after Shift+F1, see input routing). Entering
+  closes the drawer, which its chords still open over the image. The layout comes back unchanged: the dockspace and
+  the docked panels are still drawn, below a window over the whole display that holds the image, since a docked
+  window that isn't submitted leaves its node and an emptied node is deleted. The viewport's docked window stays
+  submitted with nothing in it, and the render extent follows the image (`SettledExtent`). Floating windows
+  (Preferences, the shortcuts, the style editor) are not drawn meanwhile, and F2 leaves full viewport for the
+  inspector's name field. `--editor-full-viewport` starts in it (the `game-<name>-editor-full` screenshot).
 - **Preferences** is a floating, auto-sized window that Edit → Preferences… opens, not a panel. So are Help →
   Keyboard Shortcuts (the registry's chords and the viewport's controls) and Help → About (the version and the
   fonts' licenses).
@@ -461,7 +472,9 @@ tokens, not this structure.
   entities, and a folder with only folders (which then lists them, a double click opens one).
 - **The open scene's name** and its unsaved mark (`*`) are at the right of the menu bar, as in the window title.
 - **Play mode:** the play button turns into Stop, a colored frame goes around the viewport and the windows are
-  tinted, so play mode is never mistaken for edit mode.
+  tinted, so play mode is never mistaken for edit mode. Play doesn't enter full viewport unless the "Full viewport
+  on play" preference is on; Stop then leaves it, only if Play entered it and it wasn't toggled since. In full
+  viewport the frame, the tint and the release hint stay, and the top bar keeps the play controls.
 
 ### Visual style
 
@@ -502,6 +515,7 @@ tokens, not this structure.
   | Play/Stop, Pause/Resume, Step | Ctrl+P, Ctrl+Shift+P, Ctrl+Alt+P |
   | Open or close the Assets, Console drawer | Ctrl+Space, Ctrl+Shift+Space |
   | Close the drawer | Esc |
+  | Full viewport, in and out | F11 (Esc also leaves) |
   | Release the game's input (while playing) | Shift+F1 |
   | Select, Move, Rotate, Scale (viewport focus) | Q, W, E, R |
   | Focus the selection (also a double click on a hierarchy row) | F |
@@ -625,4 +639,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#307]: https://github.com/chFleschutz/aegis-engine/issues/307
 [#321]: https://github.com/chFleschutz/aegis-engine/issues/321
 [#322]: https://github.com/chFleschutz/aegis-engine/issues/322
+[#323]: https://github.com/chFleschutz/aegis-engine/issues/323
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11

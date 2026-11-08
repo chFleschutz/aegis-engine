@@ -23,6 +23,9 @@ inline constexpr const char* play = lucide::play;
 inline constexpr const char* pause = lucide::pause;
 inline constexpr const char* stop = lucide::square;
 inline constexpr const char* step = lucide::stepForward;
+// The menu bar's full viewport button, and the button in full viewport's top bar that leaves it.
+inline constexpr const char* fullViewport = lucide::maximize2;
+inline constexpr const char* leaveFullViewport = lucide::minimize2;
 inline constexpr const char* camera = lucide::camera;
 inline constexpr const char* light = lucide::lightbulb;
 inline constexpr const char* sun = lucide::sun;
