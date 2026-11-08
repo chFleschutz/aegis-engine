@@ -11,6 +11,7 @@ aegis_add_test(editor
         drawers.test.cpp
         editor_camera.test.cpp
         edits.test.cpp
+        full_viewport.test.cpp
         hierarchy.test.cpp
         inspector.test.cpp
         picking.test.cpp

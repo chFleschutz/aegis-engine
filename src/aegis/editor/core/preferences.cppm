@@ -22,6 +22,8 @@ struct EditorPreferences
     int autosaveMinutes{ 2 };
     /// @brief The drawer's height (Assets, Console), as a share of the viewport's; dragging its top edge changes it.
     float drawerHeight{ 0.4f };
+    /// @brief Whether Play enters full viewport (the viewport over the whole window); Stop then leaves it.
+    bool fullViewportOnPlay{ false };
     /// @brief Project folders as UTF-8, the most recent first.
     std::vector<std::string> recentProjects;
 
