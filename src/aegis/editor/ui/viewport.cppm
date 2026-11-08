@@ -11,8 +11,10 @@ export namespace aegis::editor
 /// @brief The scene view: the world renders into a texture of the panel's size, through the editor camera, which
 ///        the viewport moves (RMB + WASD/QE fly, Alt + LMB orbit, MMB pan, wheel dolly; F, the focus action, frames the selection). A click
 ///        selects the mesh or the light or camera icon under the cursor, Ctrl+click adds it to the selection or removes it; the gizmo
-///        sits on the active entity and moves every selected root with it (W/E/R/Q while the viewport has focus). A scene or model dragged from the asset browser is instantiated
-///        on the ground under the cursor. EditorShell owns it.
+///        sits on the active entity and moves every selected root with it (W/E/R/Q while the viewport has focus). Corner brackets mark
+///        what a click picks by (a mesh's bounding sphere, else an icon): around the selected entities, strongest on the active one, and dim
+///        around the one under the cursor. A scene or model dragged from the asset browser is instantiated on the ground under the cursor.
+///        EditorShell owns it.
 class Viewport
 {
 public:
@@ -68,6 +70,8 @@ private:
 
     [[nodiscard]] auto cameraDragged() const -> bool { return m_flying || m_orbiting || m_panning; }
     [[nodiscard]] auto aspect() const -> float;
+    // Whether snapping is in effect: the snap button's state, inverted while Ctrl is held.
+    [[nodiscard]] auto snapping() const -> bool;
     void placeCamera(world::World& world);
     void updateCamera(EditorContext& editor, float deltaSeconds);
     void focusSelection(const EditorContext& editor);
@@ -82,7 +86,15 @@ private:
     // 'text' in the bottom left corner: how to take the input back from the game, the camera speed while it changes.
     void drawCornerLabel(const Rect& rect, const std::string& text) const;
     [[nodiscard]] auto drawIcons(const EditorContext& editor, const Rect& rect) -> std::vector<PickIcon>;
+    // Whether a left click now would pick: the cursor is on the image, not on this frame's gizmo or the toolbar, and Alt (orbit) is up.
+    [[nodiscard]] auto canPick(bool gizmo) const -> bool;
+    // The entity a click at 'cursor' picks: an icon there, else the nearest mesh along the ray.
+    [[nodiscard]] auto pickAt(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, const glm::vec2& cursor) const -> std::optional<StableId>;
     void pick(EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo);
+    // Picks again what is under the cursor when it moved with no button held.
+    void updateHover(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo);
+    // The brackets around the selected entities and the hovered one.
+    void drawBrackets(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons) const;
     // A scene or model dropped from the asset browser: instantiated where the cursor points.
     void acceptDrop(EditorContext& editor, FrameContext& frame, const Rect& rect);
 
@@ -98,6 +110,9 @@ private:
     bool m_flying{ false };
     bool m_orbiting{ false };
     bool m_panning{ false };
+    // What a click would pick, from the last time the cursor moved; picked again when it moves while 'm_hoverCurrent' is false
+    std::optional<StableId> m_hoveredId;
+    bool m_hoverCurrent{ false };
     // A drag of the gizmo: it sits on the active entity and moves every selected root (selectedRoots) with it.
     struct GizmoRoot
     {

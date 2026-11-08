@@ -38,6 +38,18 @@ constexpr float pointFocusRadius{ 1.0f };
 // A scene dropped into the view lands on the ground under the cursor if it is this near, else this far along the ray.
 constexpr float dropMaxDistance{ 100.0f };
 constexpr float dropFallbackDistance{ 5.0f };
+// The brackets around the selected and hovered entities, in pixels at 100%: a box smaller than bracketMinSize grows to
+// it, each arm is a quarter of its side but at most bracketMaxArm, and an icon's box is bracketIconGap outside its
+// ring. The active entity's are the accent at full strength and wider; the other selected and the hovered entity's
+// are fainter. Each sits on a dark outline so it reads on any scene.
+constexpr float bracketMinSize{ 12.0f };
+constexpr float bracketMaxArm{ 16.0f };
+constexpr float bracketIconGap{ 3.0f };
+constexpr float bracketActiveWidth{ 2.0f };
+constexpr float bracketWidth{ 1.5f };
+constexpr float bracketSelectedAlpha{ 0.7f };
+constexpr float bracketHoverAlpha{ 0.45f };
+constexpr float bracketOutlineAlpha{ 0.6f };
 
 // The local bounds of the entity's mesh in world space; none without a loaded mesh.
 auto meshBounds(world::Registry& registry, world::Entity entity) -> std::optional<Sphere>
@@ -51,6 +63,39 @@ auto meshBounds(world::Registry& registry, world::Entity entity) -> std::optiona
     return transformSphere(Sphere{ .center = bounds.center, .radius = bounds.radius }, registry.get<GlobalTransform>(entity).matrix());
 }
 
+// Corner brackets around 'box' in the accent at 'alpha', over a dark outline, 'width' pixels wide at 100%.
+void drawCornerBrackets(ImDrawList* drawList, ImRect box, float alpha, float width)
+{
+    const float scale = theme::scale();
+    const ImVec2 center = box.GetCenter();
+    const float halfMin = bracketMinSize * scale * 0.5f;
+    box.Min = ImVec2{ std::min(box.Min.x, center.x - halfMin), std::min(box.Min.y, center.y - halfMin) };
+    box.Max = ImVec2{ std::max(box.Max.x, center.x + halfMin), std::max(box.Max.y, center.y + halfMin) };
+    const float armX = std::min(box.GetWidth() * 0.25f, bracketMaxArm * scale);
+    const float armY = std::min(box.GetHeight() * 0.25f, bracketMaxArm * scale);
+
+    ImVec4 color = theme::accent;
+    color.w *= alpha;
+    ImVec4 outline = theme::bgDeep;
+    outline.w = bracketOutlineAlpha * alpha;
+    // Each corner, and the directions its arms point in: into the box
+    const std::array corners{
+        std::pair{ box.Min, ImVec2{ 1.0f, 1.0f } },
+        std::pair{ ImVec2{ box.Max.x, box.Min.y }, ImVec2{ -1.0f, 1.0f } },
+        std::pair{ box.Max, ImVec2{ -1.0f, -1.0f } },
+        std::pair{ ImVec2{ box.Min.x, box.Max.y }, ImVec2{ 1.0f, -1.0f } },
+    };
+    for (const bool shadow : { true, false })
+    {
+        for (const auto& [corner, inward] : corners)
+        {
+            const std::array points{ ImVec2{ corner.x, corner.y + inward.y * armY }, corner, ImVec2{ corner.x + inward.x * armX, corner.y } };
+            drawList->AddPolyline(points.data(), static_cast<int>(points.size()), theme::packed(shadow ? outline : color), ImDrawFlags_None,
+                (shadow ? width + 2.0f : width) * scale);
+        }
+    }
+}
+
 // The cursor in the view's ndc (y up).
 auto toNdc(const ImVec2& cursor, float x, float y, float width, float height) -> glm::vec2
 {
@@ -62,6 +107,11 @@ auto Viewport::aspect() const -> float
 {
     const auto extent = m_extent.current();
     return extent ? static_cast<float>(extent->width) / static_cast<float>(extent->height) : 1.0f;
+}
+
+auto Viewport::snapping() const -> bool
+{
+    return m_snap != ImGui::GetIO().KeyCtrl;
 }
 
 auto Viewport::renderView() const -> std::optional<RenderView>
@@ -80,6 +130,8 @@ auto Viewport::renderView() const -> std::optional<RenderView>
 void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::function<void()>& bar)
 {
     const bool focusRequested = editor.takeFocusRequest(); // Taken even while the viewport can't show it
+    if (focusRequested)
+        m_hoverCurrent = false; // The camera moves under the cursor
     if (!m_cameraPlaced)
         placeCamera(frame.world);
 
@@ -131,6 +183,7 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
                 focusSelection(editor);
             updateGizmoMode();
             const auto icons = drawIcons(editor, rect);
+            drawBrackets(editor, rect, icons);
             gizmo = drawGizmo(editor, frame, rect);
             drawToolbar(editor, rect);
             if (m_flying && ImGui::GetTime() < m_speedShownUntil)
@@ -138,6 +191,7 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
                 const float speed = editor.preferences().cameraSpeed;
                 drawCornerLabel(rect, std::format("Speed {:.{}f} u/s", speed, speed < 1.0f ? 2 : 1));
             }
+            updateHover(editor, rect, icons, gizmo);
             pick(editor, rect, icons, gizmo);
             acceptDrop(editor, frame, rect);
         }
@@ -147,6 +201,8 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
         m_hovered = false;
         m_focused = false;
         m_flying = m_orbiting = m_panning = false;
+        m_hoveredId.reset();
+        m_hoverCurrent = false;
     }
     // The drag ends when the gizmo is released, or no longer drawn (the selection changed under it)
     if (!gizmo || !ImGuizmo::IsUsing())
@@ -164,6 +220,8 @@ void Viewport::setGameView(bool gameView)
 {
     m_gameView = gameView;
     m_flying = m_orbiting = m_panning = false;
+    m_hoveredId.reset();
+    m_hoverCurrent = false;
     m_gizmoDrag.reset(); // A drag still going belongs to the world left behind: the shell records it first (endGizmoDrag)
 }
 
@@ -296,13 +354,12 @@ auto Viewport::drawGizmo(EditorContext& editor, FrameContext& frame, const Rect&
         snapValue = preferences.snapScale;
     }
     const std::array snapValues{ snapValue, snapValue, snapValue };
-    const bool snapping = m_snap != ImGui::GetIO().KeyCtrl;
     // Scaling is always along the entity's own axes
     const auto mode = m_gizmoSpace == GizmoSpace::World && m_gizmoMode != GizmoMode::Scale ? ImGuizmo::MODE::WORLD : ImGuizmo::MODE::LOCAL;
 
     const glm::mat4 before = matrix;
     const bool changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), operation, mode, glm::value_ptr(matrix), nullptr,
-        snapping ? snapValues.data() : nullptr);
+        snapping() ? snapValues.data() : nullptr);
     const auto* transformType = frame.types.find<Transform>();
     if (!transformType)
         return true;
@@ -404,10 +461,13 @@ void Viewport::drawToolbar(EditorContext& editor, const Rect& rect)
         m_gizmoSpace = local ? GizmoSpace::World : GizmoSpace::Local;
     ImGui::SetItemTooltip("%s axes: the entity's own or the world's, click to switch (scaling always uses the entity's)", local ? "Local" : "World");
     ImGui::SameLine();
-    if (theme::iconButton(theme::icons::snap, "snap", m_snap))
+    // Lit while snapping is in effect, so holding Ctrl flips it
+    const bool snap = snapping();
+    if (theme::iconButton(theme::icons::snap, "snap", snap))
         m_snap = !m_snap;
-    ImGui::SetItemTooltip("Snap (Ctrl inverts it). Steps: %.3g units, %.3g degrees, %.3g scale", editor.preferences().snapTranslate,
-        editor.preferences().snapRotate, editor.preferences().snapScale);
+    ImGui::SetItemTooltip("Snap %s%s, click to turn it %s; holding Ctrl inverts it. Steps: %.3g units, %.3g degrees, %.3g scale", snap ? "on" : "off",
+        ImGui::GetIO().KeyCtrl ? " (Ctrl held)" : "", snap ? "off" : "on", editor.preferences().snapTranslate, editor.preferences().snapRotate,
+        editor.preferences().snapScale);
     ImGui::SameLine();
     bool& showIcons = editor.preferences().showIcons;
     if (theme::iconButton(showIcons ? theme::icons::shown : theme::icons::hidden, "icons"))
@@ -527,29 +587,35 @@ void Viewport::acceptDrop(EditorContext& editor, FrameContext& frame, const Rect
     ImGui::EndDragDropTarget();
 }
 
+auto Viewport::canPick(bool gizmo) const -> bool
+{
+    return m_hovered && !ImGui::GetIO().KeyAlt && !(gizmo && ImGuizmo::IsOver()) && !ImGui::IsAnyItemHovered();
+}
+
+auto Viewport::pickAt(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, const glm::vec2& cursor) const -> std::optional<StableId>
+{
+    auto* world = editor.world();
+    if (!world)
+        return std::nullopt;
+    if (const auto icon = pickIcon(cursor, icons))
+        return icon;
+    auto& registry = world->registry();
+    std::vector<PickTarget> targets;
+    for (const auto entity : registry.view<MeshRenderer, GlobalTransform, StableId>())
+    {
+        if (const auto bounds = meshBounds(registry, world::Entity{ entity }))
+            targets.push_back({ .id = registry.get<StableId>(world::Entity{ entity }), .bounds = *bounds });
+    }
+    return pickNearest(m_camera.ray(toNdc(ImVec2{ cursor.x, cursor.y }, rect.x, rect.y, rect.width, rect.height), aspect()), targets);
+}
+
 void Viewport::pick(EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo)
 {
     // A plain left click on the image: not orbiting, not on this frame's gizmo or the toolbar
     const ImGuiIO& io = ImGui::GetIO();
-    if (!m_hovered || io.KeyAlt || !ImGui::IsMouseClicked(ImGuiMouseButton_Left) || (gizmo && ImGuizmo::IsOver()) || ImGui::IsAnyItemHovered())
+    if (!canPick(gizmo) || !ImGui::IsMouseClicked(ImGuiMouseButton_Left) || !editor.world())
         return;
-    const ImVec2 cursor = io.MousePos;
-    auto* world = editor.world();
-    if (!world)
-        return;
-
-    auto picked = pickIcon({ cursor.x, cursor.y }, icons);
-    if (!picked)
-    {
-        auto& registry = world->registry();
-        std::vector<PickTarget> targets;
-        for (const auto entity : registry.view<MeshRenderer, GlobalTransform, StableId>())
-        {
-            if (const auto bounds = meshBounds(registry, world::Entity{ entity }))
-                targets.push_back({ .id = registry.get<StableId>(world::Entity{ entity }), .bounds = *bounds });
-        }
-        picked = pickNearest(m_camera.ray(toNdc(cursor, rect.x, rect.y, rect.width, rect.height), aspect()), targets);
-    }
+    const auto picked = pickAt(editor, rect, icons, { io.MousePos.x, io.MousePos.y });
 
     // Ctrl+click adds or removes the entity, and keeps the selection when it hits nothing
     auto& selection = editor.selection();
@@ -559,5 +625,74 @@ void Viewport::pick(EditorContext& editor, const Rect& rect, std::span<const Pic
         selection.select(*picked);
     else if (!io.KeyCtrl)
         selection.clear();
+}
+
+void Viewport::updateHover(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo)
+{
+    // Nothing is hovered where a click wouldn't pick, or while a button is held: that is a drag, not a click
+    if (!canPick(gizmo) || ImGui::IsAnyMouseDown())
+    {
+        m_hoveredId.reset();
+        m_hoverCurrent = false;
+        return;
+    }
+    // The CPU pick runs when the cursor or the wheel (a dolly) moved, not every frame
+    const ImGuiIO& io = ImGui::GetIO();
+    if (m_hoverCurrent && io.MouseDelta.x == 0.0f && io.MouseDelta.y == 0.0f && io.MouseWheel == 0.0f)
+        return;
+    m_hoveredId = pickAt(editor, rect, icons, { io.MousePos.x, io.MousePos.y });
+    m_hoverCurrent = true;
+}
+
+void Viewport::drawBrackets(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons) const
+{
+    auto* world = editor.world();
+    if (!world)
+        return;
+    auto& registry = world->registry();
+    // What a click picks the entity by, on screen: its mesh's bounding sphere, else its icon. None while the sphere
+    // reaches behind the camera, or for an entity with neither
+    const auto box = [&](StableId id) -> std::optional<ImRect> {
+        const auto entity = registry.find(id);
+        if (!entity)
+            return std::nullopt;
+        if (const auto bounds = meshBounds(registry, entity))
+        {
+            const auto ndc = m_camera.projectSphere(*bounds, aspect());
+            if (!ndc)
+                return std::nullopt;
+            return ImRect{ rect.x + (ndc->min.x + 1.0f) * 0.5f * rect.width, rect.y + (1.0f - ndc->max.y) * 0.5f * rect.height,
+                rect.x + (ndc->max.x + 1.0f) * 0.5f * rect.width, rect.y + (1.0f - ndc->min.y) * 0.5f * rect.height };
+        }
+        const auto icon = std::ranges::find(icons, id, &PickIcon::id);
+        if (icon == icons.end())
+            return std::nullopt;
+        const float extent = icon->radius + bracketIconGap * theme::scale();
+        return ImRect{ icon->position.x - extent, icon->position.y - extent, icon->position.x + extent, icon->position.y + extent };
+    };
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->PushClipRect(ImVec2{ rect.x, rect.y }, ImVec2{ rect.x + rect.width, rect.y + rect.height }, true);
+    // The hovered entity's below the selection's, the active entity's on top
+    const auto& selection = editor.selection();
+    const auto active = selection.active();
+    if (m_hoveredId && !selection.contains(*m_hoveredId))
+    {
+        if (const auto hovered = box(*m_hoveredId))
+            drawCornerBrackets(drawList, *hovered, bracketHoverAlpha, bracketWidth);
+    }
+    for (const auto id : selection.ids())
+    {
+        if (id == active)
+            continue;
+        if (const auto selected = box(id))
+            drawCornerBrackets(drawList, *selected, bracketSelectedAlpha, bracketWidth);
+    }
+    if (active)
+    {
+        if (const auto selected = box(*active))
+            drawCornerBrackets(drawList, *selected, 1.0f, bracketActiveWidth);
+    }
+    drawList->PopClipRect();
 }
 }
