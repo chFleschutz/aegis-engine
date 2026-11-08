@@ -440,7 +440,10 @@ tokens, not this structure.
 
 - **Theme:** dark neutral grays with one accent, a muted blue (`#4A8CD9`), for selection and the active tab.
   The play state has its own tint. Every color is a named token in `ui/theme.h` (backgrounds, text, accent,
-  warning, error, play tint, axis X/Y/Z, viewport icons), never an inline value.
+  warning, error, play tint, axis X/Y/Z, viewport icons), never an inline value. Text reaches 4.5:1 (WCAG 2) on
+  every background it is drawn on, disabled controls excepted; each token's comment gives its ratios. Filled
+  controls take a darker shade of the accent (`#2A5D9C`), and read-only content (instance members, engine content)
+  is muted and carries a lock icon.
 - **Metrics:** frame padding 6×4, item spacing 8×4, window padding 8×8, rounding 3 on frames, popups, tabs and
   scrollbars and 0 on windows (docked windows are square), thin scrollbars. All sizes are multiplied by the
   window's content scale times the UI-scale preference, and so are the fonts; a change of either rebuilds the

@@ -37,9 +37,9 @@ void toggleButton(const std::string& label, bool& on)
     const bool wasOn = on;
     if (wasOn)
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, theme::accent);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentHover);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentActive);
+        ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
     }
     if (ImGui::Button(label.c_str()))
         on = !on;
