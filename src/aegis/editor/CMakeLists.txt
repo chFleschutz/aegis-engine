@@ -25,6 +25,7 @@ target_sources(aegis-editor-core
     core/commands.cppm
     core/component_text.cppm
     core/context.cppm
+    core/drawers.cppm
     core/edits.cppm
     core/editor_camera.cppm
     core/hierarchy.cppm
@@ -47,6 +48,7 @@ target_sources(aegis-editor-core
     core/component_text.cpp
     core/console.cpp
     core/context.cpp
+    core/drawers.cpp
     core/edits.cpp
     core/editor_camera.cpp
     core/hierarchy.cpp
