@@ -217,4 +217,58 @@ TEST_SUITE("editor::EditorCamera")
         const EditorCamera camera = originCamera();
         CHECK_FALSE(camera.project(glm::vec3{ 0.0f, -1.0f, 0.0f }, 1.0f));
     }
+
+    TEST_CASE("projectSphere spans a centered sphere symmetrically")
+    {
+        const EditorCamera camera = originCamera();
+        const float aspect = 2.0f;
+        const auto rect = camera.projectSphere({ .center = { 0.0f, 10.0f, 0.0f }, .radius = 1.0f }, aspect);
+        REQUIRE(rect);
+        // The touching lines leave the eye at asin(radius / distance) from the axis
+        const float slope = std::tan(std::asin(0.1f));
+        const float tanHalfFov = std::tan(camera.fov / 2.0f);
+        CHECK(near(rect->max, glm::vec2{ slope / (tanHalfFov * aspect), slope / tanHalfFov }));
+        CHECK(near(rect->min, -rect->max));
+    }
+
+    TEST_CASE("projectSphere holds every point of the sphere and touches each edge")
+    {
+        EditorCamera camera;
+        camera.lookAlong(glm::vec3{ 1.0f, -2.0f, 3.0f }, glm::vec3{ 0.3f, 1.0f, -0.2f });
+        const float aspect = 16.0f / 9.0f;
+        const aegis::editor::Sphere sphere{ .center = { 4.0f, 7.0f, 1.0f }, .radius = 2.0f };
+        const auto rect = camera.projectSphere(sphere, aspect);
+        REQUIRE(rect);
+
+        glm::vec2 lowest{ std::numeric_limits<float>::max() };
+        glm::vec2 highest{ std::numeric_limits<float>::lowest() };
+        constexpr int steps = 256;
+        for (int i = 0; i <= steps; ++i)
+        {
+            const float polar = std::numbers::pi_v<float> * static_cast<float>(i) / steps;
+            for (int j = 0; j < steps * 2; ++j)
+            {
+                const float azimuth = std::numbers::pi_v<float> * static_cast<float>(j) / steps;
+                const glm::vec3 direction{ std::sin(polar) * std::cos(azimuth), std::sin(polar) * std::sin(azimuth), std::cos(polar) };
+                const auto point = camera.project(sphere.center + direction * sphere.radius, aspect);
+                REQUIRE(point);
+                lowest = { std::min(lowest.x, point->x), std::min(lowest.y, point->y) };
+                highest = { std::max(highest.x, point->x), std::max(highest.y, point->y) };
+            }
+        }
+        CHECK(lowest.x >= rect->min.x - 1e-4f);
+        CHECK(lowest.y >= rect->min.y - 1e-4f);
+        CHECK(highest.x <= rect->max.x + 1e-4f);
+        CHECK(highest.y <= rect->max.y + 1e-4f);
+        CHECK(near(lowest, rect->min, 1e-3f));
+        CHECK(near(highest, rect->max, 1e-3f));
+    }
+
+    TEST_CASE("projectSphere gives none for a sphere reaching behind the near plane")
+    {
+        const EditorCamera camera = originCamera();
+        CHECK_FALSE(camera.projectSphere({ .center = { 0.0f, 0.5f, 0.0f }, .radius = 1.0f }, 1.0f));
+        CHECK_FALSE(camera.projectSphere({ .center = { 0.0f, -5.0f, 0.0f }, .radius = 1.0f }, 1.0f));
+        CHECK_FALSE(camera.projectSphere({ .center = { 3.0f, 1.0f, 0.0f }, .radius = 1.0f }, 1.0f));
+    }
 }

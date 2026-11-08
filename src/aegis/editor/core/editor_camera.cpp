@@ -122,4 +122,24 @@ auto EditorCamera::project(const glm::vec3& point, float aspect) const -> std::o
     const float tanHalfFov = std::tan(fov / 2.0f);
     return glm::vec2{ glm::dot(offset, right()) / (depth * tanHalfFov * aspect), glm::dot(offset, up()) / (depth * tanHalfFov) };
 }
+
+auto EditorCamera::projectSphere(const Sphere& sphere, float aspect) const -> std::optional<NdcRect>
+{
+    const glm::vec3 offset = sphere.center - m_position;
+    const float depth = glm::dot(offset, forward());
+    if (depth - sphere.radius <= near)
+        return std::nullopt;
+    // Per axis, the two lines through the eye that touch the sphere's circle in that axis' plane: their slopes
+    // (offset along the axis per unit of depth) bound what the sphere covers
+    const float radius2 = sphere.radius * sphere.radius;
+    const float denominator = depth * depth - radius2;
+    const auto slopes = [&](float along) -> glm::vec2 {
+        const float spread = sphere.radius * std::sqrt(along * along + denominator);
+        return glm::vec2{ along * depth - spread, along * depth + spread } / denominator;
+    };
+    const float tanHalfFov = std::tan(fov / 2.0f);
+    const glm::vec2 x = slopes(glm::dot(offset, right())) / (tanHalfFov * aspect);
+    const glm::vec2 y = slopes(glm::dot(offset, up())) / tanHalfFov;
+    return NdcRect{ .min = { x.x, y.x }, .max = { x.y, y.y } };
+}
 }
