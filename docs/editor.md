@@ -404,25 +404,28 @@ tokens, not this structure.
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────┐
 │ File Edit Entity Play View Debug Help      ▶  ❚❚  ⏭                    sponza.scene* │ menu bar + play controls + scene
-├─────────────────┬──────────────────────────────────────────────────┬───────────────┤
-│ Hierarchy       │ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                               │ Inspector     │ viewport toolbar
-│ Filter       [+]│ ┌──────────────────────────────────────────────┐ │               │
-│                 │ │                                              │ │               │
-│ ▾ Sponza        │ │              Viewport (scene texture)        │ │               │
-│   ▸ Helmet      │ │                    gizmo                     │ │               │
-│   ▸ Lights      │ │                                              │ │               │
-│                 │ └──────────────────────────────────────────────┘ │               │
-├─────────────────┴──────────────────────────────────────────────────┴───────────────┤
-│ Assets │ Console │ Renderer │ Profiler │ Statistics                                  │ bottom dock, tabbed
-├────────────────────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────┬─────────────────────┤
+│ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                                           │ Hierarchy           │ viewport toolbar
+│ ┌──────────────────────────────────────────────────────────┐ │ Filter           [+]│
+│ │                                                          │ │ ▾ Sponza            │
+│ │                 Viewport (scene texture)                 │ │   ▸ Helmet          │
+│ │                          gizmo                           │ ├─────────────────────┤
+│ │                                                          │ │ Inspector           │
+│ └──────────────────────────────────────────────────────────┘ │                     │
+├──────────────────────────────────────────────────────────────┤                     │
+│ Assets │ Console │ Renderer │ Profiler │ Statistics          │                     │ bottom dock, tabbed
+├──────────────────────────────────────────────────────────────┴─────────────────────┤
 │ Sponza                    60 fps · GPU 4.1 ms                    warn 25 · error 0 │ status bar
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Default split:** hierarchy on the left (18% of the width), inspector on the right (22%), assets and
-  console tabbed across the bottom (25% of the height). The viewport is the central node. Built with
-  `DockBuilder` on first start and by View → Reset Layout, which also reopens the panels that start open.
-  The layout is kept in `<project>/.aegis/editor/imgui.ini`.
+- **Default split:** one column on the right over the full height, the hierarchy on top (40% of its height) and
+  the inspector below ([#321]); assets and console tabbed below the viewport (25% of the height). The column is
+  360 px wide times `theme::scale()`, at most 30% of the window, and keeps its width when the window is resized:
+  ImGui gives the change to the viewport, the central node. Built with `DockBuilder` on first start and by
+  View → Reset Layout, which also reopens the panels that start open.
+  The layout is kept in `<project>/.aegis/editor/imgui.ini`. A change to the default doesn't replace a kept layout:
+  View → Reset Layout builds the new one.
 - **Dock chrome:** the viewport is the central node and has no tab bar (it can't be closed); no node shows the
   window menu or the close-all button, each tab has its own close button.
 - **Debug panels** (Renderer, Profiler, Statistics) start closed and open as tabs at the bottom, next to the assets
@@ -597,4 +600,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#279]: https://github.com/chFleschutz/aegis-engine/issues/279
 [#281]: https://github.com/chFleschutz/aegis-engine/issues/281
 [#307]: https://github.com/chFleschutz/aegis-engine/issues/307
+[#321]: https://github.com/chFleschutz/aegis-engine/issues/321
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11
