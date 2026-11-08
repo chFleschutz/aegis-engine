@@ -57,6 +57,10 @@ auto pushPlayTint() -> int
     return static_cast<int>(tinted.size());
 }
 
+// The version of the default layout, in the layout file's name: bumping it when buildDefaultLayout changes makes
+// every editor build the new default once, instead of loading a layout made from the old one. 2: the right column.
+constexpr int layoutVersion = 2;
+
 // The layout file of 'project' as UTF-8, which ImGui expects; its folder is created. Empty if it can't be.
 auto layoutFile(const std::filesystem::path& project) -> std::string
 {
@@ -68,7 +72,7 @@ auto layoutFile(const std::filesystem::path& project) -> std::string
         log::warn("The editor layout is not kept: cannot create '{}' ({})", folder.string(), error.message());
         return {};
     }
-    const auto file = (folder / "imgui.ini").u8string();
+    const auto file = (folder / std::format("imgui-v{}.ini", layoutVersion)).u8string();
     return std::string{ file.begin(), file.end() };
 }
 
@@ -88,13 +92,16 @@ auto findProjectScene(const assets::AssetDatabase& database, std::string_view pa
     return std::nullopt;
 }
 
-// The default layout in the dockspace 'dockspace' of 'size': the hierarchy on the left, the inspector on the right,
-// the assets and the console tabbed at the bottom, the viewport in the middle. The debug panels (renderer, profiler,
-// statistics) start closed and join the bottom tabs when opened: they are wide tables.
+// The default layout in the dockspace 'dockspace' of 'size': one column on the right over the full height, the
+// hierarchy above the inspector; the assets and the console tabbed below the viewport; the viewport in the middle.
+// The column is about 360 px wide (scaled, at most 30% of the window) and keeps that width when the window is
+// resized: ImGui gives the change to the central node. The debug panels (renderer, profiler, statistics) start closed
+// and join the bottom tabs when opened: they are wide tables.
 void buildDefaultLayout(ImGuiID dockspace, ImVec2 size)
 {
-    constexpr float leftShare = 0.18f;
-    constexpr float rightShare = 0.22f;
+    constexpr float columnWidth = 360.0f; // At 100% scale
+    constexpr float maxColumnShare = 0.3f;
+    constexpr float hierarchyShare = 0.4f; // Of the column's height
     constexpr float bottomShare = 0.25f;
 
     ImGui::DockBuilderRemoveNode(dockspace);
@@ -102,17 +109,18 @@ void buildDefaultLayout(ImGuiID dockspace, ImVec2 size)
     ImGui::DockBuilderSetNodeSize(dockspace, size);
 
     ImGuiID center = dockspace;
+    const float columnShare = std::min(columnWidth * theme::scale() / std::max(size.x, 1.0f), maxColumnShare);
+    ImGuiID inspector = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, columnShare, nullptr, &center);
+    const ImGuiID hierarchy = ImGui::DockBuilderSplitNode(inspector, ImGuiDir_Up, hierarchyShare, nullptr, &inspector);
     const ImGuiID bottom = ImGui::DockBuilderSplitNode(center, ImGuiDir_Down, bottomShare, nullptr, &center);
-    const ImGuiID left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, leftShare, nullptr, &center);
-    const ImGuiID right = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, rightShare / (1.0f - leftShare), nullptr, &center);
 
     const auto dock = [](std::initializer_list<const char*> windows, ImGuiID node) {
         for (const char* window : windows)
             ImGui::DockBuilderDockWindow(window, node);
         ImGui::DockBuilderGetNode(node)->SelectedTabId = ImGui::GetID(*windows.begin()); // The first one shows
     };
-    dock({ "Hierarchy" }, left);
-    dock({ "Inspector" }, right);
+    dock({ "Hierarchy" }, hierarchy);
+    dock({ "Inspector" }, inspector);
     dock({ "Assets", "Console", "Renderer", "Profiler", "Statistics" }, bottom);
     dock({ "Viewport" }, center);
     ImGui::DockBuilderFinish(dockspace);

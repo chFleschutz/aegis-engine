@@ -20,8 +20,9 @@ export namespace aegis::editor
 ///        `<project>/.aegis/editor/autosave/` (never the scene's file); Save, Save As and Don't Save delete the autosave.
 ///        At startup and when a scene opens, a bar above the viewport offers an autosave newer than the scene's file:
 ///        Restore opens it as the scene, unsaved; Discard deletes it; an edit hides the bar. The window layout is kept in
-///        `<project>/.aegis/editor/imgui.ini` (none, like the autosaves, when headless or without a project). Log messages fill the
-///        console next to stderr, and the user's preferences are read at startup and saved when they change
+///        `<project>/.aegis/editor/imgui-v<n>.ini`, a new file when the default layout changes (none, like the
+///        autosaves, when headless or without a project). Log messages fill the console next to stderr, and the user's
+///        preferences are read at startup and saved when they change
 ///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every docked panel at startup (not the ImGui demo),
 ///        `--editor-select <name>` selects the first entity of that name and `--editor-play` enters play after the first frame.
 ///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of

@@ -313,8 +313,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 
 ### Persistence
 
-- **Layout:** `imgui.ini` goes in `<project>/.aegis/editor/imgui.ini` (per project, per machine, never
-  committed, D8's one ignored folder). A View → Reset Layout action rebuilds the default with
+- **Layout:** ImGui's layout goes in `<project>/.aegis/editor/imgui-v<n>.ini` (per project, per machine, never
+  committed, D8's one ignored folder; `n` is the default layout's version, see UI design → Layout). A View → Reset Layout action rebuilds the default with
   `DockBuilder`.
 - **Preferences** (camera speed, snap values, the viewport icons' toggle, recent projects, UI scale, the autosave interval) go in the user config folder
   (`%APPDATA%/Aegis/editor.json`, `$XDG_CONFIG_HOME/aegis/editor.json`), as JSON through glaze in a
@@ -404,25 +404,29 @@ tokens, not this structure.
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────┐
 │ File Edit Entity Play View Debug Help      ▶  ❚❚  ⏭                    sponza.scene* │ menu bar + play controls + scene
-├─────────────────┬──────────────────────────────────────────────────┬───────────────┤
-│ Hierarchy       │ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                               │ Inspector     │ viewport toolbar
-│ Filter       [+]│ ┌──────────────────────────────────────────────┐ │               │
-│                 │ │                                              │ │               │
-│ ▾ Sponza        │ │              Viewport (scene texture)        │ │               │
-│   ▸ Helmet      │ │                    gizmo                     │ │               │
-│   ▸ Lights      │ │                                              │ │               │
-│                 │ └──────────────────────────────────────────────┘ │               │
-├─────────────────┴──────────────────────────────────────────────────┴───────────────┤
-│ Assets │ Console │ Renderer │ Profiler │ Statistics                                  │ bottom dock, tabbed
-├────────────────────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────┬─────────────────────┤
+│ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                                           │ Hierarchy           │ viewport toolbar
+│ ┌──────────────────────────────────────────────────────────┐ │ Filter           [+]│
+│ │                                                          │ │ ▾ Sponza            │
+│ │                 Viewport (scene texture)                 │ │   ▸ Helmet          │
+│ │                          gizmo                           │ ├─────────────────────┤
+│ │                                                          │ │ Inspector           │
+│ └──────────────────────────────────────────────────────────┘ │                     │
+├──────────────────────────────────────────────────────────────┤                     │
+│ Assets │ Console │ Renderer │ Profiler │ Statistics          │                     │ bottom dock, tabbed
+├──────────────────────────────────────────────────────────────┴─────────────────────┤
 │ Sponza                    60 fps · GPU 4.1 ms                    warn 25 · error 0 │ status bar
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Default split:** hierarchy on the left (18% of the width), inspector on the right (22%), assets and
-  console tabbed across the bottom (25% of the height). The viewport is the central node. Built with
-  `DockBuilder` on first start and by View → Reset Layout, which also reopens the panels that start open.
-  The layout is kept in `<project>/.aegis/editor/imgui.ini`.
+- **Default split:** one column on the right over the full height, the hierarchy on top (40% of its height) and
+  the inspector below ([#321]); assets and console tabbed below the viewport (25% of the height). The column is
+  360 px wide times `theme::scale()`, at most 30% of the window, and keeps its width when the window is resized:
+  ImGui gives the change to the viewport, the central node. Built with `DockBuilder` on first start and by
+  View → Reset Layout, which also reopens the panels that start open.
+- **Layout file:** `<project>/.aegis/editor/imgui-v<n>.ini`, where `n` is the default layout's version
+  (`layoutVersion` in `ui/editor_shell.cpp`). A change to the default bumps it, so every editor builds the new
+  default once instead of keeping a layout made from the old one; the old file stays and is no longer read.
 - **Dock chrome:** the viewport is the central node and has no tab bar (it can't be closed); no node shows the
   window menu or the close-all button, each tab has its own close button.
 - **Debug panels** (Renderer, Profiler, Statistics) start closed and open as tabs at the bottom, next to the assets
@@ -597,4 +601,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#279]: https://github.com/chFleschutz/aegis-engine/issues/279
 [#281]: https://github.com/chFleschutz/aegis-engine/issues/281
 [#307]: https://github.com/chFleschutz/aegis-engine/issues/307
+[#321]: https://github.com/chFleschutz/aegis-engine/issues/321
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11
