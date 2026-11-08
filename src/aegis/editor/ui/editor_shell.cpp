@@ -1315,7 +1315,6 @@ void EditorShell::drawDrawer(FrameContext& frame)
         close = theme::iconButton(theme::icons::close, "##close");
         ImGui::SetItemTooltip("Close (Esc)");
         ImGui::PopStyleColor();
-        ImGui::SetCursorScreenPos(below);
         // A tab the user clicked shows; one this shell selected may take a frame to be
         if (selected && m_drawers.isShown(selected->name()))
             m_selectDrawerTab = false;
@@ -1330,6 +1329,8 @@ void EditorShell::drawDrawer(FrameContext& frame)
         {
             if (auto* contents = findPanel(*now); contents && contents->isOpen())
             {
+                // Back below the tabs, only with an item to follow: ImGui asserts on a cursor moved past the last item
+                ImGui::SetCursorScreenPos(below);
                 const std::string id{ *now };
                 ImGui::PushID(id.c_str());
                 if (ImGui::BeginChild("##contents"))
