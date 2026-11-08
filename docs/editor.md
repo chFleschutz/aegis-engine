@@ -187,15 +187,18 @@ Still to come: the views to render (world, camera and target per view, R5 [#192]
   matching D8.
 - **Gizmos:** ImGuizmo, drawn into the viewport window's draw list and clipped to the image rect. It has
   translate, rotate and scale, a local/world toggle, and per-mode snap values from the editor
-  preferences (Ctrl inverts snapping). W/E/R/Q work only while the viewport is focused. One drag is one
+  preferences (Ctrl inverts snapping, and the snap button lights while snapping is in effect). W/E/R/Q work only while the viewport is focused. One drag is one
   undo command: the transform is captured when the drag starts and committed when it ends.
 - **Picking:** at first a CPU ray against each `MeshRenderer`'s world-space bounding sphere
   (`StaticMesh::bounds()`), nearest hit, with Alt-click cycling through overlapping hits. Lights and
   cameras get screen-space icons drawn with the viewport draw list, and those are clickable too, each within
   its drawn radius. A light's icon takes the light's color; icons farther than 10 units shrink and fade, down
   to 40% of the size and 35% of the opacity at 40 units, and the selected one draws on top. The toolbar's eye
-  button hides them (hidden icons can't be clicked), remembered in the preferences. A GPU ID buffer is a
-  later improvement (nice to have).
+  button hides them (hidden icons can't be clicked), remembered in the preferences. Corner brackets show what
+  a click picks by, the projected bounding sphere or else the icon: accent around the selected entities (the
+  active one's stronger), dim around the one under the cursor, which is picked again when the cursor moves with
+  no button held. A sphere reaching behind the camera shows none. A GPU ID buffer is a later improvement (nice
+  to have).
 - **Input routing:** the editor camera gets input while the viewport is hovered or RMB is held. The
   play world gets game input only while the viewport is focused in play mode; it shows "Shift+F1 releases
   the input" meanwhile. Shift+F1 drops the viewport's focus and shows the cursor again, and a click on the

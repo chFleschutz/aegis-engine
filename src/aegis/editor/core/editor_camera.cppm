@@ -23,6 +23,13 @@ struct CameraInput
     bool pan{ false };
 };
 
+/// @brief A rectangle in a view's ndc (-1 to 1, y up).
+struct NdcRect
+{
+    glm::vec2 min{ 0.0f };
+    glm::vec2 max{ 0.0f };
+};
+
 /// @brief The editor's camera. It belongs to the editor, never to a world, so it can't end up in a scene file
 ///        or be moved by a script. It looks at a pivot `distance()` ahead, which orbiting turns around and
 ///        dollying approaches. Z is up; yaw 0 looks along +Y.
@@ -69,6 +76,9 @@ public:
     [[nodiscard]] auto ray(const glm::vec2& ndc, float aspect) const -> Ray;
     /// @brief Where 'point' lands in the view, in ndc (y up); none behind the camera.
     [[nodiscard]] auto project(const glm::vec3& point, float aspect) const -> std::optional<glm::vec2>;
+    /// @brief The rectangle 'sphere' covers in the view, in ndc (y up), exact under the perspective; none unless the
+    ///        whole sphere is beyond the near plane.
+    [[nodiscard]] auto projectSphere(const Sphere& sphere, float aspect) const -> std::optional<NdcRect>;
 
 private:
     glm::vec3 m_position{ 0.0f };
