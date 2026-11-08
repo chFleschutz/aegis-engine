@@ -522,19 +522,14 @@ public:
     InspectorPanel() { setOpen(true); }
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Inspector"; }
+    [[nodiscard]] auto column() const -> bool override { return true; }
 
     void draw(EditorContext& editor, FrameContext& frame) override
     {
         const auto entity = editor.selectedEntity();
-        if (!ImGui::Begin("Inspector"))
-        {
-            ImGui::End();
-            return;
-        }
         if (!entity)
         {
             drawCenteredHint("Select an entity in the Hierarchy or the viewport");
-            ImGui::End();
             return;
         }
 
@@ -551,7 +546,6 @@ public:
         if (!readOnly)
             drawAddMenu(registry, entity, editor, frame);
         ImGui::PopID();
-        ImGui::End();
     }
 
 private:

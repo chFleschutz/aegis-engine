@@ -119,6 +119,8 @@ private:
     void drawDrawer(FrameContext& frame);
     /// @brief The drawer's top edge, which a drag moves (EditorPreferences::drawerHeight).
     void drawDrawerResize(const Viewport::Rect& viewport, float top);
+    /// @brief A column panel's window (the Hierarchy, the Inspector) with its contents.
+    void drawColumnPanel(Panel& panel, FrameContext& frame);
     /// @brief A pinned drawer panel's docked window, with the pin button over the right end of its first row.
     void drawPinned(Panel& panel, FrameContext& frame);
     /// @brief The node a pinned panel docks into: where it was docked last, else the other pinned panels' node, else a

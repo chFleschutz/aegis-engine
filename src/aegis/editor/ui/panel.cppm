@@ -28,6 +28,11 @@ public:
     ///        instead of a window of its own (Assets, Console, the debug panels). The shell begins and ends its window;
     ///        draw draws only its contents.
     [[nodiscard]] virtual auto drawer() const -> bool { return false; }
+    /// @brief Whether it sits in the right column of the default layout (the Hierarchy, the Inspector). The shell begins
+    ///        and ends its window, titled title(); draw draws only its contents.
+    [[nodiscard]] virtual auto column() const -> bool { return false; }
+    /// @brief Its window's title; its name by default.
+    [[nodiscard]] virtual auto title() const -> std::string_view { return name(); }
     /// @brief Draws the panel at the frame's safe point. Panels share state only through 'editor'.
     virtual void draw(EditorContext& editor, FrameContext& frame) = 0;
 

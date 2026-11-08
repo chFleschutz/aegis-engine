@@ -347,7 +347,9 @@ void EditorShell::drawUi(FrameContext& frame)
     {
         if (!panel->isOpen() || (full && (!panel->docked() || floats(panel->name()))))
             continue;
-        if (!panel->drawer())
+        if (panel->column())
+            drawColumnPanel(*panel, frame);
+        else if (!panel->drawer())
             panel->draw(m_context, frame);
         else if (m_drawers.isPinned(panel->name()))
             drawPinned(*panel, frame);
@@ -1287,6 +1289,14 @@ void EditorShell::drawPinned(Panel& panel, FrameContext& frame)
             unpin(name);
         ImGui::SetItemTooltip("Unpin: back to the drawer");
     }
+    ImGui::End();
+}
+
+void EditorShell::drawColumnPanel(Panel& panel, FrameContext& frame)
+{
+    const std::string title{ panel.title() };
+    if (ImGui::Begin(title.c_str()))
+        panel.draw(m_context, frame);
     ImGui::End();
 }
 
