@@ -28,8 +28,9 @@ public:
     };
 
     /// @brief Draws the panel and applies this frame's camera moves, gizmo edits and clicks. With 'bar', a row above the
-    ///        image holds what it draws (the recovery bar's text and buttons), and the image is that much shorter.
-    void draw(EditorContext& editor, FrameContext& frame, const std::function<void()>& bar = {});
+    ///        image holds what it draws (the recovery bar's text and buttons), and the image is that much shorter. With
+    ///        'topBar', a small bar centered at the top of the image holds what it draws (full viewport's play controls).
+    void draw(EditorContext& editor, FrameContext& frame, const std::function<void()>& bar = {}, const std::function<void()>& topBar = {});
 
     /// @brief The view the world renders through: the editor camera (in the game view, the world's main camera) at the
     ///        settled panel size; none until the panel has a size.
@@ -42,6 +43,8 @@ public:
     [[nodiscard]] auto hovered() const -> bool { return m_hovered; }
     /// @brief Whether the camera flies: the right mouse button went down on the image and is still held.
     [[nodiscard]] auto flying() const -> bool { return m_flying; }
+    /// @brief Whether a camera drag goes on: flying, orbiting or panning.
+    [[nodiscard]] auto cameraDragged() const -> bool { return m_flying || m_orbiting || m_panning; }
     [[nodiscard]] auto gameView() const -> bool { return m_gameView; }
     /// @brief Where the image is on screen, as of this frame's draw; none while the panel is hidden.
     [[nodiscard]] auto imageRect() const -> std::optional<Rect> { return m_imageRect; }
@@ -56,6 +59,12 @@ public:
     /// @brief Shows the world through its main camera (while playing) instead of the editor camera, which then stays
     ///        where it is; there is no gizmo, icon or picking in it.
     void setGameView(bool gameView);
+
+    /// @brief Draws the image into a window over the whole display instead of the docked panel (full viewport). The
+    ///        docked panel stays submitted, empty: a docked window that isn't submitted leaves its dock node, and the
+    ///        layout would change. The focus moves along: the new window gets it if the old one had it.
+    void setFullWindow(bool fullWindow);
+    [[nodiscard]] auto fullWindow() const -> bool { return m_fullWindow; }
 
     /// @brief Places the camera at the world's main camera again next frame (a scene was opened).
     void resetCamera() { m_cameraPlaced = false; }
@@ -75,7 +84,6 @@ private:
         World,
     };
 
-    [[nodiscard]] auto cameraDragged() const -> bool { return m_flying || m_orbiting || m_panning; }
     [[nodiscard]] auto aspect() const -> float;
     // Whether snapping is in effect: the snap button's state, inverted while Ctrl is held.
     [[nodiscard]] auto snapping() const -> bool;
@@ -90,6 +98,10 @@ private:
     void drawToolbar(EditorContext& editor, const Rect& rect);
     // A row across the panel at the cursor, on its own background, holding what 'bar' draws; the cursor ends below it.
     static void drawBar(const std::function<void()>& bar);
+    // Begins the window over the whole display that holds the image in full viewport; whether it is visible.
+    auto beginFullWindow() -> bool;
+    // A small bar centered at the top of the image, on its own background, holding what 'topBar' draws.
+    void drawTopBar(const Rect& rect, const std::function<void()>& topBar);
     // 'text' in the bottom left corner: how to take the input back from the game, the camera speed while it changes.
     void drawCornerLabel(const Rect& rect, const std::string& text) const;
     [[nodiscard]] auto drawIcons(const EditorContext& editor, const Rect& rect) -> std::vector<PickIcon>;
@@ -111,6 +123,9 @@ private:
     GizmoSpace m_gizmoSpace{ GizmoSpace::Local };
     bool m_snap{ false }; // Ctrl inverts it
     bool m_gameView{ false };
+    bool m_fullWindow{ false };
+    bool m_moveFocus{ false };   // The window the image is drawn in takes the focus next frame
+    float m_topBarWidth{ 0.0f }; // As of the last frame, to center it
     bool m_cameraPlaced{ false };
     bool m_hovered{ false };
     bool m_focused{ false };

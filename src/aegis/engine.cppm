@@ -108,6 +108,8 @@ struct AppDesc
     std::string editorSelect;
     /// @brief The editor enters play after its first frame (a screenshot of play mode). The runtime flavor of a game ignores it.
     bool editorPlay{ false };
+    /// @brief The editor starts in full viewport (a screenshot of it). The runtime flavor of a game ignores it.
+    bool editorFullViewport{ false };
 };
 
 enum class EngineErrorCode
@@ -137,8 +139,9 @@ inline constexpr int exitUsage{ 2 };
 [[nodiscard]] auto describe(const EngineError& error) -> std::string;
 
 /// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n>, --project <dir>,
-///        --scene <path>, --dump-asset <id>, --editor-panels all, --editor-select <name> and --editor-play;
-///        the first argument (the program name) is skipped. A headless run without --frames stops after 600 frames.
+///        --scene <path>, --dump-asset <id>, --editor-panels all, --editor-select <name>, --editor-play and
+///        --editor-full-viewport; the first argument (the program name) is skipped. A headless run without --frames
+///        stops after 600 frames.
 [[nodiscard]] auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, EngineError>;
 
 /// @brief The same for main's argc and argv.

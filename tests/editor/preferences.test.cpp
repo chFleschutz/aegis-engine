@@ -51,6 +51,7 @@ TEST_SUITE("editor::EditorPreferences")
         saved.uiScale = 1.5f;
         saved.autosaveMinutes = 5;
         saved.drawerHeight = 0.6f;
+        saved.fullViewportOnPlay = true;
         saved.recentProjects = { "C:/games/one", "C:/games/two" };
         REQUIRE(aegis::editor::savePreferences(saved, file));
 
@@ -64,6 +65,7 @@ TEST_SUITE("editor::EditorPreferences")
         CHECK(loaded->uiScale == saved.uiScale);
         CHECK(loaded->autosaveMinutes == saved.autosaveMinutes);
         CHECK(loaded->drawerHeight == saved.drawerHeight);
+        CHECK(loaded->fullViewportOnPlay == saved.fullViewportOnPlay);
         CHECK(loaded->recentProjects == saved.recentProjects);
     }
 

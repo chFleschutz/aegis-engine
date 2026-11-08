@@ -10,6 +10,7 @@
 //   :color          The sRGB transfer function, and the edit of a linear color shown in sRGB.
 //   :console        ConsoleBuffer: the log lines the console shows, with filters.
 //   :drawers        Drawers: which drawer panel the drawer shows and which ones are pinned into the layout.
+//   :full_viewport  FullViewport: whether the viewport has the whole window, and whether Play entered it.
 //   :preferences    EditorPreferences: the user's settings, kept in the config folder.
 //   :recent_scenes  RecentScenes: the project's scenes opened or saved last, for File > Open Recent.
 //   :selection      The selected entities, by StableId.
@@ -40,6 +41,7 @@ export import :context;
 export import :drawers;
 export import :edits;
 export import :editor_camera;
+export import :full_viewport;
 export import :hierarchy;
 export import :inspector;
 export import :picking;

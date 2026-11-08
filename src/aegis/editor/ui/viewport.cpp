@@ -127,7 +127,7 @@ auto Viewport::renderView() const -> std::optional<RenderView>
     };
 }
 
-void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::function<void()>& bar)
+void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::function<void()>& bar, const std::function<void()>& topBar)
 {
     const bool focusRequested = editor.takeFocusRequest(); // Taken even while the viewport can't show it
     if (focusRequested)
@@ -140,9 +140,17 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
     windowClass.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_AutoHideTabBar;
     ImGui::SetNextWindowClass(&windowClass);
     ImGui::SetNextWindowSize(ImVec2{ 960.0f * theme::scale(), 540.0f * theme::scale() }, ImGuiCond_FirstUseEver);
+    if (!m_fullWindow && std::exchange(m_moveFocus, false))
+        ImGui::SetNextWindowFocus();
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
-    const bool visible = ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    bool visible = ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleVar();
+    if (m_fullWindow)
+    {
+        // Submitted but empty, so its dock node and the layout stay; the image goes into the window over the display
+        ImGui::End();
+        visible = beginFullWindow();
+    }
     bool gizmo = false;
     if (visible)
     {
@@ -176,6 +184,8 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
         }
         if (givesInputToGame() && !m_releaseHint.empty())
             drawCornerLabel(rect, m_releaseHint);
+        if (topBar)
+            drawTopBar(rect, topBar);
 
         if (!m_gameView)
         {
@@ -210,6 +220,58 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
     if (!gizmo || !ImGuizmo::IsUsing())
         endGizmoDrag(editor, frame);
     ImGui::End();
+}
+
+void Viewport::setFullWindow(bool fullWindow)
+{
+    if (fullWindow == m_fullWindow)
+        return;
+    m_fullWindow = fullWindow;
+    m_moveFocus = m_focused;
+    m_flying = m_orbiting = m_panning = false; // The image moves under the cursor
+    m_hoverCurrent = false;
+}
+
+auto Viewport::beginFullWindow() -> bool
+{
+    const ImGuiViewport* display = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(display->Pos);
+    ImGui::SetNextWindowSize(display->Size);
+    ImGui::SetNextWindowViewport(display->ID);
+    if (std::exchange(m_moveFocus, false))
+        ImGui::SetNextWindowFocus();
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    // Over the docked panels, which are still drawn below it. It comes to the front as it appears, not on focus,
+    // so the drawer, which takes the focus when it opens, shows over it.
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+                                   ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing;
+    const bool visible = ImGui::Begin("##FullViewport", nullptr, flags);
+    ImGui::PopStyleVar(3);
+    if (ImGui::IsWindowAppearing())
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+    return visible;
+}
+
+void Viewport::drawTopBar(const Rect& rect, const std::function<void()>& topBar)
+{
+    // A child window: the cursor over it is not over the image, so it neither picks nor moves the camera
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const ImVec2 cursor = ImGui::GetCursorScreenPos();
+    ImGui::SetCursorScreenPos(ImVec2{ std::round(rect.x + (rect.width - m_topBarWidth) * 0.5f), rect.y + style.ItemSpacing.y * 2.0f });
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, theme::bgPopup);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, style.FrameRounding);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ style.ItemSpacing.x, style.FramePadding.y });
+    const ImGuiChildFlags childFlags = ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY |
+                                       ImGuiChildFlags_AlwaysAutoResize;
+    if (ImGui::BeginChild("##topBar", ImVec2{ 0.0f, 0.0f }, childFlags, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+        topBar();
+    ImGui::EndChild();
+    ImGui::PopStyleVar(2);
+    ImGui::PopStyleColor();
+    m_topBarWidth = ImGui::GetItemRectSize().x;
+    ImGui::SetCursorScreenPos(cursor);
 }
 
 void Viewport::releaseInput()

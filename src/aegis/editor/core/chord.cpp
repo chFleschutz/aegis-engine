@@ -33,6 +33,8 @@ auto keyName(Key key) -> std::string_view
         return "F1";
     case Key::F2:
         return "F2";
+    case Key::F11:
+        return "F11";
     }
     std::unreachable();
 }

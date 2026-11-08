@@ -128,6 +128,14 @@ auto contains(const std::optional<Viewport::Rect>& rect, ImVec2 point) -> bool
     return rect && point.x >= rect->x && point.y >= rect->y && point.x < rect->x + rect->width && point.y < rect->y + rect->height;
 }
 
+// Whether the window 'title' floats now: it exists and is docked nowhere.
+auto floats(std::string_view title) -> bool
+{
+    const std::string name{ title };
+    const ImGuiWindow* window = ImGui::FindWindowByName(name.c_str());
+    return window && window->DockId == 0;
+}
+
 // The dock node the window 'title' is docked in, or was docked in last (its settings, before it is first drawn); 0 for none.
 auto dockIdOf(std::string_view title) -> ImGuiID
 {
@@ -191,6 +199,8 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     if (const auto& name = engine.desc().editorSelect; !name.empty())
         selectByName(name);
     m_playAfterFirstFrame = engine.desc().editorPlay;
+    if (engine.desc().editorFullViewport)
+        toggleFullViewport();
     // A headless run (a test, a screenshot) neither reads nor changes the user's layout.
     if (!engine.headless() && !engine.project().empty())
     {
@@ -318,12 +328,24 @@ void EditorShell::drawUi(FrameContext& frame)
     drawDragTooltip(frame); // First, so a drop target's own tooltip replaces it
     m_actions.handleShortcuts(frame, m_viewport.givesInputToGame());
     if (m_context.renameRequested())
+    {
         openPanel("Inspector"); // The name field is there
-    drawMenuBar(frame);
+        if (m_fullViewport.active())
+        {
+            m_fullViewport.leave();
+            syncFullViewport();
+        }
+    }
+    // In full viewport the menu bar, the status bar and the floating windows are not drawn. The dockspace and the
+    // docked panels still are, below the viewport's window: a docked window that isn't submitted leaves its node, and
+    // a node that loses its last window is deleted, so the layout would not come back.
+    const bool full = m_fullViewport.active();
+    if (!full)
+        drawMenuBar(frame);
     drawDockspace();
     for (const auto& panel : m_panels)
     {
-        if (!panel->isOpen())
+        if (!panel->isOpen() || (full && (!panel->docked() || floats(panel->name()))))
             continue;
         if (!panel->drawer())
             panel->draw(m_context, frame);
@@ -332,14 +354,19 @@ void EditorShell::drawUi(FrameContext& frame)
     }
     for (auto* window : { m_preferencesWindow.get(), m_shortcutsWindow.get(), m_aboutWindow.get() })
     {
-        if (window->isOpen())
+        if (window->isOpen() && !full)
             window->draw(m_context, frame);
     }
     std::function<void()> bar;
     if (m_recovery)
         bar = [this] { drawRecoveryBar(); };
-    m_viewport.draw(m_context, frame, bar);
+    std::function<void()> topBar;
+    if (full)
+        topBar = [this, &frame] { drawFullViewportBar(frame); };
+    m_viewport.draw(m_context, frame, bar, topBar);
+    const bool drawerWasShown = m_drawers.shown().has_value();
     drawDrawer(frame); // Over the viewport, whose image it is placed by
+    leaveFullViewportOnEscape(drawerWasShown);
     switch (std::exchange(m_recoveryChoice, RecoveryChoice::None))
     {
     case RecoveryChoice::Restore:
@@ -353,11 +380,14 @@ void EditorShell::drawUi(FrameContext& frame)
     }
     if (const auto scene = m_context.takeSceneRequest())
         request({ .kind = PendingAction::Kind::Open, .scene = assets::AssetId{ *scene } }, frame);
-    drawStatusBar(frame);
+    if (!m_fullViewport.active())
+    {
+        drawStatusBar(frame);
+        drawStyleEditor();
+    }
     drawOpenPopup(frame);
     drawSaveAsPopup(frame);
     drawUnsavedPrompt(frame);
-    drawStyleEditor();
     ImGui::End();
     ImGui::PopStyleColor(tint);
 }
@@ -698,6 +728,8 @@ void EditorShell::startPlay(FrameContext& frame)
     m_playWorld = &play;
     m_play.play();
     m_viewport.setGameView(true);
+    m_fullViewport.play(m_context.preferences().fullViewportOnPlay);
+    syncFullViewport();
 }
 
 void EditorShell::stopPlay(FrameContext& frame)
@@ -710,6 +742,8 @@ void EditorShell::stopPlay(FrameContext& frame)
     m_play.stop();
     m_viewport.setGameView(false);
     frame.engine.restoreCursor(); // The game may have hidden it
+    m_fullViewport.stop();
+    syncFullViewport();
 }
 
 void EditorShell::selectByName(std::string_view name)
@@ -1035,6 +1069,7 @@ void EditorShell::buildActions()
 
     m_actions.add({ .id = "view.assets", .label = "Assets", .chord = chord(Key::Space), .run = [this](FrameContext&) { toggleDrawer("Assets"); } });
     m_actions.add({ .id = "view.console", .label = "Console", .chord = chord(Key::Space, true, true), .run = [this](FrameContext&) { toggleDrawer("Console"); } });
+    m_actions.add({ .id = "view.fullViewport", .label = "Full Viewport", .chord = chord(Key::F11, false), .run = [this](FrameContext&) { toggleFullViewport(); } });
 
     m_actions.add({ .id = "help.shortcuts", .label = "Keyboard Shortcuts", .run = [this](FrameContext&) { m_shortcutsWindow->setOpen(true); } });
     m_actions.add({ .id = "help.about", .label = "About", .run = [this](FrameContext&) { m_aboutWindow->setOpen(true); } });
@@ -1095,6 +1130,50 @@ void EditorShell::openPanel(std::string_view name)
 {
     if (auto* panel = findPanel(name))
         panel->setOpen(true);
+}
+
+void EditorShell::toggleFullViewport()
+{
+    m_fullViewport.toggle();
+    syncFullViewport();
+}
+
+void EditorShell::syncFullViewport()
+{
+    const bool full = m_fullViewport.active();
+    if (full == m_viewport.fullWindow())
+        return;
+    if (full)
+        m_drawers.close(); // Esc would have to close it before it leaves full viewport
+    m_viewport.setFullWindow(full);
+}
+
+void EditorShell::leaveFullViewportOnEscape(bool drawerWasShown)
+{
+    // The same Esc as the drawer's: the first one closes the drawer, a popup takes its own
+    if (!m_fullViewport.active() || drawerWasShown || !ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+        return;
+    if (ImGui::GetIO().WantTextInput || ImGui::GetDragDropPayload() || m_viewport.givesInputToGame() || m_viewport.cameraDragged() || ImGuizmo::IsUsing() ||
+        ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+        return;
+    m_fullViewport.leave();
+    syncFullViewport();
+}
+
+void EditorShell::drawFullViewportBar(FrameContext& frame)
+{
+    drawPlayButtons(frame);
+    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 2.0f);
+    // The way back stays in sight: the button, and its shortcut next to it
+    const auto shortcut = m_actions.shortcut("view.fullViewport");
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
+    const bool leave = ImGui::SmallButton(theme::icons::leaveFullViewport);
+    ImGui::PopStyleColor();
+    ImGui::SetItemTooltip("%s", std::format("Leave full viewport ({}, Esc)", shortcut).c_str());
+    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+    ImGui::TextDisabled("%s", shortcut.c_str());
+    if (leave)
+        runAction("view.fullViewport", frame);
 }
 
 void EditorShell::showDrawer(std::string_view name)
@@ -1462,6 +1541,7 @@ void EditorShell::drawMenuBar(FrameContext& frame)
                 panel->setOpen(!panel->isOpen());
         }
         ImGui::Separator();
+        m_actions.menuItem("view.fullViewport", frame, {}, m_fullViewport.active());
         if (ImGui::MenuItem("Reset Layout"))
             resetLayout();
         ImGui::EndMenu();
@@ -1499,7 +1579,7 @@ void EditorShell::drawMenuBar(FrameContext& frame)
     }
 
     drawPlayControls(frame);
-    drawSceneName();
+    drawSceneName(frame);
     ImGui::EndMainMenuBar();
 }
 
@@ -1510,24 +1590,48 @@ auto EditorShell::editLabel(std::string_view verb, std::span<const Edit> edits, 
     return std::format("{} {}", verb, entryTitle(edits, title, m_context.world()->registry()));
 }
 
-void EditorShell::drawSceneName()
+void EditorShell::drawSceneName(FrameContext& frame)
 {
     const auto name = sceneName();
     const auto& style = ImGui::GetStyle();
-    const float x = ImGui::GetWindowWidth() - ImGui::CalcTextSize(name.c_str()).x - style.WindowPadding.x;
-    if (x <= ImGui::GetCursorPosX())
+    const float right = ImGui::GetWindowWidth() - style.WindowPadding.x;
+    const float button = ImGui::CalcTextSize(theme::icons::fullViewport).x + 2.0f * style.FramePadding.x;
+    // The button at the right end, and the name left of it when there is room for both; the name goes first
+    const float nameX = right - ImGui::CalcTextSize(name.c_str()).x;
+    const bool showName = nameX - style.ItemSpacing.x - button > ImGui::GetCursorPosX();
+    const float buttonX = showName ? nameX - style.ItemSpacing.x - button : right - button;
+    if (buttonX <= ImGui::GetCursorPosX())
         return; // No room next to the menus and play controls
-    ImGui::SetCursorPosX(x);
+    ImGui::SetCursorPosX(buttonX);
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
+    if (ImGui::SmallButton(theme::icons::fullViewport))
+        runAction("view.fullViewport", frame);
+    ImGui::PopStyleColor();
+    ImGui::SetItemTooltip("%s", m_actions.tooltip("view.fullViewport").c_str());
+    if (!showName)
+        return;
+    ImGui::SetCursorPosX(nameX);
     ImGui::TextUnformatted(name.c_str());
+}
+
+void EditorShell::runAction(std::string_view id, FrameContext& frame)
+{
+    if (const auto* action = m_actions.find(id); action && (!action->enabled || action->enabled()))
+        action->run(frame);
 }
 
 void EditorShell::drawPlayControls(FrameContext& frame)
 {
-    const auto state = m_play.state();
     const auto& style = ImGui::GetStyle();
     const float buttonWidth = ImGui::CalcTextSize(theme::icons::play).x + 2.0f * style.FramePadding.x;
     const float width = 3.0f * buttonWidth + 2.0f * style.ItemSpacing.x;
     ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), (ImGui::GetWindowWidth() - width) * 0.5f));
+    drawPlayButtons(frame);
+}
+
+void EditorShell::drawPlayButtons(FrameContext& frame)
+{
+    const auto state = m_play.state();
 
     // A small icon button that shows its action's name and shortcut; 'lit' colors the icon, 'filled' fills the button
     // with the play color instead.
@@ -1553,18 +1657,17 @@ void EditorShell::drawPlayControls(FrameContext& frame)
         ImGui::SetItemTooltip("%s", m_actions.tooltip(action).c_str());
         return clicked;
     };
-    const auto run = [&](std::string_view id) {
-        if (const auto* action = m_actions.find(id); action && (!action->enabled || action->enabled()))
-            action->run(frame);
-    };
+    const auto run = [&](std::string_view id) { runAction(id, frame); };
 
     const bool active = state != PlaySession::State::Stopped;
     if (button(active ? theme::icons::stop : theme::icons::play, "play", "play.toggle", false, theme::text, active))
         run("play.toggle");
+    ImGui::SameLine(); // A menu bar lays its items out in a row by itself; full viewport's top bar doesn't
     ImGui::BeginDisabled(!m_play.active());
     if (button(theme::icons::pause, "pause", "play.pause", state == PlaySession::State::Paused, theme::accentHover))
         run("play.pause");
     ImGui::EndDisabled();
+    ImGui::SameLine();
     ImGui::BeginDisabled(state != PlaySession::State::Paused);
     if (button(theme::icons::step, "step", "play.step", false, theme::text))
         run("play.step");

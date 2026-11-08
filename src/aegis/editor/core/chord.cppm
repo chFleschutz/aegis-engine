@@ -18,6 +18,7 @@ enum class Key
     Space,
     F1,
     F2,
+    F11,
 };
 
 /// @brief A key with the modifiers that must be held with it (exactly these: Ctrl+S is not Ctrl+Shift+S).

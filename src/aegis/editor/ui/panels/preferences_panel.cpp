@@ -40,6 +40,8 @@ public:
         drawUiScale(preferences.uiScale);
         ImGui::DragInt("Autosave", &preferences.autosaveMinutes, 0.1f, 0, maxAutosaveMinutes, preferences.autosaveMinutes == 0 ? "Off" : "every %d min");
         ImGui::SetItemTooltip("While the scene has unsaved changes, and on entering Play, to the project's .aegis/editor/autosave; 0 turns it off");
+        ImGui::Checkbox("Full viewport on play", &preferences.fullViewportOnPlay);
+        ImGui::SetItemTooltip("Play gives the viewport the whole window, and Stop gives the panels back");
         // The recent projects stay stored, but nothing opens them yet (a welcome screen or project switcher will)
         ImGui::End();
     }
