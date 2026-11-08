@@ -369,21 +369,34 @@ private:
     }
 
     // The kind's icon and the name on the row just drawn, which has no label of its own. The members of a scene instance
-    // are dimmed: the Inspector shows them read-only.
-    static void drawRowLabel(world::Registry& registry, world::Entity entity)
+    // are muted and locked: the Inspector shows them read-only.
+    static void drawRowLabel(world::Registry& registry, world::Entity entity, bool selected)
     {
         const auto kind = entityKind(registry, entity);
         const bool member = registry.has<serialize::InstanceMember>(entity);
-        const ImVec4 iconColor = member ? ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled) : kindColor(kind);
-        const ImU32 textColor = ImGui::GetColorU32(member ? ImGuiCol_TextDisabled : ImGuiCol_Text);
+        const ImU32 mutedColor = theme::packed(theme::mutedText(selected));
+        const ImU32 iconColor = member ? mutedColor : theme::packed(kindColor(kind));
+        const ImU32 textColor = member ? mutedColor : ImGui::GetColorU32(ImGuiCol_Text);
 
         const ImVec2 min = ImGui::GetItemRectMin();
         // Centered on the row: a tree node has no vertical padding of its own
-        const ImVec2 position{ min.x + ImGui::GetTreeNodeToLabelSpacing(), min.y + (ImGui::GetItemRectSize().y - ImGui::GetTextLineHeight()) * 0.5f };
+        ImVec2 position{ min.x + ImGui::GetTreeNodeToLabelSpacing(), min.y + (ImGui::GetItemRectSize().y - ImGui::GetTextLineHeight()) * 0.5f };
+        const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
         const char* icon = kindIcon(kind);
+        const char* name = nameOf(registry, entity);
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        drawList->AddText(position, ImGui::ColorConvertFloat4ToU32(iconColor), icon);
-        drawList->AddText(ImVec2{ position.x + ImGui::CalcTextSize(icon).x + ImGui::GetStyle().ItemInnerSpacing.x, position.y }, textColor, nameOf(registry, entity));
+        drawList->AddText(position, iconColor, icon);
+        position.x += ImGui::CalcTextSize(icon).x + spacing;
+        if (!member)
+        {
+            drawList->AddText(position, textColor, name);
+            return;
+        }
+        // The lock follows the name, or stays at the row's end and cuts a long name short: it must stay in view
+        const float lockX = std::min(position.x + ImGui::CalcTextSize(name).x + spacing, ImGui::GetItemRectMax().x - ImGui::CalcTextSize(theme::icons::locked).x);
+        const ImVec4 clip{ position.x, min.y, lockX - spacing, ImGui::GetItemRectMax().y };
+        drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), position, textColor, name, nullptr, 0.0f, &clip);
+        drawList->AddText(ImVec2{ lockX, position.y }, mutedColor, theme::icons::locked);
     }
 
     // A row of the tree: it can be dragged onto another row and takes drops (see Drop). A click selects it (see select), a double
@@ -396,7 +409,7 @@ private:
 
         // The label is drawn by hand: the kind's icon comes first, in its own color
         const bool isOpen = ImGui::TreeNodeEx(rowId(registry, entity), flags, "");
-        drawRowLabel(registry, entity);
+        drawRowLabel(registry, entity, (flags & ImGuiTreeNodeFlags_Selected) != 0);
 
         select(editor.selection(), rows, registry.get<StableId>(entity));
         const bool onLabel = ImGui::GetMousePos().x >= ImGui::GetItemRectMin().x + ImGui::GetTreeNodeToLabelSpacing();

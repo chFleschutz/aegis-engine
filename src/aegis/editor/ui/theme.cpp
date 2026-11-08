@@ -31,7 +31,8 @@ void setColors(ImGuiStyle& style)
     const ImVec4 clear{ 0.0f, 0.0f, 0.0f, 0.0f };
 
     c[ImGuiCol_Text] = text;
-    c[ImGuiCol_TextDisabled] = textDisabled;
+    // ImGui draws its TextDisabled, the hints of empty fields and the menus' shortcuts in it: secondary content
+    c[ImGuiCol_TextDisabled] = textMuted;
     c[ImGuiCol_WindowBg] = bgWindow;
     c[ImGuiCol_ChildBg] = clear;
     c[ImGuiCol_PopupBg] = bgPopup;

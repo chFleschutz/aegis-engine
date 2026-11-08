@@ -44,6 +44,9 @@ inline constexpr const char* file = lucide::file;
 inline constexpr const char* warning = lucide::alertTriangle;
 inline constexpr const char* error = lucide::circleX;
 
+// Read-only content: the members of a scene instance, the engine content.
+inline constexpr const char* locked = lucide::lock;
+
 // The recovery bar's mark: an autosave of unsaved changes.
 inline constexpr const char* recovery = lucide::history;
 }

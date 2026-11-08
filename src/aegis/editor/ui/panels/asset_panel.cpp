@@ -77,6 +77,14 @@ auto assetId(const AssetItem& item) -> const void*
 // The folder column's width at the start, in pixels at a UI scale of 1.
 constexpr float folderColumnWidth = 200.0f;
 
+// The label of a line, which ends in the lock when it is read-only (engine content).
+auto lineLabel(std::string label, bool readOnly) -> std::string
+{
+    if (readOnly)
+        label += std::format("  {}", theme::icons::locked);
+    return label;
+}
+
 // The item just drawn as a drag source of 'item', and its tooltip.
 void dragSource(const AssetItem& item, std::string_view label)
 {
@@ -185,7 +193,7 @@ private:
         ImGui::InputTextWithHint("##search", "Search", &m_filter.search);
     }
 
-    // The folder and, while open, its subfolders; a read-only root and its folders are dimmed.
+    // The folder and, while open, its subfolders; a read-only root and its folders are muted and locked.
     void drawFolder(std::size_t index)
     {
         const auto& folder = m_tree.folders()[index];
@@ -195,14 +203,15 @@ private:
             flags |= ImGuiTreeNodeFlags_Leaf;
         if (!folder.parent)
             flags |= ImGuiTreeNodeFlags_DefaultOpen;
-        if (folder.root == m_root && folder.path == m_folder)
+        const bool selected = folder.root == m_root && folder.path == m_folder;
+        if (selected)
             flags |= ImGuiTreeNodeFlags_Selected;
 
         if (readOnly)
-            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::mutedText(selected));
         // Identified by its root and path, so its open state stays with it when a rescan or an import adds folders
         ImGui::PushID(static_cast<int>(folder.root));
-        const bool open = ImGui::TreeNodeEx(folder.path.c_str(), flags, "%s", folder.name.c_str());
+        const bool open = ImGui::TreeNodeEx(folder.path.c_str(), flags, "%s", lineLabel(folder.name, readOnly).c_str());
         ImGui::PopID();
         if (readOnly)
             ImGui::PopStyleColor();
@@ -312,15 +321,15 @@ private:
     void drawSubfolder(std::size_t index, std::optional<std::size_t>& entered)
     {
         const auto& subfolder = m_tree.folders()[index];
-        const bool dimmed = m_tree.roots()[subfolder.root].readOnly;
-        if (dimmed)
-            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        const bool readOnly = m_tree.roots()[subfolder.root].readOnly;
+        if (readOnly)
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::textMuted);
         ImGui::PushID(subfolder.path.c_str());
-        ImGui::TreeNodeEx("##folder", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s/", subfolder.name.c_str());
+        ImGui::TreeNodeEx("##folder", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s", lineLabel(subfolder.name + "/", readOnly).c_str());
         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             entered = index;
         ImGui::PopID();
-        if (dimmed)
+        if (readOnly)
             ImGui::PopStyleColor();
     }
 
@@ -330,11 +339,11 @@ private:
         const auto& file = m_tree.files()[row.file];
         const bool readOnly = m_tree.roots()[file.root].readOnly;
         if (readOnly)
-            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::textMuted);
 
         // With a filter the rows come from several folders: show where each is
         const auto kind = file.main ? assetKind(m_tree.items()[*file.main].type, file.path) : AssetKind::Other;
-        const std::string label = std::format("{}  {}", kindIcon(kind), m_filter.active() ? file.path : file.name);
+        const std::string label = lineLabel(std::format("{}  {}", kindIcon(kind), m_filter.active() ? file.path : file.name), readOnly);
         const bool hasParts = !row.parts.empty();
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
         if (!hasParts)
@@ -367,12 +376,12 @@ private:
         const auto& item = m_tree.items()[part];
         const bool readOnly = m_tree.roots()[file.root].readOnly;
         if (readOnly)
-            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::textMuted);
         const float indent = ImGui::GetStyle().IndentSpacing;
         ImGui::Indent(indent);
         ImGui::PushID(assetId(item));
         const auto name = partName(item);
-        ImGui::TreeNodeEx("##part", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s", std::format("{}  {}  ({})", kindIcon(assetKind(item.type, item.path)), name, item.type).c_str());
+        ImGui::TreeNodeEx("##part", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s", lineLabel(std::format("{}  {}  ({})", kindIcon(assetKind(item.type, item.path)), name, item.type), readOnly).c_str());
         dragSource(item, name);
         ImGui::PopID();
         ImGui::Unindent(indent);

@@ -517,11 +517,11 @@ void EditorShell::drawOpenPopup(FrameContext& frame)
     }
     ImGui::EndChild();
 
-    // Open is the default: Enter takes it, and it has the accent
+    // Open is the default: Enter takes it, and it has the accent fill
     ImGui::BeginDisabled(!m_openSelection);
-    ImGui::PushStyleColor(ImGuiCol_Button, theme::accent);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentHover);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentActive);
+    ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
     const bool open = ImGui::Button("Open") || ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter);
     ImGui::PopStyleColor(3);
     ImGui::EndDisabled();
@@ -754,9 +754,9 @@ void EditorShell::drawRecoveryBar()
     ImGui::SameLine();
     ImGui::TextUnformatted(m_recovery->label.c_str());
     ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button, theme::accent);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentHover);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentActive);
+    ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
     if (ImGui::Button("Restore"))
         m_recoveryChoice = RecoveryChoice::Restore;
     ImGui::PopStyleColor(3);
@@ -853,9 +853,9 @@ void EditorShell::drawProblemCounts()
 
     const auto problem = m_context.console().lastProblem();
     const auto tooltip = problem ? std::format("{}: {}", log::levelName(problem->level), problem->message) : std::string{ "No warnings or errors" };
-    // A count of zero is dim: only the levels that have messages draw the eye
+    // A count of zero is muted: only the levels that have messages draw the eye
     const auto count = [&](const std::string& label, std::size_t value, const ImVec4& color) {
-        ImGui::PushStyleColor(ImGuiCol_Text, value > 0 ? color : theme::textDisabled);
+        ImGui::PushStyleColor(ImGuiCol_Text, value > 0 ? color : theme::textMuted);
         const bool clicked = ImGui::SmallButton(label.c_str());
         ImGui::PopStyleColor();
         ImGui::SetItemTooltip("%s", tooltip.c_str());
