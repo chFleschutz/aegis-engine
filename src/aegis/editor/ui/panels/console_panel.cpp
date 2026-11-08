@@ -1,7 +1,5 @@
 module;
 
-#include <cfloat>
-
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
@@ -61,13 +59,14 @@ void drawRepeats(std::size_t repeats)
 }
 
 // The log lines of the editor (EditorContext::console) with level toggles and their counts, Collapse, a search, Clear
-// and Copy. The status bar's counts bring it to the front with only the warnings and errors on.
+// and Copy. The status bar's counts show it with only the warnings and errors on.
 class ConsolePanel final : public Panel
 {
 public:
     ConsolePanel() { setOpen(true); }
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Console"; }
+    [[nodiscard]] auto drawer() const -> bool override { return true; }
 
     void draw(EditorContext& editor, FrameContext&) override
     {
@@ -76,16 +75,6 @@ public:
             m_filter.info = false;
             m_filter.warn = true;
             m_filter.error = true;
-            ImGui::SetNextWindowFocus(); // Also selects its tab when docked
-        }
-
-        bool open = true;
-        const bool visible = ImGui::Begin("Console", &open);
-        setOpen(open);
-        if (!visible)
-        {
-            ImGui::End();
-            return;
         }
 
         auto& console = editor.console();
@@ -105,7 +94,7 @@ public:
         if (ImGui::Button("Copy"))
             ImGui::SetClipboardText(console.text(m_filter).c_str());
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::SetNextItemWidth(fillWidth());
         ImGui::InputTextWithHint("##search", "Search", &m_filter.search);
 
         ImGui::Separator();
@@ -132,7 +121,6 @@ public:
                 ImGui::SetScrollHereY(1.0f);
         }
         ImGui::EndChild();
-        ImGui::End();
     }
 
 private:

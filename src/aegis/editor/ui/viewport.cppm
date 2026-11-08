@@ -18,6 +18,15 @@ export namespace aegis::editor
 class Viewport
 {
 public:
+    // The panel's image in screen pixels.
+    struct Rect
+    {
+        float x{ 0.0f };
+        float y{ 0.0f };
+        float width{ 1.0f };
+        float height{ 1.0f };
+    };
+
     /// @brief Draws the panel and applies this frame's camera moves, gizmo edits and clicks. With 'bar', a row above the
     ///        image holds what it draws (the recovery bar's text and buttons), and the image is that much shorter.
     void draw(EditorContext& editor, FrameContext& frame, const std::function<void()>& bar = {});
@@ -29,6 +38,13 @@ public:
     [[nodiscard]] auto capturesInput() const -> bool { return m_hovered || cameraDragged(); }
     /// @brief Whether the game gets the input: the game view has focus.
     [[nodiscard]] auto givesInputToGame() const -> bool { return m_gameView && m_focused; }
+    /// @brief Whether the cursor is on the image, with no window over it (as of this frame's draw).
+    [[nodiscard]] auto hovered() const -> bool { return m_hovered; }
+    /// @brief Whether the camera flies: the right mouse button went down on the image and is still held.
+    [[nodiscard]] auto flying() const -> bool { return m_flying; }
+    [[nodiscard]] auto gameView() const -> bool { return m_gameView; }
+    /// @brief Where the image is on screen, as of this frame's draw; none while the panel is hidden.
+    [[nodiscard]] auto imageRect() const -> std::optional<Rect> { return m_imageRect; }
     /// @brief Takes the input back from the game: the viewport loses its focus until it is clicked again.
     void releaseInput();
     /// @brief Records the gizmo drag still going, if any, as one undo entry: when the gizmo is released, or before the
@@ -57,15 +73,6 @@ private:
     {
         Local,
         World,
-    };
-
-    // The panel's image in screen pixels.
-    struct Rect
-    {
-        float x{ 0.0f };
-        float y{ 0.0f };
-        float width{ 1.0f };
-        float height{ 1.0f };
     };
 
     [[nodiscard]] auto cameraDragged() const -> bool { return m_flying || m_orbiting || m_panning; }
@@ -128,6 +135,7 @@ private:
     };
     std::optional<GizmoDrag> m_gizmoDrag; // Recorded when the gizmo is released
     double m_speedShownUntil{ 0.0 };      // ImGui's time until which the camera speed shows while flying
+    std::optional<Rect> m_imageRect;      // As of the last draw
     std::string m_releaseHint;
 };
 }
