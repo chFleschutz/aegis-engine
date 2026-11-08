@@ -313,8 +313,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 
 ### Persistence
 
-- **Layout:** ImGui's layout goes in `<project>/.aegis/editor/imgui-v<n>.ini` (per project, per machine, never
-  committed, D8's one ignored folder; `n` is the default layout's version, see UI design → Layout). A View → Reset Layout action rebuilds the default with
+- **Layout:** `imgui.ini` goes in `<project>/.aegis/editor/imgui.ini` (per project, per machine, never
+  committed, D8's one ignored folder). A View → Reset Layout action rebuilds the default with
   `DockBuilder`.
 - **Preferences** (camera speed, snap values, the viewport icons' toggle, recent projects, UI scale, the autosave interval) go in the user config folder
   (`%APPDATA%/Aegis/editor.json`, `$XDG_CONFIG_HOME/aegis/editor.json`), as JSON through glaze in a
@@ -424,9 +424,8 @@ tokens, not this structure.
   360 px wide times `theme::scale()`, at most 30% of the window, and keeps its width when the window is resized:
   ImGui gives the change to the viewport, the central node. Built with `DockBuilder` on first start and by
   View → Reset Layout, which also reopens the panels that start open.
-- **Layout file:** `<project>/.aegis/editor/imgui-v<n>.ini`, where `n` is the default layout's version
-  (`layoutVersion` in `ui/editor_shell.cpp`). A change to the default bumps it, so every editor builds the new
-  default once instead of keeping a layout made from the old one; the old file stays and is no longer read.
+  The layout is kept in `<project>/.aegis/editor/imgui.ini`. A change to the default doesn't replace a kept layout:
+  View → Reset Layout builds the new one.
 - **Dock chrome:** the viewport is the central node and has no tab bar (it can't be closed); no node shows the
   window menu or the close-all button, each tab has its own close button.
 - **Debug panels** (Renderer, Profiler, Statistics) start closed and open as tabs at the bottom, next to the assets

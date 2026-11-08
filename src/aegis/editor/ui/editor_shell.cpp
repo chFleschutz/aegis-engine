@@ -57,10 +57,6 @@ auto pushPlayTint() -> int
     return static_cast<int>(tinted.size());
 }
 
-// The version of the default layout, in the layout file's name: bumping it when buildDefaultLayout changes makes
-// every editor build the new default once, instead of loading a layout made from the old one. 2: the right column.
-constexpr int layoutVersion = 2;
-
 // The layout file of 'project' as UTF-8, which ImGui expects; its folder is created. Empty if it can't be.
 auto layoutFile(const std::filesystem::path& project) -> std::string
 {
@@ -72,7 +68,7 @@ auto layoutFile(const std::filesystem::path& project) -> std::string
         log::warn("The editor layout is not kept: cannot create '{}' ({})", folder.string(), error.message());
         return {};
     }
-    const auto file = (folder / std::format("imgui-v{}.ini", layoutVersion)).u8string();
+    const auto file = (folder / "imgui.ini").u8string();
     return std::string{ file.begin(), file.end() };
 }
 

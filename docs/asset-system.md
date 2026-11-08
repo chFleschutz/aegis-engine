@@ -58,7 +58,7 @@ my_game/
 ├─ engine/                        recommended path of the engine as a submodule
 ├─ .aegis/                        local, never committed
 │  ├─ cache/                      import cache and index; safe to delete at any time
-│  ├─ editor/                     per-user editor state (imgui-v<n>.ini, cameras; see editor.md)
+│  ├─ editor/                     per-user editor state (imgui.ini, cameras; see editor.md)
 │  └─ saved/                      what development runs write: save games, logs, screenshots
 ├─ build/                         CMake build trees and exports (build/export/<platform>/)
 ├─ .gitignore                     /.aegis/  /build/  /CMakeUserPresets.json
