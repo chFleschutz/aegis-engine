@@ -43,6 +43,8 @@ public:
     [[nodiscard]] auto hovered() const -> bool { return m_hovered; }
     /// @brief Whether the camera flies: the right mouse button went down on the image and is still held.
     [[nodiscard]] auto flying() const -> bool { return m_flying; }
+    /// @brief Whether a camera drag goes on: flying, orbiting or panning.
+    [[nodiscard]] auto cameraDragged() const -> bool { return m_flying || m_orbiting || m_panning; }
     [[nodiscard]] auto gameView() const -> bool { return m_gameView; }
     /// @brief Where the image is on screen, as of this frame's draw; none while the panel is hidden.
     [[nodiscard]] auto imageRect() const -> std::optional<Rect> { return m_imageRect; }
@@ -82,7 +84,6 @@ private:
         World,
     };
 
-    [[nodiscard]] auto cameraDragged() const -> bool { return m_flying || m_orbiting || m_panning; }
     [[nodiscard]] auto aspect() const -> float;
     // Whether snapping is in effect: the snap button's state, inverted while Ctrl is held.
     [[nodiscard]] auto snapping() const -> bool;

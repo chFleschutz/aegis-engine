@@ -128,6 +128,14 @@ auto contains(const std::optional<Viewport::Rect>& rect, ImVec2 point) -> bool
     return rect && point.x >= rect->x && point.y >= rect->y && point.x < rect->x + rect->width && point.y < rect->y + rect->height;
 }
 
+// Whether the window 'title' floats now: it exists and is docked nowhere.
+auto floats(std::string_view title) -> bool
+{
+    const std::string name{ title };
+    const ImGuiWindow* window = ImGui::FindWindowByName(name.c_str());
+    return window && window->DockId == 0;
+}
+
 // The dock node the window 'title' is docked in, or was docked in last (its settings, before it is first drawn); 0 for none.
 auto dockIdOf(std::string_view title) -> ImGuiID
 {
@@ -337,7 +345,7 @@ void EditorShell::drawUi(FrameContext& frame)
     drawDockspace();
     for (const auto& panel : m_panels)
     {
-        if (!panel->isOpen() || (full && !panel->docked()))
+        if (!panel->isOpen() || (full && (!panel->docked() || floats(panel->name()))))
             continue;
         if (!panel->drawer())
             panel->draw(m_context, frame);
@@ -1145,7 +1153,7 @@ void EditorShell::leaveFullViewportOnEscape(bool drawerWasShown)
     // The same Esc as the drawer's: the first one closes the drawer, a popup takes its own
     if (!m_fullViewport.active() || drawerWasShown || !ImGui::IsKeyPressed(ImGuiKey_Escape, false))
         return;
-    if (ImGui::GetIO().WantTextInput || ImGui::GetDragDropPayload() || m_viewport.givesInputToGame() ||
+    if (ImGui::GetIO().WantTextInput || ImGui::GetDragDropPayload() || m_viewport.givesInputToGame() || m_viewport.cameraDragged() || ImGuizmo::IsUsing() ||
         ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
         return;
     m_fullViewport.leave();
@@ -1586,9 +1594,12 @@ void EditorShell::drawSceneName(FrameContext& frame)
 {
     const auto name = sceneName();
     const auto& style = ImGui::GetStyle();
-    const float x = ImGui::GetWindowWidth() - ImGui::CalcTextSize(name.c_str()).x - style.WindowPadding.x;
+    const float right = ImGui::GetWindowWidth() - style.WindowPadding.x;
     const float button = ImGui::CalcTextSize(theme::icons::fullViewport).x + 2.0f * style.FramePadding.x;
-    const float buttonX = x - style.ItemSpacing.x - button;
+    // The button at the right end, and the name left of it when there is room for both; the name goes first
+    const float nameX = right - ImGui::CalcTextSize(name.c_str()).x;
+    const bool showName = nameX - style.ItemSpacing.x - button > ImGui::GetCursorPosX();
+    const float buttonX = showName ? nameX - style.ItemSpacing.x - button : right - button;
     if (buttonX <= ImGui::GetCursorPosX())
         return; // No room next to the menus and play controls
     ImGui::SetCursorPosX(buttonX);
@@ -1597,7 +1608,9 @@ void EditorShell::drawSceneName(FrameContext& frame)
         runAction("view.fullViewport", frame);
     ImGui::PopStyleColor();
     ImGui::SetItemTooltip("%s", m_actions.tooltip("view.fullViewport").c_str());
-    ImGui::SetCursorPosX(x);
+    if (!showName)
+        return;
+    ImGui::SetCursorPosX(nameX);
     ImGui::TextUnformatted(name.c_str());
 }
 

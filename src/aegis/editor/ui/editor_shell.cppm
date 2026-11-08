@@ -144,7 +144,7 @@ private:
     void drawPlayControls(FrameContext& frame);
     /// @brief Play or Stop, Pause and Step, and "Playing" or "Paused" while a session runs.
     void drawPlayButtons(FrameContext& frame);
-    /// @brief The full viewport button and the scene's name at the right of the menu bar, when they fit.
+    /// @brief The full viewport button and the scene's name left of it at the right of the menu bar, each when it fits.
     void drawSceneName(FrameContext& frame);
     /// @brief Runs the action 'id' if it can run now.
     void runAction(std::string_view id, FrameContext& frame);
