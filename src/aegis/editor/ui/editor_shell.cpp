@@ -1190,9 +1190,9 @@ void EditorShell::drawPinned(Panel& panel, FrameContext& frame)
     const bool visible = ImGui::Begin(name.c_str(), panel.debug() ? &open : nullptr); // Assets and the console stay open
     if (!open)
         panel.setOpen(false);
-    // Docked outside the layout (the node it was docked in is gone): docked again before the next frame's dockspace
-    const ImGuiWindow* window = ImGui::GetCurrentWindow();
-    if ((!window->DockNode || ImGui::DockNodeGetRootNode(window->DockNode)->ID != m_dockspace) && std::ranges::find(m_dockRequests, name) == m_dockRequests.end())
+    // Appearing undocked (pinned in the layout file without a node, or dragged out to float before): docked below the
+    // viewport before the next frame's dockspace. Only as it appears: a drag to another node undocks it meanwhile.
+    if (ImGui::IsWindowAppearing() && !ImGui::IsWindowDocked() && std::ranges::find(m_dockRequests, name) == m_dockRequests.end())
         m_dockRequests.push_back(name);
     if (visible)
     {
@@ -1265,11 +1265,26 @@ void EditorShell::drawDrawer(FrameContext& frame)
     {
         drawDrawerResize(*viewport, rect.y);
 
-        // A tab per open drawer panel that is not pinned; the debug panels' close
+        // A tab per open drawer panel that is not pinned (the debug panels' close), and the pin and close buttons at the
+        // right end of the row. ImGui's trailing tabs follow the last tab instead, so the bar is ImGui::BeginTabBar's
+        // made narrower: the tabs stop short of the buttons, and its separator still spans the row.
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const float side = ImGui::GetFrameHeight(); // The bar's height
+        const ImVec2 row = ImGui::GetCursorScreenPos();
+        const float right = row.x + ImGui::GetContentRegionAvail().x;
+        const float buttons = 2.0f * side + style.ItemInnerSpacing.x;
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        const ImGuiID barId = window->GetID("##tabs");
+        ImGuiTabBar* bar = ImGui::GetCurrentContext()->TabBars.GetOrAddByKey(barId);
+        bar->ID = barId;
+        bar->SeparatorMinX = row.x - std::trunc(window->WindowPadding.x * 0.5f);
+        bar->SeparatorMaxX = right + std::trunc(window->WindowPadding.x * 0.5f);
+        const ImRect bounds{ row.x, row.y, std::max(row.x, right - buttons - style.ItemSpacing.x), row.y + side };
+
         const Panel* selected = nullptr;
         bool pinShown = false;
         bool close = false;
-        if (ImGui::BeginTabBar("##tabs"))
+        if (ImGui::BeginTabBarEx(bar, bounds, ImGuiTabBarFlags_IsFocused))
         {
             for (const auto& candidate : m_panels)
             {
@@ -1289,12 +1304,18 @@ void EditorShell::drawDrawer(FrameContext& frame)
                     m_drawers.hide(name);
                 }
             }
-            pinShown = ImGui::TabItemButton(theme::icons::pin, ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip);
-            ImGui::SetItemTooltip("Pin: dock it below the viewport");
-            close = ImGui::TabItemButton(theme::icons::close, ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip);
-            ImGui::SetItemTooltip("Close (Esc)");
             ImGui::EndTabBar();
         }
+        const ImVec2 below = ImGui::GetCursorScreenPos();
+        ImGui::SetCursorScreenPos(ImVec2{ right - buttons, row.y });
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
+        pinShown = theme::iconButton(theme::icons::pin, "##pin");
+        ImGui::SetItemTooltip("Pin: dock it below the viewport");
+        ImGui::SameLine(0.0f, style.ItemInnerSpacing.x);
+        close = theme::iconButton(theme::icons::close, "##close");
+        ImGui::SetItemTooltip("Close (Esc)");
+        ImGui::PopStyleColor();
+        ImGui::SetCursorScreenPos(below);
         // A tab the user clicked shows; one this shell selected may take a frame to be
         if (selected && m_drawers.isShown(selected->name()))
             m_selectDrawerTab = false;

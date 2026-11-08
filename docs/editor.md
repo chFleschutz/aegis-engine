@@ -439,7 +439,9 @@ tokens, not this structure.
   viewport or on an inspector slot (ImGui keeps the payload while the button is held). There is no animation.
 - **Pinned drawer panels** dock into a node below the viewport, split off when the first one is pinned (or the one
   a panel was pinned in before), as tabs; a lit pin button over the right end of their first row returns them to
-  the drawer. The pinned panels are kept with the layout. `--editor-panels all` pins every drawer panel, so the
+  the drawer. Like any docked panel they can be dragged to another node; one that appears floating (pinned in the
+  layout file without a node, or dragged out before) docks below the viewport again. The pinned panels are kept
+  with the layout. `--editor-panels all` pins every drawer panel, so the
   `game-<name>-editor` screenshot shows them.
 - **Dock chrome:** the viewport is the central node and has no tab bar (it can't be closed); no node shows the
   window menu or the close-all button, each tab has its own close button.
