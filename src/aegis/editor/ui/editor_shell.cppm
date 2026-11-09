@@ -23,14 +23,16 @@ export namespace aegis::editor
 ///        `<project>/.aegis/editor/imgui.ini` (none, like the autosaves, when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
 ///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every docked panel at startup (not the ImGui demo),
-///        `--editor-select <name>` selects the first entity of that name and `--editor-play` enters play after the first frame.
+///        `--editor-select <name>` selects the first entity of that name, `--editor-play` enters play after the first frame
+///        and `--editor-fold` starts with the right column folded and the Inspector in the flyout.
 ///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of
 ///        `ui/theme.h` scaled by the monitor's content scale and the UI-scale preference; the menus and shortcuts
 ///        come from one ActionRegistry. The drawer panels (Assets, Console, the debug panels) open in the drawer, a
 ///        window over the bottom of the viewport, from the status bar's buttons or their chords, or dock below the
 ///        viewport while pinned; `--editor-panels all` pins them. Full viewport (F11) gives the viewport the whole
 ///        window, with play controls in a bar at its top; the panels stay in the layout below it, and
-///        `--editor-full-viewport` starts in it.
+///        `--editor-full-viewport` starts in it. Ctrl+B folds the right column into the side rail, whose buttons open
+///        the Hierarchy and the Inspector in a flyout over the viewport's right edge; the layout file keeps it folded.
 class EditorShell final : public Shell
 {
 public:
@@ -111,6 +113,21 @@ private:
     void leaveFullViewportOnEscape(bool drawerWasShown);
     /// @brief Full viewport's top bar: the play controls and the button that leaves it, with its shortcut.
     void drawFullViewportBar(FrameContext& frame);
+    /// @brief Folds the right column into the side rail, or unfolds it (Ctrl+B, the menu bar's button).
+    void toggleFold();
+    /// @brief Whether the window 'title' is docked in the right column while it is folded: its contents go in the flyout.
+    [[nodiscard]] auto inFoldedColumn(std::string_view title) const -> bool;
+    /// @brief The column panel whose window is titled 'title'; null if there is none.
+    [[nodiscard]] auto findColumnPanel(std::string_view title) const -> Panel*;
+    /// @brief A rail button: shows the panel in the flyout, or closes it; a panel outside the folded column (floating,
+    ///        docked elsewhere) gets the focus instead.
+    void toggleFlyout(std::string_view title);
+    /// @brief The rail at the right edge while folded: a button per column panel, lit while the flyout shows it.
+    void drawRail();
+    /// @brief The flyout over the viewport's right edge, as wide as the column, with the panel the rail shows, and its
+    ///        closing rules: Esc (once the drawer is closed), its rail button, and for the Hierarchy a click into the
+    ///        viewport. Losing the focus doesn't close it.
+    void drawFlyout(FrameContext& frame, bool drawerWasShown);
     /// @brief Docks the drawer panel 'name' into the layout, and returns it to the drawer.
     void pin(std::string_view name);
     void unpin(std::string_view name);
@@ -119,6 +136,8 @@ private:
     void drawDrawer(FrameContext& frame);
     /// @brief The drawer's top edge, which a drag moves (EditorPreferences::drawerHeight).
     void drawDrawerResize(const Viewport::Rect& viewport, float top);
+    /// @brief A column panel's window (the Hierarchy, the Inspector) with its contents.
+    void drawColumnPanel(Panel& panel, FrameContext& frame);
     /// @brief A pinned drawer panel's docked window, with the pin button over the right end of its first row.
     void drawPinned(Panel& panel, FrameContext& frame);
     /// @brief The node a pinned panel docks into: where it was docked last, else the other pinned panels' node, else a
@@ -144,7 +163,8 @@ private:
     void drawPlayControls(FrameContext& frame);
     /// @brief Play or Stop, Pause and Step, and "Playing" or "Paused" while a session runs.
     void drawPlayButtons(FrameContext& frame);
-    /// @brief The full viewport button and the scene's name left of it at the right of the menu bar, each when it fits.
+    /// @brief The fold and full viewport buttons and the scene's name left of them at the right of the menu bar, each when
+    ///        it fits.
     void drawSceneName(FrameContext& frame);
     /// @brief Runs the action 'id' if it can run now.
     void runAction(std::string_view id, FrameContext& frame);
@@ -207,6 +227,8 @@ private:
     std::uint32_t m_dockspace{ 0 }; // The dockspace's ImGui ID, once drawn
     Drawers m_drawers;
     FullViewport m_fullViewport;
+    SideRail m_rail;
+    bool m_focusFlyout{ false };                // The flyout takes the focus next frame
     std::uint32_t m_pinNode{ 0 };               // The node the last pinned panel was docked into; 0 for none
     std::vector<std::string> m_dockRequests;    // Pinned panels to dock before the next dockspace update
     std::string m_focusPinned;                  // The pinned panel whose window takes the focus next frame
@@ -250,6 +272,7 @@ private:
     PlaySession m_play;
     world::World* m_playWorld{ nullptr }; // While a play session runs; the engine owns it
     bool m_playAfterFirstFrame{ false };  // --editor-play
+    bool m_foldOnFirstFrame{ false };     // --editor-fold
     RollingAverage<20> m_gpuMs;           // The frame graph's GPU time, which varies from frame to frame
 };
 }

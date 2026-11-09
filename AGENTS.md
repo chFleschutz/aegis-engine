@@ -110,8 +110,9 @@ with `AEGIS_GAME_MODULE({ .name = …, .startupScene = …, .registerTypes = …
 and `SCENES <path> …` makes each scene a `device` test. The editor flavor runs headless as the `editor`-labelled
 tests `game-<name>-editor` (`--editor-panels all`, every docked panel open, plus `--editor-select <name>`, which
 selects the entity `EDITOR_SELECT <name>` names), `-editor-default` (the panels a fresh editor opens),
-`-editor-play` (`--editor-play`, play from the second frame) and `-editor-full` (`--editor-full-viewport`, the
-viewport over the whole window), each saving `<build>/screenshots/<test>.png`. The
+`-editor-play` (`--editor-play`, play from the second frame), `-editor-full` (`--editor-full-viewport`, the
+viewport over the whole window) and `-editor-folded` (`--editor-fold`, the right column folded into the side rail,
+the Inspector in its flyout), each saving `<build>/screenshots/<test>.png`. The
 runtime ignores the `--editor-*` options.
 The launcher finds the project by `--project <dir>`, then `project/` next to the executable, then
 `PROJECT` (`paths::locate`); the shaders and the engine content are found the same way. Nothing is

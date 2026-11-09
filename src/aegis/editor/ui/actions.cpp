@@ -16,6 +16,8 @@ auto toImGui(Key key) -> ImGuiKey
 {
     switch (key)
     {
+    case Key::B:
+        return ImGuiKey_B;
     case Key::D:
         return ImGuiKey_D;
     case Key::F:

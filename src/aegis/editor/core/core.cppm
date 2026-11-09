@@ -14,6 +14,7 @@
 //   :preferences    EditorPreferences: the user's settings, kept in the config folder.
 //   :recent_scenes  RecentScenes: the project's scenes opened or saved last, for File > Open Recent.
 //   :selection      The selected entities, by StableId.
+//   :side_rail      SideRail: whether the right column is folded into the rail, and which panel its flyout shows.
 //   :context        EditorContext: the edited world and the selection, shared by the panels.
 //   :picking        Rays and bounding spheres: what a click in the viewport selects.
 //   :property_model PropertyRow: how the inspector shows a registered field (its widget, label and limits).
@@ -51,5 +52,6 @@ export import :property_model;
 export import :recent_scenes;
 export import :scene_file;
 export import :selection;
+export import :side_rail;
 export import :settled_extent;
 export import :undo_stack;

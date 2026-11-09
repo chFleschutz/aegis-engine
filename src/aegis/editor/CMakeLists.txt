@@ -38,6 +38,7 @@ target_sources(aegis-editor-core
     core/recent_scenes.cppm
     core/scene_file.cppm
     core/selection.cppm
+    core/side_rail.cppm
     core/settled_extent.cppm
     core/undo_stack.cppm
     PRIVATE
@@ -62,6 +63,7 @@ target_sources(aegis-editor-core
     core/recent_scenes.cpp
     core/scene_file.cpp
     core/selection.cpp
+    core/side_rail.cpp
     core/settled_extent.cpp
     core/undo_stack.cpp
 )

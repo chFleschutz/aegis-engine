@@ -14,6 +14,7 @@ TEST_SUITE("editor::Chord")
     TEST_CASE("describes the modifiers in a fixed order before the key")
     {
         CHECK(describe(Chord{ .key = Key::S, .ctrl = true }) == "Ctrl+S");
+        CHECK(describe(Chord{ .key = Key::B, .ctrl = true }) == "Ctrl+B");
         CHECK(describe(Chord{ .key = Key::S, .ctrl = true, .shift = true }) == "Ctrl+Shift+S");
         CHECK(describe(Chord{ .key = Key::P, .ctrl = true, .alt = true }) == "Ctrl+Alt+P");
     }

@@ -315,8 +315,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 ### Persistence
 
 - **Layout:** `imgui.ini` goes in `<project>/.aegis/editor/imgui.ini` (per project, per machine, never
-  committed, D8's one ignored folder), with the pinned drawer panels in its `[Aegis][Drawers]` section. A View →
-  Reset Layout action rebuilds the default with `DockBuilder`.
+  committed, D8's one ignored folder), with the pinned drawer panels in its `[Aegis][Drawers]` section and the
+  folded side column in `[Aegis][Rail]`. A View → Reset Layout action rebuilds the default with `DockBuilder`.
 - **Preferences** (camera speed, snap values, the viewport icons' toggle, recent projects, UI scale, the autosave interval, the drawer's height, full viewport on play) go in the user config folder
   (`%APPDATA%/Aegis/editor.json`, `$XDG_CONFIG_HOME/aegis/editor.json`), as JSON through glaze in a
   `.cpp`. The Preferences window doesn't list the recent projects until something opens them (a welcome
@@ -404,7 +404,7 @@ tokens, not this structure.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────┐
-│ File Edit Entity Play View Debug Help      ▶  ❚❚  ⏭                  ⤢ sponza.scene* │ menu bar + play controls + scene
+│ File Edit Entity Play View Debug Help      ▶  ❚❚  ⏭                ◫ ⤢ sponza.scene* │ menu bar + play controls + scene
 ├──────────────────────────────────────────────────────────────┬─────────────────────┤
 │ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                                           │ Hierarchy           │ viewport toolbar
 │ ┌──────────────────────────────────────────────────────────┐ │ Filter           [+]│
@@ -424,7 +424,8 @@ tokens, not this structure.
   the inspector below ([#321]), and the viewport in the rest: there is no bottom dock ([#322]). The column is
   360 px wide times `theme::scale()`, at most 30% of the window, and keeps its width when the window is resized:
   ImGui gives the change to the viewport, the central node. Built with `DockBuilder` on first start and by
-  View → Reset Layout, which also reopens the panels that start open, unpins the drawer panels and closes the drawer.
+  View → Reset Layout, which also reopens the panels that start open, unpins the drawer panels, closes the drawer and
+  unfolds the column.
   The layout is kept in `<project>/.aegis/editor/imgui.ini`. A change to the default doesn't replace a kept layout:
   View → Reset Layout builds the new one. (A bottom node left from an older default stays hidden while nothing is
   docked in it.)
@@ -463,6 +464,20 @@ tokens, not this structure.
   submitted with nothing in it, and the render extent follows the image (`SettledExtent`). Floating windows
   (Preferences, the shortcuts, the style editor) are not drawn meanwhile, and F2 leaves full viewport for the
   inspector's name field. `--editor-full-viewport` starts in it (the `game-<name>-editor-full` screenshot).
+- **Side rail** ([#324]): Ctrl+B, the menu bar's button left of the full viewport button (Lucide `panel-right-close`,
+  `panel-right-open` while folded) or View → Fold Side Column fold the right column into a rail 32 px wide (times
+  `theme::scale()`) at the window's right edge, and the viewport takes the width, as JetBrains' tool window strips and
+  VS Code's Ctrl+B do. The rail holds a Hierarchy and an Inspector button (`list-tree`, `sliders-horizontal`); a click
+  opens that panel in a flyout over the viewport's right edge, as wide as the column and as tall as the image, and
+  lights the button. Esc (after the drawer) or the button again close it, losing the focus doesn't; a left click into
+  the viewport closes the Hierarchy's flyout after it picked, while the Inspector's stays and follows the selection.
+  F2 opens the Inspector's flyout for its name field. The layout comes back unchanged: while folded the dockspace is wider than the
+  window by the column's width minus the rail, so the column lies off screen at its width with its panels docked in it
+  and submitted empty, and ImGui gives the width to the central node. The shell begins the Hierarchy's and the
+  Inspector's windows (the column panels, `Panel::column()`), so their contents go in the docked window or in the
+  flyout. A column panel docked outside the right column or floating stays where it is, and its rail button focuses it.
+  The layout file keeps the column folded; full viewport hides the rail and closes the flyout. `--editor-fold` starts
+  folded with the Inspector in the flyout (the `game-<name>-editor-folded` screenshot).
 - **Preferences** is a floating, auto-sized window that Edit → Preferences… opens, not a panel. So are Help →
   Keyboard Shortcuts (the registry's chords and the viewport's controls) and Help → About (the version and the
   fonts' licenses).
@@ -515,6 +530,8 @@ tokens, not this structure.
   | Play/Stop, Pause/Resume, Step | Ctrl+P, Ctrl+Shift+P, Ctrl+Alt+P |
   | Open or close the Assets, Console drawer | Ctrl+Space, Ctrl+Shift+Space |
   | Close the drawer | Esc |
+  | Fold or unfold the side column | Ctrl+B |
+  | Close the side rail's flyout | Esc |
   | Full viewport, in and out | F11 (Esc also leaves) |
   | Release the game's input (while playing) | Shift+F1 |
   | Select, Move, Rotate, Scale (viewport focus) | Q, W, E, R |
@@ -640,4 +657,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#321]: https://github.com/chFleschutz/aegis-engine/issues/321
 [#322]: https://github.com/chFleschutz/aegis-engine/issues/322
 [#323]: https://github.com/chFleschutz/aegis-engine/issues/323
+[#324]: https://github.com/chFleschutz/aegis-engine/issues/324
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11

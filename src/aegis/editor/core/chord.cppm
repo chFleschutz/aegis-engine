@@ -6,6 +6,7 @@ export namespace aegis::editor
 /// @brief A key a shortcut can use. The ImGui layer maps it to its own key.
 enum class Key
 {
+    B,
     D,
     F,
     N,

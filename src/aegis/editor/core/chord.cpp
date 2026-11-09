@@ -9,6 +9,8 @@ auto keyName(Key key) -> std::string_view
 {
     switch (key)
     {
+    case Key::B:
+        return "B";
     case Key::D:
         return "D";
     case Key::F:

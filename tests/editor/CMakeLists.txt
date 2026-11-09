@@ -21,6 +21,7 @@ aegis_add_test(editor
         recent_scenes.test.cpp
         scene_file.test.cpp
         selection.test.cpp
+        side_rail.test.cpp
         settled_extent.test.cpp
         undo_stack.test.cpp
     LIBS aegis-editor-core aegis-scripting

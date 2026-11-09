@@ -166,18 +166,14 @@ public:
     }
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Scene"; }
+    [[nodiscard]] auto column() const -> bool override { return true; }
+    [[nodiscard]] auto title() const -> std::string_view override { return "Hierarchy"; }
 
     void draw(EditorContext& editor, FrameContext& frame) override { drawHierarchy(editor, frame); }
 
 private:
     void drawHierarchy(EditorContext& editor, FrameContext& frame)
     {
-        if (!ImGui::Begin("Hierarchy"))
-        {
-            ImGui::End();
-            return;
-        }
-
         drawToolbar(editor, frame);
 
         auto& registry = editor.world()->registry();
@@ -255,8 +251,6 @@ private:
         if (!m_rowClicked && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
             editor.selection().clear();
         m_followed = editor.selection().active(); // What the rows did to the selection needs no following
-
-        ImGui::End();
     }
 
     // The rows to draw, rebuilt only when the hierarchy (Registry::hierarchyVersion, which also tells another world), the
