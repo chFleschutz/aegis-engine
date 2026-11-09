@@ -1,5 +1,7 @@
 module;
 
+#include <cfloat>
+
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <ImGuizmo.h>
@@ -31,8 +33,17 @@ constexpr float iconFadeStart{ 10.0f };
 constexpr float iconFadeEnd{ 40.0f };
 constexpr float iconMinScale{ 0.4f };
 constexpr float iconMinAlpha{ 0.35f };
-// How long the camera speed shows while flying after the wheel changed it, in seconds.
-constexpr double speedLabelSeconds{ 1.0 };
+// The camera speed's range (EditorPreferences::clamp keeps it too), and how far a pixel of drag moves it across
+// that range, which it covers logarithmically.
+constexpr float minCameraSpeed{ 0.01f };
+constexpr float maxCameraSpeed{ 1000.0f };
+constexpr float speedDragRate{ 0.002f };
+// The overlays in frame heights: the speed pill's width, the navigation gizmo's radius to the axis ends and each
+// end's disc. The negative ends' discs are dimmer: their fill keeps this share of the axis color's opacity.
+constexpr float speedPillWidth{ 5.0f };
+constexpr float navigationRadius{ 1.8f };
+constexpr float navigationDisc{ 0.42f };
+constexpr float navigationNegativeAlpha{ 0.4f };
 // What a focus frames around an entity without a mesh.
 constexpr float pointFocusRadius{ 1.0f };
 // A scene dropped into the view lands on the ground under the cursor if it is this near, else this far along the ray.
@@ -197,11 +208,9 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
             drawBrackets(editor, rect, icons);
             gizmo = drawGizmo(editor, frame, rect);
             drawToolbar(editor, rect);
-            if (m_flying && ImGui::GetTime() < m_speedShownUntil)
-            {
-                const float speed = editor.preferences().cameraSpeed;
-                drawCornerLabel(rect, std::format("Speed {:.{}f} u/s", speed, speed < 1.0f ? 2 : 1));
-            }
+            drawOverlayCluster(editor, rect);
+            if (editor.preferences().showStats)
+                drawStatsOverlay(editor, frame, rect);
             updateHover(editor, rect, icons, gizmo);
             pick(editor, rect, icons, gizmo);
             acceptDrop(editor, frame, rect);
@@ -307,12 +316,14 @@ void Viewport::placeCamera(world::World& world)
 void Viewport::updateCamera(EditorContext& editor, float deltaSeconds)
 {
     const ImGuiIO& io = ImGui::GetIO();
-    // A drag starts in the viewport and lasts while its button is held, even when the cursor leaves the panel
-    if (m_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+    // A drag starts in the viewport, not on an overlay (the tool buttons, the gizmo, ...), and lasts while its button is
+    // held, even when the cursor leaves the panel. The overlays come later in the frame: this asks about the last one's.
+    const bool canStart = m_hovered && !ImGui::IsAnyItemHovered();
+    if (canStart && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
         m_flying = true;
-    if (m_hovered && io.KeyAlt && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+    if (canStart && io.KeyAlt && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         m_orbiting = true;
-    if (m_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Middle))
+    if (canStart && ImGui::IsMouseClicked(ImGuiMouseButton_Middle))
         m_panning = true;
     m_flying = m_flying && ImGui::IsMouseDown(ImGuiMouseButton_Right);
     m_orbiting = m_orbiting && ImGui::IsMouseDown(ImGuiMouseButton_Left);
@@ -337,12 +348,8 @@ void Viewport::updateCamera(EditorContext& editor, float deltaSeconds)
     const float speed = preferences.cameraSpeed;
     m_camera.setSpeed(speed);
     m_camera.update(input, deltaSeconds);
-    preferences.cameraSpeed = std::clamp(m_camera.speed(), 0.01f, 1000.0f);
-    // The wheel changes the speed while flying: it shows for a moment
-    if (!m_flying)
-        m_speedShownUntil = 0.0;
-    else if (preferences.cameraSpeed != speed)
-        m_speedShownUntil = ImGui::GetTime() + speedLabelSeconds;
+    // The wheel changes the speed while flying; the speed pill shows it
+    preferences.cameraSpeed = std::clamp(m_camera.speed(), minCameraSpeed, maxCameraSpeed);
 }
 
 void Viewport::focusSelection(const EditorContext& editor)
@@ -537,6 +544,141 @@ void Viewport::drawToolbar(EditorContext& editor, const Rect& rect)
     if (theme::iconButton(showIcons ? theme::icons::shown : theme::icons::hidden, "icons"))
         showIcons = !showIcons;
     ImGui::SetItemTooltip("Light and camera icons: %s, click to %s them", showIcons ? "shown" : "hidden", showIcons ? "hide" : "show");
+}
+
+void Viewport::drawOverlayCluster(EditorContext& editor, const Rect& rect)
+{
+    // Items, as the tool buttons are: a click on one neither picks nor starts a camera drag, and the viewport keeps the focus
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float frameHeight = ImGui::GetFrameHeight();
+    const float pillWidth = speedPillWidth * frameHeight;
+    const float right = rect.x + rect.width - style.ItemSpacing.x;
+    const float top = rect.y + style.ItemSpacing.y;
+    ImGui::SetCursorScreenPos(ImVec2{ right - frameHeight - style.ItemSpacing.x - pillWidth, top });
+
+    // The camera speed: a drag changes it, a click without moving types it
+    auto& preferences = editor.preferences();
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, theme::iconBackdrop);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, theme::bgFrameHover);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, theme::bgFrameActive);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, frameHeight * 0.5f);
+    ImGuiIO& io = ImGui::GetIO();
+    const bool clickToInput = std::exchange(io.ConfigDragClickToInputText, true); // For this widget only
+    ImGui::SetNextItemWidth(pillWidth);
+    ImGui::DragFloat("##cameraSpeed", &preferences.cameraSpeed, speedDragRate, minCameraSpeed, maxCameraSpeed,
+        preferences.cameraSpeed < 1.0f ? "%.2f u/s" : "%.1f u/s", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+    io.ConfigDragClickToInputText = clickToInput;
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(3);
+    ImGui::SetItemTooltip("Camera speed while flying (right mouse button + WASD/QE), in units per second: drag to change it, click to "
+                          "type it. The wheel changes it while flying.");
+
+    ImGui::SameLine();
+    bool& showStats = preferences.showStats;
+    if (theme::iconButton(theme::icons::stats, "stats", showStats))
+        showStats = !showStats;
+    ImGui::SetItemTooltip("Stats: %s, click to %s them", showStats ? "shown" : "hidden", showStats ? "hide" : "show");
+
+    const float gizmoSize = 2.0f * (navigationRadius + navigationDisc) * frameHeight;
+    drawNavigationGizmo({ right, top + frameHeight + style.ItemSpacing.y }, gizmoSize);
+}
+
+void Viewport::drawNavigationGizmo(const glm::vec2& corner, float size)
+{
+    const float frameHeight = ImGui::GetFrameHeight();
+    const float radius = navigationRadius * frameHeight;
+    const float disc = navigationDisc * frameHeight;
+    const ImVec2 min{ corner.x - size, corner.y };
+    const ImVec2 center{ min.x + size * 0.5f, min.y + size * 0.5f };
+    // One item over the whole circle, so a click between the ends doesn't pick either
+    ImGui::SetCursorScreenPos(min);
+    const bool clicked = ImGui::InvisibleButton("##navigation", ImVec2{ size, size });
+    const bool hovered = ImGui::IsItemHovered();
+
+    const auto axes = navigationAxes(m_camera);
+    const ImVec2 cursor = ImGui::GetIO().MousePos;
+    const auto underCursor = hovered ? pickNavigationAxis(axes, glm::vec2{ cursor.x - center.x, cursor.y - center.y } / radius, disc / radius) : std::nullopt;
+    const auto isUnderCursor = [&](const NavigationAxis& axis) {
+        return underCursor && underCursor->axis == axis.axis && underCursor->positive == axis.positive;
+    };
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    ImVec4 backdrop = theme::iconBackdrop;
+    backdrop.w *= hovered ? 1.0f : 0.5f;
+    drawList->AddCircleFilled(center, size * 0.5f, theme::packed(backdrop));
+    const std::array colors{ theme::axisX, theme::axisY, theme::axisZ };
+    const std::array labels{ "X", "Y", "Z" };
+    const float fontSize = ImGui::GetFontSize() * 0.8f;
+    const float scale = theme::scale();
+    for (const auto& axis : axes) // The farthest first
+    {
+        const ImVec2 end{ center.x + axis.offset.x * radius, center.y + axis.offset.y * radius };
+        const ImVec4 color = colors[static_cast<std::size_t>(axis.axis)];
+        ImVec4 fill = color;
+        if (axis.positive)
+            drawList->AddLine(center, end, theme::packed(color), 2.0f * scale);
+        else
+            fill.w *= navigationNegativeAlpha;
+        drawList->AddCircleFilled(end, disc, theme::packed(fill));
+        const bool highlighted = isUnderCursor(axis);
+        drawList->AddCircle(end, disc, theme::packed(highlighted ? theme::text : color), 0, (highlighted ? 2.0f : 1.0f) * scale);
+        // The positive ends' letters are bgDeep, as on the inspector's strips; the dim negative ends' are the text color
+        const char* label = labels[static_cast<std::size_t>(axis.axis)];
+        const ImVec2 textSize = ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
+        drawList->AddText(ImGui::GetFont(), fontSize, ImVec2{ end.x - textSize.x * 0.5f, end.y - textSize.y * 0.5f },
+            theme::packed(axis.positive ? theme::bgDeep : theme::text), label);
+    }
+
+    if (!underCursor)
+        return;
+    const char* label = labels[static_cast<std::size_t>(underCursor->axis)];
+    ImGui::SetTooltip("View from %c%s, looking along %c%s", underCursor->positive ? '+' : '-', label, underCursor->positive ? '-' : '+', label);
+    if (clicked)
+    {
+        // The clicked end then points at the viewer
+        m_camera.orbitToward(-underCursor->direction);
+        m_hoverCurrent = false; // The view moved under the cursor
+    }
+}
+
+void Viewport::drawStatsOverlay(const EditorContext& editor, const FrameContext& frame, const Rect& rect) const
+{
+    // Below the tool buttons, on the icons' backdrop
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const auto summary = statisticsSummary(editor, frame);
+    const std::array rows{
+        std::pair{ "Entities", std::format("{}", summary.entities) },
+        std::pair{ "Draw batches", std::format("{}", summary.drawBatches) },
+        std::pair{ "Instances", std::format("{}", summary.instances) },
+    };
+    float labelWidth = 0.0f;
+    float valueWidth = 0.0f;
+    for (const auto& [label, value] : rows)
+    {
+        labelWidth = std::max(labelWidth, ImGui::CalcTextSize(label).x);
+        valueWidth = std::max(valueWidth, ImGui::CalcTextSize(value.c_str()).x);
+    }
+    const float lineHeight = ImGui::GetTextLineHeightWithSpacing();
+    const ImVec2 padding = style.FramePadding;
+    const ImVec2 min{ rect.x + style.ItemSpacing.x, rect.y + style.ItemSpacing.y * 2.0f + ImGui::GetFrameHeight() };
+    const ImVec2 size{ labelWidth + style.ItemSpacing.x * 2.0f + valueWidth + padding.x * 2.0f,
+        lineHeight * static_cast<float>(rows.size()) - style.ItemSpacing.y + padding.y * 2.0f };
+
+    // An item, so a click on the box doesn't pick through it
+    ImGui::SetCursorScreenPos(min);
+    ImGui::InvisibleButton("##stats", size);
+    ImGui::SetItemTooltip("Debug > Statistics has more");
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->AddRectFilled(min, ImVec2{ min.x + size.x, min.y + size.y }, theme::packed(theme::iconBackdrop), style.FrameRounding);
+    float y = min.y + padding.y;
+    for (const auto& [label, value] : rows)
+    {
+        drawList->AddText(ImVec2{ min.x + padding.x, y }, theme::packed(theme::textDim), label);
+        const float width = ImGui::CalcTextSize(value.c_str()).x;
+        drawList->AddText(ImVec2{ min.x + size.x - padding.x - width, y }, theme::packed(theme::text), value.c_str());
+        y += lineHeight;
+    }
 }
 
 void Viewport::drawBar(const std::function<void()>& bar)

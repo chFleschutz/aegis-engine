@@ -29,6 +29,7 @@ constexpr std::array viewportControls{
     ViewportControl{ "Alt + left mouse", "Orbit" },
     ViewportControl{ "Middle mouse", "Pan" },
     ViewportControl{ "Wheel", "Dolly" },
+    ViewportControl{ "Click an axis end (top right)", "View from that side" },
 };
 
 // Help > Keyboard Shortcuts: the actions that have a chord, as the registry binds them, and the viewport's controls,

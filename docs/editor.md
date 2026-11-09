@@ -182,9 +182,16 @@ Still to come: the views to render (world, camera and target per view, R5 [#192]
   script. Its `RenderView` replaces the `FrameScene`'s camera that `extractFrameScene` takes from the
   world. In play mode the viewport shows
   the world's main camera, and "eject" switches back to the editor camera while playing (nice to have).
-- **Controls:** RMB + WASD/QE to fly (wheel changes the speed, which shows at the bottom left for a second),
-  Alt + LMB to orbit, MMB to pan, wheel to dolly, F to focus the selection (its bounding sphere). Z is up,
-  matching D8.
+- **Controls:** RMB + WASD/QE to fly (wheel changes the speed, which the speed pill shows), Alt + LMB to orbit,
+  MMB to pan, wheel to dolly, F to focus the selection (its bounding sphere). Z is up, matching D8.
+- **Overlays** ([#325]): the tool buttons sit in the image's top left corner. The top right holds the camera speed,
+  a pill that drags to change it (logarithmically, 0.01 to 1000 units per second) and takes a typed value on a click,
+  and the stats toggle. Below them the navigation gizmo shows the world axes in the camera's orientation; each axis
+  end is a disc labelled X, Y or Z (the negative ends dimmer), and a click views the pivot from that side, at the same
+  distance (the clicked end then points at the viewer; from straight above or below the heading stays). The stats
+  overlay, below the tool buttons while the toggle (kept in the preferences) is on, shows the Statistics panel's
+  summary: entities, draw batches and instances. Every overlay is an ImGui item, so a click on one neither picks nor
+  starts a camera drag; they scale with `theme::scale()`, stay in full viewport and are hidden in play.
 - **Gizmos:** ImGuizmo, drawn into the viewport window's draw list and clipped to the image rect. It has
   translate, rotate and scale, a local/world toggle, and per-mode snap values from the editor
   preferences (Ctrl inverts snapping, and the snap button lights while snapping is in effect). W/E/R/Q work only while the viewport is focused. One drag is one
@@ -317,7 +324,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - **Layout:** `imgui.ini` goes in `<project>/.aegis/editor/imgui.ini` (per project, per machine, never
   committed, D8's one ignored folder), with the pinned drawer panels in its `[Aegis][Drawers]` section and the
   folded side column in `[Aegis][Rail]`. A View → Reset Layout action rebuilds the default with `DockBuilder`.
-- **Preferences** (camera speed, snap values, the viewport icons' toggle, recent projects, UI scale, the autosave interval, the drawer's height, full viewport on play) go in the user config folder
+- **Preferences** (camera speed, snap values, the viewport icons' and stats' toggles, recent projects, UI scale, the autosave interval, the drawer's height, full viewport on play) go in the user config folder
   (`%APPDATA%/Aegis/editor.json`, `$XDG_CONFIG_HOME/aegis/editor.json`), as JSON through glaze in a
   `.cpp`. The Preferences window doesn't list the recent projects until something opens them (a welcome
   screen or a project switcher).
@@ -355,9 +362,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - Multi-selection with multi-edit (fields that differ shown as mixed) and a shared pivot for gizmos.
 - Copy and paste of entities across scenes, with the clipboard holding a scene fragment as JSON.
 - Selection outline and GPU ID-buffer picking (exact, works for the GPU-driven path).
-- Grid, view cube (`ImGuizmo::ViewManipulate`), and debug drawing (light ranges, camera frusta,
-  bounds). This needs a debug-line pass in the render graph.
-- Render debug views (G-buffer channels, wireframe, overdraw) and a stats overlay in the viewport.
+- Grid and debug drawing (light ranges, camera frusta, bounds). This needs a debug-line pass in the render graph.
+- Render debug views (G-buffer channels, wireframe, overdraw), an orthographic editor camera and a view menu for them.
 - Asset thumbnails (textures directly; meshes and materials through an offscreen preview render).
 - Material editing, with native material files and "Extract material" ([#141]).
 - Asset hot reload ([#143]); prefab overrides, unpacking and an "edit prefab" mode ([#142]).
@@ -406,10 +412,10 @@ tokens, not this structure.
 ┌────────────────────────────────────────────────────────────────────────────────────┐
 │ File Edit Entity Play View Debug Help      ▶  ❚❚  ⏭                ◫ ⤢ sponza.scene* │ menu bar + play controls + scene
 ├──────────────────────────────────────────────────────────────┬─────────────────────┤
-│ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                                           │ Hierarchy           │ viewport toolbar
+│ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                            ( 5.0 u/s ) ▥   │ Hierarchy           │ viewport overlays
 │ ┌──────────────────────────────────────────────────────────┐ │ Filter           [+]│
-│ │                                                          │ │ ▾ Sponza            │
-│ │                 Viewport (scene texture)                 │ │   ▸ Helmet          │
+│ │                                                    Z     │ │ ▾ Sponza            │
+│ │                 Viewport (scene texture)        Y─┼─X    │ │   ▸ Helmet          │
 │ │                          gizmo                           │ ├─────────────────────┤
 │ ├──────────────────────────────────────────────────────────┤ │ Inspector           │
 │ │ Assets │ Console                                   📌  ✕ │ │                     │ the drawer, while open:
@@ -658,4 +664,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#322]: https://github.com/chFleschutz/aegis-engine/issues/322
 [#323]: https://github.com/chFleschutz/aegis-engine/issues/323
 [#324]: https://github.com/chFleschutz/aegis-engine/issues/324
+[#325]: https://github.com/chFleschutz/aegis-engine/issues/325
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11

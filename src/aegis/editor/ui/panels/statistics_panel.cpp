@@ -25,20 +25,33 @@ public:
     {
         auto& registry = editor.world()->registry();
         const auto& instances = frame.instances;
+        const auto summary = statisticsSummary(editor, frame);
 
-        ImGui::Text("Entities: %d", static_cast<int>(registry.entityCount()));
+        ImGui::Text("Entities: %d", static_cast<int>(summary.entities));
         ImGui::Text(" - Dynamic Entities: %d", static_cast<int>(registry.view<DynamicTag>().size()));
         ImGui::Separator();
         ImGui::Text("Mesh renderers: %d", static_cast<int>(registry.view<MeshRenderer>().size()));
         ImGui::Text("Point Lights: %d", static_cast<int>(registry.view<PointLight>().size()));
         ImGui::Text("Cameras: %d", static_cast<int>(registry.view<Camera>().size()));
         ImGui::Separator();
-        ImGui::Text("Draw Batches: %d", static_cast<int>(instances.batchCount()));
-        ImGui::Text("Total Instances: %d", static_cast<int>(instances.instanceCount()));
+        ImGui::Text("Draw Batches: %d", static_cast<int>(summary.drawBatches));
+        ImGui::Text("Total Instances: %d", static_cast<int>(summary.instances));
         ImGui::Text(" - Static Instances: %d", static_cast<int>(instances.staticInstanceCount()));
         ImGui::Text(" - Dynamic Instances: %d", static_cast<int>(instances.dynamicInstanceCount()));
     }
 };
+}
+
+auto statisticsSummary(const EditorContext& editor, const FrameContext& frame) -> StatisticsSummary
+{
+    auto* world = editor.world();
+    if (!world)
+        return {};
+    return {
+        .entities = world->registry().entityCount(),
+        .drawBatches = frame.instances.batchCount(),
+        .instances = frame.instances.instanceCount(),
+    };
 }
 
 auto makeStatisticsPanel() -> std::unique_ptr<Panel>

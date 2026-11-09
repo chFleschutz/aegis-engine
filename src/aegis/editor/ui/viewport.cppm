@@ -14,7 +14,8 @@ export namespace aegis::editor
 ///        sits on the active entity and moves every selected root with it (W/E/R/Q while the viewport has focus). Corner brackets mark
 ///        what a click picks by (a mesh's bounding sphere, else an icon): around the selected entities, strongest on the active one, and dim
 ///        around the one under the cursor. A scene or model dragged from the asset browser is instantiated on the ground under the cursor.
-///        EditorShell owns it.
+///        Overlays sit on the image: the tool buttons top left, the camera speed, the stats toggle and the navigation gizmo top
+///        right, and the stats box below the tool buttons while it is on; none of them in the game view. EditorShell owns it.
 class Viewport
 {
 public:
@@ -96,13 +97,20 @@ private:
     // A gizmo drag starts with the active entity's world matrix 'start': it keeps the selected roots' as they are now.
     void beginGizmoDrag(EditorContext& editor, const reflect::TypeInfo& transformType, const glm::mat4& start);
     void drawToolbar(EditorContext& editor, const Rect& rect);
+    // The top right cluster: the camera speed and the stats toggle, the navigation gizmo below them.
+    void drawOverlayCluster(EditorContext& editor, const Rect& rect);
+    // The world axes in the camera's orientation, in a circle of 'size' whose top right corner is at 'corner'; a click
+    // on an axis end views the pivot from that side.
+    void drawNavigationGizmo(const glm::vec2& corner, float size);
+    // The Statistics panel's summary in a box below the tool buttons.
+    void drawStatsOverlay(const EditorContext& editor, const FrameContext& frame, const Rect& rect) const;
     // A row across the panel at the cursor, on its own background, holding what 'bar' draws; the cursor ends below it.
     static void drawBar(const std::function<void()>& bar);
     // Begins the window over the whole display that holds the image in full viewport; whether it is visible.
     auto beginFullWindow() -> bool;
     // A small bar centered at the top of the image, on its own background, holding what 'topBar' draws.
     void drawTopBar(const Rect& rect, const std::function<void()>& topBar);
-    // 'text' in the bottom left corner: how to take the input back from the game, the camera speed while it changes.
+    // 'text' in the bottom left corner: how to take the input back from the game.
     void drawCornerLabel(const Rect& rect, const std::string& text) const;
     [[nodiscard]] auto drawIcons(const EditorContext& editor, const Rect& rect) -> std::vector<PickIcon>;
     // Whether a left click now would pick: the cursor is on the image, not on this frame's gizmo or the toolbar, and Alt (orbit) is up.
@@ -149,7 +157,6 @@ private:
         std::string verb; // Of its undo entry: Move, Rotate or Scale
     };
     std::optional<GizmoDrag> m_gizmoDrag; // Recorded when the gizmo is released
-    double m_speedShownUntil{ 0.0 };      // ImGui's time until which the camera speed shows while flying
     std::optional<Rect> m_imageRect;      // As of the last draw
     std::string m_releaseHint;
 };

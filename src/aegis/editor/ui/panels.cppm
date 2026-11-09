@@ -44,6 +44,17 @@ auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool;
 ///        selection; false if nothing is selected or every destroy failed (logged).
 auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool;
 
+/// @brief The Statistics panel's summary numbers, which the viewport's stats overlay shows too.
+struct StatisticsSummary
+{
+    std::size_t entities{ 0 };
+    std::uint32_t drawBatches{ 0 };
+    std::uint32_t instances{ 0 };
+};
+
+/// @brief The summary of the world the panels show and of what the renderer draws; zeros without a world.
+[[nodiscard]] auto statisticsSummary(const EditorContext& editor, const FrameContext& frame) -> StatisticsSummary;
+
 /// @brief Draws 'text' dimmed in the window's free space, centered line by line and wrapped inside a margin, for an empty panel. The
 ///        cursor stays where it was, so what follows (a drop target over the free space) still covers it.
 void drawCenteredHint(std::string_view text);
