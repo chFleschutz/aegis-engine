@@ -205,9 +205,7 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
             drawBrackets(editor, rect, icons);
             gizmo = drawGizmo(editor, frame, rect);
             drawToolbar(editor, rect);
-            drawOverlayCluster(editor, rect);
-            if (editor.preferences().showStats)
-                drawStatsOverlay(editor, frame, rect);
+            drawOverlayCluster(editor, frame, rect);
             updateHover(editor, rect, icons, gizmo);
             pick(editor, rect, icons, gizmo);
             acceptDrop(editor, frame, rect);
@@ -543,7 +541,7 @@ void Viewport::drawToolbar(EditorContext& editor, const Rect& rect)
     ImGui::SetItemTooltip("Light and camera icons: %s, click to %s them", showIcons ? "shown" : "hidden", showIcons ? "hide" : "show");
 }
 
-void Viewport::drawOverlayCluster(EditorContext& editor, const Rect& rect)
+void Viewport::drawOverlayCluster(EditorContext& editor, const FrameContext& frame, const Rect& rect)
 {
     // Items, as the tool buttons are: a click on one neither picks nor starts a camera drag, and the viewport keeps the focus
     const ImGuiStyle& style = ImGui::GetStyle();
@@ -577,8 +575,12 @@ void Viewport::drawOverlayCluster(EditorContext& editor, const Rect& rect)
         showStats = !showStats;
     ImGui::SetItemTooltip("Stats: %s, click to %s them", showStats ? "shown" : "hidden", showStats ? "hide" : "show");
 
+    // The stats box right below its toggle, at least as wide as the row; the gizmo below whatever is there
+    float below = top + frameHeight + style.ItemSpacing.y;
+    if (showStats)
+        below += drawStatsOverlay(editor, frame, { right, below }, pillWidth + style.ItemSpacing.x + frameHeight) + style.ItemSpacing.y;
     const float gizmoSize = 2.0f * (navigationRadius + navigationDisc) * frameHeight;
-    drawNavigationGizmo({ right, top + frameHeight + style.ItemSpacing.y }, gizmoSize);
+    drawNavigationGizmo({ right, below }, gizmoSize);
 }
 
 void Viewport::drawNavigationGizmo(const glm::vec2& corner, float size)
@@ -639,9 +641,9 @@ void Viewport::drawNavigationGizmo(const glm::vec2& corner, float size)
     }
 }
 
-void Viewport::drawStatsOverlay(const EditorContext& editor, const FrameContext& frame, const Rect& rect) const
+auto Viewport::drawStatsOverlay(const EditorContext& editor, const FrameContext& frame, const glm::vec2& corner, float minWidth) const -> float
 {
-    // Below the tool buttons, on the icons' backdrop
+    // On the icons' backdrop
     const ImGuiStyle& style = ImGui::GetStyle();
     const auto summary = statisticsSummary(editor, frame);
     const std::array rows{
@@ -658,9 +660,9 @@ void Viewport::drawStatsOverlay(const EditorContext& editor, const FrameContext&
     }
     const float lineHeight = ImGui::GetTextLineHeightWithSpacing();
     const ImVec2 padding = style.FramePadding;
-    const ImVec2 min{ rect.x + style.ItemSpacing.x, rect.y + style.ItemSpacing.y * 2.0f + ImGui::GetFrameHeight() };
-    const ImVec2 size{ labelWidth + style.ItemSpacing.x * 2.0f + valueWidth + padding.x * 2.0f,
+    const ImVec2 size{ std::max(labelWidth + style.ItemSpacing.x * 2.0f + valueWidth + padding.x * 2.0f, minWidth),
         lineHeight * static_cast<float>(rows.size()) - style.ItemSpacing.y + padding.y * 2.0f };
+    const ImVec2 min{ corner.x - size.x, corner.y };
 
     // An item, so a click on the box doesn't pick through it
     ImGui::SetCursorScreenPos(min);
@@ -677,6 +679,7 @@ void Viewport::drawStatsOverlay(const EditorContext& editor, const FrameContext&
         drawList->AddText(ImVec2{ min.x + size.x - padding.x - width, y }, theme::packed(theme::text), value.c_str());
         y += lineHeight;
     }
+    return size.y;
 }
 
 void Viewport::drawBar(const std::function<void()>& bar)

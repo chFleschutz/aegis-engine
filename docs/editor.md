@@ -186,11 +186,11 @@ Still to come: the views to render (world, camera and target per view, R5 [#192]
   MMB to pan, wheel to dolly, F to focus the selection (its bounding sphere). Z is up, matching D8.
 - **Overlays** ([#325]): the tool buttons sit in the image's top left corner. The top right holds the camera speed,
   a pill that drags to change it (logarithmically, 0.01 to 1000 units per second) and takes a typed value on a click,
-  and the stats toggle. Below them the navigation gizmo shows the world axes in the camera's orientation; each axis
-  end is a disc labelled X, Y or Z (the negative ends dimmer), and a click views the pivot from that side, at the same
-  distance (the clicked end then points at the viewer; from straight above or below the heading stays). The stats
-  overlay, below the tool buttons while the toggle (kept in the preferences) is on, shows the Statistics panel's
-  summary: entities, draw batches and instances. Every overlay is an ImGui item, so a click on one neither picks nor
+  and the stats toggle. While the toggle (kept in the preferences) is on, the stats overlay right below them shows the
+  Statistics panel's summary: entities, draw batches and instances. Below that the navigation gizmo shows the world
+  axes in the camera's orientation; each axis end is a disc labelled X, Y or Z (the negative ends dimmer), and a click
+  views the pivot from that side, at the same distance (the clicked end then points at the viewer; from straight above
+  or below the heading stays). Every overlay is an ImGui item, so a click on one neither picks nor
   starts a camera drag; they scale with `theme::scale()`, stay in full viewport and are hidden in play.
 - **Gizmos:** ImGuizmo, drawn into the viewport window's draw list and clipped to the image rect. It has
   translate, rotate and scale, a local/world toggle, and per-mode snap values from the editor
