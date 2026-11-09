@@ -15,6 +15,8 @@ struct EditorPreferences
     float snapScale{ 0.1f };
     /// @brief Whether the viewport shows the light and camera icons (the toolbar's toggle); hidden ones can't be clicked.
     bool showIcons{ true };
+    /// @brief Whether the viewport shows the stats overlay (the toggle in its top right corner).
+    bool showStats{ false };
     /// @brief Scales the whole UI (fonts and sizes), 1 is unscaled.
     float uiScale{ 1.0f };
     /// @brief How often the edited scene is autosaved while it has unsaved changes, in minutes (it also is on entering

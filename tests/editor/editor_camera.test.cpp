@@ -179,6 +179,30 @@ TEST_SUITE("editor::EditorCamera")
         CHECK(camera.distance() >= EditorCamera::minDistance);
     }
 
+    TEST_CASE("orbitToward keeps the pivot and the distance")
+    {
+        EditorCamera camera = originCamera();
+        const glm::vec3 pivot = camera.pivot();
+        camera.orbitToward(glm::vec3{ -1.0f, 0.0f, 0.0f });
+        CHECK(near(camera.forward(), glm::vec3{ -1.0f, 0.0f, 0.0f }));
+        CHECK(near(camera.pivot(), pivot));
+        CHECK(camera.distance() == doctest::Approx(10.0f));
+        CHECK(near(camera.position(), pivot + glm::vec3{ 10.0f, 0.0f, 0.0f }));
+    }
+
+    TEST_CASE("orbitToward straight down keeps the yaw and stops short of vertical")
+    {
+        EditorCamera camera = originCamera();
+        camera.orbitToward(glm::vec3{ 1.0f, 0.0f, 0.0f });
+        const float yaw = camera.yaw();
+        const glm::vec3 pivot = camera.pivot();
+        camera.orbitToward(glm::vec3{ 0.0f, 0.0f, -1.0f });
+        CHECK(camera.yaw() == doctest::Approx(yaw));
+        CHECK(camera.pitch() > -glm::radians(90.0f));
+        CHECK(camera.forward().z < -0.99f);
+        CHECK(near(camera.pivot(), pivot));
+    }
+
     TEST_CASE("the center ray runs along the view direction")
     {
         const EditorCamera camera = originCamera();
@@ -270,5 +294,49 @@ TEST_SUITE("editor::EditorCamera")
         CHECK_FALSE(camera.projectSphere({ .center = { 0.0f, 0.5f, 0.0f }, .radius = 1.0f }, 1.0f));
         CHECK_FALSE(camera.projectSphere({ .center = { 0.0f, -5.0f, 0.0f }, .radius = 1.0f }, 1.0f));
         CHECK_FALSE(camera.projectSphere({ .center = { 3.0f, 1.0f, 0.0f }, .radius = 1.0f }, 1.0f));
+    }
+}
+
+TEST_SUITE("editor::navigationAxes")
+{
+    using aegis::editor::NavigationAxis;
+
+    TEST_CASE("each axis end points on screen as the camera sees it")
+    {
+        // Looking along +Y: +X is to the right, +Z up (y down on screen), +Y away from the viewer
+        const auto axes = aegis::editor::navigationAxes(originCamera());
+        const auto end = [&](int axis, bool positive) {
+            return *std::ranges::find_if(axes, [&](const NavigationAxis& a) { return a.axis == axis && a.positive == positive; });
+        };
+        CHECK(near(end(0, true).offset, glm::vec2{ 1.0f, 0.0f }));
+        CHECK(near(end(0, false).offset, glm::vec2{ -1.0f, 0.0f }));
+        CHECK(near(end(2, true).offset, glm::vec2{ 0.0f, -1.0f }));
+        CHECK(near(end(1, true).offset, glm::vec2{ 0.0f, 0.0f }));
+        CHECK(end(1, true).depth == doctest::Approx(-1.0f));
+        CHECK(end(1, false).depth == doctest::Approx(1.0f));
+        CHECK(near(end(2, false).direction, glm::vec3{ 0.0f, 0.0f, -1.0f }));
+    }
+
+    TEST_CASE("the ends come farthest first")
+    {
+        EditorCamera camera;
+        camera.lookAlong(glm::vec3{ 0.0f }, glm::vec3{ 1.0f, 2.0f, -3.0f });
+        const auto axes = aegis::editor::navigationAxes(camera);
+        CHECK(std::ranges::is_sorted(axes, std::less{}, &NavigationAxis::depth));
+    }
+
+    TEST_CASE("a click picks the disc under it, the nearest where discs overlap")
+    {
+        // Looking along +Y, +Y and -Y both sit at the center: -Y points at the viewer
+        const auto axes = aegis::editor::navigationAxes(originCamera());
+        const auto center = aegis::editor::pickNavigationAxis(axes, glm::vec2{ 0.05f, 0.0f }, 0.2f);
+        REQUIRE(center);
+        CHECK(center->axis == 1);
+        CHECK_FALSE(center->positive);
+        const auto right = aegis::editor::pickNavigationAxis(axes, glm::vec2{ 0.9f, 0.1f }, 0.2f);
+        REQUIRE(right);
+        CHECK(right->axis == 0);
+        CHECK(right->positive);
+        CHECK_FALSE(aegis::editor::pickNavigationAxis(axes, glm::vec2{ 0.5f, 0.5f }, 0.2f));
     }
 }

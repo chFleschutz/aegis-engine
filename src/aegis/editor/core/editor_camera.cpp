@@ -37,6 +37,19 @@ void EditorCamera::focus(const glm::vec3& center, float radius)
     m_position = center - forward() * m_distance;
 }
 
+void EditorCamera::orbitToward(const glm::vec3& forward)
+{
+    if (glm::length(forward) <= 0.0f)
+        return;
+    const glm::vec3 center = pivot();
+    const glm::vec3 direction = glm::normalize(forward);
+    // Straight up or down has no heading: the current one stays
+    if (glm::length(glm::vec2{ direction.x, direction.y }) > 1e-4f)
+        m_yaw = std::atan2(-direction.x, direction.y);
+    m_pitch = std::clamp(std::asin(std::clamp(direction.z, -1.0f, 1.0f)), -maxPitch, maxPitch);
+    m_position = center - this->forward() * m_distance;
+}
+
 void EditorCamera::update(const CameraInput& input, float deltaSeconds)
 {
     if (input.fly)
@@ -141,5 +154,41 @@ auto EditorCamera::projectSphere(const Sphere& sphere, float aspect) const -> st
     const glm::vec2 x = slopes(glm::dot(offset, right())) / (tanHalfFov * aspect);
     const glm::vec2 y = slopes(glm::dot(offset, up())) / tanHalfFov;
     return NdcRect{ .min = { x.x, y.x }, .max = { x.y, y.y } };
+}
+
+auto navigationAxes(const EditorCamera& camera) -> std::array<NavigationAxis, 6>
+{
+    const glm::vec3 right = camera.right();
+    const glm::vec3 up = camera.up();
+    const glm::vec3 forward = camera.forward();
+    std::array<NavigationAxis, 6> axes;
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        for (const bool positive : { true, false })
+        {
+            glm::vec3 direction{ 0.0f };
+            direction[axis] = positive ? 1.0f : -1.0f;
+            axes[static_cast<std::size_t>(axis * 2 + (positive ? 0 : 1))] = NavigationAxis{
+                .direction = direction,
+                .axis = axis,
+                .positive = positive,
+                .offset = { glm::dot(direction, right), -glm::dot(direction, up) },
+                .depth = -glm::dot(direction, forward),
+            };
+        }
+    }
+    std::ranges::stable_sort(axes, std::less{}, &NavigationAxis::depth);
+    return axes;
+}
+
+auto pickNavigationAxis(std::span<const NavigationAxis> axes, const glm::vec2& cursor, float discRadius) -> std::optional<NavigationAxis>
+{
+    // The nearest is last
+    for (const auto& axis : axes | std::views::reverse)
+    {
+        if (glm::length(cursor - axis.offset) <= discRadius)
+            return axis;
+    }
+    return std::nullopt;
 }
 }

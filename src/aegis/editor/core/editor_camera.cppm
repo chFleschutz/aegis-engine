@@ -47,6 +47,9 @@ public:
     void lookAlong(const glm::vec3& position, const glm::vec3& forward, float distance = 10.0f);
     /// @brief Moves the camera back along its view direction until the sphere fills about the view.
     void focus(const glm::vec3& center, float radius);
+    /// @brief Turns the camera around its pivot to look along 'forward'; the pivot and the distance stay. Straight up
+    ///        or down keeps the yaw (and stops short of vertical, as the pitch always does).
+    void orbitToward(const glm::vec3& forward);
     /// @brief Applies a frame of input. Flying moves 'speed()' units per second, faster with the wheel.
     void update(const CameraInput& input, float deltaSeconds);
 
@@ -87,4 +90,26 @@ private:
     float m_distance{ 10.0f };
     float m_speed{ 5.0f };
 };
+
+/// @brief One end of a world axis in the navigation gizmo, as 'camera' sees it.
+struct NavigationAxis
+{
+    /// @brief The axis end in world space: a unit vector along X, Y or Z.
+    glm::vec3 direction{ 0.0f };
+    /// @brief 0, 1 or 2 for X, Y or Z.
+    int axis{ 0 };
+    bool positive{ true };
+    /// @brief Where the end is drawn, from the gizmo's center, in gizmo radii: x right and y down, length 1 at most.
+    glm::vec2 offset{ 0.0f };
+    /// @brief How far the end points toward the viewer, -1 to 1.
+    float depth{ 0.0f };
+};
+
+/// @brief The six ends of the world axes as 'camera' sees them, the farthest first, so drawing them in order puts
+///        the nearest on top.
+[[nodiscard]] auto navigationAxes(const EditorCamera& camera) -> std::array<NavigationAxis, 6>;
+
+/// @brief The end of 'axes' (as navigationAxes orders them) whose disc of 'discRadius' holds 'cursor', both in gizmo radii
+///        from its center: the nearest to the viewer where discs overlap; none off every disc.
+[[nodiscard]] auto pickNavigationAxis(std::span<const NavigationAxis> axes, const glm::vec2& cursor, float discRadius) -> std::optional<NavigationAxis>;
 }
