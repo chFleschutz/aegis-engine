@@ -33,7 +33,7 @@ public:
         }
 
         auto& preferences = editor.preferences();
-        ImGui::DragFloat("Camera speed", &preferences.cameraSpeed, 0.1f, 0.01f, 1000.0f, "%.2f units/s");
+        ImGui::DragFloat("Camera speed", &preferences.cameraSpeed, 0.1f, minCameraSpeed, maxCameraSpeed, "%.2f units/s");
         ImGui::DragFloat("Snap move", &preferences.snapTranslate, 0.01f, 0.001f, 1000.0f, "%.3f units");
         ImGui::DragFloat("Snap rotate", &preferences.snapRotate, 0.1f, 0.01f, 180.0f, "%.2f deg");
         ImGui::DragFloat("Snap scale", &preferences.snapScale, 0.01f, 0.001f, 100.0f, "%.3f");

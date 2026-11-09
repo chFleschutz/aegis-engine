@@ -48,6 +48,7 @@ TEST_SUITE("editor::EditorPreferences")
         saved.snapRotate = 45.0f;
         saved.snapScale = 0.5f;
         saved.showIcons = false;
+        saved.showStats = true;
         saved.uiScale = 1.5f;
         saved.autosaveMinutes = 5;
         saved.drawerHeight = 0.6f;
@@ -62,6 +63,7 @@ TEST_SUITE("editor::EditorPreferences")
         CHECK(loaded->snapRotate == saved.snapRotate);
         CHECK(loaded->snapScale == saved.snapScale);
         CHECK(loaded->showIcons == saved.showIcons);
+        CHECK(loaded->showStats == saved.showStats);
         CHECK(loaded->uiScale == saved.uiScale);
         CHECK(loaded->autosaveMinutes == saved.autosaveMinutes);
         CHECK(loaded->drawerHeight == saved.drawerHeight);

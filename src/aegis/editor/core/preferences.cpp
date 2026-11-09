@@ -55,7 +55,7 @@ void EditorPreferences::clamp()
     const auto fix = [](float& value, float low, float high, float fallback) {
         value = std::isfinite(value) ? std::clamp(value, low, high) : fallback;
     };
-    fix(cameraSpeed, 0.01f, 1000.0f, defaults.cameraSpeed);
+    fix(cameraSpeed, minCameraSpeed, maxCameraSpeed, defaults.cameraSpeed);
     fix(snapTranslate, 0.001f, 1000.0f, defaults.snapTranslate);
     fix(snapRotate, 0.01f, 180.0f, defaults.snapRotate);
     fix(snapScale, 0.001f, 100.0f, defaults.snapScale);

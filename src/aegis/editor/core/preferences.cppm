@@ -15,6 +15,8 @@ struct EditorPreferences
     float snapScale{ 0.1f };
     /// @brief Whether the viewport shows the light and camera icons (the toolbar's toggle); hidden ones can't be clicked.
     bool showIcons{ true };
+    /// @brief Whether the viewport shows the stats overlay (the toggle in its top right corner).
+    bool showStats{ false };
     /// @brief Scales the whole UI (fonts and sizes), 1 is unscaled.
     float uiScale{ 1.0f };
     /// @brief How often the edited scene is autosaved while it has unsaved changes, in minutes (it also is on entering
@@ -37,6 +39,10 @@ struct EditorPreferences
 
 /// @brief The longest autosave interval, in minutes (EditorPreferences::clamp keeps it).
 inline constexpr int maxAutosaveMinutes = 60;
+
+/// @brief The range EditorPreferences::clamp keeps the camera speed in, in units per second.
+inline constexpr float minCameraSpeed = 0.01f;
+inline constexpr float maxCameraSpeed = 1000.0f;
 
 /// @brief The range EditorPreferences::clamp keeps the drawer's height in, as shares of the viewport's.
 inline constexpr float minDrawerHeight = 0.1f;
