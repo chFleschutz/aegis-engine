@@ -40,6 +40,10 @@ struct EditorPreferences
 /// @brief The longest autosave interval, in minutes (EditorPreferences::clamp keeps it).
 inline constexpr int maxAutosaveMinutes = 60;
 
+/// @brief The range EditorPreferences::clamp keeps the camera speed in, in units per second.
+inline constexpr float minCameraSpeed = 0.01f;
+inline constexpr float maxCameraSpeed = 1000.0f;
+
 /// @brief The range EditorPreferences::clamp keeps the drawer's height in, as shares of the viewport's.
 inline constexpr float minDrawerHeight = 0.1f;
 inline constexpr float maxDrawerHeight = 0.9f;

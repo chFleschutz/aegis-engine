@@ -33,10 +33,7 @@ constexpr float iconFadeStart{ 10.0f };
 constexpr float iconFadeEnd{ 40.0f };
 constexpr float iconMinScale{ 0.4f };
 constexpr float iconMinAlpha{ 0.35f };
-// The camera speed's range (EditorPreferences::clamp keeps it too), and how far a pixel of drag moves it across
-// that range, which it covers logarithmically.
-constexpr float minCameraSpeed{ 0.01f };
-constexpr float maxCameraSpeed{ 1000.0f };
+// The share of the camera speed's range (minCameraSpeed to maxCameraSpeed, covered logarithmically) a pixel of drag moves it.
 constexpr float speedDragRate{ 0.002f };
 // The overlays in frame heights: the speed pill's width, the navigation gizmo's radius to the axis ends and each
 // end's disc. The negative ends' discs are dimmer: their fill keeps this share of the axis color's opacity.
@@ -565,7 +562,8 @@ void Viewport::drawOverlayCluster(EditorContext& editor, const Rect& rect)
     ImGuiIO& io = ImGui::GetIO();
     const bool clickToInput = std::exchange(io.ConfigDragClickToInputText, true); // For this widget only
     ImGui::SetNextItemWidth(pillWidth);
-    ImGui::DragFloat("##cameraSpeed", &preferences.cameraSpeed, speedDragRate, minCameraSpeed, maxCameraSpeed,
+    // A logarithmic drag divides its speed by the range: this undoes that, so a pixel moves speedDragRate of it
+    ImGui::DragFloat("##cameraSpeed", &preferences.cameraSpeed, speedDragRate * (maxCameraSpeed - minCameraSpeed), minCameraSpeed, maxCameraSpeed,
         preferences.cameraSpeed < 1.0f ? "%.2f u/s" : "%.1f u/s", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
     io.ConfigDragClickToInputText = clickToInput;
     ImGui::PopStyleVar();
