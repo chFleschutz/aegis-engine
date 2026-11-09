@@ -575,12 +575,12 @@ void Viewport::drawOverlayCluster(EditorContext& editor, const FrameContext& fra
         showStats = !showStats;
     ImGui::SetItemTooltip("Stats: %s, click to %s them", showStats ? "shown" : "hidden", showStats ? "hide" : "show");
 
-    // The stats box right below its toggle, at least as wide as the row; the gizmo below whatever is there
-    float below = top + frameHeight + style.ItemSpacing.y;
-    if (showStats)
-        below += drawStatsOverlay(editor, frame, { right, below }, pillWidth + style.ItemSpacing.x + frameHeight) + style.ItemSpacing.y;
+    // The gizmo below the row, which stays put; the stats box below the gizmo, at least as wide as the row
+    const float gizmoTop = top + frameHeight + style.ItemSpacing.y;
     const float gizmoSize = 2.0f * (navigationRadius + navigationDisc) * frameHeight;
-    drawNavigationGizmo({ right, below }, gizmoSize);
+    drawNavigationGizmo({ right, gizmoTop }, gizmoSize);
+    if (showStats)
+        drawStatsOverlay(editor, frame, { right, gizmoTop + gizmoSize + style.ItemSpacing.y }, pillWidth + style.ItemSpacing.x + frameHeight);
 }
 
 void Viewport::drawNavigationGizmo(const glm::vec2& corner, float size)
@@ -641,7 +641,7 @@ void Viewport::drawNavigationGizmo(const glm::vec2& corner, float size)
     }
 }
 
-auto Viewport::drawStatsOverlay(const EditorContext& editor, const FrameContext& frame, const glm::vec2& corner, float minWidth) const -> float
+void Viewport::drawStatsOverlay(const EditorContext& editor, const FrameContext& frame, const glm::vec2& corner, float minWidth) const
 {
     // On the icons' backdrop
     const ImGuiStyle& style = ImGui::GetStyle();
@@ -679,7 +679,6 @@ auto Viewport::drawStatsOverlay(const EditorContext& editor, const FrameContext&
         drawList->AddText(ImVec2{ min.x + size.x - padding.x - width, y }, theme::packed(theme::text), value.c_str());
         y += lineHeight;
     }
-    return size.y;
 }
 
 void Viewport::drawBar(const std::function<void()>& bar)
