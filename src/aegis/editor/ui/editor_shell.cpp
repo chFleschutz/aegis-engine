@@ -46,6 +46,18 @@ void beginMainWindow()
     ImGui::PopStyleVar(3);
 }
 
+// A button in the menu bar or a top bar: shorter than the bar by an inset above and below, its label padded within.
+// It aligns to the bar's text, which the menu bar puts FramePadding.y down, so it sits centered in the bar.
+auto barButton(const char* label) -> bool
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float inset = std::round(2.0f * theme::scale());
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ style.FramePadding.x, std::max(style.FramePadding.y - inset, 0.0f) });
+    const bool pressed = ImGui::ButtonEx(label, ImVec2{ 0.0f, 0.0f }, ImGuiButtonFlags_AlignTextBaseLine);
+    ImGui::PopStyleVar();
+    return pressed;
+}
+
 // Tints the windows while a play session runs, so nobody mistakes the play world for the edit world. Returns how
 // many colors to pop.
 auto pushPlayTint() -> int
@@ -1351,7 +1363,7 @@ void EditorShell::drawFullViewportBar(FrameContext& frame)
     // The way back stays in sight: the button, and its shortcut next to it
     const auto shortcut = m_actions.shortcut("view.fullViewport");
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
-    const bool leave = ImGui::SmallButton(theme::icons::leaveFullViewport);
+    const bool leave = barButton(theme::icons::leaveFullViewport);
     ImGui::PopStyleColor();
     ImGui::SetItemTooltip("%s", std::format("Leave full viewport ({}, Esc)", shortcut).c_str());
     ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
@@ -1801,11 +1813,11 @@ void EditorShell::drawSceneName(FrameContext& frame)
         return; // No room next to the menus and play controls
     ImGui::SetCursorPosX(buttonsX);
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
-    if (ImGui::SmallButton(fold))
+    if (barButton(fold))
         runAction("view.foldColumn", frame);
     const auto foldTooltip = m_rail.folded() ? std::format("Unfold Side Column ({})", m_actions.shortcut("view.foldColumn")) : m_actions.tooltip("view.foldColumn");
     ImGui::SetItemTooltip("%s", foldTooltip.c_str());
-    if (ImGui::SmallButton(theme::icons::fullViewport))
+    if (barButton(theme::icons::fullViewport))
         runAction("view.fullViewport", frame);
     ImGui::PopStyleColor();
     ImGui::SetItemTooltip("%s", m_actions.tooltip("view.fullViewport").c_str());
@@ -1823,10 +1835,13 @@ void EditorShell::runAction(std::string_view id, FrameContext& frame)
 
 void EditorShell::drawPlayControls(FrameContext& frame)
 {
+    // The three buttons centered on the bar; the play state's label hangs off their right
     const auto& style = ImGui::GetStyle();
-    const float buttonWidth = ImGui::CalcTextSize(theme::icons::play).x + 2.0f * style.FramePadding.x;
-    const float width = 3.0f * buttonWidth + 2.0f * style.ItemSpacing.x;
-    ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), (ImGui::GetWindowWidth() - width) * 0.5f));
+    const char* toggle = m_play.state() == PlaySession::State::Stopped ? theme::icons::play : theme::icons::stop;
+    float width = 6.0f * style.FramePadding.x + 2.0f * style.ItemSpacing.x;
+    for (const char* icon : { toggle, theme::icons::pause, theme::icons::step })
+        width += ImGui::CalcTextSize(icon).x;
+    ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), std::round((ImGui::GetWindowWidth() - width) * 0.5f)));
     drawPlayButtons(frame);
 }
 
@@ -1852,7 +1867,7 @@ void EditorShell::drawPlayButtons(FrameContext& frame)
             ImGui::PushStyleColor(ImGuiCol_Text, color);
             colors = 1;
         }
-        const bool clicked = ImGui::SmallButton(icon);
+        const bool clicked = barButton(icon);
         ImGui::PopStyleColor(colors);
         ImGui::PopID();
         ImGui::SetItemTooltip("%s", m_actions.tooltip(action).c_str());
