@@ -19,8 +19,9 @@ inline constexpr const char* world = lucide::globe;
 inline constexpr const char* snap = lucide::magnet;
 inline constexpr const char* shown = lucide::eye;
 inline constexpr const char* hidden = lucide::eyeOff;
-// The viewport's stats overlay toggle.
+// The viewport's stats overlay toggle, and the mark of its camera speed field.
 inline constexpr const char* stats = lucide::barChart3;
+inline constexpr const char* speed = lucide::gauge;
 inline constexpr const char* play = lucide::play;
 inline constexpr const char* pause = lucide::pause;
 inline constexpr const char* stop = lucide::square;
