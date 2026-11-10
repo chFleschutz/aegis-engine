@@ -310,7 +310,7 @@ private:
         ImGui::SetNextItemWidth(-(button + ImGui::GetStyle().ItemSpacing.x));
         ImGui::InputTextWithHint("##filter", "Filter", &m_filter);
         ImGui::SameLine();
-        if (ImGui::Button("+", ImVec2{ button, button }))
+        if (theme::iconButton(theme::icons::create, "create"))
             ImGui::OpenPopup("CreateMenu");
         ImGui::SetItemTooltip("Create an entity");
         if (ImGui::BeginPopup("CreateMenu"))

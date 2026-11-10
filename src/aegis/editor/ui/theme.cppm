@@ -37,6 +37,9 @@ inline constexpr const char* camera = lucide::camera;
 inline constexpr const char* light = lucide::lightbulb;
 inline constexpr const char* sun = lucide::sun;
 
+// The hierarchy's button that opens the Create menu.
+inline constexpr const char* create = lucide::plus;
+
 // The kinds of entities in the hierarchy (the camera, light and sun above are the rest).
 inline constexpr const char* mesh = lucide::cuboid;
 inline constexpr const char* instance = lucide::component;

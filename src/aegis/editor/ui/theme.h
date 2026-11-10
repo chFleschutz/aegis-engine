@@ -137,7 +137,10 @@ inline auto iconButton(const char* icon, const char* id, bool active = false) ->
     }
     ImGui::PushID(id);
     const float side = ImGui::GetFrameHeight();
+    // No padding: the icon is wider than the square less the frame padding, and ImGui would put it at the left padding
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.0f, 0.0f });
     const bool pressed = ImGui::Button(icon, ImVec2{ side, side });
+    ImGui::PopStyleVar();
     ImGui::PopID();
     if (active)
         ImGui::PopStyleColor(3);
