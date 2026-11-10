@@ -46,9 +46,21 @@ void beginMainWindow()
     ImGui::PopStyleVar(3);
 }
 
-// A button in the menu bar, the status bar or a top bar: shorter than the bar by an inset above and below, its label
-// padded within. It aligns to the bar's text, which a bar puts FramePadding.y down (AlignTextToFramePadding), so it
-// sits centered in the bar.
+// The menu bar's frame padding: taller than a frame's, so its buttons have room above and below them.
+auto menuBarPadding() -> ImVec2
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    return ImVec2{ style.FramePadding.x, style.FramePadding.y + std::round(2.0f * theme::scale()) };
+}
+
+auto menuBarHeight() -> float
+{
+    return ImGui::GetFontSize() + 2.0f * menuBarPadding().y;
+}
+
+// A button in the menu bar, the status bar or a top bar: shorter than a frame by an inset above and below, its label
+// padded within. It aligns to the bar's text, which a bar puts its padding down (AlignTextToFramePadding), so it sits
+// centered in the bar.
 auto barButton(const char* label) -> bool
 {
     const ImGuiStyle& style = ImGui::GetStyle();
@@ -1185,7 +1197,8 @@ void EditorShell::updateStyle()
 void EditorShell::drawDockspace()
 {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    const float bar = ImGui::GetFrameHeight(); // The menu bar above and the status bar below
+    const float menuBar = menuBarHeight();
+    const float statusBar = ImGui::GetFrameHeight();
     const ImGuiID id = ImGui::GetID("EditorDockSpace");
     m_dockspace = id;
     // Folded, the rail takes the right edge, and the dockspace is wider than the rest by the column's width: the column
@@ -1198,8 +1211,8 @@ void EditorShell::drawDockspace()
         if (const ImGuiDockNode* column = columnNode(id))
             width += column->Size.x;
     }
-    const ImVec2 size{ std::max(width, 1.0f), std::max(viewport->Size.y - 2.0f * bar, 1.0f) };
-    ImGui::SetCursorPos(ImVec2{ 0.0f, bar });
+    const ImVec2 size{ std::max(width, 1.0f), std::max(viewport->Size.y - menuBar - statusBar, 1.0f) };
+    ImGui::SetCursorPos(ImVec2{ 0.0f, menuBar });
     if (std::exchange(m_resetLayout, false) || !ImGui::DockBuilderGetNode(id))
         buildDefaultLayout(id, size);
     dockPinned(); // Before the dockspace lays out its nodes, so a pinned panel shows docked at once
@@ -1280,10 +1293,10 @@ void EditorShell::drawRail()
         return;
     // Between the menu bar and the status bar, over the column's edge, which lies below it off screen
     const ImGuiViewport* display = ImGui::GetMainViewport();
-    const float bar = ImGui::GetFrameHeight();
+    const float menuBar = menuBarHeight();
     const float width = std::round(railWidth * theme::scale());
-    ImGui::SetNextWindowPos(ImVec2{ display->Pos.x + display->Size.x - width, display->Pos.y + bar });
-    ImGui::SetNextWindowSize(ImVec2{ width, std::max(display->Size.y - 2.0f * bar, 1.0f) });
+    ImGui::SetNextWindowPos(ImVec2{ display->Pos.x + display->Size.x - width, display->Pos.y + menuBar });
+    ImGui::SetNextWindowSize(ImVec2{ width, std::max(display->Size.y - menuBar - ImGui::GetFrameHeight(), 1.0f) });
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove |
                                    ImGuiWindowFlags_NoScrollWithMouse;
     const float padding = std::max(std::floor((width - ImGui::GetFrameHeight()) * 0.5f), 0.0f);
@@ -1694,7 +1707,11 @@ void EditorShell::drawStyleEditor()
 
 void EditorShell::drawMenuBar(FrameContext& frame)
 {
-    if (!ImGui::BeginMainMenuBar())
+    // The padding sets the bar's height and where its text sits; its menus and their popups keep the usual one
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, menuBarPadding());
+    const bool open = ImGui::BeginMainMenuBar();
+    ImGui::PopStyleVar();
+    if (!open)
         return;
 
     drawFileMenu(frame);
