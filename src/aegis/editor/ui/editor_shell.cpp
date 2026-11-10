@@ -46,8 +46,9 @@ void beginMainWindow()
     ImGui::PopStyleVar(3);
 }
 
-// A button in the menu bar or a top bar: shorter than the bar by an inset above and below, its label padded within.
-// It aligns to the bar's text, which the menu bar puts FramePadding.y down, so it sits centered in the bar.
+// A button in the menu bar, the status bar or a top bar: shorter than the bar by an inset above and below, its label
+// padded within. It aligns to the bar's text, which a bar puts FramePadding.y down (AlignTextToFramePadding), so it
+// sits centered in the bar.
 auto barButton(const char* label) -> bool
 {
     const ImGuiStyle& style = ImGui::GetStyle();
@@ -969,13 +970,14 @@ void EditorShell::drawStatusBar(FrameContext& frame)
     ImGui::SetNextWindowPos(ImVec2{ viewport->Pos.x, viewport->Pos.y + viewport->Size.y - height });
     ImGui::SetNextWindowSize(ImVec2{ viewport->Size.x, height });
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f * theme::scale(), 2.0f * theme::scale() });
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f * theme::scale(), 0.0f });
     ImGui::PushStyleColor(ImGuiCol_WindowBg, theme::bgDeep);
     const bool visible = ImGui::Begin("##StatusBar", nullptr, flags);
     ImGui::PopStyleColor();
     ImGui::PopStyleVar();
     if (visible)
     {
+        ImGui::AlignTextToFramePadding(); // Its text and buttons centered in the bar, as in the menu bar
         drawDrawerButtons();
         ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 2.0f);
         ImGui::TextUnformatted(selectionLabel().c_str());
@@ -999,7 +1001,7 @@ void EditorShell::drawStatusBar(FrameContext& frame)
 
 void EditorShell::drawDrawerButtons()
 {
-    // Small buttons, as tall as the bar's text; lit while their panel shows
+    // Bar buttons, lit while their panel shows
     const auto button = [this](const char* icon, std::string_view panel, std::string_view action) {
         const bool lit = m_drawers.isShown(panel);
         if (lit)
@@ -1010,7 +1012,7 @@ void EditorShell::drawDrawerButtons()
         }
         const std::string id{ panel };
         ImGui::PushID(id.c_str());
-        if (ImGui::SmallButton(icon))
+        if (barButton(icon))
             toggleDrawer(panel);
         ImGui::PopID();
         if (lit)
@@ -1094,7 +1096,7 @@ void EditorShell::drawProblemCounts()
     // A count of zero is muted: only the levels that have messages draw the eye
     const auto count = [&](const std::string& label, std::size_t value, const ImVec4& color) {
         ImGui::PushStyleColor(ImGuiCol_Text, value > 0 ? color : theme::textMuted);
-        const bool clicked = ImGui::SmallButton(label.c_str());
+        const bool clicked = barButton(label.c_str());
         ImGui::PopStyleColor();
         ImGui::SetItemTooltip("%s", tooltip.c_str());
         if (clicked)
