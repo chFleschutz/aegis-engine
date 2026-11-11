@@ -490,19 +490,48 @@ auto drawSectionMenu(const reflect::TypeInfo& type, void* object, world::Entity 
     return action;
 }
 
+// The width of the open chevron's ink, as a share of the font size (Lucide's chevron-down spans 0.58 of its em).
+constexpr float chevronShare{ 0.6f };
+
 // A header per type: open with its fields, a leaf for a tag (no fields), with the ⋮ button and a right click opening its
 // menu. Returns false when the menu asked to remove the component or detach the script.
 auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool readOnly, EditorContext& editor, FrameContext& frame) -> bool
 {
-    // The icon and the name; identified by the name alone (the ID stack holds the type), so its open state stays
-    const std::string title = std::format("{} {}###{}", componentIcon(type), type.displayName(), type.displayName());
-    const ImGuiTreeNodeFlags flags = (type.fields.empty() ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_DefaultOpen) | ImGuiTreeNodeFlags_AllowOverlap;
-    const bool open = ImGui::CollapsingHeader(title.c_str(), flags);
+    // ImGui's header in the controls' grey, its own label and triangle invisible: the chevron, the icon and the name
+    // are drawn over it. Identified by the name (the ID stack holds the type), so its open state stays.
+    const std::string id = std::format("###{}", type.displayName());
+    const bool leaf = type.fields.empty();
+    const ImGuiTreeNodeFlags flags = (leaf ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_DefaultOpen) | ImGuiTreeNodeFlags_AllowOverlap;
+    const float left = ImGui::GetCursorScreenPos().x;
+    ImGui::PushStyleColor(ImGuiCol_Header, theme::bgFrame);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, theme::bgFrameHover);
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, theme::bgFrameActive);
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
+    const bool open = ImGui::CollapsingHeader(id.c_str(), flags);
+    ImGui::PopStyleColor(4);
     bool menuRequested = ImGui::IsItemClicked(ImGuiMouseButton_Right);
-
-    // The button sits at the right end of the header's row, over the header
     const ImVec2 min = ImGui::GetItemRectMin();
     const ImVec2 max = ImGui::GetItemRectMax();
+
+    // Each in a slot of its own, the same gap apart: the chevron's as wide as its open ink (the closed one is narrower,
+    // centered in it), the icon's its advance (the icons' ink is centered in it), so the names line up across the
+    // sections and don't move as one opens. A tag's section has no chevron; its slot stays empty.
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float fontSize = ImGui::GetFontSize();
+    const float gap = style.ItemInnerSpacing.x;
+    const float chevronSlot = std::round(chevronShare * fontSize);
+    const float textY = min.y + style.FramePadding.y;
+    const float chevronX = left + style.FramePadding.x;
+    const float iconX = chevronX + chevronSlot + gap;
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    const ImU32 textColor = theme::packed(theme::text);
+    if (!leaf)
+        drawList->AddText(ImVec2{ std::round(chevronX + (chevronSlot - fontSize) * 0.5f), textY }, textColor, open ? theme::icons::expanded : theme::icons::collapsed);
+    drawList->AddText(ImVec2{ iconX, textY }, textColor, componentIcon(type));
+    const std::string name{ type.displayName() };
+    drawList->AddText(ImVec2{ iconX + fontSize + gap, textY }, textColor, name.c_str());
+
+    // The button sits at the right end of the header's row, over the header
     const float side = max.y - min.y;
     ImGui::SetCursorScreenPos(ImVec2{ max.x - side, min.y });
     menuRequested |= menuButton("##menu", side);

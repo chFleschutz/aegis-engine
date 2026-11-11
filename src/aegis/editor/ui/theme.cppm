@@ -54,6 +54,9 @@ inline constexpr const char* mainCamera = lucide::video;
 inline constexpr const char* ambientLight = lucide::sunDim;
 inline constexpr const char* script = lucide::fileCode;
 inline constexpr const char* genericComponent = lucide::puzzle;
+// An open and a closed section of the inspector.
+inline constexpr const char* expanded = lucide::chevronDown;
+inline constexpr const char* collapsed = lucide::chevronRight;
 
 // The kinds of entities in the hierarchy (the camera, light and sun above are the rest).
 inline constexpr const char* mesh = lucide::cuboid;
