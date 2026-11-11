@@ -24,6 +24,9 @@ struct FieldMeta
     std::optional<double> min;
     std::optional<double> max;
     std::optional<double> step;
+    // The unit the editor shows after a number or each vector component ("m"); none for a plain number. An Angle or a
+    // rotation shows degrees without one.
+    std::string unit;
     bool readOnly{ false }; // Shown, never edited
     std::string tooltip;
 };

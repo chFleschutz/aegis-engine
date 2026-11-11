@@ -53,6 +53,22 @@ constexpr auto dataType() -> ImGuiDataType
         return ImGuiDataType_U64;
 }
 
+// The printf format of a value of T with 'decimals' digits after a floating-point value's point and 'unit' after it:
+// spaced, but degrees right after the number. Empty for an integer without a unit (ImGui's default).
+template<class T>
+auto valueFormat(std::string_view unit, int decimals) -> std::string
+{
+    std::string suffix{ unit.empty() || unit == "°" ? "" : " " };
+    for (const char c : unit)
+        suffix += c == '%' ? std::string_view{ "%%" } : std::string_view{ &c, 1 }; // printf's percent sign is doubled
+    if constexpr (std::floating_point<T>)
+        return std::format("%.{}f{}", decimals, suffix);
+    else if (unit.empty())
+        return {};
+    else
+        return std::format("{}{}", std::signed_integral<T> ? "%lld" : "%llu", suffix);
+}
+
 // Drags 'count' values of T, or slides them for a Slider row, within the row's limits; a floating-point value shows
 // 'decimals' digits after the point (and a drag rounds it to them).
 template<class T>
@@ -62,11 +78,10 @@ auto dragValues(const PropertyRow& row, T* values, int count, int decimals = 3) 
     const std::optional<T> max = row.max ? std::optional<T>{ static_cast<T>(*row.max) } : std::nullopt;
     const T* minPtr = min ? &*min : nullptr;
     const T* maxPtr = max ? &*max : nullptr;
-    const std::string decimalFormat = std::format("%.{}f", decimals);
-    const char* format = std::floating_point<T> ? decimalFormat.c_str() : nullptr;
+    const std::string format = valueFormat<T>(row.unit, decimals);
     if (row.widget == PropertyWidget::Slider && min && max)
-        return ImGui::SliderScalarN("##value", dataType<T>(), values, count, minPtr, maxPtr, format, ImGuiSliderFlags_AlwaysClamp);
-    return ImGui::DragScalarN("##value", dataType<T>(), values, count, static_cast<float>(row.step), minPtr, maxPtr, format, ImGuiSliderFlags_AlwaysClamp);
+        return ImGui::SliderScalarN("##value", dataType<T>(), values, count, minPtr, maxPtr, format.empty() ? nullptr : format.c_str(), ImGuiSliderFlags_AlwaysClamp);
+    return ImGui::DragScalarN("##value", dataType<T>(), values, count, static_cast<float>(row.step), minPtr, maxPtr, format.empty() ? nullptr : format.c_str(), ImGuiSliderFlags_AlwaysClamp);
 }
 
 // The axis strip's width at 100% scale, and the decimals a vector's components show (one-value fields show three:

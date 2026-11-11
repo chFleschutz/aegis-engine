@@ -26,7 +26,7 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
         auto builder = registerComponent<Transform>(types, "Transform");
         if (builder)
         {
-            builder->field("location", &Transform::location, { .step = 0.1 })
+            builder->field("location", &Transform::location, { .step = 0.1, .unit = "m" })
                 .field("rotation", &Transform::rotation)
                 .field("scale", &Transform::scale, { .step = 0.01 });
         }

@@ -73,7 +73,7 @@ src/aegis/editor/
 │  ├─ commands         Command interface; SetField, Rename, Create/Destroy/Duplicate entity,
 │  │                   Add/Remove component, Attach/Detach script, Reparent
 │  ├─ undo_stack       history, merging of continuous edits, the saved marker (dirty flag)
-│  ├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, limits, readOnly}
+│  ├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, limits, unit, readOnly}
 │  ├─ inspector        the components and scripts an entity shows and can add; field writes + change hook
 │  ├─ hierarchy_model  entity tree as rows in sibling order, with the name filter; pure
 │  ├─ play_session     Edit -> Playing <-> Paused -> Edit, step
@@ -569,7 +569,7 @@ instantiation (`saveScene` / `instantiate`, [#131], [#183]), the `FrameScene` ([
 | # | Runtime feature | Why the editor needs it | Lands in | Needed by |
 |---|---|---|---|---|
 | R1 | **Component storage, complete:** `remove(registry, entity)` and a change hook `changed(registry, entity)` on `world::ComponentStorage`. Transform → `markStaticDirty` unless dynamic, MeshRenderer → `invalidateStatic` | Remove Component by name; generic edits keep D2's rule | [#191] (with R2) | E3 |
-| R2 | **Type and field metadata** in `reflect`: display name, category, `required`; per field a widget hint (`Color`, `Angle`, `Slider`), min/max/step, `readOnly`, tooltip; the asset type of `AssetRef` fields. The serializer ignores it | Generated widgets; replaces `ComponentTraits` | [#191] (with R1) | E3 |
+| R2 | **Type and field metadata** in `reflect`: display name, category, `required`; per field a widget hint (`Color`, `Angle`, `Slider`), min/max/step, a unit (`"m"`; angles and rotations show degrees), `readOnly`, tooltip; the asset type of `AssetRef` fields. The serializer ignores it | Generated widgets; replaces `ComponentTraits` | [#191] (with R1) | E3 |
 | R3 | **UI at the safe point:** `Presentation` owns the ImGui context and both backends, builds the UI before the world update and calls `ImGui::Render` before rendering; `UiPass` only records. Headless UI with no platform backend | Edits outside the frame; headless editor screenshots | [#83] | E1 |
 | R4 | **`Shell`:** startup, frame safe point, update mode, input capture (views with R5, close veto with E5); `GameShell` default; replaces `Engine::pushLayer` and the layer stack | The editor plugs in without runtime hooks of its own | [#83] (merged, layers removed too) | E1 |
 | R5 | **Render views:** the shell supplies the camera (view, projection, position) instead of `extractFrameScene`'s main camera, and the scene renders into a graph texture of the view's own extent instead of the swapchain | Viewport texture, editor camera | [#192] | E2 |
