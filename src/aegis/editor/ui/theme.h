@@ -62,7 +62,7 @@ inline constexpr ImVec4 playFrame = rgb(0xE8873A);
 inline constexpr ImVec4 playHover = rgb(0xF0A060);
 inline constexpr ImVec4 playActive = rgb(0xC96E28);
 
-// The axes' lines, and the inspector's strips, whose letters are bgDeep: 5.2, 8.7, 5.6 (W's strip, textDisabled: 4.9).
+// The axes' lines, and the inspector's strips along a vector's fields (marks, not text; W's strip is textDisabled).
 inline constexpr ImVec4 axisX = rgb(0xE5534B);
 inline constexpr ImVec4 axisY = rgb(0x6CC24A);
 inline constexpr ImVec4 axisZ = rgb(0x4A8CD9);

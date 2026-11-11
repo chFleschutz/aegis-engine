@@ -53,21 +53,30 @@ constexpr auto dataType() -> ImGuiDataType
         return ImGuiDataType_U64;
 }
 
-// Drags 'count' values of T, or slides them for a Slider row, within the row's limits.
+// Drags 'count' values of T, or slides them for a Slider row, within the row's limits; a floating-point value shows
+// 'decimals' digits after the point (and a drag rounds it to them).
 template<class T>
-auto dragValues(const PropertyRow& row, T* values, int count) -> bool
+auto dragValues(const PropertyRow& row, T* values, int count, int decimals = 3) -> bool
 {
     const std::optional<T> min = row.min ? std::optional<T>{ static_cast<T>(*row.min) } : std::nullopt;
     const std::optional<T> max = row.max ? std::optional<T>{ static_cast<T>(*row.max) } : std::nullopt;
     const T* minPtr = min ? &*min : nullptr;
     const T* maxPtr = max ? &*max : nullptr;
-    const char* format = std::floating_point<T> ? "%.3f" : nullptr;
+    const std::string decimalFormat = std::format("%.{}f", decimals);
+    const char* format = std::floating_point<T> ? decimalFormat.c_str() : nullptr;
     if (row.widget == PropertyWidget::Slider && min && max)
         return ImGui::SliderScalarN("##value", dataType<T>(), values, count, minPtr, maxPtr, format, ImGuiSliderFlags_AlwaysClamp);
     return ImGui::DragScalarN("##value", dataType<T>(), values, count, static_cast<float>(row.step), minPtr, maxPtr, format, ImGuiSliderFlags_AlwaysClamp);
 }
 
-// The letter of the strip before a vector's component.
+// The axis strip's width at 100% scale, and the decimals a vector's components show (one-value fields show three:
+// a camera's near plane can be 0.001).
+constexpr float axisStripWidth{ 4.0f };
+constexpr int axisDecimals{ 2 };
+// Degrees of a rotation's angles below which they are shown as zero: the quaternion's conversion leaves that much.
+constexpr float rotationNoise{ 1e-4f };
+
+// The letter of a vector's component, in the strip's tooltip.
 auto axisLetter(int component) -> const char*
 {
     constexpr std::array letters{ "X", "Y", "Z", "W" };
@@ -86,17 +95,18 @@ auto axisColor(int component) -> ImVec4
     }
 }
 
-// Drags the 'count' components of a vector, each after a strip with its axis letter and color, sharing the width
-// equally. A click on the letter resets that component to its value in 'defaults', which is called only while a
-// letter is hovered or clicked. The components form one group, so the caller sees the whole vector as one item: a drag stays
-// one undo entry.
+// Drags the 'count' components of a vector, sharing the width equally, each field marked by a thin strip in its axis
+// color along its left edge. A click on the strip resets that component to its value in 'defaults', which is called
+// only while a strip is hovered or clicked. The components form one group, so the caller sees the whole vector as one
+// item: a drag stays one undo entry.
 template<class Defaults>
 auto dragAxes(const PropertyRow& row, float* values, int count, Defaults&& defaults) -> bool
 {
-    const float spacing = ImGui::GetStyle().ItemSpacing.x;
-    const float stripWidth = ImGui::GetFrameHeight();
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float spacing = style.ItemSpacing.x;
+    const float stripWidth = std::round(axisStripWidth * theme::scale());
+    const float height = ImGui::GetFrameHeight();
     const float componentWidth = (ImGui::GetContentRegionAvail().x - spacing * static_cast<float>(count - 1)) / static_cast<float>(count);
-    const float dragWidth = std::max(componentWidth - stripWidth, 1.0f);
 
     bool changed = false;
     ImGui::BeginGroup();
@@ -106,13 +116,10 @@ auto dragAxes(const PropertyRow& row, float* values, int count, Defaults&& defau
         if (i > 0)
             ImGui::SameLine(0.0f, spacing);
 
-        const ImVec4 color = axisColor(i);
-        ImGui::PushStyleColor(ImGuiCol_Button, color);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ std::min(color.x * 1.2f, 1.0f), std::min(color.y * 1.2f, 1.0f), std::min(color.z * 1.2f, 1.0f), color.w });
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, color);
-        ImGui::PushStyleColor(ImGuiCol_Text, theme::bgDeep);
-        const bool reset = ImGui::Button(axisLetter(i), ImVec2{ stripWidth, 0.0f });
-        ImGui::PopStyleColor(4);
+        // The strip's button first: of two overlapping items the first takes the hover, so the field gets the rest
+        const ImVec2 start = ImGui::GetCursorScreenPos();
+        const bool reset = ImGui::InvisibleButton("##reset", ImVec2{ stripWidth, height });
+        const bool stripHovered = ImGui::IsItemHovered();
         if (reset)
         {
             values[i] = defaults()[i];
@@ -124,9 +131,14 @@ auto dragAxes(const PropertyRow& row, float* values, int count, Defaults&& defau
             ImGui::EndTooltip();
         }
 
-        ImGui::SameLine(0.0f, 0.0f);
-        ImGui::SetNextItemWidth(dragWidth);
-        changed |= dragValues(row, &values[i], 1);
+        ImGui::SetCursorScreenPos(start);
+        ImGui::SetNextItemWidth(componentWidth);
+        changed |= dragValues(row, &values[i], 1, axisDecimals);
+
+        // Over the field's left edge, its corners rounded as the field's are
+        const ImVec4 color = axisColor(i);
+        const ImVec4 shown = stripHovered ? ImVec4{ std::min(color.x * 1.2f, 1.0f), std::min(color.y * 1.2f, 1.0f), std::min(color.z * 1.2f, 1.0f), color.w } : color;
+        ImGui::GetWindowDrawList()->AddRectFilled(start, ImVec2{ start.x + stripWidth, start.y + height }, theme::packed(shown), style.FrameRounding, ImDrawFlags_RoundCornersLeft);
         ImGui::PopID();
     }
     ImGui::EndGroup();
@@ -219,6 +231,9 @@ auto drawRotation(const PropertyRow& row, const reflect::Value& value) -> std::o
     static RotationDrag s_drag;
     const ImGuiID id = ImGui::GetID("##value");
     glm::vec3 euler = s_drag.id == id ? s_drag.euler : glm::degrees(glm::eulerAngles(as<glm::quat>(value)));
+    // The conversion leaves noise around zero, which would show as -0.00: a zero is a zero
+    for (int i = 0; i < 3; ++i)
+        euler[i] = std::abs(euler[i]) < rotationNoise ? 0.0f : euler[i];
     const bool changed = dragAxes(row, &euler.x, 3, [] { return glm::vec4{ 0.0f }; });
     if (ImGui::IsItemActive())
         s_drag = { .id = id, .euler = euler };
