@@ -627,7 +627,10 @@ void Viewport::drawNavigationGizmo(const glm::vec2& corner, float size)
         drawList->AddCircleFilled(end, disc, theme::packed(fill));
         const bool highlighted = isUnderCursor(axis);
         drawList->AddCircle(end, disc, theme::packed(highlighted ? theme::text : color), 0, (highlighted ? 2.0f : 1.0f) * scale);
-        // The positive ends' letters are bgDeep, as on the inspector's strips; the dim negative ends' are the text color
+        // The positive ends' letters are bgDeep on the axis color. A negative end is an unlabelled ring, as in Blender,
+        // until it is hovered: then its letter shows in the text color
+        if (!axis.positive && !highlighted)
+            continue;
         const char* label = labels[static_cast<std::size_t>(axis.axis)];
         const ImVec2 textSize = ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
         drawList->AddText(ImGui::GetFont(), fontSize, ImVec2{ end.x - textSize.x * 0.5f, end.y - textSize.y * 0.5f },
