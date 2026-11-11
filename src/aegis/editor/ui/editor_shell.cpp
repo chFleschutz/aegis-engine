@@ -71,6 +71,43 @@ auto barButton(const char* label) -> bool
     return pressed;
 }
 
+// Text whose digits all take the widest digit's width, each centered in it: the UI font's figures are proportional, so
+// a number that changes every frame would change the text's width and move what is laid out around it.
+class TabularText
+{
+public:
+    TabularText()
+    {
+        for (char digit = '0'; digit <= '9'; ++digit)
+            m_digit = std::max(m_digit, ImGui::CalcTextSize(&digit, &digit + 1).x);
+    }
+
+    [[nodiscard]] auto width(std::string_view text) const -> float
+    {
+        float width = 0.0f;
+        for (const char& c : text)
+            width += std::isdigit(static_cast<unsigned char>(c)) ? m_digit : ImGui::CalcTextSize(&c, &c + 1).x;
+        return width;
+    }
+
+    void draw(ImDrawList* drawList, ImVec2 position, ImU32 color, std::string_view text) const
+    {
+        for (const char& c : text)
+        {
+            const float advance = ImGui::CalcTextSize(&c, &c + 1).x;
+            const bool digit = std::isdigit(static_cast<unsigned char>(c));
+            drawList->AddText(ImVec2{ std::round(position.x + (digit ? (m_digit - advance) * 0.5f : 0.0f)), position.y }, color, &c, &c + 1);
+            position.x += digit ? m_digit : advance;
+        }
+    }
+
+private:
+    float m_digit{ 0.0f };
+};
+
+// The longest timing the status bar keeps room for; a longer one takes more.
+constexpr std::string_view widestTiming = "0000.0 fps (00.00 ms)  |  GPU 00.00 ms";
+
 // Tints the windows while a play session runs, so nobody mistakes the play world for the edit world. Returns how
 // many colors to pop.
 auto pushPlayTint() -> int
@@ -1001,11 +1038,16 @@ void EditorShell::drawStatusBar(FrameContext& frame)
             gpuMs += timing.gpuMs;
         m_gpuMs.add(gpuMs);
         const auto timing = std::format("{:.1f} fps ({:.2f} ms)  |  GPU {:.2f} ms", frameMs > 0.0 ? 1000.0 / frameMs : 0.0, frameMs, m_gpuMs.average());
-        const float right = ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - ImGui::CalcTextSize(timing.c_str()).x;
-
-        drawKeyHints(keyHints(), left, right);
-        ImGui::SameLine(right);
-        ImGui::TextDisabled("%s", timing.c_str());
+        // At the right end in tabular digits, the key hints centered left of the room kept for the widest timing: as the
+        // numbers change, neither moves
+        const TabularText tabular;
+        const float width = tabular.width(timing);
+        const float end = ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x;
+        drawKeyHints(keyHints(), left, end - std::max(width, tabular.width(widestTiming)));
+        ImGui::SameLine(end - width);
+        const ImVec2 position = ImGui::GetCursorScreenPos();
+        tabular.draw(ImGui::GetWindowDrawList(), ImVec2{ position.x, position.y + ImGui::GetCurrentWindow()->DC.CurrLineTextBaseOffset }, ImGui::GetColorU32(ImGuiCol_TextDisabled), timing);
+        ImGui::Dummy(ImVec2{ width, ImGui::GetTextLineHeight() });
     }
     ImGui::End();
 }
