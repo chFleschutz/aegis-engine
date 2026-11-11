@@ -374,15 +374,26 @@ auto drawValue(const reflect::TypeInfo& type, const PropertyRow& row, const refl
     return std::nullopt;
 }
 
+// The label column's share of a section's width: at least, and at most for a long label.
+constexpr float labelMinShare{ 0.3f };
+constexpr float labelMaxShare{ 0.4f };
+
 // The registered fields of 'object' (the entity's component or script of 'type') as a two-column property grid.
 // Each edit is recorded in the undo stack; a widget still being dragged or typed in extends one entry.
 void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool readOnly, EditorContext& editor, FrameContext& frame)
 {
     const auto rows = propertyRows(type);
+    // The values take most of the width (three axes share a row): the labels get what their widest needs, at least
+    // labelMinShare of the width so the sections line up, and at most labelMaxShare
+    float widest = 0.0f;
+    for (const auto& row : rows)
+        widest = std::max(widest, ImGui::CalcTextSize(row.label.c_str()).x);
+    const float width = ImGui::GetContentRegionAvail().x;
+    const float labelWidth = std::clamp(widest + 2.0f * ImGui::GetStyle().CellPadding.x, labelMinShare * width, labelMaxShare * width);
     if (rows.empty() || !ImGui::BeginTable("##fields", 2, ImGuiTableFlags_SizingStretchProp))
         return;
-    ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthStretch, 0.4f);
-    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.6f);
+    ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, labelWidth);
+    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
     const auto resolve = [&frame](const reflect::TypeInfo& resolved, void* component) { frame.assets.resolve(resolved, component, frame.types); };
     for (const auto& row : rows)
