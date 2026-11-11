@@ -180,7 +180,7 @@ private:
 
         ImGui::SameLine();
         ImGui::SetNextItemWidth(fillWidth());
-        ImGui::InputTextWithHint("##search", "Search", &m_filter.search);
+        searchField("##search", "Search", m_filter.search);
     }
 
     // The folder and, while open, its subfolders; a read-only root and its folders are muted and locked.

@@ -300,7 +300,7 @@ auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const as
             ImGui::SetKeyboardFocusHere();
         }
         ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::InputTextWithHint("##filter", "Search", &s_filter);
+        searchField("##filter", "Search", s_filter);
         if (ImGui::Selectable("None", current == 0))
             edited = reflect::Value{ std::uint64_t{ 0 } };
 
@@ -421,7 +421,7 @@ auto drawTypeGroups(std::span<const reflect::TypeInfo* const> types, const refle
             category = &type->meta.category;
             ImGui::SeparatorText(category->empty() ? "General" : category->c_str());
         }
-        const std::string label{ type->displayName() };
+        const std::string label = std::format("{} {}", componentIcon(*type), type->displayName());
         ImGui::PushID(type->name.c_str());
         if (ImGui::Selectable(label.c_str(), type == highlighted))
             picked = type;
@@ -494,7 +494,8 @@ auto drawSectionMenu(const reflect::TypeInfo& type, void* object, world::Entity 
 // menu. Returns false when the menu asked to remove the component or detach the script.
 auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool readOnly, EditorContext& editor, FrameContext& frame) -> bool
 {
-    const std::string title{ type.displayName() };
+    // The icon and the name; identified by the name alone (the ID stack holds the type), so its open state stays
+    const std::string title = std::format("{} {}###{}", componentIcon(type), type.displayName(), type.displayName());
     const ImGuiTreeNodeFlags flags = (type.fields.empty() ? ImGuiTreeNodeFlags_Leaf : ImGuiTreeNodeFlags_DefaultOpen) | ImGuiTreeNodeFlags_AllowOverlap;
     const bool open = ImGui::CollapsingHeader(title.c_str(), flags);
     bool menuRequested = ImGui::IsItemClicked(ImGuiMouseButton_Right);
@@ -556,6 +557,13 @@ private:
         const bool rename = editor.takeRenameRequest();
         const auto id = std::format("{:016x}", registry.get<StableId>(entity).value);
         const float side = ImGui::GetFrameHeight();
+        // The entity's icon, as in its hierarchy row, then the name filling the row up to the menu button
+        const auto kind = entityKind(registry, entity);
+        ImGui::AlignTextToFramePadding();
+        ImGui::PushStyleColor(ImGuiCol_Text, readOnly ? theme::packed(theme::textMuted) : entityIconColor(kind));
+        ImGui::TextUnformatted(entityIcon(kind));
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
         ImGui::SetNextItemWidth(-(side + ImGui::GetStyle().ItemSpacing.x));
         if (registry.has<Name>(entity))
         {
@@ -655,7 +663,7 @@ private:
         static std::string s_filter;
 
         ImGui::Spacing();
-        if (ImGui::Button("Add...", ImVec2{ -FLT_MIN, 0.0f }))
+        if (ImGui::Button(std::format("{} Add...", theme::icons::create).c_str(), ImVec2{ -FLT_MIN, 0.0f }))
             ImGui::OpenPopup("##add");
 
         ImGui::SetNextWindowSizeConstraints(ImVec2{ ImGui::GetItemRectSize().x, 0.0f }, ImVec2{ FLT_MAX, ImGui::GetTextLineHeightWithSpacing() * 20.0f });
@@ -669,7 +677,7 @@ private:
             ImGui::SetKeyboardFocusHere();
         }
         ImGui::SetNextItemWidth(-FLT_MIN);
-        const bool confirmed = ImGui::InputTextWithHint("##filter", "Search", &s_filter, ImGuiInputTextFlags_EnterReturnsTrue);
+        const bool confirmed = searchField("##filter", "Search", s_filter, ImGuiInputTextFlags_EnterReturnsTrue);
 
         const auto components = filterTypes(addableComponents(frame.types, registry, entity), s_filter);
         const auto scripts = filterTypes(scriptTypes(frame.types), s_filter);

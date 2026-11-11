@@ -1,5 +1,6 @@
 module aegis.editor:panels;
 import std;
+import aegis.editor.core;
 import aegis.math;
 import aegis.reflect;
 import aegis.world;
@@ -58,6 +59,18 @@ struct StatisticsSummary
 /// @brief Draws 'text' dimmed in the window's free space, centered line by line and wrapped inside a margin, for an empty panel. The
 ///        cursor stays where it was, so what follows (a drop target over the free space) still covers it.
 void drawCenteredHint(std::string_view text);
+
+/// @brief A text field with the search icon inside its left end and 'hint' while empty; returns what
+///        ImGui::InputTextWithHint returns. 'flags' are ImGuiInputTextFlags.
+auto searchField(const char* id, const char* hint, std::string& text, int flags = 0) -> bool;
+
+/// @brief The icon of an entity of 'kind' (the hierarchy's rows, the inspector's header), and its color as an ImU32:
+///        the viewport's for the cameras and lights, the dimmed text's for the rest.
+[[nodiscard]] auto entityIcon(EntityKind kind) -> const char*;
+[[nodiscard]] auto entityIconColor(EntityKind kind) -> std::uint32_t;
+
+/// @brief The icon of the component or script 'type' (the inspector's sections, the Add menu).
+[[nodiscard]] auto componentIcon(const reflect::TypeInfo& type) -> const char*;
 
 /// @brief The items of a menu of 'types', one submenu per category (those without one at the top); the type picked this frame, if any.
 [[nodiscard]] auto pickType(std::span<const reflect::TypeInfo* const> types) -> const reflect::TypeInfo*;

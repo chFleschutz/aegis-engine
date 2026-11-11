@@ -97,7 +97,7 @@ public:
             ImGui::SetClipboardText(console.text(m_filter).c_str());
         ImGui::SameLine();
         ImGui::SetNextItemWidth(fillWidth());
-        ImGui::InputTextWithHint("##search", "Search", &m_filter.search);
+        searchField("##search", "Search", m_filter.search);
 
         ImGui::Separator();
         if (ImGui::BeginChild("Lines", ImVec2{ 0.0f, 0.0f }, ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))

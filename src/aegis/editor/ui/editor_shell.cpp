@@ -642,7 +642,7 @@ void EditorShell::drawOpenPopup(FrameContext& frame)
     if (ImGui::IsWindowAppearing())
         ImGui::SetKeyboardFocusHere();
     ImGui::SetNextItemWidth(-FLT_MIN);
-    ImGui::InputTextWithHint("##search", "Search", &m_openSearch);
+    searchField("##search", "Search", m_openSearch);
 
     const auto& database = frame.assets.database();
     std::vector<const assets::AssetEntry*> scenes;

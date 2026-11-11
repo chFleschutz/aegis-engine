@@ -37,41 +37,6 @@ auto nameOf(world::Registry& registry, world::Entity entity) -> const char*
     return registry.has<Name>(entity) ? registry.get<Name>(entity).name.c_str() : "Entity";
 }
 
-auto kindIcon(EntityKind kind) -> const char*
-{
-    switch (kind)
-    {
-    case EntityKind::Camera:
-        return theme::icons::camera;
-    case EntityKind::DirectionalLight:
-        return theme::icons::sun;
-    case EntityKind::PointLight:
-        return theme::icons::light;
-    case EntityKind::Mesh:
-        return theme::icons::mesh;
-    case EntityKind::SceneInstance:
-        return theme::icons::instance;
-    case EntityKind::Empty:
-        return theme::icons::empty;
-    }
-    return theme::icons::empty;
-}
-
-// The icon's color: the viewport's for the cameras and lights, the dimmed text's for the rest.
-auto kindColor(EntityKind kind) -> ImVec4
-{
-    switch (kind)
-    {
-    case EntityKind::Camera:
-        return theme::cameraIcon;
-    case EntityKind::DirectionalLight:
-    case EntityKind::PointLight:
-        return theme::lightIcon;
-    default:
-        return theme::textDim;
-    }
-}
-
 // Whether the rows hold nothing but what a new scene starts with (the scene's camera and lights, a sky), or nothing at all.
 auto holdsOnlyDefaults(world::World& scene, std::span<const HierarchyRow> rows) -> bool
 {
@@ -309,7 +274,7 @@ private:
     {
         const float button = ImGui::GetFrameHeight();
         ImGui::SetNextItemWidth(-(button + ImGui::GetStyle().ItemSpacing.x));
-        ImGui::InputTextWithHint("##filter", "Filter", &m_filter);
+        searchField("##filter", "Filter", m_filter);
         ImGui::SameLine();
         if (theme::iconButton(theme::icons::create, "create"))
             ImGui::OpenPopup("CreateMenu");
@@ -370,14 +335,14 @@ private:
         const auto kind = entityKind(registry, entity);
         const bool member = registry.has<serialize::InstanceMember>(entity);
         const ImU32 mutedColor = theme::packed(theme::mutedText(selected));
-        const ImU32 iconColor = member ? mutedColor : theme::packed(kindColor(kind));
+        const ImU32 iconColor = member ? mutedColor : entityIconColor(kind);
         const ImU32 textColor = member ? mutedColor : ImGui::GetColorU32(ImGuiCol_Text);
 
         const ImVec2 min = ImGui::GetItemRectMin();
         // Centered on the row: a tree node has no vertical padding of its own
         ImVec2 position{ min.x + ImGui::GetTreeNodeToLabelSpacing(), min.y + (ImGui::GetItemRectSize().y - ImGui::GetTextLineHeight()) * 0.5f };
         const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-        const char* icon = kindIcon(kind);
+        const char* icon = entityIcon(kind);
         const char* name = nameOf(registry, entity);
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddText(position, iconColor, icon);

@@ -42,8 +42,18 @@ inline constexpr const char* camera = lucide::camera;
 inline constexpr const char* light = lucide::lightbulb;
 inline constexpr const char* sun = lucide::sun;
 
-// The hierarchy's button that opens the Create menu.
+// The hierarchy's button that opens the Create menu, the inspector's Add button, and the search fields' mark.
 inline constexpr const char* create = lucide::plus;
+inline constexpr const char* search = lucide::search;
+
+// The inspector's components without an entity kind's icon (the camera, lights, mesh, sky and instance have those), the
+// scripts, and a component the editor has no icon for (a game's).
+inline constexpr const char* transform = lucide::move3D;
+inline constexpr const char* dynamic = lucide::zap;
+inline constexpr const char* mainCamera = lucide::video;
+inline constexpr const char* ambientLight = lucide::sunDim;
+inline constexpr const char* script = lucide::fileCode;
+inline constexpr const char* genericComponent = lucide::puzzle;
 
 // The kinds of entities in the hierarchy (the camera, light and sun above are the rest).
 inline constexpr const char* mesh = lucide::cuboid;

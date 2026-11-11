@@ -125,6 +125,7 @@ target_sources(aegis-editor
     ui/panels/scene_panel.cpp
     ui/panels/shortcuts_panel.cpp
     ui/panels/statistics_panel.cpp
+    ui/panels/widgets.cpp
     ui/theme.cpp
     ui/viewport.cpp
 )
