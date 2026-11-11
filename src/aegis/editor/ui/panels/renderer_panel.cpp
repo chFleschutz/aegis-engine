@@ -8,6 +8,7 @@ import aegis.render_graph;
 import aegis.renderer;
 import aegis.rhi;
 import :panels;
+import :theme;
 
 namespace aegis::editor
 {
@@ -30,6 +31,7 @@ class RendererPanel final : public Panel
 {
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "Renderer"; }
+    [[nodiscard]] auto icon() const -> const char* override { return theme::icons::renderer; }
     [[nodiscard]] auto debug() const -> bool override { return true; }
     [[nodiscard]] auto drawer() const -> bool override { return true; }
 

@@ -104,6 +104,7 @@ public:
     AssetPanel() { setOpen(true); }
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Assets"; }
+    [[nodiscard]] auto icon() const -> const char* override { return theme::icons::assets; }
     [[nodiscard]] auto drawer() const -> bool override { return true; }
 
     void draw(EditorContext& editor, FrameContext& frame) override

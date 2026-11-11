@@ -18,6 +18,7 @@ import aegis.scripting.script;
 import aegis.serialize;
 import aegis.world;
 import :panels;
+import :theme;
 
 namespace aegis::editor
 {
@@ -522,6 +523,7 @@ public:
     InspectorPanel() { setOpen(true); }
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Inspector"; }
+    [[nodiscard]] auto icon() const -> const char* override { return theme::icons::inspector; }
     [[nodiscard]] auto column() const -> bool override { return true; }
 
     void draw(EditorContext& editor, FrameContext& frame) override

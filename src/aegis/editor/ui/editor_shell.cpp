@@ -140,14 +140,13 @@ void buildDefaultLayout(ImGuiID dockspace, ImVec2 size)
     ImGuiID inspector = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, columnShare, nullptr, &center);
     const ImGuiID hierarchy = ImGui::DockBuilderSplitNode(inspector, ImGuiDir_Up, hierarchyShare, nullptr, &inspector);
 
-    const auto dock = [](std::initializer_list<const char*> windows, ImGuiID node) {
-        for (const char* window : windows)
-            ImGui::DockBuilderDockWindow(window, node);
-        ImGui::DockBuilderGetNode(node)->SelectedTabId = ImGui::GetID(*windows.begin()); // The first one shows
+    const auto dock = [](const std::string& window, ImGuiID node) {
+        ImGui::DockBuilderDockWindow(window.c_str(), node);
+        ImGui::DockBuilderGetNode(node)->SelectedTabId = ImGui::GetID(window.c_str());
     };
-    dock({ "Hierarchy" }, hierarchy);
-    dock({ "Inspector" }, inspector);
-    dock({ "Viewport" }, center);
+    dock(windowName("Hierarchy"), hierarchy);
+    dock(windowName("Inspector"), inspector);
+    dock("Viewport", center); // Its tab bar is hidden: no label of its own
     ImGui::DockBuilderFinish(dockspace);
 }
 
@@ -194,7 +193,7 @@ auto contains(const std::optional<Viewport::Rect>& rect, ImVec2 point) -> bool
 // Whether the window 'title' floats now: it exists and is docked nowhere.
 auto floats(std::string_view title) -> bool
 {
-    const std::string name{ title };
+    const std::string name = windowName(title);
     const ImGuiWindow* window = ImGui::FindWindowByName(name.c_str());
     return window && window->DockId == 0;
 }
@@ -202,7 +201,7 @@ auto floats(std::string_view title) -> bool
 // The dock node the window 'title' is docked in, or was docked in last (its settings, before it is first drawn); 0 for none.
 auto dockIdOf(std::string_view title) -> ImGuiID
 {
-    const std::string name{ title };
+    const std::string name = windowName(title);
     if (const ImGuiWindow* window = ImGui::FindWindowByName(name.c_str()))
         return window->DockId;
     const ImGuiWindowSettings* settings = ImGui::FindWindowSettingsByID(ImHashStr(name.c_str()));
@@ -1052,7 +1051,8 @@ auto EditorShell::keyHints() const -> std::vector<KeyHint>
         return { { "Q W E R", "select, move, rotate, scale" }, { m_actions.shortcut("edit.focus"), "focus" }, { "RMB", "fly" }, { "Alt+LMB", "orbit" }, { "MMB", "pan" } };
     }
     const ImGuiWindow* hovered = ImGui::GetCurrentContext()->HoveredWindow;
-    if (const std::string_view name = hovered ? hovered->RootWindow->Name : ""; name == "Hierarchy" || name == flyoutWindow("Hierarchy"))
+    const ImGuiWindow* root = hovered ? hovered->RootWindow : nullptr;
+    if (root && (root->ID == ImHashStr(windowName("Hierarchy").c_str()) || root->Name == flyoutWindow("Hierarchy")))
         return { { m_actions.shortcut("edit.rename"), "rename" }, { "Drag", "reparent" }, { m_actions.shortcut("edit.duplicate"), "duplicate" }, { m_actions.shortcut("edit.delete"), "delete" } };
     return {};
 }
@@ -1279,8 +1279,7 @@ void EditorShell::toggleFlyout(std::string_view title)
     panel->setOpen(true);
     if (!inFoldedColumn(title))
     {
-        const std::string window{ title };
-        ImGui::SetWindowFocus(window.c_str()); // Also selects its tab
+        ImGui::SetWindowFocus(windowName(title).c_str()); // Also selects its tab
         return;
     }
     if (m_rail.toggle(title) && m_rail.isShown(title))
@@ -1461,7 +1460,7 @@ void EditorShell::dockPinned()
             continue;
         if (const ImGuiID node = pinNode(name); node != 0)
         {
-            ImGui::DockBuilderDockWindow(name.c_str(), node);
+            ImGui::DockBuilderDockWindow(windowName(name).c_str(), node);
             m_pinNode = node;
         }
     }
@@ -1477,7 +1476,7 @@ void EditorShell::drawPinned(Panel& panel, FrameContext& frame)
         m_focusPinned.clear();
     }
     bool open = true;
-    const bool visible = ImGui::Begin(name.c_str(), panel.debug() ? &open : nullptr); // Assets and the console stay open
+    const bool visible = ImGui::Begin(panel.label().c_str(), panel.debug() ? &open : nullptr); // Assets and the console stay open
     if (!open)
         panel.setOpen(false);
     // Appearing undocked (pinned in the layout file without a node, or dragged out to float before): docked below the
@@ -1506,7 +1505,7 @@ void EditorShell::drawColumnPanel(Panel& panel, FrameContext& frame)
     const std::string title{ panel.title() };
     // Folded: submitted empty, off screen, so it keeps its dock node; the flyout draws its contents
     const bool folded = inFoldedColumn(title);
-    if (ImGui::Begin(title.c_str()) && !folded)
+    if (ImGui::Begin(panel.label().c_str()) && !folded)
         panel.draw(m_context, frame);
     ImGui::End();
 }
@@ -1593,7 +1592,7 @@ void EditorShell::drawDrawer(FrameContext& frame)
                     continue;
                 const bool select = m_selectDrawerTab && m_drawers.isShown(name);
                 bool open = true;
-                if (ImGui::BeginTabItem(name.c_str(), candidate->debug() ? &open : nullptr, select ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
+                if (ImGui::BeginTabItem(candidate->label().c_str(), candidate->debug() ? &open : nullptr, select ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
                 {
                     selected = candidate.get();
                     ImGui::EndTabItem();

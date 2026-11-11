@@ -7,6 +7,7 @@ import std;
 import aegis.core;
 import aegis.render_graph;
 import :panels;
+import :theme;
 
 namespace aegis::editor
 {
@@ -17,6 +18,7 @@ class ProfilerPanel final : public Panel
 {
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "Profiler"; }
+    [[nodiscard]] auto icon() const -> const char* override { return theme::icons::profiler; }
     [[nodiscard]] auto debug() const -> bool override { return true; }
     [[nodiscard]] auto drawer() const -> bool override { return true; }
 

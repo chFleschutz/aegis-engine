@@ -412,13 +412,13 @@ tokens, not this structure.
 ┌────────────────────────────────────────────────────────────────────────────────────┐
 │ File Edit Entity Play View Debug Help      ▶  ❚❚  ⏭                ◫ ⤢ sponza.scene* │ menu bar + play controls + scene
 ├──────────────────────────────────────────────────────────────┬─────────────────────┤
-│ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                            ( 5.0 u/s ) ▥   │ Hierarchy           │ viewport overlays
+│ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                            [◷ 5.0 u/s] ▥   │ ☰ HIERARCHY         │ viewport overlays
 │ ┌──────────────────────────────────────────────────────────┐ │ Filter           [+]│
 │ │                                                    Z     │ │ ▾ Sponza            │
 │ │                 Viewport (scene texture)        Y─┼─X    │ │   ▸ Helmet          │
 │ │                          gizmo                           │ ├─────────────────────┤
-│ ├──────────────────────────────────────────────────────────┤ │ Inspector           │
-│ │ Assets │ Console                                   📌  ✕ │ │                     │ the drawer, while open:
+│ ├──────────────────────────────────────────────────────────┤ │ ⚙ INSPECTOR         │
+│ │ 📁 ASSETS │ >_ CONSOLE                              📌  ✕ │ │                     │ the drawer, while open:
 │ │ Rescan  All types  Search                                │ │                     │ over the viewport
 │ └──────────────────────────────────────────────────────────┘ │                     │
 ├──────────────────────────────────────────────────────────────┴─────────────────────┤
@@ -434,7 +434,9 @@ tokens, not this structure.
   unfolds the column.
   The layout is kept in `<project>/.aegis/editor/imgui.ini`. A change to the default doesn't replace a kept layout:
   View → Reset Layout builds the new one. (A bottom node left from an older default stays hidden while nothing is
-  docked in it.)
+  docked in it.) A panel's tab shows its icon and its title in capitals (`Panel::label`); ImGui identifies the
+  window by `###<title>` (`windowName`), which the layout file and every lookup by name use. A layout kept before
+  the labels names the windows by their old titles: Reset Layout docks them again.
 - **Drawer** ([#322]): Assets, Console and the debug panels open in a drawer instead of a dock node, as Unreal's
   Content Drawer does. It is a window over the bottom of the viewport and as wide, so it covers the image instead of
   shrinking it (the render extent stays) and the right column stays usable (drag a material from the drawer onto an
