@@ -71,6 +71,45 @@ auto barButton(const char* label) -> bool
     return pressed;
 }
 
+// A part of a bar button's label: text (or an icon) in its own color, 'gap' after the part before it.
+struct LabelPart
+{
+    std::string text;
+    ImU32 color;
+    float gap;
+};
+
+// A bar button (barButton's metrics) whose label is 'parts', each in its color; 'lit' fills it with the accent, as a
+// drawer button while its panel shows. 'id' is unique among the window's items.
+auto labelButton(const char* id, std::span<const LabelPart> parts, bool lit) -> bool
+{
+    float width = 0.0f;
+    for (const auto& part : parts)
+        width += part.gap + ImGui::CalcTextSize(part.text.c_str()).x;
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const ImVec2 padding{ style.FramePadding.x, std::max(style.FramePadding.y - std::round(2.0f * theme::scale()), 0.0f) };
+    if (lit)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
+    }
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, padding);
+    const std::string label = std::format("##{}", id);
+    const bool pressed = ImGui::ButtonEx(label.c_str(), ImVec2{ width + 2.0f * padding.x, ImGui::GetFontSize() + 2.0f * padding.y }, ImGuiButtonFlags_AlignTextBaseLine);
+    ImGui::PopStyleVar();
+    if (lit)
+        ImGui::PopStyleColor(3);
+    ImVec2 position{ ImGui::GetItemRectMin().x + padding.x, ImGui::GetItemRectMin().y + padding.y };
+    for (const auto& part : parts)
+    {
+        position.x += part.gap;
+        ImGui::GetWindowDrawList()->AddText(position, part.color, part.text.c_str());
+        position.x += ImGui::CalcTextSize(part.text.c_str()).x;
+    }
+    return pressed;
+}
+
 // Text whose digits all take the widest digit's width, each centered in it: the UI font's figures are proportional, so
 // a number that changes every frame would change the text's width and move what is laid out around it.
 class TabularText
@@ -1058,16 +1097,16 @@ auto EditorShell::drawTimings(FrameContext& frame, float right) -> float
     m_gpuMs.add(gpuMs);
     const double fps = frameMs > 0.0 ? 1000.0 / frameMs : 0.0;
     const std::array slots{
+        TimingSlot{ .label = "", .number = std::format("{:.0f}", fps), .unit = " fps", .widest = "000" },
         TimingSlot{ .label = "CPU ", .number = std::format("{:.2f}", cpuMs), .unit = " ms", .widest = "00.00" },
         TimingSlot{ .label = "GPU ", .number = std::format("{:.2f}", m_gpuMs.average()), .unit = " ms", .widest = "00.00" },
-        TimingSlot{ .label = "", .number = std::format("{:.0f}", fps), .unit = " fps", .widest = "0000" },
     };
 
-    // Right to left: each slot's label at its left, its unit at its right and the number right-aligned before the unit,
-    // a slim line between two slots
+    // Right to left, each slot's label, number and unit together at its right end (the room kept for a wider number is
+    // at its left), a slim line between two slots
     const TabularText tabular;
     const ImGuiStyle& style = ImGui::GetStyle();
-    const float gap = std::round(style.ItemSpacing.x * 1.5f);
+    const float gap = style.ItemSpacing.x;
     const float lineWidth = std::max(1.0f, std::round(theme::scale()));
     const float fontSize = ImGui::GetFontSize();
     const float top = ImGui::GetCursorScreenPos().y + ImGui::GetCurrentWindow()->DC.CurrLineTextBaseOffset;
@@ -1090,7 +1129,7 @@ auto EditorShell::drawTimings(FrameContext& frame, float right) -> float
         const float numberWidth = tabular.width(slot->number);
         const float slotWidth = labelWidth + std::max(numberWidth, tabular.width(slot->widest)) + unitWidth;
         x -= slotWidth;
-        tabular.draw(drawList, ImVec2{ x, top }, muted, slot->label);
+        tabular.draw(drawList, ImVec2{ x + slotWidth - unitWidth - numberWidth - labelWidth, top }, muted, slot->label);
         tabular.draw(drawList, ImVec2{ x + slotWidth - unitWidth - numberWidth, top }, value, slot->number);
         tabular.draw(drawList, ImVec2{ x + slotWidth - unitWidth, top }, muted, slot->unit);
     }
@@ -1101,26 +1140,13 @@ auto EditorShell::drawTimings(FrameContext& frame, float right) -> float
 
 void EditorShell::drawDrawerButtons()
 {
-    // Bar buttons, lit while their panel shows
-    const auto button = [this](const char* icon, std::string_view panel, std::string_view action) {
-        const bool lit = m_drawers.isShown(panel);
-        if (lit)
-        {
-            ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
-        }
-        const std::string id{ panel };
-        ImGui::PushID(id.c_str());
-        if (barButton(icon))
-            toggleDrawer(panel);
-        ImGui::PopID();
-        if (lit)
-            ImGui::PopStyleColor(3);
-        ImGui::SetItemTooltip("%s", m_actions.tooltip(action).c_str());
-    };
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
-    button(theme::icons::assets, "Assets", "view.assets");
+    const ImU32 text = ImGui::GetColorU32(ImGuiCol_Text);
+    const float near = std::round(ImGui::GetStyle().ItemInnerSpacing.x * 0.5f);
+    const std::array assets{ LabelPart{ theme::icons::assets, text, 0.0f }, LabelPart{ "Assets", text, near } };
+    if (labelButton("Assets", assets, m_drawers.isShown("Assets")))
+        toggleDrawer("Assets");
+    ImGui::SetItemTooltip("%s", m_actions.tooltip("view.assets").c_str());
     ImGui::SameLine();
     drawConsoleButton();
     ImGui::PopStyleColor();
@@ -1130,12 +1156,12 @@ auto EditorShell::keyHints() const -> std::vector<KeyHint>
 {
     // The viewport's own keys are no actions (they depend on its focus); the others come from the registry
     if (m_viewport.flying())
-        return { { "W A S D", "move" }, { "Q E", "down, up" }, { "Wheel", "speed" } };
+        return { { "W A S D", "move" }, { "Q", "down" }, { "E", "up" }, { "Wheel", "speed" } };
     if (m_viewport.hovered())
     {
         if (m_viewport.gameView())
             return { { "Click", "give the game the input" }, { m_actions.shortcut("play.release"), "take it back" } };
-        return { { "Q W E R", "select, move, rotate, scale" }, { m_actions.shortcut("edit.focus"), "focus" }, { "RMB", "fly" }, { "Alt+LMB", "orbit" }, { "MMB", "pan" } };
+        return { { "Q", "select" }, { "W", "move" }, { "E", "rotate" }, { "R", "scale" }, { m_actions.shortcut("edit.focus"), "focus" }, { "RMB", "fly" }, { "Alt+LMB", "orbit" }, { "MMB", "pan" } };
     }
     const ImGuiWindow* hovered = ImGui::GetCurrentContext()->HoveredWindow;
     const ImGuiWindow* root = hovered ? hovered->RootWindow : nullptr;
@@ -1148,9 +1174,9 @@ void EditorShell::drawKeyHints(const std::vector<KeyHint>& hints, float left, fl
 {
     if (hints.empty())
         return;
-    // Each key in the text color and what it does muted, the pairs apart by a wide gap
+    // Each key in the text color and what it does muted, the pairs apart by a wider gap
     const ImGuiStyle& style = ImGui::GetStyle();
-    const float gap = style.ItemSpacing.x * 3.0f;
+    const float gap = style.ItemSpacing.x * 2.0f;
     float width = 0.0f;
     for (const auto& hint : hints)
         width += ImGui::CalcTextSize(hint.keys.c_str()).x + style.ItemSpacing.x + ImGui::CalcTextSize(hint.does.data(), hint.does.data() + hint.does.size()).x + gap;
@@ -1185,59 +1211,27 @@ auto EditorShell::selectionLabel() const -> std::string
 
 void EditorShell::drawConsoleButton()
 {
-    // The icon, then each count after its level's icon, drawn over a button as wide as all of them; a count of zero is
-    // muted, so only the levels that have messages draw the eye
+    // The icon and the name, then the warning and the error count after their icons while there are any
     const auto counts = m_context.console().counts();
-    const bool lit = m_drawers.isShown("Console");
-    const ImU32 zero = theme::packed(theme::mutedText(lit));
-    const auto countColor = [zero](std::size_t value, const ImVec4& color) { return value > 0 ? theme::packed(color) : zero; };
-    struct Part
-    {
-        std::string text;
-        ImU32 color;
-        float gap; // Before it
-    };
+    const ImU32 text = ImGui::GetColorU32(ImGuiCol_Text);
     const ImGuiStyle& style = ImGui::GetStyle();
     const float near = std::round(style.ItemInnerSpacing.x * 0.5f);
     const float apart = style.ItemSpacing.x;
-    const std::array parts{
-        Part{ theme::icons::console, ImGui::GetColorU32(ImGuiCol_Text), 0.0f },
-        Part{ theme::icons::warning, countColor(counts.warnings, theme::warning), apart },
-        Part{ std::to_string(counts.warnings), countColor(counts.warnings, theme::warning), near },
-        Part{ theme::icons::error, countColor(counts.errors, theme::error), apart },
-        Part{ std::to_string(counts.errors), countColor(counts.errors, theme::error), near },
+    std::vector<LabelPart> parts{ { theme::icons::console, text, 0.0f }, { "Console", text, near } };
+    const auto count = [&](std::size_t value, const char* icon, const ImVec4& color) {
+        if (value == 0)
+            return;
+        parts.push_back({ icon, theme::packed(color), apart });
+        parts.push_back({ std::to_string(value), theme::packed(color), near });
     };
-    float width = 0.0f;
-    for (const auto& part : parts)
-        width += part.gap + ImGui::CalcTextSize(part.text.c_str()).x;
-
-    // barButton's metrics, at the width of the parts
-    const float inset = std::round(2.0f * theme::scale());
-    const ImVec2 padding{ style.FramePadding.x, std::max(style.FramePadding.y - inset, 0.0f) };
-    if (lit)
-    {
-        ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
-    }
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, padding);
-    const bool pressed = ImGui::ButtonEx("##Console", ImVec2{ width + 2.0f * padding.x, ImGui::GetFontSize() + 2.0f * padding.y }, ImGuiButtonFlags_AlignTextBaseLine);
-    ImGui::PopStyleVar();
-    if (lit)
-        ImGui::PopStyleColor(3);
-    ImVec2 position{ ImGui::GetItemRectMin().x + padding.x, ImGui::GetItemRectMin().y + padding.y };
-    for (const auto& part : parts)
-    {
-        position.x += part.gap;
-        ImGui::GetWindowDrawList()->AddText(position, part.color, part.text.c_str());
-        position.x += ImGui::CalcTextSize(part.text.c_str()).x;
-    }
-    if (pressed)
+    count(counts.warnings, theme::icons::warning, theme::warning);
+    count(counts.errors, theme::icons::error, theme::error);
+    if (labelButton("Console", parts, m_drawers.isShown("Console")))
         toggleDrawer("Console");
 
     const auto problem = m_context.console().lastProblem();
-    const auto last = problem ? std::format("{}: {}", log::levelName(problem->level), problem->message) : std::string{ "No warnings or errors" };
-    ImGui::SetItemTooltip("%s", std::format("{}\n{}", m_actions.tooltip("view.console"), last).c_str());
+    const auto tooltip = problem ? std::format("{}\n{}: {}", m_actions.tooltip("view.console"), log::levelName(problem->level), problem->message) : m_actions.tooltip("view.console");
+    ImGui::SetItemTooltip("%s", tooltip.c_str());
 }
 
 void EditorShell::buildActions()

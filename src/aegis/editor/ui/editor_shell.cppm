@@ -183,10 +183,10 @@ private:
     auto drawTimings(FrameContext& frame, float right) -> float;
     /// @brief The active entity's name ("No selection" without one), and how many more are selected.
     [[nodiscard]] auto selectionLabel() const -> std::string;
-    /// @brief The Assets and Console buttons, lit while the drawer shows them.
+    /// @brief The Assets and Console buttons, each its icon and name, lit while the drawer shows them.
     void drawDrawerButtons();
-    /// @brief The Console button: its icon and the console's warning and error counts in one button, the last problem in
-    ///        its tooltip.
+    /// @brief The Console button: its icon and name, then the console's warning and error counts while there are any, the
+    ///        last problem in its tooltip.
     void drawConsoleButton();
     // A key and what it does there, for the status bar.
     struct KeyHint
