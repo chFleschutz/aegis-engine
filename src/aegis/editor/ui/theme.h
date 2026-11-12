@@ -72,10 +72,10 @@ inline constexpr ImVec4 axisZ = rgb(0x4A8CD9);
 // the ring around a selected icon, a line, not text.
 inline constexpr ImVec4 lightIcon = rgb(0xFFE678);
 inline constexpr ImVec4 cameraIcon = rgb(0x8CC8FF);
-// The mesh and scene instance icons in the hierarchy and the inspector: 9.7 and 9.3 on the window, 5.7 and 5.5 on a
-// selected row. The mesh's cyan is greener than the camera's blue. The sky and the ambient light take lightIcon;
-// scripted, group and empty entities textDim.
-inline constexpr ImVec4 meshIcon = rgb(0x5CCFE6);
+// The mesh and scene instance icons in the hierarchy and the inspector: 8.2 and 9.3 on the window, 4.8 and 5.5 on a
+// selected row. The mesh's steel blue is darker and grayer than the camera's. The sky and the ambient light take
+// lightIcon; scripted, group and empty entities textDim.
+inline constexpr ImVec4 meshIcon = rgb(0x7EB6E6);
 inline constexpr ImVec4 instanceIcon = rgb(0xC3B1FF);
 inline constexpr ImVec4 iconBackdrop = rgb(0x1E1E1E, 0.78f);
 inline constexpr ImVec4 iconSelected = rgb(0xFFA028);
