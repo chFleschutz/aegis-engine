@@ -20,11 +20,12 @@ namespace aegis::editor
 {
 namespace
 {
-// A row's padding above and below its label and the rounding of its highlight, in pixels at 100%; the rows the list
-// scrolls past its last one.
-constexpr float rowPadding{ 4.0f };
-constexpr float rowRounding{ 3.0f };
-constexpr float scrollPastRows{ 4.0f };
+// A row's padding above and below its label, the gap between rows and the rounding of a row's highlight, in pixels at
+// 100%; the share of the panel's height the list scrolls past its last row.
+constexpr float rowPadding{ 3.0f };
+constexpr float rowGap{ 1.0f };
+constexpr float rowRounding{ 2.0f };
+constexpr float scrollPastShare{ 0.5f };
 
 // The ImGui ID of an entity's row: its StableId, so an entity slot reused by another entity doesn't
 // reopen the old tree state.
@@ -161,9 +162,12 @@ private:
 
         // Only the rows in view are drawn. The rows are flat, each indented by its depth rather than nested in its parent's
         // tree node, so any of them can be skipped
-        // The rows touch, each padded above and below, so a row's highlight fills it
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ ImGui::GetStyle().ItemSpacing.x, 0.0f });
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ ImGui::GetStyle().FramePadding.x, std::round(rowPadding * theme::scale()) });
+        // Each row padded above and below, so its highlight fills it, a thin gap apart; a row is a whole number of pixels tall
+        const float scale = theme::scale();
+        const float fontSize = ImGui::GetFontSize();
+        const float rowHeight = std::round(fontSize + 2.0f * rowPadding * scale);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ ImGui::GetStyle().ItemSpacing.x, std::round(rowGap * scale) });
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ ImGui::GetStyle().FramePadding.x, (rowHeight - fontSize) * 0.5f });
         ImGuiListClipper clipper;
         clipper.Begin(static_cast<int>(rows.size()));
         if (scrollTo)
@@ -190,7 +194,6 @@ private:
                     setNodeOpen(row.id, open, filtered);
             }
         }
-        const float rowHeight = ImGui::GetFrameHeight();
         ImGui::PopStyleVar(2);
         if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
             m_narrowOnRelease.reset(); // Released over no row, or the row is gone
@@ -203,9 +206,9 @@ private:
             drawCenteredHint("Right-click to create an entity, or drop a model here");
 
         // The space below the rows takes drops that make the entity a root and opens the Create menu on a right click.
-        // It is never less than a few rows, so the list scrolls past its last row and there is always some to click.
+        // It is never less than half the panel, so the list scrolls past its last row and there is always room to click.
         const ImVec2 below = ImGui::GetContentRegionAvail();
-        ImGui::Dummy(ImVec2{ below.x, std::max(below.y, scrollPastRows * rowHeight) });
+        ImGui::Dummy(ImVec2{ below.x, std::max(below.y, scrollPastShare * ImGui::GetWindowHeight()) });
         if (ImGui::BeginDragDropTarget())
         {
             if (const auto* payload = ImGui::AcceptDragDropPayload(entityPayload))
