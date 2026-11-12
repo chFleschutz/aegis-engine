@@ -298,12 +298,17 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   Create menu's items below them, which create a child of the row (not for a scene instance's members). "All Entities", a flat list of every entity, is a
   debug panel.
 - **Asset browser (R10):** a folder tree over `AssetDatabase::entries()` with two roots, the project
-  and the engine content (read-only, shown dimmed). The file list shows each file's sub-assets
-  expandable, with search and a type filter. A drag carries an `AssetId` payload with its type:
+  and the engine content (read-only, shown dimmed; Lucide `folder-root` and `package`, folders `folder` and
+  `folder-open`). Right of it, a breadcrumb of the open folder's path (each folder a button, an Up button
+  before them) over its contents in one of two views, picked in the toolbar: a list, each file's sub-assets
+  expandable below it, or a grid of tiles with large icons and names on up to two lines, a model's
+  sub-assets shown after it (filled) by a button at its tile's edge. Every line carries its kind's icon in
+  its kind's color (the theme's asset icon tokens); a click selects it, a double click enters a folder,
+  opens a scene file or shows a model's parts. Search and a type filter cover both views. A drag carries an `AssetId` payload with its type:
   dropping it on an asset slot assigns it (type-checked), and dropping a `Scene` or model on the
   viewport or hierarchy instantiates it (`AssetLibrary::instantiateScene` with a parent; models
   become scenes in [#140]).
-  Double-clicking a `.scene` opens it. A Rescan button covers the time before the file watcher
+  A Rescan button covers the time before the file watcher
   ([#143]).
 - **Scene files:** New, Open (a picker over the database's `Scene` entries), Save (Ctrl+S), and Save As
   (an in-editor path field inside the project, which writes a new native file with a new ID and adds
