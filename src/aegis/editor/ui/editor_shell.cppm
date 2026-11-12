@@ -237,7 +237,6 @@ private:
     std::vector<std::string> m_dockRequests;    // Pinned panels to dock before the next dockspace update
     std::string m_focusPinned;                  // The pinned panel whose window takes the focus next frame
     bool m_focusDrawer{ false };                // The drawer takes the focus next frame
-    bool m_selectDrawerTab{ false };            // The drawer's tab bar selects the shown panel's tab, which may take a frame
     std::optional<Viewport::Rect> m_drawerRect; // As of the last frame; none while closed
     bool m_dragFromDrawer{ false };             // The drag going on began in the drawer
     bool m_dragHidDrawer{ false };              // ... and left it, which closed it

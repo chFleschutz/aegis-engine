@@ -1502,10 +1502,7 @@ void EditorShell::showDrawer(std::string_view name)
 {
     openPanel(name);
     if (m_drawers.show(name))
-    {
-        m_selectDrawerTab = true;
         m_focusDrawer = true;
-    }
     else
         m_focusPinned = name; // Its tab shows
 }
@@ -1516,10 +1513,7 @@ void EditorShell::toggleDrawer(std::string_view name)
     if (!m_drawers.toggle(name))
         m_focusPinned = name; // Pinned: its tab shows
     else if (m_drawers.isShown(name))
-    {
-        m_selectDrawerTab = true;
         m_focusDrawer = true;
-    }
 }
 
 void EditorShell::pin(std::string_view name)
@@ -1534,7 +1528,6 @@ void EditorShell::pin(std::string_view name)
 void EditorShell::unpin(std::string_view name)
 {
     m_drawers.unpin(name);
-    m_selectDrawerTab = true;
     m_focusDrawer = true;
     ImGui::MarkIniSettingsDirty();
 }
@@ -1639,13 +1632,16 @@ void EditorShell::drawDrawer(FrameContext& frame)
         m_dragHidDrawer = true;
     }
 
-    // Esc and a click into the viewport close it; losing the focus doesn't (popups, the asset picker and drags take it)
+    // Esc and a click outside it close it: anywhere but the drawer, its popups (a menu, the type filter) and the status
+    // bar, whose buttons switch it. Losing the focus alone doesn't: drag and drop takes it.
     if (m_drawers.shown())
     {
         const bool escape = ImGui::IsKeyPressed(ImGuiKey_Escape, false) && !io.WantTextInput && !payload && !m_viewport.givesInputToGame() &&
                             !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
-        const bool click = m_viewport.hovered() &&
-                           (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsMouseClicked(ImGuiMouseButton_Middle));
+        const ImGuiWindow* hovered = ImGui::GetCurrentContext()->HoveredWindow;
+        const ImGuiWindow* root = hovered ? hovered->RootWindowPopupTree : nullptr;
+        const bool inside = root && (root->ID == ImHashStr("##Drawer") || root->ID == ImHashStr("##StatusBar"));
+        const bool click = !inside && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsMouseClicked(ImGuiMouseButton_Middle));
         if (escape || click)
             m_drawers.close();
     }
@@ -1676,80 +1672,32 @@ void EditorShell::drawDrawer(FrameContext& frame)
     {
         drawDrawerResize(*viewport, rect.y);
 
-        // A tab per open drawer panel that is not pinned (the debug panels' close), and the pin and close buttons at the
-        // right end of the row. ImGui's trailing tabs follow the last tab instead, so the bar is ImGui::BeginTabBar's
-        // made narrower: the tabs stop short of the buttons, and its separator still spans the row.
-        const ImGuiStyle& style = ImGui::GetStyle();
-        const float side = ImGui::GetFrameHeight(); // The bar's height
-        const ImVec2 row = ImGui::GetCursorScreenPos();
-        const float right = row.x + ImGui::GetContentRegionAvail().x;
-        const float buttons = 2.0f * side + style.ItemInnerSpacing.x;
-        ImGuiWindow* window = ImGui::GetCurrentWindow();
-        const ImGuiID barId = window->GetID("##tabs");
-        ImGuiTabBar* bar = ImGui::GetCurrentContext()->TabBars.GetOrAddByKey(barId);
-        bar->ID = barId;
-        bar->SeparatorMinX = row.x - std::trunc(window->WindowPadding.x * 0.5f);
-        bar->SeparatorMaxX = right + std::trunc(window->WindowPadding.x * 0.5f);
-        const ImRect bounds{ row.x, row.y, std::max(row.x, right - buttons - style.ItemSpacing.x), row.y + side };
-
-        const Panel* selected = nullptr;
+        // The shown panel with no header: the status bar's lit button names it. Its pin button sits over the right end of
+        // its first row, which the panel leaves free (Panel::trailingWidth), as a pinned panel's unpin button does.
         bool pinShown = false;
-        bool close = false;
-        if (ImGui::BeginTabBarEx(bar, bounds, ImGuiTabBarFlags_IsFocused))
+        const auto now = m_drawers.shown();
+        if (auto* contents = now ? findPanel(*now) : nullptr; contents && contents->isOpen())
         {
-            for (const auto& candidate : m_panels)
+            const std::string id{ *now };
+            ImGui::PushID(id.c_str());
+            if (ImGui::BeginChild("##contents"))
             {
-                const std::string name{ candidate->name() };
-                if (!candidate->drawer() || !candidate->isOpen() || m_drawers.isPinned(name))
-                    continue;
-                const bool select = m_selectDrawerTab && m_drawers.isShown(name);
-                bool open = true;
-                if (ImGui::BeginTabItem(candidate->label().c_str(), candidate->debug() ? &open : nullptr, select ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None))
-                {
-                    selected = candidate.get();
-                    ImGui::EndTabItem();
-                }
-                if (!open)
-                {
-                    candidate->setOpen(false);
-                    m_drawers.hide(name);
-                }
+                // In the child, which takes the hover from the drawer's window beneath it
+                const float button = ImGui::GetFrameHeight();
+                const ImVec2 start = ImGui::GetCursorScreenPos();
+                const float right = start.x + ImGui::GetContentRegionAvail().x;
+                contents->setTrailingWidth(button + ImGui::GetStyle().ItemSpacing.x);
+                contents->draw(m_context, frame);
+                contents->setTrailingWidth(0.0f);
+                ImGui::SetCursorScreenPos(ImVec2{ right - button, start.y });
+                pinShown = theme::iconButton(theme::icons::pin, "##pin");
+                ImGui::SetItemTooltip("Pin: dock it below the viewport");
             }
-            ImGui::EndTabBar();
+            ImGui::EndChild();
+            ImGui::PopID();
         }
-        const ImVec2 below = ImGui::GetCursorScreenPos();
-        ImGui::SetCursorScreenPos(ImVec2{ right - buttons, row.y });
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
-        pinShown = theme::iconButton(theme::icons::pin, "##pin");
-        ImGui::SetItemTooltip("Pin: dock it below the viewport");
-        ImGui::SameLine(0.0f, style.ItemInnerSpacing.x);
-        close = theme::iconButton(theme::icons::close, "##close");
-        ImGui::SetItemTooltip("Close (Esc)");
-        ImGui::PopStyleColor();
-        // A tab the user clicked shows; one this shell selected may take a frame to be
-        if (selected && m_drawers.isShown(selected->name()))
-            m_selectDrawerTab = false;
-        else if (selected && !m_selectDrawerTab)
-            m_drawers.show(selected->name());
-
-        if (const auto now = m_drawers.shown(); pinShown && now)
+        if (pinShown && now)
             pin(std::string{ *now }); // A copy: pinning closes the drawer, and with it the name it shows
-        else if (close)
-            m_drawers.close();
-        else if (now)
-        {
-            if (auto* contents = findPanel(*now); contents && contents->isOpen())
-            {
-                // Back below the tabs, only with an item to follow: ImGui asserts on a cursor moved past the last item
-                ImGui::SetCursorScreenPos(below);
-                const std::string id{ *now };
-                ImGui::PushID(id.c_str());
-                if (ImGui::BeginChild("##contents"))
-                    contents->draw(m_context, frame);
-                ImGui::EndChild();
-                ImGui::PopID();
-            }
-        }
     }
     ImGui::End();
 }
@@ -1891,18 +1839,16 @@ void EditorShell::drawMenuBar(FrameContext& frame)
         {
             if (!panel->debug())
                 continue;
+            // A drawer panel shows in the drawer (it closes as the drawer does), or comes to the front pinned (its tab
+            // closes it); another is checked while open and toggles
             const std::string name{ panel->name() };
-            if (!ImGui::MenuItem(name.c_str(), nullptr, panel->isOpen()))
-                continue;
-            if (!panel->drawer())
-                panel->setOpen(!panel->isOpen());
-            else if (panel->isOpen())
+            if (panel->drawer())
             {
-                panel->setOpen(false); // Its tab goes
-                m_drawers.hide(name);
+                if (ImGui::MenuItem(name.c_str()))
+                    showDrawer(name);
             }
-            else
-                showDrawer(name);
+            else if (ImGui::MenuItem(name.c_str(), nullptr, panel->isOpen()))
+                panel->setOpen(!panel->isOpen());
         }
         ImGui::MenuItem("Style Editor", nullptr, &m_styleEditor);
         ImGui::EndMenu();

@@ -450,10 +450,10 @@ tokens, not this structure.
   Content Drawer does. It is a window over the bottom of the viewport and as wide, so it covers the image instead of
   shrinking it (the render extent stays) and the right column stays usable (drag a material from the drawer onto an
   inspector slot). Its height is a share of the viewport's, dragged at its top edge and kept in the preferences. It
-  shows one panel at a time, with a tab per drawer panel that is open and not pinned (the debug panels' tabs close),
-  a pin button and a close button. The status bar's buttons, their chords and the View menu open it; Esc, the
-  chord again, the close button or a click into the viewport close it; losing the focus doesn't, since popups, the
-  asset picker and drag and drop take it. A drag that leaves the drawer closes it, and its drop still lands in the
+  shows one panel at a time with no header (the status bar's lit button names it), its pin button over the right end
+  of the panel's first row. The status bar's buttons, their chords, the View menu and the Debug menu open it; Esc,
+  the chord again or a click anywhere outside it (but in its popups and the status bar) close it; losing the focus
+  alone doesn't, since drag and drop takes it. A drag that leaves the drawer closes it, and its drop still lands in the
   viewport or on an inspector slot (ImGui keeps the payload while the button is held). There is no animation.
 - **Pinned drawer panels** dock into a node below the viewport, split off when the first one is pinned (or the one
   a panel was pinned in before), as tabs; a lit pin button over the right end of their first row returns them to
@@ -463,7 +463,7 @@ tokens, not this structure.
   `game-<name>-editor` screenshot shows them.
 - **Dock chrome:** the viewport is the central node and has no tab bar (it can't be closed); no node shows the
   window menu or the close-all button, each tab has its own close button.
-- **Debug panels** (Renderer, Profiler, Statistics) start closed; the Debug menu opens them in the drawer (they
+- **Debug panels** (Renderer, Profiler, Statistics) start closed; the Debug menu shows them in the drawer, or brings a pinned one to the front (they
   are wide tables) and lists the ImGui demo and the style editor (`ImGui::ShowStyleEditor`, for live tuning).
 - **Status bar:** the Assets and Console buttons at the left, each its icon and name (Lucide `folder` and `terminal`,
   lit while the drawer shows their panel), the console's warning and error counts inside the Console button while
