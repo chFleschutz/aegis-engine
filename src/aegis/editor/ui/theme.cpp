@@ -54,7 +54,7 @@ void setColors(ImGuiStyle& style)
     c[ImGuiCol_Button] = bgFrame;
     c[ImGuiCol_ButtonHovered] = bgFrameHover;
     c[ImGuiCol_ButtonActive] = bgFrameActive;
-    c[ImGuiCol_Header] = dim(accent, 0.35f); // Selected rows
+    c[ImGuiCol_Header] = selection; // Selected rows
     c[ImGuiCol_HeaderHovered] = dim(accent, 0.2f);
     c[ImGuiCol_HeaderActive] = dim(accent, 0.5f);
     c[ImGuiCol_Separator] = border;

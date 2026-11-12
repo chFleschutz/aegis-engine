@@ -20,6 +20,12 @@ namespace aegis::editor
 {
 namespace
 {
+// A row's padding above and below its label and the rounding of its highlight, in pixels at 100%; the rows the list
+// scrolls past its last one.
+constexpr float rowPadding{ 4.0f };
+constexpr float rowRounding{ 3.0f };
+constexpr float scrollPastRows{ 4.0f };
+
 // The ImGui ID of an entity's row: its StableId, so an entity slot reused by another entity doesn't
 // reopen the old tree state.
 auto rowId(StableId id) -> const void*
@@ -155,6 +161,9 @@ private:
 
         // Only the rows in view are drawn. The rows are flat, each indented by its depth rather than nested in its parent's
         // tree node, so any of them can be skipped
+        // The rows touch, each padded above and below, so a row's highlight fills it
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ ImGui::GetStyle().ItemSpacing.x, 0.0f });
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ ImGui::GetStyle().FramePadding.x, std::round(rowPadding * theme::scale()) });
         ImGuiListClipper clipper;
         clipper.Begin(static_cast<int>(rows.size()));
         if (scrollTo)
@@ -181,6 +190,8 @@ private:
                     setNodeOpen(row.id, open, filtered);
             }
         }
+        const float rowHeight = ImGui::GetFrameHeight();
+        ImGui::PopStyleVar(2);
         if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
             m_narrowOnRelease.reset(); // Released over no row, or the row is gone
         if (filtered && rows.empty())
@@ -191,8 +202,10 @@ private:
         else if (!filtered && holdsOnlyDefaults(*editor.world(), rows))
             drawCenteredHint("Right-click to create an entity, or drop a model here");
 
-        // The space below the rows takes drops that make the entity a root
-        ImGui::Dummy(ImGui::GetContentRegionAvail());
+        // The space below the rows takes drops that make the entity a root and opens the Create menu on a right click.
+        // It is never less than a few rows, so the list scrolls past its last row and there is always some to click.
+        const ImVec2 below = ImGui::GetContentRegionAvail();
+        ImGui::Dummy(ImVec2{ below.x, std::max(below.y, scrollPastRows * rowHeight) });
         if (ImGui::BeginDragDropTarget())
         {
             if (const auto* payload = ImGui::AcceptDragDropPayload(entityPayload))
@@ -364,12 +377,31 @@ private:
     auto drawEntityTreeNode(EditorContext& editor, world::Registry& registry, std::span<const HierarchyRow> rows, world::Entity entity, ImGuiTreeNodeFlags flags,
         std::optional<Drop>& drop, std::optional<StableId>& menuRow) -> bool
     {
-        flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-        flags |= editor.isSelected(entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
+        flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
+        const bool selected = editor.isSelected(entity);
+        flags |= selected ? ImGuiTreeNodeFlags_Selected : 0;
 
-        // The label is drawn by hand: the kind's icon comes first, in its own color
+        // The label is drawn by hand: the kind's icon comes first, in its own color. So is the highlight, with rounded
+        // corners (ImGui's is square): ImGui's is clear, and this one goes under the arrow and the label on a channel below
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        drawList->ChannelsSplit(2);
+        drawList->ChannelsSetCurrent(1);
+        const ImVec4 clear{ 0.0f, 0.0f, 0.0f, 0.0f };
+        ImGui::PushStyleColor(ImGuiCol_Header, clear);
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, clear);
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive, clear);
         const bool isOpen = ImGui::TreeNodeEx(rowId(registry, entity), flags, "");
-        drawRowLabel(registry, entity, (flags & ImGuiTreeNodeFlags_Selected) != 0);
+        ImGui::PopStyleColor(3);
+        drawRowLabel(registry, entity, selected);
+        const bool hovered = ImGui::IsItemHovered();
+        if (selected || hovered)
+        {
+            drawList->ChannelsSetCurrent(0);
+            const ImGuiCol highlight = selected ? ImGuiCol_Header : ImGui::IsItemActive() ? ImGuiCol_HeaderActive
+                                                                                          : ImGuiCol_HeaderHovered;
+            drawList->AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImGui::GetColorU32(highlight), std::round(rowRounding * theme::scale()));
+        }
+        drawList->ChannelsMerge();
 
         select(editor.selection(), rows, registry.get<StableId>(entity));
         const bool onLabel = ImGui::GetMousePos().x >= ImGui::GetItemRectMin().x + ImGui::GetTreeNodeToLabelSpacing();
