@@ -65,7 +65,8 @@ void drawCenteredHint(std::string_view text);
 auto searchField(const char* id, const char* hint, std::string& text, int flags = 0) -> bool;
 
 /// @brief The icon of an entity of 'kind' (the hierarchy's rows, the inspector's header), and its color as an ImU32:
-///        the viewport's for the cameras and lights, the dimmed text's for the rest.
+///        the viewport's for the cameras, the lights and the sky, the mesh's and the instance's own, the dimmed
+///        text's for the rest.
 [[nodiscard]] auto entityIcon(EntityKind kind) -> const char*;
 [[nodiscard]] auto entityIconColor(EntityKind kind) -> std::uint32_t;
 

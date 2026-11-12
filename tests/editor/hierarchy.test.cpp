@@ -2,6 +2,7 @@
 
 import std;
 import aegis.editor.core;
+import aegis.scripting.script;
 import aegis.serialize;
 import aegis.world;
 import aegis.world.render_components;
@@ -269,12 +270,40 @@ TEST_SUITE("editor::entityKind")
         registry.add<aegis::MeshRenderer>(mesh);
         const auto holder = registry.create("Holder");
         registry.add<aegis::serialize::SceneInstance>(holder);
+        const auto ambient = registry.create("Ambient");
+        registry.add<aegis::AmbientLight>(ambient);
+        const auto sky = registry.create("Sky");
+        registry.add<aegis::Sky>(sky);
 
         CHECK(entityKind(registry, camera) == EntityKind::Camera);
         CHECK(entityKind(registry, sun) == EntityKind::DirectionalLight);
         CHECK(entityKind(registry, lamp) == EntityKind::PointLight);
         CHECK(entityKind(registry, mesh) == EntityKind::Mesh);
         CHECK(entityKind(registry, holder) == EntityKind::SceneInstance);
+        CHECK(entityKind(registry, ambient) == EntityKind::AmbientLight);
+        CHECK(entityKind(registry, sky) == EntityKind::Sky);
+    }
+
+    TEST_CASE("an entity with scripts is scripted and one with children a group")
+    {
+        Registry registry;
+        const auto scripted = registry.create("Scripted");
+        registry.add<aegis::scripting::Scripts>(scripted);
+        CHECK(entityKind(registry, scripted) == EntityKind::Empty); // No script attached yet
+        registry.get<aegis::scripting::Scripts>(scripted).entries.emplace_back();
+        CHECK(entityKind(registry, scripted) == EntityKind::Scripted);
+
+        const auto group = registry.create("Group");
+        const auto child = registry.create("Child");
+        REQUIRE(registry.setParent(child, group).has_value());
+        CHECK(entityKind(registry, group) == EntityKind::Group);
+        CHECK(entityKind(registry, child) == EntityKind::Empty);
+
+        // A component's kind comes first: a scripted mesh is a mesh, a scripted parent scripted
+        registry.add<aegis::MeshRenderer>(scripted);
+        CHECK(entityKind(registry, scripted) == EntityKind::Mesh);
+        registry.add<aegis::scripting::Scripts>(group).entries.emplace_back();
+        CHECK(entityKind(registry, group) == EntityKind::Scripted);
     }
 
     TEST_CASE("the first kind in the priority wins")
@@ -285,6 +314,10 @@ TEST_SUITE("editor::entityKind")
         CHECK(entityKind(registry, entity) == EntityKind::SceneInstance);
         registry.add<aegis::MeshRenderer>(entity);
         CHECK(entityKind(registry, entity) == EntityKind::Mesh);
+        registry.add<aegis::Sky>(entity);
+        CHECK(entityKind(registry, entity) == EntityKind::Sky);
+        registry.add<aegis::AmbientLight>(entity);
+        CHECK(entityKind(registry, entity) == EntityKind::AmbientLight);
         registry.add<aegis::PointLight>(entity);
         CHECK(entityKind(registry, entity) == EntityKind::PointLight);
         registry.add<aegis::DirectionalLight>(entity);

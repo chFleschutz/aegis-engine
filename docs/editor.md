@@ -526,8 +526,10 @@ tokens, not this structure.
   `:lucide` (`ui/lucide.cppm`: every icon, `lucide::mousePointer2`), and `:theme` names the ones the editor uses
   (`icons::select = lucide::mousePointer2`). `content/fonts/Lucide-VERSION.txt` records the release and the font's
   hash; `tools/update-lucide.py <version>` updates the font, its license and the module in one step.
-- **Inspector and hierarchy polish** (a two-column grid, colored X/Y/Z labels, component header icons, an icon
-  per entity kind, bold non-default values) is a follow-up, not part of E8's first pass.
+- **Inspector and hierarchy polish:** the inspector is a two-column grid, vector fields carry thin axis strips,
+  and component headers carry icons. Each entity kind (`entityKind`: camera, directional, point and ambient light,
+  sky, mesh, scene instance, scripted, group, empty) has an icon and a color (`entityIcon`, `entityIconColor`),
+  shown in its hierarchy row and the inspector's header. Bold non-default values are a follow-up.
 - **Shortcuts:** one action registry (`ui/actions.cppm`: id, label, chord, `enabled()`, `run()`) feeds the
   menus, the tooltips and the shortcut handler, which skips a frame while a text box has the keyboard.
 

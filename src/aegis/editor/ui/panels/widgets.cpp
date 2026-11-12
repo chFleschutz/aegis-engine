@@ -38,10 +38,18 @@ auto entityIcon(EntityKind kind) -> const char*
         return theme::icons::sun;
     case EntityKind::PointLight:
         return theme::icons::light;
+    case EntityKind::AmbientLight:
+        return theme::icons::ambientLight;
+    case EntityKind::Sky:
+        return theme::icons::environment;
     case EntityKind::Mesh:
         return theme::icons::mesh;
     case EntityKind::SceneInstance:
         return theme::icons::instance;
+    case EntityKind::Scripted:
+        return theme::icons::script;
+    case EntityKind::Group:
+        return theme::icons::group;
     case EntityKind::Empty:
         return theme::icons::empty;
     }
@@ -50,13 +58,20 @@ auto entityIcon(EntityKind kind) -> const char*
 
 auto entityIconColor(EntityKind kind) -> std::uint32_t
 {
+    // The viewport's colors for the cameras and what lights the scene; meshes and instances their own
     switch (kind)
     {
     case EntityKind::Camera:
         return theme::packed(theme::cameraIcon);
     case EntityKind::DirectionalLight:
     case EntityKind::PointLight:
+    case EntityKind::AmbientLight:
+    case EntityKind::Sky:
         return theme::packed(theme::lightIcon);
+    case EntityKind::Mesh:
+        return theme::packed(theme::meshIcon);
+    case EntityKind::SceneInstance:
+        return theme::packed(theme::instanceIcon);
     default:
         return theme::packed(theme::textDim);
     }
