@@ -69,6 +69,11 @@ public:
     /// @brief The offscreen target of frame slot 'frameIndex'. Offscreen only.
     [[nodiscard]] auto offscreenTarget(std::uint32_t frameIndex) const -> const Texture&;
 
+    /// @brief The milliseconds the last renderFrame spent blocked rather than working: waiting for the frame slot's
+    ///        previous submission (the GPU), for a swapchain image and for the present (the display). A frame's time
+    ///        less this is the CPU's.
+    [[nodiscard]] auto waitMs() const noexcept -> double { return m_waitMs; }
+
     [[nodiscard]] auto needsResize() const noexcept -> bool
     {
         return m_needsResize || (m_swapchain && m_swapchain->needsRecreation());
@@ -106,5 +111,6 @@ private:
     std::uint32_t m_currentFrame{ 0 };
     bool m_needsResize{ false };
     bool m_zeroExtent{ false }; // The last resize() was to a zero extent: renderFrame skips
+    double m_waitMs{ 0.0 };     // See waitMs
 };
 }
