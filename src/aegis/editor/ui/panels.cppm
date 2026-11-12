@@ -73,6 +73,9 @@ auto searchField(const char* id, const char* hint, std::string& text, int flags 
 /// @brief The icon of the component or script 'type' (the inspector's sections, the Add menu).
 [[nodiscard]] auto componentIcon(const reflect::TypeInfo& type) -> const char*;
 
+/// @brief The icon of an asset of 'kind' (the asset list, the inspector's asset slots).
+[[nodiscard]] auto assetIcon(AssetKind kind) -> const char*;
+
 /// @brief The items of a menu of 'types', one submenu per category (those without one at the top); the type picked this frame, if any.
 [[nodiscard]] auto pickType(std::span<const reflect::TypeInfo* const> types) -> const reflect::TypeInfo*;
 

@@ -97,4 +97,26 @@ auto componentIcon(const reflect::TypeInfo& type) -> const char*
     const auto it = std::ranges::find(icons, std::string_view{ type.name }, [](const auto& entry) { return entry.first; });
     return it != icons.end() ? it->second : theme::icons::genericComponent;
 }
+
+auto assetIcon(AssetKind kind) -> const char*
+{
+    switch (kind)
+    {
+    case AssetKind::StaticMesh:
+        return theme::icons::mesh;
+    case AssetKind::Material:
+        return theme::icons::material;
+    case AssetKind::Texture:
+        return theme::icons::texture;
+    case AssetKind::Scene:
+        return theme::icons::scene;
+    case AssetKind::Environment:
+        return theme::icons::environment;
+    case AssetKind::Model:
+        return theme::icons::model;
+    case AssetKind::Other:
+        return theme::icons::file;
+    }
+    return theme::icons::file;
+}
 }

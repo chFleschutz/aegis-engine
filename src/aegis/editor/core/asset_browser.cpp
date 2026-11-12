@@ -36,6 +36,18 @@ auto assetKind(std::string_view type, std::string_view path) -> AssetKind
     return AssetKind::Other;
 }
 
+auto assetDisplayName(std::string_view path, std::string_view key, std::string_view type) -> std::string
+{
+    std::string_view stem = fileName(path);
+    if (const auto dot = stem.rfind('.'); dot != std::string_view::npos && dot > 0)
+        stem = stem.substr(0, dot);
+    if (key.empty())
+        return std::string{ stem };
+    if (key.starts_with(type) && key.size() > type.size() && key[type.size()] == '/')
+        key.remove_prefix(type.size() + 1);
+    return key.starts_with('#') ? std::format("{} {}", stem, key) : std::string{ key };
+}
+
 auto AssetFilter::matches(const AssetItem& item) const -> bool
 {
     if (!type.empty() && item.type != type)

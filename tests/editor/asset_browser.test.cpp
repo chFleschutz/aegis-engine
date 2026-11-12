@@ -7,6 +7,7 @@ import aegis.math;
 namespace
 {
 using aegis::editor::acceptsAsset;
+using aegis::editor::assetDisplayName;
 using aegis::editor::AssetFilter;
 using aegis::editor::AssetItem;
 using aegis::editor::AssetKind;
@@ -80,6 +81,29 @@ auto partIds(const AssetTree& tree, const AssetRow& row) -> std::vector<std::uin
         ids.push_back(tree.items()[part].id);
     return ids;
 }
+}
+
+TEST_SUITE("editor::assetDisplayName")
+{
+    TEST_CASE("names a file's main asset by the file without its folder and extension")
+    {
+        CHECK(assetDisplayName("materials/brushed_metal.material", "", "Material") == "brushed_metal");
+        CHECK(assetDisplayName("environments/Autumn.Sky.hdr", "", "Environment") == "Autumn.Sky");
+        CHECK(assetDisplayName("LICENSE", "", "Other") == "LICENSE");
+        CHECK(assetDisplayName("models/.hidden", "", "Other") == ".hidden");
+    }
+
+    TEST_CASE("names a part by its key without the type prefix")
+    {
+        CHECK(assetDisplayName("models/helmet.gltf", "StaticMesh/Helmet/0", "StaticMesh") == "Helmet/0");
+        CHECK(assetDisplayName("models/helmet.gltf", "Material/Visor", "Material") == "Visor");
+    }
+
+    TEST_CASE("names an unnamed part after its file")
+    {
+        CHECK(assetDisplayName("models/sponza/Sponza.gltf", "StaticMesh/#0/12", "StaticMesh") == "Sponza #0/12");
+        CHECK(assetDisplayName("models/sponza/Sponza.gltf", "Material/#default", "Material") == "Sponza #default");
+    }
 }
 
 TEST_SUITE("editor::AssetTree")

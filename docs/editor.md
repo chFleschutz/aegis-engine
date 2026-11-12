@@ -243,8 +243,11 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   with a range); Float/Double → drag with a step, and the `Angle` hint shows radians as degrees;
   Vec2/3/4 → axis-colored drags, and the `Color` hint shows a linear color picker that edits in sRGB
   (D8); Quat → Euler degrees; Enum → combo from the `EnumEntry` list; String → text field (edits
-  commit on deactivate); AssetRef → an asset slot that shows the asset's name, opens a picker filtered
-  by the field's asset type, accepts drops from the browser, and offers "None". The mapping is a pure
+  commit on deactivate); AssetRef → an asset slot that shows the asset's kind icon and short name (a
+  file's name without folder and extension, a part's key without the type prefix: `assetDisplayName`;
+  the full path in the tooltip), opens a picker of the field's asset type (a search above the list,
+  Enter picks the first match, the assets by name with their file's name, "None" first), accepts drops
+  from the browser. The mapping is a pure
   function in `property_model`, unit-tested ([#133]'s "field-to-widget mapping").
 - **Quaternions in the inspector:** converting quat → Euler every frame makes a drag jump at the
   gimbal boundaries. While a rotation field is being dragged, the property model keeps the Euler

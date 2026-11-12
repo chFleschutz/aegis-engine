@@ -43,29 +43,6 @@ auto partName(const AssetItem& item) -> std::string_view
     return key;
 }
 
-// The icon of an asset kind.
-auto kindIcon(AssetKind kind) -> const char*
-{
-    switch (kind)
-    {
-    case AssetKind::StaticMesh:
-        return theme::icons::mesh;
-    case AssetKind::Material:
-        return theme::icons::material;
-    case AssetKind::Texture:
-        return theme::icons::texture;
-    case AssetKind::Scene:
-        return theme::icons::scene;
-    case AssetKind::Environment:
-        return theme::icons::environment;
-    case AssetKind::Model:
-        return theme::icons::model;
-    case AssetKind::Other:
-        return theme::icons::file;
-    }
-    return theme::icons::file;
-}
-
 // The ImGui ID of an asset's line: its asset ID, which survives a rescan.
 auto assetId(const AssetItem& item) -> const void*
 {
@@ -333,7 +310,7 @@ private:
 
         // With a filter the rows come from several folders: show where each is
         const auto kind = file.main ? assetKind(m_tree.items()[*file.main].type, file.path) : AssetKind::Other;
-        const std::string label = lineLabel(std::format("{}  {}", kindIcon(kind), m_filter.active() ? file.path : file.name), readOnly);
+        const std::string label = lineLabel(std::format("{}  {}", assetIcon(kind), m_filter.active() ? file.path : file.name), readOnly);
         const bool hasParts = !row.parts.empty();
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
         if (!hasParts)
@@ -371,7 +348,7 @@ private:
         ImGui::Indent(indent);
         ImGui::PushID(assetId(item));
         const auto name = partName(item);
-        ImGui::TreeNodeEx("##part", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s", lineLabel(std::format("{}  {}  ({})", kindIcon(assetKind(item.type, item.path)), name, item.type), readOnly).c_str());
+        ImGui::TreeNodeEx("##part", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s", lineLabel(std::format("{}  {}  ({})", assetIcon(assetKind(item.type, item.path)), name, item.type), readOnly).c_str());
         dragSource(item, name);
         ImGui::PopID();
         ImGui::Unindent(indent);

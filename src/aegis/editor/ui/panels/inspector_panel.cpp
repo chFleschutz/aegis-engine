@@ -281,40 +281,145 @@ auto drawText(const reflect::Value& value) -> std::optional<reflect::Value>
     return ImGui::InputText("##value", &text) ? std::optional{ reflect::Value{ std::move(text) } } : std::nullopt;
 }
 
-// The name of the asset 'id' as the slot shows it: its file and, for a part of one, its sub-asset key.
-auto assetName(const assets::AssetDatabase& database, std::uint64_t id) -> std::string
+// An asset as an asset slot and its picker show it.
+struct SlotAsset
+{
+    std::uint64_t id{ 0 };
+    const char* icon{ theme::icons::none };
+    std::string name;     // Its short name (assetDisplayName)
+    std::string location; // Its file's path, and the key of a part
+    std::string file;     // Its file's name
+    std::string type;
+    bool readOnly{ false }; // Engine content
+    bool missing{ false };  // Not in the database
+};
+
+auto slotAsset(const assets::AssetDatabase& database, std::uint64_t id) -> SlotAsset
 {
     if (id == 0)
-        return "None";
+        return SlotAsset{ .name = "None" };
     const auto* entry = database.find(assets::AssetId{ id });
     if (!entry)
-        return std::format("{} (not in the project)", assets::AssetId{ id });
-    return entry->key.empty() ? entry->path : std::format("{} : {}", entry->path, entry->key);
+        return SlotAsset{ .id = id, .icon = theme::icons::warning, .name = "Missing asset", .location = std::format("{} is not in the project", assets::AssetId{ id }), .missing = true };
+    const auto& roots = database.roots();
+    return SlotAsset{
+        .id = id,
+        .icon = assetIcon(assetKind(entry->type, entry->path)),
+        .name = assetDisplayName(entry->path, entry->key, entry->type),
+        .location = entry->key.empty() ? entry->path : std::format("{} : {}", entry->path, entry->key),
+        .file = entry->path.substr(entry->path.rfind('/') + 1),
+        .type = entry->type,
+        .readOnly = entry->root < roots.size() && roots[entry->root].readOnly,
+    };
 }
 
-// The assets an asset slot's picker lists: those of its type whose name holds its search.
+// Draws 'asset' on the line from 'left' to 'right' whose text starts at 'top': its icon, its name and, for engine
+// content, the lock, which stays in view and cuts a long name short. Returns where the name (or the lock) ends.
+auto drawAssetLabel(ImDrawList* drawList, float left, float right, float top, const SlotAsset& asset, bool selected) -> float
+{
+    const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+    const ImU32 muted = theme::packed(theme::mutedText(selected));
+    const ImU32 iconColor = asset.missing ? theme::packed(theme::warning) : asset.id == 0 ? muted
+                                                                                          : theme::packed(theme::textDim);
+    const ImU32 nameColor = asset.id == 0 || asset.readOnly ? muted : ImGui::GetColorU32(ImGuiCol_Text);
+    drawList->AddText(ImVec2{ left, top }, iconColor, asset.icon);
+    const float nameX = left + ImGui::CalcTextSize(asset.icon).x + spacing;
+    const float lockWidth = asset.readOnly ? ImGui::CalcTextSize(theme::icons::locked).x + spacing : 0.0f;
+    const float nameEnd = std::min(nameX + ImGui::CalcTextSize(asset.name.c_str()).x, right - lockWidth);
+    const ImVec4 clip{ nameX, top, nameEnd, top + ImGui::GetFontSize() };
+    drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2{ nameX, top }, nameColor, asset.name.c_str(), nullptr, 0.0f, &clip);
+    if (!asset.readOnly)
+        return nameEnd;
+    drawList->AddText(ImVec2{ nameEnd + spacing, top }, muted, theme::icons::locked);
+    return nameEnd + lockWidth;
+}
+
+// The assets an asset slot's picker lists: those of its type whose name or location holds its search, by name.
 struct PickerList
 {
-    struct Asset
-    {
-        std::uint64_t id{ 0 };
-        std::string name;
-    };
-
     std::string type;
     std::string filter;
     std::size_t databaseSize{ 0 };
-    std::vector<Asset> assets;
+    std::vector<SlotAsset> assets;
 };
 
-// The asset's name, and a picker of the assets of the field's type (and None). An 'editable' slot takes an asset of
-// its type dragged from the asset browser.
+// The picker's rows in view before it scrolls; a row's padding above and below its label, the gap between rows and the
+// rounding of a row's highlight, in pixels at 100% (the hierarchy's); the picker's least width, in font sizes.
+constexpr int pickerRows{ 12 };
+constexpr float pickerRowPadding{ 3.0f };
+constexpr float pickerRowGap{ 1.0f };
+constexpr float pickerRounding{ 2.0f };
+constexpr float pickerMinWidth{ 22.0f };
+
+// 'text' in lower case, for sorting by name.
+auto lowered(std::string_view text) -> std::string
+{
+    std::string result{ text };
+    std::ranges::transform(result, result.begin(), [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
+    return result;
+}
+
+// A row of the picker across its width: the asset, and its file's name right-aligned where there is room (its location in
+// the tooltip). The highlight
+// is drawn by hand, with rounded corners (ImGui's is square). True when it was picked.
+auto pickerRow(const SlotAsset& asset, bool selected, float height) -> bool
+{
+    const ImVec2 position = ImGui::GetCursorScreenPos();
+    const ImVec4 clear{ 0.0f, 0.0f, 0.0f, 0.0f };
+    ImGui::PushStyleColor(ImGuiCol_Header, clear);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, clear);
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, clear);
+    const bool picked = ImGui::Selectable("##asset", selected, ImGuiSelectableFlags_None, ImVec2{ 0.0f, height });
+    ImGui::PopStyleColor(3);
+
+    // The item also covers the gap to the next row and half the spacing at its left: the highlight covers the row
+    const float left = ImGui::GetItemRectMin().x;
+    const float right = ImGui::GetItemRectMax().x;
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    if (selected || ImGui::IsItemHovered())
+    {
+        const ImGuiCol highlight = selected ? ImGuiCol_Header : ImGui::IsItemActive() ? ImGuiCol_HeaderActive
+                                                                                      : ImGuiCol_HeaderHovered;
+        drawList->AddRectFilled(ImVec2{ left, position.y }, ImVec2{ right, position.y + height }, ImGui::GetColorU32(highlight), std::round(pickerRounding * theme::scale()));
+    }
+
+    const float top = position.y + std::round((height - ImGui::GetFontSize()) * 0.5f);
+    const float textRight = right - (position.x - left);
+    const float nameEnd = drawAssetLabel(drawList, position.x, textRight, top, asset, selected);
+    if (asset.location.empty())
+        return picked;
+    // The file tells assets of one name apart: after the name, if it fits
+    const float width = ImGui::CalcTextSize(asset.file.c_str()).x;
+    if (textRight - width >= nameEnd + 2.0f * ImGui::GetStyle().ItemSpacing.x)
+        drawList->AddText(ImVec2{ textRight - width, top }, theme::packed(theme::mutedText(selected)), asset.file.c_str());
+    ImGui::SetItemTooltip("%s", asset.location.c_str());
+    return picked;
+}
+
+// The asset in the slot by its icon and short name, and a picker of the assets of the field's type (and None): a search
+// that takes the keyboard and stays in place above the list, Enter picking the first match, and the list by name, opened
+// at the asset in the slot. An 'editable' slot takes an asset of its type dragged from the asset browser.
 auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const assets::AssetDatabase& database, bool editable) -> std::optional<reflect::Value>
 {
     static std::string s_filter;
+    static PickerList s_list;
     const auto current = as<std::uint64_t>(value);
+    const SlotAsset shown = slotAsset(database, current);
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float fontSize = ImGui::GetFontSize();
+
+    // The slot draws its own preview over an empty one: ImGui's is text of one color
+    ImDrawList* slotDrawList = ImGui::GetWindowDrawList();
+    const ImVec2 slotMin = ImGui::GetCursorScreenPos();
+    const float slotWidth = ImGui::CalcItemWidth();
+    ImGui::SetNextWindowSizeConstraints(ImVec2{ std::max(slotWidth, pickerMinWidth * fontSize), 0.0f }, ImVec2{ FLT_MAX, FLT_MAX });
+    const bool open = ImGui::BeginCombo("##value", "", ImGuiComboFlags_NoArrowButton);
+    const float slotRight = slotMin.x + slotWidth - style.FramePadding.x;
+    slotDrawList->PushClipRect(slotMin, ImVec2{ slotMin.x + slotWidth, slotMin.y + ImGui::GetFrameHeight() }, true);
+    drawAssetLabel(slotDrawList, slotMin.x + style.FramePadding.x, slotRight, slotMin.y + style.FramePadding.y, shown, false);
+    slotDrawList->PopClipRect();
+
     std::optional<reflect::Value> edited;
-    const bool open = ImGui::BeginCombo("##value", assetName(database, current).c_str(), ImGuiComboFlags_HeightLarge);
     if (!open && editable && ImGui::BeginDragDropTarget())
     {
         const auto& slotType = row.field->assetType;
@@ -324,46 +429,78 @@ auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const as
     }
     if (open)
     {
-        if (ImGui::IsWindowAppearing())
+        const bool appearing = ImGui::IsWindowAppearing();
+        if (appearing)
         {
             s_filter.clear();
             ImGui::SetKeyboardFocusHere();
         }
         ImGui::SetNextItemWidth(-FLT_MIN);
-        searchField("##filter", "Search", s_filter);
-        if (ImGui::Selectable("None", current == 0))
-            edited = reflect::Value{ std::uint64_t{ 0 } };
+        const bool entered = searchField("##filter", "Search", s_filter, ImGuiInputTextFlags_EnterReturnsTrue);
 
         // The matching assets, listed again when the picker opens or the search, the slot's type or the database changed
-        static PickerList s_list;
-        if (ImGui::IsWindowAppearing() || s_list.filter != s_filter || s_list.type != row.field->assetType || s_list.databaseSize != database.size())
+        if (appearing || s_list.filter != s_filter || s_list.type != row.field->assetType || s_list.databaseSize != database.size())
         {
             s_list = PickerList{ .type = row.field->assetType, .filter = s_filter, .databaseSize = database.size() };
             for (const auto& entry : database.entries())
             {
                 if (entry.type != row.field->assetType)
                     continue;
-                auto name = assetName(database, entry.id.value);
-                if (core::containsIgnoringCase(name, s_filter))
-                    s_list.assets.push_back({ .id = entry.id.value, .name = std::move(name) });
+                auto asset = slotAsset(database, entry.id.value);
+                if (core::containsIgnoringCase(asset.name, s_filter) || core::containsIgnoringCase(asset.location, s_filter))
+                    s_list.assets.push_back(std::move(asset));
             }
+            std::ranges::sort(s_list.assets, {}, [](const SlotAsset& asset) { return std::pair{ lowered(asset.name), lowered(asset.location) }; });
         }
-        ImGuiListClipper clipper; // Only the assets in view are drawn
-        clipper.Begin(static_cast<int>(s_list.assets.size()));
-        while (clipper.Step())
+        if (entered && !s_filter.empty() && !s_list.assets.empty())
         {
-            for (int index = clipper.DisplayStart; index < clipper.DisplayEnd; ++index)
-            {
-                const auto& asset = s_list.assets[static_cast<std::size_t>(index)];
-                ImGui::PushID(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(asset.id)));
-                if (ImGui::Selectable(asset.name.c_str(), asset.id == current))
-                    edited = reflect::Value{ asset.id };
-                ImGui::PopID();
-            }
+            edited = reflect::Value{ s_list.assets.front().id };
+            ImGui::CloseCurrentPopup();
         }
+
+        // None comes first while there is no search
+        const float scale = theme::scale();
+        const float rowHeight = std::round(fontSize + 2.0f * pickerRowPadding * scale);
+        const float rowGap = std::round(pickerRowGap * scale);
+        const int noneRows = s_filter.empty() ? 1 : 0;
+        const int count = static_cast<int>(s_list.assets.size()) + noneRows;
+        const float listHeight = static_cast<float>(std::clamp(count, 1, pickerRows)) * (rowHeight + rowGap) - rowGap;
+        if (ImGui::BeginChild("##assets", ImVec2{ 0.0f, listHeight }, ImGuiChildFlags_NavFlattened))
+        {
+            if (count == 0)
+                ImGui::TextDisabled("No %s matches the search", row.field->assetType.c_str());
+
+            static const SlotAsset none{ .name = "None" };
+            const auto found = std::ranges::find(s_list.assets, current, &SlotAsset::id);
+            const int currentIndex = current == 0 ? 0 : found != s_list.assets.end() ? static_cast<int>(found - s_list.assets.begin()) + noneRows
+                                                                                     : -1;
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ style.ItemSpacing.x, rowGap });
+            ImGuiListClipper clipper; // Only the rows in view are drawn
+            clipper.Begin(count, rowHeight + rowGap);
+            if (appearing && currentIndex >= 0)
+                clipper.IncludeItemByIndex(currentIndex);
+            while (clipper.Step())
+            {
+                for (int index = clipper.DisplayStart; index < clipper.DisplayEnd; ++index)
+                {
+                    const SlotAsset& asset = index < noneRows ? none : s_list.assets[static_cast<std::size_t>(index - noneRows)];
+                    ImGui::PushID(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(asset.id)));
+                    if (pickerRow(asset, asset.id == current, rowHeight))
+                        edited = reflect::Value{ asset.id };
+                    if (appearing && index == currentIndex)
+                        ImGui::SetScrollHereY(0.5f);
+                    ImGui::PopID();
+                }
+            }
+            ImGui::PopStyleVar();
+        }
+        ImGui::EndChild();
         ImGui::EndCombo();
     }
-    ImGui::SetItemTooltip("%s", row.field->assetType.c_str());
+    if (shown.location.empty())
+        ImGui::SetItemTooltip("No %s", row.field->assetType.c_str());
+    else
+        ImGui::SetItemTooltip("%s\n%s", shown.location.c_str(), shown.missing ? row.field->assetType.c_str() : shown.type.c_str());
     return edited;
 }
 

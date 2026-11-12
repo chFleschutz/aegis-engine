@@ -65,6 +65,9 @@ inline constexpr const char* instance = lucide::component;
 inline constexpr const char* group = lucide::group;
 inline constexpr const char* empty = lucide::boxSelect;
 
+// An empty asset slot.
+inline constexpr const char* none = lucide::ban;
+
 // The kinds of assets in the asset list (the mesh above is the static mesh).
 inline constexpr const char* material = lucide::palette;
 inline constexpr const char* texture = lucide::image;

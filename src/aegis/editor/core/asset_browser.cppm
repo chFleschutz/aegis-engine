@@ -32,6 +32,11 @@ enum class AssetKind
 ///        scene file's by the extension.
 [[nodiscard]] auto assetKind(std::string_view type, std::string_view path) -> AssetKind;
 
+/// @brief The short name of the asset of type 'type' in the file at 'path' with the sub-asset key 'key', as an asset
+///        slot shows it: a file's main asset is the file's name without its folder and extension, a part its key
+///        without the type prefix, and an unnamed part (a key that starts with '#') its file's name and that key.
+[[nodiscard]] auto assetDisplayName(std::string_view path, std::string_view key, std::string_view type) -> std::string;
+
 /// @brief A root folder of the browser: the project's content or the engine content.
 struct AssetRoot
 {
