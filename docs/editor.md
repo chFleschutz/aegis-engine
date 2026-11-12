@@ -274,8 +274,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   A drawer registry keyed by type name (editor-side) exists for the few that need more (a future
   `SkinnedMesh`, curves). A game registers drawers from its editor-only sources. Nothing in the
   runtime knows about them.
-- **Reset and copy:** a ⋮ button at the right of each component and script header (and a right click on it) opens a
-  menu of Reset (the values of a default instance, `TypeInfo::create`), Copy and Paste (field values as one JSON object
+- **Reset and copy:** a right click on a component or script header opens a menu of Reset (the values of a default instance, `TypeInfo::create`), Copy and Paste (field values as one JSON object
   of `toText` text on the system clipboard, in `core/component_text`; a paste only applies to the same type and skips
   read-only fields) and Remove (Detach for a script). Reset and Paste are one `ComponentEdit` each, so one undo
   reverts them. An entity's ⋮ menu beside its name offers Copy ID; the ID otherwise shows in the name's tooltip.
