@@ -73,8 +73,9 @@ auto searchField(const char* id, const char* hint, std::string& text, int flags 
 /// @brief The icon of the component or script 'type' (the inspector's sections, the Add menu).
 [[nodiscard]] auto componentIcon(const reflect::TypeInfo& type) -> const char*;
 
-/// @brief The icon of an asset of 'kind' (the asset list, the inspector's asset slots).
+/// @brief The icon of an asset of 'kind' (the asset list, the inspector's asset slots), and its color as an ImU32.
 [[nodiscard]] auto assetIcon(AssetKind kind) -> const char*;
+[[nodiscard]] auto assetIconColor(AssetKind kind) -> std::uint32_t;
 
 /// @brief The Create menu's items, for a menu or a popup: an empty entity, then an entity of each registered component
 ///        type that can be created, by category, each a click away. Each creates one entity under 'parent' (a root entity

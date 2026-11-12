@@ -286,9 +286,10 @@ struct SlotAsset
 {
     std::uint64_t id{ 0 };
     const char* icon{ theme::icons::none };
-    std::string name;     // Its short name (assetDisplayName)
-    std::string location; // Its file's path, and the key of a part
-    std::string file;     // Its file's name
+    std::uint32_t iconColor{ 0 }; // Its kind's
+    std::string name;             // Its short name (assetDisplayName)
+    std::string location;         // Its file's path, and the key of a part
+    std::string file;             // Its file's name
     std::string type;
     bool readOnly{ false }; // Engine content
     bool missing{ false };  // Not in the database
@@ -302,9 +303,11 @@ auto slotAsset(const assets::AssetDatabase& database, std::uint64_t id) -> SlotA
     if (!entry)
         return SlotAsset{ .id = id, .icon = theme::icons::warning, .name = "Missing asset", .location = std::format("{} is not in the project", assets::AssetId{ id }), .missing = true };
     const auto& roots = database.roots();
+    const auto kind = assetKind(entry->type, entry->path);
     return SlotAsset{
         .id = id,
-        .icon = assetIcon(assetKind(entry->type, entry->path)),
+        .icon = assetIcon(kind),
+        .iconColor = assetIconColor(kind),
         .name = assetDisplayName(entry->path, entry->key, entry->type),
         .location = entry->key.empty() ? entry->path : std::format("{} : {}", entry->path, entry->key),
         .file = entry->path.substr(entry->path.rfind('/') + 1),
@@ -320,7 +323,7 @@ auto drawAssetLabel(ImDrawList* drawList, float left, float right, float top, co
     const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
     const ImU32 muted = theme::packed(theme::mutedText(selected));
     const ImU32 iconColor = asset.missing ? theme::packed(theme::warning) : asset.id == 0 ? muted
-                                                                                          : theme::packed(theme::textDim);
+                                                                                          : asset.iconColor;
     const ImU32 nameColor = asset.id == 0 || asset.readOnly ? muted : ImGui::GetColorU32(ImGuiCol_Text);
     drawList->AddText(ImVec2{ left, top }, iconColor, asset.icon);
     const float nameX = left + ImGui::CalcTextSize(asset.icon).x + spacing;

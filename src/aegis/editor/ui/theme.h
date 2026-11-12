@@ -81,6 +81,13 @@ inline constexpr ImVec4 cameraIcon = rgb(0x8CC8FF);
 // lightIcon; scripted, group and empty entities textDim.
 inline constexpr ImVec4 meshIcon = rgb(0x7EB6E6);
 inline constexpr ImVec4 instanceIcon = rgb(0xC3B1FF);
+// The asset browser's and the asset slots' icons by asset kind (meshes take meshIcon, models instanceIcon, environments
+// lightIcon, other files textDim): folders, materials, textures and scene files. 4.8, 4.4, 5.1 and 4.2 on a selected
+// row, above 8 on the window.
+inline constexpr ImVec4 folderIcon = rgb(0xD9B56E);
+inline constexpr ImVec4 materialIcon = rgb(0xF0A070);
+inline constexpr ImVec4 textureIcon = rgb(0x8CCF8C);
+inline constexpr ImVec4 sceneIcon = rgb(0xE79AC4);
 inline constexpr ImVec4 iconBackdrop = rgb(0x1E1E1E, 0.78f);
 inline constexpr ImVec4 iconSelected = rgb(0xFFA028);
 

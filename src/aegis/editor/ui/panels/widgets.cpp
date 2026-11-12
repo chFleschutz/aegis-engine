@@ -119,4 +119,26 @@ auto assetIcon(AssetKind kind) -> const char*
     }
     return theme::icons::file;
 }
+
+auto assetIconColor(AssetKind kind) -> std::uint32_t
+{
+    switch (kind)
+    {
+    case AssetKind::StaticMesh:
+        return theme::packed(theme::meshIcon);
+    case AssetKind::Material:
+        return theme::packed(theme::materialIcon);
+    case AssetKind::Texture:
+        return theme::packed(theme::textureIcon);
+    case AssetKind::Scene:
+        return theme::packed(theme::sceneIcon);
+    case AssetKind::Environment:
+        return theme::packed(theme::lightIcon);
+    case AssetKind::Model:
+        return theme::packed(theme::instanceIcon);
+    case AssetKind::Other:
+        return theme::packed(theme::textDim);
+    }
+    return theme::packed(theme::textDim);
+}
 }
