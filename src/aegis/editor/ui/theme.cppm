@@ -63,7 +63,7 @@ inline constexpr const char* collapsed = lucide::chevronRight;
 inline constexpr const char* mesh = lucide::box;
 inline constexpr const char* instance = lucide::component;
 inline constexpr const char* group = lucide::group;
-inline constexpr const char* empty = lucide::circleDashed;
+inline constexpr const char* empty = lucide::boxSelect;
 
 // The kinds of assets in the asset list (the mesh above is the static mesh).
 inline constexpr const char* material = lucide::palette;
