@@ -76,12 +76,9 @@ auto searchField(const char* id, const char* hint, std::string& text, int flags 
 /// @brief The icon of an asset of 'kind' (the asset list, the inspector's asset slots).
 [[nodiscard]] auto assetIcon(AssetKind kind) -> const char*;
 
-/// @brief The items of a menu of 'types', one submenu per category (those without one at the top); the type picked this frame, if any.
-[[nodiscard]] auto pickType(std::span<const reflect::TypeInfo* const> types) -> const reflect::TypeInfo*;
-
-/// @brief The Create menu's items, for a menu or a popup: an empty entity, a camera, a point light, a directional light,
-///        then the registered component types by category. Each creates one entity under 'parent' (a root entity for a
-///        null one) as one undo entry, selects it and asks for its name to be typed (EditorContext::requestRename).
+/// @brief The Create menu's items, for a menu or a popup: an empty entity, then an entity of each registered component
+///        type that can be created, by category, each a click away. Each creates one entity under 'parent' (a root entity
+///        for a null one) as one undo entry, selects it and asks for its name to be typed (EditorContext::requestRename).
 void drawCreateMenu(EditorContext& editor, FrameContext& frame, world::Entity parent = {});
 
 /// @brief The asset dragged onto the item of the open drag and drop target, once dropped, if 'accepts' takes it; one it

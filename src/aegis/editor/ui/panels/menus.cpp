@@ -2,12 +2,15 @@ module;
 
 #include <imgui.h>
 
+#include "aegis/editor/ui/theme.h"
+
 module aegis.editor;
 import std;
 import aegis.core;
 import aegis.reflect;
 import aegis.world;
 import :panels;
+import :theme;
 
 namespace aegis::editor
 {
@@ -27,56 +30,25 @@ void createAndSelect(EditorContext& editor, FrameContext& frame, std::string nam
 }
 }
 
-auto pickType(std::span<const reflect::TypeInfo* const> types) -> const reflect::TypeInfo*
-{
-    if (types.empty())
-        ImGui::TextDisabled("Nothing to add");
-
-    const reflect::TypeInfo* picked = nullptr;
-    for (std::size_t first = 0; first < types.size();)
-    {
-        const auto& category = types[first]->meta.category;
-        std::size_t end = first;
-        while (end < types.size() && types[end]->meta.category == category)
-            ++end;
-
-        if (category.empty() || ImGui::BeginMenu(category.c_str()))
-        {
-            for (std::size_t i = first; i < end; ++i)
-            {
-                const std::string label{ types[i]->displayName() };
-                if (ImGui::MenuItem(label.c_str()))
-                    picked = types[i];
-            }
-            if (!category.empty())
-                ImGui::EndMenu();
-        }
-        first = end;
-    }
-    return picked;
-}
-
 void drawCreateMenu(EditorContext& editor, FrameContext& frame, world::Entity parent)
 {
-    if (ImGui::MenuItem("Empty"))
+    // One click creates any of them: the components by category without submenus, the categories a separator apart and
+    // each item marked by its component's icon
+    if (ImGui::MenuItem(std::format("{} Empty", theme::icons::empty).c_str()))
         createAndSelect(editor, frame, "Empty", {}, parent);
-
-    // An entity with one registered component, named for the menu item; disabled if the game doesn't register the type
-    const auto preset = [&](const char* label, const char* type) {
-        const auto* info = frame.types.find(type);
-        if (ImGui::MenuItem(label, nullptr, false, info != nullptr))
-            createAndSelect(editor, frame, label, std::span{ &info, 1 }, parent);
-    };
-    preset("Camera", "Camera");
-    preset("Point Light", "PointLight");
-    preset("Directional Light", "DirectionalLight");
-
-    ImGui::Separator();
-    // Its own ID scope: the category "Camera" would share an ID with the item "Camera" above
-    ImGui::PushID("components");
-    const auto* type = pickType(creatableComponents(frame.types, editor.world()->registry()));
-    ImGui::PopID();
-    if (type)
-        createAndSelect(editor, frame, std::string{ type->displayName() }, std::span{ &type, 1 }, parent);
+    const std::string* category = nullptr;
+    for (const auto* type : creatableComponents(frame.types, editor.world()->registry()))
+    {
+        if (!category || *category != type->meta.category)
+        {
+            category = &type->meta.category;
+            ImGui::Separator();
+        }
+        const std::string name{ type->displayName() };
+        ImGui::PushID(type->name.c_str());
+        if (ImGui::MenuItem(std::format("{} {}", componentIcon(*type), name).c_str()))
+            createAndSelect(editor, frame, name, std::span{ &type, 1 }, parent);
+        ImGui::PopID();
+    }
 }
 }

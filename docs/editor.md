@@ -290,11 +290,12 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   ("Undo Move 'Helmet'", `editTitle` in `core/edits`; [#281]).
 - **Hierarchy:** rows come from `Parent` / `Children` / `Siblings`, walked iteratively (as today),
   with a name filter (matching rows keep their ancestors). Drag and drop reparents and reorders,
-  rejecting cycles (`Registry::isInSubtree`). F2 renames, Del deletes, Ctrl+D duplicates, F frames the entity. One Create menu (Empty, Camera,
-  Point Light, Directional Light, and the registry's types by category; one undo entry each, the new entity
-  selected and named at once) sits behind the "+" button beside the filter, in the Entity menu and in the
-  window's context menu; a row's context menu selects the row first and offers Rename, Duplicate, Delete,
-  Create Child and Focus, named after the action registry. "All Entities", a flat list of every entity, is a
+  rejecting cycles (`Registry::isInSubtree`). F2 renames, Del deletes, Ctrl+D duplicates, F frames the entity. One Create menu (Empty, then
+  an entity of each creatable component type, by category a separator apart, each with its icon and no submenus, so
+  anything is one click away; one undo entry each, the new entity selected and named at once) sits behind the "+"
+  button beside the filter and in the Entity menu, and makes up the window's context menu; a row's context menu
+  selects the row first and offers Rename, Duplicate, Delete and Focus, named after the action registry, with the
+  Create menu's items below them, which create a child of the row (not for a scene instance's members). "All Entities", a flat list of every entity, is a
   debug panel.
 - **Asset browser (R10):** a folder tree over `AssetDatabase::entries()` with two roots, the project
   and the engine content (read-only, shown dimmed). The file list shows each file's sub-assets

@@ -303,7 +303,7 @@ private:
     }
 
     // The menu of the row that was right-clicked (selected by the click, so the actions, which act on the selection, act on
-    // it and on the other selected rows).
+    // it and on the other selected rows), with the Create menu's items below, which create a child of the row.
     void drawRowMenu(EditorContext& editor, FrameContext& frame)
     {
         if (!ImGui::BeginPopup("RowMenu"))
@@ -320,27 +320,24 @@ private:
         m_actions.menuItem("edit.rename", frame);
         m_actions.menuItem("edit.duplicate", frame);
         m_actions.menuItem("edit.delete", frame);
-        ImGui::Separator();
-        if (ImGui::BeginMenu("Create Child", !registry.has<serialize::InstanceMember>(row)))
-        {
-            drawCreateMenu(editor, frame, row);
-            ImGui::EndMenu();
-        }
-        ImGui::Separator();
         m_actions.menuItem("edit.focus", frame);
+        // A scene instance's members take no children: they are recreated from its scene
+        if (!registry.has<serialize::InstanceMember>(row))
+        {
+            ImGui::SeparatorText("Create Child");
+            drawCreateMenu(editor, frame, row);
+        }
         ImGui::EndPopup();
     }
 
-    // The menu of the empty space and of the window's edge, not of the rows (their own opens there).
+    // The menu of the empty space and of the window's edge, not of the rows (their own opens there): the Create menu's
+    // items, which create a root entity.
     void drawWindowMenu(EditorContext& editor, FrameContext& frame)
     {
         if (!ImGui::BeginPopupContextWindow("WindowMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
             return;
-        if (ImGui::BeginMenu("Create"))
-        {
-            drawCreateMenu(editor, frame);
-            ImGui::EndMenu();
-        }
+        ImGui::SeparatorText("Create");
+        drawCreateMenu(editor, frame);
         ImGui::EndPopup();
     }
 
