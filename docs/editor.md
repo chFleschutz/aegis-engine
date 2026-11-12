@@ -320,8 +320,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   write nor read autosaves.
 - **Console:** a log sink (R13) feeds a ring buffer with level filters and counts, search, clear, copy and a
   Collapse toggle that merges repeated messages, while stderr output continues. The status bar's Console button
-  carries the warning and error counts, with the last one as their tooltip; clicking them opens the console with
-  only those on ([#279], [#322]).
+  carries the warning and error counts in the same button, with the last problem in its tooltip ([#279], [#322]).
 
 ### Persistence
 
@@ -426,7 +425,7 @@ tokens, not this structure.
 │ │ Rescan  All types  Search                                │ │                     │ over the viewport
 │ └──────────────────────────────────────────────────────────┘ │                     │
 ├──────────────────────────────────────────────────────────────┴─────────────────────┤
-│ 📁 >_ ⚠ 25 ⊗ 0  Sponza       Q W E R select, move…  F focus      60 fps · GPU 4.1 ms │ status bar
+│ 📁 >_ ⚠ 25 ⊗ 0  Sponza      Q W E R select, move… F focus CPU 4.2 · GPU 4.1 · 60 fps │ status bar
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -461,10 +460,12 @@ tokens, not this structure.
 - **Debug panels** (Renderer, Profiler, Statistics) start closed; the Debug menu opens them in the drawer (they
   are wide tables) and lists the ImGui demo and the style editor (`ImGui::ShowStyleEditor`, for live tuning).
 - **Status bar:** the Assets and Console buttons at the left (Lucide `folder` and `terminal`, lit while the drawer
-  shows their panel), the console's warning and error counts on the Console button, then the selection. The middle shows the
+  shows their panel), the console's warning and error counts inside the Console button, then the selection. The middle shows the
   keys for what the cursor is over: the gizmo and camera keys over the viewport, the fly keys while the right mouse
-  button is held, F2 and drag to reparent over the hierarchy (the chords from the action registry). The frame and
-  GPU times are at the right.
+  button is held, F2 and drag to reparent over the hierarchy (the chords from the action registry). At the right, a
+  slim line apart: the CPU time (the frame less the time the renderer waited for the GPU and the display,
+  `Renderer::waitMs`, kept as the profiler's "Frame Wait"), the GPU time of the render graph's passes, and the frame
+  rate; each in a slot as wide as its widest usual value, in tabular digits, so nothing moves as they change.
 - **Full viewport** ([#323]): F11, the menu bar's button left of the scene name (Lucide `maximize-2`) or View →
   Full Viewport give the viewport the whole window. The menu bar, the status bar and every panel are hidden, and the
   viewport keeps its toolbar, icons and gizmo. A small bar centered at its top holds Play, Pause and Step and the

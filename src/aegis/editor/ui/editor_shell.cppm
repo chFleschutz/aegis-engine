@@ -175,15 +175,19 @@ private:
     /// @brief Asks for this frame's updates: the edit world in edit mode, or the play world.
     void updateWorlds(FrameContext& frame);
     /// @brief The drawer buttons and the selection at the left, the keys for what the cursor is over in the middle, the
-    ///        average frame and GPU times at the right.
+    ///        average CPU and GPU times and the frame rate at the right.
     void drawStatusBar(FrameContext& frame);
+    /// @brief The CPU time, the GPU time and the frame rate, ending at 'right' on the bar's line, each in a slot of the
+    ///        width its widest usual value takes, so neither they nor what is laid out left of them move as they change.
+    ///        Returns where they start.
+    auto drawTimings(FrameContext& frame, float right) -> float;
     /// @brief The active entity's name ("No selection" without one), and how many more are selected.
     [[nodiscard]] auto selectionLabel() const -> std::string;
-    /// @brief The Assets and Console buttons, lit while the drawer shows them, and the console's
-    ///        warning and error counts on the Console button.
+    /// @brief The Assets and Console buttons, lit while the drawer shows them.
     void drawDrawerButtons();
-    /// @brief The console's warning and error counts, with the last one as their tooltip; a click shows them in the console.
-    void drawProblemCounts();
+    /// @brief The Console button: its icon and the console's warning and error counts in one button, the last problem in
+    ///        its tooltip.
+    void drawConsoleButton();
     // A key and what it does there, for the status bar.
     struct KeyHint
     {

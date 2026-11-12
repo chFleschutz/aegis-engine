@@ -105,8 +105,15 @@ private:
     float m_digit{ 0.0f };
 };
 
-// The longest timing the status bar keeps room for; a longer one takes more.
-constexpr std::string_view widestTiming = "0000.0 fps (00.00 ms)  |  GPU 00.00 ms";
+// A timing of the status bar: a muted label, the number in tabular digits and its muted unit, in a slot as wide as
+// 'widest' (a sample of the widest usual number) takes; a wider number widens it.
+struct TimingSlot
+{
+    std::string_view label;
+    std::string number;
+    std::string_view unit;
+    std::string_view widest;
+};
 
 // Tints the windows while a play session runs, so nobody mistakes the play world for the edit world. Returns how
 // many colors to pop.
@@ -1032,24 +1039,64 @@ void EditorShell::drawStatusBar(FrameContext& frame)
         ImGui::SameLine();
         const float left = ImGui::GetCursorPosX();
 
-        const double frameMs = Profiler::instance().time("Frame Time"); // Its rolling average
-        double gpuMs = 0.0;
-        for (const auto& timing : frame.frameGraph.timings())
-            gpuMs += timing.gpuMs;
-        m_gpuMs.add(gpuMs);
-        const auto timing = std::format("{:.1f} fps ({:.2f} ms)  |  GPU {:.2f} ms", frameMs > 0.0 ? 1000.0 / frameMs : 0.0, frameMs, m_gpuMs.average());
-        // At the right end in tabular digits, the key hints centered left of the room kept for the widest timing: as the
-        // numbers change, neither moves
-        const TabularText tabular;
-        const float width = tabular.width(timing);
-        const float end = ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x;
-        drawKeyHints(keyHints(), left, end - std::max(width, tabular.width(widestTiming)));
-        ImGui::SameLine(end - width);
-        const ImVec2 position = ImGui::GetCursorScreenPos();
-        tabular.draw(ImGui::GetWindowDrawList(), ImVec2{ position.x, position.y + ImGui::GetCurrentWindow()->DC.CurrLineTextBaseOffset }, ImGui::GetColorU32(ImGuiCol_TextDisabled), timing);
-        ImGui::Dummy(ImVec2{ width, ImGui::GetTextLineHeight() });
+        // The key hints centered between the selection and the timings, which keep their place as the numbers change
+        const float timings = drawTimings(frame, ImGui::GetWindowPos().x + ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x);
+        drawKeyHints(keyHints(), left, timings - ImGui::GetWindowPos().x);
     }
     ImGui::End();
+}
+
+auto EditorShell::drawTimings(FrameContext& frame, float right) -> float
+{
+    // Rolling averages: the frame's time, the part of it the renderer waited for the GPU and the display (the rest is
+    // the CPU's work), and the frame graph's passes on the GPU
+    const double frameMs = Profiler::instance().time("Frame Time");
+    const double cpuMs = std::max(frameMs - Profiler::instance().time("Frame Wait"), 0.0);
+    double gpuMs = 0.0;
+    for (const auto& timing : frame.frameGraph.timings())
+        gpuMs += timing.gpuMs;
+    m_gpuMs.add(gpuMs);
+    const double fps = frameMs > 0.0 ? 1000.0 / frameMs : 0.0;
+    const std::array slots{
+        TimingSlot{ .label = "CPU ", .number = std::format("{:.2f}", cpuMs), .unit = " ms", .widest = "00.00" },
+        TimingSlot{ .label = "GPU ", .number = std::format("{:.2f}", m_gpuMs.average()), .unit = " ms", .widest = "00.00" },
+        TimingSlot{ .label = "", .number = std::format("{:.0f}", fps), .unit = " fps", .widest = "0000" },
+    };
+
+    // Right to left: each slot's label at its left, its unit at its right and the number right-aligned before the unit,
+    // a slim line between two slots
+    const TabularText tabular;
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float gap = std::round(style.ItemSpacing.x * 1.5f);
+    const float lineWidth = std::max(1.0f, std::round(theme::scale()));
+    const float fontSize = ImGui::GetFontSize();
+    const float top = ImGui::GetCursorScreenPos().y + ImGui::GetCurrentWindow()->DC.CurrLineTextBaseOffset;
+    const ImU32 muted = theme::packed(theme::textMuted);
+    const ImU32 value = theme::packed(theme::textDim);
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    float x = right;
+    for (auto slot = slots.rbegin(); slot != slots.rend(); ++slot)
+    {
+        if (slot != slots.rbegin())
+        {
+            x -= gap + lineWidth;
+            const float lineHeight = std::round(fontSize * 0.8f);
+            const float lineTop = std::round(top + (fontSize - lineHeight) * 0.5f);
+            drawList->AddRectFilled(ImVec2{ x, lineTop }, ImVec2{ x + lineWidth, lineTop + lineHeight }, theme::packed(theme::bgFrameActive));
+            x -= gap;
+        }
+        const float labelWidth = tabular.width(slot->label);
+        const float unitWidth = tabular.width(slot->unit);
+        const float numberWidth = tabular.width(slot->number);
+        const float slotWidth = labelWidth + std::max(numberWidth, tabular.width(slot->widest)) + unitWidth;
+        x -= slotWidth;
+        tabular.draw(drawList, ImVec2{ x, top }, muted, slot->label);
+        tabular.draw(drawList, ImVec2{ x + slotWidth - unitWidth - numberWidth, top }, value, slot->number);
+        tabular.draw(drawList, ImVec2{ x + slotWidth - unitWidth, top }, muted, slot->unit);
+    }
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(ImVec2{ x, top }, ImVec2{ right, top + fontSize }))
+        ImGui::SetTooltip("Frame %.2f ms (%.0f fps)\nCPU: the frame less the time it waited for the GPU and the display\nGPU: the render graph's passes", frameMs, fps);
+    return x;
 }
 
 void EditorShell::drawDrawerButtons()
@@ -1075,9 +1122,7 @@ void EditorShell::drawDrawerButtons()
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
     button(theme::icons::assets, "Assets", "view.assets");
     ImGui::SameLine();
-    button(theme::icons::console, "Console", "view.console");
-    ImGui::SameLine(0.0f, 0.0f); // The counts are part of the Console button
-    drawProblemCounts();
+    drawConsoleButton();
     ImGui::PopStyleColor();
 }
 
@@ -1138,30 +1183,61 @@ auto EditorShell::selectionLabel() const -> std::string
     return label;
 }
 
-void EditorShell::drawProblemCounts()
+void EditorShell::drawConsoleButton()
 {
+    // The icon, then each count after its level's icon, drawn over a button as wide as all of them; a count of zero is
+    // muted, so only the levels that have messages draw the eye
     const auto counts = m_context.console().counts();
-    const auto warnings = std::format("{} {}", theme::icons::warning, counts.warnings);
-    const auto errors = std::format("{} {}", theme::icons::error, counts.errors);
+    const bool lit = m_drawers.isShown("Console");
+    const ImU32 zero = theme::packed(theme::mutedText(lit));
+    const auto countColor = [zero](std::size_t value, const ImVec4& color) { return value > 0 ? theme::packed(color) : zero; };
+    struct Part
+    {
+        std::string text;
+        ImU32 color;
+        float gap; // Before it
+    };
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float near = std::round(style.ItemInnerSpacing.x * 0.5f);
+    const float apart = style.ItemSpacing.x;
+    const std::array parts{
+        Part{ theme::icons::console, ImGui::GetColorU32(ImGuiCol_Text), 0.0f },
+        Part{ theme::icons::warning, countColor(counts.warnings, theme::warning), apart },
+        Part{ std::to_string(counts.warnings), countColor(counts.warnings, theme::warning), near },
+        Part{ theme::icons::error, countColor(counts.errors, theme::error), apart },
+        Part{ std::to_string(counts.errors), countColor(counts.errors, theme::error), near },
+    };
+    float width = 0.0f;
+    for (const auto& part : parts)
+        width += part.gap + ImGui::CalcTextSize(part.text.c_str()).x;
+
+    // barButton's metrics, at the width of the parts
+    const float inset = std::round(2.0f * theme::scale());
+    const ImVec2 padding{ style.FramePadding.x, std::max(style.FramePadding.y - inset, 0.0f) };
+    if (lit)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
+    }
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, padding);
+    const bool pressed = ImGui::ButtonEx("##Console", ImVec2{ width + 2.0f * padding.x, ImGui::GetFontSize() + 2.0f * padding.y }, ImGuiButtonFlags_AlignTextBaseLine);
+    ImGui::PopStyleVar();
+    if (lit)
+        ImGui::PopStyleColor(3);
+    ImVec2 position{ ImGui::GetItemRectMin().x + padding.x, ImGui::GetItemRectMin().y + padding.y };
+    for (const auto& part : parts)
+    {
+        position.x += part.gap;
+        ImGui::GetWindowDrawList()->AddText(position, part.color, part.text.c_str());
+        position.x += ImGui::CalcTextSize(part.text.c_str()).x;
+    }
+    if (pressed)
+        toggleDrawer("Console");
 
     const auto problem = m_context.console().lastProblem();
-    const auto tooltip = problem ? std::format("{}: {}\nClick to show the warnings and errors in the console", log::levelName(problem->level), problem->message)
-                                 : std::string{ "No warnings or errors" };
-    // A count of zero is muted: only the levels that have messages draw the eye
-    const auto count = [&](const std::string& label, std::size_t value, const ImVec4& color) {
-        ImGui::PushStyleColor(ImGuiCol_Text, value > 0 ? color : theme::textMuted);
-        const bool clicked = barButton(label.c_str());
-        ImGui::PopStyleColor();
-        ImGui::SetItemTooltip("%s", tooltip.c_str());
-        if (clicked)
-        {
-            showDrawer("Console");
-            m_context.requestConsoleProblems();
-        }
-    };
-    count(warnings, counts.warnings, theme::warning);
-    ImGui::SameLine(0.0f, 0.0f);
-    count(errors, counts.errors, theme::error);
+    const auto last = problem ? std::format("{}: {}", log::levelName(problem->level), problem->message) : std::string{ "No warnings or errors" };
+    ImGui::SetItemTooltip("%s", std::format("{}\n{}", m_actions.tooltip("view.console"), last).c_str());
 }
 
 void EditorShell::buildActions()
