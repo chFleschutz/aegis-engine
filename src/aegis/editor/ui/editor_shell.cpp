@@ -367,7 +367,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
             if (panel->drawer())
                 pin(panel->name()); // The drawer shows only one
         }
-        m_focusPinned = "Assets"; // Its tab shows
+        m_focusPinned = "Content"; // Its tab shows
     }
     m_context.setWorld(engine.world()); // Now, so the first frame keeps a selection made here
     if (const auto& name = engine.desc().editorSelect; !name.empty())
@@ -1177,10 +1177,10 @@ void EditorShell::drawDrawerButtons()
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
     const ImU32 text = ImGui::GetColorU32(ImGuiCol_Text);
     const float near = std::round(ImGui::GetStyle().ItemInnerSpacing.x * 0.5f);
-    const std::array assets{ LabelPart{ theme::icons::assets, text, 0.0f }, LabelPart{ "Assets", text, near } };
-    if (labelButton("Assets", assets, m_drawers.isShown("Assets")))
-        toggleDrawer("Assets");
-    ImGui::SetItemTooltip("%s", m_actions.tooltip("view.assets").c_str());
+    const std::array content{ LabelPart{ theme::icons::assets, text, 0.0f }, LabelPart{ "Content", text, near } };
+    if (labelButton("Content", content, m_drawers.isShown("Content")))
+        toggleDrawer("Content");
+    ImGui::SetItemTooltip("%s", m_actions.tooltip("view.content").c_str());
     ImGui::SameLine();
     drawConsoleButton();
     ImGui::PopStyleColor();
@@ -1301,7 +1301,7 @@ void EditorShell::buildActions()
         .run = [this](FrameContext&) { m_context.requestRename(); } });
     m_actions.add({ .id = "edit.focus", .label = "Focus", .chord = chord(Key::F, false), .enabled = hasSelection, .run = [this](FrameContext&) { m_context.requestFocus(); } });
 
-    m_actions.add({ .id = "view.assets", .label = "Assets", .chord = chord(Key::Space), .run = [this](FrameContext&) { toggleDrawer("Assets"); } });
+    m_actions.add({ .id = "view.content", .label = "Content", .chord = chord(Key::Space), .run = [this](FrameContext&) { toggleDrawer("Content"); } });
     m_actions.add({ .id = "view.console", .label = "Console", .chord = chord(Key::Space, true, true), .run = [this](FrameContext&) { toggleDrawer("Console"); } });
     m_actions.add({ .id = "view.foldColumn", .label = "Fold Side Column", .chord = chord(Key::B), .run = [this](FrameContext&) { toggleFold(); } });
     m_actions.add({ .id = "view.fullViewport", .label = "Full Viewport", .chord = chord(Key::F11, false), .run = [this](FrameContext&) { toggleFullViewport(); } });
@@ -1615,7 +1615,7 @@ void EditorShell::drawPinned(Panel& panel, FrameContext& frame)
         m_focusPinned.clear();
     }
     bool open = true;
-    const bool visible = ImGui::Begin(panel.label().c_str(), panel.debug() ? &open : nullptr); // Assets and the console stay open
+    const bool visible = ImGui::Begin(panel.label().c_str(), panel.debug() ? &open : nullptr); // Content and the console stay open
     if (!open)
         panel.setOpen(false);
     // Appearing undocked (pinned in the layout file without a node, or dragged out to float before): docked below the
@@ -1850,7 +1850,7 @@ void EditorShell::drawMenuBar(FrameContext& frame)
             if (panel->drawer())
             {
                 // Opens the drawer (its button and chord also close it)
-                const auto chord = m_actions.shortcut(name == "Assets" ? "view.assets" : "view.console");
+                const auto chord = m_actions.shortcut(name == "Content" ? "view.content" : "view.console");
                 if (ImGui::MenuItem(name.c_str(), chord.c_str(), m_drawers.isShown(name) || m_drawers.isPinned(name)))
                     showDrawer(name);
                 continue;

@@ -34,7 +34,7 @@ inline constexpr const char* foldColumn = lucide::panelRightClose;
 inline constexpr const char* unfoldColumn = lucide::panelRightOpen;
 inline constexpr const char* hierarchy = lucide::listTree;
 inline constexpr const char* inspector = lucide::slidersHorizontal;
-// The other panels' tabs (Assets, Console and Statistics show their buttons' icons).
+// The other panels' tabs (Content, Console and Statistics show their buttons' icons).
 inline constexpr const char* renderer = lucide::gpu;
 inline constexpr const char* profiler = lucide::activity;
 inline constexpr const char* allEntities = lucide::list;

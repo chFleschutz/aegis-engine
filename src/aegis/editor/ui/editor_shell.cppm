@@ -27,7 +27,7 @@ export namespace aegis::editor
 ///        and `--editor-fold` starts with the right column folded and the Inspector in the flyout.
 ///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of
 ///        `ui/theme.h` scaled by the monitor's content scale and the UI-scale preference; the menus and shortcuts
-///        come from one ActionRegistry. The drawer panels (Assets, Console, the debug panels) open in the drawer, a
+///        come from one ActionRegistry. The drawer panels (Content, Console, the debug panels) open in the drawer, a
 ///        window over the bottom of the viewport, from the status bar's buttons or their chords, or dock below the
 ///        viewport while pinned; `--editor-panels all` pins them. Full viewport (F11) gives the viewport the whole
 ///        window, with play controls in a bar at its top; the panels stay in the layout below it, and
@@ -183,7 +183,7 @@ private:
     auto drawTimings(FrameContext& frame, float right) -> float;
     /// @brief The active entity's name ("No selection" without one), and how many more are selected.
     [[nodiscard]] auto selectionLabel() const -> std::string;
-    /// @brief The Assets and Console buttons, each its icon and name, lit while the drawer shows them.
+    /// @brief The Content and Console buttons, each its icon and name, lit while the drawer shows them.
     void drawDrawerButtons();
     /// @brief The Console button: its icon and name, then the console's warning and error counts while there are any, the
     ///        last problem in its tooltip.

@@ -133,7 +133,8 @@ auto fitted(std::string_view text, float width) -> std::string
 }
 
 // 'text' on at most two lines of 'width': all of it on one if it fits, else broken after the last '_', '-', '.' or space
-// that leaves the first line full enough (anywhere without one), the second cut short with an ellipsis if it is wider.
+// that leaves the first line full enough (without one, in the middle if the rest fits, else where the first line is
+// full), the second cut short with an ellipsis if it is wider.
 auto twoLines(std::string_view text, float width) -> std::pair<std::string, std::string>
 {
     const auto measure = [](std::string_view part) { return ImGui::CalcTextSize(part.data(), part.data() + part.size()).x; };
@@ -148,7 +149,18 @@ auto twoLines(std::string_view text, float width) -> std::pair<std::string, std:
     }
     const auto breakAt = text.substr(0, end).find_last_of("_-. ");
     if (breakAt != std::string_view::npos && breakAt + 1 >= end / 2)
+    {
         end = breakAt + 1;
+    }
+    else
+    {
+        // Without a place to break, two lines of about one length if the second fits: no lone letters below
+        std::size_t half = (text.size() + 1) / 2;
+        while (half < text.size() && (static_cast<unsigned char>(text[half]) & 0xC0) == 0x80)
+            ++half;
+        if (half < end && measure(text.substr(half)) <= width)
+            end = half;
+    }
     std::string_view rest = text.substr(end);
     while (rest.starts_with(' '))
         rest.remove_prefix(1);
@@ -219,19 +231,19 @@ void dragSource(const AssetItem& item, std::string_view label)
 enum class AssetView
 {
     List, ///< Rows, a model's parts below it
-    Grid, ///< Tiles with large icons, a model's parts after it
+    Grid, ///< Tiles with large icons, a model's parts after it: the default
 };
 
-// The asset files of the project and the engine content: a folder tree, and the open folder's subfolders and files with
-// their parts as a list or a grid of tiles, under a breadcrumb of the folder's path. A click selects a line, a double click
-// enters a folder, opens a scene file or shows a model's parts. Assets drag onto asset slots, the hierarchy and the
-// viewport.
+// The content browser over the asset files of the project and the engine content: a folder tree, and the open folder's
+// subfolders and files with their parts as a grid of tiles or a list, under a breadcrumb of the folder's path. A click
+// selects a line, a double click enters a folder, opens a scene file or shows a model's parts. Assets drag onto asset
+// slots, the hierarchy and the viewport.
 class ContentPanel final : public Panel
 {
 public:
     ContentPanel() { setOpen(true); }
 
-    [[nodiscard]] auto name() const -> std::string_view override { return "Assets"; }
+    [[nodiscard]] auto name() const -> std::string_view override { return "Content"; }
     [[nodiscard]] auto icon() const -> const char* override { return theme::icons::assets; }
     [[nodiscard]] auto drawer() const -> bool override { return true; }
 
@@ -696,7 +708,7 @@ private:
     bool m_built{ false };
     std::size_t m_builtSize{ 0 };
     AssetFilter m_filter;
-    AssetView m_view{ AssetView::List };
+    AssetView m_view{ AssetView::Grid };
     std::string m_selected; // The selected line's LineView::key; empty for none
     // The file list, see cachedLines
     std::vector<AssetRow> m_rows;

@@ -25,7 +25,7 @@ the issues cite and links them, and doesn't repeat their content lists.
 
 The code is the reference for the current state; this section only says which plan items are done.
 
-- **Done:** E1 ([#83]: R3, R4, R8; the action registry, theme, fonts and Reset Layout came with E8, [#204]), E2 ([#200]), E3 ([#133]), the field half of E4 ([#165]: `undo_stack`, Ctrl+Z / Ctrl+Y, the Edit menu), E6 ([#202]: the Assets panel; opening a scene doesn't ask about unsaved changes until [#166]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
+- **Done:** E1 ([#83]: R3, R4, R8; the action registry, theme, fonts and Reset Layout came with E8, [#204]), E2 ([#200]), E3 ([#133]), the field half of E4 ([#165]: `undo_stack`, Ctrl+Z / Ctrl+Y, the Edit menu), E6 ([#202]: the Assets panel, now Content; opening a scene doesn't ask about unsaved changes until [#166]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
 - **Open:** every other R- and E-item, each in its issue (see "Runtime prerequisites" and
   "Implementation plan").
 
@@ -86,7 +86,7 @@ src/aegis/editor/
    ├─ theme            colors, sizes, fonts and icons in one place (theme.h: tokens)
    ├─ widgets          property grid, one widget per FieldKind, asset slot, axis-colored vec3
    ├─ viewport         scene view: editor camera input, ImGuizmo inside the image rect, icons, picking
-   └─ panels/          hierarchy, inspector, assets, console, renderer, profiler,
+   └─ panels/          hierarchy, inspector, content, console, renderer, profiler,
                        statistics, project settings
 ```
 
@@ -297,11 +297,11 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   selects the row first and offers Rename, Duplicate, Delete and Focus, named after the action registry, with the
   Create menu's items below them, which create a child of the row (not for a scene instance's members). "All Entities", a flat list of every entity, is a
   debug panel.
-- **Asset browser (R10):** a folder tree over `AssetDatabase::entries()` with two roots, the project
+- **Content browser (R10, the Content panel):** a folder tree over `AssetDatabase::entries()` with two roots, the project
   and the engine content (read-only, shown dimmed; Lucide `folder-root` and `package`, folders `folder` and
   `folder-open`). Right of it, a breadcrumb of the open folder's path (each folder a button, an Up button
   before them) over its contents in one of two views, picked in the toolbar: a list, each file's sub-assets
-  expandable below it, or a grid of tiles with large icons and names on up to two lines, a model's
+  expandable below it, or (the default) a grid of tiles with large icons and names on up to two lines, a model's
   sub-assets shown after it (filled) by a button at its tile's edge. Every line carries its kind's icon in
   its kind's color (the theme's asset icon tokens); a click selects it, a double click enters a folder,
   opens a scene file or shows a model's parts. Search and a type filter cover both views. A drag carries an `AssetId` payload with its type:
@@ -427,11 +427,11 @@ tokens, not this structure.
 │ │                 Viewport (scene texture)        Y─┼─X    │ │   ▸ Helmet          │
 │ │                          gizmo                           │ ├─────────────────────┤
 │ ├──────────────────────────────────────────────────────────┤ │ ⚙ INSPECTOR         │
-│ │ 📁 ASSETS │ >_ CONSOLE                              📌  ✕ │ │                     │ the drawer, while open:
-│ │ Rescan  All types  Search                                │ │                     │ over the viewport
+│ │ ⟳ All types ☰ ▦ Search                                📌 │ │                     │ the drawer, while open:
+│ │ ▾ Project  ↑ Project › ▤                                 │ │                     │ over the viewport
 │ └──────────────────────────────────────────────────────────┘ │                     │
 ├──────────────────────────────────────────────────────────────┴─────────────────────┤
-│ 📁 Assets >_ Console ⚠ 25  Sponza  Q select W move…       60 fps | CPU 4.2 | GPU 4.1 │ status bar
+│ 📁 Content >_ Console ⚠ 25  Sponza  Q select W move       60 fps | CPU 4.2 | GPU 4.1 │ status bar
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -446,7 +446,7 @@ tokens, not this structure.
   docked in it.) A panel's tab shows its icon and its title in capitals (`Panel::label`); ImGui identifies the
   window by `###<title>` (`windowName`), which the layout file and every lookup by name use. A layout kept before
   the labels names the windows by their old titles: Reset Layout docks them again.
-- **Drawer** ([#322]): Assets, Console and the debug panels open in a drawer instead of a dock node, as Unreal's
+- **Drawer** ([#322]): Content, Console and the debug panels open in a drawer instead of a dock node, as Unreal's
   Content Drawer does. It is a window over the bottom of the viewport and as wide, so it covers the image instead of
   shrinking it (the render extent stays) and the right column stays usable (drag a material from the drawer onto an
   inspector slot). Its height is a share of the viewport's, dragged at its top edge and kept in the preferences. It
@@ -465,7 +465,7 @@ tokens, not this structure.
   window menu or the close-all button, each tab has its own close button.
 - **Debug panels** (Renderer, Profiler, Statistics) start closed; the Debug menu shows them in the drawer, or brings a pinned one to the front (they
   are wide tables) and lists the ImGui demo and the style editor (`ImGui::ShowStyleEditor`, for live tuning).
-- **Status bar:** the Assets and Console buttons at the left, each its icon and name (Lucide `folder` and `terminal`,
+- **Status bar:** the Content and Console buttons at the left, each its icon and name (Lucide `folder` and `terminal`,
   lit while the drawer shows their panel), the console's warning and error counts inside the Console button while
   there are any, then, a slim line apart, the selection. The bar is a frame tall plus an inset above and below, around its buttons. The middle shows the keys for what the cursor is over, each key with what it does
   ("Q select W move E rotate R scale"): the gizmo and camera keys over the viewport, the fly keys while the right mouse
@@ -550,7 +550,7 @@ tokens, not this structure.
   | Undo, Redo | Ctrl+Z, Ctrl+Y (also Ctrl+Shift+Z) |
   | Duplicate, Delete, Rename (the inspector's name field) | Ctrl+D, Del, F2 |
   | Play/Stop, Pause/Resume, Step | Ctrl+P, Ctrl+Shift+P, Ctrl+Alt+P |
-  | Open or close the Assets, Console drawer | Ctrl+Space, Ctrl+Shift+Space |
+  | Open or close the Content, Console drawer | Ctrl+Space, Ctrl+Shift+Space |
   | Close the drawer | Esc |
   | Fold or unfold the side column | Ctrl+B |
   | Close the side rail's flyout | Esc |
