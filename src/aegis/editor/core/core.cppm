@@ -5,7 +5,7 @@
 //
 // Partitions:
 //   :component_text The text a component's fields copy to the clipboard and paste from.
-//   :asset_browser  AssetTree: the asset browser's folders, files and filter, and the asset drag payload.
+//   :asset_browser  AssetTree: the content browser's folders, files and filter, and the asset drag payload.
 //   :chord          Chord: a shortcut's key and modifiers.
 //   :color          The sRGB transfer function, and the edit of a linear color shown in sRGB.
 //   :console        ConsoleBuffer: the log lines the console shows, with filters.

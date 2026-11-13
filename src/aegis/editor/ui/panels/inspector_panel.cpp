@@ -401,7 +401,7 @@ auto pickerRow(const SlotAsset& asset, bool selected, float height) -> bool
 
 // The asset in the slot by its icon and short name, and a picker of the assets of the field's type (and None): a search
 // that takes the keyboard and stays in place above the list, Enter picking the first match, and the list by name, opened
-// at the asset in the slot. An 'editable' slot takes an asset of its type dragged from the asset browser.
+// at the asset in the slot. An 'editable' slot takes an asset of its type dragged from the content browser.
 auto drawAssetSlot(const PropertyRow& row, const reflect::Value& value, const assets::AssetDatabase& database, bool editable) -> std::optional<reflect::Value>
 {
     static std::string s_filter;

@@ -226,10 +226,10 @@ enum class AssetView
 // their parts as a list or a grid of tiles, under a breadcrumb of the folder's path. A click selects a line, a double click
 // enters a folder, opens a scene file or shows a model's parts. Assets drag onto asset slots, the hierarchy and the
 // viewport.
-class AssetPanel final : public Panel
+class ContentPanel final : public Panel
 {
 public:
-    AssetPanel() { setOpen(true); }
+    ContentPanel() { setOpen(true); }
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Assets"; }
     [[nodiscard]] auto icon() const -> const char* override { return theme::icons::assets; }
@@ -753,8 +753,8 @@ auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t 
     return true;
 }
 
-auto makeAssetPanel() -> std::unique_ptr<Panel>
+auto makeContentPanel() -> std::unique_ptr<Panel>
 {
-    return std::make_unique<AssetPanel>();
+    return std::make_unique<ContentPanel>();
 }
 }

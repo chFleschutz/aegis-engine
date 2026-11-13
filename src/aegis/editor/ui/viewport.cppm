@@ -13,7 +13,7 @@ export namespace aegis::editor
 ///        selects the mesh or the light or camera icon under the cursor, Ctrl+click adds it to the selection or removes it; the gizmo
 ///        sits on the active entity and moves every selected root with it (W/E/R/Q while the viewport has focus). Corner brackets mark
 ///        what a click picks by (a mesh's bounding sphere, else an icon): around the selected entities, strongest on the active one, and dim
-///        around the one under the cursor. A scene or model dragged from the asset browser is instantiated on the ground under the cursor.
+///        around the one under the cursor. A scene or model dragged from the content browser is instantiated on the ground under the cursor.
 ///        Overlays sit on the image: the tool buttons top left; top right the camera speed and the stats toggle, the navigation
 ///        gizmo below them, and the stats box below that while it is on; none of them in the game view. EditorShell owns it.
 class Viewport
@@ -123,7 +123,7 @@ private:
     void updateHover(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo);
     // The brackets around the selected entities and the hovered one.
     void drawBrackets(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons) const;
-    // A scene or model dropped from the asset browser: instantiated where the cursor points.
+    // A scene or model dropped from the content browser: instantiated where the cursor points.
     void acceptDrop(EditorContext& editor, FrameContext& frame, const Rect& rect);
 
     EditorCamera m_camera;

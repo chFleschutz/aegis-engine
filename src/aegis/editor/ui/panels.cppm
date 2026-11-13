@@ -15,7 +15,7 @@ namespace aegis::editor
 [[nodiscard]] auto makeScenePanel(const ActionRegistry& actions) -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeAllEntitiesPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeInspectorPanel() -> std::unique_ptr<Panel>;
-[[nodiscard]] auto makeAssetPanel() -> std::unique_ptr<Panel>;
+[[nodiscard]] auto makeContentPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeConsolePanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makePreferencesPanel() -> std::unique_ptr<Panel>;
 // The shortcuts of 'actions', which must outlive it, and the viewport's.

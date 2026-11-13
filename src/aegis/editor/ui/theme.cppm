@@ -68,7 +68,7 @@ inline constexpr const char* empty = lucide::boxSelect;
 // An empty asset slot.
 inline constexpr const char* none = lucide::ban;
 
-// The asset browser's folders (the drawer button's folder is a closed one), its roots (the project's content and the
+// The content browser's folders (the drawer button's folder is a closed one), its roots (the project's content and the
 // engine's), its toolbar's Rescan and view buttons, the breadcrumb's Up button and a grid tile's button that shows a
 // model's parts after it, and hides them.
 inline constexpr const char* folder = lucide::folder;

@@ -328,7 +328,7 @@ EditorShell::EditorShell()
 
     m_panels.push_back(makeScenePanel(m_actions));
     m_panels.push_back(makeInspectorPanel());
-    m_panels.push_back(makeAssetPanel());
+    m_panels.push_back(makeContentPanel());
     m_panels.push_back(makeConsolePanel());
     m_panels.push_back(makeRendererPanel());
     m_panels.push_back(makeStatisticsPanel());

@@ -72,10 +72,10 @@ struct Drop
     StableId entity;
     std::optional<StableId> target; // None: the empty space below the rows, which makes the entity a root
     DropZone zone{ DropZone::Into };
-    std::uint64_t asset{ 0 }; // A scene or model from the asset browser, instantiated into the target, instead of 'entity'
+    std::uint64_t asset{ 0 }; // A scene or model from the content browser, instantiated into the target, instead of 'entity'
 };
 
-// A scene or model dragged from the asset browser, dropped this frame.
+// A scene or model dragged from the content browser, dropped this frame.
 auto acceptInstance() -> std::uint64_t
 {
     const auto dropped = acceptAssetPayload([](const AssetPayload& payload) { return canInstantiate(payload); });
@@ -451,7 +451,7 @@ private:
 
     // The row just drawn as a drag source and a drop target: the top and bottom quarters of the row place the
     // dragged entity before or after it, the middle makes it the row's last child. A selected row drags the other
-    // selected roots along (see applyDrop). A scene or model dropped from the asset browser is instantiated as its last
+    // selected roots along (see applyDrop). A scene or model dropped from the content browser is instantiated as its last
     // child.
     static void dragAndDrop(EditorContext& editor, world::Registry& registry, world::Entity entity, std::optional<Drop>& drop)
     {
