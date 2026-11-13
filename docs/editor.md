@@ -467,7 +467,7 @@ tokens, not this structure.
   are wide tables) and lists the ImGui demo and the style editor (`ImGui::ShowStyleEditor`, for live tuning).
 - **Status bar:** the Assets and Console buttons at the left, each its icon and name (Lucide `folder` and `terminal`,
   lit while the drawer shows their panel), the console's warning and error counts inside the Console button while
-  there are any, then, a slim line apart, the selection. The bar is a frame taller by an inset above and below its buttons. The middle shows the keys for what the cursor is over, each key with what it does
+  there are any, then, a slim line apart, the selection. The bar is a frame tall plus an inset above and below, around its buttons. The middle shows the keys for what the cursor is over, each key with what it does
   ("Q select W move E rotate R scale"): the gizmo and camera keys over the viewport, the fly keys while the right mouse
   button is held, F2 and drag to reparent over the hierarchy (the chords from the action registry). At the right, a
   slim line apart: the frame rate, the CPU time (the frame less the time the renderer waited for the GPU and the
