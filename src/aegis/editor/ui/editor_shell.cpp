@@ -58,6 +58,19 @@ auto menuBarHeight() -> float
     return ImGui::GetFontSize() + 2.0f * menuBarPadding().y;
 }
 
+// The top-level window that 'window' belongs to: through a child window's parents and a popup's opener.
+auto ownerWindow(const ImGuiWindow* window) -> const ImGuiWindow*
+{
+    while (window)
+    {
+        const ImGuiWindow* root = window->RootWindow;
+        if (root->RootWindowPopupTree == root)
+            return root;
+        window = root->RootWindowPopupTree;
+    }
+    return nullptr;
+}
+
 // A button in the menu bar, the status bar or a top bar: shorter than a frame by an inset above and below, its label
 // padded within. It aligns to the bar's text, which a bar puts its padding down (AlignTextToFramePadding), so it sits
 // centered in the bar.
@@ -1638,9 +1651,8 @@ void EditorShell::drawDrawer(FrameContext& frame)
     {
         const bool escape = ImGui::IsKeyPressed(ImGuiKey_Escape, false) && !io.WantTextInput && !payload && !m_viewport.givesInputToGame() &&
                             !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
-        const ImGuiWindow* hovered = ImGui::GetCurrentContext()->HoveredWindow;
-        const ImGuiWindow* root = hovered ? hovered->RootWindowPopupTree : nullptr;
-        const bool inside = root && (root->ID == ImHashStr("##Drawer") || root->ID == ImHashStr("##StatusBar"));
+        const ImGuiWindow* owner = ownerWindow(ImGui::GetCurrentContext()->HoveredWindow);
+        const bool inside = owner && (owner->ID == ImHashStr("##Drawer") || owner->ID == ImHashStr("##StatusBar"));
         const bool click = !inside && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsMouseClicked(ImGuiMouseButton_Middle));
         if (escape || click)
             m_drawers.close();
