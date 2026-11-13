@@ -22,6 +22,23 @@ auto offscreenTargetDesc(std::string_view name, rhi::Extent2D extent, rhi::Forma
                  rhi::ImageUsage::TransferSrc | rhi::ImageUsage::TransferDst,
     };
 }
+
+// Adds the milliseconds from its construction to its end to 'total': time the frame spent blocked.
+class BlockedTime
+{
+public:
+    explicit BlockedTime(double& total) :
+        m_total{ total }
+    {
+    }
+    BlockedTime(const BlockedTime&) = delete;
+    auto operator=(const BlockedTime&) -> BlockedTime& = delete;
+    ~BlockedTime() { m_total += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - m_start).count(); }
+
+private:
+    double& m_total;
+    std::chrono::steady_clock::time_point m_start{ std::chrono::steady_clock::now() };
+};
 }
 
 auto Renderer::create(const Desc& desc) -> std::expected<std::unique_ptr<Renderer>, Error>
@@ -179,6 +196,7 @@ auto freeTexture(rhi::Device& device, const Texture& texture) -> void
 auto Renderer::renderFrame(const std::function<void(const FrameInfo&)>& drawFunc) noexcept
     -> std::expected<void, Error>
 {
+    m_waitMs = 0.0;
     // Minimized: there is no surface to draw to, and resize() keeps needsResize() set until it is back.
     if (m_zeroExtent)
         return {};
@@ -314,6 +332,7 @@ auto Renderer::createOffscreenTargets() -> std::expected<void, Error>
 auto Renderer::beginFrame() noexcept -> std::expected<FrameInfo, Error>
 {
     auto& [cmd, imageAvailable, timePoint] = m_frameContext[m_currentFrame];
+    const BlockedTime blocked{ m_waitMs };
     if (!m_device.graphicsQueue().wait(timePoint))
         return makeError(ErrorCode::FrameBeginFailed, "Failed to wait for the frame's previous submission");
 
@@ -378,8 +397,10 @@ auto Renderer::endFrame() noexcept -> std::expected<void, Error>
 
     // The frame was submitted, so its slot is used up even if the present fails: staying on it would
     // wait on its own timeline value and let ImGui's per-frame buffers drift out of phase.
-    const auto presented = m_swapchain ? m_swapchain->present(m_device.presentQueue())
-                                       : std::expected<void, rhi::Error>{};
+    const auto presented = [&] {
+        const BlockedTime blocked{ m_waitMs };
+        return m_swapchain ? m_swapchain->present(m_device.presentQueue()) : std::expected<void, rhi::Error>{};
+    }();
     m_currentFrame = (m_currentFrame + 1) % m_frameContext.size();
     if (!presented)
     {

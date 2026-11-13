@@ -112,7 +112,7 @@ target_sources(aegis-editor
     ui/editor_shell.cpp
     ui/panels/about_panel.cpp
     ui/panels/all_entities_panel.cpp
-    ui/panels/asset_panel.cpp
+    ui/panels/content_panel.cpp
     ui/panels/console_panel.cpp
     ui/panels/preferences_panel.cpp
     ui/panels/demo_panel.cpp
@@ -125,6 +125,7 @@ target_sources(aegis-editor
     ui/panels/scene_panel.cpp
     ui/panels/shortcuts_panel.cpp
     ui/panels/statistics_panel.cpp
+    ui/panels/widgets.cpp
     ui/theme.cpp
     ui/viewport.cpp
 )

@@ -6,6 +6,7 @@ module aegis.editor;
 import std;
 import aegis.world;
 import :panels;
+import :theme;
 
 namespace aegis::editor
 {
@@ -16,13 +17,14 @@ class AllEntitiesPanel final : public Panel
 {
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "All Entities"; }
+    [[nodiscard]] auto icon() const -> const char* override { return theme::icons::allEntities; }
     [[nodiscard]] auto debug() const -> bool override { return true; }
     [[nodiscard]] auto docked() const -> bool override { return false; } // It floats when opened
 
     void draw(EditorContext& editor, FrameContext&) override
     {
         bool open = true;
-        const bool visible = ImGui::Begin("All Entities", &open);
+        const bool visible = ImGui::Begin(label().c_str(), &open);
         setOpen(open);
         if (!visible)
         {

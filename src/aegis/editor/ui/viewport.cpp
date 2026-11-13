@@ -35,9 +35,8 @@ constexpr float iconMinScale{ 0.4f };
 constexpr float iconMinAlpha{ 0.35f };
 // The share of the camera speed's range (minCameraSpeed to maxCameraSpeed, covered logarithmically) a pixel of drag moves it.
 constexpr float speedDragRate{ 0.002f };
-// The overlays in frame heights: the speed pill's width, the navigation gizmo's radius to the axis ends and each
-// end's disc. The negative ends' discs are dimmer: their fill keeps this share of the axis color's opacity.
-constexpr float speedPillWidth{ 5.0f };
+// The navigation gizmo in frame heights: its radius to the axis ends and each end's disc. The negative ends' discs are
+// dimmer: their fill keeps this share of the axis color's opacity.
 constexpr float navigationRadius{ 1.8f };
 constexpr float navigationDisc{ 0.42f };
 constexpr float navigationNegativeAlpha{ 0.4f };
@@ -343,7 +342,7 @@ void Viewport::updateCamera(EditorContext& editor, float deltaSeconds)
     const float speed = preferences.cameraSpeed;
     m_camera.setSpeed(speed);
     m_camera.update(input, deltaSeconds);
-    // The wheel changes the speed while flying; the speed pill shows it
+    // The wheel changes the speed while flying; the speed field shows it
     preferences.cameraSpeed = std::clamp(m_camera.speed(), minCameraSpeed, maxCameraSpeed);
 }
 
@@ -546,25 +545,31 @@ void Viewport::drawOverlayCluster(EditorContext& editor, const FrameContext& fra
     // Items, as the tool buttons are: a click on one neither picks nor starts a camera drag, and the viewport keeps the focus
     const ImGuiStyle& style = ImGui::GetStyle();
     const float frameHeight = ImGui::GetFrameHeight();
-    const float pillWidth = speedPillWidth * frameHeight;
+    // The camera speed's field: the speed icon and the value, to three figures, with its unit. Its width fits the
+    // widest value, so the field doesn't change size as the speed does.
+    auto& preferences = editor.preferences();
+    const float speed = preferences.cameraSpeed;
+    const auto format = std::format("{} {} m/s", theme::icons::speed, speed < 1.0f ? "%.2f" : speed < 100.0f ? "%.1f"
+                                                                                                             : "%.0f");
+    float labelWidth = 0.0f;
+    for (const char* widest : { "1000", "88.8", "0.88" })
+        labelWidth = std::max(labelWidth, ImGui::CalcTextSize(format.c_str()).x);
+    const float speedWidth = labelWidth + 2.0f * style.FramePadding.x;
     const float right = rect.x + rect.width - style.ItemSpacing.x;
     const float top = rect.y + style.ItemSpacing.y;
-    ImGui::SetCursorScreenPos(ImVec2{ right - frameHeight - style.ItemSpacing.x - pillWidth, top });
+    ImGui::SetCursorScreenPos(ImVec2{ right - frameHeight - style.ItemSpacing.x - speedWidth, top });
 
-    // The camera speed: a drag changes it, a click without moving types it
-    auto& preferences = editor.preferences();
+    // A drag changes the speed, a click without moving types it (the number alone)
     ImGui::PushStyleColor(ImGuiCol_FrameBg, theme::iconBackdrop);
     ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, theme::bgFrameHover);
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive, theme::bgFrameActive);
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, frameHeight * 0.5f);
     ImGuiIO& io = ImGui::GetIO();
     const bool clickToInput = std::exchange(io.ConfigDragClickToInputText, true); // For this widget only
-    ImGui::SetNextItemWidth(pillWidth);
+    ImGui::SetNextItemWidth(speedWidth);
     // A logarithmic drag divides its speed by the range: this undoes that, so a pixel moves speedDragRate of it
-    ImGui::DragFloat("##cameraSpeed", &preferences.cameraSpeed, speedDragRate * (maxCameraSpeed - minCameraSpeed), minCameraSpeed, maxCameraSpeed,
-        preferences.cameraSpeed < 1.0f ? "%.2f u/s" : "%.1f u/s", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+    ImGui::DragFloat("##cameraSpeed", &preferences.cameraSpeed, speedDragRate * (maxCameraSpeed - minCameraSpeed), minCameraSpeed, maxCameraSpeed, format.c_str(),
+        ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
     io.ConfigDragClickToInputText = clickToInput;
-    ImGui::PopStyleVar();
     ImGui::PopStyleColor(3);
     ImGui::SetItemTooltip("Camera speed while flying (right mouse button + WASD/QE), in units per second: drag to change it, click to "
                           "type it. The wheel changes it while flying.");
@@ -580,7 +585,7 @@ void Viewport::drawOverlayCluster(EditorContext& editor, const FrameContext& fra
     const float gizmoSize = 2.0f * (navigationRadius + navigationDisc) * frameHeight;
     drawNavigationGizmo({ right, gizmoTop }, gizmoSize);
     if (showStats)
-        drawStatsOverlay(editor, frame, { right, gizmoTop + gizmoSize + style.ItemSpacing.y }, pillWidth + style.ItemSpacing.x + frameHeight);
+        drawStatsOverlay(editor, frame, { right, gizmoTop + gizmoSize + style.ItemSpacing.y }, speedWidth + style.ItemSpacing.x + frameHeight);
 }
 
 void Viewport::drawNavigationGizmo(const glm::vec2& corner, float size)
@@ -622,7 +627,10 @@ void Viewport::drawNavigationGizmo(const glm::vec2& corner, float size)
         drawList->AddCircleFilled(end, disc, theme::packed(fill));
         const bool highlighted = isUnderCursor(axis);
         drawList->AddCircle(end, disc, theme::packed(highlighted ? theme::text : color), 0, (highlighted ? 2.0f : 1.0f) * scale);
-        // The positive ends' letters are bgDeep, as on the inspector's strips; the dim negative ends' are the text color
+        // The positive ends' letters are bgDeep on the axis color. A negative end is an unlabelled ring, as in Blender,
+        // until it is hovered: then its letter shows in the text color
+        if (!axis.positive && !highlighted)
+            continue;
         const char* label = labels[static_cast<std::size_t>(axis.axis)];
         const ImVec2 textSize = ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
         drawList->AddText(ImGui::GetFont(), fontSize, ImVec2{ end.x - textSize.x * 0.5f, end.y - textSize.y * 0.5f },

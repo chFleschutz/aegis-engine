@@ -1,6 +1,7 @@
 module aegis.editor.core;
 import std;
 import aegis.core;
+import aegis.scripting.script;
 import aegis.serialize;
 import aegis.world;
 import aegis.world.render_components;
@@ -56,10 +57,18 @@ auto entityKind(world::Registry& registry, world::Entity entity) -> EntityKind
         return EntityKind::DirectionalLight;
     if (registry.has<PointLight>(entity))
         return EntityKind::PointLight;
+    if (registry.has<AmbientLight>(entity))
+        return EntityKind::AmbientLight;
+    if (registry.has<Sky>(entity))
+        return EntityKind::Sky;
     if (registry.has<MeshRenderer>(entity))
         return EntityKind::Mesh;
     if (registry.has<serialize::SceneInstance>(entity))
         return EntityKind::SceneInstance;
+    if (registry.has<scripting::Scripts>(entity) && !registry.get<scripting::Scripts>(entity).entries.empty())
+        return EntityKind::Scripted;
+    if (registry.has<Children>(entity) && registry.get<Children>(entity).count > 0)
+        return EntityKind::Group;
     return EntityKind::Empty;
 }
 

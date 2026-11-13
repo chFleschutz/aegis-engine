@@ -25,7 +25,7 @@ the issues cite and links them, and doesn't repeat their content lists.
 
 The code is the reference for the current state; this section only says which plan items are done.
 
-- **Done:** E1 ([#83]: R3, R4, R8; the action registry, theme, fonts and Reset Layout came with E8, [#204]), E2 ([#200]), E3 ([#133]), the field half of E4 ([#165]: `undo_stack`, Ctrl+Z / Ctrl+Y, the Edit menu), E6 ([#202]: the Assets panel; opening a scene doesn't ask about unsaved changes until [#166]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
+- **Done:** E1 ([#83]: R3, R4, R8; the action registry, theme, fonts and Reset Layout came with E8, [#204]), E2 ([#200]), E3 ([#133]), the field half of E4 ([#165]: `undo_stack`, Ctrl+Z / Ctrl+Y, the Edit menu), E6 ([#202]: the Assets panel, now Content; opening a scene doesn't ask about unsaved changes until [#166]), R1 and R2 ([#191]), R10 ([#196]), R12 ([#198]), R13 ([#199]), R14 ([#132]).
 - **Open:** every other R- and E-item, each in its issue (see "Runtime prerequisites" and
   "Implementation plan").
 
@@ -73,7 +73,7 @@ src/aegis/editor/
 │  ├─ commands         Command interface; SetField, Rename, Create/Destroy/Duplicate entity,
 │  │                   Add/Remove component, Attach/Detach script, Reparent
 │  ├─ undo_stack       history, merging of continuous edits, the saved marker (dirty flag)
-│  ├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, limits, readOnly}
+│  ├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, limits, unit, readOnly}
 │  ├─ inspector        the components and scripts an entity shows and can add; field writes + change hook
 │  ├─ hierarchy_model  entity tree as rows in sibling order, with the name filter; pure
 │  ├─ play_session     Edit -> Playing <-> Paused -> Edit, step
@@ -86,7 +86,7 @@ src/aegis/editor/
    ├─ theme            colors, sizes, fonts and icons in one place (theme.h: tokens)
    ├─ widgets          property grid, one widget per FieldKind, asset slot, axis-colored vec3
    ├─ viewport         scene view: editor camera input, ImGuizmo inside the image rect, icons, picking
-   └─ panels/          hierarchy, inspector, assets, console, renderer, profiler,
+   └─ panels/          hierarchy, inspector, content, console, renderer, profiler,
                        statistics, project settings
 ```
 
@@ -182,12 +182,13 @@ Still to come: the views to render (world, camera and target per view, R5 [#192]
   script. Its `RenderView` replaces the `FrameScene`'s camera that `extractFrameScene` takes from the
   world. In play mode the viewport shows
   the world's main camera, and "eject" switches back to the editor camera while playing (nice to have).
-- **Controls:** RMB + WASD/QE to fly (wheel changes the speed, which the speed pill shows), Alt + LMB to orbit,
+- **Controls:** RMB + WASD/QE to fly (wheel changes the speed, which the speed field shows), Alt + LMB to orbit,
   MMB to pan, wheel to dolly, F to focus the selection (its bounding sphere). Z is up, matching D8.
 - **Overlays** ([#325]): the tool buttons sit in the image's top left corner. The top right holds the camera speed,
-  a pill that drags to change it (logarithmically, 0.01 to 1000 units per second) and takes a typed value on a click,
-  and the stats toggle. Below them the navigation gizmo shows the world axes in the camera's orientation; each axis
-  end is a disc labelled X, Y or Z (the negative ends dimmer), and a click views the pivot from that side, at the same
+  a field marked with a gauge that drags to change it (logarithmically, 0.01 to 1000 units per second) and takes a
+  typed value on a click, and the stats toggle. Below them the navigation gizmo shows the world axes in the camera's
+  orientation; the positive ends are discs labelled X, Y or Z, the negative ends dim rings without a label (it shows
+  while one is hovered, as in Blender), and a click views the pivot from that side, at the same
   distance (the clicked end then points at the viewer; from straight above or below the heading stays). While the
   toggle (kept in the preferences) is on, the stats overlay below the gizmo shows the Statistics panel's summary:
   entities, draw batches and instances. Every overlay is an ImGui item, so a click on one neither picks nor
@@ -242,8 +243,11 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   with a range); Float/Double → drag with a step, and the `Angle` hint shows radians as degrees;
   Vec2/3/4 → axis-colored drags, and the `Color` hint shows a linear color picker that edits in sRGB
   (D8); Quat → Euler degrees; Enum → combo from the `EnumEntry` list; String → text field (edits
-  commit on deactivate); AssetRef → an asset slot that shows the asset's name, opens a picker filtered
-  by the field's asset type, accepts drops from the browser, and offers "None". The mapping is a pure
+  commit on deactivate); AssetRef → an asset slot that shows the asset's kind icon and short name (a
+  file's name without folder and extension, a part's key without the type prefix: `assetDisplayName`;
+  the full path in the tooltip), opens a picker of the field's asset type (a search above the list,
+  Enter picks the first match, the assets by name with their file's name, "None" first), accepts drops
+  from the browser. The mapping is a pure
   function in `property_model`, unit-tested ([#133]'s "field-to-widget mapping").
 - **Quaternions in the inspector:** converting quat → Euler every frame makes a drag jump at the
   gimbal boundaries. While a rotation field is being dragged, the property model keeps the Euler
@@ -270,8 +274,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   A drawer registry keyed by type name (editor-side) exists for the few that need more (a future
   `SkinnedMesh`, curves). A game registers drawers from its editor-only sources. Nothing in the
   runtime knows about them.
-- **Reset and copy:** a ⋮ button at the right of each component and script header (and a right click on it) opens a
-  menu of Reset (the values of a default instance, `TypeInfo::create`), Copy and Paste (field values as one JSON object
+- **Reset and copy:** a right click on a component or script header opens a menu of Reset (the values of a default instance, `TypeInfo::create`), Copy and Paste (field values as one JSON object
   of `toText` text on the system clipboard, in `core/component_text`; a paste only applies to the same type and skips
   read-only fields) and Remove (Detach for a script). Reset and Paste are one `ComponentEdit` each, so one undo
   reverts them. An entity's ⋮ menu beside its name offers Copy ID; the ID otherwise shows in the name's tooltip.
@@ -287,19 +290,25 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   ("Undo Move 'Helmet'", `editTitle` in `core/edits`; [#281]).
 - **Hierarchy:** rows come from `Parent` / `Children` / `Siblings`, walked iteratively (as today),
   with a name filter (matching rows keep their ancestors). Drag and drop reparents and reorders,
-  rejecting cycles (`Registry::isInSubtree`). F2 renames, Del deletes, Ctrl+D duplicates, F frames the entity. One Create menu (Empty, Camera,
-  Point Light, Directional Light, and the registry's types by category; one undo entry each, the new entity
-  selected and named at once) sits behind the "+" button beside the filter, in the Entity menu and in the
-  window's context menu; a row's context menu selects the row first and offers Rename, Duplicate, Delete,
-  Create Child and Focus, named after the action registry. "All Entities", a flat list of every entity, is a
+  rejecting cycles (`Registry::isInSubtree`). F2 renames, Del deletes, Ctrl+D duplicates, F frames the entity. One Create menu (Empty, then
+  an entity of each creatable component type, by category a separator apart, each with its icon and no submenus, so
+  anything is one click away; one undo entry each, the new entity selected and named at once) sits behind the "+"
+  button beside the filter and in the Entity menu, and makes up the window's context menu; a row's context menu
+  selects the row first and offers Rename, Duplicate, Delete and Focus, named after the action registry, with the
+  Create menu's items below them, which create a child of the row (not for a scene instance's members). "All Entities", a flat list of every entity, is a
   debug panel.
-- **Asset browser (R10):** a folder tree over `AssetDatabase::entries()` with two roots, the project
-  and the engine content (read-only, shown dimmed). The file list shows each file's sub-assets
-  expandable, with search and a type filter. A drag carries an `AssetId` payload with its type:
+- **Content browser (R10, the Content panel):** a folder tree over `AssetDatabase::entries()` with two roots, the project
+  and the engine content (read-only, shown dimmed; Lucide `folder-root` and `package`, folders `folder` and
+  `folder-open`). Right of it, a breadcrumb of the open folder's path (each folder a button, an Up button
+  before them) over its contents in one of two views, picked in the toolbar: a list, each file's sub-assets
+  expandable below it, or (the default) a grid of tiles with large icons and names on up to two lines, a model's
+  sub-assets shown after it (filled) by a button at its tile's edge. Every line carries its kind's icon in
+  its kind's color (the theme's asset icon tokens); a click selects it, a double click enters a folder,
+  opens a scene file or shows a model's parts. Search and a type filter cover both views. A drag carries an `AssetId` payload with its type:
   dropping it on an asset slot assigns it (type-checked), and dropping a `Scene` or model on the
   viewport or hierarchy instantiates it (`AssetLibrary::instantiateScene` with a parent; models
   become scenes in [#140]).
-  Double-clicking a `.scene` opens it. A Rescan button covers the time before the file watcher
+  A Rescan button covers the time before the file watcher
   ([#143]).
 - **Scene files:** New, Open (a picker over the database's `Scene` entries), Save (Ctrl+S), and Save As
   (an in-editor path field inside the project, which writes a new native file with a new ID and adds
@@ -316,8 +325,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   write nor read autosaves.
 - **Console:** a log sink (R13) feeds a ring buffer with level filters and counts, search, clear, copy and a
   Collapse toggle that merges repeated messages, while stderr output continues. The status bar's Console button
-  carries the warning and error counts, with the last one as their tooltip; clicking them opens the console with
-  only those on ([#279], [#322]).
+  carries the warning and error counts in the same button while there are any, with the last problem in its tooltip
+  ([#279], [#322]).
 
 ### Persistence
 
@@ -412,17 +421,17 @@ tokens, not this structure.
 ┌────────────────────────────────────────────────────────────────────────────────────┐
 │ File Edit Entity Play View Debug Help      ▶  ❚❚  ⏭                ◫ ⤢ sponza.scene* │ menu bar + play controls + scene
 ├──────────────────────────────────────────────────────────────┬─────────────────────┤
-│ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                            ( 5.0 u/s ) ▥   │ Hierarchy           │ viewport overlays
+│ ↖ ✥ ⟳ ⚖ │ ▢ ⌖ ◉ │                            [◷ 5.0 u/s] ▥   │ ☰ HIERARCHY         │ viewport overlays
 │ ┌──────────────────────────────────────────────────────────┐ │ Filter           [+]│
 │ │                                                    Z     │ │ ▾ Sponza            │
 │ │                 Viewport (scene texture)        Y─┼─X    │ │   ▸ Helmet          │
 │ │                          gizmo                           │ ├─────────────────────┤
-│ ├──────────────────────────────────────────────────────────┤ │ Inspector           │
-│ │ Assets │ Console                                   📌  ✕ │ │                     │ the drawer, while open:
-│ │ Rescan  All types  Search                                │ │                     │ over the viewport
+│ ├──────────────────────────────────────────────────────────┤ │ ⚙ INSPECTOR         │
+│ │ ⟳ All types ☰ ▦ Search                                📌 │ │                     │ the drawer, while open:
+│ │ ▾ Project  ↑ Project › ▤                                 │ │                     │ over the viewport
 │ └──────────────────────────────────────────────────────────┘ │                     │
 ├──────────────────────────────────────────────────────────────┴─────────────────────┤
-│ 📁 >_ ⚠ 25 ⊗ 0  Sponza       Q W E R select, move…  F focus      60 fps · GPU 4.1 ms │ status bar
+│ 📁 Content >_ Console ⚠ 25  Sponza  Q select W move       60 fps | CPU 4.2 | GPU 4.1 │ status bar
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -434,15 +443,17 @@ tokens, not this structure.
   unfolds the column.
   The layout is kept in `<project>/.aegis/editor/imgui.ini`. A change to the default doesn't replace a kept layout:
   View → Reset Layout builds the new one. (A bottom node left from an older default stays hidden while nothing is
-  docked in it.)
-- **Drawer** ([#322]): Assets, Console and the debug panels open in a drawer instead of a dock node, as Unreal's
+  docked in it.) A panel's tab shows its icon and its title in capitals (`Panel::label`); ImGui identifies the
+  window by `###<title>` (`windowName`), which the layout file and every lookup by name use. A layout kept before
+  the labels names the windows by their old titles: Reset Layout docks them again.
+- **Drawer** ([#322]): Content, Console and the debug panels open in a drawer instead of a dock node, as Unreal's
   Content Drawer does. It is a window over the bottom of the viewport and as wide, so it covers the image instead of
   shrinking it (the render extent stays) and the right column stays usable (drag a material from the drawer onto an
   inspector slot). Its height is a share of the viewport's, dragged at its top edge and kept in the preferences. It
-  shows one panel at a time, with a tab per drawer panel that is open and not pinned (the debug panels' tabs close),
-  a pin button and a close button. The status bar's buttons, their chords and the View menu open it; Esc, the
-  chord again, the close button or a click into the viewport close it; losing the focus doesn't, since popups, the
-  asset picker and drag and drop take it. A drag that leaves the drawer closes it, and its drop still lands in the
+  shows one panel at a time with no header (the status bar's lit button names it), its pin button over the right end
+  of the panel's first row. The status bar's buttons, their chords, the View menu and the Debug menu open it; Esc,
+  the chord again or a click anywhere outside it (but in its popups and the status bar) close it; losing the focus
+  alone doesn't, since drag and drop takes it. A drag that leaves the drawer closes it, and its drop still lands in the
   viewport or on an inspector slot (ImGui keeps the payload while the button is held). There is no animation.
 - **Pinned drawer panels** dock into a node below the viewport, split off when the first one is pinned (or the one
   a panel was pinned in before), as tabs; a lit pin button over the right end of their first row returns them to
@@ -452,13 +463,16 @@ tokens, not this structure.
   `game-<name>-editor` screenshot shows them.
 - **Dock chrome:** the viewport is the central node and has no tab bar (it can't be closed); no node shows the
   window menu or the close-all button, each tab has its own close button.
-- **Debug panels** (Renderer, Profiler, Statistics) start closed; the Debug menu opens them in the drawer (they
+- **Debug panels** (Renderer, Profiler, Statistics) start closed; the Debug menu shows them in the drawer, or brings a pinned one to the front (they
   are wide tables) and lists the ImGui demo and the style editor (`ImGui::ShowStyleEditor`, for live tuning).
-- **Status bar:** the Assets and Console buttons at the left (Lucide `folder` and `terminal`, lit while the drawer
-  shows their panel), the console's warning and error counts on the Console button, then the selection. The middle shows the
-  keys for what the cursor is over: the gizmo and camera keys over the viewport, the fly keys while the right mouse
-  button is held, F2 and drag to reparent over the hierarchy (the chords from the action registry). The frame and
-  GPU times are at the right.
+- **Status bar:** the Content and Console buttons at the left, each its icon and name (Lucide `folder` and `terminal`,
+  lit while the drawer shows their panel), the console's warning and error counts inside the Console button while
+  there are any, then, a slim line apart, the selection. The bar is a frame tall plus an inset above and below, around its buttons. The middle shows the keys for what the cursor is over, each key with what it does
+  ("Q select W move E rotate R scale"): the gizmo and camera keys over the viewport, the fly keys while the right mouse
+  button is held, F2 and drag to reparent over the hierarchy (the chords from the action registry). At the right, a
+  slim line apart: the frame rate, the CPU time (the frame less the time the renderer waited for the GPU and the
+  display, `Renderer::waitMs`, kept as the profiler's "Frame Wait") and the GPU time of the render graph's passes; each
+  in a slot as wide as its widest usual value, in tabular digits, so nothing moves as they change.
 - **Full viewport** ([#323]): F11, the menu bar's button left of the scene name (Lucide `maximize-2`) or View →
   Full Viewport give the viewport the whole window. The menu bar, the status bar and every panel are hidden, and the
   viewport keeps its toolbar, icons and gizmo. A small bar centered at its top holds Play, Pause and Step and the
@@ -523,8 +537,10 @@ tokens, not this structure.
   `:lucide` (`ui/lucide.cppm`: every icon, `lucide::mousePointer2`), and `:theme` names the ones the editor uses
   (`icons::select = lucide::mousePointer2`). `content/fonts/Lucide-VERSION.txt` records the release and the font's
   hash; `tools/update-lucide.py <version>` updates the font, its license and the module in one step.
-- **Inspector and hierarchy polish** (a two-column grid, colored X/Y/Z labels, component header icons, an icon
-  per entity kind, bold non-default values) is a follow-up, not part of E8's first pass.
+- **Inspector and hierarchy polish:** the inspector is a two-column grid, vector fields carry thin axis strips,
+  and component headers carry icons. Each entity kind (`entityKind`: camera, directional, point and ambient light,
+  sky, mesh, scene instance, scripted, group, empty) has an icon and a color (`entityIcon`, `entityIconColor`),
+  shown in its hierarchy row and the inspector's header. Bold non-default values are a follow-up.
 - **Shortcuts:** one action registry (`ui/actions.cppm`: id, label, chord, `enabled()`, `run()`) feeds the
   menus, the tooltips and the shortcut handler, which skips a frame while a text box has the keyboard.
 
@@ -534,7 +550,7 @@ tokens, not this structure.
   | Undo, Redo | Ctrl+Z, Ctrl+Y (also Ctrl+Shift+Z) |
   | Duplicate, Delete, Rename (the inspector's name field) | Ctrl+D, Del, F2 |
   | Play/Stop, Pause/Resume, Step | Ctrl+P, Ctrl+Shift+P, Ctrl+Alt+P |
-  | Open or close the Assets, Console drawer | Ctrl+Space, Ctrl+Shift+Space |
+  | Open or close the Content, Console drawer | Ctrl+Space, Ctrl+Shift+Space |
   | Close the drawer | Esc |
   | Fold or unfold the side column | Ctrl+B |
   | Close the side rail's flyout | Esc |
@@ -566,7 +582,7 @@ instantiation (`saveScene` / `instantiate`, [#131], [#183]), the `FrameScene` ([
 | # | Runtime feature | Why the editor needs it | Lands in | Needed by |
 |---|---|---|---|---|
 | R1 | **Component storage, complete:** `remove(registry, entity)` and a change hook `changed(registry, entity)` on `world::ComponentStorage`. Transform → `markStaticDirty` unless dynamic, MeshRenderer → `invalidateStatic` | Remove Component by name; generic edits keep D2's rule | [#191] (with R2) | E3 |
-| R2 | **Type and field metadata** in `reflect`: display name, category, `required`; per field a widget hint (`Color`, `Angle`, `Slider`), min/max/step, `readOnly`, tooltip; the asset type of `AssetRef` fields. The serializer ignores it | Generated widgets; replaces `ComponentTraits` | [#191] (with R1) | E3 |
+| R2 | **Type and field metadata** in `reflect`: display name, category, `required`; per field a widget hint (`Color`, `Angle`, `Slider`), min/max/step, a unit (`"m"`; angles and rotations show degrees), `readOnly`, tooltip; the asset type of `AssetRef` fields. The serializer ignores it | Generated widgets; replaces `ComponentTraits` | [#191] (with R1) | E3 |
 | R3 | **UI at the safe point:** `Presentation` owns the ImGui context and both backends, builds the UI before the world update and calls `ImGui::Render` before rendering; `UiPass` only records. Headless UI with no platform backend | Edits outside the frame; headless editor screenshots | [#83] | E1 |
 | R4 | **`Shell`:** startup, frame safe point, update mode, input capture (views with R5, close veto with E5); `GameShell` default; replaces `Engine::pushLayer` and the layer stack | The editor plugs in without runtime hooks of its own | [#83] (merged, layers removed too) | E1 |
 | R5 | **Render views:** the shell supplies the camera (view, projection, position) instead of `extractFrameScene`'s main camera, and the scene renders into a graph texture of the view's own extent instead of the swapchain | Viewport texture, editor camera | [#192] | E2 |

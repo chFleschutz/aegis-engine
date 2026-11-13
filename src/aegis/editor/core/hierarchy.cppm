@@ -21,13 +21,18 @@ enum class EntityKind
     Camera,
     DirectionalLight,
     PointLight,
+    AmbientLight,
+    Sky,
     Mesh,
     SceneInstance, ///< The holder of a scene instance (serialize::SceneInstance)
+    Scripted,      ///< Scripts and none of the components above
+    Group,         ///< Children and none of the above
     Empty,
 };
 
-/// @brief The kind of 'entity': the first of Camera, DirectionalLight, PointLight, Mesh (a MeshRenderer) and
-///        SceneInstance it has a component for, else Empty.
+/// @brief The kind of 'entity': the first of Camera, DirectionalLight, PointLight, AmbientLight, Sky, Mesh (a
+///        MeshRenderer) and SceneInstance it has a component for; else Scripted with scripts, Group with children,
+///        else Empty.
 [[nodiscard]] auto entityKind(world::Registry& registry, world::Entity entity) -> EntityKind;
 
 /// @brief Whether the hierarchy node of an entity is open, asked once per node that has children.

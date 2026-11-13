@@ -9,6 +9,7 @@ module aegis.editor;
 import std;
 import aegis.core;
 import :panels;
+import :theme;
 
 namespace aegis::editor
 {
@@ -66,6 +67,7 @@ public:
     ConsolePanel() { setOpen(true); }
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Console"; }
+    [[nodiscard]] auto icon() const -> const char* override { return theme::icons::console; }
     [[nodiscard]] auto drawer() const -> bool override { return true; }
 
     void draw(EditorContext& editor, FrameContext&) override
@@ -95,7 +97,7 @@ public:
             ImGui::SetClipboardText(console.text(m_filter).c_str());
         ImGui::SameLine();
         ImGui::SetNextItemWidth(fillWidth());
-        ImGui::InputTextWithHint("##search", "Search", &m_filter.search);
+        searchField("##search", "Search", m_filter.search);
 
         ImGui::Separator();
         if (ImGui::BeginChild("Lines", ImVec2{ 0.0f, 0.0f }, ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))

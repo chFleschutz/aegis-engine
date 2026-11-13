@@ -193,6 +193,31 @@ TEST_SUITE("editor::propertyRow")
         CHECK(angle.step == doctest::Approx(1.0));
     }
 
+    TEST_CASE("carries the field's unit and shows angles and rotations in degrees")
+    {
+        struct Mover
+        {
+            glm::vec3 offset{};
+            float cone{ 0.5f };
+            glm::quat turn{ 1.0f, 0.0f, 0.0f, 0.0f };
+            float factor{ 1.0f };
+        };
+        TypeRegistry types;
+        auto builder = types.component<Mover>("Mover");
+        REQUIRE(builder.has_value());
+        builder->field("offset", &Mover::offset, { .unit = "m" })
+            .field("cone", &Mover::cone, { .widget = FieldWidget::Angle })
+            .field("turn", &Mover::turn)
+            .field("factor", &Mover::factor);
+        REQUIRE(builder->status().has_value());
+        const auto& type = builder->info();
+
+        CHECK(rowOf(type, "offset").unit == "m");
+        CHECK(rowOf(type, "cone").unit == "°");
+        CHECK(rowOf(type, "turn").unit == "°");
+        CHECK(rowOf(type, "factor").unit.empty());
+    }
+
     TEST_CASE("gives an asset reference an asset slot")
     {
         TypeRegistry types;

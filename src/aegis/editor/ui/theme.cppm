@@ -19,8 +19,9 @@ inline constexpr const char* world = lucide::globe;
 inline constexpr const char* snap = lucide::magnet;
 inline constexpr const char* shown = lucide::eye;
 inline constexpr const char* hidden = lucide::eyeOff;
-// The viewport's stats overlay toggle.
+// The viewport's stats overlay toggle, and the mark of its camera speed field.
 inline constexpr const char* stats = lucide::barChart3;
+inline constexpr const char* speed = lucide::gauge;
 inline constexpr const char* play = lucide::play;
 inline constexpr const char* pause = lucide::pause;
 inline constexpr const char* stop = lucide::square;
@@ -33,14 +34,53 @@ inline constexpr const char* foldColumn = lucide::panelRightClose;
 inline constexpr const char* unfoldColumn = lucide::panelRightOpen;
 inline constexpr const char* hierarchy = lucide::listTree;
 inline constexpr const char* inspector = lucide::slidersHorizontal;
+// The other panels' tabs (Content, Console and Statistics show their buttons' icons).
+inline constexpr const char* renderer = lucide::gpu;
+inline constexpr const char* profiler = lucide::activity;
+inline constexpr const char* allEntities = lucide::list;
 inline constexpr const char* camera = lucide::camera;
 inline constexpr const char* light = lucide::lightbulb;
 inline constexpr const char* sun = lucide::sun;
 
-// The kinds of entities in the hierarchy (the camera, light and sun above are the rest).
-inline constexpr const char* mesh = lucide::cuboid;
+// The hierarchy's button that opens the Create menu, the inspector's Add button, and the search fields' mark.
+inline constexpr const char* create = lucide::plus;
+inline constexpr const char* search = lucide::search;
+
+// The inspector's components without an entity kind's icon (the camera, lights, mesh, sky and instance have those), the
+// scripts, and a component the editor has no icon for (a game's).
+inline constexpr const char* transform = lucide::move3D;
+inline constexpr const char* dynamic = lucide::zap;
+inline constexpr const char* mainCamera = lucide::video;
+inline constexpr const char* ambientLight = lucide::sunDim;
+inline constexpr const char* script = lucide::fileCode;
+inline constexpr const char* genericComponent = lucide::puzzle;
+// An open and a closed section of the inspector.
+inline constexpr const char* expanded = lucide::chevronDown;
+inline constexpr const char* collapsed = lucide::chevronRight;
+
+// The kinds of entities in the hierarchy (the camera, light and sun above, the ambient light, the sky's environment
+// and the script below are the rest).
+inline constexpr const char* mesh = lucide::box;
 inline constexpr const char* instance = lucide::component;
-inline constexpr const char* empty = lucide::circleDashed;
+inline constexpr const char* group = lucide::group;
+inline constexpr const char* empty = lucide::boxSelect;
+
+// An empty asset slot.
+inline constexpr const char* none = lucide::ban;
+
+// The content browser's folders (the drawer button's folder is a closed one), its roots (the project's content and the
+// engine's), its toolbar's Rescan and view buttons, the breadcrumb's Up button and a grid tile's button that shows a
+// model's parts after it, and hides them.
+inline constexpr const char* folder = lucide::folder;
+inline constexpr const char* folderOpen = lucide::folderOpen;
+inline constexpr const char* projectRoot = lucide::folderRoot;
+inline constexpr const char* engineRoot = lucide::package;
+inline constexpr const char* rescan = lucide::refreshCw;
+inline constexpr const char* listView = lucide::layoutList;
+inline constexpr const char* gridView = lucide::layoutGrid;
+inline constexpr const char* up = lucide::arrowUp;
+inline constexpr const char* showParts = lucide::chevronRight;
+inline constexpr const char* hideParts = lucide::chevronLeft;
 
 // The kinds of assets in the asset list (the mesh above is the static mesh).
 inline constexpr const char* material = lucide::palette;
@@ -50,11 +90,10 @@ inline constexpr const char* environment = lucide::cloudSun;
 inline constexpr const char* model = lucide::boxes;
 inline constexpr const char* file = lucide::file;
 
-// The status bar's drawer buttons, and the drawer's pin and close buttons.
+// The status bar's drawer buttons, and the pin button of a drawer panel.
 inline constexpr const char* assets = lucide::folder;
 inline constexpr const char* console = lucide::terminal;
 inline constexpr const char* pin = lucide::pin;
-inline constexpr const char* close = lucide::x;
 
 // The status bar's warning and error counts.
 inline constexpr const char* warning = lucide::alertTriangle;

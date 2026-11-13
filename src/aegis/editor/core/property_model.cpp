@@ -13,6 +13,7 @@ using reflect::FieldWidget;
 constexpr double DEFAULT_INTEGER_STEP = 1.0;
 constexpr double DEFAULT_FLOAT_STEP = 0.01;
 constexpr double DEFAULT_ANGLE_STEP = 0.5; // Degrees
+constexpr const char* DEGREES = "°";       // The unit an Angle or a rotation shows
 
 auto radiansToDegrees(std::optional<double> radians) -> std::optional<double>
 {
@@ -111,8 +112,11 @@ auto propertyRow(const reflect::FieldInfo& field) -> PropertyRow
         .components = vectorSize(field.kind),
         .min = field.meta.min,
         .max = field.meta.max,
+        .unit = field.meta.unit,
         .readOnly = field.meta.readOnly,
     };
+    if (row.widget == PropertyWidget::Angle || row.widget == PropertyWidget::Rotation)
+        row.unit = DEGREES;
     if (row.widget == PropertyWidget::Angle)
     {
         row.min = radiansToDegrees(row.min);

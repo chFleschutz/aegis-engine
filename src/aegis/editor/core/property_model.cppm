@@ -29,6 +29,8 @@ struct PropertyRow
     std::optional<double> min;
     std::optional<double> max;
     double step{ 1.0 };
+    /// @brief The unit after each value: the field's, or degrees for Angle and Rotation; empty for none.
+    std::string unit;
     bool readOnly{ false };
 };
 

@@ -8,6 +8,7 @@ import aegis.render_graph;
 import aegis.world;
 import aegis.world.render_components;
 import :panels;
+import :theme;
 
 namespace aegis::editor
 {
@@ -18,6 +19,7 @@ class StatisticsPanel final : public Panel
 {
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "Statistics"; }
+    [[nodiscard]] auto icon() const -> const char* override { return theme::icons::stats; }
     [[nodiscard]] auto debug() const -> bool override { return true; }
     [[nodiscard]] auto drawer() const -> bool override { return true; }
 

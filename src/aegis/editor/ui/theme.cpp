@@ -13,9 +13,8 @@ namespace aegis::editor::theme
 {
 namespace
 {
-constexpr float fontSize{ 15.0f };    // Before the scales
-constexpr float iconOffsetX{ -3.0f }; // Centers the icons in their buttons and on the text line
-constexpr float iconOffsetY{ 2.0f };
+constexpr float fontSize{ 15.0f };   // Before the scales
+constexpr float iconOffsetY{ 2.0f }; // Centers the icons on the text line; across, each is centered in its advance
 
 // The path as the UTF-8 ImGui opens files with.
 auto utf8(const std::filesystem::path& path) -> std::string
@@ -55,7 +54,7 @@ void setColors(ImGuiStyle& style)
     c[ImGuiCol_Button] = bgFrame;
     c[ImGuiCol_ButtonHovered] = bgFrameHover;
     c[ImGuiCol_ButtonActive] = bgFrameActive;
-    c[ImGuiCol_Header] = dim(accent, 0.35f); // Selected rows
+    c[ImGuiCol_Header] = selection; // Selected rows
     c[ImGuiCol_HeaderHovered] = dim(accent, 0.2f);
     c[ImGuiCol_HeaderActive] = dim(accent, 0.5f);
     c[ImGuiCol_Separator] = border;
@@ -147,7 +146,7 @@ void loadFonts(const std::filesystem::path& folder)
         ImFontConfig merge;
         merge.MergeMode = true;
         merge.PixelSnapH = true;
-        merge.GlyphOffset = ImVec2{ iconOffsetX, iconOffsetY };
+        merge.GlyphOffset.y = iconOffsetY;
         io.Fonts->AddFontFromFileTTF(utf8(icons).c_str(), fontSize, &merge);
         io.FontDefault = loaded.ui;
     }

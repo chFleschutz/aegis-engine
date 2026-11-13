@@ -27,7 +27,7 @@ export namespace aegis::editor
 ///        and `--editor-fold` starts with the right column folded and the Inspector in the flyout.
 ///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of
 ///        `ui/theme.h` scaled by the monitor's content scale and the UI-scale preference; the menus and shortcuts
-///        come from one ActionRegistry. The drawer panels (Assets, Console, the debug panels) open in the drawer, a
+///        come from one ActionRegistry. The drawer panels (Content, Console, the debug panels) open in the drawer, a
 ///        window over the bottom of the viewport, from the status bar's buttons or their chords, or dock below the
 ///        viewport while pinned; `--editor-panels all` pins them. Full viewport (F11) gives the viewport the whole
 ///        window, with play controls in a bar at its top; the panels stay in the layout below it, and
@@ -175,15 +175,19 @@ private:
     /// @brief Asks for this frame's updates: the edit world in edit mode, or the play world.
     void updateWorlds(FrameContext& frame);
     /// @brief The drawer buttons and the selection at the left, the keys for what the cursor is over in the middle, the
-    ///        average frame and GPU times at the right.
+    ///        average CPU and GPU times and the frame rate at the right.
     void drawStatusBar(FrameContext& frame);
+    /// @brief The CPU time, the GPU time and the frame rate, ending at 'right' on the bar's line, each in a slot of the
+    ///        width its widest usual value takes, so neither they nor what is laid out left of them move as they change.
+    ///        Returns where they start.
+    auto drawTimings(FrameContext& frame, float right) -> float;
     /// @brief The active entity's name ("No selection" without one), and how many more are selected.
     [[nodiscard]] auto selectionLabel() const -> std::string;
-    /// @brief The Assets and Console buttons, lit while the drawer shows them, and the console's
-    ///        warning and error counts on the Console button.
+    /// @brief The Content and Console buttons, each its icon and name, lit while the drawer shows them.
     void drawDrawerButtons();
-    /// @brief The console's warning and error counts, with the last one as their tooltip; a click shows them in the console.
-    void drawProblemCounts();
+    /// @brief The Console button: its icon and name, then the console's warning and error counts while there are any, the
+    ///        last problem in its tooltip.
+    void drawConsoleButton();
     // A key and what it does there, for the status bar.
     struct KeyHint
     {
@@ -233,7 +237,6 @@ private:
     std::vector<std::string> m_dockRequests;    // Pinned panels to dock before the next dockspace update
     std::string m_focusPinned;                  // The pinned panel whose window takes the focus next frame
     bool m_focusDrawer{ false };                // The drawer takes the focus next frame
-    bool m_selectDrawerTab{ false };            // The drawer's tab bar selects the shown panel's tab, which may take a frame
     std::optional<Viewport::Rect> m_drawerRect; // As of the last frame; none while closed
     bool m_dragFromDrawer{ false };             // The drag going on began in the drawer
     bool m_dragHidDrawer{ false };              // ... and left it, which closed it

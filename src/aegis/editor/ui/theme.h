@@ -22,26 +22,30 @@ inline constexpr ImVec4 bgFrameActive = rgb(0x404040);
 inline constexpr ImVec4 border = rgb(0x2B2B2B);
 
 // The text colors, brightest first. Text reaches 4.5:1 (WCAG 2) on every background it is drawn on, at rest and
-// hovered; the ratios are against the bars, the windows, the popups, the frames and a selected row (the accent tint
-// over the window). A pressed control is passed over.
-// Body text: 15.5, 14.2, 13.1, 12.0, 8.4 on a selected row; hovered 10.1 (frame), 10.9 (row), 5.7 (tab); 5.4 on
+// hovered; the ratios are against the bars, the windows, the popups, the frames and a selected row (selection). A
+// pressed control is passed over.
+// Body text: 15.5, 14.2, 13.1, 12.0, 7.4 on a selected row; hovered 10.1 (frame), 10.9 (row), 5.7 (tab); 5.4 on
 // accentFill, 6.7 on selected text.
 inline constexpr ImVec4 text = rgb(0xE6E6E6);
-// Labels and values that step back: 9.4, 8.7, 7.9, 7.3, 5.1 on a selected row; hovered 6.2 (frame), 6.6 (row).
+// Labels and values that step back: 9.4, 8.7, 7.9, 7.3, 4.5 on a selected row; hovered 6.2 (frame), 6.6 (row).
 inline constexpr ImVec4 textDim = rgb(0xB5B5B5);
 // Secondary content, ImGui's TextDisabled with it: instance members, engine content, hints, menu shortcuts, a
-// zero count. 7.4, 6.8, 6.2, 5.7, 4.8 on a hovered frame, 4.7 on a hovered menu item. A selected row is 4.0: draw
+// zero count. 7.4, 6.8, 6.2, 5.7, 4.8 on a hovered frame, 4.7 on a hovered menu item. A selected row is 3.5: draw
 // it there with mutedText.
 inline constexpr ImVec4 textMuted = rgb(0xA0A0A0);
 // Disabled controls and neutral fills (the W strip, a dragged scrollbar), not text that must be read: 4.9, 4.5,
 // 4.1, 3.8. ImGui dims a disabled control by DisabledAlpha instead.
 inline constexpr ImVec4 textDisabled = rgb(0x808080);
 
-// Lines, checkmarks, the selection tint, underlines and the active tab. Text on it is 2.8: fill with accentFill.
+// Lines, checkmarks, underlines and the active tab, and the tint of a hovered or pressed row. Text on it is 2.8: fill with accentFill.
 // The play state has its own colors.
 inline constexpr ImVec4 accent = rgb(0x4A8CD9);
 inline constexpr ImVec4 accentHover = rgb(0x6AA3E4);
 inline constexpr ImVec4 accentActive = rgb(0x3A74B8);
+
+// The fill of a selected row (ImGui's Header: the hierarchy, the asset list, the selectables), drawn with slightly
+// rounded corners where the editor draws it itself.
+inline constexpr ImVec4 selection = rgb(0x2D4969);
 
 // The fill of filled controls: the default button, active toggles and tools, and its hovered and pressed shades.
 // Text on them: 5.4, 4.8, 6.7.
@@ -62,16 +66,28 @@ inline constexpr ImVec4 playFrame = rgb(0xE8873A);
 inline constexpr ImVec4 playHover = rgb(0xF0A060);
 inline constexpr ImVec4 playActive = rgb(0xC96E28);
 
-// The axes' lines, and the inspector's strips, whose letters are bgDeep: 5.2, 8.7, 5.6 (W's strip, textDisabled: 4.9).
+// The axes' lines, and the inspector's strips along a vector's fields (marks, not text; W's strip is textDisabled).
 inline constexpr ImVec4 axisX = rgb(0xE5534B);
 inline constexpr ImVec4 axisY = rgb(0x6CC24A);
 inline constexpr ImVec4 axisZ = rgb(0x4A8CD9);
 
-// The light and camera icons in the hierarchy: 14.2 and 10.0 on the window, 8.4 and 5.9 on a selected row. In the
+// The light and camera icons in the hierarchy: 14.2 and 10.0 on the window, 7.4 and 5.2 on a selected row. In the
 // viewport a light's icon takes the light's color, on the backdrop (14.4 for lightIcon over black); iconSelected is
 // the ring around a selected icon, a line, not text.
 inline constexpr ImVec4 lightIcon = rgb(0xFFE678);
 inline constexpr ImVec4 cameraIcon = rgb(0x8CC8FF);
+// The mesh and scene instance icons in the hierarchy and the inspector: 8.2 and 9.3 on the window, 4.3 and 4.9 on a
+// selected row (icons are graphics: 3:1 is their minimum). The mesh's steel blue is darker and grayer than the camera's. The sky and the ambient light take
+// lightIcon; scripted, group and empty entities textDim.
+inline constexpr ImVec4 meshIcon = rgb(0x7EB6E6);
+inline constexpr ImVec4 instanceIcon = rgb(0xC3B1FF);
+// The content browser's and the asset slots' icons by asset kind (meshes take meshIcon, models instanceIcon, environments
+// lightIcon, other files textDim): folders, materials, textures and scene files. 4.8, 4.4, 5.1 and 4.2 on a selected
+// row, above 8 on the window.
+inline constexpr ImVec4 folderIcon = rgb(0xD9B56E);
+inline constexpr ImVec4 materialIcon = rgb(0xF0A070);
+inline constexpr ImVec4 textureIcon = rgb(0x8CCF8C);
+inline constexpr ImVec4 sceneIcon = rgb(0xE79AC4);
 inline constexpr ImVec4 iconBackdrop = rgb(0x1E1E1E, 0.78f);
 inline constexpr ImVec4 iconSelected = rgb(0xFFA028);
 
@@ -137,7 +153,10 @@ inline auto iconButton(const char* icon, const char* id, bool active = false) ->
     }
     ImGui::PushID(id);
     const float side = ImGui::GetFrameHeight();
+    // No padding: the icon is wider than the square less the frame padding, and ImGui would put it at the left padding
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.0f, 0.0f });
     const bool pressed = ImGui::Button(icon, ImVec2{ side, side });
+    ImGui::PopStyleVar();
     ImGui::PopID();
     if (active)
         ImGui::PopStyleColor(3);

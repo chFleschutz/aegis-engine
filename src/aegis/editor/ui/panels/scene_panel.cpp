@@ -20,6 +20,13 @@ namespace aegis::editor
 {
 namespace
 {
+// A row's padding above and below its label, the gap between rows and the rounding of a row's highlight, in pixels at
+// 100%; the share of the panel's height the list scrolls past its last row.
+constexpr float rowPadding{ 3.0f };
+constexpr float rowGap{ 1.0f };
+constexpr float rowRounding{ 2.0f };
+constexpr float scrollPastShare{ 0.5f };
+
 // The ImGui ID of an entity's row: its StableId, so an entity slot reused by another entity doesn't
 // reopen the old tree state.
 auto rowId(StableId id) -> const void*
@@ -35,41 +42,6 @@ auto rowId(world::Registry& registry, world::Entity entity) -> const void*
 auto nameOf(world::Registry& registry, world::Entity entity) -> const char*
 {
     return registry.has<Name>(entity) ? registry.get<Name>(entity).name.c_str() : "Entity";
-}
-
-auto kindIcon(EntityKind kind) -> const char*
-{
-    switch (kind)
-    {
-    case EntityKind::Camera:
-        return theme::icons::camera;
-    case EntityKind::DirectionalLight:
-        return theme::icons::sun;
-    case EntityKind::PointLight:
-        return theme::icons::light;
-    case EntityKind::Mesh:
-        return theme::icons::mesh;
-    case EntityKind::SceneInstance:
-        return theme::icons::instance;
-    case EntityKind::Empty:
-        return theme::icons::empty;
-    }
-    return theme::icons::empty;
-}
-
-// The icon's color: the viewport's for the cameras and lights, the dimmed text's for the rest.
-auto kindColor(EntityKind kind) -> ImVec4
-{
-    switch (kind)
-    {
-    case EntityKind::Camera:
-        return theme::cameraIcon;
-    case EntityKind::DirectionalLight:
-    case EntityKind::PointLight:
-        return theme::lightIcon;
-    default:
-        return theme::textDim;
-    }
 }
 
 // Whether the rows hold nothing but what a new scene starts with (the scene's camera and lights, a sky), or nothing at all.
@@ -100,10 +72,10 @@ struct Drop
     StableId entity;
     std::optional<StableId> target; // None: the empty space below the rows, which makes the entity a root
     DropZone zone{ DropZone::Into };
-    std::uint64_t asset{ 0 }; // A scene or model from the asset browser, instantiated into the target, instead of 'entity'
+    std::uint64_t asset{ 0 }; // A scene or model from the content browser, instantiated into the target, instead of 'entity'
 };
 
-// A scene or model dragged from the asset browser, dropped this frame.
+// A scene or model dragged from the content browser, dropped this frame.
 auto acceptInstance() -> std::uint64_t
 {
     const auto dropped = acceptAssetPayload([](const AssetPayload& payload) { return canInstantiate(payload); });
@@ -166,6 +138,7 @@ public:
     }
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Scene"; }
+    [[nodiscard]] auto icon() const -> const char* override { return theme::icons::hierarchy; }
     [[nodiscard]] auto column() const -> bool override { return true; }
     [[nodiscard]] auto title() const -> std::string_view override { return "Hierarchy"; }
 
@@ -189,6 +162,12 @@ private:
 
         // Only the rows in view are drawn. The rows are flat, each indented by its depth rather than nested in its parent's
         // tree node, so any of them can be skipped
+        // Each row padded above and below, so its highlight fills it, a thin gap apart; a row is a whole number of pixels tall
+        const float scale = theme::scale();
+        const float fontSize = ImGui::GetFontSize();
+        const float rowHeight = std::round(fontSize + 2.0f * rowPadding * scale);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ ImGui::GetStyle().ItemSpacing.x, std::round(rowGap * scale) });
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ ImGui::GetStyle().FramePadding.x, (rowHeight - fontSize) * 0.5f });
         ImGuiListClipper clipper;
         clipper.Begin(static_cast<int>(rows.size()));
         if (scrollTo)
@@ -215,6 +194,7 @@ private:
                     setNodeOpen(row.id, open, filtered);
             }
         }
+        ImGui::PopStyleVar(2);
         if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
             m_narrowOnRelease.reset(); // Released over no row, or the row is gone
         if (filtered && rows.empty())
@@ -225,8 +205,10 @@ private:
         else if (!filtered && holdsOnlyDefaults(*editor.world(), rows))
             drawCenteredHint("Right-click to create an entity, or drop a model here");
 
-        // The space below the rows takes drops that make the entity a root
-        ImGui::Dummy(ImGui::GetContentRegionAvail());
+        // The space below the rows takes drops that make the entity a root and opens the Create menu on a right click.
+        // It is never less than half the panel, so the list scrolls past its last row and there is always room to click.
+        const ImVec2 below = ImGui::GetContentRegionAvail();
+        ImGui::Dummy(ImVec2{ below.x, std::max(below.y, scrollPastShare * ImGui::GetWindowHeight()) });
         if (ImGui::BeginDragDropTarget())
         {
             if (const auto* payload = ImGui::AcceptDragDropPayload(entityPayload))
@@ -308,9 +290,9 @@ private:
     {
         const float button = ImGui::GetFrameHeight();
         ImGui::SetNextItemWidth(-(button + ImGui::GetStyle().ItemSpacing.x));
-        ImGui::InputTextWithHint("##filter", "Filter", &m_filter);
+        searchField("##filter", "Filter", m_filter);
         ImGui::SameLine();
-        if (ImGui::Button("+", ImVec2{ button, button }))
+        if (theme::iconButton(theme::icons::create, "create"))
             ImGui::OpenPopup("CreateMenu");
         ImGui::SetItemTooltip("Create an entity");
         if (ImGui::BeginPopup("CreateMenu"))
@@ -321,7 +303,7 @@ private:
     }
 
     // The menu of the row that was right-clicked (selected by the click, so the actions, which act on the selection, act on
-    // it and on the other selected rows).
+    // it and on the other selected rows), with the Create menu's items below, which create a child of the row.
     void drawRowMenu(EditorContext& editor, FrameContext& frame)
     {
         if (!ImGui::BeginPopup("RowMenu"))
@@ -338,27 +320,24 @@ private:
         m_actions.menuItem("edit.rename", frame);
         m_actions.menuItem("edit.duplicate", frame);
         m_actions.menuItem("edit.delete", frame);
-        ImGui::Separator();
-        if (ImGui::BeginMenu("Create Child", !registry.has<serialize::InstanceMember>(row)))
-        {
-            drawCreateMenu(editor, frame, row);
-            ImGui::EndMenu();
-        }
-        ImGui::Separator();
         m_actions.menuItem("edit.focus", frame);
+        // A scene instance's members take no children: they are recreated from its scene
+        if (!registry.has<serialize::InstanceMember>(row))
+        {
+            ImGui::SeparatorText("Create Child");
+            drawCreateMenu(editor, frame, row);
+        }
         ImGui::EndPopup();
     }
 
-    // The menu of the empty space and of the window's edge, not of the rows (their own opens there).
+    // The menu of the empty space and of the window's edge, not of the rows (their own opens there): the Create menu's
+    // items, which create a root entity.
     void drawWindowMenu(EditorContext& editor, FrameContext& frame)
     {
         if (!ImGui::BeginPopupContextWindow("WindowMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
             return;
-        if (ImGui::BeginMenu("Create"))
-        {
-            drawCreateMenu(editor, frame);
-            ImGui::EndMenu();
-        }
+        ImGui::SeparatorText("Create");
+        drawCreateMenu(editor, frame);
         ImGui::EndPopup();
     }
 
@@ -369,14 +348,14 @@ private:
         const auto kind = entityKind(registry, entity);
         const bool member = registry.has<serialize::InstanceMember>(entity);
         const ImU32 mutedColor = theme::packed(theme::mutedText(selected));
-        const ImU32 iconColor = member ? mutedColor : theme::packed(kindColor(kind));
+        const ImU32 iconColor = member ? mutedColor : entityIconColor(kind);
         const ImU32 textColor = member ? mutedColor : ImGui::GetColorU32(ImGuiCol_Text);
 
         const ImVec2 min = ImGui::GetItemRectMin();
         // Centered on the row: a tree node has no vertical padding of its own
         ImVec2 position{ min.x + ImGui::GetTreeNodeToLabelSpacing(), min.y + (ImGui::GetItemRectSize().y - ImGui::GetTextLineHeight()) * 0.5f };
         const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-        const char* icon = kindIcon(kind);
+        const char* icon = entityIcon(kind);
         const char* name = nameOf(registry, entity);
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddText(position, iconColor, icon);
@@ -398,12 +377,31 @@ private:
     auto drawEntityTreeNode(EditorContext& editor, world::Registry& registry, std::span<const HierarchyRow> rows, world::Entity entity, ImGuiTreeNodeFlags flags,
         std::optional<Drop>& drop, std::optional<StableId>& menuRow) -> bool
     {
-        flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-        flags |= editor.isSelected(entity) ? ImGuiTreeNodeFlags_Selected : 0; // Highlight selection
+        flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
+        const bool selected = editor.isSelected(entity);
+        flags |= selected ? ImGuiTreeNodeFlags_Selected : 0;
 
-        // The label is drawn by hand: the kind's icon comes first, in its own color
+        // The label is drawn by hand: the kind's icon comes first, in its own color. So is the highlight, with rounded
+        // corners (ImGui's is square): ImGui's is clear, and this one goes under the arrow and the label on a channel below
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        drawList->ChannelsSplit(2);
+        drawList->ChannelsSetCurrent(1);
+        const ImVec4 clear{ 0.0f, 0.0f, 0.0f, 0.0f };
+        ImGui::PushStyleColor(ImGuiCol_Header, clear);
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, clear);
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive, clear);
         const bool isOpen = ImGui::TreeNodeEx(rowId(registry, entity), flags, "");
-        drawRowLabel(registry, entity, (flags & ImGuiTreeNodeFlags_Selected) != 0);
+        ImGui::PopStyleColor(3);
+        drawRowLabel(registry, entity, selected);
+        const bool hovered = ImGui::IsItemHovered();
+        if (selected || hovered)
+        {
+            drawList->ChannelsSetCurrent(0);
+            const ImGuiCol highlight = selected ? ImGuiCol_Header : ImGui::IsItemActive() ? ImGuiCol_HeaderActive
+                                                                                          : ImGuiCol_HeaderHovered;
+            drawList->AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImGui::GetColorU32(highlight), std::round(rowRounding * theme::scale()));
+        }
+        drawList->ChannelsMerge();
 
         select(editor.selection(), rows, registry.get<StableId>(entity));
         const bool onLabel = ImGui::GetMousePos().x >= ImGui::GetItemRectMin().x + ImGui::GetTreeNodeToLabelSpacing();
@@ -453,7 +451,7 @@ private:
 
     // The row just drawn as a drag source and a drop target: the top and bottom quarters of the row place the
     // dragged entity before or after it, the middle makes it the row's last child. A selected row drags the other
-    // selected roots along (see applyDrop). A scene or model dropped from the asset browser is instantiated as its last
+    // selected roots along (see applyDrop). A scene or model dropped from the content browser is instantiated as its last
     // child.
     static void dragAndDrop(EditorContext& editor, world::Registry& registry, world::Entity entity, std::optional<Drop>& drop)
     {

@@ -3,7 +3,7 @@ import std;
 
 export namespace aegis::editor
 {
-/// @brief Which drawer panel the drawer shows and which ones are pinned. A drawer panel (Assets, Console, the debug
+/// @brief Which drawer panel the drawer shows and which ones are pinned. A drawer panel (Content, Console, the debug
 ///        panels) opens in the drawer, a window over the bottom of the viewport that shows one of them at a time, or,
 ///        pinned, docks into a bottom node of the layout instead. Panels are named by their window titles.
 class Drawers
@@ -32,7 +32,7 @@ public:
     /// @brief Unpins every panel and closes the drawer (View > Reset Layout).
     void reset();
 
-    /// @brief The pinned panels as the layout file keeps them: "Pinned=Assets,Console".
+    /// @brief The pinned panels as the layout file keeps them: "Pinned=Content,Console".
     [[nodiscard]] auto settingsLine() const -> std::string;
     /// @brief Reads a line settingsLine wrote; any other line is ignored, and so are empty names.
     void readSettingsLine(std::string_view line);

@@ -22,7 +22,7 @@ struct EditorPreferences
     /// @brief How often the edited scene is autosaved while it has unsaved changes, in minutes (it also is on entering
     ///        Play); 0 turns autosaving off.
     int autosaveMinutes{ 2 };
-    /// @brief The drawer's height (Assets, Console), as a share of the viewport's; dragging its top edge changes it.
+    /// @brief The drawer's height (Content, Console), as a share of the viewport's; dragging its top edge changes it.
     float drawerHeight{ 0.4f };
     /// @brief Whether Play enters full viewport (the viewport over the whole window); Stop then leaves it.
     bool fullViewportOnPlay{ false };

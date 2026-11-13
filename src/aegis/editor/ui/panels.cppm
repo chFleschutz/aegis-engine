@@ -1,5 +1,6 @@
 module aegis.editor:panels;
 import std;
+import aegis.editor.core;
 import aegis.math;
 import aegis.reflect;
 import aegis.world;
@@ -14,7 +15,7 @@ namespace aegis::editor
 [[nodiscard]] auto makeScenePanel(const ActionRegistry& actions) -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeAllEntitiesPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeInspectorPanel() -> std::unique_ptr<Panel>;
-[[nodiscard]] auto makeAssetPanel() -> std::unique_ptr<Panel>;
+[[nodiscard]] auto makeContentPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeConsolePanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makePreferencesPanel() -> std::unique_ptr<Panel>;
 // The shortcuts of 'actions', which must outlive it, and the viewport's.
@@ -59,12 +60,26 @@ struct StatisticsSummary
 ///        cursor stays where it was, so what follows (a drop target over the free space) still covers it.
 void drawCenteredHint(std::string_view text);
 
-/// @brief The items of a menu of 'types', one submenu per category (those without one at the top); the type picked this frame, if any.
-[[nodiscard]] auto pickType(std::span<const reflect::TypeInfo* const> types) -> const reflect::TypeInfo*;
+/// @brief A text field with the search icon inside its left end and 'hint' while empty; returns what
+///        ImGui::InputTextWithHint returns. 'flags' are ImGuiInputTextFlags.
+auto searchField(const char* id, const char* hint, std::string& text, int flags = 0) -> bool;
 
-/// @brief The Create menu's items, for a menu or a popup: an empty entity, a camera, a point light, a directional light,
-///        then the registered component types by category. Each creates one entity under 'parent' (a root entity for a
-///        null one) as one undo entry, selects it and asks for its name to be typed (EditorContext::requestRename).
+/// @brief The icon of an entity of 'kind' (the hierarchy's rows, the inspector's header), and its color as an ImU32:
+///        the viewport's for the cameras, the lights and the sky, the mesh's and the instance's own, the dimmed
+///        text's for the rest.
+[[nodiscard]] auto entityIcon(EntityKind kind) -> const char*;
+[[nodiscard]] auto entityIconColor(EntityKind kind) -> std::uint32_t;
+
+/// @brief The icon of the component or script 'type' (the inspector's sections, the Add menu).
+[[nodiscard]] auto componentIcon(const reflect::TypeInfo& type) -> const char*;
+
+/// @brief The icon of an asset of 'kind' (the asset list, the inspector's asset slots), and its color as an ImU32.
+[[nodiscard]] auto assetIcon(AssetKind kind) -> const char*;
+[[nodiscard]] auto assetIconColor(AssetKind kind) -> std::uint32_t;
+
+/// @brief The Create menu's items, for a menu or a popup: an empty entity, then an entity of each registered component
+///        type that can be created, by category, each a click away. Each creates one entity under 'parent' (a root entity
+///        for a null one) as one undo entry, selects it and asks for its name to be typed (EditorContext::requestRename).
 void drawCreateMenu(EditorContext& editor, FrameContext& frame, world::Entity parent = {});
 
 /// @brief The asset dragged onto the item of the open drag and drop target, once dropped, if 'accepts' takes it; one it

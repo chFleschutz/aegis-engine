@@ -480,6 +480,8 @@ auto Engine::run() -> int
             exitCode = exitFailure;
             break;
         }
+        // Frame Time less this is the CPU's time (the editor's status bar)
+        Profiler::instance().addTime("Frame Wait", m_renderer->waitMs());
         ++frames;
     }
 
