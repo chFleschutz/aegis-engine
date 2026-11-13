@@ -58,6 +58,22 @@ auto menuBarHeight() -> float
     return ImGui::GetFontSize() + 2.0f * menuBarPadding().y;
 }
 
+// The status bar's height: a frame's and an inset above and below, around its buttons.
+auto statusBarHeight() -> float
+{
+    return ImGui::GetFrameHeight() + 2.0f * std::round(3.0f * theme::scale());
+}
+
+// A slim vertical line at 'x' on the bar's text line starting at 'top', between groups of the status bar.
+void drawBarLine(ImDrawList* drawList, float x, float top)
+{
+    const float fontSize = ImGui::GetFontSize();
+    const float width = std::max(1.0f, std::round(theme::scale()));
+    const float height = std::round(fontSize * 0.8f);
+    const float lineTop = std::round(top + (fontSize - height) * 0.5f);
+    drawList->AddRectFilled(ImVec2{ x, lineTop }, ImVec2{ x + width, lineTop + height }, theme::packed(theme::bgFrameActive));
+}
+
 // The top-level window that 'window' belongs to: through a child window's parents and a popup's opener.
 auto ownerWindow(const ImGuiWindow* window) -> const ImGuiWindow*
 {
@@ -1073,11 +1089,12 @@ void EditorShell::restoreAutosave(FrameContext& frame)
 void EditorShell::drawStatusBar(FrameContext& frame)
 {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    const float height = ImGui::GetFrameHeight();
+    const float height = statusBarHeight();
     ImGui::SetNextWindowPos(ImVec2{ viewport->Pos.x, viewport->Pos.y + viewport->Size.y - height });
     ImGui::SetNextWindowSize(ImVec2{ viewport->Size.x, height });
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f * theme::scale(), 0.0f });
+    // A frame's row centered in the bar: the inset above and below it
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f * theme::scale(), (height - ImGui::GetFrameHeight()) * 0.5f });
     ImGui::PushStyleColor(ImGuiCol_WindowBg, theme::bgDeep);
     const bool visible = ImGui::Begin("##StatusBar", nullptr, flags);
     ImGui::PopStyleColor();
@@ -1086,7 +1103,13 @@ void EditorShell::drawStatusBar(FrameContext& frame)
     {
         ImGui::AlignTextToFramePadding(); // Its text and buttons centered in the bar, as in the menu bar
         drawDrawerButtons();
-        ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 2.0f);
+        // A slim line apart from the selection
+        const float gap = ImGui::GetStyle().ItemSpacing.x;
+        ImGui::SameLine(0.0f, gap);
+        const ImVec2 line = ImGui::GetCursorScreenPos();
+        drawBarLine(ImGui::GetWindowDrawList(), line.x, line.y + ImGui::GetCurrentWindow()->DC.CurrLineTextBaseOffset);
+        ImGui::Dummy(ImVec2{ std::max(1.0f, std::round(theme::scale())), ImGui::GetTextLineHeight() });
+        ImGui::SameLine(0.0f, gap);
         ImGui::TextUnformatted(selectionLabel().c_str());
         ImGui::SameLine();
         const float left = ImGui::GetCursorPosX();
@@ -1132,9 +1155,7 @@ auto EditorShell::drawTimings(FrameContext& frame, float right) -> float
         if (slot != slots.rbegin())
         {
             x -= gap + lineWidth;
-            const float lineHeight = std::round(fontSize * 0.8f);
-            const float lineTop = std::round(top + (fontSize - lineHeight) * 0.5f);
-            drawList->AddRectFilled(ImVec2{ x, lineTop }, ImVec2{ x + lineWidth, lineTop + lineHeight }, theme::packed(theme::bgFrameActive));
+            drawBarLine(drawList, x, top);
             x -= gap;
         }
         const float labelWidth = tabular.width(slot->label);
@@ -1323,7 +1344,7 @@ void EditorShell::drawDockspace()
 {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const float menuBar = menuBarHeight();
-    const float statusBar = ImGui::GetFrameHeight();
+    const float statusBar = statusBarHeight();
     const ImGuiID id = ImGui::GetID("EditorDockSpace");
     m_dockspace = id;
     // Folded, the rail takes the right edge, and the dockspace is wider than the rest by the column's width: the column
@@ -1420,7 +1441,7 @@ void EditorShell::drawRail()
     const float menuBar = menuBarHeight();
     const float width = std::round(railWidth * theme::scale());
     ImGui::SetNextWindowPos(ImVec2{ display->Pos.x + display->Size.x - width, display->Pos.y + menuBar });
-    ImGui::SetNextWindowSize(ImVec2{ width, std::max(display->Size.y - menuBar - ImGui::GetFrameHeight(), 1.0f) });
+    ImGui::SetNextWindowSize(ImVec2{ width, std::max(display->Size.y - menuBar - statusBarHeight(), 1.0f) });
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove |
                                    ImGuiWindowFlags_NoScrollWithMouse;
     const float padding = std::max(std::floor((width - ImGui::GetFrameHeight()) * 0.5f), 0.0f);
