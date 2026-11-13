@@ -10,7 +10,7 @@ namespace ibl
         else if (face == 2) dir = float3(uv.x, 1.0, -uv.y);
         else if (face == 3) dir = float3(uv.x, -1.0, uv.y);
         else if (face == 4) dir = float3(uv.x, uv.y, 1.0);
-        else if (face == 5) dir = float3(-uv.x, uv.y, -1.0);
+        else dir = float3(-uv.x, uv.y, -1.0); // face 5
         return normalize(dir);
     }
 
