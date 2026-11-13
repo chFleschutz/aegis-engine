@@ -318,7 +318,9 @@ next target becomes Planning, and the roadmap drops the closed milestone (a docs
    Submodules come from `tools/init-submodules.sh`, which shares the main checkout's submodule
    objects instead of copying them. A worktree made some other way (e.g. Claude Code's
    `.claude/worktrees/`) gets its submodules and a configured preset from the `SessionStart` hook
-   in `.claude/settings.json` (`tools/session-start.sh`); it still needs a build. Such a worktree
+   in `.claude/settings.json` (`tools/session-start.sh`); it still needs a build. The desktop app
+   runs the hook in the main checkout, so a change to the script takes effect once the main
+   checkout has it, and the script finds the session's folder in the hook's input. Such a worktree
    starts on a throwaway branch (`claude/<session-name>`): rename it to the kind-prefixed name with
    `git branch -m <kind>/<name>` before the first commit. Keep worktree paths short
    on Windows: some build and submodule files are about 140 characters below the worktree root,
