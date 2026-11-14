@@ -132,6 +132,7 @@ export namespace aegis::render_graph::detail
 [[nodiscard]] auto compilePlan(const ResourceDeclarations& declarations) -> std::expected<GraphPlan, Error>;
 
 /// @brief The plan as text: the passes in execution order with their accesses and barriers, then the created
-///        resources. Accesses and barriers that reach into the previous frame are marked. For snapshot tests, so a change to scheduling or synchronization shows up as a diff.
+///        resources. Accesses and barriers that reach into the previous frame are marked. For snapshot tests,
+///        so a change to scheduling or synchronization shows up as a diff.
 [[nodiscard]] auto describePlan(const ResourceDeclarations& declarations, const GraphPlan& plan) -> std::string;
 }
