@@ -8,9 +8,9 @@ import :command_pool;
 import :context;
 import :debug;
 import :device;
-import :error;
 import :vulkan_conversions;
 import vulkan;
+import aegis.rhi.types;
 
 namespace aegis::rhi
 {

@@ -2,9 +2,9 @@ export module aegis.rhi:sampler;
 import std;
 import :bindless_heap;
 import :common;
-import :error;
 import :fwd;
 import vulkan;
+import aegis.rhi.types;
 
 export namespace aegis::rhi::detail
 {

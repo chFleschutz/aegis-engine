@@ -5,6 +5,7 @@ export module aegis.rhi:memory;
 import std;
 import :common;
 import :fwd;
+import aegis.rhi.types;
 import vulkan;
 
 export namespace aegis::rhi

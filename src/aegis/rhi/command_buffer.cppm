@@ -1,11 +1,11 @@
 export module aegis.rhi:command_buffer;
 import std;
-import :error;
 import :commands;
 import :common;
 import :fwd;
 import :resource_handle;
 import vulkan;
+import aegis.rhi.types;
 
 export namespace aegis::rhi
 {

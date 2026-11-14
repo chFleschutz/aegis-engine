@@ -1,10 +1,10 @@
 export module aegis.rhi:image;
 import std;
 import :common;
-import :error;
 import :fwd;
 import :memory;
 import vulkan;
+import aegis.rhi.types;
 
 export namespace aegis::rhi::detail
 {

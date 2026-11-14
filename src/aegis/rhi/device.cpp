@@ -3,10 +3,10 @@ import std;
 import :device;
 import :context;
 import :debug;
-import :error;
 import :upload_manager;
 import :vulkan_conversions;
 import vulkan;
+import aegis.rhi.types;
 
 namespace aegis::rhi
 {

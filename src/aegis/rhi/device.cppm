@@ -7,7 +7,6 @@ import :buffer;
 import :command_buffer;
 import :command_pool;
 import :deletion_queue;
-import :error;
 import :image;
 import :image_view;
 import :memory;
@@ -19,6 +18,7 @@ import :sampler;
 import :swapchain;
 import :upload_manager;
 import aegis.platform;
+import aegis.rhi.types;
 import vulkan;
 
 export namespace aegis::rhi::detail

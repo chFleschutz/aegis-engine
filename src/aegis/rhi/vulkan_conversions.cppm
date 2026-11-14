@@ -7,6 +7,7 @@ export module aegis.rhi:vulkan_conversions;
 import std;
 import :common;
 import :commands;
+import aegis.rhi.types;
 import aegis.core;
 import vulkan;
 
