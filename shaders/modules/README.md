@@ -49,7 +49,7 @@ On the C++ side, mirror the struct with `rhi::DeviceAddress` for pointers and th
 struct must fit in 128 bytes, which the typed `pushConstants` checks at compile time. The render graph's
 mirrors live in `src/aegis/render_graph/gpu_types.cppm`, named after their Slang twins, with their
 `sizeof`/`offsetof` pinned in `tests/render_graph/gpu_types.test.cpp`; asset mirrors (`Vertex`,
-`Meshlet`, `PbrMaterial`) are in `src/aegis/assets/gpu_types.cppm`.
+`Meshlet`, `PbrMaterial`) are in `src/aegis/assets/data/gpu_types.cppm`.
 
 **Declare the push constant variable in the entry-point file, never in a module.** A module may define
 the push constant *struct* (`indirectDraw::GeometryConstants`), but each entry point's file declares the

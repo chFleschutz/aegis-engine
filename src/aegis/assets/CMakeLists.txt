@@ -19,52 +19,52 @@ target_link_libraries(aegis-assets
 target_sources(aegis-assets
     PUBLIC
     FILE_SET CXX_MODULES FILES
-    asset_database.cppm
-    asset_id.cppm
-    asset_key.cppm
-    asset_ref.cppm
+    data/asset_database.cppm
+    data/asset_id.cppm
+    data/asset_key.cppm
+    data/asset_ref.cppm
     assets.cppm
     defaults.cppm
-    engine_content.cppm
-    embedded_images.cppm
+    data/engine_content.cppm
+    data/embedded_images.cppm
     environment.cppm
-    error.cppm
-    external_images.cppm
-    gpu_types.cppm
-    image_data.cppm
-    import_cache.cppm
-    model_data.cppm
+    data/error.cppm
+    data/external_images.cppm
+    data/gpu_types.cppm
+    data/image_data.cppm
+    data/import_cache.cppm
+    data/model_data.cppm
     loader.cppm
     material.cppm
-    mesh_blob.cppm
-    mesh_data.cppm
-    mesh_preprocessor.cppm
-    sidecar.cppm
+    data/mesh_blob.cppm
+    data/mesh_data.cppm
+    data/mesh_preprocessor.cppm
+    data/sidecar.cppm
     static_mesh.cppm
-    sub_asset_key.cppm
+    data/sub_asset_key.cppm
     texture.cppm
-    texture_blob.cppm
-    texture_data.cppm
+    data/texture_blob.cppm
+    data/texture_data.cppm
     upload.cppm
     PRIVATE
-    asset_database.cpp
-    asset_id.cpp
+    data/asset_database.cpp
+    data/asset_id.cpp
     defaults.cpp
-    embedded_images.cpp
-    external_images.cpp
-    gltf_import.cpp
-    image_data.cpp
-    import_cache.cpp
+    data/embedded_images.cpp
+    data/external_images.cpp
+    data/gltf_import.cpp
+    data/image_data.cpp
+    data/import_cache.cpp
     loader.cpp
     material.cpp
-    mesh_blob.cpp
-    mesh_preprocessor.cpp
-    model_import.cpp
-    obj_import.cpp
-    sidecar.cpp
+    data/mesh_blob.cpp
+    data/mesh_preprocessor.cpp
+    data/model_import.cpp
+    data/obj_import.cpp
+    data/sidecar.cpp
     static_mesh.cpp
-    sub_asset_key.cpp
+    data/sub_asset_key.cpp
     texture.cpp
-    texture_blob.cpp
-    texture_data.cpp
+    data/texture_blob.cpp
+    data/texture_data.cpp
 )
