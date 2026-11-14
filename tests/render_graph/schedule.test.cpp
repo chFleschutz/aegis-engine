@@ -5,6 +5,7 @@ import aegis.render_graph;
 
 namespace
 {
+using aegis::render_graph::Lifetime;
 using aegis::render_graph::Usage;
 using namespace aegis::render_graph::detail;
 
@@ -109,7 +110,7 @@ TEST_SUITE("render_graph::sortPasses")
 
 TEST_SUITE("render_graph::planTransitions")
 {
-    const std::vector kinds{ ResourceKind::Image, ResourceKind::Buffer };
+    const std::vector<PlannedResource> kinds{ { .kind = ResourceKind::Image }, { .kind = ResourceKind::Buffer } };
     constexpr std::uint32_t image{ 0 };
     constexpr std::uint32_t buffer{ 1 };
 
@@ -165,7 +166,7 @@ TEST_SUITE("render_graph::planTransitions")
         };
         const auto transitions = planTransitions(passes, kinds);
         REQUIRE(transitions[0].size() == 1);
-        CHECK(transitions[0][0] == Transition{ buffer, Usage::IndirectRead, Usage::TransferDst });
+        CHECK(transitions[0][0] == Transition{ .resource = buffer, .from = Usage::IndirectRead, .to = Usage::TransferDst, .crossFrame = true });
         CHECK(transitions[1][0] == Transition{ buffer, Usage::TransferDst, Usage::StorageWrite });
         CHECK(transitions[2][0] == Transition{ buffer, Usage::StorageWrite, Usage::IndirectRead });
     }
@@ -190,5 +191,103 @@ TEST_SUITE("render_graph::planTransitions")
         const auto transitions = planTransitions(passes, kinds);
         CHECK(transitions[0].empty());
         CHECK(transitions[1].empty());
+    }
+
+    TEST_CASE("a persistent texture's first use syncs with its last use of the previous frame")
+    {
+        const std::vector<PlannedResource> resources{ { .kind = ResourceKind::Image, .lifetime = Lifetime::Persistent } };
+        const std::vector<std::vector<Access>> passes{
+            { { 0, Usage::SampledFragment } },
+            { { 0, Usage::StorageWrite } },
+        };
+        const auto transitions = planTransitions(passes, resources);
+        REQUIRE(transitions[0].size() == 1);
+        CHECK(transitions[0][0] == Transition{ .resource = 0, .from = Usage::StorageWrite, .to = Usage::SampledFragment, .crossFrame = true });
+        CHECK(transitions[1] == std::vector<Transition>{ { 0, Usage::SampledFragment, Usage::StorageWrite } });
+    }
+
+    TEST_CASE("a persistent texture only ever read still gets its first barrier, for the frame it is fresh in")
+    {
+        const std::vector<PlannedResource> resources{ { .kind = ResourceKind::Image, .lifetime = Lifetime::Persistent } };
+        const std::vector<std::vector<Access>> passes{ { { 0, Usage::SampledFragment } } };
+        const auto transitions = planTransitions(passes, resources);
+        CHECK(transitions[0] == std::vector<Transition>{ { .resource = 0, .from = Usage::SampledFragment, .to = Usage::SampledFragment, .crossFrame = true } });
+    }
+
+    TEST_CASE("the images of a history pair each sync with the other's last use")
+    {
+        const std::vector<PlannedResource> resources{ { .kind = ResourceKind::Image, .lifetime = Lifetime::History } };
+        // One pass reads the previous frame's image and writes the current one; a second reads the current.
+        const std::vector<std::vector<Access>> passes{
+            { { 0, Usage::SampledCompute, true }, { 0, Usage::StorageWrite } },
+            { { 0, Usage::SampledFragment } },
+        };
+        const auto transitions = planTransitions(passes, resources);
+        REQUIRE(transitions[0].size() == 2);
+        // The previous frame's image was the current one a frame ago, last sampled by the second pass.
+        CHECK(transitions[0][0] == Transition{ .resource = 0, .from = Usage::SampledFragment, .to = Usage::SampledCompute, .previous = true, .crossFrame = true });
+        // The current image was the previous frame's a frame ago, last sampled by the first pass.
+        CHECK(transitions[0][1] == Transition{ .resource = 0, .from = Usage::SampledCompute, .to = Usage::StorageWrite, .crossFrame = true });
+        CHECK(transitions[1] == std::vector<Transition>{ { 0, Usage::StorageWrite, Usage::SampledFragment } });
+    }
+
+    TEST_CASE("a history pair nobody reads the previous frame of starts each frame undefined")
+    {
+        const std::vector<PlannedResource> resources{ { .kind = ResourceKind::Image, .lifetime = Lifetime::History } };
+        const std::vector<std::vector<Access>> passes{ { { 0, Usage::ColorAttachment } } };
+        const auto transitions = planTransitions(passes, resources);
+        CHECK(transitions[0] == std::vector<Transition>{ { 0, std::nullopt, Usage::ColorAttachment } });
+    }
+
+    TEST_CASE("an imported image's first use follows the state it is imported in")
+    {
+        const std::vector<PlannedResource> resources{
+            { .kind = ResourceKind::Image, .imported = true, .before = Usage::ColorAttachment, .after = Usage::ColorAttachment },
+            { .kind = ResourceKind::Image, .imported = true, .after = Usage::TransferSrc },
+            { .kind = ResourceKind::Image, .imported = true, .before = Usage::SampledFragment, .after = Usage::SampledFragment },
+        };
+        const std::vector<std::vector<Access>> passes{
+            { { 0, Usage::TransferDst }, { 1, Usage::TransferDst }, { 2, Usage::SampledCompute } },
+        };
+        const auto transitions = planTransitions(passes, resources);
+        CHECK(transitions[0] == std::vector<Transition>{
+                                    { 0, Usage::ColorAttachment, Usage::TransferDst },
+                                    { 1, std::nullopt, Usage::TransferDst }, // No state: its contents are discarded
+                                    // Resource 2 is read in the layout it arrives in: no barrier
+                                });
+    }
+
+    TEST_CASE("an imported buffer syncs with the access before the frame, if it has one")
+    {
+        const std::vector<PlannedResource> resources{
+            { .kind = ResourceKind::Buffer, .imported = true, .before = Usage::TransferDst },
+            { .kind = ResourceKind::Buffer, .imported = true },
+        };
+        const std::vector<std::vector<Access>> passes{ { { 0, Usage::ShaderRead }, { 1, Usage::StorageWrite } } };
+        const auto transitions = planTransitions(passes, resources);
+        CHECK(transitions[0] == std::vector<Transition>{ { 0, Usage::TransferDst, Usage::ShaderRead } });
+    }
+}
+
+TEST_SUITE("render_graph::planEndOfFrame")
+{
+    TEST_CASE("leaves each imported resource the frame accessed ready for its next access")
+    {
+        const std::vector<PlannedResource> resources{
+            { .kind = ResourceKind::Image, .imported = true, .before = Usage::ColorAttachment, .after = Usage::ColorAttachment },
+            { .kind = ResourceKind::Image, .imported = true, .after = Usage::SampledFragment },
+            { .kind = ResourceKind::Buffer, .imported = true, .after = Usage::ShaderRead },
+            { .kind = ResourceKind::Buffer, .imported = true },                             // Nothing follows the frame
+            { .kind = ResourceKind::Image, .imported = true, .after = Usage::TransferSrc }, // Never accessed
+            { .kind = ResourceKind::Image, .lifetime = Lifetime::Persistent },              // Not imported
+        };
+        const std::vector<std::vector<Access>> passes{
+            { { 0, Usage::TransferDst }, { 1, Usage::SampledCompute }, { 2, Usage::StorageWrite }, { 3, Usage::StorageWrite }, { 5, Usage::StorageWrite } },
+        };
+        CHECK(planEndOfFrame(passes, resources) == std::vector<Transition>{
+                                                       { 0, Usage::TransferDst, Usage::ColorAttachment },
+                                                       // Resource 1 is already in the read-only layout
+                                                       { 2, Usage::StorageWrite, Usage::ShaderRead },
+                                                   });
     }
 }

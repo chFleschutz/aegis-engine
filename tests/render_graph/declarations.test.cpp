@@ -229,4 +229,198 @@ TEST_SUITE("render_graph::compilePlan")
         CHECK(plan->transitions[0] == std::vector<Transition>{ { 0, std::nullopt, Usage::ColorAttachment } });
         CHECK(plan->transitions[1] == std::vector<Transition>{ { 0, Usage::ColorAttachment, Usage::SampledFragment } });
     }
+
+    TEST_CASE("rejects a history reference to a texture that is no history pair")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginPass("Producer");
+        declarations.addTexture("Image", Usage::ColorAttachment, { .format = Format::RGBA8_UNORM, .lifetime = Lifetime::Persistent });
+        declarations.beginPass("Reader");
+        declarations.addHistoryReference("Image", Usage::SampledFragment);
+
+        const auto message = messageOf(compilePlan(declarations));
+        CHECK(message.contains("'Reader'"));
+        CHECK(message.contains("'Image'"));
+        CHECK(message.contains("Lifetime::History"));
+    }
+
+    TEST_CASE("rejects a history reference that writes")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginPass("Producer");
+        declarations.addTexture("Image", Usage::ColorAttachment, { .format = Format::RGBA8_UNORM, .lifetime = Lifetime::History });
+        declarations.addHistoryReference("Image", Usage::StorageWrite);
+
+        const auto message = messageOf(compilePlan(declarations));
+        CHECK(message.contains("'Producer'"));
+        CHECK(message.contains("StorageWrite"));
+    }
+
+    TEST_CASE("a history reference orders no pass and merges its usage into the pair")
+    {
+        using aegis::core::hasFlag;
+        using aegis::rhi::ImageUsage;
+
+        // The reader is added first and reads the previous frame's image: it stays first.
+        ResourceDeclarations declarations;
+        declarations.beginPass("Reader");
+        declarations.addHistoryReference("Image", Usage::SampledFragment);
+        declarations.beginPass("Producer");
+        declarations.addTexture("Image", Usage::ColorAttachment, { .format = Format::RGBA8_UNORM, .lifetime = Lifetime::History });
+
+        const auto plan = compilePlan(declarations);
+        REQUIRE(plan.has_value());
+        CHECK(plan->order == std::vector<std::uint32_t>{ 0, 1 });
+        CHECK(plan->previous == std::vector{ true, false });
+        CHECK(hasFlag(plan->imageUsage[1], ImageUsage::Sampled));
+        CHECK(hasFlag(plan->imageUsage[1], ImageUsage::ColorAttachment));
+    }
+
+    TEST_CASE("one pass may write a history pair's current image and read the previous frame's in another layout")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginPass("Accumulate");
+        declarations.addTexture("Image", Usage::ColorAttachment, { .format = Format::RGBA8_UNORM, .lifetime = Lifetime::History });
+        declarations.addHistoryReference("Image", Usage::SampledFragment);
+
+        CHECK(compilePlan(declarations).has_value());
+    }
+
+    TEST_CASE("an imported texture or buffer is found by name and checked like a created one")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginPass("Importer");
+        declarations.importTexture("Target", Usage::ColorAttachment, { .format = Format::RGBA8_UNORM, .after = Usage::ColorAttachment });
+        declarations.importBuffer("Lights", Usage::ShaderRead, {});
+        declarations.beginPass("Reader");
+        declarations.addReference("Target", Usage::SampledFragment);
+
+        CHECK(declarations.find("Target") == ResourceId{ 0 });
+        const auto plan = compilePlan(declarations);
+        REQUIRE(plan.has_value());
+        CHECK(plan->order == std::vector<std::uint32_t>{ 0, 1 });
+        CHECK(plan->kinds[1] == aegis::render_graph::detail::ResourceKind::Buffer);
+
+        declarations.beginPass("Wrong");
+        declarations.addReference("Lights", Usage::SampledFragment);
+        CHECK(messageOf(compilePlan(declarations)).contains("'Lights'"));
+    }
+}
+
+TEST_SUITE("render_graph::describePlan")
+{
+    using aegis::render_graph::detail::compilePlan;
+    using aegis::render_graph::detail::describePlan;
+
+    TEST_CASE("the plan of a persistent texture matches its snapshot")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginPass("Exposure");
+        declarations.addReference("SceneColor", Usage::SampledCompute);
+        declarations.addTexture("Luminance", Usage::StorageWrite, { .format = Format::R32_SFLOAT, .extent = { 1, 1 }, .lifetime = Lifetime::Persistent });
+        declarations.beginPass("Scene");
+        declarations.addTexture("SceneColor", Usage::ColorAttachment, color);
+        declarations.beginPass("Tonemap");
+        declarations.addReference("Luminance", Usage::SampledFragment);
+        declarations.addReference("SceneColor", Usage::ColorAttachment);
+
+        const auto plan = compilePlan(declarations);
+        REQUIRE(plan.has_value());
+        CHECK(describePlan(declarations, *plan) ==
+              "1. Scene\n"
+              "    create SceneColor ColorAttachment\n"
+              "    barrier SceneColor: undefined -> ColorAttachment\n"
+              "2. Exposure\n"
+              "    use    SceneColor SampledCompute\n"
+              "    create Luminance StorageWrite\n"
+              "    barrier SceneColor: ColorAttachment -> SampledCompute\n"
+              "    barrier Luminance: last frame's SampledFragment -> StorageWrite\n"
+              "3. Tonemap\n"
+              "    use    Luminance SampledFragment\n"
+              "    use    SceneColor ColorAttachment\n"
+              "    barrier Luminance: StorageWrite -> SampledFragment\n"
+              "    barrier SceneColor: SampledCompute -> ColorAttachment\n"
+              "resources\n"
+              "    Luminance: texture R32_SFLOAT, persistent\n"
+              "    SceneColor: texture RGBA8_UNORM\n");
+    }
+
+    TEST_CASE("the plan of a history pair matches its snapshot")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginPass("Scene");
+        declarations.addTexture("SceneColor", Usage::ColorAttachment, color);
+        declarations.beginPass("Resolve");
+        declarations.addReference("SceneColor", Usage::SampledFragment);
+        declarations.addHistoryReference("Resolved", Usage::SampledFragment);
+        declarations.addTexture("Resolved", Usage::ColorAttachment, { .format = Format::RGBA8_UNORM, .lifetime = Lifetime::History });
+        declarations.beginPass("Present");
+        declarations.addReference("Resolved", Usage::TransferSrc);
+
+        const auto plan = compilePlan(declarations);
+        REQUIRE(plan.has_value());
+        CHECK(describePlan(declarations, *plan) ==
+              "1. Scene\n"
+              "    create SceneColor ColorAttachment\n"
+              "    barrier SceneColor: undefined -> ColorAttachment\n"
+              "2. Resolve\n"
+              "    use    SceneColor SampledFragment\n"
+              "    use    Resolved SampledFragment (previous frame)\n"
+              "    create Resolved ColorAttachment\n"
+              "    barrier SceneColor: ColorAttachment -> SampledFragment\n"
+              "    barrier Resolved (previous frame): last frame's TransferSrc -> SampledFragment\n"
+              "    barrier Resolved: last frame's SampledFragment -> ColorAttachment\n"
+              "3. Present\n"
+              "    use    Resolved TransferSrc\n"
+              "    barrier Resolved: ColorAttachment -> TransferSrc\n"
+              "resources\n"
+              "    SceneColor: texture RGBA8_UNORM\n"
+              "    Resolved: texture RGBA8_UNORM, history pair\n");
+    }
+
+    TEST_CASE("the plan of an imported image and buffer matches its snapshot")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginPass("Scene");
+        declarations.importBuffer("Lights", Usage::ShaderRead, { .before = Usage::TransferDst });
+        declarations.addTexture("SceneColor", Usage::ColorAttachment, color);
+        declarations.beginPass("Present");
+        declarations.addReference("SceneColor", Usage::TransferSrc);
+        declarations.importTexture("Target", Usage::TransferDst,
+            { .format = Format::BGRA8_SRGB, .before = Usage::ColorAttachment, .after = Usage::ColorAttachment });
+        declarations.beginPass("UI");
+        declarations.addReference("Target", Usage::ColorAttachment);
+        declarations.beginPass("Capture");
+        declarations.addReference("Target", Usage::TransferSrc);
+        declarations.importBuffer("Pixels", Usage::TransferDst, { .after = Usage::TransferSrc });
+
+        const auto plan = compilePlan(declarations);
+        REQUIRE(plan.has_value());
+        CHECK(describePlan(declarations, *plan) ==
+              "1. Scene\n"
+              "    import Lights ShaderRead\n"
+              "    create SceneColor ColorAttachment\n"
+              "    barrier Lights: TransferDst -> ShaderRead\n"
+              "    barrier SceneColor: undefined -> ColorAttachment\n"
+              "2. Present\n"
+              "    use    SceneColor TransferSrc\n"
+              "    import Target TransferDst\n"
+              "    barrier SceneColor: ColorAttachment -> TransferSrc\n"
+              "    barrier Target: ColorAttachment -> TransferDst\n"
+              "3. UI\n"
+              "    use    Target ColorAttachment\n"
+              "    barrier Target: TransferDst -> ColorAttachment\n"
+              "4. Capture\n"
+              "    use    Target TransferSrc\n"
+              "    import Pixels TransferDst\n"
+              "    barrier Target: ColorAttachment -> TransferSrc\n"
+              "end of frame\n"
+              "    barrier Target: TransferSrc -> ColorAttachment\n"
+              "    barrier Pixels: TransferDst -> TransferSrc\n"
+              "resources\n"
+              "    Lights: imported buffer\n"
+              "    SceneColor: texture RGBA8_UNORM\n"
+              "    Target: imported texture BGRA8_SRGB\n"
+              "    Pixels: imported buffer\n");
+    }
 }

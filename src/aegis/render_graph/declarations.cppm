@@ -32,16 +32,19 @@ struct ResourceDescription
 class ResourceDeclarations
 {
 public:
-    /// @brief An access to a resource another pass creates, found by name at compile time.
+    /// @brief An access to a resource another pass creates or imports, found by name at compile time.
     struct Reference
     {
+        bool previous{ false }; // To the previous frame's image of a history pair
     };
+
+    using Info = std::variant<TextureDesc, BufferDesc, Reference, ImportedTextureDesc, ImportedBufferDesc>;
 
     struct Entry
     {
         std::string name;
         Usage usage;
-        std::variant<TextureDesc, BufferDesc, Reference> info;
+        Info info;
         std::uint32_t pass; // The pass that made the declaration
     };
 
@@ -55,9 +58,19 @@ public:
     auto addTexture(std::string_view name, Usage usage, const TextureDesc& desc) -> ResourceId;
     /// @brief Declares a buffer the current pass creates. Names are unique among created resources.
     auto addBuffer(std::string_view name, Usage usage, const BufferDesc& desc) -> ResourceId;
-    /// @brief Declares an access of the current pass to a resource another pass creates, found by name at
-    ///        compile time.
+    /// @brief Declares a texture owned outside the graph, which the current pass accesses. The owner binds the
+    ///        image with FrameGraph::bind; other passes reach it with addReference.
+    auto importTexture(std::string_view name, Usage usage, const ImportedTextureDesc& desc) -> ResourceId;
+    /// @brief Declares a buffer owned outside the graph, which the current pass accesses. The owner binds the
+    ///        buffer with FrameGraph::bind; other passes reach it with addReference.
+    auto importBuffer(std::string_view name, Usage usage, const ImportedBufferDesc& desc) -> ResourceId;
+    /// @brief Declares an access of the current pass to a resource another pass creates or imports, found by
+    ///        name at compile time.
     auto addReference(std::string_view name, Usage usage) -> ResourceId;
+    /// @brief Declares a read of the previous frame's image of the history pair 'name' (a texture created with
+    ///        Lifetime::History). The returned id is that image in the ResourcePool, a different one each
+    ///        frame. It orders the pass against no other: the pass creating the pair may read it too.
+    auto addHistoryReference(std::string_view name, Usage usage) -> ResourceId;
 
     [[nodiscard]] auto entries() const noexcept -> std::span<const Entry> { return m_entries; }
     [[nodiscard]] auto passCount() const noexcept -> std::uint32_t { return static_cast<std::uint32_t>(m_passNames.size()); }
@@ -71,11 +84,11 @@ public:
     /// @brief Every declaration, in the order passes made them.
     [[nodiscard]] auto describe() const -> std::vector<ResourceDescription>;
     [[nodiscard]] auto name(ResourceId handle) const -> std::string_view { return m_entries[handle.index].name; }
-    /// @brief The declaration creating the resource 'name' (not a reference to it), or none.
+    /// @brief The declaration creating or importing the resource 'name' (not a reference to it), or none.
     [[nodiscard]] auto find(std::string_view name) const -> std::optional<ResourceId>;
 
 private:
-    auto add(std::string_view name, Usage usage, std::variant<TextureDesc, BufferDesc, Reference> info) -> ResourceId;
+    auto add(std::string_view name, Usage usage, Info info) -> ResourceId;
 
     std::vector<Entry> m_entries;
     std::vector<std::string> m_passNames;
@@ -95,8 +108,12 @@ struct GraphPlan
     std::vector<rhi::BufferUsage> bufferUsage;
     /// @brief Per entry: some pass writes a created buffer from the CPU.
     std::vector<bool> hostWritten;
+    /// @brief Per entry: the access is to the previous frame's image of a history pair.
+    std::vector<bool> previous;
     /// @brief Per entry of 'order': the barriers recorded before the pass.
     std::vector<std::vector<detail::Transition>> transitions;
+    /// @brief The barriers recorded after the last pass, which leave imported resources as declared.
+    std::vector<detail::Transition> endOfFrame;
 };
 }
 
@@ -107,6 +124,7 @@ export namespace aegis::render_graph::detail
 /// @return InvalidGraph, naming the passes and resources involved, when
 ///         - two resources have the same name,
 ///         - a reference names nothing,
+///         - a history reference names a texture that is no history pair, or writes,
 ///         - an access uses a Usage its resource's kind does not support (a buffer usage on a texture or the
 ///           reverse),
 ///         - one pass accesses a texture in two layouts (its barriers are all recorded before it runs), or
@@ -114,6 +132,6 @@ export namespace aegis::render_graph::detail
 [[nodiscard]] auto compilePlan(const ResourceDeclarations& declarations) -> std::expected<GraphPlan, Error>;
 
 /// @brief The plan as text: the passes in execution order with their accesses and barriers, then the created
-///        resources. For snapshot tests, so a change to scheduling or synchronization shows up as a diff.
+///        resources. Accesses and barriers that reach into the previous frame are marked. For snapshot tests, so a change to scheduling or synchronization shows up as a diff.
 [[nodiscard]] auto describePlan(const ResourceDeclarations& declarations, const GraphPlan& plan) -> std::string;
 }

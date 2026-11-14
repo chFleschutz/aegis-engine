@@ -102,57 +102,114 @@ auto sortPasses(std::span<const PassDecl> passes, std::span<const EntryDecl> ent
     return order;
 }
 
-auto planTransitions(std::span<const std::vector<Access>> passes, std::span<const ResourceKind> resources)
-    -> std::vector<std::vector<Transition>>
+namespace
 {
-    std::vector<std::vector<Transition>> transitions(passes.size());
+// Accesses are tracked per image: a history pair has two, the current one and the previous frame's.
+auto slot(std::uint32_t resource, bool previous) -> std::size_t
+{
+    return std::size_t{ resource } * 2 + (previous ? 1 : 0);
+}
 
-    // The last GPU access of each resource in the frame: where a buffer's first access syncs from.
-    std::vector<std::optional<Usage>> lastInFrame(resources.size());
+// The last GPU access of each image or buffer in the frame.
+auto lastAccesses(std::span<const std::vector<Access>> passes, std::size_t resourceCount) -> std::vector<std::optional<Usage>>
+{
+    std::vector<std::optional<Usage>> last(resourceCount * 2);
     for (const auto& accesses : passes)
     {
         for (const auto& access : accesses)
         {
             if (access.usage != Usage::HostWrite)
-                lastInFrame[access.resource] = access.usage;
+                last[slot(access.resource, access.previous)] = access.usage;
         }
     }
+    return last;
+}
 
-    std::vector<std::optional<Usage>> previous(resources.size());
-    std::vector<bool> seen(resources.size(), false);
+auto needsBarrier(bool isImage, Usage from, Usage to) -> bool
+{
+    return (isImage && layoutClass(from) != layoutClass(to)) || isWrite(from) || isWrite(to);
+}
+}
+
+auto planTransitions(std::span<const std::vector<Access>> passes, std::span<const PlannedResource> resources)
+    -> std::vector<std::vector<Transition>>
+{
+    std::vector<std::vector<Transition>> transitions(passes.size());
+    const auto lastInFrame = lastAccesses(passes, resources.size());
+
+    // The barrier before the first access of the frame, if it needs one.
+    const auto first = [&](const Access& access) -> std::optional<Transition> {
+        const auto& [resource, usage, previous] = access;
+        const auto& info = resources[resource];
+        const bool isImage = info.kind == ResourceKind::Image;
+        if (info.imported)
+        {
+            if (info.before ? !needsBarrier(isImage, *info.before, usage) : !isImage)
+                return std::nullopt;
+            return Transition{ .resource = resource, .from = info.before, .to = usage };
+        }
+        if (!isImage)
+        {
+            const auto last = *lastInFrame[slot(resource, false)];
+            if (!isWrite(last) && !isWrite(usage))
+                return std::nullopt;
+            return Transition{ .resource = resource, .from = last, .to = usage, .crossFrame = true };
+        }
+        switch (info.lifetime)
+        {
+        case Lifetime::Frame:
+            break;
+        case Lifetime::Persistent:
+            // Always planned, also between two reads in one layout: a fresh image comes from undefined.
+            return Transition{ .resource = resource, .from = lastInFrame[slot(resource, false)], .to = usage, .crossFrame = true };
+        case Lifetime::History:
+            // The images swap: this one was the other of the pair a frame ago.
+            if (const auto last = lastInFrame[slot(resource, !previous)])
+                return Transition{ .resource = resource, .from = last, .to = usage, .previous = previous, .crossFrame = true };
+            break;
+        }
+        return Transition{ .resource = resource, .from = std::nullopt, .to = usage, .previous = previous };
+    };
+
+    std::vector<std::optional<Usage>> current(resources.size() * 2);
     for (std::size_t p = 0; p < passes.size(); ++p)
     {
-        for (const auto& [resource, usage] : passes[p])
+        for (const auto& access : passes[p])
         {
-            if (usage == Usage::HostWrite)
+            if (access.usage == Usage::HostWrite)
                 continue;
 
-            const bool isImage = resources[resource] == ResourceKind::Image;
-            if (!seen[resource])
+            auto& from = current[slot(access.resource, access.previous)];
+            if (!from)
             {
-                seen[resource] = true;
-                previous[resource] = usage;
-                if (isImage)
-                {
-                    transitions[p].push_back({ resource, std::nullopt, usage });
-                }
-                else
-                {
-                    const auto last = *lastInFrame[resource];
-                    if (isWrite(last) || isWrite(usage))
-                        transitions[p].push_back({ resource, last, usage });
-                }
-                continue;
+                if (const auto transition = first(access))
+                    transitions[p].push_back(*transition);
             }
-
-            const auto from = *previous[resource];
-            const bool layoutChanges = isImage && layoutClass(from) != layoutClass(usage);
-            if (layoutChanges || isWrite(from) || isWrite(usage))
-                transitions[p].push_back({ resource, from, usage });
-            previous[resource] = usage;
+            else if (needsBarrier(resources[access.resource].kind == ResourceKind::Image, *from, access.usage))
+            {
+                transitions[p].push_back({ .resource = access.resource, .from = from, .to = access.usage, .previous = access.previous });
+            }
+            from = access.usage;
         }
     }
 
+    return transitions;
+}
+
+auto planEndOfFrame(std::span<const std::vector<Access>> passes, std::span<const PlannedResource> resources)
+    -> std::vector<Transition>
+{
+    std::vector<Transition> transitions;
+    const auto lastInFrame = lastAccesses(passes, resources.size());
+    for (std::uint32_t resource = 0; resource < resources.size(); ++resource)
+    {
+        const auto& info = resources[resource];
+        const auto last = lastInFrame[slot(resource, false)];
+        if (!info.imported || !info.after || !last)
+            continue;
+        if (needsBarrier(info.kind == ResourceKind::Image, *last, *info.after))
+            transitions.push_back({ .resource = resource, .from = last, .to = *info.after });
+    }
     return transitions;
 }
 }

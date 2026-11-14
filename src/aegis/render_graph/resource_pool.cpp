@@ -27,7 +27,13 @@ ResourcePool::~ResourcePool()
     for (const auto& created : m_created)
     {
         if (const auto* texture = std::get_if<CreatedTexture>(&created))
-            renderer::freeTexture(m_device, texture->texture);
+        {
+            for (const auto& image : texture->textures)
+            {
+                if (image.image.isValid())
+                    renderer::freeTexture(m_device, image);
+            }
+        }
         else if (const auto* buffer = std::get_if<CreatedBuffer>(&created))
         {
             m_device.free(buffer->buffer);
@@ -41,11 +47,59 @@ auto ResourcePool::actual(ResourceId handle) const -> std::uint32_t
     return m_targets[handle.index];
 }
 
+auto ResourcePool::textureAt(std::uint32_t entry, bool previous) const -> const renderer::Texture&
+{
+    if (const auto* imported = std::get_if<ImportedTexture>(&m_created[entry]))
+    {
+        assert(imported->texture && "Imported frame graph texture is not bound (FrameGraph::bind)");
+        return *imported->texture;
+    }
+    const auto* created = std::get_if<CreatedTexture>(&m_created[entry]);
+    assert(created && "Frame graph resource is not a texture");
+    if (created->lifetime != Lifetime::History)
+        return created->textures[0];
+    const auto current = m_frame % 2;
+    return created->textures[previous ? 1 - current : current];
+}
+
 auto ResourcePool::texture(ResourceId handle) const -> const renderer::Texture&
 {
-    const auto* created = std::get_if<CreatedTexture>(&m_created[actual(handle)]);
-    assert(created && "Frame graph resource is not a texture");
-    return created->texture;
+    return textureAt(actual(handle), m_previous[handle.index]);
+}
+
+auto ResourcePool::isFreshAt(std::uint32_t entry) const -> bool
+{
+    const auto* created = std::get_if<CreatedTexture>(&m_created[entry]);
+    return created && created->lifetime != Lifetime::Frame && created->fresh;
+}
+
+auto ResourcePool::isFresh(ResourceId handle) const -> bool
+{
+    return isFreshAt(actual(handle));
+}
+
+auto ResourcePool::endFrame() -> void
+{
+    for (auto& created : m_created)
+    {
+        if (auto* texture = std::get_if<CreatedTexture>(&created))
+            texture->fresh = false;
+    }
+    ++m_frame;
+}
+
+auto ResourcePool::bind(ResourceId handle, const renderer::Texture& texture) -> void
+{
+    auto* imported = std::get_if<ImportedTexture>(&m_created[actual(handle)]);
+    assert(imported && "Frame graph resource is not an imported texture");
+    imported->texture = texture;
+}
+
+auto ResourcePool::bind(ResourceId handle, rhi::BufferHandle buffer) -> void
+{
+    auto* imported = std::get_if<ImportedBuffer>(&m_created[actual(handle)]);
+    assert(imported && "Frame graph resource is not an imported buffer");
+    imported->buffer = buffer;
 }
 
 auto ResourcePool::storageDescriptor(ResourceId handle) const -> rhi::StorageImageDescriptor
@@ -55,7 +109,10 @@ auto ResourcePool::storageDescriptor(ResourceId handle) const -> rhi::StorageIma
 
 auto ResourcePool::format(ResourceId handle) const -> rhi::Format
 {
-    const auto* desc = std::get_if<TextureDesc>(&m_declarations.entries()[actual(handle)].info);
+    const auto& info = m_declarations.entries()[actual(handle)].info;
+    if (const auto* imported = std::get_if<ImportedTextureDesc>(&info))
+        return imported->format;
+    const auto* desc = std::get_if<TextureDesc>(&info);
     assert(desc && "Frame graph resource is not a texture");
     return desc->format;
 }
@@ -67,6 +124,11 @@ auto ResourcePool::extent(ResourceId handle) const -> rhi::Extent2D
 
 auto ResourcePool::buffer(ResourceId handle) const -> const rhi::Buffer&
 {
+    if (const auto* imported = std::get_if<ImportedBuffer>(&m_created[actual(handle)]))
+    {
+        assert(imported->buffer && "Imported frame graph buffer is not bound (FrameGraph::bind)");
+        return m_device.get(*imported->buffer);
+    }
     const auto* created = std::get_if<CreatedBuffer>(&m_created[actual(handle)]);
     assert(created && "Frame graph resource is not a buffer");
     return m_device.get(created->buffer);
@@ -74,6 +136,8 @@ auto ResourcePool::buffer(ResourceId handle) const -> const rhi::Buffer&
 
 auto ResourcePool::bufferOffset(ResourceId handle, std::uint32_t frameIndex) const -> std::size_t
 {
+    if (std::holds_alternative<ImportedBuffer>(m_created[actual(handle)]))
+        return 0;
     const auto* created = std::get_if<CreatedBuffer>(&m_created[actual(handle)]);
     assert(created && "Frame graph resource is not a buffer");
     return created->stride * frameIndex;
@@ -94,6 +158,8 @@ auto ResourcePool::write(ResourceId handle, std::uint32_t frameIndex, std::span<
 
 auto ResourcePool::bufferSize(ResourceId handle) const -> std::size_t
 {
+    if (std::holds_alternative<ImportedBuffer>(m_created[actual(handle)]))
+        return buffer(handle).size();
     const auto* created = std::get_if<CreatedBuffer>(&m_created[actual(handle)]);
     assert(created && "Frame graph resource is not a buffer");
     return created->size;
@@ -150,12 +216,16 @@ auto ResourcePool::resize(rhi::Extent2D output) -> std::expected<void, Error>
     m_output = output;
     for (std::uint32_t i = 0; i < m_created.size(); ++i)
     {
-        const auto* created = std::get_if<CreatedTexture>(&m_created[i]);
+        auto* created = std::get_if<CreatedTexture>(&m_created[i]);
         if (!created || !detail::followsOutput(std::get<TextureDesc>(m_declarations.entries()[i].info)))
             continue;
-        if (auto recreated = renderer::recreateTexture(m_device, created->texture, textureDesc(i, created->usage)); !recreated)
-            return makeError(ErrorCode::ResourceCreationFailed,
-                std::format("Failed to recreate frame graph texture '{}'", m_declarations.entries()[i].name), recreated.error());
+        for (std::size_t image = 0; image < (created->lifetime == Lifetime::History ? 2u : 1u); ++image)
+        {
+            if (auto recreated = renderer::recreateTexture(m_device, created->textures[image], textureDesc(i, created->usage)); !recreated)
+                return makeError(ErrorCode::ResourceCreationFailed,
+                    std::format("Failed to recreate frame graph texture '{}'", m_declarations.entries()[i].name), recreated.error());
+        }
+        created->fresh = true; // The new images hold nothing of the previous frame
     }
     return {};
 }
@@ -164,16 +234,30 @@ auto ResourcePool::createResources(const GraphPlan& plan) -> std::expected<void,
 {
     const auto entries = m_declarations.entries();
     m_targets = plan.target;
+    m_previous = plan.previous;
     m_created.resize(entries.size());
     for (std::uint32_t i = 0; i < entries.size(); ++i)
     {
         const auto& entry = entries[i];
         if (const auto* desc = std::get_if<TextureDesc>(&entry.info))
         {
-            auto texture = renderer::createTexture(m_device, textureDesc(i, plan.imageUsage[i]));
-            if (!texture)
-                return makeError(ErrorCode::ResourceCreationFailed, std::format("Failed to create frame graph texture '{}'", entry.name), texture.error());
-            m_created[i] = CreatedTexture{ *texture, plan.imageUsage[i] };
+            // Stored image by image, so the destructor frees the first of a pair whose second failed.
+            auto& created = m_created[i].emplace<CreatedTexture>(CreatedTexture{ .lifetime = desc->lifetime, .usage = plan.imageUsage[i] });
+            for (std::size_t image = 0; image < (desc->lifetime == Lifetime::History ? 2u : 1u); ++image)
+            {
+                auto texture = renderer::createTexture(m_device, textureDesc(i, plan.imageUsage[i]));
+                if (!texture)
+                    return makeError(ErrorCode::ResourceCreationFailed, std::format("Failed to create frame graph texture '{}'", entry.name), texture.error());
+                created.textures[image] = *texture;
+            }
+        }
+        else if (std::holds_alternative<ImportedTextureDesc>(entry.info))
+        {
+            m_created[i] = ImportedTexture{};
+        }
+        else if (std::holds_alternative<ImportedBufferDesc>(entry.info))
+        {
+            m_created[i] = ImportedBuffer{};
         }
         else if (const auto* desc = std::get_if<BufferDesc>(&entry.info))
         {
