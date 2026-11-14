@@ -1,4 +1,4 @@
-export module aegis.assets:engine_content;
+export module aegis.assets.data:engine_content;
 import :asset_id;
 
 /// The assets of the engine's `content/` folder, named in code. These are the IDs in the folder's sidecars,

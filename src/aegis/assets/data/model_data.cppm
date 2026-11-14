@@ -1,4 +1,4 @@
-export module aegis.assets:model_data;
+export module aegis.assets.data:model_data;
 import std;
 import :asset_id;
 import :error;

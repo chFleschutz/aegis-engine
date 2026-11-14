@@ -1,4 +1,4 @@
-export module aegis.assets:embedded_images;
+export module aegis.assets.data:embedded_images;
 import std;
 import :error;
 import :model_data;

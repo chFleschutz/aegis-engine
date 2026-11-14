@@ -1,8 +1,6 @@
 export module aegis.assets:static_mesh;
 import std;
-import :error;
-import :gpu_types;
-import :mesh_data;
+import aegis.assets.data;
 import aegis.rhi;
 
 export namespace aegis::assets

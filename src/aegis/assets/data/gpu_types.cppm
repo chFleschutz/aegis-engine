@@ -1,6 +1,6 @@
-export module aegis.assets:gpu_types;
+export module aegis.assets.data:gpu_types;
 import std;
-import aegis.rhi;
+import aegis.rhi.types;
 import aegis.math;
 
 // The C++ side of the data the shaders read from asset buffers, each struct named after (and mirroring,

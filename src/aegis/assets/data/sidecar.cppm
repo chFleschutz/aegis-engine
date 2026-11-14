@@ -1,4 +1,4 @@
-export module aegis.assets:sidecar;
+export module aegis.assets.data:sidecar;
 import std;
 import :asset_id;
 import :error;

@@ -1,12 +1,9 @@
 export module aegis.assets:loader;
 import std;
 import :defaults;
-import :asset_ref;
-import :error;
-import :import_cache;
 import :material;
-import :model_data;
 import :static_mesh;
+import aegis.assets.data;
 import aegis.math;
 import aegis.rhi;
 

@@ -1,4 +1,4 @@
-export module aegis.assets:mesh_data;
+export module aegis.assets.data:mesh_data;
 import std;
 export import :gpu_types; // Vertex, Meshlet, BoundingSphere
 import aegis.math;

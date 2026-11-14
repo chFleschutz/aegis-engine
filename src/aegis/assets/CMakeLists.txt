@@ -20,6 +20,7 @@ target_sources(aegis-assets
     PUBLIC
     FILE_SET CXX_MODULES FILES
     data/asset_database.cppm
+    data/data.cppm
     data/asset_id.cppm
     data/asset_key.cppm
     data/asset_ref.cppm

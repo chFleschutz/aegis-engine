@@ -1,7 +1,5 @@
 module aegis.assets;
 import std;
-import :image_data;
-import :texture_data;
 import :upload;
 import aegis.core;
 import aegis.rhi;

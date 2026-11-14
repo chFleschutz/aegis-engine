@@ -1,4 +1,4 @@
-export module aegis.assets:import_cache;
+export module aegis.assets.data:import_cache;
 import std;
 import :error;
 import :image_data;

@@ -1,4 +1,4 @@
-export module aegis.assets:sub_asset_key;
+export module aegis.assets.data:sub_asset_key;
 import std;
 import :error;
 

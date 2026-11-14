@@ -1,4 +1,4 @@
-export module aegis.assets:texture_blob;
+export module aegis.assets.data:texture_blob;
 import std;
 import :error;
 import :texture_data;

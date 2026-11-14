@@ -1,7 +1,7 @@
 module;
 #include <meshoptimizer.h>
 
-module aegis.assets;
+module aegis.assets.data;
 import std;
 import aegis.math;
 

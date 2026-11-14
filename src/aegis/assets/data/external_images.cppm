@@ -1,4 +1,4 @@
-export module aegis.assets:external_images;
+export module aegis.assets.data:external_images;
 import std;
 import :asset_database;
 import :model_data;

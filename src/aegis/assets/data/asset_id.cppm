@@ -1,4 +1,4 @@
-export module aegis.assets:asset_id;
+export module aegis.assets.data:asset_id;
 import std;
 
 export namespace aegis::assets

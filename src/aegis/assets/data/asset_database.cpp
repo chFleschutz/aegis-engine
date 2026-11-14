@@ -2,7 +2,7 @@ module;
 
 #include <glaze/glaze.hpp>
 
-module aegis.assets;
+module aegis.assets.data;
 import std;
 import aegis.core;
 

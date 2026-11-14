@@ -1,4 +1,4 @@
-export module aegis.assets:mesh_blob;
+export module aegis.assets.data:mesh_blob;
 import std;
 import :error;
 import :gpu_types;

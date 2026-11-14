@@ -1,7 +1,7 @@
 module;
 #include <stb/stb_image.h>
 
-module aegis.assets;
+module aegis.assets.data;
 import std;
 
 namespace aegis::assets

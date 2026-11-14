@@ -1,4 +1,4 @@
-export module aegis.assets:texture_data;
+export module aegis.assets.data:texture_data;
 import std;
 import :error;
 import :image_data;

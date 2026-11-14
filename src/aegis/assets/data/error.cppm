@@ -1,6 +1,6 @@
-export module aegis.assets:error;
+export module aegis.assets.data:error;
 import std;
-import aegis.rhi;
+import aegis.rhi.types;
 
 export namespace aegis::assets
 {

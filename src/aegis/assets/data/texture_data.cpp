@@ -1,4 +1,4 @@
-module aegis.assets;
+module aegis.assets.data;
 import std;
 
 namespace aegis::assets

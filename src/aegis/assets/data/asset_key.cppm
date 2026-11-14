@@ -1,4 +1,4 @@
-export module aegis.assets:asset_key;
+export module aegis.assets.data:asset_key;
 import std;
 
 export namespace aegis::assets

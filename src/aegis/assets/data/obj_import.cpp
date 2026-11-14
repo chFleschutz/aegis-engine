@@ -1,7 +1,7 @@
 module;
 #include <tiny_obj_loader.h>
 
-module aegis.assets;
+module aegis.assets.data;
 import std;
 import aegis.core;
 import aegis.math;

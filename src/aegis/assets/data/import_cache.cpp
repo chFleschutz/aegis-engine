@@ -3,7 +3,7 @@ module;
 #include <glaze/glaze.hpp>
 #include <xxhash.h>
 
-module aegis.assets;
+module aegis.assets.data;
 import std;
 import aegis.core;
 import aegis.math;

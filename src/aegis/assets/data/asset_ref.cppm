@@ -1,4 +1,4 @@
-export module aegis.assets:asset_ref;
+export module aegis.assets.data:asset_ref;
 import std;
 import :asset_id;
 import aegis.reflect;
