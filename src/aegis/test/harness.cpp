@@ -149,6 +149,8 @@ auto Harness::create(const Options& options) -> std::expected<Harness, std::stri
         return std::unexpected{ result.error() };
     if (auto result = harness.verifyGraphTextures(); !result)
         return std::unexpected{ result.error() };
+    if (auto result = harness.verifyGraphHistory(); !result)
+        return std::unexpected{ result.error() };
     if (auto result = harness.verifyGraphRebuild(false); !result)
         return std::unexpected{ result.error() };
     if (harness.m_device->capabilities().meshShaders)
