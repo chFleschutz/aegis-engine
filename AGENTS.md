@@ -7,61 +7,44 @@ Aegis Engine is a cross-platform (Windows and Linux) C++23 Vulkan render engine.
 errors** — your edits must compile clean.
 
 `GLOSSARY.md` defines the engine's terms: read it when a term here is unclear or before naming a
-new concept, and use its names in code, docs and issues.
+new concept, and use its names in code, docs and issues. When a build, tool or test behaves
+unexpectedly, check `docs/agent-notes.md`: gotchas from past sessions.
 
 ## Build & run
 
-CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets (`build/<preset>/`). Default preset: `windows-clang-debug`; on Linux
-`linux-clang-debug`. Presets exist per platform and compiler: `windows-clang-*`, `windows-msvc-*`,
-`linux-clang-*` (each `-debug` / `-release`).
+CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets (`build/<preset>/`):
+`windows-clang-*`, `windows-msvc-*`, `linux-clang-*`, each `-debug` / `-release`. Default
+`windows-clang-debug`; on Linux `linux-clang-debug`. Main library target: `aegis-engine`.
 
     cmake --preset windows-clang-debug
     cmake --build --preset windows-clang-debug
 
-- Main library target: `aegis-engine` (alias `Aegis::Engine`).
-- MSVC presets (`windows-msvc-*`) require a Visual Studio developer shell (`VSCMD_VER` set). They
-  **don't build yet**: MSVC 14.50 (VS 18.5) compiles `rhi`, `renderer` and `assets` but hits internal
-  compiler errors (C1001) in `render_graph` and its tests. MSVC also needs `<compare>` in every
-  translation unit that instantiates a defaulted `operator<=>` (Vulkan-Hpp's `vk::Flags` included),
-  and resolves `std::pair` structured bindings in templates at the instantiating TU.
-- Requires `git clone --recurse-submodules` for the libraries. The sample project (the examples' scenes
-  and the assets the device tests load) is the opt-in submodule `samples/` (`aegis-samples`, `update =
-  none`): `git submodule update --init --checkout samples`. Without it configure prints that line and
-  skips the `Examples` game and the device tests that load samples; the library and unit tests never need it.
-  A change to the samples is a PR in aegis-samples (branch from its `origin/main`); the engine PR bumps the
-  `samples` pointer to that commit and says to merge the samples PR first.
-- `external/ktx` is no submodule: it holds the files of a KTX-Software release that the engine builds (libktx's
-  KTX2 reader and writer, under 1 MB of the 550 MB repository), built by `external/CMakeLists.txt` against the
-  `external/zstd` submodule. Update it with `tools/update-ktx.sh <tag>`, committed on its own.
-- The editor's icon font `content/fonts/Lucide.ttf` is a `lucide-static` release, recorded in `Lucide-VERSION.txt`.
-  `tools/update-lucide.py` (needs `pip install fonttools`) generates its codepoints into
-  `src/aegis/editor/ui/lucide.cppm` (don't edit it); `tools/update-lucide.py <version>` updates the font, its
-  license and the module, committed on its own.
+- The MSVC presets **don't build yet** (internal compiler errors in `render_graph`).
+- Clone with `--recurse-submodules`. The sample project (the examples' scenes and the assets the
+  device tests load) is the opt-in submodule `samples/`: `git submodule update --init --checkout
+  samples`. Without it configure skips the `Examples` game and the device tests that load samples.
+  A change to the samples is a PR in aegis-samples (branch from its `origin/main`); the engine PR
+  bumps the `samples` pointer to that commit and says to merge the samples PR first.
+- Vendored files (`external/ktx`, the editor's Lucide icon font and its generated
+  `src/aegis/editor/ui/lucide.cppm`) change only through their `tools/update-*` script, committed on
+  its own.
 
-> **Vulkan SDK version matters — configure fails fast with the wrong one.** The RHI imports the
-> SDK's Vulkan-Hpp module (`import vulkan`), which still changes between SDK releases, so the build
-> is pinned to **1.4.363.0** (CI uses the same). SDKs 1.4.328 and older export `vulkan_hpp` instead;
-> `src/aegis/rhi/CMakeLists.txt` rejects them at configure. Point the build at the pinned SDK, with
-> `--fresh` when the build dir already found another one (the headers path is cached):
+> **Vulkan SDK 1.4.363.0 is pinned** (CI uses the same): the RHI imports the SDK's Vulkan-Hpp module
+> (`import vulkan`), which still changes between releases, and configure rejects other SDKs. Set
+> `Vulkan_ROOT` to the pinned SDK once in your user environment (it wins over `$VULKAN_SDK`, so new
+> worktrees configure without flags); on Linux, `source <sdk>/setup-env.sh`. A build dir that already
+> found another SDK needs `--fresh`:
 >
 >     cmake --preset windows-clang-debug --fresh -DVulkan_ROOT="C:/VulkanSDK/1.4.363.0"
->
-> Easiest: set `Vulkan_ROOT` to the pinned SDK once in your user environment. CMake searches it
-> before `$VULKAN_SDK`, so it wins even when `VULKAN_SDK` points at another SDK, and fresh build
-> dirs (e.g. new worktrees) configure without flags. On Linux, `source <sdk>/setup-env.sh`.
-> `slangc` is taken from the same SDK. A configure that failed this check can make the next
-> `--fresh` fail once in compiler detection ("CMAKE_C_COMPILER not set"); run it again.
 
-**`import std`:** CMake 4.5 makes `import std` available to every C++ target. It builds the
-standard library module (the MSVC STL's `std.ixx` on Windows, libstdc++'s `std.cc` on Linux) once
-per distinct set of compile flags, with the importing target's flags. The engine and the SDK's
-`vulkan.cppm` use it instead of standard headers. Rules:
+### `import std`
+The engine uses `import std` instead of standard headers, on both standard libraries. Rules:
 - **`import std;` in every translation unit that uses the standard library**, as the first import
   after the module declaration (plain `.cpp`: after its includes). Modules never re-export it, so
   importing an engine module doesn't make `std` visible.
 - **Standard headers only for their macros.** `import std` exports no macros, so keep `#include
   <cassert>` for `assert`, `<cfloat>` for `FLT_MAX`, `<cstdio>` for `stderr` and so on, in the
-  global module fragment. Nothing else.
+  global module fragment of each translation unit that uses them. Nothing else.
 - **Qualify C names:** `import std` exports `std::uint32_t`, `std::size_t`, `std::sin`, not the
   global `uint32_t`, `size_t` or `sin`.
 - **Includes before imports.** In a translation unit, `#include` every header (standard or
@@ -74,99 +57,42 @@ per distinct set of compile flags, with the importing target's flags. The engine
   "declaration here is not visible". Import a module instead (entt names come from
   `aegis.world.entity`), move the code into a `.cpp`, or, as a last resort, `#include` the named
   header in the failing file's global module fragment.
-- **Warnings-as-errors reaches the std module.** The std module sources trip Clang's
-  `-Wreserved-module-identifier` and `-Winclude-angled-in-module-purview`; the root `CMakeLists.txt`
-  silences just those two. A fresh build still prints about 110 `-Winclude-angled-in-module-purview`
-  warnings under "Diagnostics while scanning dependencies" for `std.ixx` and `vulkan.cppm`:
-  `clang-scan-deps` ignores warning flags. They come from the scan, not a compile, and don't fail
-  the build; ignore them.
+- A fresh build prints about 110 `-Winclude-angled-in-module-purview` warnings under "Diagnostics
+  while scanning dependencies" for `std.ixx` and `vulkan.cppm`. They come from the dependency scan
+  and don't fail the build; ignore them.
 
 Vulkan-Hpp (no exceptions, `VULKAN_HPP_USE_STD_EXPECTED`) returns `std::expected` from calls with one
 success code: test `has_value()`, read `.error()` and `*result`. Calls with several success codes
 (`acquireNextImage`, `QueryPool::getResults`) still return `vk::ResultValue` (`.result`, `.value`).
 
-### Examples (visual smoke tests of the engine)
-The examples are two games (see **Games** below), each in `examples/<lowercased-name>`: `Template` /
-`Template-Editor`, an empty project, and `Examples` / `Examples-Editor`, whose project is the
-`samples/` submodule (built only when it is checked out) and whose examples are its scene files, picked
-with `--scene <path>` relative to its `content/` (`scenes/simple.scene`, the default, `sponza`, `helmets`,
-and the stress scenes `stress/instanced_helmets`, `stress/cubes`, `stress/dynamic_cubes` and `stress/hierarchy`, a
-10,000-entity edit world for the editor's UI cost that `tools/generate-hierarchy-scene.py` writes). Only
-`scenes/smoke.scene` (Sponza, the helmets, the sky, scripts, static and dynamic entities, a pulsing light)
-runs as the `Examples` `device` test; the others are demos. Build one and run its exe:
+### Examples and games
+The examples are two games built by `aegis_add_game` (`cmake/AegisGame.cmake`, whose header lists
+the targets and the headless `device`/`editor` tests it adds), each in `examples/<lowercased-name>`
+with a runtime and an `-Editor` flavor: `Template`, an empty project (the safest smoke test), and
+`Examples`, whose project is the `samples/` submodule and whose examples are its scene files, picked
+with `--scene <path>` relative to its `content/` (default `scenes/simple.scene`, the simplest):
 
     cmake --build --preset windows-clang-debug --target Examples
     build\windows-clang-debug\examples\examples\Examples.exe --scene scenes/sponza.scene
 
-`Template` is empty (safest smoke test); `scenes/simple.scene` is the simplest content scene. Report whether it built clean (warnings are errors) and the
-window rendered; on a build failure, surface the first real error, not the downstream cascade.
-
-**Games** (`cmake/AegisGame.cmake`, D7): `aegis_add_game(<Name> SOURCES … PROJECT <dir>)` builds the
-game's sources once (an OBJECT library) into `<Name>` (runtime, no `aegis-editor`) and `<Name>-Editor`
-around the launcher. The runtime keeps `GameShell`; the editor flavor installs `editor::EditorShell`
-(`Engine::setShell`). One game source file ends
-with `AEGIS_GAME_MODULE({ .name = …, .startupScene = …, .registerTypes = …, .onStartup = … })`
-(`aegis/launch/game_module.h`); after `onStartup` the launcher loads `--scene <path>` or the `startupScene`,
-and `SCENES <path> …` makes each scene a `device` test. The editor flavor runs headless as the `editor`-labelled
-tests `game-<name>-editor` (`--editor-panels all`, every docked panel open, plus `--editor-select <name>`, which
-selects the entity `EDITOR_SELECT <name>` names), `-editor-default` (the panels a fresh editor opens),
-`-editor-play` (`--editor-play`, play from the second frame), `-editor-full` (`--editor-full-viewport`, the
-viewport over the whole window) and `-editor-folded` (`--editor-fold`, the right column folded into the side rail,
-the Inspector in its flyout), each saving `<build>/screenshots/<test>.png`. The
-runtime ignores the `--editor-*` options.
-The launcher finds the project by `--project <dir>`, then `project/` next to the executable, then
-`PROJECT` (`paths::locate`); the shaders and the engine content are found the same way. Nothing is
-copied next to the executables: a development build uses the build and source trees, and laying out a
-copied or installed game is the export step (#134). `Template` and `Examples` are the games.
-
-The examples render through the `Engine` facade, but they open a window and have no pass/fail
-signal — validation errors only go to stderr. Verify RHI work with `aegis-test` first (see
-"Verifying device code"). **Seeing a windowed run** (what headless skips, such as the editor's
-recovery bar): `tools/capture-window.ps1` saves the window as a PNG and reports stderr's `[error]` lines.
+Report whether it built clean and the window rendered; on a build failure, surface the first real
+error, not the downstream cascade. A windowed example has no pass/fail signal (validation errors only
+go to stderr), so verify RHI work with `aegis-test` first (see "Verifying device code").
+`tools/capture-window.ps1` saves a windowed run as a PNG and reports stderr's `[error]` lines.
 
 ### Shaders
-Shaders compile on every build of `aegis-engine` or `aegis-render-passes` (the `compile_shaders`
-target they depend on) while `COMPILE_SHADERS` is ON, the default, with `slangc` from the same
-Vulkan SDK as the headers (falling back to `$VULKAN_SDK/bin`) through `aegis_add_shaders`
-(`cmake/AegisShaders.cmake`), which `shaders/` and the `aegis-test` shader both use, so one flag set
-applies everywhere. Each `.spv` is then checked with the SDK's `spirv-val`; invalid SPIR-V fails the
-build (and CI). Editing a module recompiles only the shaders that import it (slangc `-depfile`, Ninja
-and Makefile generators; other generators rebuild every shader). Output: `build/<preset>/shaders/<path>.slang.spv`, mirroring the source path;
-stale `.spv` are removed at configure.
-SDK 1.4.328's slangc (2025.17) emits invalid SPIR-V for a struct-pointer member of a struct reached
-through a pointer; keep such members as `uint64_t` addresses behind properties (see `common::Mesh`).
-(Not re-checked with SDK 1.4.363's slangc 2026.17, whose output for the current shaders passes
-`spirv-val`, which now runs on every build.)
+Shaders compile with `slangc` from the pinned SDK on every build of `aegis-engine` or
+`aegis-render-passes`, through `aegis_add_shaders` (`cmake/AegisShaders.cmake`), into
+`build/<preset>/shaders/<path>.slang.spv`. Each `.spv` is checked with `spirv-val`; invalid SPIR-V
+fails the build. Shader conventions: `shaders/modules/README.md`.
 
-### Asset/shader paths (gotcha)
-The `aegis.paths` module (`src/aegis/paths/`) is the one reader of the build-tree locations:
-`aegis::paths::shaders()` (`<build>/shaders`), `aegis::paths::project()`
-(`<source>/samples`, the sample project), `aegis::paths::content()` (`<source>/content`, the engine content) and
-`aegis::paths::cache()` (`<build>/.aegis`, the asset index and the import cache). They are PRIVATE compile definitions
-`AEGIS_SHADER_DIR`, `AEGIS_PROJECT_DIR`, `AEGIS_CONTENT_DIR` and `AEGIS_CACHE_DIR` of `aegis-paths`, read only in `paths.cpp`, so they are **absolute paths fixed at
-configure time**, derived from `PROJECT_BINARY_DIR`/`PROJECT_SOURCE_DIR` so the engine also works as an
-`add_subdirectory()` of another project. Running the exe from any cwd is fine, but moving or renaming
-the source tree or the build dir breaks asset/shader loading unless you re-run configure or set the
-environment variables of the same names, which override the baked-in values at
-run time. Shaders and content are looked up first in `shaders/` and `content/` next to the executable
-(after the variable, before the baked-in path), for a copied or installed game; a development build
-has nothing there. Project content (`paths::projectContent`) is the only project folder scanned.
-Examples name assets through the library, by path inside it (`assets.id("models/basic/cube.obj")`, then
-`aegis::instantiate(context, id)` for a model or scene file / `assets.loadEnvironment(id)`); never add another `-D` path.
-`aegis-test` still has its own `AEGIS_TEST_SHADER_PATH` for its fixture shader (built next to it).
-
-### Assets by ID
-`aegis::AssetLibrary` (`src/aegis/asset_library.*`, target `aegis-asset-library`) loads assets by `AssetId`
-and caches them by ID; components store `AssetRef<T>` (`MeshRenderer`, `Sky`). It scans two roots through
-`assets::AssetDatabase`: the project content (the samples for now; dot-files and dot-folders are skipped;
-**a sidecar with new IDs is written next to every source file that has none** (a scene file carries its ID
-inside and gets none), so a new source shows an
-untracked `.meta` file in the samples: commit it there, scenes reference assets by ID) and the engine
-content (named in code as `assets::engine::white`, ...). An image file a model names by URI is no
-sub-asset but its own texture asset. Missing assets fall back to engine content with one
-warning. Loaded assets are shared: editing one (a material's parameters) changes every user, so code that
-changes one object's material gives it its own first (`assets.copyMaterial(ref)` / `createMaterial`). Sidecars and the index use glaze (`external/glaze`, include it only in `.cpp` files). Design:
-`docs/asset-system.md`.
+### Assets and paths
+`aegis.paths` (`src/aegis/paths/`) is the one reader of the shader, content, project and cache
+folders; code names assets through `AssetLibrary` by path inside it (`assets.id("models/basic/cube.obj")`)
+and never adds another `-D` path. A new source file in the samples gets a `.meta` sidecar: commit it
+there. Loaded assets are shared, so code that changes one object's material copies it first
+(`assets.copyMaterial(ref)`). Before changing asset loading, read `docs/asset-system.md` ("Working with
+it today").
 
 ## Two code styles (most important)
 **Match the conventions of the code you are editing.**
@@ -199,15 +125,15 @@ handles (`ResourceHandle<T>` / `BufferHandle` / `ImageHandle`) as the public cur
 pointers. Descriptors are bindless with fixed slots; **buffers use buffer device address, not
 descriptors**. Every pipeline shares one layout (the bindless set plus 128 bytes of push constants),
 so `Pipeline::*Desc` names no layout; shaders get addresses and descriptor indices through push
-constants. Convention: `shaders/modules/README.md`.
+constants.
 
 **`…Handle`, `…Descriptor` and `…Id` (naming rule):** each suffix always means its glossary term.
 A resource *owns* its descriptors (`ImageView::sampledDescriptor()`, `Sampler::descriptor()`). Never
 call a slot index or a vector index a handle. The rule covers GPU resources; CPU assets are shared
 through `shared_ptr`.
 
-**Never `#include <vulkan/vulkan.h>` directly** — use `import vulkan`, and only inside the new
-RHI modules. rhi classes expose native `vk::` handles for interop (`Device::device()`,
+**Vulkan stays inside rhi:** use `import vulkan`, never `#include <vulkan/vulkan.h>`, and only inside
+the new RHI modules. rhi classes expose native `vk::` handles for interop (`Device::device()`,
 `Buffer::vk()`, ...); the vulkan module is linked PRIVATE, so code outside rhi cannot name `vk::`
 types, except `render_graph/passes/ui_pass.cpp`, which imports it for the ImGui backend.
 
@@ -218,10 +144,10 @@ instead of returning one; components, `Profiler` and `Engine` sit directly in `a
 
 **Foundation (`aegis.core`, `src/aegis/core/`):** logging, flag enums, alignment, `match` and the
 profiler; any module may import it.
-- *Logging:* `aegis::log::{info,warn,error,fatal}` take a `std::format_string`, work with no setup
-  and write `[warn] ...` to stderr under one mutex; `log::setSink` redirects them (tests capture
-  output with it). Library code logs only degraded behaviour that carries on; errors are returned
-  and only the top level logs them. `std::print` stays in `aegis-test`, examples and tools.
+- *Logging:* `aegis::log::{info,warn,error,fatal}` take a `std::format_string` and work with no
+  setup; `log::setSink` redirects them (tests capture output with it). Library code logs only
+  degraded behaviour that carries on; errors are returned and only the top level logs them.
+  `std::print` stays in `aegis-test`, examples and tools.
 - *Flag enums:* opt in with `AEGIS_FLAGS(Enum)` (`#include "aegis/core/flags.h"`) directly after the
   enum, inside its namespace, so ADL finds the operators with no using-directive; an enum without
   it has no `|`. `core::hasFlag` tests bits.
@@ -241,36 +167,22 @@ its names, like EnTT from `aegis-world`), `PRIVATE` when only `.cpp` implementat
 Linux fails on a missing transitive link that Windows hides, so declare what you import yourself.
 
 ### Cross-platform rules
-Windows (Clang + MSVC STL, or MSVC) and Linux (Clang + **libstdc++ 15**; Ubuntu 24.04's 14.2 fails
-on the modules) must both build. CI proves the Linux build on every PR.
-
-- **`import std;` instead of standard headers** (see "`import std`"). It's the same module on both
-  standard libraries, which ends the libstdc++ missing-include failures that used to build on
-  Windows and break on Linux. The macro headers you still include must be included explicitly in
-  each translation unit.
+Windows (Clang + MSVC STL) and Linux (Clang + **libstdc++ 15**; Ubuntu 24.04's 14.2 fails on the
+modules) must both build; CI proves the Linux build on every PR.
 - **Paths are case-sensitive on Linux**: asset paths must match the file names exactly.
-- **No platform headers outside a guard.** Windowing and input go through `aegis.platform` (GLFW);
+- **Platform headers stay behind a guard.** Windowing and input go through `aegis.platform` (GLFW);
   the only Win32 code is `aegis-test`'s synthetic-input check, behind `#ifdef _WIN32`.
-- **Checking Linux from Windows before pushing (optional):** configure a scratch build with
-  `clang++ --target=x86_64-w64-mingw32` against a MinGW GCC (libstdc++) on PATH (e.g. WinLibs) and
-  `-DCMAKE_EXE_LINKER_FLAGS=-pthread`. It reproduced libstdc++'s missing-include errors for `rhi`,
-  `renderer`, `platform`, `core` and the unit tests (written before `import std`; not re-checked
-  since); it can't get past `aegis.world`, where clang crashes generating COFF code for module
-  initializers (a MinGW-only clang bug, not a code problem).
 
 ### Formatting (clang-format)
-One global root `.clang-format` (clang-format **22.x**), encoding the new-RHI style. It's a
-normalizer, not a reflow engine (`ColumnLimit: 0` keeps your line breaks). **The whole tree is
-formatted and stays that way:** run `tools/format.sh` before committing. It formats every source
-file changed on your branch (`--all` formats the tree, `--check` only reports). If it reformats
-lines you didn't touch, commit that as a separate formatting commit before your change. A tree-wide
-reformat (e.g. after a `.clang-format` change) goes in its own commit and into
-`.git-blame-ignore-revs`. Guard deliberately hand-aligned blocks (e.g. enum tables —
-`AlignConsecutive*` is off) with `// clang-format off` / `on`.
+One root `.clang-format` (clang-format **22.x**); `ColumnLimit: 0` keeps your line breaks. **The
+whole tree is formatted and stays that way:** run `tools/format.sh` before committing (it formats
+the files changed on your branch). If it reformats lines you didn't touch, commit that as a separate
+formatting commit before your change. A tree-wide reformat goes in its own commit and into
+`.git-blame-ignore-revs`. Guard deliberately hand-aligned blocks (e.g. enum tables) with
+`// clang-format off` / `on`.
 
-**Line endings are LF** in the repository and in every checkout, Windows included (`.gitattributes`
-`* text=auto eol=lf`, which overrides `core.autocrlf`; `.clang-format` `LineEnding: LF`). Scripted
-edits (sed, perl) can match `\n` alone.
+**Line endings are LF** in the repository and in every checkout, Windows included; scripted edits
+(sed, perl) can match `\n` alone.
 
 ## Commits and pull requests
 Keep messages short: one imperative subject line (e.g. `Add rhi sampler`), no body unless the why
@@ -278,115 +190,56 @@ is non-obvious. **No `Co-Authored-By` or other agent/tool attribution trailers**
 descriptions.
 
 **Code changes go through a PR** (anything under `src/`, `shaders/`, `tests/`, `examples/`, `tools/`,
-CMake or CI). Docs-only changes may be committed to `main` directly.
+CMake or CI). Docs-only changes may be committed to `main` directly. `/implement <issue>` takes an
+issue to an open PR.
 
-**Planned work:** GitHub issues are the work items, grouped into milestones (see **Milestones** below), with dependencies as "Blocked by" relations. An issue body holds the branch, size,
-design refs (D-n), the finding IDs it closes, content, out of scope, "done when" and verification.
-Labels: the kind (`bug`, `feature`, `refactor`, `cleanup`, `style`, `build`, `ci`, `tests`,
-`documentation`) matches the branch prefix; `size/*`; `area/*` (don't run two items with the same
-area in parallel); `needs-gpu` (verification needs a real GPU: the reference images, a windowed run
-or Windows input, which CI's lavapipe job doesn't cover and cloud sessions can't run, see "What CI
-covers"); `needs-design` (an open decision; don't start without the owner); `idea` (in `Backlog`, not
-planned; don't start it unasked). **Status is
-the assignee:** whoever starts an item assigns it (`gh issue edit <n> --add-assignee @me`), and an
-assigned issue is taken. `docs/audit/backlog.md` keeps the decisions (D1–D8, F1/F2) and the
-roadmap, the targets after Planning in order; read the decisions an issue cites. Before starting an item, read its
-issue (`gh issue view <n>`) and the finding IDs it lists (`docs/audit/findings-*.md`, corrected by
-`verify-*.md`), then re-check them against the current code. Feature PRs don't edit `backlog.md`.
-
-**Milestones:** at most two are open besides `Backlog`, which never closes: the **Active** one being
-worked on and the next one in **Planning**. Milestones are titled `M<n>: <name>`, each `n` one past
-the highest ever used, so of the two the lower number is Active. A milestone's description gives its target, a checkable
-"done when" (a result, not its list of issues) and what is out of scope. Planning issues may be
-outlines. Activating a milestone re-checks its target against the code and writes the full issue
-bodies; from then on its scope is frozen. An issue joins the Active milestone only if its "done when"
-can't be met without it: a bug the milestone's own work caused, a missing prerequisite. Anything else,
-a related follow-up or a new feature included, goes to Planning or `Backlog`. `Backlog` bugs may be
-worked beside the Active milestone without joining it. Once "done when" is met the milestone closes,
-even with issues left, which move to Planning or `Backlog`; Planning becomes Active, the roadmap's
-next target becomes Planning, and the roadmap drops the closed milestone (a docs-only commit).
-`/plan-milestone` suggests targets, plans the Planning milestone, activates it and breaks plans into issues.
+**Planned work:** GitHub issues are the work items, grouped into milestones, with "Blocked by"
+relations. **The assignee is the status:** whoever starts an item assigns it (`gh issue edit <n>
+--add-assignee @me`), and an assigned issue is taken. Leave `needs-design` (an open decision) and
+`idea` issues alone unless the owner asks; never run two items with the same `area/*` label in
+parallel. Before starting an item, read its issue and the decisions and finding IDs it cites
+(`docs/audit/backlog.md`, `docs/audit/findings-*.md` corrected by `verify-*.md`), then re-check them
+against the current code. An issue you file goes to the Planning milestone or `Backlog`, not the
+Active one, unless the Active milestone can't finish without it. `/plan-milestone` holds the
+milestone rules and the issue format.
 
 1. **One worktree per PR.** `tools/new-worktree.sh <branch> [base]` creates
    `../aegis-engine.worktrees/<branch>` from `origin/main` with submodules, then configures and
-   builds it (about 20 s to configure, plus about a minute for the build). Several agents can work
-   in parallel, one worktree each. Name branches
-   by kind: `fix/`, `test/`, `refactor/`, `cleanup/`, `style/`, `build/`, `feat/`, `ci/`. After the
-   PR merges, `tools/remove-worktree.sh <branch> --delete-branch`. On Windows, run the `tools/*.sh`
-   scripts from Git Bash. In PowerShell, `bash` is usually the WSL launcher, so call Git's bash
-   explicitly: `& "C:\Program Files\Git\bin\bash.exe" tools/new-worktree.sh <branch>`.
-   Submodules come from `tools/init-submodules.sh`, which shares the main checkout's submodule
-   objects instead of copying them. A worktree made some other way (e.g. Claude Code's
-   `.claude/worktrees/`) gets its submodules and a configured preset from the `SessionStart` hook
-   in `.claude/settings.json` (`tools/session-start.sh`); it still needs a build. The desktop app
-   runs the hook in the main checkout, so a change to the script takes effect once the main
-   checkout has it, and the script finds the session's folder in the hook's input. Such a worktree
-   starts on a throwaway branch (`claude/<session-name>`): rename it to the kind-prefixed name with
-   `git branch -m <kind>/<name>` before the first commit. Keep worktree paths short
-   on Windows: some build and submodule files are about 140 characters below the worktree root,
-   and the limit is 260 (`git config --global core.longpaths true` helps git, not every tool).
+   builds it; after the PR merges, `tools/remove-worktree.sh <branch> --delete-branch`. Name branches
+   by kind: `fix/`, `test/`, `refactor/`, `cleanup/`, `style/`, `build/`, `feat/`, `ci/`. Run the
+   `tools/*.sh` scripts from Git Bash (in PowerShell, `bash` is usually WSL:
+   `& "C:\Program Files\Git\bin\bash.exe" tools/new-worktree.sh <branch>`). A Claude Code worktree
+   (`.claude/worktrees/`) gets its submodules and a configured preset from the `SessionStart` hook
+   (`tools/session-start.sh`) but still needs a build, and starts on a throwaway `claude/…` branch:
+   `git branch -m <kind>/<name>` before the first commit. Keep worktree paths short on Windows (260
+   character limit; some files sit about 140 characters below the root).
 2. **Stack dependent PRs** instead of waiting: pass the unmerged branch as `base`, open the PR
    against it (`gh pr create --base <that-branch>`), and retarget it once the base merges
    (`gh pr edit --base main`). Keep stacks to two or three PRs.
 3. **Commit in reviewable steps.** Keep mechanical changes (whole-file reformats, renames, deletions,
    signature churn) in their own commits, separate from logic changes.
 4. **Verify each commit:** it builds clean and `ctest -LE device` passes. **Before pushing**, and for
-   any change to device code, run the full `ctest` *including* the `device` tests (CI runs them only
-   on lavapipe, without the reference images, see "What CI covers"), and look at the `--screenshot`
-   output after render changes. The test presets run tests in parallel; a `gpu` resource lock keeps the device tests
-   apart within one run. Across worktrees, run one `ctest` with device tests at a time per machine.
-5. **Format** with `tools/format.sh` (see "Formatting").
-6. **Push and open the PR** with `gh pr create`; the body says `Closes #<issue>`. CI
-   (`.github/workflows/build.yml`) builds Linux and Windows, debug and release, and runs
-   `ctest -LE device`; one more Linux debug job runs the device tests on lavapipe. It is the proof
-   that Linux builds.
-7. **Check CI** with `gh pr checks` (`--watch` to block) and report the result; work on another
-   independent item meanwhile. Fix failures with new commits; don't force-push a PR under review.
-8. **The owner merges.** Agents never merge a PR or enable auto-merge (`gh pr merge`); they stop
-   once CI is green and the PR is ready, and the owner reviews and merges it. Write the PR body for
-   that review, readable at a glance (about one screen): what changed and why, then short notes on
-   open decisions, anything left out, and checks CI can't show (device tests run or skipped). Skip
-   what the page already shows, such as CI results, test counts and the command list; the
-   `/implement` skill has the template. `main` is protected (required checks `Format`, `Linux`/`Windows`
-   × debug/release, branch up to date). CI's device tests run on a software driver only: run the
-   full `ctest` with the device tests locally first for device code. PRs land as merge commits, not squash or rebase, so commit hashes
-   survive. After a PR with mechanical commits merges, add their hashes to `.git-blame-ignore-revs`
-   (docs-only commit on `main`; only the owner can push to `main` past the protection). The
-   `/implement` skill follows this.
+   any change to device code, run the full `ctest` *including* the `device` tests (see "What CI
+   covers"), and look at the `--screenshot` output after render changes. Across worktrees, run one
+   `ctest` with device tests at a time per machine.
+5. **Push and open the PR** with `gh pr create`; the body says `Closes #<issue>`. Fix CI failures
+   with new commits; never force-push a PR under review.
+6. **The owner merges.** Agents never merge a PR or enable auto-merge; they stop once CI is green and
+   the PR is ready. PRs land as merge commits, so commit hashes survive: report the hashes of
+   mechanical commits for `.git-blame-ignore-revs`.
 
 ## Unit tests
+doctest covers **pure, GPU-independent logic** (no live `rhi::Device`), one executable per module,
+`aegis-tests-<module>`. Before adding tests or extracting logic to test, read `tests/README.md`:
+layout, naming, and the traps of test-visible signatures (no `vk::` types, `export import` from the
+umbrella, partition cycles).
 
-doctest covers **pure, GPU-independent logic** in any module. One
-executable per module, `aegis-tests-<module>` (one directory per module under `tests/`), each linking
-only that module's library. Layout, conventions, how to add a module, and the full rationale:
-**`tests/README.md`**.
-
-    cmake --build --preset windows-clang-debug            # builds all aegis-tests-*
-    ctest --preset windows-clang-debug                    # runs every case in parallel, plus the device checks
     ctest --preset windows-clang-debug -LE device         # skips the device checks (no GPU needed)
-    cmake --build --preset windows-clang-debug --target aegis-tests-rhi   # iterate one module
     ctest --preset windows-clang-debug -L rhi             # one module, by label
     ctest --preset windows-clang-debug -R "<case words>"  # cases by their TEST_CASE text
 
-CTest names each case by its `TEST_CASE` text alone, without its suite: select a module with `-L <module>`, a case
-with `-R` and words from its name.
-
-- **Scope:** only logic needing no live `rhi::Device`. Invariants guarded by `assert` (e.g.
-  `ResourcePool` stale-handle rejection) abort rather than return — test around them, not the abort.
-- **Naming:** `<unit>.test.cpp`; `TEST_SUITE("<module>::<Type or function>")`; `TEST_CASE` as a
-  present-tense behavior, with **no `;` in its name** (CTest discovery splits on it and both halves
-  run zero cases while showing green; split the case instead); prefer `CHECK` over `REQUIRE`.
-- **Extract rather than mock:** when pure logic sits behind a GPU-owning type, lift it out and leave
-  a thin adapter at the Vulkan call site. A **stateful type** earns its own partition; a **stateless
-  helper** goes in `aegis::rhi::detail` inside its owner's partition, keeping it out of the public
-  API. Prefer this over a device check: `aegis-test` proves integration, not the logic's edge cases.
-- **Three traps, each costing a build cycle to rediscover:** **(1)** a test TU cannot name a `vk::`
-  type at all (`vulkan-module` is linked PRIVATE, `rhi.cppm` re-exports nothing from it), so
-  extracted helpers must take **plain values** — making a `vk::`-taking function public does *not*
-  make it testable; **(2)** tests see only what the *primary* interface re-exports, so the type
-  needs `export import` from the umbrella (`rhi.cppm`) — partition-level `export` alone is
-  invisible; **(3)** check import direction before picking a home — `:utility` cannot host an
-  `Extent3D` helper because `:common` already imports `:utility`.
+**A `TEST_CASE` name has no `;`**: CTest discovery splits on it and both halves run zero cases while
+showing green.
 
 ## Verifying device code
 Green unit tests are *not* sufficient when device code changed. `src/aegis/test/` (`aegis-test`) is

@@ -6,8 +6,8 @@ disable-model-invocation: true
 allowed-tools: Bash(gh issue view *), Bash(gh issue list *), Bash(gh issue create *), Bash(gh label list*), Bash(gh api repos/*/milestones*), Bash(gh api repos/*/issues/*), Bash(gh api --method POST repos/*/issues/*/dependencies/blocked_by *), Read, Write, Grep, Glob
 ---
 
-Plan milestones by the rules in AGENTS.md "Milestones": one **Active** and one **Planning** milestone
-beside `Backlog`, and the Active one's scope frozen. Pick the branch by `$ARGUMENTS`:
+Plan milestones by the [milestone rules](#milestone-rules): one **Active** and one **Planning**
+milestone beside `Backlog`, and the Active one's scope frozen. Pick the branch by `$ARGUMENTS`:
 
 | `$ARGUMENTS` | Branch |
 | --- | --- |
@@ -16,12 +16,30 @@ beside `Backlog`, and the Active one's scope frozen. Pick the branch by `$ARGUME
 | `issues <plan path, doc step or issue number>` | [Issues](#issues) |
 | anything else, the target | [Plan the target](#plan-the-target) |
 
+## Milestone rules
+
+- At most two milestones are open besides `Backlog`, which never closes: the **Active** one being
+  worked on and the next one in **Planning**. Titles are `M<n>: <name>`, each `n` one past the highest
+  ever used, so of the two the lower number is Active.
+- A milestone's description gives its target, a checkable "done when" (a result, not its list of
+  issues) and what is out of scope. Planning issues may be outlines.
+- Activating a milestone re-checks its target against the code and writes the full issue bodies; from
+  then on its scope is frozen. An issue joins the Active milestone only if its "done when" can't be met
+  without it: a bug the milestone's own work caused, a missing prerequisite. Anything else, a related
+  follow-up or a new feature included, goes to Planning or `Backlog`. `Backlog` bugs may be worked
+  beside the Active milestone without joining it.
+- Once "done when" is met the milestone closes, even with issues left, which move to Planning or
+  `Backlog`; Planning becomes Active, the roadmap's next target becomes Planning, and the roadmap drops
+  the closed milestone (a docs-only commit).
+- The roadmap and the decisions (D1–D8, F1/F2) are in `docs/audit/backlog.md`: the targets after
+  Planning, in order. Feature PRs don't edit it.
+
 ## 1. Gather context
 
 Every branch starts here. Read the open milestones with their descriptions
 (`gh api repos/{owner}/{repo}/milestones --jq '.[] | "\(.number) \(.title)\n\(.description)"'`), their
 issues and the `Backlog` (`gh issue list --milestone "<title>" --json number,title,labels`), and the
-roadmap, the file AGENTS.md "Planned work" names. For a target or a plan, also read what it leans on:
+roadmap (`docs/audit/backlog.md`). For a target or a plan, also read what it leans on:
 the design docs and decisions it cites, `GLOSSARY.md` for names, and enough of the code to know what
 exists. Branches that draft issues read [`ISSUE-FORMAT.md`](ISSUE-FORMAT.md).
 
@@ -44,7 +62,7 @@ proposal or in one "passed over" line with its reason. When the owner picks one,
 1. **Check the slot.** If two `M` milestones are already open, Active and Planning, this target becomes a roadmap
    paragraph: draft step 2's description only, and after the owner's OK add it to the roadmap at the
    place they choose, as a docs-only commit on `main`.
-2. **Draft the milestone.** Title `M<n>: <name>`, numbered by AGENTS.md "Milestones". Description:
+2. **Draft the milestone.** Title `M<n>: <name>`, numbered by the [milestone rules](#milestone-rules). Description:
 
    ```md
    **Target:** <the outcome, in a sentence>

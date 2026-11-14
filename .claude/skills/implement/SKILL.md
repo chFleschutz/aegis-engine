@@ -133,7 +133,9 @@ the comment and stop.
   checks or another commit's, start it again. Confirm the result is for the pushed commit
   (`gh pr view <pr> --json headRefOid`).
 - On failure, fix with a new commit and push; after 3 failed attempts, stop and report.
-- If the PR goes `BEHIND` (`gh pr view <pr> --json mergeStateStatus`), run `gh pr update-branch <pr>`.
+- `main` is protected: the required checks are `Format` and `Linux`/`Windows` × debug/release, and the
+  branch must be up to date. If the PR goes `BEHIND` (`gh pr view <pr> --json mergeStateStatus`), run
+  `gh pr update-branch <pr>`.
   If it is `DIRTY` (conflicts), merge `main` into the branch: in a Claude desktop worktree with the
   app's `sync_with_base_branch` tool (it merges on the host and lists the conflicts), elsewhere with
   `git fetch origin` and `git merge origin/main`. Resolve keeping both sides' intent, then rebuild,

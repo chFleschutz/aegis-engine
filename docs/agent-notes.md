@@ -1,19 +1,12 @@
-# Agent notes: gotchas and workflow ideas
+# Agent notes: gotchas
 
-Collected during the RHI migration (Phases 0–6). These notes add to `AGENTS.md` and don't repeat it.
-Read that file first.
+Gotchas from past sessions, to read when a build, tool or test behaves unexpectedly. They add to
+`AGENTS.md` and don't repeat it.
 
 ## Tooling on this machine
 
-- **`git clang-format` fails** with "Python was not found": git's shell hits the Microsoft Store
-  `python` alias. Call the script directly from Bash:
-  `python "/c/Program Files/LLVM/bin/git-clang-format" --staged`.
-- **git-clang-format only sees staged changes.** Run `git add -A` first, or new files are skipped.
-  After it reformats, re-add the files. One pass is enough.
-- **Search with `git grep` or the Grep tool, not `grep -r`.** `build/` and `cmake-build-debug/` are
-  gitignored but present, and `grep -r` returns thousands of hits from them.
-- **Every `git add` prints "LF will be replaced by CRLF"** (`core.autocrlf=true`, and tools write LF).
-  It's harmless; filter it with `grep -v "^warning"`.
+- **Search with `git grep` or the Grep tool, not `grep -r`.** `build/`, `cmake-build-debug/` and
+  `.claude/worktrees/` are gitignored but present, and `grep -r` returns thousands of hits from them.
 - **PowerShell is 5.1, so there is no `&&`.** Use the Bash tool for git, grep, sed and python. Keep
   PowerShell for Windows-specific work: window capture and long-path deletes.
 - **Long paths:** `git worktree remove` on a worktree under the scratchpad fails with "Filename too
@@ -21,7 +14,8 @@ Read that file first.
 - **The build needs Vulkan SDK 1.4.363.0.** `-DVulkan_ROOT=...` alone doesn't switch a configured
   build dir: the headers path and `SLANGC_EXE` stay cached. Use `--fresh`. A shell started before an
   SDK install keeps the old `VULKAN_SDK`; configure then fails with "Could NOT find Vulkan". Pass
-  `-DVulkan_ROOT=` or export `VULKAN_SDK` explicitly.
+  `-DVulkan_ROOT=` or export `VULKAN_SDK` explicitly. A configure that failed the SDK check can make
+  the next `--fresh` fail once in compiler detection ("CMAKE_C_COMPILER not set"); run it again.
 - **Backslashes in Bash heredocs get mangled:** a doubled backslash in a Python heredoc arrives as a
   single one (so `'\\'` becomes an unterminated string). Write scripts that need backslashes to a
   file in the scratchpad instead.
@@ -31,10 +25,6 @@ Read that file first.
 - **Touching a `.cppm` interface recompiles every importer**, even if you only changed a comment
   (about 180 steps for `render_graph`). Put changes in the `.cpp` where you can, and batch interface
   edits before building.
-- **Stale shader binaries.** Deleting or moving a `.slang` file leaves its `.spv` in
-  `build/<preset>/shaders/`, and the loader will load it without complaint. After moving shaders,
-  delete those outputs. (Editing a shader module used to leave stale binaries too; shaders now depend
-  on every module.)
 - **Test configure with `--fresh` after CMake changes.** A warm cache hides ordering bugs: `slangc` was
   looked up after the subdirectory that used it, and only a fresh configure showed it.
 - **Release builds are a separate check.** `assert` compiles to nothing there, so code that only
@@ -43,6 +33,11 @@ Read that file first.
   build reported success, but its executables were never linked.
 - **Don't background builds with `( … ) &` in Bash.** The subshell is killed when the call returns. Use
   the tool's `run_in_background` instead.
+- **MSVC (`windows-msvc-*`)** needs a Visual Studio developer shell (`VSCMD_VER` set). MSVC 14.50
+  (VS 18.5) compiles `rhi`, `renderer` and `assets` but hits internal compiler errors (C1001) in
+  `render_graph` and its tests. It also needs `<compare>` in every translation unit that instantiates
+  a defaulted `operator<=>` (Vulkan-Hpp's `vk::Flags` included), and resolves `std::pair` structured
+  bindings in templates at the instantiating TU.
 
 ## C++ and modules
 
@@ -64,9 +59,6 @@ Read that file first.
   function pointers, and Simple-Scene crashed with a DEP violation.
 - **`ImGui_ImplVulkan_LoadFunctions` fails if any loaded pointer is null.** A headless instance has
   no surface or swapchain functions, so `UiPass` gives those a non-null stub that aborts.
-- **Run `spirv-val` on shader output when changing slangc versions.** SDK 1.4.328's slangc compiles
-  some shaders into SPIR-V that validation rejects (see AGENTS.md, Shaders); a compile without errors
-  proves nothing.
 - **Keep the task shader in its own Slang file.** If the mesh and task stages share one module, the
   mesh stage also declares the task stage's `DrawIndex`, and validation rejects it.
 - **GPU matrices are row-major:** upload `glm::rowMajor4(m)`. Every shader uses scalar layout, so C++
@@ -85,23 +77,8 @@ Read that file first.
   claimed the GPU-driven instance limits had been raised, but the code was unchanged. Verify claims
   before writing them into docs.
 
-## Workflow improvement ideas (most valuable first)
+## Open idea
 
-1. **Headless examples.** Have `Engine` accept `--headless --frames N --screenshot <png>` (the renderer
-   already renders offscreen) and register each example as a `device` CTest. Examples would get a
-   pass/fail signal, windows would stop popping up, and the capture script would no longer be needed.
-2. **Reference images.** Store a PNG per scene and compare it with a tolerance in CTest. This catches
-   rendering regressions that validation never reports.
-3. **A Linux CI job** (GitHub Actions, Ubuntu + Clang + the LunarG SDK tarball) building everything
-   and running `ctest -LE device`. Nothing else proves the Linux build; the MinGW proxy in AGENTS.md
-   stops at `aegis.world`.
-4. **Check in the missing-include scanner** used for the Linux audit (a Python script mapping `std`
-   names to headers per translation unit), and run it from CI. Mostly moot since the engine moved to
-   `import std`: only the macro headers (`<cassert>`, `<cfloat>`, `<cstdio>`) are still included.
-5. **Remove stale `.spv` files at configure time:** delete outputs in `build/<preset>/shaders/` that
-   no longer have a source.
-6. **Make `git clang-format` work:** disable the Store `python` alias, or add a `tools/format.sh`
-   wrapper.
-7. **Finish converting the legacy modules** (`scripting`, `world`). Formatting
-   and naming already match the new style; what remains is `assert` → `std::expected` where misuse
-   is recoverable, and dotted submodules → partitions, best done as part of their redesign.
+- **Finish converting the legacy modules** (`scripting`, `world`). Formatting and naming already
+  match the new style; what remains is `assert` → `std::expected` where misuse is recoverable, and
+  dotted submodules → partitions, best done as part of their redesign.

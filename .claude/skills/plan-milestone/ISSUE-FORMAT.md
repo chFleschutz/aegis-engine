@@ -38,12 +38,14 @@ The full body is written when the milestone becomes Active.
 
 ## Labels
 
-Explained in AGENTS.md "Planned work":
 - the kind, matching the branch prefix: `fix/` is `bug`, `feat/` is `feature`, `test/` is `tests`,
-  `docs/` is `documentation`, and the rest share their name;
+  `docs/` is `documentation`, and the rest (`refactor`, `cleanup`, `style`, `build`, `ci`) share their name;
 - `size/S`, `size/M` or `size/L`;
-- `area/*` when the issue sits in one area, from `gh label list`;
-- `needs-gpu` when the verification needs a real GPU, `needs-design` for an open decision;
+- `area/*` when the issue sits in one area, from `gh label list`; two issues of one area don't run in
+  parallel;
+- `needs-gpu` when the verification needs a real GPU (the reference images, a windowed run or Windows
+  input, which CI's lavapipe job doesn't cover and cloud sessions can't run);
+- `needs-design` for an open decision only the owner can make;
 - `idea` for an unplanned nice-to-have, which goes to `Backlog`.
 
 ## Commands

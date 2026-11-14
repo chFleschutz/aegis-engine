@@ -40,6 +40,10 @@ struct DrawConstants
 [[vk::push_constant]] ConstantBuffer<DrawConstants> push;
 ```
 
+A struct reached through a pointer keeps its own pointer members as `uint64_t` addresses behind
+properties (see `common::Mesh`): SDK 1.4.328's slangc emitted invalid SPIR-V for a struct-pointer
+member there (not re-checked with 1.4.363).
+
 On the C++ side, mirror the struct with `rhi::DeviceAddress` for pointers and the typed
 `rhi::*Descriptor` structs for descriptor indices, and record it with `cmd.pushConstants(value)`. The
 struct must fit in 128 bytes, which the typed `pushConstants` checks at compile time. The render graph's

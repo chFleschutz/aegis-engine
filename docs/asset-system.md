@@ -398,6 +398,28 @@ implemented synchronously first; the slot lets hot reload swap contents.
   mesh, a magenta and black checker for a texture, the default material with that checker for a
   material.
 
+### Working with it today
+
+- **Where things live:** `aegis::AssetLibrary` (`src/aegis/asset_library.*`, target
+  `aegis-asset-library`) loads assets by `AssetId` and caches them by ID; components store
+  `AssetRef<T>` (`MeshRenderer`, `Sky`). It scans two roots through `assets::AssetDatabase`: the project
+  content (`paths::projectContent`, the samples for now, the only project folder scanned; dot-files and
+  dot-folders are skipped) and the engine content (named in code as `assets::engine::white`, ...).
+- **Code names assets by path inside the library:** `assets.id("models/basic/cube.obj")`, then
+  `aegis::instantiate(context, id)` for a model or scene file, or `assets.loadEnvironment(id)`. The
+  folders come from `aegis.paths` (lookup order in `src/aegis/paths/paths.cppm`); there is no other
+  `-D` path to add. `aegis-test`'s fixture shader (`AEGIS_TEST_SHADER_PATH`) is the one exception.
+- **Configure-time paths:** `AEGIS_SHADER_DIR`, `AEGIS_PROJECT_DIR`, `AEGIS_CONTENT_DIR` and
+  `AEGIS_CACHE_DIR` are absolute, so moving or renaming the source or build tree breaks loading until
+  you re-run configure or set the environment variables of the same names.
+- **New source files get a sidecar:** the database writes a `.meta` with new IDs next to every source
+  file that has none (a scene file carries its ID inside). A new source therefore shows an untracked
+  `.meta` in the samples: commit it there, since scenes reference assets by ID.
+- An image file a model names by URI is no sub-asset but its own texture asset.
+- **Loaded assets are shared:** editing one (a material's parameters) changes every user, so code that
+  changes one object's material gives it its own first (`assets.copyMaterial(ref)` / `createMaterial`).
+- Sidecars and the index use glaze (`external/glaze`); include it only in `.cpp` files.
+
 ## Import cache and cooking
 
 - **Cache:** in `.aegis/cache/`, keyed by an XXH3 hash of source bytes, settings, importer version and
