@@ -8,6 +8,11 @@
 # Prints nothing when there is nothing to do. Its output goes into the session's context, so a
 # failed configure is reported there with the end of CMake's output instead of failing the hook.
 #
+# Run as the hook, it prepares the session's folder, the "cwd" of the hook's JSON input, not the
+# folder it runs in: the desktop app starts a session in a .claude/worktrees/ worktree with the main
+# checkout as the project root, so the hook runs in the main checkout, with CLAUDE_PROJECT_DIR naming
+# it. Run by hand, it prepares the checkout it runs in.
+#
 # Environment:
 #   AEGIS_PRESET    configure preset; default windows-clang-debug on Windows, linux-clang-debug
 #                   elsewhere.
@@ -15,6 +20,19 @@
 set -euo pipefail
 
 tools=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Only a hook has CLAUDE_PROJECT_DIR set and its JSON input on stdin. No jq on Git Bash, so sed
+# reads the field and undoes JSON's backslash escaping (Windows paths).
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" && ! -t 0 ]]; then
+    cwd=$(tr -d '\n' | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\(\([^"\\]\|\\.\)*\)".*/\1/p' |
+        sed 's/\\\\/\\/g')
+    if [[ -n "$cwd" ]]; then
+        if command -v cygpath >/dev/null; then
+            cwd=$(cygpath -u "$cwd")
+        fi
+        cd "$cwd"
+    fi
+fi
 
 "$tools/init-submodules.sh" --quiet
 
