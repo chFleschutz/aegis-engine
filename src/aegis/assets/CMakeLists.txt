@@ -7,7 +7,6 @@ target_link_libraries(aegis-assets
         aegis-math
         aegis-reflect # AssetRef is a reflected field kind
     PRIVATE
-
         fastgltf
         glaze::glaze
         ktx
@@ -15,57 +14,58 @@ target_link_libraries(aegis-assets
         stb
         tinyobjloader
         xxhash
-    FILE_SET CXX_MODULES FILES
-    PRIVATE
+)
+
+target_sources(aegis-assets
     PUBLIC
+    FILE_SET CXX_MODULES FILES
     assets.cppm
-    defaults.cpp
     defaults.cppm
     environment.cppm
-    loader.cpp
     loader.cppm
-    material.cpp
     material.cppm
-    static_mesh.cpp
     static_mesh.cppm
-    texture.cpp
     texture.cppm
     upload.cppm
-)
-target_sources(aegis-assets
-    data/asset_database.cpp
     data/asset_database.cppm
-    data/asset_id.cpp
     data/asset_id.cppm
     data/asset_key.cppm
     data/asset_ref.cppm
     data/data.cppm
-    data/embedded_images.cpp
     data/embedded_images.cppm
     data/engine_content.cppm
     data/error.cppm
-    data/external_images.cpp
     data/external_images.cppm
-    data/gltf_import.cpp
     data/gpu_types.cppm
-    data/image_data.cpp
     data/image_data.cppm
-    data/import_cache.cpp
     data/import_cache.cppm
-    data/mesh_blob.cpp
     data/mesh_blob.cppm
     data/mesh_data.cppm
-    data/mesh_preprocessor.cpp
     data/mesh_preprocessor.cppm
     data/model_data.cppm
+    data/sidecar.cppm
+    data/sub_asset_key.cppm
+    data/texture_blob.cppm
+    data/texture_data.cppm
+    PRIVATE
+    defaults.cpp
+    loader.cpp
+    material.cpp
+    static_mesh.cpp
+    texture.cpp
+    data/asset_database.cpp
+    data/asset_id.cpp
+    data/embedded_images.cpp
+    data/external_images.cpp
+    data/gltf_import.cpp
+    data/image_data.cpp
+    data/import_cache.cpp
+    data/mesh_blob.cpp
+    data/mesh_preprocessor.cpp
     data/model_import.cpp
     data/obj_import.cpp
     data/sidecar.cpp
-    data/sidecar.cppm
     data/sub_asset_key.cpp
-    data/sub_asset_key.cppm
     data/texture_blob.cpp
-    data/texture_blob.cppm
     data/texture_data.cpp
-    data/texture_data.cppm
 )
