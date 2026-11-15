@@ -51,14 +51,6 @@ public:
 
     [[nodiscard]] static auto create(const Desc& desc) -> std::expected<std::unique_ptr<Renderer>, Error>;
 
-    Renderer(rhi::Context& context,
-        rhi::Device& device,
-        std::optional<rhi::Swapchain>&& swapchain,
-        rhi::Extent2D extent,
-        rhi::Format targetFormat,
-        rhi::CommandPool&& commandPool,
-        std::vector<FrameContext>&& frameContext);
-
     /// @brief Waits for the GPU first: the frame command buffers and semaphores may still be in use.
     ~Renderer();
 
@@ -90,6 +82,14 @@ public:
     [[nodiscard]] auto resize(rhi::Extent2D newSize) -> std::expected<void, Error>;
 
 private:
+    Renderer(rhi::Context& context,
+        rhi::Device& device,
+        std::optional<rhi::Swapchain>&& swapchain,
+        rhi::Extent2D extent,
+        rhi::Format targetFormat,
+        rhi::CommandPool&& commandPool,
+        std::vector<FrameContext>&& frameContext);
+
     [[nodiscard]] static auto createFrameContext(
         const rhi::Device& device,
         const rhi::CommandPool& pool) noexcept

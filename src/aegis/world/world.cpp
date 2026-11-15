@@ -51,6 +51,8 @@ void World::reset()
     }
     m_deferred.clear();
     m_registry.clear();
+    for (auto& system : m_systems)
+        system->onDetach(m_registry);
     m_systems.clear();
 }
 

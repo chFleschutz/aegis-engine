@@ -43,7 +43,7 @@ auto Registry::createWithId(std::uint64_t id, const std::string& name, const glm
 void Registry::destroy(Entity entity)
 {
     for (const auto& listener : m_destroyListeners)
-        listener.callback(entity);
+        listener.callback(*this, entity);
 
     detach(entity);
     std::ignore = removeChildren(entity); // The entity is valid
@@ -60,7 +60,7 @@ void Registry::clear()
     invalidateHierarchy();
 }
 
-void Registry::addDestroyListener(const void* owner, std::function<void(Entity)> callback)
+void Registry::addDestroyListener(const void* owner, std::function<void(Registry&, Entity)> callback)
 {
     m_destroyListeners.push_back({ owner, std::move(callback) });
 }
@@ -159,7 +159,6 @@ auto Registry::removeChildren(Entity entity) -> std::expected<void, HierarchyErr
     std::vector<Entity> childrenToRemove;
     childrenToRemove.reserve(children.count);
 
-    // TODO: This can be simplified by repairing the iterators for the children
     Entity current = children.first;
     while (current)
     {

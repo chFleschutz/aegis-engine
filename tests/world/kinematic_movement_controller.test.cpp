@@ -21,7 +21,7 @@ struct FlyCamera
     {
         REQUIRE(types.component<Transform>("Transform"));
         REQUIRE(registerKinematicMovementController(types));
-        scene.addSystem<ScriptSystem>(scene.registry(), input);
+        scene.addSystem<ScriptSystem>(input);
         entity = scene.registry().create("Camera");
         REQUIRE(attachScript(scene.registry(), types, entity, "KinematicMovementController"));
         scene.begin();

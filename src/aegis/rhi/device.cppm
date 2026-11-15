@@ -118,19 +118,6 @@ public:
         vk::KHRSwapchainExtensionName,
     };
 
-    Device(
-        vk::raii::PhysicalDevice pd,
-        vk::raii::Device device,
-        Allocator allocator,
-        Queue graphicsQueue,
-        Queue computeQueue,
-        Queue transferQueue,
-        std::optional<Queue> presentQueue,
-        Capabilities capabilities,
-        Properties properties,
-        BindlessHeap bindlessHeap,
-        vk::raii::PipelineLayout pipelineLayout);
-
     /// @brief Waits for the GPU first: destroying resources it may still use is invalid.
     ~Device();
 
@@ -272,6 +259,19 @@ private:
         vk::PhysicalDeviceMeshShaderFeaturesEXT>;
 
     using QueueFamilyIndices = detail::QueueFamilySelection;
+
+    Device(
+        vk::raii::PhysicalDevice pd,
+        vk::raii::Device device,
+        Allocator allocator,
+        Queue graphicsQueue,
+        Queue computeQueue,
+        Queue transferQueue,
+        std::optional<Queue> presentQueue,
+        Capabilities capabilities,
+        Properties properties,
+        BindlessHeap bindlessHeap,
+        vk::raii::PipelineLayout pipelineLayout);
 
     [[nodiscard]] static auto create(const vk::raii::Instance& instance, const vk::raii::SurfaceKHR& surface,
         const Desc& desc)

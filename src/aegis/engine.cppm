@@ -284,8 +284,6 @@ public:
 class Engine
 {
 public:
-    /// @brief GPU-driven rendering (mesh shaders) where the device supports it, CPU-driven otherwise.
-    static constexpr bool ENABLE_GPU_DRIVEN_RENDERING{ true };
     static constexpr std::uint32_t FRAMES_IN_FLIGHT{ aegis::renderer::Renderer::maxFramesInFlight };
 
     /// @brief Creates the window (unless headless), the device, renderer, assets and frame graph.
@@ -298,6 +296,7 @@ public:
     auto operator=(const Engine&) -> Engine& = delete;
     auto operator=(Engine&&) -> Engine& = delete;
 
+    /// @brief GPU-driven rendering (mesh shaders) when AppDesc asks for it and the device supports it, CPU-driven otherwise.
     [[nodiscard]] auto useGpuDrivenRendering() const -> bool;
 
     /// @brief The registered components and scripts, the built-in ones included. Register a game's

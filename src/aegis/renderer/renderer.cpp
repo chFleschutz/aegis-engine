@@ -71,14 +71,14 @@ auto Renderer::create(const Desc& desc) -> std::expected<std::unique_ptr<Rendere
     if (!frameContext)
         return std::unexpected{ std::move(frameContext.error()) };
 
-    auto renderer = std::make_unique<Renderer>(
+    auto renderer = std::unique_ptr<Renderer>{ new Renderer(
         desc.context,
         desc.device,
         std::move(swapchain),
         extent,
         format,
         std::move(*commandPool),
-        std::move(*frameContext));
+        std::move(*frameContext)) };
 
     if (renderer->offscreen())
     {

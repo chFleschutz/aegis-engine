@@ -47,6 +47,7 @@ public:
     void addSystem(Args&&... args)
     {
         m_systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
+        m_systems.back()->onAttach(m_registry);
     }
 
     /// @brief Queues a change of the entities for the start of the next update

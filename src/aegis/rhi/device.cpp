@@ -423,7 +423,7 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
     if (!pipelineLayout)
         return std::unexpected{ pipelineLayout.error() };
 
-    auto result = std::make_unique<Device>(
+    auto result = std::unique_ptr<Device>{ new Device(
         std::move(*physicalDevice),
         std::move(*device),
         std::move(*allocator),
@@ -434,7 +434,7 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
         capabilities,
         properties,
         std::move(*bindless),
-        std::move(*pipelineLayout));
+        std::move(*pipelineLayout)) };
 
     // Created after the Device exists because UploadManager::create calls back into
     // device.createBuffer / createCommandPool. Flushes on the graphics queue for now.
@@ -584,10 +584,6 @@ auto Device::queryCapabilities(const vk::raii::PhysicalDevice& pd) -> Capabiliti
         vk::PhysicalDeviceVulkan12Features,
         vk::PhysicalDeviceVulkan13Features,
         vk::PhysicalDeviceMeshShaderFeaturesEXT>();
-    // const auto& vk10features = features.get<vk::PhysicalDeviceFeatures2>();
-    // const auto& vk11features = features.get<vk::PhysicalDeviceVulkan11Features>();
-    // const auto& vk12features = features.get<vk::PhysicalDeviceVulkan12Features>();
-    // const auto& vk13features = features.get<vk::PhysicalDeviceVulkan13Features>();
     const auto& meshShaderFeatures = features.get<vk::PhysicalDeviceMeshShaderFeaturesEXT>();
 
     return Capabilities{

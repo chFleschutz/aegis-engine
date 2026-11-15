@@ -33,8 +33,10 @@ public:
     /// @brief Whether onBegin and onUpdate also run in UpdateMode::Edit; scripts and gameplay don't
     [[nodiscard]] virtual auto runsInEdit() const -> bool { return false; }
 
-    virtual void onAttach() {}
-    virtual void onDetach() {}
+    /// @brief World::addSystem added the system to the world that owns 'registry'
+    virtual void onAttach(Registry& registry) {}
+    /// @brief World::reset is about to remove the system; the scene is already empty
+    virtual void onDetach(Registry& registry) {}
     virtual void onBegin(Registry& registry) {}
     virtual void onUpdate(Registry& registry, float deltaSeconds) {}
     /// @brief The scene is about to be cleared: every entity still exists with all its components,
