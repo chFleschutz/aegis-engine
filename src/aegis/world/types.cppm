@@ -6,6 +6,16 @@ import aegis.reflect;
 import aegis.world.registry;
 import aegis.world.render_components;
 
+// The save-file names of PostProcess's tone mapping
+export template<>
+struct aegis::reflect::EnumNames<aegis::ToneMapping>
+{
+    static constexpr auto values = std::to_array<std::pair<std::string_view, aegis::ToneMapping>>({
+        { "Reinhard", aegis::ToneMapping::Reinhard },
+        { "Aces", aegis::ToneMapping::Aces },
+    });
+};
+
 export namespace aegis::world
 {
 /// @brief Reaches a registered component on an entity without naming its type, for code that works only

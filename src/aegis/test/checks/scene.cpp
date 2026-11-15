@@ -97,7 +97,15 @@ void destroySubtree(world::Registry& registry, world::Entity root)
 // light on the cube shows as red (verifyUnlit).
 constexpr glm::vec3 unlitColor{ 0.0f, 1.0f, 1.0f };
 
-// The test's side of the app: edits the loaded scene at the safe point (--mirror, --mutate-scene), renders it
+// --post-process: settings far enough from the defaults that a frame rendered with the defaults fails the reference.
+constexpr PostProcess postProcessSettings{
+    .toneMapping = ToneMapping::Reinhard,
+    .exposure = 1.8f,
+    .bloomIntensity = 0.5f,
+    .bloomThreshold = 0.5f,
+};
+
+// The test's side of the app: edits the loaded scene at the safe point (--mirror, --mutate-scene, --post-process), renders it
 // through a second camera into a view of its own (--view), renders a second world for a while (--worlds), draws the
 // stats window and checks the frame graph's timings. Failures go to the SceneResult; the run carries on.
 class SceneShell final : public Shell
@@ -159,6 +167,14 @@ public:
     // The view's camera replaces the main one once the update has given it its matrices (from the second frame).
     [[nodiscard]] auto renderView() const -> std::optional<RenderView> override
     {
+        // --post-process: through the main camera into a view, then onto the target, so the frame graph is rebuilt
+        // halfway and the last frame shows whether the settings survived it.
+        if (m_options.postProcess)
+        {
+            if (m_options.frames != 0 && m_frame < m_options.frames / 2)
+                return RenderView{ .extent = sceneExtent };
+            return std::nullopt;
+        }
         if (!m_options.view)
             return std::nullopt;
         std::optional<RenderView::Camera> camera;
@@ -195,6 +211,14 @@ private:
             registry.markStaticDirty(m_helmet);
         }
 
+        if (m_options.postProcess)
+        {
+            if (const auto camera = world.mainCamera())
+                registry.add<PostProcess>(camera, postProcessSettings);
+            else
+                m_result.errors.push_back(std::format("{} has no main camera", sceneFile));
+        }
+
         if (m_options.view)
         {
             // Ahead and to the right of the main camera, turned towards the helmet; CameraSystem keeps its matrices.
@@ -205,8 +229,8 @@ private:
     }
 
     // --unlit, in the second frame (the camera has its global transform): an unlit cube to the right of a PBR one, side
-    // by side in front of the main camera, both instances of the engine's cube. Bloom goes off and tone mapping is
-    // Reinhard at exposure 1, so the unlit cube's colour reaches the last frame as verifyUnlit expects.
+    // by side in front of the main camera, both instances of the engine's cube. The main camera's PostProcess turns
+    // bloom off and tone maps with Reinhard at exposure 1, so the unlit cube's colour reaches the last frame as verifyUnlit expects.
     auto addUnlitCubes(FrameContext& frame) -> std::expected<void, std::string>
     {
         auto& registry = frame.world.registry();
@@ -238,11 +262,14 @@ private:
             }
         }
 
-        for (auto* pass : frame.frameGraph.passes())
-        {
-            if (auto* post = dynamic_cast<render_graph::PostProcessingPass*>(pass))
-                post->settings() = { .toneMapping = render_graph::ToneMapping::Reinhard, .bloomIntensity = 0.0f, .exposure = 1.0f, .gamma = 2.2f };
-        }
+        const auto mainCamera = frame.world.mainCamera();
+        if (!mainCamera)
+            return std::unexpected{ "the scene has no main camera" };
+        const PostProcess settings{ .toneMapping = ToneMapping::Reinhard, .exposure = 1.0f, .gamma = 2.2f, .bloomIntensity = 0.0f };
+        if (registry.has<PostProcess>(mainCamera))
+            registry.get<PostProcess>(mainCamera) = settings;
+        else
+            registry.add<PostProcess>(mainCamera, settings);
         return {};
     }
 

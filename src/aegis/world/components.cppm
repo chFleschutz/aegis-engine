@@ -132,6 +132,25 @@ struct Camera
     glm::mat4 projectionMatrix = glm::mat4{ 1.0f };
 };
 
+/// @brief How PostProcess maps the frame's HDR colors to the screen
+enum class ToneMapping
+{
+    Reinhard,
+    Aces,
+};
+
+/// @brief How the frame seen through a camera is finished: tone mapping, exposure, gamma and bloom. Read from the
+///        main camera's entity; a main camera without one renders with these defaults.
+struct PostProcess
+{
+    ToneMapping toneMapping = ToneMapping::Aces;
+    float exposure = 1.0f;
+    float gamma = 2.2f;
+    float bloomIntensity = 0.1f;
+    float bloomThreshold = 0.0f;     // The brightness bloom starts at
+    float bloomSoftThreshold = 0.5f; // How gradually it starts (0: a hard cut)
+};
+
 /// @brief A component of the entity's own bookkeeping: Registry::create gives every entity one and the registry
 ///        relies on it until the entity is destroyed, so Registry::remove refuses it at compile time. Whether the
 ///        editor may remove a registered component is its metadata's say instead (reflect::TypeMeta::required).

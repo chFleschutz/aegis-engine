@@ -381,7 +381,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   there is no `--project`.
 - Command palette (Ctrl+Shift+P) over the action registry; user-defined shortcuts.
 - Camera bookmarks; the editor camera remembered per scene.
-- Render-pass settings through the type registry instead of `RenderPass::drawUI()`.
+- Render-pass debug options (lighting view mode, bloom filter scales) through the type registry instead of
+  `RenderPass::drawUI()`; post-processing settings are already scene data (the `PostProcess` component, #256).
 - UI automation tests with Dear ImGui Test Engine (check its license first; it is not MIT).
 
 ### Avoid

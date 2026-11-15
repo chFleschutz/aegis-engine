@@ -206,6 +206,40 @@ TEST_SUITE("serialize::scene")
         CHECK(static_cast<Spinner*>(entries[0].script.get())->speed == 2.5f);
     }
 
+    TEST_CASE("round-trips a camera's post-processing settings")
+    {
+        TypeRegistry types;
+        registerTypes(types);
+        Registry original;
+        const auto camera = original.createWithId(0xc0ffee0000000002, "Camera");
+        original.add<aegis::Camera>(camera);
+        original.add<aegis::PostProcess>(camera, aegis::PostProcess{
+                                                     .toneMapping = aegis::ToneMapping::Reinhard,
+                                                     .exposure = 2.5f,
+                                                     .gamma = 2.0f,
+                                                     .bloomIntensity = 0.75f,
+                                                     .bloomThreshold = 1.25f,
+                                                     .bloomSoftThreshold = 0.25f,
+                                                 });
+        const std::string text = saveText(original, types);
+        CHECK(text.find(R"("toneMapping": "Reinhard")") != std::string::npos);
+
+        auto scene = parse(text, types);
+        REQUIRE(scene.has_value());
+        Registry loaded;
+        REQUIRE(aegis::serialize::instantiate(loaded, types, *scene).has_value());
+        const auto loadedCamera = loaded.find(aegis::StableId{ 0xc0ffee0000000002 });
+        REQUIRE(loaded.has<aegis::PostProcess>(loadedCamera));
+        const auto& settings = loaded.get<aegis::PostProcess>(loadedCamera);
+        CHECK(settings.toneMapping == aegis::ToneMapping::Reinhard);
+        CHECK(settings.exposure == 2.5f);
+        CHECK(settings.gamma == 2.0f);
+        CHECK(settings.bloomIntensity == 0.75f);
+        CHECK(settings.bloomThreshold == 1.25f);
+        CHECK(settings.bloomSoftThreshold == 0.25f);
+        CHECK(saveText(loaded, types) == text);
+    }
+
     TEST_CASE("keeps loading the golden scene file unchanged")
     {
         TypeRegistry types;

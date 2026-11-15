@@ -110,8 +110,8 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     cmd.pushConstants(BloomThresholdConstants{
         .input = pool.storageDescriptor(m_sceneColor),
         .output = storage(m_mipViews[0]),
-        .threshold = m_settings.threshold,
-        .softThreshold = m_settings.softThreshold,
+        .threshold = frameInfo.frameScene.postProcess.bloomThreshold,
+        .softThreshold = frameInfo.frameScene.postProcess.bloomSoftThreshold,
     });
     dispatchMip(0);
 
@@ -153,8 +153,6 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 
 auto BloomPass::drawUI() -> void
 {
-    ImGui::SliderFloat("Threshold", &m_settings.threshold, 0.0f, 2.0f);
-    ImGui::SliderFloat("Soft Threshold", &m_settings.softThreshold, 0.0f, 2.0f);
     ImGui::SliderFloat("Downsample Scale", &m_settings.downsampleScale, 0.0f, 2.0f);
     ImGui::SliderFloat("Upsample Scale", &m_settings.upsampleScale, 0.0f, 2.0f);
 }

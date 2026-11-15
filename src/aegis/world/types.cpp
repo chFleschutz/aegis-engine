@@ -56,6 +56,21 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
         check(builder);
     }
     {
+        auto builder = registerComponent<PostProcess>(types, "PostProcess");
+        if (builder)
+        {
+            builder->displayName("Post Process")
+                .category("Camera")
+                .field("toneMapping", &PostProcess::toneMapping, { .tooltip = "How HDR colors map to the screen" })
+                .field("exposure", &PostProcess::exposure, { .widget = FieldWidget::Slider, .min = 0.1, .max = 10.0 })
+                .field("gamma", &PostProcess::gamma, { .widget = FieldWidget::Slider, .min = 1.0, .max = 5.0, .tooltip = "Not applied to a target that encodes sRGB itself" })
+                .field("bloomIntensity", &PostProcess::bloomIntensity, { .widget = FieldWidget::Slider, .min = 0.0, .max = 2.0 })
+                .field("bloomThreshold", &PostProcess::bloomThreshold, { .widget = FieldWidget::Slider, .min = 0.0, .max = 2.0, .tooltip = "The brightness bloom starts at" })
+                .field("bloomSoftThreshold", &PostProcess::bloomSoftThreshold, { .widget = FieldWidget::Slider, .min = 0.0, .max = 2.0, .tooltip = "How gradually bloom starts (0: a hard cut)" });
+        }
+        check(builder);
+    }
+    {
         auto builder = registerComponent<AmbientLight>(types, "AmbientLight");
         if (builder)
         {

@@ -214,6 +214,19 @@ auto extractFrameScene(world::World& world, const render_graph::InstanceStore& i
             .position = registry.get<GlobalTransform>(camera).location,
         };
     }
+    if (const auto camera = world.mainCamera(); camera && registry.has<PostProcess>(camera))
+    {
+        const auto& settings = registry.get<PostProcess>(camera);
+        scene.postProcess = FrameScene::PostProcess{
+            .toneMapping = settings.toneMapping == ToneMapping::Reinhard ? render_graph::ToneMapping::Reinhard
+                                                                         : render_graph::ToneMapping::Aces,
+            .exposure = settings.exposure,
+            .gamma = settings.gamma,
+            .bloomIntensity = settings.bloomIntensity,
+            .bloomThreshold = settings.bloomThreshold,
+            .bloomSoftThreshold = settings.bloomSoftThreshold,
+        };
+    }
     if (const auto ambient = world.ambientLight(); ambient && registry.has<AmbientLight>(ambient))
     {
         const auto& light = registry.get<AmbientLight>(ambient);

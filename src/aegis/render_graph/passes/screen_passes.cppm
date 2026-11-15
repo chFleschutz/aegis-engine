@@ -25,35 +25,22 @@ private:
 };
 
 /// @brief Tone maps "SceneColor" (plus "Bloom", if enabled) into "Final" (RGBA16F), gamma encoded
-///        unless the frame's target is an sRGB format that encodes by itself.
+///        unless the frame's target is an sRGB format that encodes by itself. The settings are the frame's
+///        (FrameScene::PostProcess).
 class PostProcessingPass : public RenderPass
 {
 public:
-    using ToneMapping = render_graph::ToneMapping;
-
-    struct Settings
-    {
-        ToneMapping toneMapping{ ToneMapping::Aces };
-        float bloomIntensity{ 0.1f };
-        float exposure{ 1.0f };
-        float gamma{ 2.2f };
-    };
-
     /// @param bloom Read "Bloom" (a BloomPass must be in the graph); otherwise bloom is off.
     PostProcessingPass(ResourceDeclarations& declarations, bool bloom = true);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
-    auto drawUI() -> void override;
-
-    [[nodiscard]] auto settings() noexcept -> Settings& { return m_settings; }
 
 private:
     ResourceId m_sceneColor;
     std::optional<ResourceId> m_bloom;
     ResourceId m_final;
-    Settings m_settings;
     std::optional<rhi::Pipeline> m_pipeline;
 };
 

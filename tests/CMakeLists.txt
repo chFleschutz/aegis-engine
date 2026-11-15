@@ -94,6 +94,9 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
     aegis_add_device_test(aegis-test-scene-worlds ARGS --headless --scene --worlds --frames 120)
     aegis_add_device_test(aegis-test-scene-gpu-driven-worlds ARGS --headless --gpu-driven --worlds --frames 120 LABELS mesh-shaders)
 
+    # The main camera's PostProcess, kept when the frame graph is rebuilt halfway.
+    aegis_add_device_test(aegis-test-scene-post-process ARGS --headless --scene --post-process --frames 120)
+
     # The scene's reference images (see above).
     aegis_add_device_test(aegis-test-golden-scene
         ARGS --headless --scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene.png --tolerance 0
@@ -108,6 +111,10 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
     aegis_add_device_test(aegis-test-golden-scene-mirrored-gpu-driven
         ARGS --headless --gpu-driven --mirror --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-mirrored-gpu-driven.png --tolerance 0
         LABELS golden mesh-shaders)
+    # Rendered with the main camera's PostProcess after the graph was rebuilt: not the plain scene's image.
+    aegis_add_device_test(aegis-test-golden-scene-post-process
+        ARGS --headless --scene --post-process --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-post-process.png --tolerance 0
+        LABELS golden)
     # Back on the main world after the second one rendered, the last frame is the plain scene's.
     aegis_add_device_test(aegis-test-golden-scene-worlds
         ARGS --headless --scene --worlds --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene.png --tolerance 0

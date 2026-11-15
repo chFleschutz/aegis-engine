@@ -6,8 +6,15 @@ import :instance_store;
 
 export namespace aegis::render_graph
 {
-/// @brief What the passes draw of the world in one frame: the instances, the main camera, the lights and the
-///        sky's environment. Camera, lights and environment are copied out of the world once per frame
+/// @brief post_process.slang's tone mapping modes (the 'toneMappingMode' switch).
+enum class ToneMapping : std::int32_t
+{
+    Reinhard = 0,
+    Aces = 1,
+};
+
+/// @brief What the passes draw of the world in one frame: the instances, the main camera, the lights, the
+///        sky's environment and the post-processing settings. Camera, lights and environment are copied out of the world once per frame
 ///        (aegis::extractFrameScene); the instances are not copied, the store follows the world as it changes
 ///        (aegis::InstanceBridge). Passes read it instead of the ECS, and tests build one by hand.
 struct FrameScene
@@ -49,11 +56,24 @@ struct FrameScene
         std::optional<rhi::TextureDescriptor> skybox;
     };
 
+    /// @brief How the frame is finished: tone mapping, exposure, gamma and bloom (BloomPass, PostProcessingPass).
+    ///        The defaults are the settings of a camera without an aegis::PostProcess.
+    struct PostProcess
+    {
+        ToneMapping toneMapping{ ToneMapping::Aces };
+        float exposure{ 1.0f };
+        float gamma{ 2.2f };
+        float bloomIntensity{ 0.1f };
+        float bloomThreshold{ 0.0f };
+        float bloomSoftThreshold{ 0.5f };
+    };
+
     const InstanceStore& instances;
     std::optional<Camera> camera;
     std::optional<AmbientLight> ambientLight;
     std::optional<DirectionalLight> directionalLight;
     std::vector<PointLight> pointLights; // All of them; LightingPass shades the first maxPointLights
     Environment environment;
+    PostProcess postProcess;
 };
 }
