@@ -25,7 +25,8 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
   samples`. Without it configure skips the `Examples` game and the device tests that load samples.
   It clones the full history, so `tools/init-submodules.sh` shares the main checkout's copy with
   worktrees and git can tell whether a pointer is on its `origin/main`; a main checkout whose
-  `samples/` is still shallow (cloned before #327) needs `git -C samples fetch --unshallow` once.
+  `samples/` is still shallow (cloned before #327) needs `git -C samples fetch --unshallow` once,
+  and the same for `external/zstd` (cloned before #370).
   A change to the samples is a PR in aegis-samples (branch from its `origin/main`); the engine PR
   bumps the `samples` pointer to that commit and says to merge the samples PR first.
 - Vendored files (`external/ktx`, the editor's Lucide icon font and its generated

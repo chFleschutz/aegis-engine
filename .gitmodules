@@ -44,4 +44,3 @@
 [submodule "external/zstd"]
 	path = external/zstd
 	url = https://github.com/facebook/zstd.git
-	shallow = true
