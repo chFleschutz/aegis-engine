@@ -32,7 +32,6 @@
 	path = samples
 	url = https://github.com/chFleschutz/aegis-samples.git
 	update = none
-	shallow = true
 [submodule "external/doctest"]
 	path = external/doctest
 	url = https://github.com/doctest/doctest
