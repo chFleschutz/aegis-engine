@@ -2,10 +2,10 @@ export module aegis.rhi:swapchain;
 import std;
 import :common;
 import :fwd;
-import :error;
 import :image_view;
 import :sync;
 import vulkan;
+import aegis.rhi.types;
 
 export namespace aegis::rhi::detail
 {

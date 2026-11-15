@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.assets;
+import aegis.assets.data;
 
 using aegis::assets::ErrorCode;
 using aegis::assets::escapeKeyName;

@@ -10,10 +10,10 @@ import :command_pool;
 import :commands;
 import :common;
 import :device;
-import :error;
 import :image;
 import :resource_handle;
 
+import aegis.rhi.types;
 namespace aegis::rhi::detail
 {
 auto planImageUpload(Extent3D extent, Format format, std::uint32_t mipLevels, std::uint32_t arrayLayers,

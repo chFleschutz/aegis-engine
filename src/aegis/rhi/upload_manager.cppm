@@ -5,13 +5,13 @@ import :command_buffer;
 import :command_pool;
 import :commands;
 import :common;
-import :error;
 import :fwd;
 import :image;
 import :queue;
 import :resource_handle;
 import :ring_allocator;
 import aegis.core;
+import aegis.rhi.types;
 
 export namespace aegis::rhi
 {

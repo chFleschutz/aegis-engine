@@ -1,8 +1,6 @@
 export module aegis.assets:texture;
 import std;
-import :error;
-import :image_data;
-import :texture_data;
+import aegis.assets.data;
 import aegis.rhi;
 import aegis.math;
 

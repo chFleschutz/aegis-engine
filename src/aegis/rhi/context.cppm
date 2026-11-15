@@ -1,8 +1,8 @@
 export module aegis.rhi:context;
 import std;
-import :error;
 import :device;
 import aegis.platform;
+import aegis.rhi.types;
 import vulkan;
 
 export namespace aegis::rhi

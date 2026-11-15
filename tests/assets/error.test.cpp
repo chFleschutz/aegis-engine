@@ -1,8 +1,8 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.assets;
-import aegis.rhi;
+import aegis.assets.data;
+import aegis.rhi.types;
 
 namespace
 {

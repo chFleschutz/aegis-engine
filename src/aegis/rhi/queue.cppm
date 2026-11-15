@@ -3,6 +3,7 @@ import std;
 import :common;
 import :fwd;
 import :sync;
+import aegis.rhi.types;
 import vulkan;
 
 export namespace aegis::rhi

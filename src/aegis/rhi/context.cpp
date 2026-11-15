@@ -7,9 +7,9 @@ module;
 module aegis.rhi;
 import std;
 import :context;
-import :error;
 import :vulkan_conversions;
 import aegis.core;
+import aegis.rhi.types;
 import aegis.platform;
 
 namespace aegis::rhi

@@ -142,6 +142,10 @@ each case with CTest via `doctest_discover_tests`. Nothing central needs editing
 > A type must be `export import`-ed from the umbrella (e.g. `rhi.cppm`) — partition-level `export`
 > alone is invisible to tests.
 
+> **Import the smallest module:** an assets test that needs no device type imports `aegis.assets.data`
+> (and `aegis.rhi.types` for `rhi::Error` or a descriptor), not `aegis.assets` / `aegis.rhi`, so an rhi
+> edit doesn't rebuild it.
+
 ## Growing the testable surface: extract, don't mock
 
 The limit on RHI coverage is not the absence of a device harness — it is pure logic *trapped*

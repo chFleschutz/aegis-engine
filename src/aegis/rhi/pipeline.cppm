@@ -1,9 +1,9 @@
 export module aegis.rhi:pipeline;
 import std;
-import :error;
 import :common;
 import :fwd;
 import vulkan;
+import aegis.rhi.types;
 
 export namespace aegis::rhi
 {

@@ -405,6 +405,10 @@ implemented synchronously first; the slot lets hot reload swap contents.
   `AssetRef<T>` (`MeshRenderer`, `Sky`). It scans two roots through `assets::AssetDatabase`: the project
   content (`paths::projectContent`, the samples for now, the only project folder scanned; dot-files and
   dot-folders are skipped) and the engine content (named in code as `assets::engine::white`, ...).
+- **Two modules:** `aegis.assets.data` (`src/aegis/assets/data/`) is the CPU side: IDs, the database,
+  sidecars, importers, the import cache and their data. It imports `aegis.rhi.types`, never `aegis.rhi`,
+  so rhi edits don't rebuild it. `aegis.assets` (`src/aegis/assets/`) re-exports it and adds what needs a
+  device (`Texture`, `StaticMesh`, `Material`, the loader). New code that needs no device goes in `data/`.
 - **Code names assets by path inside the library:** `assets.id("models/basic/cube.obj")`, then
   `aegis::instantiate(context, id)` for a model or scene file, or `assets.loadEnvironment(id)`. The
   folders come from `aegis.paths` (lookup order in `src/aegis/paths/paths.cppm`); there is no other

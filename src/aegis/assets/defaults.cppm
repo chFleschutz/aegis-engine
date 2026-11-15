@@ -1,8 +1,8 @@
 export module aegis.assets:defaults;
 import std;
-import :error;
 import :material;
 import :texture;
+import aegis.assets.data;
 import aegis.rhi;
 
 export namespace aegis::assets

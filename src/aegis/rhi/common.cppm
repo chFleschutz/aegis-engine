@@ -7,22 +7,6 @@ import std;
 export namespace aegis::rhi
 {
 using TimelineValue = std::uint64_t;
-using DeviceAddress = std::uint64_t;
-
-enum class ErrorCode
-{
-    Unknown,
-    DeviceLost,
-    SurfaceLost,
-    OutOfDate,
-    OutOfHostMemory,
-    OutOfDeviceMemory,
-    InitializationFailed,
-    NotReady,
-    FormatNotSupported,
-    OutOfDescriptors, // A bindless slot pool is exhausted; free views or samplers first, retrying alone cannot help
-    InvalidArgument,  // A caller bug, e.g. upload data that does not match the image; retrying cannot help
-};
 
 enum class Format
 {
@@ -249,15 +233,6 @@ enum class TimestampStage
 {
     TopOfPipe,
     AllCommands,
-};
-
-/// @brief Describes all descriptor types.
-/// @note Buffers are not accessed via descriptors and use buffer device address instead.
-enum class DescriptorType
-{
-    SampledImage,
-    StorageImage,
-    Sampler
 };
 
 struct Extent2D

@@ -71,7 +71,6 @@ target_sources(aegis-rhi
         debug.cppm
         deletion_queue.cppm
         device.cppm
-        error.cppm
         fwd.cppm
         image.cppm
         image_view.cppm
@@ -86,6 +85,7 @@ target_sources(aegis-rhi
         pipeline.cppm
         swapchain.cppm
         sync.cppm
+        types.cppm
         upload_manager.cppm
         vulkan_conversions.cppm
     PRIVATE

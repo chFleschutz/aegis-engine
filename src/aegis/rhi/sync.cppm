@@ -1,8 +1,8 @@
 export module aegis.rhi:sync;
 import std;
-import :error;
 import :fwd;
 import vulkan;
+import aegis.rhi.types;
 
 export namespace aegis::rhi
 {

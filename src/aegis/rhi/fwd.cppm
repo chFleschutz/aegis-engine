@@ -20,6 +20,4 @@ class Sampler;
 class Swapchain;
 class Fence;
 class Semaphore;
-
-struct Error;
 }

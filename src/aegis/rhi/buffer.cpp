@@ -8,10 +8,10 @@ import std;
 import aegis.core;
 import :buffer;
 import :debug;
-import :error;
 import :memory;
 import :vulkan_conversions;
 
+import aegis.rhi.types;
 namespace aegis::rhi
 {
 auto Buffer::write(const std::byte* src, std::size_t size, std::size_t offset) const -> void

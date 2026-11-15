@@ -3,9 +3,9 @@ import std;
 import :command_pool;
 import :device;
 import :debug;
-import :error;
 import :vulkan_conversions;
 import vulkan;
+import aegis.rhi.types;
 
 namespace aegis::rhi
 {

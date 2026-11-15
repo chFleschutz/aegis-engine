@@ -5,7 +5,7 @@ module aegis.rhi;
 import std;
 import :image;
 import :debug;
-import :error;
+import aegis.rhi.types;
 import aegis.core;
 import :vulkan_conversions;
 import vulkan;
