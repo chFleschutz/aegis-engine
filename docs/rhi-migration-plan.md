@@ -575,8 +575,8 @@ by eye: textures, point lights, bloom, the sky box and the editor UI all render.
   `renderer::Renderer`, the default assets, `render_graph::Ibl`, the draw batch registry and the frame
   graph. Examples load through `Engine::loadModel`, `loadEnvironment`, `loadTexture` and `createMaterial`
   instead of calling the asset loaders with a device. These helpers log, assert and return an empty
-  value on failure (examples have no error path). `Engine::ENABLE_GPU_DRIVEN_RENDERING` chooses the
-  geometry path.
+  value on failure (examples have no error path). `AppDesc::gpuDriven` (where the device has mesh shaders)
+  chooses the geometry path.
 - **Default graph.** `render_graph::addDefaultPasses(FrameGraph&, DefaultPassesDesc)` builds the pass
   list shared by the engine and `aegis-test`: scene update, CPU- or GPU-driven geometry, lighting, sky
   box, transparent (point lights), bloom, post-processing, the optional UI pass and present.

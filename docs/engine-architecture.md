@@ -44,7 +44,6 @@ at the top.
 
 These are all constants:
 
-- `Engine::ENABLE_GPU_DRIVEN_RENDERING`
 - `core::DEFAULT_WIDTH` / `DEFAULT_HEIGHT`
 - `core::ENABLE_FPS_LIMIT`
 - the window title
