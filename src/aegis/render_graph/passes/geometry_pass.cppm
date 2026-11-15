@@ -39,6 +39,8 @@ public:
         return ref;
     }
 
+    [[nodiscard]] auto renderSystems() const noexcept -> std::span<const std::unique_ptr<RenderSystem>> { return m_renderSystems; }
+
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     [[nodiscard]] auto prepare(ResourcePool& pool, const FrameScene& frameScene) -> std::expected<void, Error> override;

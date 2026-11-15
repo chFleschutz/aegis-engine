@@ -6,6 +6,7 @@ module;
 module aegis.test;
 
 import std;
+import aegis.assets;
 import aegis.engine;
 import aegis.render_graph;
 import aegis.render_passes;
@@ -48,6 +49,28 @@ auto writtenStatic(const render_graph::FrameGraph& frameGraph) -> std::optional<
             return instances->staticCount();
     }
     return std::nullopt;
+}
+
+// Whether the geometry pass of 'frameGraph' holds the G-buffer pipeline of 'variant': GpuDrivenGeometryPass on the
+// GPU-driven path, GeometryPass's StaticMeshRenderSystem (counter-clockwise front faces) on the CPU-driven one.
+auto hasGeometryPipeline(const render_graph::FrameGraph& frameGraph, const assets::MaterialVariant& variant) -> bool
+{
+    using render_graph::GeometryPath;
+    using render_graph::Technique;
+    for (const auto* pass : frameGraph.passes())
+    {
+        if (const auto* gpuDriven = dynamic_cast<const render_graph::GpuDrivenGeometryPass*>(pass))
+            return gpuDriven->pipelines().contains({ .technique = Technique::GBuffer, .variant = variant, .path = GeometryPath::GpuDriven });
+        if (const auto* geometry = dynamic_cast<const render_graph::GeometryPass*>(pass))
+        {
+            for (const auto& system : geometry->renderSystems())
+            {
+                if (const auto* meshes = dynamic_cast<const render_graph::StaticMeshRenderSystem*>(system.get()))
+                    return meshes->pipelines().contains({ .technique = Technique::GBuffer, .variant = variant, .path = GeometryPath::CpuDriven });
+            }
+        }
+    }
+    return false;
 }
 
 // Destroys 'root' and its descendants.
@@ -217,14 +240,17 @@ private:
 
     // --mutate-scene: changes the scene the way an editor or gameplay code would, while frames are in
     // flight, and checks that the GPU-driven path follows. Called once per frame at the safe point.
-    // Frame 30 loads a second model, 60 destroys the first one, 90 edits the second one's materials.
-    // The frame after each change, the instance pass must have written as many static instances as
-    // the scene holds. The last frame (--screenshot) shows the second model only, in red.
+    // Frame 30 loads a second model, 60 destroys the first one, 90 edits the second one's materials and
+    // 120 sets them to cull nothing. The frame after each of the first two, the instance pass must have
+    // written as many static instances as the scene holds; after the last, the materials' instances must be
+    // in their new variant's batch, with a pipeline for it. The last frame (--screenshot) shows the second
+    // model only, in red.
     auto mutateScene(FrameContext& frame) -> std::expected<void, std::string>
     {
         constexpr std::uint32_t loadFrame{ 30 };
         constexpr std::uint32_t destroyFrame{ 60 };
         constexpr std::uint32_t editFrame{ 90 };
+        constexpr std::uint32_t cullFrame{ 120 };
         auto& registry = frame.world.registry();
 
         // The frame after a change: the instances written for it match the scene.
@@ -272,6 +298,55 @@ private:
             if (edited == 0)
                 return std::unexpected{ "no material to edit" };
         }
+        else if (m_frame == cullFrame)
+        {
+            m_culled.clear();
+            for (auto&& [entity, renderer] : registry.view<MeshRenderer>().each())
+            {
+                if (!renderer.material || std::ranges::contains(m_culled, renderer.material.shared()))
+                    continue;
+                renderer.material->setCullMode(rhi::CullMode::None);
+                m_culled.push_back(renderer.material.shared());
+            }
+            if (m_culled.empty())
+                return std::unexpected{ "no material to set to cull nothing" };
+        }
+        else if (m_frame == cullFrame + 1)
+        {
+            return verifyCulled(frame);
+        }
+        return {};
+    }
+
+    // The frame after the materials were set to cull nothing: every instance of each is in the batch of its new
+    // variant, and the geometry pass created that variant's pipeline.
+    auto verifyCulled(const FrameContext& frame) const -> std::expected<void, std::string>
+    {
+        std::uint32_t moved{ 0 };
+        for (const auto& material : m_culled)
+        {
+            const auto variant = material->variant();
+            const auto batch = frame.instances.batchId(variant);
+            if (!batch)
+                return std::unexpected{ "a material set to cull nothing has no batch for its variant" };
+            for (const auto instances : { frame.instances.staticInstances(), frame.instances.dynamicInstances() })
+            {
+                for (const auto& instance : instances)
+                {
+                    if (instance.material != material)
+                        continue;
+                    if (instance.drawBatch != *batch)
+                        return std::unexpected{ std::format("an instance of a material set to cull nothing is in batch {}, its variant's is {}", instance.drawBatch, *batch) };
+                    ++moved;
+                }
+            }
+            if (!hasGeometryPipeline(frame.frameGraph, variant))
+                return std::unexpected{ "the geometry pass has no pipeline for a material set to cull nothing" };
+        }
+        if (moved == 0)
+            return std::unexpected{ "no instance uses a material set to cull nothing" };
+        std::println("Variant change verified: {} material(s) set to cull nothing, {} instance(s) in their new batches, drawn with their pipelines",
+            m_culled.size(), moved);
         return {};
     }
 
@@ -331,12 +406,13 @@ private:
     SceneResult& m_result;
     Engine* m_engine{ nullptr };
     world::World* m_world{ nullptr };
-    std::uint32_t m_frame{ 0 };        // Frames begun so far
-    world::Entity m_helmet;            // The holder of the model instance the scene file holds
-    world::Entity m_addedModel;        // --mutate-scene: the holder of the model instance loaded later
-    world::Entity m_viewCamera;        // --view: the camera the view renders through, not the main one
-    std::uint32_t m_staticDrawn{ 0 };  // --mutate-scene: drawable static entities before the last change
-    world::World* m_second{ nullptr }; // --worlds: the second world, from the same scene file
+    std::uint32_t m_frame{ 0 };                              // Frames begun so far
+    world::Entity m_helmet;                                  // The holder of the model instance the scene file holds
+    world::Entity m_addedModel;                              // --mutate-scene: the holder of the model instance loaded later
+    world::Entity m_viewCamera;                              // --view: the camera the view renders through, not the main one
+    std::uint32_t m_staticDrawn{ 0 };                        // --mutate-scene: drawable static entities before the last change
+    std::vector<std::shared_ptr<assets::Material>> m_culled; // --mutate-scene: the materials set to cull nothing
+    world::World* m_second{ nullptr };                       // --worlds: the second world, from the same scene file
 };
 
 // Headless: the last frame, as the engine saved it, is drawn (not one flat color), has the size it should have and,
