@@ -10,8 +10,10 @@
 # alternates): nothing is downloaded or copied, and the worktree's git data stays around 1 MB. The
 # submodules check out in parallel. Submodules already checked out are left alone, so a second run
 # does nothing. In the main checkout itself, for a submodule the main checkout lacks, and for one
-# whose copy there is shallow (`shallow = true` in .gitmodules: git takes no shallow repository as a
-# reference), it falls back to a normal clone, at the depth .gitmodules recommends.
+# whose copy there is shallow (git takes no shallow repository as a reference), it falls back to a
+# normal clone, at the depth .gitmodules recommends. Shallow copies are zstd's (`shallow = true` in
+# .gitmodules) and, in a main checkout cloned before #327, the samples': run
+# `git -C samples fetch --unshallow` there once, so worktrees share them.
 #
 # The worktree's submodules depend on the main checkout's submodule object stores. To make one
 # self-contained: `git -C <path> repack -a -d`, then delete objects/info/alternates in its git dir.

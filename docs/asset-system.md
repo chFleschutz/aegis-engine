@@ -138,10 +138,13 @@ repository should stay small, and is checked out as the submodule `samples/`. It
   the layout and the subproject integration from outside the engine tree.
 - **Sidecars are committed** in the sample repository, as in any project. IDs are random, so a
   sidecar that isn't committed gets a new ID on every clone, and scenes reference assets by ID.
-- **Opt-in.** `.gitmodules` sets `update = none` and `shallow = true` for it:
+- **Opt-in.** `.gitmodules` sets `update = none` for it:
   `git clone --recurse-submodules` fetches the libraries but not the samples, and
-  `git submodule update --init --checkout samples` fetches them, the pinned commit only. The
-  submodule pin still ties every engine commit to the sample commit it was tested with.
+  `git submodule update --init --checkout samples` fetches them. The submodule pin ties every
+  engine commit to the sample commit it was tested with.
+- **Full history, not shallow** (#327): it is barely larger than the pinned commit alone (86.5
+  against 86.1 MiB in November 2026), and a shallow copy can't be a `--reference` for worktrees and
+  answers history questions (`git merge-base --is-ancestor <pointer> origin/main`) wrongly.
 - **The engine never needs it.** The libraries, engine content and unit tests build and pass
   without it. CMake builds the examples and registers the device tests that load sample assets only
   when the samples are checked out and the engine is the top-level project; otherwise it prints how
