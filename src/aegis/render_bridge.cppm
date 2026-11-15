@@ -44,8 +44,9 @@ public:
     /// @brief Stops following the registry, removes its RenderInstance components and empties the store.
     auto disconnect() -> void;
 
-    /// @brief Brings the store up to date with the world, after its update: every dynamic instance, and the static
-    ///        ones if the static version changed. A renderer is drawn while it has a mesh and a material.
+    /// @brief Brings the store up to date with the world, after its update: every dynamic instance, the static
+    ///        ones if the static version changed, and the batches of materials whose variant changed (static
+    ///        instances included). A renderer is drawn while it has a mesh and a material.
     auto sync() -> void;
 
 private:
@@ -62,6 +63,7 @@ private:
     render_graph::InstanceStore& m_store;
     world::Registry* m_registry{ nullptr };
     std::optional<std::uint64_t> m_syncedVersion; // The static version sync() last read the static entities at
+    bool m_variantsWarned{ false };               // A variant change could not be followed; logged once
 };
 
 /// @brief The FrameScene of a world whose transforms and camera matrices are current (after its update):

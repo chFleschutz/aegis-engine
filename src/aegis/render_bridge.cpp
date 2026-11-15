@@ -98,6 +98,12 @@ auto InstanceBridge::sync() -> void
     auto dynamics = m_registry->view<RenderInstance, MeshRenderer, GlobalTransform, DynamicTag>();
     for (auto&& [entity, instance, renderer, transform] : dynamics.each())
         refresh(entity, instance, renderer, transform, true);
+
+    if (auto synced = m_store.syncVariants(); !synced && !m_variantsWarned)
+    {
+        log::warn("InstanceBridge: a material is drawn with its old variant: {}", describe(synced.error()));
+        m_variantsWarned = true;
+    }
 }
 
 auto InstanceBridge::refresh(entt::entity entity, RenderInstance& instance, const MeshRenderer& renderer,
@@ -112,16 +118,17 @@ auto InstanceBridge::refresh(entt::entity entity, RenderInstance& instance, cons
     }
 
     const auto model = render_graph::detail::toModelRows(transform.matrix());
-    const auto& materialTemplate = renderer.material->materialTemplate();
     if (instance.id)
     {
-        // Most instances are the same as at the last sync: compare before copying the shared pointers.
+        // Most instances are the same as at the last sync: compare before copying the shared pointers. A material
+        // whose variant changed has had its instances moved already (InstanceStore::syncVariants).
         const auto& current = m_store.get(*instance.id);
         if (current.mesh.get() == renderer.mesh.get() && current.material.get() == renderer.material.get() &&
-            m_store.batches()[current.drawBatch].materialTemplate == materialTemplate &&
             render_graph::detail::sameModel(current.model, model))
             return;
     }
+
+    const auto variant = renderer.material->variant();
 
     render_graph::Instance drawn{
         .model = model,
@@ -131,9 +138,9 @@ auto InstanceBridge::refresh(entt::entity entity, RenderInstance& instance, cons
     std::expected<void, render_graph::Error> stored;
     if (instance.id)
     {
-        stored = m_store.update(*instance.id, std::move(drawn), materialTemplate);
+        stored = m_store.update(*instance.id, std::move(drawn), variant);
     }
-    else if (auto added = m_store.add(std::move(drawn), materialTemplate, dynamic))
+    else if (auto added = m_store.add(std::move(drawn), variant, dynamic))
     {
         instance.id = *added;
     }

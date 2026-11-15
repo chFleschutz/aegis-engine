@@ -274,7 +274,7 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
     for (const auto& batch : frameInfo.frameScene.instances.batches())
     {
         // The G-buffer holds opaque surfaces only, as on the CPU path (StaticMeshRenderSystem).
-        if (batch.instanceCount == 0 || batch.materialTemplate->type() != assets::MaterialType::Opaque ||
+        if (batch.instanceCount == 0 || batch.variant.materialTemplate->type() != assets::MaterialType::Opaque ||
             std::size_t{ batch.firstInstance } + batch.instanceCount > commandCapacity)
             continue;
         cmd.pushConstants(GpuDrivenGeometryConstants{

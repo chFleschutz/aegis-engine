@@ -52,7 +52,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
 
     const auto& batches = instances.batches();
     const auto draw = [&](const Instance& instance) {
-        if (!instance.mesh || !instance.material || batches[instance.drawBatch].materialTemplate->type() != m_type)
+        if (!instance.mesh || !instance.material || batches[instance.drawBatch].variant.materialTemplate->type() != m_type)
             return;
 
         const auto gpuTransform = detail::toGpuTransform(instance.model);

@@ -16,11 +16,11 @@ auto markDirty(DirtyRange& dirty, std::uint32_t position) -> void
 }
 }
 
-auto InstanceStore::add(Instance instance, const std::shared_ptr<const assets::MaterialTemplate>& materialTemplate,
-    bool dynamic) -> std::expected<InstanceId, Error>
+auto InstanceStore::add(Instance instance, const assets::MaterialVariant& variant, bool dynamic)
+    -> std::expected<InstanceId, Error>
 {
-    assert(materialTemplate && "An instance needs a material template");
-    auto batch = acquireBatch(materialTemplate);
+    assert(variant.materialTemplate && "An instance needs a material template");
+    auto batch = acquireBatch(variant);
     if (!batch)
         return std::unexpected{ batch.error() };
 
@@ -37,7 +37,7 @@ auto InstanceStore::add(Instance instance, const std::shared_ptr<const assets::M
 
     instance.drawBatch = *batch;
     ++m_batches[*batch].instanceCount;
-    addMaterial(instance.material);
+    addMaterial(instance.material, *batch);
     insert(id, std::move(instance), dynamic);
     updateOffsets();
     return id;
@@ -53,16 +53,16 @@ auto InstanceStore::remove(InstanceId id) -> void
     updateOffsets();
 }
 
-auto InstanceStore::update(InstanceId id, Instance instance,
-    const std::shared_ptr<const assets::MaterialTemplate>& materialTemplate) -> std::expected<void, Error>
+auto InstanceStore::update(InstanceId id, Instance instance, const assets::MaterialVariant& variant)
+    -> std::expected<void, Error>
 {
-    assert(materialTemplate && "An instance needs a material template");
+    assert(variant.materialTemplate && "An instance needs a material template");
     const auto [dynamic, position] = location(id);
     auto& current = set(dynamic).instances[position];
 
-    if (materialTemplate != m_batches[current.drawBatch].materialTemplate)
+    if (variant != m_batches[current.drawBatch].variant)
     {
-        auto batch = acquireBatch(materialTemplate);
+        auto batch = acquireBatch(variant);
         if (!batch)
             return std::unexpected{ batch.error() };
         --m_batches[current.drawBatch].instanceCount;
@@ -73,10 +73,14 @@ auto InstanceStore::update(InstanceId id, Instance instance,
     }
     if (instance.material != current.material)
     {
-        addMaterial(instance.material);
+        addMaterial(instance.material, current.drawBatch);
         removeMaterial(current.material.get());
         current.material = std::move(instance.material);
         markDirty(set(dynamic).dirty, position);
+    }
+    else if (current.material)
+    {
+        m_materialUses.at(current.material.get()).batch = current.drawBatch;
     }
     if (instance.mesh != current.mesh)
     {
@@ -89,6 +93,30 @@ auto InstanceStore::update(InstanceId id, Instance instance,
         markDirty(set(dynamic).dirty, position);
     }
     return {};
+}
+
+auto InstanceStore::syncVariants() -> std::expected<void, Error>
+{
+    std::expected<void, Error> result;
+    for (const auto& material : m_materials)
+    {
+        auto& use = m_materialUses.at(material.get());
+        const auto& batched = m_batches[use.batch].variant;
+        if (material->materialTemplate() == batched.materialTemplate && material->alphaMode() == batched.alphaMode &&
+            material->cullMode() == batched.cullMode)
+            continue;
+
+        auto batch = acquireBatch(material->variant());
+        if (!batch)
+        {
+            if (result)
+                result = std::unexpected{ batch.error() };
+            continue;
+        }
+        moveMaterial(material.get(), *batch);
+        use.batch = *batch;
+    }
+    return result;
 }
 
 auto InstanceStore::setDynamic(InstanceId id, bool dynamic) -> void
@@ -138,9 +166,9 @@ auto InstanceStore::markAllDirty() noexcept -> void
     m_dynamic.dirty = DirtyRange::all();
 }
 
-auto InstanceStore::batchId(const assets::MaterialTemplate& materialTemplate) const -> std::optional<std::uint32_t>
+auto InstanceStore::batchId(const assets::MaterialVariant& variant) const -> std::optional<std::uint32_t>
 {
-    const auto found = m_batchIds.find(&materialTemplate);
+    const auto found = m_batchIds.find(variant);
     return found != m_batchIds.end() ? std::optional{ found->second } : std::nullopt;
 }
 
@@ -150,28 +178,48 @@ auto InstanceStore::location(InstanceId id) const -> const Location&
     return *m_locations[id.index];
 }
 
-auto InstanceStore::acquireBatch(const std::shared_ptr<const assets::MaterialTemplate>& materialTemplate)
-    -> std::expected<std::uint32_t, Error>
+auto InstanceStore::acquireBatch(const assets::MaterialVariant& variant) -> std::expected<std::uint32_t, Error>
 {
-    if (const auto found = batchId(*materialTemplate))
+    if (const auto found = batchId(variant))
         return *found;
     if (m_batches.size() >= maxDrawBatches)
-        return makeError(ErrorCode::LimitExceeded, std::format("Too many material templates: at most {} draw batches", maxDrawBatches));
+        return makeError(ErrorCode::LimitExceeded, std::format("Too many material variants: at most {} draw batches", maxDrawBatches));
 
     const auto id = static_cast<std::uint32_t>(m_batches.size());
-    m_batchIds.emplace(materialTemplate.get(), id);
-    m_batches.push_back({ .id = id, .firstInstance = 0, .instanceCount = 0, .materialTemplate = materialTemplate });
+    m_batchIds.emplace(variant, id);
+    m_batches.push_back({ .id = id, .firstInstance = 0, .instanceCount = 0, .variant = variant });
     return id;
 }
 
-auto InstanceStore::addMaterial(const std::shared_ptr<assets::Material>& material) -> void
+auto InstanceStore::addMaterial(const std::shared_ptr<assets::Material>& material, std::uint32_t batch) -> void
 {
     if (!material)
         return;
-    const auto [use, inserted] = m_materialUses.try_emplace(material.get(), MaterialUse{ static_cast<std::uint32_t>(m_materials.size()), 0 });
+    const auto [use, inserted] = m_materialUses.try_emplace(material.get(),
+        MaterialUse{ .index = static_cast<std::uint32_t>(m_materials.size()), .count = 0, .batch = batch });
     if (inserted)
         m_materials.push_back(material);
     ++use->second.count;
+    use->second.batch = batch;
+}
+
+auto InstanceStore::moveMaterial(const assets::Material* material, std::uint32_t batch) -> void
+{
+    for (const bool dynamic : { false, true })
+    {
+        auto& source = set(dynamic);
+        for (std::uint32_t position = 0; position < source.instances.size(); ++position)
+        {
+            auto& instance = source.instances[position];
+            if (instance.material.get() != material || instance.drawBatch == batch)
+                continue;
+            --m_batches[instance.drawBatch].instanceCount;
+            ++m_batches[batch].instanceCount;
+            instance.drawBatch = batch;
+            markDirty(source.dirty, position);
+        }
+    }
+    updateOffsets();
 }
 
 auto InstanceStore::removeMaterial(const assets::Material* material) -> void
