@@ -22,11 +22,6 @@ PRIVATE
 	systems/transform_system.cpp
 )
 
-# TODO: remove this once everything is a module
-target_include_directories(aegis-world PRIVATE
-	${CMAKE_CURRENT_SOURCE_DIR}/..
-)
-
 # PUBLIC: the module interfaces import aegis.math, render_components imports aegis.assets,
 # types imports aegis.reflect, world imports aegis.core (its clock), and they export EnTT's names.
 target_link_libraries(aegis-world

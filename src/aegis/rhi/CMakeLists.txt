@@ -47,7 +47,7 @@ target_compile_definitions(vulkan-module
 #############
 # RHI library
 
-add_library(aegis-rhi)
+add_library(aegis-rhi STATIC)
 
 target_link_libraries(aegis-rhi
     PUBLIC

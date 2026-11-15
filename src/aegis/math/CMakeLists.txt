@@ -12,8 +12,3 @@ PUBLIC
 	FILES
 		math.cppm
 )
-
-# TODO: remove this once everything is a module
-target_include_directories(aegis-math PRIVATE
-	${CMAKE_CURRENT_SOURCE_DIR}/..
-)
