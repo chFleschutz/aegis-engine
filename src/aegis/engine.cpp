@@ -349,6 +349,17 @@ void Engine::resetWorld()
     m_worlds.reset(world());
 }
 
+auto buildFrameGraph(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc, const GraphBuild& game,
+    Shell& shell) -> void
+{
+    if (game)
+        game(graph, desc);
+    else
+        render_graph::addScenePasses(graph, desc);
+    shell.buildGraph(graph, desc);
+    render_graph::addOutputPasses(graph, desc);
+}
+
 void Engine::setShell(std::unique_ptr<Shell> shell)
 {
     m_shell = shell ? std::move(shell) : std::make_unique<GameShell>();
@@ -381,8 +392,6 @@ auto Engine::initialize() -> std::expected<void, EngineError>
     if (auto created = createAssets(); !created)
         return created;
     m_mainWorld = &createWorld(); // After the input, which its scripts read
-    if (auto created = createFrameGraph(); !created)
-        return created;
 
     log::info("Engine Initialized!");
     log::info("Using {} Driven Rendering{}", useGpuDrivenRendering() ? "GPU" : "CPU", m_desc.headless ? " (headless)" : "");
@@ -431,6 +440,12 @@ auto Engine::run() -> int
             return exitUsage;
         }
         log::fatal("The shell failed to start: {}", describe(started.error()));
+        return exitFailure;
+    }
+    // Once the game's passes (setGraphBuild) and the shell, with its options, are known.
+    if (auto created = createFrameGraph(); !created)
+    {
+        log::fatal("{}", describe(created.error()));
         return exitFailure;
     }
 
@@ -623,13 +638,14 @@ auto Engine::createFrameGraph(std::optional<rhi::Extent2D> view) -> std::expecte
     }
     m_viewExtent = view;
     m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, view.value_or(m_renderer->extent()));
-    aegis::render_graph::addDefaultPasses(*m_frameGraph,
+    buildFrameGraph(*m_frameGraph,
         {
             .gpuDriven = useGpuDrivenRendering(),
             .ui = true, // The shell's UI, empty for a game; headless too, for screenshots of it
             .context = m_context.get(),
             .view = view ? std::optional{ DefaultPassesDesc::View{ .targetFormat = m_renderer->targetFormat() } } : std::nullopt,
-        });
+        },
+        m_graphBuild, *m_shell);
     if (auto compiled = m_frameGraph->compile(); !compiled)
         return std::unexpected{ makeError(EngineErrorCode::FrameGraphFailed, std::format("Failed to compile the frame graph: {}", describe(compiled.error()))) };
     return {};

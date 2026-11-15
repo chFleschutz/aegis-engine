@@ -23,6 +23,7 @@ export import aegis.assets;
 import aegis.platform;
 import aegis.render_bridge;
 import aegis.render_graph;
+import aegis.render_passes;
 import aegis.renderer;
 import aegis.rhi;
 
@@ -197,6 +198,11 @@ struct GameModule
     /// @brief Runs once the engine is created and the types are registered, e.g. to load the first scene;
     ///        null for none.
     auto (*onStartup)(Engine& engine) -> std::expected<void, EngineError>{ nullptr };
+    /// @brief Declares the passes that render the scene into "Final"; null for the engine's
+    ///        (render_graph::addScenePasses). A game adds its passes around those (calling addScenePasses itself) or
+    ///        replaces them; the shell's passes and the output passes (UI, present) follow (buildFrameGraph). Runs on
+    ///        every rebuild of the frame graph: it only declares passes and keeps no state.
+    auto (*buildGraph)(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc) -> void{ nullptr };
 };
 
 /// @brief Which input a shell keeps from the game this frame (its UI has it).
@@ -266,7 +272,8 @@ public:
     auto operator=(const Shell&) -> Shell& = delete;
     auto operator=(Shell&&) -> Shell& = delete;
 
-    /// @brief Runs once Engine::run starts: after the project, the game's types and its startup scene have loaded. Reads
+    /// @brief Runs once Engine::run starts: after the project, the game's types and its startup scene have loaded, and
+    ///        before the frame graph is built (buildGraph). Reads
     ///        the shell's options (AppDesc::shellOptions); EngineErrorCode::InvalidArguments for an unknown or malformed one
     ///        makes run() return exitUsage.
     virtual auto onStartup(Engine& engine) -> std::expected<void, EngineError> { return {}; }
@@ -285,6 +292,10 @@ public:
     ///        so the graph's textures the UI shows stay valid until they are drawn. Keep the extent steady while a
     ///        panel is being dragged.
     [[nodiscard]] virtual auto renderView() const -> std::optional<RenderView> { return std::nullopt; }
+    /// @brief Declares the shell's passes, after the game's (GameModule::buildGraph) and before the output passes (UI,
+    ///        present), so they can draw onto "Final", such as the editor's overlays. None by default. Runs on every
+    ///        rebuild of the frame graph (a view appearing or going): it only declares passes and keeps no state.
+    virtual void buildGraph(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc) {}
     /// @brief Runs before the engine tears down, while the world, the frame graph and ImGui still exist.
     virtual void onShutdown() {}
 };
@@ -298,6 +309,14 @@ public:
     void onFrame(FrameContext& frame) override { frame.update(frame.world, world::UpdateMode::Play); }
 };
 
+/// @brief Declares the passes that render the scene, in place of the engine's (GameModule::buildGraph).
+using GraphBuild = std::function<void(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc)>;
+
+/// @brief Declares the frame graph's passes in the engine's order: the game's ('game', or render_graph::addScenePasses
+///        if it is empty), the shell's (Shell::buildGraph), then the output passes (render_graph::addOutputPasses).
+auto buildFrameGraph(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc, const GraphBuild& game,
+    Shell& shell) -> void;
+
 /// @brief parseArgs plus Engine::create for a 'main': a failure is logged and comes back as the exit code
 ///        to return (exitUsage for a bad command line, exitFailure when the engine can't start). The shell's options
 ///        are left to the shell's onStartup.
@@ -308,7 +327,7 @@ class Engine
 public:
     static constexpr std::uint32_t FRAMES_IN_FLIGHT{ aegis::renderer::Renderer::maxFramesInFlight };
 
-    /// @brief Creates the window (unless headless), the device, renderer, assets and frame graph.
+    /// @brief Creates the window (unless headless), the device, renderer and assets. The frame graph follows in run().
     [[nodiscard]] static auto create(const AppDesc& desc = {}) -> std::expected<std::unique_ptr<Engine>, EngineError>;
 
     Engine(const Engine&) = delete;
@@ -325,9 +344,10 @@ public:
     ///        components (world::registerComponent) and scripts (scripting::registerScript) here before loadScene.
     [[nodiscard]] auto types() -> reflect::TypeRegistry& { return m_types; }
 
-    /// @brief Runs until the window closes or AppDesc::frames have rendered.
-    /// @return An exit code for main: exitSuccess, or exitFailure after a failed frame, a failed screenshot
-    ///         or a validation error. The cause is logged.
+    /// @brief Starts the shell, builds the frame graph (buildFrameGraph) and runs until the window closes or
+    ///        AppDesc::frames have rendered.
+    /// @return An exit code for main: exitSuccess, or exitFailure after a frame graph that fails to compile, a failed
+    ///         frame, a failed screenshot or a validation error. The cause is logged.
     [[nodiscard]] auto run() -> int;
 
     /// @brief Finds assets by path and loads them by ID.
@@ -351,6 +371,10 @@ public:
     ///        there are and to each new one, and again to each one a scene loads into. Set it once, before the first
     ///        scene loads; the launcher sets GameModule::setupWorld.
     void setWorldSetup(std::function<void(world::World& world)> setup);
+
+    /// @brief Replaces the passes that render the scene with the game's (see GameModule::buildGraph, which the
+    ///        launcher sets); empty for the engine's. Set it before run(), which builds the frame graph.
+    void setGraphBuild(GraphBuild build) { m_graphBuild = std::move(build); }
 
     /// @brief Replaces the main world's entities with a scene from a description. It begins with its next update.
     /// @tparam T Description of the scene (Derived from SceneDescription)
@@ -459,6 +483,7 @@ private:
     reflect::TypeRegistry m_types;
     core::FrameClock m_clock{ core::FrameClock::clamped(MAX_FRAME_DELTA_SEC) }; // The UI's; each world has its own
     std::function<void(world::World&)> m_worldSetup;                            // The game's systems
+    GraphBuild m_graphBuild;                                                    // The game's scene passes; empty for the engine's
     // Their instances hold meshes and materials: they go before the device.
     Worlds m_worlds{ [this](world::World& world) { setUpWorld(world); } };
     world::World* m_mainWorld{ nullptr };          // The first of m_worlds
