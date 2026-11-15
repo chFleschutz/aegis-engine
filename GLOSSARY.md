@@ -48,6 +48,14 @@ _Avoid_: invalidated, reset
 
 ### Rendering
 
+**Material template**:
+The parameters a kind of material has, with their defaults, and the surface shader that reads them.
+_Avoid_: material type, shader template
+
+**Material**:
+A material template's parameter values, which meshes draw with.
+_Avoid_: material instance
+
 **Material variant**:
 What decides how a material draws: its template, alpha mode and cull mode. Materials of one variant draw with the same pipelines.
 _Avoid_: material permutation, material kind
@@ -63,6 +71,14 @@ _Avoid_: render mode, shader pass
 **Pipeline key**:
 Everything that picks one pipeline for a draw batch: the technique, the material variant, the geometry path and the front face.
 _Avoid_: pipeline id, pipeline hash
+
+**Surface shader**:
+A material template's shader code: it turns a material's parameters into the properties of a surface (albedo, normal, ARM, emissive, alpha), and every technique calls it.
+_Avoid_: material shader
+
+**Shading model**:
+How the lighting pass shades a G-buffer pixel: lit or unlit.
+_Avoid_: lighting model
 
 ### World
 
