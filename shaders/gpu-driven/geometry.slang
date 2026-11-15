@@ -1,11 +1,12 @@
-import modules.bindless;
 import modules.common;
 import modules.indirect_draw;
 import modules.meshlet_cull;
-import modules.tbn;
+import modules.surface;
+import SURFACE_MODULE;
 
-// GPU-driven G-buffer pass, mesh and fragment stages: the mesh shader emits the meshlets task.slang
-// kept (one task group per 32 meshlets of a visible instance).
+// GPU-driven G-buffer technique, mesh and fragment stages: the mesh shader emits the meshlets task.slang
+// kept (one task group per 32 meshlets of a visible instance). Built once per surface shader, which
+// SURFACE_MODULE names (see modules/surface.slang).
 
 static const uint MESH_GROUP_SIZE = 32;
 
@@ -63,22 +64,13 @@ func meshMain(
 [shader("fragment")]
 func fragmentMain(MSOut input, out common::GBuffer output)
 {
-    let material = push.getInstance(input.instanceID).material;
+    let material = (Surface.Params*)push.getInstance(input.instanceID).material;
 
-    float3 albedo = material->albedoMap.sample(input.uv).rgb * material->albedo;
-    float3 normal = material->normalMap.sample(input.uv).rgb * 2.0 - 1.0;
-    float3 emissive = material->emissiveMap.sample(input.uv).rgb * material->emissive;
-    float2 metallicRoughness = material->metalRoughnessMap.sample(input.uv).bg;
-    float metallic = metallicRoughness.r * material->metallic;
-    float roughness = metallicRoughness.g * material->roughness;
-    float ao = material->ambientOcclusionMap.sample(input.uv).r * material->ambientOcclusion;
+    SurfaceInput surfaceInput;
+    surfaceInput.uv = input.uv;
+    surfaceInput.worldPosition = input.worldPosition;
+    surfaceInput.worldNormal = input.worldNormal;
 
-    let tbn = TBN::calcMatrix(input.worldPosition, input.worldNormal, input.uv);
-    float3 N = normalize(length(normal) < 0.1 ? input.worldNormal : mul(normal, tbn));
-
-    output.position = float4(input.worldPosition, 1.0);
-    output.normal = float4(N, 0.0);
-    output.albedo = float4(albedo, 1.0);
-    output.arm = float4(ao, roughness, metallic, 0.0);
-    output.emissive = float4(emissive, 1.0);
+    let surface = Surface.evaluate(material, surfaceInput);
+    output = toGBuffer(surfaceInput, surface, Surface.shadingModel());
 }

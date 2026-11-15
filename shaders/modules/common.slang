@@ -102,21 +102,6 @@ namespace common
         }
     }
 
-    /// The default PBR material's parameter block (assets::DefaultAssets::pbrTemplate, in order).
-    public struct PbrMaterial
-    {
-        public float3 albedo;
-        public float3 emissive;
-        public float metallic;
-        public float roughness;
-        public float ambientOcclusion;
-        public bindless::TextureDescriptor albedoMap;
-        public bindless::TextureDescriptor normalMap;
-        public bindless::TextureDescriptor metalRoughnessMap;
-        public bindless::TextureDescriptor ambientOcclusionMap;
-        public bindless::TextureDescriptor emissiveMap;
-    }
-
     public struct GBuffer
     {
         [vk::location(0)] public float4 position;

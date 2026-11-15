@@ -69,8 +69,9 @@ func main(uint3 dispatchThreadID: SV_DispatchThreadID)
     float3 position = bindless::storage2D(push.position)[pixel].xyz;
     float3 normal = bindless::storage2D(push.normal)[pixel].xyz;
     float3 albedo = bindless::storage2D(push.albedo)[pixel].xyz;
-    float3 arm = bindless::storage2D(push.arm)[pixel].xyz;
+    float4 arm = bindless::storage2D(push.arm)[pixel];
     float3 emissive = bindless::storage2D(push.emissive)[pixel].xyz;
+    bool unlit = arm.w > 0.5; // The shading model (modules/surface.slang): 0 lit, 1 unlit
 
     // The AO factor fades the material's ambient occlusion: 0 turns it off, 1 (default) applies it fully
     float ao = lerp(1.0, arm.x, lighting->ambientOcclusionFactor);
@@ -87,37 +88,44 @@ func main(uint3 dispatchThreadID: SV_DispatchThreadID)
     float3 F0 = lerp(float3(PBR::F_DIELECTRIC), albedo, metallic);
 
     float3 Lo = emissive * EMISSIVE_INTENSITY;
-
-    // Ambient Light
+    if (unlit)
     {
-        float3 F = PBR::specularReflection(NdotV, F0, roughness);
-        float3 kS = F;
-        float3 kD = (1.0 - kS) * (1.0 - metallic);
-
-        float3 diffuse = albedo * push.irradiance.sampleCubeLevel(N, 0).rgb;
-
-        float3 prefilter = push.prefiltered.sampleCubeLevel(R, roughness * MAX_REFLECTION_LOD).rgb;
-        float2 brdf = push.brdfLut.sampleLevel(float2(NdotV, roughness), 0).rg;
-        float3 specular = prefilter * (kS * brdf.x + brdf.y);
-
-        float3 ambient = (kD * diffuse + specular) * ao;
-        Lo += ambient * lighting->ambient.color.rgb * lighting->ambient.color.w;
+        // An unlit surface's colour is its emissive, as it is
+        Lo = emissive;
     }
-    // Directional Light
+    else
     {
-        float3 L = normalize(lighting->directional.direction.xyz);
-        float3 radiance = lighting->directional.color.rgb * lighting->directional.color.w;
-        Lo += PBR::computeLighting(N, V, L, albedo, roughness, metallic, radiance, F0);
-    }
-    // Point Lights
-    for (int i = 0; i < lighting->pointLightCount; i++)
-    {
-        PointLight light = lighting->pointLights[i];
-        float3 L = normalize(light.position.xyz - position);
+        // Ambient Light
+        {
+            float3 F = PBR::specularReflection(NdotV, F0, roughness);
+            float3 kS = F;
+            float3 kD = (1.0 - kS) * (1.0 - metallic);
 
-        float attenuation = PBR::lightAttenuation(light.position.xyz, position);
-        float3 radiance = light.color.rgb * light.color.w * attenuation;
-        Lo += PBR::computeLighting(N, V, L, albedo, roughness, metallic, radiance, F0);
+            float3 diffuse = albedo * push.irradiance.sampleCubeLevel(N, 0).rgb;
+
+            float3 prefilter = push.prefiltered.sampleCubeLevel(R, roughness * MAX_REFLECTION_LOD).rgb;
+            float2 brdf = push.brdfLut.sampleLevel(float2(NdotV, roughness), 0).rg;
+            float3 specular = prefilter * (kS * brdf.x + brdf.y);
+
+            float3 ambient = (kD * diffuse + specular) * ao;
+            Lo += ambient * lighting->ambient.color.rgb * lighting->ambient.color.w;
+        }
+        // Directional Light
+        {
+            float3 L = normalize(lighting->directional.direction.xyz);
+            float3 radiance = lighting->directional.color.rgb * lighting->directional.color.w;
+            Lo += PBR::computeLighting(N, V, L, albedo, roughness, metallic, radiance, F0);
+        }
+        // Point Lights
+        for (int i = 0; i < lighting->pointLightCount; i++)
+        {
+            PointLight light = lighting->pointLights[i];
+            float3 L = normalize(light.position.xyz - position);
+
+            float attenuation = PBR::lightAttenuation(light.position.xyz, position);
+            float3 radiance = light.color.rgb * light.color.w * attenuation;
+            Lo += PBR::computeLighting(N, V, L, albedo, roughness, metallic, radiance, F0);
+        }
     }
 
     float3 color = max(Lo, 0.0);

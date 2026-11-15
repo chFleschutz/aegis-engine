@@ -21,9 +21,9 @@ auto cpuKey(const assets::MaterialVariant& variant, bool mirrored) -> PipelineKe
 }
 }
 
-StaticMeshRenderSystem::StaticMeshRenderSystem(assets::MaterialType type, std::string shader) :
+StaticMeshRenderSystem::StaticMeshRenderSystem(assets::MaterialType type, std::string technique) :
     m_type{ type },
-    m_shader{ std::move(shader) },
+    m_technique{ std::move(technique) },
     m_pipelines{ [this](const PipelineKey& key) { return createPipeline(key); } }
 {
 }
@@ -110,7 +110,7 @@ auto StaticMeshRenderSystem::createPipeline(const PipelineKey& key) const -> std
     auto attachments = m_colorAttachments;
     for (auto& attachment : attachments)
         attachment.blend = state.blend;
-    return createGraphicsPipeline(*m_device, m_shader,
+    return createGraphicsPipeline(*m_device, techniqueShader(m_technique, *key.variant.materialTemplate),
         rhi::Pipeline::GraphicsDesc{
             .name = key.frontFace == rhi::FrontFace::Clockwise ? "StaticMeshesMirrored" : "StaticMeshes",
             .colorAttachments = attachments,

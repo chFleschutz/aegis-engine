@@ -62,7 +62,7 @@ auto DefaultAssets::create(rhi::Device& device, std::uint32_t framesInFlight) ->
         slot = std::move(*texture);
     }
 
-    defaults.pbrTemplate = std::make_shared<MaterialTemplate>();
+    defaults.pbrTemplate = std::make_shared<MaterialTemplate>("pbr");
     if (auto added = detail::addPbrParameters(*defaults.pbrTemplate, defaults.white, defaults.normal); !added)
         return std::unexpected{ added.error() };
 

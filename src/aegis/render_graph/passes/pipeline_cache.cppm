@@ -69,6 +69,14 @@ struct PipelineState
     return { .cullMode = key.variant.cullMode, .frontFace = key.frontFace, .blend = blend };
 }
 
+/// @brief The SPIR-V file of 'technique' (its path in the shader folder, without .slang) built with the surface shader
+///        of 'materialTemplate' (aegis_add_shaders TECHNIQUES): "gpu-driven/geometry" and "unlit" give
+///        "gpu-driven/geometry.unlit.spv".
+[[nodiscard]] inline auto techniqueShader(std::string_view technique, const assets::MaterialTemplate& materialTemplate) -> std::string
+{
+    return std::format("{}.{}.spv", technique, materialTemplate.surface());
+}
+
 /// @brief Whether the G-buffer technique draws 'batch': it has instances, its template has MaterialType 'type',
 ///        and it does not blend (blending needs the forward technique).
 [[nodiscard]] inline auto drawsInGBuffer(const DrawBatch& batch, assets::MaterialType type = assets::MaterialType::Opaque)

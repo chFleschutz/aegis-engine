@@ -16,6 +16,7 @@ using aegis::render_graph::PipelineCache;
 using aegis::render_graph::PipelineKey;
 using aegis::render_graph::PipelineState;
 using aegis::render_graph::pipelineState;
+using aegis::render_graph::techniqueShader;
 using aegis::rhi::BlendMode;
 using aegis::rhi::CullMode;
 using aegis::rhi::FrontFace;
@@ -24,6 +25,15 @@ auto makeKey() -> PipelineKey
 {
     return { .variant = MaterialVariant{ .materialTemplate = std::make_shared<const MaterialTemplate>() } };
 }
+}
+
+TEST_SUITE("render_passes::techniqueShader")
+{
+    TEST_CASE("names the technique's file built with the template's surface shader")
+    {
+        CHECK(techniqueShader("gpu-driven/geometry", MaterialTemplate{ "unlit" }) == "gpu-driven/geometry.unlit.spv");
+        CHECK(techniqueShader("cpu-driven/geometry", MaterialTemplate{ "pbr" }) == "cpu-driven/geometry.pbr.spv");
+    }
 }
 
 TEST_SUITE("render_passes::pipelineState")

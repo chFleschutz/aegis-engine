@@ -11,12 +11,12 @@ export namespace aegis::render_graph
 {
 /// @brief Draws every instance of the frame's InstanceStore whose draw batch has one MaterialType,
 ///        one indexed draw each (the CPU-driven path), with its batch's pipeline for the G-buffer technique
-///        (mirrored instances with the clockwise one). Materials use the default PBR parameter block.
+///        (mirrored instances with the clockwise one), built for the batch template's surface shader.
 class StaticMeshRenderSystem : public RenderSystem
 {
 public:
     explicit StaticMeshRenderSystem(assets::MaterialType type = assets::MaterialType::Opaque,
-        std::string shader = "cpu-driven/geometry.slang.spv");
+        std::string technique = "cpu-driven/geometry");
 
     [[nodiscard]] auto createResources(rhi::Device& device, const RenderTargets& targets)
         -> std::expected<void, Error> override;
@@ -30,7 +30,7 @@ private:
     [[nodiscard]] auto createPipeline(const PipelineKey& key) const -> std::expected<rhi::Pipeline, Error>;
 
     assets::MaterialType m_type;
-    std::string m_shader;
+    std::string m_technique; // Its shader file without the surface shader's name (techniqueShader)
     rhi::Device* m_device{ nullptr };
     std::vector<rhi::Pipeline::ColorAttachment> m_colorAttachments;
     rhi::Format m_depthAttachment{ rhi::Format::Unknown };

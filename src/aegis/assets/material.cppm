@@ -26,12 +26,16 @@ struct MaterialParameter
     MaterialValue defaultValue;
 };
 
-/// @brief The parameters a kind of material has, their defaults and their block layout. Pipelines are
-///        not part of it: they belong to the render passes that draw the material (Phase 3).
+/// @brief The parameters a kind of material has, their defaults and their block layout, and the surface shader
+///        that reads them. Pipelines are not part of it: they belong to the render passes that draw the material,
+///        each with its technique built for the template's surface shader.
 class MaterialTemplate
 {
 public:
-    explicit MaterialTemplate(MaterialType type = MaterialType::Opaque) :
+    /// @param surface The surface shader's name: shaders/surfaces/<surface>.slang, which every technique is built
+    ///        with (<technique>.<surface>.spv).
+    explicit MaterialTemplate(std::string surface = {}, MaterialType type = MaterialType::Opaque) :
+        m_surface{ std::move(surface) },
         m_type{ type }
     {
     }
@@ -40,6 +44,7 @@ public:
     /// @return ErrorCode::InvalidArgument if 'name' exists or a texture default is null.
     [[nodiscard]] auto addParameter(const std::string& name, MaterialValue defaultValue) -> std::expected<void, Error>;
 
+    [[nodiscard]] auto surface() const noexcept -> const std::string& { return m_surface; }
     [[nodiscard]] auto type() const noexcept -> MaterialType { return m_type; }
     [[nodiscard]] auto parameterSize() const noexcept -> std::size_t { return m_parameterSize; }
     [[nodiscard]] auto hasParameter(const std::string& name) const -> bool { return m_parameters.contains(name); }
@@ -58,6 +63,7 @@ public:
     }
 
 private:
+    std::string m_surface;
     MaterialType m_type;
     std::unordered_map<std::string, MaterialParameter> m_parameters;
     std::size_t m_parameterSize{ 0 };

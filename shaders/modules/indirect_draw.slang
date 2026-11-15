@@ -19,7 +19,7 @@ namespace indirectDraw
         public float3 normalRow1;
         public float3 normalRow2;
         public common::Mesh* mesh;
-        public common::PbrMaterial* material;
+        public uint64_t material; // The material's parameter block, which a technique reads as Surface.Params*
         public uint drawBatch;
         public uint flags; // INSTANCE_* bits
 
