@@ -37,6 +37,11 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
             options.scene = true;
             options.mirror = true;
         }
+        else if (arg == "--unlit")
+        {
+            options.scene = true;
+            options.unlit = true;
+        }
         else if (arg == "--worlds")
         {
             options.scene = true;
@@ -95,7 +100,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::test::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--mutate-scene] [--mirror] [--view] [--worlds] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--gpu-driven] [--mutate-scene] [--mirror] [--unlit] [--view] [--worlds] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 
