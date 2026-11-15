@@ -10,8 +10,9 @@
 #       MODULES     <m.slang> ...)       # imported-only files; fallback dependencies, see AEGIS_SHADER_DEPFILES
 #
 # Creates the custom target <target>, which builds every .spv. Each one is compiled with the flags
-# below (one recipe, so no shader can silently differ) and then checked with spirv-val when the Vulkan
-# SDK ships it next to slangc. A shader that fails validation is deleted, so the next build redoes it.
+# below (one recipe, so no shader can silently differ; slangc warnings are errors) and then checked
+# with spirv-val when the Vulkan SDK ships it next to slangc. A shader that fails validation is
+# deleted, so the next build redoes it.
 # Outputs in OUTPUT_DIR that no longer belong to a source are removed at configure.
 #
 # Each (technique, surface shader) pair is compiled with -DSURFACE_MODULE=<the surface's module path, such as
@@ -114,7 +115,8 @@ function(_aegis_add_slang_command source spv comment)
             -fvk-use-entrypoint-name
             -matrix-layout-row-major
             -fvk-use-scalar-layout # C++-compatible packing for device-address reads (modules/README.md)
-            -warnings-disable 39001
+            -warnings-as-errors all # like the C++ build; a disabled warning stays disabled
+            -warnings-disable 39001 # binding overlap: the bindless arrays alias their bindings (modules/bindless.slang)
             $<$<CONFIG:Debug>:-O0> $<$<CONFIG:Release>:-O3>
             $<$<CONFIG:Debug>:-g>
         ${validate}

@@ -87,8 +87,8 @@ go to stderr), so verify RHI work with `aegis-test` first (see "Verifying device
 ### Shaders
 Shaders compile with `slangc` from the pinned SDK on every build of `aegis-engine` or
 `aegis-render-passes`, through `aegis_add_shaders` (`cmake/AegisShaders.cmake`), into
-`build/<preset>/shaders/<path>.slang.spv`. Each `.spv` is checked with `spirv-val`; invalid SPIR-V
-fails the build. Shader conventions: `shaders/modules/README.md`.
+`build/<preset>/shaders/<path>.slang.spv`. slangc warnings are errors, as in C++, and each `.spv` is
+checked with `spirv-val`; invalid SPIR-V fails the build. Shader conventions: `shaders/modules/README.md`.
 
 ### Assets and paths
 `aegis.paths` (`src/aegis/paths/`) is the one reader of the shader, content, project and cache
