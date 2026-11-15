@@ -103,6 +103,7 @@ target_sources(aegis-editor
     ui/editor.cppm
     ui/editor_shell.cppm
     ui/lucide.cppm
+    ui/options.cppm
     ui/panel.cppm
     ui/panels.cppm
     ui/theme.cppm
@@ -110,6 +111,7 @@ target_sources(aegis-editor
     PRIVATE
     ui/actions.cpp
     ui/editor_shell.cpp
+    ui/options.cpp
     ui/panels/about_panel.cpp
     ui/panels/all_entities_panel.cpp
     ui/panels/content_panel.cpp

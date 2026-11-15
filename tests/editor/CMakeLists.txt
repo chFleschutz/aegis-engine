@@ -26,3 +26,6 @@ aegis_add_test(editor
         undo_stack.test.cpp
     LIBS aegis-editor-core aegis-scripting
 )
+
+# The editor's ImGui layer (aegis.editor): only its pure parts, no ImGui context or device.
+aegis_add_test(editor-ui SOURCES options.test.cpp LIBS aegis-editor)

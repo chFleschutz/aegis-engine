@@ -59,49 +59,36 @@ auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, Engi
     {
         const std::string_view arg{ args[i] };
         const auto hasValue = i + 1 < args.size();
-        if (arg == "--headless")
+        const auto takesValue = arg == "--screenshot" || arg == "--project" || arg == "--scene" || arg == "--dump-asset" ||
+                                arg == "--frames" || arg == "--width" || arg == "--height";
+        if (takesValue && !hasValue)
+            return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("{} needs a value", arg)) };
+
+        if (arg == "--help")
+        {
+            desc.help = true;
+        }
+        else if (arg == "--headless")
         {
             desc.headless = true;
         }
-        else if (arg == "--screenshot" && hasValue)
+        else if (arg == "--screenshot")
         {
             desc.screenshot = args[++i];
         }
-        else if (arg == "--project" && hasValue)
+        else if (arg == "--project")
         {
             desc.project = args[++i]; // argv is in the native narrow encoding, as path expects
         }
-        else if (arg == "--scene" && hasValue)
+        else if (arg == "--scene")
         {
             desc.scene = args[++i];
         }
-        else if (arg == "--dump-asset" && hasValue)
+        else if (arg == "--dump-asset")
         {
             desc.dumpAsset = args[++i];
         }
-        else if (arg == "--editor-panels" && hasValue)
-        {
-            desc.editorPanels = args[++i];
-            if (desc.editorPanels != "all")
-                return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("--editor-panels takes 'all', got '{}'", desc.editorPanels)) };
-        }
-        else if (arg == "--editor-select" && hasValue)
-        {
-            desc.editorSelect = args[++i];
-        }
-        else if (arg == "--editor-play")
-        {
-            desc.editorPlay = true;
-        }
-        else if (arg == "--editor-full-viewport")
-        {
-            desc.editorFullViewport = true;
-        }
-        else if (arg == "--editor-fold")
-        {
-            desc.editorFold = true;
-        }
-        else if ((arg == "--frames" || arg == "--width" || arg == "--height") && hasValue)
+        else if (arg == "--frames" || arg == "--width" || arg == "--height")
         {
             const auto count = parseCount(arg, args[++i]);
             if (!count)
@@ -110,9 +97,16 @@ auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, Engi
                                                                               : desc.height;
             target = *count;
         }
+        else if (arg.starts_with("--") && arg.size() > 2)
+        {
+            // The shell's: it validates them in onStartup
+            auto& option = desc.shellOptions.emplace_back(ShellOption{ .name = std::string{ arg } });
+            if (hasValue && !std::string_view{ args[i + 1] }.starts_with("--"))
+                option.value = args[++i];
+        }
         else
         {
-            return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("Unknown or incomplete argument '{}'", arg)) };
+            return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("Unknown argument '{}'", arg)) };
         }
     }
 
@@ -130,10 +124,22 @@ auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>
     return parseArgs(std::span<const char* const>{ args });
 }
 
-auto usage(std::string_view program) -> std::string
+auto usage(std::string_view program, std::string_view shellOptions) -> std::string
 {
-    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--scene <path>] [--dump-asset <id>] [--editor-panels all] [--editor-select <name>] [--editor-play] [--editor-full-viewport] [--editor-fold]",
-        program);
+    return std::format("Usage: {} [--help] [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--scene <path>] [--dump-asset <id>]{}{}",
+        program, shellOptions.empty() ? "" : " ", shellOptions);
+}
+
+auto rejectShellOptions(std::span<const ShellOption> options) -> std::expected<void, EngineError>
+{
+    if (options.empty())
+        return {};
+    return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("Unknown option '{}'", options.front().name)) };
+}
+
+auto GameShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
+{
+    return rejectShellOptions(engine.desc().shellOptions);
 }
 
 auto dumpAsset(const AppDesc& desc) -> std::expected<std::string, EngineError>
@@ -386,6 +392,12 @@ auto Engine::run() -> int
 
     if (auto started = m_shell->onStartup(*this); !started)
     {
+        // A bad shell option is a bad command line
+        if (started.error().code == EngineErrorCode::InvalidArguments)
+        {
+            log::error("{}", describe(started.error()));
+            return exitUsage;
+        }
         log::fatal("The shell failed to start: {}", describe(started.error()));
         return exitFailure;
     }
