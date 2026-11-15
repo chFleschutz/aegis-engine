@@ -241,10 +241,11 @@ private:
     // --mutate-scene: changes the scene the way an editor or gameplay code would, while frames are in
     // flight, and checks that the GPU-driven path follows. Called once per frame at the safe point.
     // Frame 30 loads a second model, 60 destroys the first one, 90 edits the second one's materials and
-    // 120 sets them to cull nothing. The frame after each of the first two, the instance pass must have
-    // written as many static instances as the scene holds; after the last, the materials' instances must be
-    // in their new variant's batch, with a pipeline for it. The last frame (--screenshot) shows the second
-    // model only, in red.
+    // 120 sets them to cull nothing, adding a dynamic copy of one of its parts in the same frame. The frame
+    // after each of the first two, the instance pass must have written as many static instances as the scene
+    // holds; after the last, every instance of those materials, static and dynamic, must be in their new
+    // variant's batch, with a pipeline for it. The last frame (--screenshot) shows the second model, in red,
+    // and the copy at the model's origin.
     auto mutateScene(FrameContext& frame) -> std::expected<void, std::string>
     {
         constexpr std::uint32_t loadFrame{ 30 };
@@ -301,15 +302,22 @@ private:
         else if (m_frame == cullFrame)
         {
             m_culled.clear();
+            std::optional<MeshRenderer> part;
             for (auto&& [entity, renderer] : registry.view<MeshRenderer>().each())
             {
-                if (!renderer.material || std::ranges::contains(m_culled, renderer.material.shared()))
+                if (!renderer.mesh || !renderer.material || std::ranges::contains(m_culled, renderer.material.shared()))
                     continue;
                 renderer.material->setCullMode(rhi::CullMode::None);
                 m_culled.push_back(renderer.material.shared());
+                part = renderer;
             }
-            if (m_culled.empty())
+            if (!part)
                 return std::unexpected{ "no material to set to cull nothing" };
+            // A new instance of a material whose variant changed is added in the new batch at once; the static
+            // instances of that material must follow it there.
+            const auto copy = registry.create("Culled Copy", glm::vec3{ 0.9f, 0.0f, 0.0f });
+            registry.add<MeshRenderer>(copy, *part);
+            registry.add<DynamicTag>(copy);
         }
         else if (m_frame == cullFrame + 1)
         {
@@ -322,31 +330,31 @@ private:
     // variant, and the geometry pass created that variant's pipeline.
     auto verifyCulled(const FrameContext& frame) const -> std::expected<void, std::string>
     {
-        std::uint32_t moved{ 0 };
+        std::array<std::uint32_t, 2> moved{}; // Static, dynamic
         for (const auto& material : m_culled)
         {
             const auto variant = material->variant();
             const auto batch = frame.instances.batchId(variant);
             if (!batch)
                 return std::unexpected{ "a material set to cull nothing has no batch for its variant" };
-            for (const auto instances : { frame.instances.staticInstances(), frame.instances.dynamicInstances() })
+            for (const bool dynamic : { false, true })
             {
-                for (const auto& instance : instances)
+                for (const auto& instance : dynamic ? frame.instances.dynamicInstances() : frame.instances.staticInstances())
                 {
                     if (instance.material != material)
                         continue;
                     if (instance.drawBatch != *batch)
-                        return std::unexpected{ std::format("an instance of a material set to cull nothing is in batch {}, its variant's is {}", instance.drawBatch, *batch) };
-                    ++moved;
+                        return std::unexpected{ std::format("a {} instance of a material set to cull nothing is in batch {}, its variant's is {}", dynamic ? "dynamic" : "static", instance.drawBatch, *batch) };
+                    ++moved[dynamic ? 1 : 0];
                 }
             }
             if (!hasGeometryPipeline(frame.frameGraph, variant))
                 return std::unexpected{ "the geometry pass has no pipeline for a material set to cull nothing" };
         }
-        if (moved == 0)
-            return std::unexpected{ "no instance uses a material set to cull nothing" };
-        std::println("Variant change verified: {} material(s) set to cull nothing, {} instance(s) in their new batches, drawn with their pipelines",
-            m_culled.size(), moved);
+        if (moved[0] == 0 || moved[1] == 0)
+            return std::unexpected{ std::format("materials set to cull nothing have {} static and {} dynamic instances, expected some of each", moved[0], moved[1]) };
+        std::println("Variant change verified: {} material(s) set to cull nothing, {} static and {} dynamic instance(s) in their new batches, drawn with their pipelines",
+            m_culled.size(), moved[0], moved[1]);
         return {};
     }
 

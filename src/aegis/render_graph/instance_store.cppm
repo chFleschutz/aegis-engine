@@ -121,8 +121,9 @@ public:
     /// @return An error if a new variant would exceed maxDrawBatches; the instance is unchanged then.
     [[nodiscard]] auto update(InstanceId id, Instance instance, const assets::MaterialVariant& variant)
         -> std::expected<void, Error>;
-    /// @brief Moves the instances of each material whose variant changed since they were added (or last synced),
-    ///        Material::setCullMode say, to the new variant's batch, marking them dirty.
+    /// @brief Moves every instance of each material whose variant changed since the store first held it or last
+    ///        synced it (Material::setCullMode, say) to the new variant's batch, marking them dirty. Instances added or
+    ///        updated with the new variant meanwhile are there already; the others follow.
     /// @return An error if a new variant would exceed maxDrawBatches; that material's instances stay where they
     ///         are and the others still move.
     [[nodiscard]] auto syncVariants() -> std::expected<void, Error>;
@@ -175,16 +176,16 @@ private:
 
     struct MaterialUse
     {
-        std::uint32_t index; // In m_materials
-        std::uint32_t count; // Instances using it
-        std::uint32_t batch; // The batch they were last put in, whose variant syncVariants compares
+        std::uint32_t index;             // In m_materials
+        std::uint32_t count;             // Instances using it
+        assets::MaterialVariant variant; // The material's variant when first held or last synced (syncVariants)
     };
 
     [[nodiscard]] auto set(bool dynamic) noexcept -> Set& { return dynamic ? m_dynamic : m_static; }
     [[nodiscard]] auto location(InstanceId id) const -> const Location&;
     /// @brief The id of the batch of 'variant', created if it is new.
     [[nodiscard]] auto acquireBatch(const assets::MaterialVariant& variant) -> std::expected<std::uint32_t, Error>;
-    auto addMaterial(const std::shared_ptr<assets::Material>& material, std::uint32_t batch) -> void;
+    auto addMaterial(const std::shared_ptr<assets::Material>& material, const assets::MaterialVariant& variant) -> void;
     /// @brief Moves every instance of 'material' to 'batch'.
     auto moveMaterial(const assets::Material* material, std::uint32_t batch) -> void;
     auto removeMaterial(const assets::Material* material) -> void;

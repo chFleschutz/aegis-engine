@@ -37,7 +37,7 @@ auto InstanceStore::add(Instance instance, const assets::MaterialVariant& varian
 
     instance.drawBatch = *batch;
     ++m_batches[*batch].instanceCount;
-    addMaterial(instance.material, *batch);
+    addMaterial(instance.material, variant);
     insert(id, std::move(instance), dynamic);
     updateOffsets();
     return id;
@@ -73,14 +73,10 @@ auto InstanceStore::update(InstanceId id, Instance instance, const assets::Mater
     }
     if (instance.material != current.material)
     {
-        addMaterial(instance.material, current.drawBatch);
+        addMaterial(instance.material, variant);
         removeMaterial(current.material.get());
         current.material = std::move(instance.material);
         markDirty(set(dynamic).dirty, position);
-    }
-    else if (current.material)
-    {
-        m_materialUses.at(current.material.get()).batch = current.drawBatch;
     }
     if (instance.mesh != current.mesh)
     {
@@ -101,12 +97,12 @@ auto InstanceStore::syncVariants() -> std::expected<void, Error>
     for (const auto& material : m_materials)
     {
         auto& use = m_materialUses.at(material.get());
-        const auto& batched = m_batches[use.batch].variant;
-        if (material->materialTemplate() == batched.materialTemplate && material->alphaMode() == batched.alphaMode &&
-            material->cullMode() == batched.cullMode)
+        if (material->materialTemplate() == use.variant.materialTemplate && material->alphaMode() == use.variant.alphaMode &&
+            material->cullMode() == use.variant.cullMode)
             continue;
 
-        auto batch = acquireBatch(material->variant());
+        auto variant = material->variant();
+        auto batch = acquireBatch(variant);
         if (!batch)
         {
             if (result)
@@ -114,7 +110,7 @@ auto InstanceStore::syncVariants() -> std::expected<void, Error>
             continue;
         }
         moveMaterial(material.get(), *batch);
-        use.batch = *batch;
+        use.variant = std::move(variant);
     }
     return result;
 }
@@ -191,16 +187,16 @@ auto InstanceStore::acquireBatch(const assets::MaterialVariant& variant) -> std:
     return id;
 }
 
-auto InstanceStore::addMaterial(const std::shared_ptr<assets::Material>& material, std::uint32_t batch) -> void
+auto InstanceStore::addMaterial(const std::shared_ptr<assets::Material>& material, const assets::MaterialVariant& variant)
+    -> void
 {
     if (!material)
         return;
     const auto [use, inserted] = m_materialUses.try_emplace(material.get(),
-        MaterialUse{ .index = static_cast<std::uint32_t>(m_materials.size()), .count = 0, .batch = batch });
+        MaterialUse{ .index = static_cast<std::uint32_t>(m_materials.size()), .count = 0, .variant = variant });
     if (inserted)
         m_materials.push_back(material);
     ++use->second.count;
-    use->second.batch = batch;
 }
 
 auto InstanceStore::moveMaterial(const assets::Material* material, std::uint32_t batch) -> void
