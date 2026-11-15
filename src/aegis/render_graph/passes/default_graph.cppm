@@ -26,8 +26,15 @@ struct DefaultPassesDesc
     std::optional<View> view;
 };
 
-/// @brief Adds the engine's standard passes: scene update, CPU- or GPU-driven geometry, lighting,
-///        sky box, transparent (point lights), bloom, post-processing, UI (if requested) and present
-///        (not with a view). Compile the graph afterwards (FrameGraph::compile, or GraphBuilder::plan without a device).
+/// @brief Adds the passes that render the scene into "Final": scene update, CPU- or GPU-driven geometry, lighting,
+///        sky box, transparent (point lights), bloom and post-processing. Passes added after these and before
+///        addOutputPasses draw onto "Final" before the frame shows it (a game's or the editor's overlays).
+auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
+
+/// @brief Adds the passes that show "Final": UI (if requested) and present (not with a view).
+auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
+
+/// @brief Adds the engine's standard passes: addScenePasses, then addOutputPasses. Compile the graph afterwards
+///        (FrameGraph::compile, or GraphBuilder::plan without a device).
 auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 }

@@ -2,7 +2,7 @@ module aegis.render_passes;
 
 namespace aegis::render_graph
 {
-auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
+auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 {
     graph.add<SceneUpdatePass>();
     if (desc.gpuDriven)
@@ -22,6 +22,10 @@ auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> voi
     graph.add<TransparentPass>().addRenderSystem<PointLightRenderSystem>();
     graph.add<BloomPass>();
     graph.add<PostProcessingPass>();
+}
+
+auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
+{
     if (desc.view)
     {
         // The frame's target shows only the UI; "Final" stays the view's, for the UI to show.
@@ -31,5 +35,11 @@ auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> voi
     if (desc.ui)
         graph.add<UiPass>(UiPass::Desc{ .context = desc.context });
     graph.add<PresentPass>();
+}
+
+auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
+{
+    addScenePasses(graph, desc);
+    addOutputPasses(graph, desc);
 }
 }
