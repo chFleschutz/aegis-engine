@@ -77,18 +77,27 @@ TEST_SUITE("engine::buildFrameGraph")
 {
     TEST_CASE("without a game hook and with the game shell the frame graph is the default graph")
     {
-        const DefaultPassesDesc desc{ .gpuDriven = false, .ui = true };
-        GraphBuilder engine;
-        aegis::GameShell shell;
-        buildFrameGraph(engine, desc, {}, shell);
-        GraphBuilder defaults;
-        addDefaultPasses(defaults, desc);
+        const std::optional<DefaultPassesDesc::View> view{ DefaultPassesDesc::View{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB } };
+        for (const bool gpuDriven : { false, true })
+        {
+            for (const bool withView : { false, true })
+            {
+                CAPTURE(gpuDriven);
+                CAPTURE(withView);
+                const DefaultPassesDesc desc{ .gpuDriven = gpuDriven, .ui = true, .view = withView ? view : std::nullopt };
+                GraphBuilder engine;
+                aegis::GameShell shell;
+                buildFrameGraph(engine, desc, {}, shell);
+                GraphBuilder defaults;
+                addDefaultPasses(defaults, desc);
 
-        const auto enginePlan = engine.plan();
-        const auto defaultPlan = defaults.plan();
-        REQUIRE(enginePlan.has_value());
-        REQUIRE(defaultPlan.has_value());
-        CHECK(detail::describePlan(engine.declarations(), *enginePlan) == detail::describePlan(defaults.declarations(), *defaultPlan));
+                const auto enginePlan = engine.plan();
+                const auto defaultPlan = defaults.plan();
+                REQUIRE(enginePlan.has_value());
+                REQUIRE(defaultPlan.has_value());
+                CHECK(detail::describePlan(engine.declarations(), *enginePlan) == detail::describePlan(defaults.declarations(), *defaultPlan));
+            }
+        }
     }
 
     TEST_CASE("a game's pass and the shell's run after post-processing and before the output passes")
