@@ -82,11 +82,42 @@ TEST_SUITE("engine::rejectShellOptions")
     }
 }
 
-TEST_SUITE("engine::usage")
+TEST_SUITE("engine::helpText")
 {
-    TEST_CASE("appends the shell's options")
+    TEST_CASE("starts with the overview and the usage line")
     {
-        CHECK(aegis::usage("app").ends_with("[--dump-asset <id>]"));
-        CHECK(aegis::usage("app", "[--x]").ends_with("[--dump-asset <id>] [--x]"));
+        CHECK(aegis::helpText("app", "Runs the app.").starts_with("OVERVIEW: Runs the app.\n\nUSAGE: app [options]\n\nOPTIONS:\n"));
+    }
+
+    TEST_CASE("lists the shell's options sorted among the engine's")
+    {
+        const std::array shell{ aegis::OptionHelp{ "--aa-first", "Sorts first." }, aegis::OptionHelp{ "--zz-last", "Sorts last." } };
+        const auto text = aegis::helpText("app", "Runs the app.", shell);
+        const auto first = text.find("--aa-first");
+        const auto engine = text.find("--headless");
+        const auto last = text.find("--zz-last");
+        REQUIRE(first != std::string::npos);
+        REQUIRE(engine != std::string::npos);
+        REQUIRE(last != std::string::npos);
+        CHECK(first < engine);
+        CHECK(engine < last);
+    }
+
+    TEST_CASE("aligns every description and its further lines in one column")
+    {
+        const std::array shell{ aegis::OptionHelp{ "--a-much-longer-option <value>", "First line.\nSecond line." } };
+        const auto text = aegis::helpText("app", "Runs the app.", shell);
+        const std::string_view name{ "--a-much-longer-option <value>" };
+        // Every option line puts its " - " right after the longest name, and a further line starts under the first's text
+        CHECK(text.contains(std::format("  {} - First line.\n  {}   Second line.\n", name, std::string(name.size(), ' '))));
+        CHECK(text.contains(std::format("  {:<{}} - Print this help and exit.\n", "--help", name.size())));
+    }
+}
+
+TEST_SUITE("engine::tryHelp")
+{
+    TEST_CASE("points to the program's help")
+    {
+        CHECK(aegis::tryHelp("app") == "Try 'app --help'.");
     }
 }

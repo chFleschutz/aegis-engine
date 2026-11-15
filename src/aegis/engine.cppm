@@ -83,6 +83,14 @@ struct ShellOption
     auto operator==(const ShellOption&) const -> bool = default;
 };
 
+/// @brief One option in the help text: its name with its argument ("--frames <n>") and what it does, a line break
+///        (a newline) between the lines of a long description.
+struct OptionHelp
+{
+    std::string_view name;
+    std::string_view description;
+};
+
 /// @brief How the app starts: a window or an offscreen target, and when it stops.
 struct AppDesc
 {
@@ -110,7 +118,7 @@ struct AppDesc
     /// @brief An asset ID: print the import cache entry of that model, mesh of a model, texture or environment
     ///        instead of running (see dumpAsset).
     std::string dumpAsset;
-    /// @brief --help: print the usage line instead of running.
+    /// @brief --help: print the help text (helpText) instead of running.
     bool help{ false };
     /// @brief The options parseArgs doesn't know, in their order: the shell's to read in Shell::onStartup (the editor's
     ///        --editor-* options). The runtime's GameShell rejects any.
@@ -152,9 +160,12 @@ inline constexpr int exitUsage{ 2 };
 /// @brief The same for main's argc and argv.
 [[nodiscard]] auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>;
 
-/// @brief The usage line for parseArgs's options, naming 'program', followed by the shell's ('shellOptions', such as
-///        editor::optionsUsage).
-[[nodiscard]] auto usage(std::string_view program, std::string_view shellOptions = {}) -> std::string;
+/// @brief The --help text, laid out like clang-format's: OVERVIEW, USAGE naming 'program', then OPTIONS, parseArgs's
+///        and the shell's ('shellOptions', such as editor::optionsHelp) sorted by name, each description in one column.
+[[nodiscard]] auto helpText(std::string_view program, std::string_view overview, std::span<const OptionHelp> shellOptions = {}) -> std::string;
+
+/// @brief What follows a command-line error: a pointer to 'program' --help.
+[[nodiscard]] auto tryHelp(std::string_view program) -> std::string;
 
 /// @brief For a shell that takes no options (GameShell): EngineErrorCode::InvalidArguments naming the first one, if any.
 [[nodiscard]] auto rejectShellOptions(std::span<const ShellOption> options) -> std::expected<void, EngineError>;

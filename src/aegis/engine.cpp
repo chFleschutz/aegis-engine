@@ -16,6 +16,19 @@ namespace aegis
 namespace
 {
 constexpr std::uint32_t DEFAULT_HEADLESS_FRAMES{ 600 };
+
+// parseArgs's options, for helpText
+constexpr std::array ENGINE_OPTIONS{
+    OptionHelp{ "--help", "Print this help and exit." },
+    OptionHelp{ "--headless", "Render offscreen, with no window, input or UI. The run stops by itself,\nafter 600 frames unless --frames says otherwise." },
+    OptionHelp{ "--frames <n>", "Render <n> frames, then exit." },
+    OptionHelp{ "--screenshot <png>", "Save the last frame as PNG. Needs --headless." },
+    OptionHelp{ "--width <n>", "The window's width, or the offscreen target's when headless (1920)." },
+    OptionHelp{ "--height <n>", "The window's height, or the offscreen target's when headless (1080)." },
+    OptionHelp{ "--project <dir>", "The project folder the assets come from. Defaults to project/ next to\nthe executable, then the game's folder in the source tree." },
+    OptionHelp{ "--scene <path>", "The scene file to start with, by its path in the project's content/\nfolder. Defaults to the game's own." },
+    OptionHelp{ "--dump-asset <id>", "Print the import cache entry of the asset with this ID (16 hex digits)\nand exit." },
+};
 constexpr float HEADLESS_FRAME_DELTA_SEC{ 1.0f / 60.0f }; // Fixed, so a headless run does not depend on the machine
 
 auto makeError(EngineErrorCode code, std::string message) -> EngineError
@@ -124,10 +137,29 @@ auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>
     return parseArgs(std::span<const char* const>{ args });
 }
 
-auto usage(std::string_view program, std::string_view shellOptions) -> std::string
+auto helpText(std::string_view program, std::string_view overview, std::span<const OptionHelp> shellOptions) -> std::string
 {
-    return std::format("Usage: {} [--help] [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--scene <path>] [--dump-asset <id>]{}{}",
-        program, shellOptions.empty() ? "" : " ", shellOptions);
+    std::vector<OptionHelp> options{ std::from_range, ENGINE_OPTIONS };
+    options.append_range(shellOptions);
+    std::ranges::sort(options, {}, &OptionHelp::name);
+    const auto width = std::ranges::max(options | std::views::transform([](const OptionHelp& option) { return option.name.size(); }));
+
+    auto text = std::format("OVERVIEW: {}\n\nUSAGE: {} [options]\n\nOPTIONS:\n", overview, program);
+    for (const auto& option : options)
+    {
+        // "  --name   - first line", the description's further lines under its first
+        auto lines = option.description | std::views::split('\n');
+        auto line = lines.begin();
+        std::format_to(std::back_inserter(text), "  {:<{}} - {}\n", option.name, width, std::string_view{ *line });
+        for (++line; line != lines.end(); ++line)
+            std::format_to(std::back_inserter(text), "  {:<{}}   {}\n", "", width, std::string_view{ *line });
+    }
+    return text;
+}
+
+auto tryHelp(std::string_view program) -> std::string
+{
+    return std::format("Try '{} --help'.", program);
 }
 
 auto rejectShellOptions(std::span<const ShellOption> options) -> std::expected<void, EngineError>
@@ -210,7 +242,7 @@ auto createEngine(int argc, char** argv) -> std::expected<std::unique_ptr<Engine
     const auto desc = parseArgs(argc, argv);
     if (!desc)
     {
-        log::error("{}\n{}", describe(desc.error()), usage(argc > 0 ? argv[0] : "app"));
+        log::error("{}. {}", describe(desc.error()), tryHelp(argc > 0 ? argv[0] : "app"));
         return std::unexpected{ exitUsage };
     }
     auto engine = Engine::create(*desc);

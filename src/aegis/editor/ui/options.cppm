@@ -20,8 +20,14 @@ struct EditorOptions
     bool fold{ false };
 };
 
-/// @brief The editor's options for the usage line (usage's 'shellOptions').
-inline constexpr std::string_view optionsUsage{ "[--editor-panels all] [--editor-select <name>] [--editor-play] [--editor-full-viewport] [--editor-fold]" };
+/// @brief The editor's options for the help text (helpText's 'shellOptions').
+inline constexpr std::array optionsHelp{
+    OptionHelp{ "--editor-panels all", "Open every docked panel at startup and pin the drawer panels." },
+    OptionHelp{ "--editor-select <name>", "Select the first entity of this name once the scene has loaded." },
+    OptionHelp{ "--editor-play", "Enter play after the first frame." },
+    OptionHelp{ "--editor-full-viewport", "Start in full viewport." },
+    OptionHelp{ "--editor-fold", "Start with the right column folded into the side rail and the Inspector\nin its flyout." },
+};
 
 /// @brief Reads the editor's options.
 /// @return EngineErrorCode::InvalidArguments naming the first option that is unknown, lacks its value or has one it
