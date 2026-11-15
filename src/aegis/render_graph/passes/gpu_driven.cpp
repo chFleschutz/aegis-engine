@@ -261,10 +261,11 @@ auto GpuDrivenGeometryPass::createPipeline(const PipelineKey& key) const -> std:
 
     // The task shader is a separate module: sharing one, the mesh stage would also declare the
     // task stage's DrawIndex, which a mesh shader with a task stage must not.
-    constexpr std::array stages{
+    const auto geometry = techniqueShader("gpu-driven/geometry", *key.variant.materialTemplate);
+    const std::array stages{
         ShaderEntry{ rhi::ShaderStage::Task, "gpu-driven/task.slang.spv", "taskMain" },
-        ShaderEntry{ rhi::ShaderStage::Mesh, "gpu-driven/geometry.slang.spv", "meshMain" },
-        ShaderEntry{ rhi::ShaderStage::Fragment, "gpu-driven/geometry.slang.spv", "fragmentMain" },
+        ShaderEntry{ rhi::ShaderStage::Mesh, geometry, "meshMain" },
+        ShaderEntry{ rhi::ShaderStage::Fragment, geometry, "fragmentMain" },
     };
     return createGraphicsPipeline(*m_device,
         rhi::Pipeline::GraphicsDesc{

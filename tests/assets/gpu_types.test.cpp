@@ -79,21 +79,6 @@ TEST_SUITE("assets::gpu_types")
         CHECK(std::is_same_v<StaticMesh::GpuData, MeshGpuData>);
     }
 
-    TEST_CASE("PbrMaterialBlock matches common::PbrMaterial")
-    {
-        CHECK(offsetof(PbrMaterialBlock, albedo) == 0);
-        CHECK(offsetof(PbrMaterialBlock, emissive) == 12);
-        CHECK(offsetof(PbrMaterialBlock, metallic) == 24);
-        CHECK(offsetof(PbrMaterialBlock, roughness) == 28);
-        CHECK(offsetof(PbrMaterialBlock, ambientOcclusion) == 32);
-        CHECK(offsetof(PbrMaterialBlock, albedoMap) == 36);
-        CHECK(offsetof(PbrMaterialBlock, normalMap) == 44);
-        CHECK(offsetof(PbrMaterialBlock, metalRoughnessMap) == 52);
-        CHECK(offsetof(PbrMaterialBlock, ambientOcclusionMap) == 60);
-        CHECK(offsetof(PbrMaterialBlock, emissiveMap) == 68);
-        CHECK(sizeof(PbrMaterialBlock) == 76);
-    }
-
     TEST_CASE("the meshlet limits are the ones the mesh shader declares")
     {
         const auto source = shaderSource("modules/meshlet_cull.slang");

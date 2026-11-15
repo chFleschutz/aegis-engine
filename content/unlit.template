@@ -1,0 +1,10 @@
+{
+  "type": "MaterialTemplate",
+  "id": "5a02a4a93dfb6c8d",
+  "version": 1,
+  "surface": "unlit",
+  "parameters": [
+    { "name": "color", "type": "vec3", "default": [1, 1, 1] },
+    { "name": "colorMap", "type": "texture", "default": "white" }
+  ]
+}

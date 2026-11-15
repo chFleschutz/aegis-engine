@@ -5,38 +5,8 @@ import aegis.math;
 
 namespace aegis::assets
 {
-namespace detail
-{
-auto addPbrParameters(MaterialTemplate& materialTemplate, const std::shared_ptr<Texture>& white,
-    const std::shared_ptr<Texture>& normal) -> std::expected<void, Error>
-{
-    struct Parameter
-    {
-        const char* name;
-        MaterialValue defaultValue;
-    };
-    const std::array parameters{
-        Parameter{ pbr::albedo, glm::vec3{ 1.0f, 1.0f, 1.0f } },
-        Parameter{ pbr::emissive, glm::vec3{ 0.0f, 0.0f, 0.0f } },
-        Parameter{ pbr::metallic, 0.0f },
-        Parameter{ pbr::roughness, 1.0f },
-        Parameter{ pbr::ambientOcclusion, 1.0f },
-        Parameter{ pbr::albedoMap, white },
-        Parameter{ pbr::normalMap, normal },
-        Parameter{ pbr::metalRoughnessMap, white },
-        Parameter{ pbr::ambientOcclusionMap, white },
-        Parameter{ pbr::emissiveMap, white },
-    };
-    for (const auto& [name, defaultValue] : parameters)
-    {
-        if (auto added = materialTemplate.addParameter(name, defaultValue); !added)
-            return std::unexpected{ added.error() };
-    }
-    return {};
-}
-}
-
-auto DefaultAssets::create(rhi::Device& device, std::uint32_t framesInFlight) -> std::expected<DefaultAssets, Error>
+auto DefaultAssets::create(rhi::Device& device, std::uint32_t framesInFlight, const EngineTemplates& templates)
+    -> std::expected<DefaultAssets, Error>
 {
     DefaultAssets defaults;
 
@@ -62,9 +32,20 @@ auto DefaultAssets::create(rhi::Device& device, std::uint32_t framesInFlight) ->
         slot = std::move(*texture);
     }
 
-    defaults.pbrTemplate = std::make_shared<MaterialTemplate>();
-    if (auto added = detail::addPbrParameters(*defaults.pbrTemplate, defaults.white, defaults.normal); !added)
-        return std::unexpected{ added.error() };
+    const DefaultTextures textures{ .white = defaults.white, .black = defaults.black, .normal = defaults.normal };
+    for (const auto& [source, slot] : { std::pair{ &templates.pbr, &defaults.pbrTemplate }, std::pair{ &templates.unlit, &defaults.unlitTemplate } })
+    {
+        auto materialTemplate = MaterialTemplate::create(source->desc, source->block, textures);
+        if (!materialTemplate)
+            return makeError(materialTemplate.error().code, std::format("{}: {}", source->name, materialTemplate.error().message));
+        *slot = std::make_shared<MaterialTemplate>(std::move(*materialTemplate));
+    }
+    // Loaders and the default material set the PBR parameters by these names.
+    for (const auto* name : pbr::parameterNames)
+    {
+        if (!defaults.pbrTemplate->hasParameter(name))
+            return makeError(ErrorCode::InvalidData, std::format("{}: has no parameter '{}', which the engine sets (assets::pbr)", templates.pbr.name, name));
+    }
 
     auto material = defaults.createPbrMaterial(device, framesInFlight);
     if (!material)

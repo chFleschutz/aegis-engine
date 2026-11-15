@@ -73,19 +73,29 @@ auto hasGeometryPipeline(const render_graph::FrameGraph& frameGraph, const asset
     return false;
 }
 
+// 'root' and its descendants.
+auto subtree(world::Registry& registry, world::Entity root) -> std::vector<world::Entity>
+{
+    std::vector<world::Entity> entities{ root };
+    for (std::size_t i = 0; i < entities.size(); ++i)
+    {
+        for (auto child = registry.get<Children>(entities[i]).first; child;
+            child = registry.get<Siblings>(child).next)
+            entities.push_back(child);
+    }
+    return entities;
+}
+
 // Destroys 'root' and its descendants.
 void destroySubtree(world::Registry& registry, world::Entity root)
 {
-    std::vector<world::Entity> doomed{ root };
-    for (std::size_t i = 0; i < doomed.size(); ++i)
-    {
-        for (auto child = registry.get<Children>(doomed[i]).first; child;
-            child = registry.get<Siblings>(child).next)
-            doomed.push_back(child);
-    }
-    for (const auto entity : doomed)
+    for (const auto entity : subtree(registry, root))
         registry.destroy(entity);
 }
+
+// --unlit: the unlit cube's colour. Pure channels survive tone mapping and gamma exactly where they are 0, so any
+// light on the cube shows as red (verifyUnlit).
+constexpr glm::vec3 unlitColor{ 0.0f, 1.0f, 1.0f };
 
 // The test's side of the app: edits the loaded scene at the safe point (--mirror, --mutate-scene), renders it
 // through a second camera into a view of its own (--view), renders a second world for a while (--worlds), draws the
@@ -110,6 +120,11 @@ public:
         auto& registry = frame.world.registry();
         if (m_frame == 0)
             setUp(frame.world);
+        if (m_options.unlit && m_frame == 1)
+        {
+            if (auto added = addUnlitCubes(frame); !added)
+                m_result.errors.push_back(std::format("Adding the unlit cubes failed: {}", added.error()));
+        }
         frame.update(frame.world, world::UpdateMode::Play);
 
         if (m_options.mutateScene)
@@ -187,6 +202,48 @@ private:
             registry.add<Camera>(m_viewCamera);
             registry.markStaticDirty(m_viewCamera); // Once the world has begun, a new static entity needs it for its global transform
         }
+    }
+
+    // --unlit, in the second frame (the camera has its global transform): an unlit cube to the right of a PBR one, side
+    // by side in front of the main camera, both instances of the engine's cube. Bloom goes off and tone mapping is
+    // Reinhard at exposure 1, so the unlit cube's colour reaches the last frame as verifyUnlit expects.
+    auto addUnlitCubes(FrameContext& frame) -> std::expected<void, std::string>
+    {
+        auto& registry = frame.world.registry();
+        std::optional<GlobalTransform> camera;
+        for (auto&& [entity, cameraComponent, transform] : registry.view<Camera, GlobalTransform>().each())
+            camera = transform;
+        if (!camera)
+            return std::unexpected{ "the scene has no camera" };
+
+        auto unlit = frame.assets.createMaterial(frame.assets.defaults().unlitTemplate);
+        if (auto set = unlit->setParameter("color", unlitColor); !set)
+            return std::unexpected{ assets::describe(set.error()) };
+        const auto pbr = frame.assets.createMaterial();
+
+        for (const auto& [material, side] : { std::pair{ unlit, 1.0f }, std::pair{ pbr, -1.0f } })
+        {
+            auto cube = frame.assets.instantiateScene(frame.world, frame.types, assets::engine::cube, {});
+            if (!cube)
+                return std::unexpected{ cube.error() };
+            auto& transform = registry.get<Transform>(*cube);
+            transform.location = camera->location + camera->forward() * 1.5f + camera->right() * (0.6f * side);
+            transform.rotation = camera->rotation;
+            transform.scale = glm::vec3{ 0.2f };
+            for (const auto entity : subtree(registry, *cube))
+            {
+                if (registry.has<MeshRenderer>(entity))
+                    registry.get<MeshRenderer>(entity).material = material;
+                registry.markStaticDirty(entity);
+            }
+        }
+
+        for (auto* pass : frame.frameGraph.passes())
+        {
+            if (auto* post = dynamic_cast<render_graph::PostProcessingPass*>(pass))
+                post->settings() = { .toneMapping = render_graph::ToneMapping::Reinhard, .bloomIntensity = 0.0f, .exposure = 1.0f, .gamma = 2.2f };
+        }
+        return {};
     }
 
     // An instance of the model file 'path' (in the sample project) in the scene, as a root entity.
@@ -423,6 +480,27 @@ private:
     world::World* m_second{ nullptr };                       // --worlds: the second world, from the same scene file
 };
 
+// --unlit: the unlit cube shows its colour, (0, 1, 1), as it is: Reinhard maps 1 to 0.5, which gamma 2.2 or an sRGB
+// target encodes as about 186 to 188, and 0 stays exactly 0 in red, which any light on the cube would raise. Its
+// pixels must cover a good part of the frame.
+auto verifyUnlit(std::span<const std::byte> pixels) -> std::expected<void, std::string>
+{
+    std::size_t count{ 0 };
+    for (std::size_t i = 0; i + 3 < pixels.size(); i += 4)
+    {
+        const auto red = std::to_integer<int>(pixels[i]);
+        const auto green = std::to_integer<int>(pixels[i + 1]);
+        const auto blue = std::to_integer<int>(pixels[i + 2]);
+        if (red == 0 && green >= 184 && green <= 190 && blue >= 184 && blue <= 190)
+            ++count;
+    }
+    constexpr std::size_t minimum{ 1000 };
+    if (count < minimum)
+        return std::unexpected{ std::format("{} pixels show the unlit cube's colour unlit, fewer than {}", count, minimum) };
+    std::println("Unlit material verified: {} pixels show the unlit cube's colour unlit", count);
+    return {};
+}
+
 // Headless: the last frame, as the engine saved it, is drawn (not one flat color), has the size it should have and,
 // with --compare, matches the reference.
 auto verifyFrame(const Options& options, const std::filesystem::path& file, rhi::Extent2D extent) -> std::expected<void, std::string>
@@ -443,6 +521,12 @@ auto verifyFrame(const Options& options, const std::filesystem::path& file, rhi:
     {
         if (auto matched = compareToReference(options, pixels, extent); !matched)
             return matched;
+    }
+
+    if (options.unlit)
+    {
+        if (auto unlit = verifyUnlit(pixels); !unlit)
+            return unlit;
     }
 
     const auto texel = [&](std::uint32_t x, std::uint32_t y) {

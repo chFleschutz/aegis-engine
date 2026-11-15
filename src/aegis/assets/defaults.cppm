@@ -7,10 +7,10 @@ import aegis.rhi;
 
 export namespace aegis::assets
 {
-/// @brief The parameter names of the default PBR material (DefaultAssets::pbrTemplate), in the order of
-///        its parameter block (PbrMaterialBlock, common::PbrMaterial in shaders/modules/common.slang).
-///        Use these instead of string literals: a typo then fails to compile instead of silently
-///        overriding a parameter the template does not have.
+/// @brief The parameter names of the default PBR material (DefaultAssets::pbrTemplate, content/pbr.template), in
+///        the order of its parameter block (PbrParams in shaders/surfaces/pbr.slang). Use these instead of string
+///        literals: a typo then fails to compile instead of silently overriding a parameter the template does not
+///        have.
 namespace pbr
 {
 inline constexpr const char* albedo{ "albedo" };
@@ -28,6 +28,23 @@ inline constexpr std::array parameterNames{ albedo, emissive, metallic, roughnes
     normalMap, metalRoughnessMap, ambientOcclusionMap, emissiveMap };
 }
 
+/// @brief An engine material template as its files give it: the template file, parsed, and its surface shader's
+///        parameter block as the build reflects it.
+struct TemplateSource
+{
+    std::string name; // The template file, for errors ("pbr.template")
+    MaterialTemplateDesc desc;
+    SurfaceBlock block;
+};
+
+/// @brief The engine content's material templates. The caller reads them (aegis::loadEngineTemplates): native files
+///        are aegis.serialize's to parse, which builds on this module.
+struct EngineTemplates
+{
+    TemplateSource pbr;
+    TemplateSource unlit;
+};
+
 /// @brief The assets every scene can fall back on: what the engine's loadDefaultAssets creates on
 ///        the old stack, built on the RHI.
 struct DefaultAssets
@@ -38,8 +55,10 @@ struct DefaultAssets
     std::shared_ptr<Texture> blackCube;
     std::shared_ptr<Texture> whiteCube;
 
-    /// @brief The parameters named in the pbr namespace, laid out as PbrMaterialBlock.
+    /// @brief The parameters named in the pbr namespace (content/pbr.template).
     std::shared_ptr<MaterialTemplate> pbrTemplate;
+    /// @brief A colour the lighting pass passes through, unlit (content/unlit.template).
+    std::shared_ptr<MaterialTemplate> unlitTemplate;
     std::shared_ptr<Material> pbrMaterial;
 
     /// @brief A new instance of pbrTemplate with the default material's look (what pbrMaterial is created
@@ -48,17 +67,9 @@ struct DefaultAssets
     [[nodiscard]] auto createPbrMaterial(rhi::Device& device, std::uint32_t framesInFlight) const
         -> std::expected<std::shared_ptr<Material>, Error>;
 
-    [[nodiscard]] static auto create(rhi::Device& device, std::uint32_t framesInFlight)
+    /// @return ErrorCode::InvalidData, naming the template file and the parameter, if a template does not match its
+    ///         surface shader (MaterialTemplate::create) or the PBR template lacks a pbr parameter.
+    [[nodiscard]] static auto create(rhi::Device& device, std::uint32_t framesInFlight, const EngineTemplates& templates)
         -> std::expected<DefaultAssets, Error>;
 };
-}
-
-export namespace aegis::assets::detail
-{
-/// @brief Adds the default PBR material parameters to materialTemplate in the order of
-///        PbrMaterialBlock (see the pbr namespace). The maps default to white, except the normal map.
-///        Separate from DefaultAssets::create so the layout can be checked without a Device.
-/// @return ErrorCode::InvalidArgument if a parameter exists already or a texture is null.
-[[nodiscard]] auto addPbrParameters(MaterialTemplate& materialTemplate, const std::shared_ptr<Texture>& white,
-    const std::shared_ptr<Texture>& normal) -> std::expected<void, Error>;
 }

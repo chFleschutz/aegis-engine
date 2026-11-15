@@ -112,7 +112,7 @@ my_game/
   it is ever named by path, paths get a mount prefix (Unreal's `/Game/` and `/Engine/`).
 - **Lowercase snake_case** is the convention for engine folders and files the editor creates; it is
   not enforced on imported files, whose names other files (a glTF's URIs) may depend on.
-- **Engine content** (default textures, the checker texture, the default cube, the PBR template) is a
+- **Engine content** (default textures, the checker texture, the default cube, the PBR and unlit templates) is a
   content folder in the engine repository, with normal sidecars and native files, mounted read-only
   next to the project and cooked like project assets. Code names its assets through constants
   (`assets::engine::white`); there are no reserved or special IDs.
@@ -363,7 +363,7 @@ they hold.
 | `Texture` | `.png` `.jpg` `.hdr`, later `.ktx2`, or an embedded image | 2D and cube; sidecar (or the model's entry) holds sRGB, mips, sampler |
 | `StaticMesh` | sub-asset of `.gltf` `.glb` `.obj` | vertices, indices, meshlets; `SkinnedMesh` later |
 | `Material` | `.material`, or a glTF sub-asset | parameter values for a template (today's `MaterialInstance`) |
-| `MaterialTemplate` | engine content (the PBR template) | parameter list and layout; no user files until custom shaders |
+| `MaterialTemplate` | `.template` in engine content (PBR, unlit) | its surface shader and parameter list, checked against the shader's reflected block (`shaders/modules/README.md`); no project templates until game shaders are content (#372) |
 | `Environment` | `.hdr` with the environment importer (the `.hdr` default) | sky cube, irradiance, prefiltered maps |
 | `Scene` | `.scene`, or a glTF/OBJ import (the file's main asset) | entities; also prefabs and models |
 
@@ -377,7 +377,7 @@ they hold.
 **Not assets:** the project file, save games and editor settings (user data), engine shaders (built
 from `shaders/`), C++ scripts (attached by registered name).
 
-**Later, with their features:** `Shader` (`.slang`; templates then come from shader reflection),
+**Later, with their features:** `Shader` (`.slang`, compiled by the asset pipeline: #372),
 `Script` (a VM language, with a sidecar), `AudioClip` (`.wav` `.ogg`), `Font` (`.ttf`, to an atlas),
 `Skeleton` and `AnimationClip` (glTF sub-assets), `InputMap` (`.input`, from `KeyBindings`).
 
@@ -563,6 +563,7 @@ accidental format change then fails CI instead of breaking a project.
 - Override details; a `.prefab` extension for the browser (same format either way).
 - Soft references, hot reload and streaming.
 - Game shaders: content (imported and compiled by the asset pipeline, as material shaders would be)
-  or source (`src/`, compiled by CMake through `aegis_add_shaders`, as the engine's are).
+  or source (`src/`, compiled by CMake through `aegis_add_shaders`, as the engine's are). The engine
+  templates' surface shaders are source for now (#252); #372 decides the run-time path.
 - Export metadata (window title, version, executable icon) in `project.aegis`, the icon in
   `content/`; the Windows icon is needed at build time, so the build reads the project file.

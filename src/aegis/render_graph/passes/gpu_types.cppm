@@ -75,7 +75,7 @@ struct InstanceData
     glm::vec3 normalRow1;
     glm::vec3 normalRow2;
     rhi::DeviceAddress mesh;     // assets::MeshGpuData
-    rhi::DeviceAddress material; // assets::Material parameter block (common::PbrMaterial)
+    rhi::DeviceAddress material; // assets::Material parameter block (MaterialAddress in the shaders)
     std::uint32_t drawBatch;
     InstanceFlags flags;
 };

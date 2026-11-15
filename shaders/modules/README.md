@@ -49,7 +49,9 @@ On the C++ side, mirror the struct with `rhi::DeviceAddress` for pointers and th
 struct must fit in 128 bytes, which the typed `pushConstants` checks at compile time. The render graph's
 mirrors live in `src/aegis/render_graph/gpu_types.cppm`, named after their Slang twins, with their
 `sizeof`/`offsetof` pinned in `tests/render_graph/gpu_types.test.cpp`; asset mirrors (`Vertex`,
-`Meshlet`, `PbrMaterial`) are in `src/aegis/assets/data/gpu_types.cppm`.
+`Meshlet`) are in `src/aegis/assets/data/gpu_types.cppm`. A material's parameter block has no C++ mirror: its
+material template lists the parameters, and the template loader checks them against the surface shader's
+reflected block (see `modules/surface.slang`).
 
 **Declare the push constant variable in the entry-point file, never in a module.** A module may define
 the push constant *struct* (`indirectDraw::GeometryConstants`), but each entry point's file declares the
@@ -69,3 +71,22 @@ and material parameter blocks rely on it. Matrices are row-major (`-matrix-layou
 
 Working examples: `computeMain` in `src/aegis/test/shader.slang`, and `shaders/ibl/*.slang`
 (driven by `render_graph::Ibl`).
+
+## Techniques and surface shaders
+
+A material draws through its material template's surface shader (`surfaces/<name>.slang`), which implements
+`ISurface` from `modules/surface.slang`: its `Params` struct is the material's parameter block, `evaluate` turns
+it into a `SurfaceOutput` (albedo, tangent-space normal, AO/roughness/metallic, emissive, alpha), and
+`shadingModel` says whether the lighting pass lights it. Each surface module ends with `public typealias Surface =
+<its type>;`.
+
+A technique (`cpu-driven/geometry.slang`, `gpu-driven/geometry.slang`: the G-buffer, today) does `import
+SURFACE_MODULE;` and names only `Surface`. It gets a material as a `MaterialAddress`, which only
+`evaluateSurface<Surface>` reads, as `Surface.Params*`: no technique casts the address itself. `shaders/CMakeLists.txt` lists the techniques; `aegis_add_shaders`
+builds each one once per surface shader, with `-DSURFACE_MODULE=surfaces.<name>`, into
+`<technique>.<name>.spv`, and reflects each surface shader's block into `surfaces/<name>.layout.json`. A render
+pass picks the file for a batch's template with `render_graph::techniqueShader`.
+
+To add a surface shader, add `surfaces/<name>.slang` and a template naming it (`"surface": "<name>"`) whose
+parameters list the `Params` fields in order: the template loader rejects a template whose parameters differ from
+the reflected block, naming the parameter.

@@ -23,6 +23,7 @@ target_sources(aegis-serialize
     error.cppm
     json.cppm
     material.cppm
+    material_template.cppm
     model.cppm
     scene.cppm
     PRIVATE
@@ -30,6 +31,7 @@ target_sources(aegis-serialize
     error.cpp
     json.cpp
     material.cpp
+    material_template.cpp
     model.cpp
     scene.cpp
 )

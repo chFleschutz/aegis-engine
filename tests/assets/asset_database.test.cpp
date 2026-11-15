@@ -271,7 +271,7 @@ TEST_SUITE("assets::AssetDatabase")
     {
         const auto database = AssetDatabase::scan({ .roots = { { std::filesystem::path{ AEGIS_TEST_CONTENT_DIR }, true } } });
         REQUIRE(database);
-        CHECK(database->size() == 8); // The six files and the cube's mesh and default material
+        CHECK(database->size() == 9); // The seven files and the cube's mesh and default material
 
         const auto path = [&](AssetId id) -> std::string {
             const auto* entry = database->find(id);
@@ -283,6 +283,7 @@ TEST_SUITE("assets::AssetDatabase")
         CHECK(path(engine::checker) == "checker.png");
         CHECK(path(engine::cube) == "cube.obj");
         CHECK(path(engine::pbrTemplate) == "pbr.template");
+        CHECK(path(engine::unlitTemplate) == "unlit.template");
     }
 
     TEST_CASE("the engine cube's parts have IDs in its sidecar")

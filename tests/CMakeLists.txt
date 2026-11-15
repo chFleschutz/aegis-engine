@@ -81,6 +81,10 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
     aegis_add_device_test(aegis-test-scene-mutation ARGS --headless --scene --mutate-scene --frames 150)
     aegis_add_device_test(aegis-test-scene-gpu-driven-mutation ARGS --headless --gpu-driven --mutate-scene --frames 150 LABELS mesh-shaders)
 
+    # An unlit cube next to a PBR one: the last frame shows its colour unlit, on both geometry paths.
+    aegis_add_device_test(aegis-test-scene-unlit ARGS --headless --scene --unlit --no-overlay --frames 30)
+    aegis_add_device_test(aegis-test-scene-gpu-driven-unlit ARGS --headless --gpu-driven --unlit --no-overlay --frames 30 LABELS mesh-shaders)
+
     # The scene through a second camera into a view of its own size, resized apart from the target.
     aegis_add_device_test(aegis-test-scene-view ARGS --headless --scene --view --frames 120)
     aegis_add_device_test(aegis-test-scene-gpu-driven-view ARGS --headless --gpu-driven --view --frames 120 LABELS mesh-shaders)

@@ -13,10 +13,30 @@ namespace
 {
 auto typeName(const MaterialValue& value) -> std::string_view
 {
-    // In MaterialValue's alternative order.
-    constexpr std::array names{ "int32", "uint32", "float", "vec2", "vec3", "vec4", "texture" };
-    static_assert(names.size() == std::variant_size_v<MaterialValue>);
-    return names[value.index()];
+    return parameterTypeName(parameterType(value));
+}
+
+// The parameter's value for 'defaultValue' from a template file: a DefaultTexture becomes its texture.
+auto resolve(const ParameterDefault& defaultValue, const DefaultTextures& textures) -> MaterialValue
+{
+    return std::visit(
+        [&]<typename T>(const T& value) -> MaterialValue {
+            if constexpr (std::is_same_v<T, DefaultTexture>)
+            {
+                switch (value)
+                {
+                case DefaultTexture::White: return textures.white;
+                case DefaultTexture::Black: return textures.black;
+                case DefaultTexture::Normal: return textures.normal;
+                }
+                return std::shared_ptr<Texture>{};
+            }
+            else
+            {
+                return value;
+            }
+        },
+        defaultValue);
 }
 
 auto isNullTexture(const MaterialValue& value) -> bool
@@ -24,6 +44,27 @@ auto isNullTexture(const MaterialValue& value) -> bool
     const auto* texture = std::get_if<std::shared_ptr<Texture>>(&value);
     return texture && !*texture;
 }
+}
+
+auto parameterType(const MaterialValue& value) -> ParameterType
+{
+    static_assert(std::variant_size_v<MaterialValue> == static_cast<std::size_t>(ParameterType::Texture) + 1);
+    return static_cast<ParameterType>(value.index());
+}
+
+auto parameterTypeName(ParameterType type) -> std::string_view
+{
+    switch (type)
+    {
+    case ParameterType::Int: return "int";
+    case ParameterType::UInt: return "uint";
+    case ParameterType::Float: return "float";
+    case ParameterType::Vec2: return "vec2";
+    case ParameterType::Vec3: return "vec3";
+    case ParameterType::Vec4: return "vec4";
+    case ParameterType::Texture: return "texture";
+    }
+    return "unknown";
 }
 
 namespace detail
@@ -75,6 +116,20 @@ auto writeParameters(const MaterialTemplate& materialTemplate,
 }
 }
 
+auto MaterialTemplate::create(const MaterialTemplateDesc& desc, const SurfaceBlock& block, const DefaultTextures& textures)
+    -> std::expected<MaterialTemplate, Error>
+{
+    MaterialTemplate materialTemplate{ desc.surface };
+    for (const auto& [name, defaultValue] : desc.parameters)
+    {
+        if (auto added = materialTemplate.addParameter(name, resolve(defaultValue, textures)); !added)
+            return makeError(ErrorCode::InvalidData, added.error().message);
+    }
+    if (auto checked = materialTemplate.checkBlock(block); !checked)
+        return std::unexpected{ checked.error() };
+    return materialTemplate;
+}
+
 auto MaterialTemplate::addParameter(const std::string& name, MaterialValue defaultValue) -> std::expected<void, Error>
 {
     if (m_parameters.contains(name))
@@ -107,6 +162,59 @@ auto MaterialTemplate::check(const std::string& name, const MaterialValue& value
     }
     if (isNullTexture(value))
         return makeError(ErrorCode::InvalidArgument, std::format("Material parameter '{}' needs a texture, not null", name));
+    return {};
+}
+
+auto MaterialTemplate::checkBlock(const SurfaceBlock& block) const -> std::expected<void, Error>
+{
+    std::vector<std::pair<const std::string*, const MaterialParameter*>> ordered;
+    ordered.reserve(m_parameters.size());
+    for (const auto& [name, parameter] : m_parameters)
+        ordered.emplace_back(&name, &parameter);
+    std::ranges::sort(ordered, {}, [](const auto& entry) { return entry.second->offset; });
+
+    for (std::size_t i = 0; i < ordered.size(); ++i)
+    {
+        const auto& name = *ordered[i].first;
+        const auto& parameter = *ordered[i].second;
+        const auto type = parameterType(parameter.defaultValue);
+        if (i >= block.fields.size())
+            return makeError(ErrorCode::InvalidData, std::format("parameter '{}' is not in the parameter block of surface shader '{}'", name, m_surface));
+
+        const auto& field = block.fields[i];
+        if (field.name != name)
+        {
+            return makeError(ErrorCode::InvalidData, std::format("parameter '{}' (offset {}) is where surface shader '{}' has '{}'",
+                                                         name, parameter.offset, m_surface, field.name));
+        }
+        if (field.offset != parameter.offset)
+        {
+            return makeError(ErrorCode::InvalidData, std::format("parameter '{}' is at offset {}, surface shader '{}' reads it at {}",
+                                                         name, parameter.offset, m_surface, field.offset));
+        }
+        if (field.type != type)
+        {
+            const auto shaderType = field.type ? std::format("a {}", parameterTypeName(*field.type)) : std::string{ "a type no parameter has" };
+            return makeError(ErrorCode::InvalidData, std::format("parameter '{}' is a {}, surface shader '{}' reads {}",
+                                                         name, parameterTypeName(type), m_surface, shaderType));
+        }
+        if (field.size != parameter.size)
+        {
+            return makeError(ErrorCode::InvalidData, std::format("parameter '{}' takes {} bytes, surface shader '{}' reads {}",
+                                                         name, parameter.size, m_surface, field.size));
+        }
+    }
+    if (block.fields.size() > ordered.size())
+    {
+        const auto& field = block.fields[ordered.size()];
+        return makeError(ErrorCode::InvalidData, std::format("surface shader '{}' reads '{}' (offset {}), which the template has no parameter for",
+                                                     m_surface, field.name, field.offset));
+    }
+    if (block.size != m_parameterSize)
+    {
+        return makeError(ErrorCode::InvalidData, std::format("the parameters take {} bytes, the parameter block of surface shader '{}' {}",
+                                                     m_parameterSize, m_surface, block.size));
+    }
     return {};
 }
 
