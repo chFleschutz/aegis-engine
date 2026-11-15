@@ -14,7 +14,7 @@ struct PushConstants
     float3 normalRow2;
     common::Camera* camera;
     common::Mesh* mesh;
-    Surface.Params* material;
+    MaterialAddress material;
 
     property float4x4 modelMatrix
     {
@@ -58,6 +58,6 @@ func fragmentMain(in VSOut input, out common::GBuffer output)
     surfaceInput.worldPosition = input.worldPosition;
     surfaceInput.worldNormal = input.worldNormal;
 
-    let surface = Surface.evaluate(push.material, surfaceInput);
-    output = toGBuffer(surfaceInput, surface, Surface.shadingModel());
+    let surface = evaluateSurface<Surface>(push.material, surfaceInput);
+    output = toGBuffer<Surface>(surfaceInput, surface);
 }

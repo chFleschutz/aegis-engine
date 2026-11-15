@@ -64,13 +64,11 @@ func meshMain(
 [shader("fragment")]
 func fragmentMain(MSOut input, out common::GBuffer output)
 {
-    let material = (Surface.Params*)push.getInstance(input.instanceID).material;
-
     SurfaceInput surfaceInput;
     surfaceInput.uv = input.uv;
     surfaceInput.worldPosition = input.worldPosition;
     surfaceInput.worldNormal = input.worldNormal;
 
-    let surface = Surface.evaluate(material, surfaceInput);
-    output = toGBuffer(surfaceInput, surface, Surface.shadingModel());
+    let surface = evaluateSurface<Surface>(push.getInstance(input.instanceID).material, surfaceInput);
+    output = toGBuffer<Surface>(surfaceInput, surface);
 }
