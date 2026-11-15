@@ -7,9 +7,24 @@ import aegis.math;
 
 namespace aegis::render_graph
 {
+namespace
+{
+auto cpuKey(const assets::MaterialVariant& variant, bool mirrored) -> PipelineKey
+{
+    // A mirrored model matrix reverses the winding of every triangle, so its front faces are clockwise.
+    return {
+        .technique = Technique::GBuffer,
+        .variant = variant,
+        .path = GeometryPath::CpuDriven,
+        .frontFace = mirrored ? rhi::FrontFace::Clockwise : rhi::FrontFace::CounterClockwise,
+    };
+}
+}
+
 StaticMeshRenderSystem::StaticMeshRenderSystem(assets::MaterialType type, std::string shader) :
     m_type{ type },
-    m_shader{ std::move(shader) }
+    m_shader{ std::move(shader) },
+    m_pipelines{ [this](const PipelineKey& key) { return createPipeline(key); } }
 {
 }
 
@@ -17,26 +32,23 @@ auto StaticMeshRenderSystem::createResources(rhi::Device& device, const RenderTa
     -> std::expected<void, Error>
 {
     m_device = &device;
-    auto pipeline = createGraphicsPipeline(device, m_shader,
-        rhi::Pipeline::GraphicsDesc{
-            .name = "StaticMeshes",
-            .colorAttachments = targets.colorAttachments,
-            .depthAttachment = targets.depthAttachment,
-        });
-    if (!pipeline)
-        return std::unexpected{ pipeline.error() };
-    // A mirrored model matrix reverses the winding of every triangle, so its front faces are clockwise.
-    auto mirrored = createGraphicsPipeline(device, m_shader,
-        rhi::Pipeline::GraphicsDesc{
-            .name = "StaticMeshesMirrored",
-            .colorAttachments = targets.colorAttachments,
-            .depthAttachment = targets.depthAttachment,
-            .frontFace = rhi::FrontFace::Clockwise,
-        });
-    if (!mirrored)
-        return std::unexpected{ mirrored.error() };
-    m_pipeline = std::move(*pipeline);
-    m_mirroredPipeline = std::move(*mirrored);
+    m_colorAttachments.assign(targets.colorAttachments.begin(), targets.colorAttachments.end());
+    m_depthAttachment = targets.depthAttachment;
+    return {};
+}
+
+auto StaticMeshRenderSystem::prepare(const FrameScene& frameScene) -> std::expected<void, Error>
+{
+    for (const auto& batch : frameScene.instances.batches())
+    {
+        if (!drawsInGBuffer(batch, m_type))
+            continue;
+        for (const bool mirrored : { false, true })
+        {
+            if (auto prepared = m_pipelines.prepare(cpuKey(batch.variant, mirrored)); !prepared)
+                return prepared;
+        }
+    }
     return {};
 }
 
@@ -46,20 +58,32 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
     for (const auto& material : instances.materials())
         material->update(context.frameIndex);
 
-    const auto& cmd = context.cmd;
-    cmd.bindPipeline(*m_pipeline);
-    bool boundMirrored{ false };
+    // Per draw batch, its pipelines (normal, mirrored); null for a batch this system skips or that was not prepared.
+    std::vector<std::array<const rhi::Pipeline*, 2>> batchPipelines;
+    batchPipelines.reserve(instances.batchCount());
+    for (const auto& batch : instances.batches())
+    {
+        if (!drawsInGBuffer(batch, m_type))
+            batchPipelines.push_back({ nullptr, nullptr });
+        else
+            batchPipelines.push_back({ m_pipelines.find(cpuKey(batch.variant, false)), m_pipelines.find(cpuKey(batch.variant, true)) });
+    }
 
-    const auto& batches = instances.batches();
+    const auto& cmd = context.cmd;
+    const rhi::Pipeline* bound{ nullptr };
     const auto draw = [&](const Instance& instance) {
-        if (!instance.mesh || !instance.material || batches[instance.drawBatch].variant.materialTemplate->type() != m_type)
+        if (!instance.mesh || !instance.material)
             return;
 
         const auto gpuTransform = detail::toGpuTransform(instance.model);
-        if (const bool mirrored = core::hasFlag(gpuTransform.flags, InstanceFlags::Mirrored); mirrored != boundMirrored)
+        const bool mirrored = core::hasFlag(gpuTransform.flags, InstanceFlags::Mirrored);
+        const auto* pipeline = batchPipelines[instance.drawBatch][mirrored ? 1 : 0];
+        if (!pipeline)
+            return;
+        if (pipeline != bound)
         {
-            cmd.bindPipeline(mirrored ? *m_mirroredPipeline : *m_pipeline);
-            boundMirrored = mirrored;
+            cmd.bindPipeline(*pipeline);
+            bound = pipeline;
         }
         cmd.pushConstants(StaticMeshConstants{
             .model = gpuTransform.model,
@@ -78,5 +102,21 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
         draw(instance);
     for (const auto& instance : instances.dynamicInstances())
         draw(instance);
+}
+
+auto StaticMeshRenderSystem::createPipeline(const PipelineKey& key) const -> std::expected<rhi::Pipeline, Error>
+{
+    const auto state = pipelineState(key);
+    auto attachments = m_colorAttachments;
+    for (auto& attachment : attachments)
+        attachment.blend = state.blend;
+    return createGraphicsPipeline(*m_device, m_shader,
+        rhi::Pipeline::GraphicsDesc{
+            .name = key.frontFace == rhi::FrontFace::Clockwise ? "StaticMeshesMirrored" : "StaticMeshes",
+            .colorAttachments = attachments,
+            .depthAttachment = m_depthAttachment,
+            .cullMode = state.cullMode,
+            .frontFace = state.frontFace,
+        });
 }
 }

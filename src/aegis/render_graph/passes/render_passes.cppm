@@ -14,6 +14,7 @@ export import :gpu_types;
 export import :ibl;
 export import :lighting_pass;
 export import :names;
+export import :pipeline_cache;
 export import :post_effects;
 export import :render_system;
 export import :scene_update_pass;

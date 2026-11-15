@@ -37,6 +37,9 @@ public:
     [[nodiscard]] virtual auto createResources(rhi::Device& device, const RenderTargets& targets)
         -> std::expected<void, Error> = 0;
 
+    /// @brief Creates what drawing 'frameScene' needs and the system lacks (RenderPass::prepare).
+    [[nodiscard]] virtual auto prepare(const FrameScene& /*frameScene*/) -> std::expected<void, Error> { return {}; }
+
     virtual auto render(const RenderContext& context) -> void = 0;
 };
 }

@@ -34,6 +34,12 @@ auto ensureCapacity(ResourcePool& pool, ResourceId buffer, std::uint32_t& capaci
     return true;
 }
 
+auto gpuKey(const assets::MaterialVariant& variant) -> PipelineKey
+{
+    // Mirrored instances keep the counter-clockwise front face: the mesh shader flips their winding.
+    return { .technique = Technique::GBuffer, .variant = variant, .path = GeometryPath::GpuDriven };
+}
+
 auto makeInstance(const Instance& instance, std::uint32_t frameIndex) -> InstanceData
 {
     assert(instance.mesh && instance.material && "The GPU-driven path draws only instances with a mesh and a material");
@@ -212,7 +218,8 @@ GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations,
     m_dynamicInstances{ declarations.addReference(names::dynamicInstances, Usage::ShaderRead) },
     m_visibility{ declarations.addReference(names::visibleInstances, Usage::ShaderRead) },
     m_commands{ declarations.addReference(names::indirectDrawCommands, Usage::IndirectRead) },
-    m_counts{ declarations.addReference(names::indirectDrawCounts, Usage::IndirectRead) }
+    m_counts{ declarations.addReference(names::indirectDrawCounts, Usage::IndirectRead) },
+    m_pipelines{ [this](const PipelineKey& key) { return createPipeline(key); } }
 {
 }
 
@@ -226,9 +233,31 @@ auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected
     if (!pool.device().capabilities().meshShaders)
         return makeError(ErrorCode::Unsupported, "The GPU-driven path needs mesh shaders, which this device lacks");
 
-    std::array<rhi::Pipeline::ColorAttachment, GeometryPass::gBufferFormats.size()> attachments;
-    for (std::size_t i = 0; i < attachments.size(); ++i)
-        attachments[i] = { .format = pool.format(m_gBuffer[i]) };
+    m_device = &pool.device();
+    for (std::size_t i = 0; i < m_colorAttachments.size(); ++i)
+        m_colorAttachments[i] = { .format = pool.format(m_gBuffer[i]) };
+    m_depthAttachment = pool.format(m_depth);
+    return {};
+}
+
+auto GpuDrivenGeometryPass::prepare(ResourcePool& /*pool*/, const FrameScene& frameScene) -> std::expected<void, Error>
+{
+    for (const auto& batch : frameScene.instances.batches())
+    {
+        if (!drawsInGBuffer(batch))
+            continue;
+        if (auto prepared = m_pipelines.prepare(gpuKey(batch.variant)); !prepared)
+            return prepared;
+    }
+    return {};
+}
+
+auto GpuDrivenGeometryPass::createPipeline(const PipelineKey& key) const -> std::expected<rhi::Pipeline, Error>
+{
+    const auto state = pipelineState(key);
+    auto attachments = m_colorAttachments;
+    for (auto& attachment : attachments)
+        attachment.blend = state.blend;
 
     // The task shader is a separate module: sharing one, the mesh stage would also declare the
     // task stage's DrawIndex, which a mesh shader with a task stage must not.
@@ -237,17 +266,15 @@ auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected
         ShaderEntry{ rhi::ShaderStage::Mesh, "gpu-driven/geometry.slang.spv", "meshMain" },
         ShaderEntry{ rhi::ShaderStage::Fragment, "gpu-driven/geometry.slang.spv", "fragmentMain" },
     };
-    auto pipeline = createGraphicsPipeline(pool.device(),
+    return createGraphicsPipeline(*m_device,
         rhi::Pipeline::GraphicsDesc{
             .name = "GpuDrivenGeometry",
             .colorAttachments = attachments,
-            .depthAttachment = pool.format(m_depth),
+            .depthAttachment = m_depthAttachment,
+            .cullMode = state.cullMode,
+            .frontFace = state.frontFace,
         },
         stages);
-    if (!pipeline)
-        return std::unexpected{ pipeline.error() };
-    m_pipeline = std::move(*pipeline);
-    return {};
 }
 
 auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
@@ -263,7 +290,6 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
     });
     cmd.setViewport(frameInfo.extent);
     cmd.setScissor(frameInfo.extent);
-    cmd.bindPipeline(*m_pipeline);
 
     const auto frame = frameInfo.frameIndex;
     const auto& commands = pool.buffer(m_commands);
@@ -271,12 +297,21 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
     // A batch past the command buffer's end (it failed to grow; culling then wrote nothing) is
     // skipped: its maximum draw count would read beyond the buffer.
     const auto commandCapacity = pool.bufferSize(m_commands) / indirectCommandSize;
+    const rhi::Pipeline* bound{ nullptr };
     for (const auto& batch : frameInfo.frameScene.instances.batches())
     {
-        // The G-buffer holds opaque surfaces only, as on the CPU path (StaticMeshRenderSystem).
-        if (batch.instanceCount == 0 || batch.variant.materialTemplate->type() != assets::MaterialType::Opaque ||
-            std::size_t{ batch.firstInstance } + batch.instanceCount > commandCapacity)
+        // The G-buffer holds opaque surfaces only, as on the CPU path (StaticMeshRenderSystem). A batch that was
+        // not prepared has no pipeline and is skipped.
+        if (!drawsInGBuffer(batch) || std::size_t{ batch.firstInstance } + batch.instanceCount > commandCapacity)
             continue;
+        const auto* pipeline = m_pipelines.find(gpuKey(batch.variant));
+        if (!pipeline)
+            continue;
+        if (pipeline != bound)
+        {
+            cmd.bindPipeline(*pipeline);
+            bound = pipeline;
+        }
         cmd.pushConstants(GpuDrivenGeometryConstants{
             .camera = pool.bufferAddress(m_cameraData, frame),
             .staticInstances = pool.bufferAddress(m_staticInstances, frame),

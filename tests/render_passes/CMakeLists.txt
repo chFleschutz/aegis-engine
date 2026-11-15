@@ -4,6 +4,7 @@ aegis_add_test(render_passes
         frame_data.test.cpp
         gpu_driven.test.cpp
         gpu_types.test.cpp
+        pipeline_cache.test.cpp
     LIBS aegis-render-passes
 )
 

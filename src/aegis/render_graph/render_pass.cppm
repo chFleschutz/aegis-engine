@@ -23,7 +23,8 @@ struct FrameInfo
 };
 
 /// @brief One node of the frame graph. The constructor declares resources on the ResourceDeclarations;
-///        everything that can fail (pipelines, shaders) belongs in createResources.
+///        everything that can fail (pipelines, shaders) belongs in createResources, or in prepare when it depends
+///        on what a frame draws.
 class RenderPass
 {
 public:
@@ -45,6 +46,14 @@ public:
     /// @brief Called by FrameGraph::resized after the graph recreated its output-sized
     ///        textures, for a pass to recreate what it derived from them (e.g. extra image views).
     [[nodiscard]] virtual auto resized(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
+
+    /// @brief Creates what recording 'frameScene' needs and the pass lacks, such as the pipelines of its draw
+    ///        batches. Called by FrameGraph::prepare for every pass, before the frame is recorded.
+    [[nodiscard]] virtual auto prepare(ResourcePool& /*pool*/, const FrameScene& /*frameScene*/)
+        -> std::expected<void, Error>
+    {
+        return {};
+    }
 
     /// @brief Records the pass. The graph has already recorded the barriers its accesses need.
     virtual auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void = 0;

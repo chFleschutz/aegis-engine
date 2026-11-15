@@ -1,6 +1,7 @@
 export module aegis.render_passes:gpu_driven;
 import std;
 import :gpu_types;
+import :pipeline_cache;
 import aegis.render_graph;
 import aegis.assets;
 import aegis.rhi;
@@ -103,8 +104,9 @@ private:
     std::optional<rhi::Pipeline> m_pipeline;
 };
 
-/// @brief The GPU-driven G-buffer pass (mesh shaders): one indirect-count draw per opaque draw batch fills
-///        the same G-buffer GeometryPass does, from the instances StaticMeshRenderSystem draws on the CPU path. Needs rhi::Device::Capabilities::meshShaders.
+/// @brief The GPU-driven G-buffer pass (mesh shaders): one indirect-count draw per opaque draw batch, with that
+///        batch's pipeline for the G-buffer technique, fills the same G-buffer GeometryPass does, from the instances
+///        StaticMeshRenderSystem draws on the CPU path. Needs rhi::Device::Capabilities::meshShaders.
 class GpuDrivenGeometryPass : public RenderPass
 {
 public:
@@ -112,9 +114,15 @@ public:
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
+    /// @brief Creates the pipelines of the frame's draw batches it draws.
+    [[nodiscard]] auto prepare(ResourcePool& pool, const FrameScene& frameScene) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
+    [[nodiscard]] auto pipelines() const noexcept -> const PipelineCache<>& { return m_pipelines; }
+
 private:
+    [[nodiscard]] auto createPipeline(const PipelineKey& key) const -> std::expected<rhi::Pipeline, Error>;
+
     const InstanceUpdatePass& m_instances;
     std::array<ResourceId, 5> m_gBuffer;
     ResourceId m_depth;
@@ -124,6 +132,9 @@ private:
     ResourceId m_visibility;
     ResourceId m_commands;
     ResourceId m_counts;
-    std::optional<rhi::Pipeline> m_pipeline;
+    rhi::Device* m_device{ nullptr };
+    std::array<rhi::Pipeline::ColorAttachment, 5> m_colorAttachments{};
+    rhi::Format m_depthAttachment{ rhi::Format::Unknown };
+    PipelineCache<> m_pipelines;
 };
 }
