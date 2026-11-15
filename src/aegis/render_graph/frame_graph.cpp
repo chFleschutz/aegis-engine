@@ -78,6 +78,16 @@ auto FrameGraph::resized(rhi::Extent2D output) -> std::expected<void, Error>
     return {};
 }
 
+auto FrameGraph::prepare(const FrameScene& frameScene) -> std::expected<void, Error>
+{
+    for (const auto index : m_order)
+    {
+        if (auto prepared = m_passes[index]->prepare(m_pool, frameScene); !prepared)
+            return prepared;
+    }
+    return {};
+}
+
 auto FrameGraph::execute(const FrameInfo& frameInfo) -> void
 {
     // The renderer waited for the frame that last used this slot, so its timestamps are final.

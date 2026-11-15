@@ -462,6 +462,13 @@ auto Engine::run() -> int
         auto frameScene = aegis::extractFrameScene(shown, instances);
         if (view && view->camera)
             frameScene.camera = view->camera;
+        // Pipelines the frame's draw batches need are created before recording; failing that, a shader is missing.
+        if (auto prepared = m_frameGraph->prepare(frameScene); !prepared)
+        {
+            log::fatal("Failed to prepare a frame: {}", render_graph::describe(prepared.error()));
+            exitCode = exitFailure;
+            break;
+        }
         auto rendered = m_renderer->renderFrame([this, &frameScene, &instances](const aegis::renderer::Renderer::FrameInfo& frame) {
             m_lastFrameIndex = frame.frameIndex;
             m_frameGraph->execute({

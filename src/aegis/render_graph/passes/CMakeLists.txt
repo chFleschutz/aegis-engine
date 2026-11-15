@@ -27,6 +27,7 @@ target_sources(aegis-render-passes
     ibl.cppm
     lighting_pass.cppm
     names.cppm
+    pipeline_cache.cppm
     post_effects.cppm
     render_system.cppm
     scene_update_pass.cppm

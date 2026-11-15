@@ -46,6 +46,16 @@ auto GeometryPass::createResources(ResourcePool& pool) -> std::expected<void, Er
     return {};
 }
 
+auto GeometryPass::prepare(ResourcePool& /*pool*/, const FrameScene& frameScene) -> std::expected<void, Error>
+{
+    for (const auto& system : m_renderSystems)
+    {
+        if (auto prepared = system->prepare(frameScene); !prepared)
+            return prepared;
+    }
+    return {};
+}
+
 auto GeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
     std::array<rhi::Attachment, gBufferFormats.size()> colorAttachments;

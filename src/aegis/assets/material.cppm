@@ -63,6 +63,29 @@ private:
     std::size_t m_parameterSize{ 0 };
 };
 
+/// @brief What decides how a material draws: its template, alpha mode and cull mode. Materials with the same variant
+///        draw in one draw batch (render_graph::InstanceStore) with the same pipelines. The template's
+///        default is opaque and back-face culled.
+struct MaterialVariant
+{
+    std::shared_ptr<const MaterialTemplate> materialTemplate;
+    AlphaMode alphaMode{ AlphaMode::Opaque };
+    rhi::CullMode cullMode{ rhi::CullMode::Back };
+
+    auto operator==(const MaterialVariant&) const -> bool = default;
+
+    /// @brief For unordered containers: hashes the template by address.
+    struct Hash
+    {
+        [[nodiscard]] auto operator()(const MaterialVariant& variant) const noexcept -> std::size_t
+        {
+            auto hash = std::hash<const MaterialTemplate*>{}(variant.materialTemplate.get());
+            hash ^= (static_cast<std::size_t>(variant.alphaMode) << 1) ^ (static_cast<std::size_t>(variant.cullMode) << 4);
+            return hash;
+        }
+    };
+};
+
 /// @brief A template's parameters with per-material overrides, in a GPU block per frame in flight
 ///        that shaders read through parameterAddress().
 /// @note Holds the Device and frees its buffer on destruction (deferred until the GPU is done).
@@ -89,7 +112,16 @@ public:
         return m_template;
     }
 
-    /// @brief A new material with this one's template and overrides, in its own parameter buffer: what an
+    /// @brief The material's variant: its template with its alpha and cull mode.
+    [[nodiscard]] auto variant() const -> MaterialVariant { return { m_template, m_alphaMode, m_cullMode }; }
+    [[nodiscard]] auto alphaMode() const noexcept -> AlphaMode { return m_alphaMode; }
+    [[nodiscard]] auto cullMode() const noexcept -> rhi::CullMode { return m_cullMode; }
+    /// @brief Changes the variant. The material's instances move to the new variant's draw batch at the next
+    ///        sync (render_graph::InstanceStore::syncVariants).
+    auto setAlphaMode(AlphaMode mode) noexcept -> void { m_alphaMode = mode; }
+    auto setCullMode(rhi::CullMode mode) noexcept -> void { m_cullMode = mode; }
+
+    /// @brief A new material with this one's template, variant and overrides, in its own parameter buffer: what an
     ///        object changes on its own instead of the shared one.
     [[nodiscard]] auto copy() const -> std::expected<std::shared_ptr<Material>, Error>;
 
@@ -123,6 +155,8 @@ private:
     rhi::Device& m_device;
     std::shared_ptr<const MaterialTemplate> m_template;
     std::unordered_map<std::string, MaterialValue> m_overrides;
+    AlphaMode m_alphaMode{ AlphaMode::Opaque };
+    rhi::CullMode m_cullMode{ rhi::CullMode::Back };
     rhi::BufferHandle m_buffer;
     std::size_t m_blockStride;
     std::vector<bool> m_dirty; // Per frame slot

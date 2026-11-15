@@ -94,7 +94,7 @@ TEST_SUITE("render_bridge::InstanceBridge")
     {
         aegis::world::Registry scene;
         InstanceStore store;
-        REQUIRE(store.add({}, std::make_shared<const aegis::assets::MaterialTemplate>(), false));
+        REQUIRE(store.add({}, { .materialTemplate = std::make_shared<const aegis::assets::MaterialTemplate>() }, false));
 
         InstanceBridge bridge{ store };
         bridge.connect(scene);

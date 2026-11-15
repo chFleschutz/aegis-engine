@@ -46,6 +46,24 @@ _Avoid_: external resource
 Said of a persistent texture or history pair that holds nothing of the previous frame yet: in the first frame, after a resize recreated it and after a graph rebuild.
 _Avoid_: invalidated, reset
 
+### Rendering
+
+**Material variant**:
+What decides how a material draws: its template, alpha mode and cull mode. Materials of one variant draw with the same pipelines.
+_Avoid_: material permutation, material kind
+
+**Draw batch**:
+The instances of one material variant, drawn together with one pipeline.
+_Avoid_: material batch, bucket
+
+**Technique**:
+How a pass draws a material: into the G-buffer, today; depth-only or forward later.
+_Avoid_: render mode, shader pass
+
+**Pipeline key**:
+Everything that picks one pipeline for a draw batch: the technique, the material variant, the geometry path and the front face.
+_Avoid_: pipeline id, pipeline hash
+
 ### World
 
 **Static entity**:

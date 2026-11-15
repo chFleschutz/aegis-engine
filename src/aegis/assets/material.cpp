@@ -150,7 +150,11 @@ auto Material::copy() const -> std::expected<std::shared_ptr<Material>, Error>
 {
     auto material = create(m_device, m_template, static_cast<std::uint32_t>(m_dirty.size()));
     if (material)
+    {
         (*material)->m_overrides = m_overrides;
+        (*material)->m_alphaMode = m_alphaMode;
+        (*material)->m_cullMode = m_cullMode;
+    }
     return material;
 }
 

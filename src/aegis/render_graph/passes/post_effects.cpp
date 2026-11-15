@@ -184,6 +184,16 @@ auto TransparentPass::createResources(ResourcePool& pool) -> std::expected<void,
     return {};
 }
 
+auto TransparentPass::prepare(ResourcePool& /*pool*/, const FrameScene& frameScene) -> std::expected<void, Error>
+{
+    for (const auto& system : m_renderSystems)
+    {
+        if (auto prepared = system->prepare(frameScene); !prepared)
+            return prepared;
+    }
+    return {};
+}
+
 auto TransparentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
     const auto& cmd = frameInfo.cmd;
