@@ -36,6 +36,8 @@ struct Options
                                // --screenshot and --compare then read (see viewExtent)
     bool worlds{ false };      // With --scene: render a second world from the scene file in the middle third of the
                                // frames (see SceneShell::switchWorlds)
+    bool postProcess{ false }; // With --scene: give the main camera a PostProcess (postProcessSettings), and rebuild the
+                               // frame graph halfway (a view for the first half of the frames, none after it)
     bool noSamples{ false };   // Skip the checks that load the sample project (samples/ not checked out)
 };
 

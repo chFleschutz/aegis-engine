@@ -97,7 +97,15 @@ void destroySubtree(world::Registry& registry, world::Entity root)
 // light on the cube shows as red (verifyUnlit).
 constexpr glm::vec3 unlitColor{ 0.0f, 1.0f, 1.0f };
 
-// The test's side of the app: edits the loaded scene at the safe point (--mirror, --mutate-scene), renders it
+// --post-process: settings far enough from the defaults that a frame rendered with the defaults fails the reference.
+constexpr PostProcess postProcessSettings{
+    .toneMapping = ToneMapping::Reinhard,
+    .exposure = 1.8f,
+    .bloomIntensity = 0.5f,
+    .bloomThreshold = 0.5f,
+};
+
+// The test's side of the app: edits the loaded scene at the safe point (--mirror, --mutate-scene, --post-process), renders it
 // through a second camera into a view of its own (--view), renders a second world for a while (--worlds), draws the
 // stats window and checks the frame graph's timings. Failures go to the SceneResult; the run carries on.
 class SceneShell final : public Shell
@@ -159,6 +167,14 @@ public:
     // The view's camera replaces the main one once the update has given it its matrices (from the second frame).
     [[nodiscard]] auto renderView() const -> std::optional<RenderView> override
     {
+        // --post-process: through the main camera into a view, then onto the target, so the frame graph is rebuilt
+        // halfway and the last frame shows whether the settings survived it.
+        if (m_options.postProcess)
+        {
+            if (m_options.frames != 0 && m_frame < m_options.frames / 2)
+                return RenderView{ .extent = sceneExtent };
+            return std::nullopt;
+        }
         if (!m_options.view)
             return std::nullopt;
         std::optional<RenderView::Camera> camera;
@@ -193,6 +209,14 @@ private:
             // A scale of -1 on x must not turn the helmet inside out.
             registry.get<Transform>(m_helmet).scale.x = -1.0f;
             registry.markStaticDirty(m_helmet);
+        }
+
+        if (m_options.postProcess)
+        {
+            if (const auto camera = world.mainCamera())
+                registry.add<PostProcess>(camera, postProcessSettings);
+            else
+                m_result.errors.push_back(std::format("{} has no main camera", sceneFile));
         }
 
         if (m_options.view)
