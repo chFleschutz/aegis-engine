@@ -16,6 +16,73 @@ enum class MaterialType
 using MaterialValue = std::variant<std::int32_t, std::uint32_t, float, glm::vec2, glm::vec3, glm::vec4,
     std::shared_ptr<Texture>>;
 
+/// @brief A material parameter's type, in MaterialValue's alternative order.
+enum class ParameterType
+{
+    Int,
+    UInt,
+    Float,
+    Vec2,
+    Vec3,
+    Vec4,
+    Texture,
+};
+
+[[nodiscard]] auto parameterType(const MaterialValue& value) -> ParameterType;
+
+/// @brief The type's name in template files and errors: "int", "uint", "float", "vec2", "vec3", "vec4", "texture".
+[[nodiscard]] auto parameterTypeName(ParameterType type) -> std::string_view;
+
+/// @brief A texture parameter's default in a template file: one of DefaultAssets' solid colours.
+enum class DefaultTexture
+{
+    White,
+    Black,
+    Normal,
+};
+
+/// @brief The textures DefaultTexture names, which MaterialTemplate::create resolves a template's defaults to.
+struct DefaultTextures
+{
+    std::shared_ptr<Texture> white;
+    std::shared_ptr<Texture> black;
+    std::shared_ptr<Texture> normal;
+};
+
+/// @brief A parameter's default as a template file gives it: MaterialValue with a DefaultTexture for a texture.
+using ParameterDefault = std::variant<std::int32_t, std::uint32_t, float, glm::vec2, glm::vec3, glm::vec4, DefaultTexture>;
+
+struct TemplateParameter
+{
+    std::string name;
+    ParameterDefault defaultValue;
+};
+
+/// @brief A material template as its file describes it (serialize::parseTemplate): its surface shader and its
+///        parameters, in the order of the surface shader's parameter block.
+struct MaterialTemplateDesc
+{
+    std::string surface;
+    std::vector<TemplateParameter> parameters;
+};
+
+/// @brief One field of a surface shader's parameter block, as the shader's reflection describes it.
+struct BlockField
+{
+    std::string name;
+    std::size_t offset{ 0 };
+    std::size_t size{ 0 };
+    std::optional<ParameterType> type; // None: a type no material parameter has
+};
+
+/// @brief A surface shader's parameter block as the build reflects it (shaders/surfaces/<surface>.layout.json, read
+///        by serialize::parseSurfaceLayout).
+struct SurfaceBlock
+{
+    std::vector<BlockField> fields;
+    std::size_t size{ 0 };
+};
+
 /// @brief Where a parameter lives in a material's parameter block, laid out with scalar rules
 ///        (C++ packing, as the new stack's shaders read blocks; see shaders/modules/README.md).
 ///        A texture takes 8 bytes: its SampledImageDescriptor index, then its SamplerDescriptor index.
@@ -40,6 +107,13 @@ public:
     {
     }
 
+    /// @brief The template 'desc' describes, its texture defaults resolved to 'textures', checked against its surface
+    ///        shader's parameter block (checkBlock).
+    /// @return ErrorCode::InvalidData, naming the parameter, if 'desc' lists one twice, a texture default is null or
+    ///         the parameters do not match 'block'.
+    [[nodiscard]] static auto create(const MaterialTemplateDesc& desc, const SurfaceBlock& block, const DefaultTextures& textures)
+        -> std::expected<MaterialTemplate, Error>;
+
     /// @brief Appends a parameter after the existing ones.
     /// @return ErrorCode::InvalidArgument if 'name' exists or a texture default is null.
     [[nodiscard]] auto addParameter(const std::string& name, MaterialValue defaultValue) -> std::expected<void, Error>;
@@ -56,6 +130,11 @@ public:
     ///        type of its default, and a texture is not null.
     /// @return ErrorCode::InvalidArgument otherwise.
     [[nodiscard]] auto check(const std::string& name, const MaterialValue& value) const -> std::expected<void, Error>;
+
+    /// @brief Whether the parameters lay out like 'block', the surface shader's parameter block: the same names in
+    ///        the same order, each at its offset with its size and type, and the same total size.
+    /// @return ErrorCode::InvalidData at the first difference, naming the parameter or the shader's field.
+    [[nodiscard]] auto checkBlock(const SurfaceBlock& block) const -> std::expected<void, Error>;
 
     [[nodiscard]] auto parameters() const noexcept -> const std::unordered_map<std::string, MaterialParameter>&
     {

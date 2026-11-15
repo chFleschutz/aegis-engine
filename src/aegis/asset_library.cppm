@@ -8,6 +8,13 @@ import aegis.world;
 
 export namespace aegis
 {
+/// @brief Reads the engine content's material templates (pbr.template and unlit.template in 'engineContent') with
+///        their surface shaders' parameter blocks, which the build reflects into 'shaders'
+///        (surfaces/<surface>.layout.json): what assets::DefaultAssets::create builds the default templates from.
+/// @return The file that could not be read or parsed, and why.
+[[nodiscard]] auto loadEngineTemplates(const std::filesystem::path& engineContent, const std::filesystem::path& shaders)
+    -> std::expected<assets::EngineTemplates, std::string>;
+
 /// @brief Loads assets by ID and keeps what it loaded: one slot per ID, so loading an ID twice returns the
 ///        same asset and the parts of a model file (its meshes, materials, textures) are shared with
 ///        anything that loads them by their own ID.

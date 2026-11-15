@@ -62,20 +62,4 @@ struct MeshGpuData
     std::uint32_t meshletCount;
     BoundingSphere bounds;
 };
-
-/// @brief common::PbrMaterial: the parameter block of the default PBR material. The template
-///        DefaultAssets::pbrTemplate (detail::addPbrParameters) must lay its parameters out like this.
-struct PbrMaterialBlock
-{
-    glm::vec3 albedo;
-    glm::vec3 emissive;
-    float metallic;
-    float roughness;
-    float ambientOcclusion;
-    rhi::TextureDescriptor albedoMap;
-    rhi::TextureDescriptor normalMap;
-    rhi::TextureDescriptor metalRoughnessMap;
-    rhi::TextureDescriptor ambientOcclusionMap;
-    rhi::TextureDescriptor emissiveMap;
-};
 }

@@ -22,7 +22,10 @@ namespace aegis::test
 auto Harness::verifyAssets() -> std::expected<void, std::string>
 {
     constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
-    auto defaults = assets::DefaultAssets::create(*m_device, framesInFlight);
+    auto templates = loadEngineTemplates(paths::content(), paths::shaders());
+    if (!templates)
+        return std::unexpected{ std::format("Material templates: {}", templates.error()) };
+    auto defaults = assets::DefaultAssets::create(*m_device, framesInFlight, *templates);
     if (!defaults)
         return std::unexpected{ std::format("Default assets: {}", assets::describe(defaults.error())) };
     if (auto result = flushAndWait(); !result)

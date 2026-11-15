@@ -4,13 +4,13 @@ aegis_add_test(assets
         asset_id.test.cpp
         asset_ref.test.cpp
         asset_key.test.cpp
-        defaults.test.cpp
         error.test.cpp
         external_images.test.cpp
         gpu_types.test.cpp
         image_data.test.cpp
         import_cache.test.cpp
         material.test.cpp
+        material_template.test.cpp
         mesh_blob.test.cpp
         mesh_preprocessor.test.cpp
         model_import.test.cpp

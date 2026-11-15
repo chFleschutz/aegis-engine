@@ -1,5 +1,18 @@
 {
   "type": "MaterialTemplate",
   "id": "d569ac68e5f612cb",
-  "version": 1
+  "version": 1,
+  "surface": "pbr",
+  "parameters": [
+    { "name": "albedo", "type": "vec3", "default": [1, 1, 1] },
+    { "name": "emissive", "type": "vec3", "default": [0, 0, 0] },
+    { "name": "metallic", "type": "float", "default": 0 },
+    { "name": "roughness", "type": "float", "default": 1 },
+    { "name": "ambientOcclusion", "type": "float", "default": 1 },
+    { "name": "albedoMap", "type": "texture", "default": "white" },
+    { "name": "normalMap", "type": "texture", "default": "normal" },
+    { "name": "metalRoughnessMap", "type": "texture", "default": "white" },
+    { "name": "ambientOcclusionMap", "type": "texture", "default": "white" },
+    { "name": "emissiveMap", "type": "texture", "default": "white" }
+  ]
 }

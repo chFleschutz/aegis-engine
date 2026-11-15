@@ -666,6 +666,37 @@ AssetLibrary::AssetLibrary(AssetLibrary&&) noexcept = default;
 auto AssetLibrary::operator=(AssetLibrary&&) noexcept -> AssetLibrary& = default;
 AssetLibrary::~AssetLibrary() = default;
 
+auto loadEngineTemplates(const std::filesystem::path& engineContent, const std::filesystem::path& shaders)
+    -> std::expected<assets::EngineTemplates, std::string>
+{
+    const auto load = [&](std::string_view name) -> std::expected<assets::TemplateSource, std::string> {
+        const auto templatePath = engineContent / std::format("{}.template", name);
+        auto text = readFile(templatePath);
+        if (!text)
+            return std::unexpected{ std::format("cannot read '{}'", templatePath.string()) };
+        auto file = serialize::parseTemplate(*text);
+        if (!file)
+            return std::unexpected{ std::format("'{}' {}", templatePath.string(), serialize::describe(file.error())) };
+
+        const auto layoutPath = shaders / "surfaces" / std::format("{}.layout.json", file->desc.surface);
+        auto layout = readFile(layoutPath);
+        if (!layout)
+            return std::unexpected{ std::format("'{}': cannot read '{}', the layout of its surface shader", templatePath.string(), layoutPath.string()) };
+        auto block = serialize::parseSurfaceLayout(*layout);
+        if (!block)
+            return std::unexpected{ std::format("'{}' {}", layoutPath.string(), serialize::describe(block.error())) };
+        return assets::TemplateSource{ .name = templatePath.filename().string(), .desc = std::move(file->desc), .block = std::move(*block) };
+    };
+
+    auto pbr = load("pbr");
+    if (!pbr)
+        return std::unexpected{ pbr.error() };
+    auto unlit = load("unlit");
+    if (!unlit)
+        return std::unexpected{ unlit.error() };
+    return assets::EngineTemplates{ .pbr = std::move(*pbr), .unlit = std::move(*unlit) };
+}
+
 auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, const Sources& sources)
     -> std::expected<AssetLibrary, std::string>
 {
@@ -677,7 +708,10 @@ auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, con
     if (!database)
         return std::unexpected{ std::format("Failed to scan the assets: {}", describe(database.error())) };
 
-    auto defaults = assets::DefaultAssets::create(device, framesInFlight);
+    auto templates = loadEngineTemplates(sources.engineContent, paths::shaders());
+    if (!templates)
+        return std::unexpected{ std::format("Failed to load the material templates: {}", templates.error()) };
+    auto defaults = assets::DefaultAssets::create(device, framesInFlight, *templates);
     if (!defaults)
         return std::unexpected{ std::format("Failed to create the default assets: {}", describe(defaults.error())) };
     auto ibl = render_graph::Ibl::create(device);
