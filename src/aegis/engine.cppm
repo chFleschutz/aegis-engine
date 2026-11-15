@@ -73,6 +73,24 @@ private:
     std::unique_ptr<Textures> m_textures;
 };
 
+/// @brief A command-line option parseArgs leaves to the shell: its name as typed ("--editor-select") and the token after
+///        it, unless that starts with "--".
+struct ShellOption
+{
+    std::string name;
+    std::optional<std::string> value;
+
+    auto operator==(const ShellOption&) const -> bool = default;
+};
+
+/// @brief One option in the help text: its name with its argument ("--frames <n>") and what it does, a line break
+///        (a newline) between the lines of a long description.
+struct OptionHelp
+{
+    std::string_view name;
+    std::string_view description;
+};
+
 /// @brief How the app starts: a window or an offscreen target, and when it stops.
 struct AppDesc
 {
@@ -100,19 +118,11 @@ struct AppDesc
     /// @brief An asset ID: print the import cache entry of that model, mesh of a model, texture or environment
     ///        instead of running (see dumpAsset).
     std::string dumpAsset;
-    /// @brief "all" opens every panel of the editor at startup (a test, a screenshot); empty keeps the editor's own
-    ///        layout. The runtime flavor of a game ignores it.
-    std::string editorPanels;
-    /// @brief The editor selects the first entity of this Name once the scene has loaded (a test, a screenshot of the
-    ///        Inspector and the gizmo); empty selects none. The runtime flavor of a game ignores it.
-    std::string editorSelect;
-    /// @brief The editor enters play after its first frame (a screenshot of play mode). The runtime flavor of a game ignores it.
-    bool editorPlay{ false };
-    /// @brief The editor starts in full viewport (a screenshot of it). The runtime flavor of a game ignores it.
-    bool editorFullViewport{ false };
-    /// @brief The editor starts with the right column folded into the side rail and the Inspector in its flyout (a
-    ///        screenshot of them). The runtime flavor of a game ignores it.
-    bool editorFold{ false };
+    /// @brief --help: print the help text (helpText) instead of running.
+    bool help{ false };
+    /// @brief The options parseArgs doesn't know, in their order: the shell's to read in Shell::onStartup (the editor's
+    ///        --editor-* options). The runtime's GameShell rejects any.
+    std::vector<ShellOption> shellOptions;
 };
 
 enum class EngineErrorCode
@@ -141,17 +151,24 @@ inline constexpr int exitUsage{ 2 };
 
 [[nodiscard]] auto describe(const EngineError& error) -> std::string;
 
-/// @brief Reads --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n>, --project <dir>,
-///        --scene <path>, --dump-asset <id>, --editor-panels all, --editor-select <name>, --editor-play,
-///        --editor-full-viewport and --editor-fold; the first argument (the program name) is skipped. A headless run without --frames
-///        stops after 600 frames.
+/// @brief Reads --help, --headless, --frames <n>, --screenshot <png>, --width <n>, --height <n>, --project <dir>,
+///        --scene <path> and --dump-asset <id>; the first argument (the program name) is skipped. Any other `--name`
+///        goes to AppDesc::shellOptions, with the next token as its value unless that starts with "--". A headless run
+///        without --frames stops after 600 frames.
 [[nodiscard]] auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, EngineError>;
 
 /// @brief The same for main's argc and argv.
 [[nodiscard]] auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>;
 
-/// @brief The usage line for parseArgs's options, naming 'program'.
-[[nodiscard]] auto usage(std::string_view program) -> std::string;
+/// @brief The --help text, laid out like clang-format's: OVERVIEW, USAGE naming 'program', then OPTIONS, parseArgs's
+///        and the shell's ('shellOptions', such as editor::optionsHelp) sorted by name, each description in one column.
+[[nodiscard]] auto helpText(std::string_view program, std::string_view overview, std::span<const OptionHelp> shellOptions = {}) -> std::string;
+
+/// @brief What follows a command-line error: a pointer to 'program' --help.
+[[nodiscard]] auto tryHelp(std::string_view program) -> std::string;
+
+/// @brief For a shell that takes no options (GameShell): EngineErrorCode::InvalidArguments naming the first one, if any.
+[[nodiscard]] auto rejectShellOptions(std::span<const ShellOption> options) -> std::expected<void, EngineError>;
 
 /// @brief The import cache entry of the asset AppDesc::dumpAsset names, as text (assets::ImportCache::dump and
 ///        dumpTexture): a model file's entry, one mesh blob of it for the ID of a model's mesh, or the texture entry
@@ -249,7 +266,9 @@ public:
     auto operator=(const Shell&) -> Shell& = delete;
     auto operator=(Shell&&) -> Shell& = delete;
 
-    /// @brief Runs once Engine::run starts: after the project, the game's types and its startup scene have loaded.
+    /// @brief Runs once Engine::run starts: after the project, the game's types and its startup scene have loaded. Reads
+    ///        the shell's options (AppDesc::shellOptions); EngineErrorCode::InvalidArguments for an unknown or malformed one
+    ///        makes run() return exitUsage.
     virtual auto onStartup(Engine& engine) -> std::expected<void, EngineError> { return {}; }
     /// @brief The safe point, once per frame: build the UI, apply edits and update the worlds that should: Play runs
     ///        the game, Edit only the systems that opt in (see FrameContext).
@@ -274,11 +293,14 @@ public:
 class GameShell final : public Shell
 {
 public:
+    /// @brief Rejects any shell option: the runtime takes none.
+    auto onStartup(Engine& engine) -> std::expected<void, EngineError> override;
     void onFrame(FrameContext& frame) override { frame.update(frame.world, world::UpdateMode::Play); }
 };
 
 /// @brief parseArgs plus Engine::create for a 'main': a failure is logged and comes back as the exit code
-///        to return (exitUsage for a bad command line, exitFailure when the engine can't start).
+///        to return (exitUsage for a bad command line, exitFailure when the engine can't start). The shell's options
+///        are left to the shell's onStartup.
 [[nodiscard]] auto createEngine(int argc, char** argv) -> std::expected<std::unique_ptr<Engine>, int>;
 
 class Engine

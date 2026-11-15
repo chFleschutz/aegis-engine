@@ -44,6 +44,7 @@ public:
     auto operator=(const EditorShell&) -> EditorShell& = delete;
     auto operator=(EditorShell&&) -> EditorShell& = delete;
 
+    /// @brief Reads the editor's options (parseOptions) and fails on a bad one.
     auto onStartup(Engine& engine) -> std::expected<void, EngineError> override;
     /// @brief The editor's UI and edits; the main world updates in edit mode (no script runs).
     void onFrame(FrameContext& frame) override;

@@ -16,6 +16,19 @@ namespace aegis
 namespace
 {
 constexpr std::uint32_t DEFAULT_HEADLESS_FRAMES{ 600 };
+
+// parseArgs's options, for helpText
+constexpr std::array ENGINE_OPTIONS{
+    OptionHelp{ "--help", "Print this help and exit." },
+    OptionHelp{ "--headless", "Render offscreen, with no window, input or UI. The run stops by itself,\nafter 600 frames unless --frames says otherwise." },
+    OptionHelp{ "--frames <n>", "Render <n> frames, then exit." },
+    OptionHelp{ "--screenshot <png>", "Save the last frame as PNG. Needs --headless." },
+    OptionHelp{ "--width <n>", "The window's width, or the offscreen target's when headless (1920)." },
+    OptionHelp{ "--height <n>", "The window's height, or the offscreen target's when headless (1080)." },
+    OptionHelp{ "--project <dir>", "The project folder the assets come from. Defaults to project/ next to\nthe executable, then the game's folder in the source tree." },
+    OptionHelp{ "--scene <path>", "The scene file to start with, by its path in the project's content/\nfolder. Defaults to the game's own." },
+    OptionHelp{ "--dump-asset <id>", "Print the import cache entry of the asset with this ID (16 hex digits)\nand exit." },
+};
 constexpr float HEADLESS_FRAME_DELTA_SEC{ 1.0f / 60.0f }; // Fixed, so a headless run does not depend on the machine
 
 auto makeError(EngineErrorCode code, std::string message) -> EngineError
@@ -59,49 +72,36 @@ auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, Engi
     {
         const std::string_view arg{ args[i] };
         const auto hasValue = i + 1 < args.size();
-        if (arg == "--headless")
+        const auto takesValue = arg == "--screenshot" || arg == "--project" || arg == "--scene" || arg == "--dump-asset" ||
+                                arg == "--frames" || arg == "--width" || arg == "--height";
+        if (takesValue && !hasValue)
+            return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("{} needs a value", arg)) };
+
+        if (arg == "--help")
+        {
+            desc.help = true;
+        }
+        else if (arg == "--headless")
         {
             desc.headless = true;
         }
-        else if (arg == "--screenshot" && hasValue)
+        else if (arg == "--screenshot")
         {
             desc.screenshot = args[++i];
         }
-        else if (arg == "--project" && hasValue)
+        else if (arg == "--project")
         {
             desc.project = args[++i]; // argv is in the native narrow encoding, as path expects
         }
-        else if (arg == "--scene" && hasValue)
+        else if (arg == "--scene")
         {
             desc.scene = args[++i];
         }
-        else if (arg == "--dump-asset" && hasValue)
+        else if (arg == "--dump-asset")
         {
             desc.dumpAsset = args[++i];
         }
-        else if (arg == "--editor-panels" && hasValue)
-        {
-            desc.editorPanels = args[++i];
-            if (desc.editorPanels != "all")
-                return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("--editor-panels takes 'all', got '{}'", desc.editorPanels)) };
-        }
-        else if (arg == "--editor-select" && hasValue)
-        {
-            desc.editorSelect = args[++i];
-        }
-        else if (arg == "--editor-play")
-        {
-            desc.editorPlay = true;
-        }
-        else if (arg == "--editor-full-viewport")
-        {
-            desc.editorFullViewport = true;
-        }
-        else if (arg == "--editor-fold")
-        {
-            desc.editorFold = true;
-        }
-        else if ((arg == "--frames" || arg == "--width" || arg == "--height") && hasValue)
+        else if (arg == "--frames" || arg == "--width" || arg == "--height")
         {
             const auto count = parseCount(arg, args[++i]);
             if (!count)
@@ -110,9 +110,16 @@ auto parseArgs(std::span<const char* const> args) -> std::expected<AppDesc, Engi
                                                                               : desc.height;
             target = *count;
         }
+        else if (arg.starts_with("--") && arg.size() > 2)
+        {
+            // The shell's: it validates them in onStartup
+            auto& option = desc.shellOptions.emplace_back(ShellOption{ .name = std::string{ arg } });
+            if (hasValue && !std::string_view{ args[i + 1] }.starts_with("--"))
+                option.value = args[++i];
+        }
         else
         {
-            return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("Unknown or incomplete argument '{}'", arg)) };
+            return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("Unknown argument '{}'", arg)) };
         }
     }
 
@@ -130,10 +137,41 @@ auto parseArgs(int argc, char** argv) -> std::expected<AppDesc, EngineError>
     return parseArgs(std::span<const char* const>{ args });
 }
 
-auto usage(std::string_view program) -> std::string
+auto helpText(std::string_view program, std::string_view overview, std::span<const OptionHelp> shellOptions) -> std::string
 {
-    return std::format("Usage: {} [--headless] [--frames <n>] [--screenshot <png>] [--width <n>] [--height <n>] [--project <dir>] [--scene <path>] [--dump-asset <id>] [--editor-panels all] [--editor-select <name>] [--editor-play] [--editor-full-viewport] [--editor-fold]",
-        program);
+    std::vector<OptionHelp> options{ std::from_range, ENGINE_OPTIONS };
+    options.append_range(shellOptions);
+    std::ranges::sort(options, {}, &OptionHelp::name);
+    const auto width = std::ranges::max(options | std::views::transform([](const OptionHelp& option) { return option.name.size(); }));
+
+    auto text = std::format("OVERVIEW: {}\n\nUSAGE: {} [options]\n\nOPTIONS:\n", overview, program);
+    for (const auto& option : options)
+    {
+        // "  --name   - first line", the description's further lines under its first
+        auto lines = option.description | std::views::split('\n');
+        auto line = lines.begin();
+        std::format_to(std::back_inserter(text), "  {:<{}} - {}\n", option.name, width, std::string_view{ *line });
+        for (++line; line != lines.end(); ++line)
+            std::format_to(std::back_inserter(text), "  {:<{}}   {}\n", "", width, std::string_view{ *line });
+    }
+    return text;
+}
+
+auto tryHelp(std::string_view program) -> std::string
+{
+    return std::format("Try '{} --help'.", program);
+}
+
+auto rejectShellOptions(std::span<const ShellOption> options) -> std::expected<void, EngineError>
+{
+    if (options.empty())
+        return {};
+    return std::unexpected{ makeError(EngineErrorCode::InvalidArguments, std::format("Unknown option '{}'", options.front().name)) };
+}
+
+auto GameShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
+{
+    return rejectShellOptions(engine.desc().shellOptions);
 }
 
 auto dumpAsset(const AppDesc& desc) -> std::expected<std::string, EngineError>
@@ -204,7 +242,7 @@ auto createEngine(int argc, char** argv) -> std::expected<std::unique_ptr<Engine
     const auto desc = parseArgs(argc, argv);
     if (!desc)
     {
-        log::error("{}\n{}", describe(desc.error()), usage(argc > 0 ? argv[0] : "app"));
+        log::error("{}. {}", describe(desc.error()), tryHelp(argc > 0 ? argv[0] : "app"));
         return std::unexpected{ exitUsage };
     }
     auto engine = Engine::create(*desc);
@@ -386,6 +424,12 @@ auto Engine::run() -> int
 
     if (auto started = m_shell->onStartup(*this); !started)
     {
+        // A bad shell option is a bad command line
+        if (started.error().code == EngineErrorCode::InvalidArguments)
+        {
+            log::error("{}", describe(started.error()));
+            return exitUsage;
+        }
         log::fatal("The shell failed to start: {}", describe(started.error()));
         return exitFailure;
     }

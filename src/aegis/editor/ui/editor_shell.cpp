@@ -18,6 +18,7 @@ import aegis.reflect;
 import aegis.serialize;
 import aegis.world;
 import :actions;
+import :options;
 import :panels;
 import :theme;
 
@@ -354,12 +355,15 @@ EditorShell::~EditorShell()
 
 auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
 {
+    const auto options = parseOptions(engine.desc().shellOptions);
+    if (!options)
+        return std::unexpected{ options.error() };
     m_engine = &engine;
     m_scene = engine.scene();
     theme::loadFonts(paths::content() / "fonts");
     // A drag in a window's body is the viewport's (orbit, gizmo), not a window move
     ImGui::GetIO().ConfigWindowsMoveFromTitleBarOnly = true;
-    if (engine.desc().editorPanels == "all")
+    if (options->allPanels)
     {
         for (const auto& panel : m_panels)
         {
@@ -370,12 +374,12 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
         m_focusPinned = "Content"; // Its tab shows
     }
     m_context.setWorld(engine.world()); // Now, so the first frame keeps a selection made here
-    if (const auto& name = engine.desc().editorSelect; !name.empty())
-        selectByName(name);
-    m_playAfterFirstFrame = engine.desc().editorPlay;
-    if (engine.desc().editorFullViewport)
+    if (!options->select.empty())
+        selectByName(options->select);
+    m_playAfterFirstFrame = options->play;
+    if (options->fullViewport)
         toggleFullViewport();
-    m_foldOnFirstFrame = engine.desc().editorFold;
+    m_foldOnFirstFrame = options->fold;
     // A headless run (a test, a screenshot) neither reads nor changes the user's layout.
     if (!engine.headless() && !engine.project().empty())
     {
