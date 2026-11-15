@@ -159,7 +159,6 @@ auto Registry::removeChildren(Entity entity) -> std::expected<void, HierarchyErr
     std::vector<Entity> childrenToRemove;
     childrenToRemove.reserve(children.count);
 
-    // TODO: This can be simplified by repairing the iterators for the children
     Entity current = children.first;
     while (current)
     {

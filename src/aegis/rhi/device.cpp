@@ -584,10 +584,6 @@ auto Device::queryCapabilities(const vk::raii::PhysicalDevice& pd) -> Capabiliti
         vk::PhysicalDeviceVulkan12Features,
         vk::PhysicalDeviceVulkan13Features,
         vk::PhysicalDeviceMeshShaderFeaturesEXT>();
-    // const auto& vk10features = features.get<vk::PhysicalDeviceFeatures2>();
-    // const auto& vk11features = features.get<vk::PhysicalDeviceVulkan11Features>();
-    // const auto& vk12features = features.get<vk::PhysicalDeviceVulkan12Features>();
-    // const auto& vk13features = features.get<vk::PhysicalDeviceVulkan13Features>();
     const auto& meshShaderFeatures = features.get<vk::PhysicalDeviceMeshShaderFeaturesEXT>();
 
     return Capabilities{

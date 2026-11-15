@@ -67,33 +67,9 @@ struct Siblings
 /// @note Use Entity::addChild to add a child to an entity
 struct Children
 {
-    // TODO: This is currentl broken because the entity does not have a pointer to the scene anymore
-    //struct Iterator
-    //{
-    //    world::Entity current{};
-
-    //    auto operator*() const -> world::Entity { return current; }
-    //    auto operator++() -> Iterator& { current = current.get<Siblings>().next; return *this; }
-    //    auto operator==(const Iterator& other) const -> bool { return current == other.current; }
-    //};
-
-    //struct ReverseIterator
-    //{
-    //    world::Entity current{};
-
-    //    auto operator*() const -> world::Entity { return current; }
-    //    auto operator++() -> ReverseIterator& { current = current.get<Siblings>().prev; return *this; }
-    //    auto operator==(const ReverseIterator& other) const -> bool { return current == other.current; };
-    //};
-
     std::size_t count = 0;
     world::Entity first{};
     world::Entity last{};
-
-    //auto begin() const -> Children::Iterator { return { first }; }
-    //auto end() const -> Children::Iterator { return { world::Entity{} }; }
-    //auto rbegin() const -> Children::ReverseIterator { return { last }; }
-    //auto rend() const -> Children::ReverseIterator { return { world::Entity{} }; }
 };
 
 /// @brief Tags an entity as dynamic: its global transform is recomputed every frame.
