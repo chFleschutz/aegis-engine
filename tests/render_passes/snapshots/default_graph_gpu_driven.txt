@@ -6,7 +6,7 @@
     create DrawBatches HostWrite
 3. Clear Draw Counts
     create IndirectDrawCounts TransferDst
-    barrier IndirectDrawCounts: IndirectRead -> TransferDst
+    barrier IndirectDrawCounts: last frame's IndirectRead -> TransferDst
 4. Culling
     use    CameraData ShaderRead
     use    StaticInstances ShaderRead
@@ -15,8 +15,8 @@
     create VisibleInstances StorageWrite
     create IndirectDrawCommands StorageWrite
     use    IndirectDrawCounts StorageWrite
-    barrier VisibleInstances: ShaderRead -> StorageWrite
-    barrier IndirectDrawCommands: IndirectRead -> StorageWrite
+    barrier VisibleInstances: last frame's ShaderRead -> StorageWrite
+    barrier IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
     barrier IndirectDrawCounts: TransferDst -> StorageWrite
 5. GPU Driven Geometry
     use    CameraData ShaderRead

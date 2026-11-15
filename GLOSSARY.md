@@ -28,6 +28,24 @@ _Avoid_: descriptor handle, bindless handle, slot handle
 A plain value that identifies something with no pool behind it: a vector index (`render_graph::ResourceId`) or a stable identity (`AssetId`).
 _Avoid_: handle
 
+### Frame graph
+
+**Persistent texture**:
+A graph texture whose contents survive the frame: what a pass leaves in it is there in the next frame.
+_Avoid_: static texture, retained texture
+
+**History pair**:
+Two images behind one graph texture, swapped every frame: passes write the current image and read the previous frame's.
+_Avoid_: ping-pong texture, double buffer
+
+**Imported resource**:
+An image or buffer owned outside the graph, declared with the access it comes from when a frame starts and the one the graph leaves it ready for.
+_Avoid_: external resource
+
+**Fresh**:
+Said of a persistent texture or history pair that holds nothing of the previous frame yet: in the first frame, after a resize recreated it and after a graph rebuild.
+_Avoid_: invalidated, reset
+
 ### World
 
 **Static entity**:

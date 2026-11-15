@@ -33,6 +33,19 @@ struct ResourceId
     auto operator==(const ResourceId&) const -> bool = default;
 };
 
+/// @brief How long a graph texture keeps its contents.
+enum class Lifetime
+{
+    /// @brief Produced anew every frame: its first access discards what the frame before left.
+    Frame,
+    /// @brief A persistent texture: one image whose contents survive the frame. Its first access each frame
+    ///        synchronizes with its last access of the frame before.
+    Persistent,
+    /// @brief A history pair: two images swapped every frame. Passes write the current one and read the
+    ///        previous frame's through ResourceDeclarations::addHistoryReference.
+    History,
+};
+
 struct TextureDesc
 {
     rhi::Format format;
@@ -45,6 +58,9 @@ struct TextureDesc
     std::uint32_t mipLevels{ 1 };
     /// @brief Usage beyond what the graph accesses imply, e.g. Sampled for mips a pass samples itself.
     rhi::ImageUsage usage{ rhi::ImageUsage::None };
+    /// @brief Persistent and History textures are fresh (ResourcePool::isFresh) until a frame has run with
+    ///        them: in the first frame, after a resize recreated them and after a graph rebuild.
+    Lifetime lifetime{ Lifetime::Frame };
 };
 
 struct BufferDesc
@@ -53,6 +69,25 @@ struct BufferDesc
     /// @brief One copy per frame in flight, so a frame's writes never race the GPU reading the
     ///        previous frame's. Needed for anything the CPU writes every frame.
     bool perFrame{ false };
+};
+
+/// @brief An imported texture: an image owned outside the graph, bound with FrameGraph::bind before a frame.
+struct ImportedTextureDesc
+{
+    rhi::Format format;
+    /// @brief How the image was last accessed when the frame starts; none: its contents are discarded.
+    std::optional<Usage> before;
+    /// @brief The access the graph leaves the image ready for when the frame ends.
+    Usage after;
+};
+
+/// @brief An imported buffer: a buffer owned outside the graph, bound with FrameGraph::bind before a frame.
+struct ImportedBufferDesc
+{
+    /// @brief How the buffer was last accessed when the frame starts; none: nothing to wait for.
+    std::optional<Usage> before;
+    /// @brief The access that follows the frame; none: nothing the frame's writes must be visible to.
+    std::optional<Usage> after;
 };
 }
 

@@ -52,7 +52,16 @@ public:
     ///        the output. They keep their handles, but passes may hold views of the replaced images.
     [[nodiscard]] auto resized(rhi::Extent2D output) -> std::expected<void, Error>;
 
-    /// @brief Records every pass, in order, into frameInfo.cmd.
+    /// @brief Sets the image behind an imported texture ('resource' from ResourceDeclarations::importTexture or
+    ///        find), in the state it was declared to be in when a frame starts. Call after compile and before
+    ///        the first execute; it stays bound until bound again. The graph never frees it.
+    auto bind(ResourceId resource, const renderer::Texture& texture) -> void { m_pool.bind(resource, texture); }
+    /// @brief Sets the buffer behind an imported buffer, like the texture overload.
+    auto bind(ResourceId resource, rhi::BufferHandle buffer) -> void { m_pool.bind(resource, buffer); }
+
+    /// @brief Records every pass, in order, into frameInfo.cmd, then the barriers that leave imported
+    ///        resources as declared. Afterwards persistent textures and history pairs are no longer fresh, and
+    ///        the history pairs swap.
     auto execute(const FrameInfo& frameInfo) -> void;
 
     [[nodiscard]] auto pool() noexcept -> ResourcePool& { return m_pool; }
@@ -72,6 +81,7 @@ private:
     ResourcePool m_pool;
     std::vector<std::uint32_t> m_order;                         // Execution order, indices into m_passes
     std::vector<std::vector<detail::Transition>> m_transitions; // Per entry of m_order
+    std::vector<detail::Transition> m_endOfFrame;               // After the last pass
     std::vector<detail::ResourceKind> m_kinds;                  // Per pool entry
     bool m_compiled{ false };
 

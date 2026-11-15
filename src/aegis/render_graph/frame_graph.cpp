@@ -34,6 +34,7 @@ auto FrameGraph::compile() -> std::expected<void, Error>
         }
     }
     m_transitions = std::move(plan->transitions);
+    m_endOfFrame = std::move(plan->endOfFrame);
 
     const auto queryCount = static_cast<std::uint32_t>(2 * m_order.size());
     for (std::uint32_t i = 0; i < renderer::Renderer::maxFramesInFlight && queryCount > 0; ++i)
@@ -108,6 +109,8 @@ auto FrameGraph::execute(const FrameInfo& frameInfo) -> void
         }
         frameInfo.cmd.endLabel();
     }
+    recordTransitions(frameInfo.cmd, m_endOfFrame);
+    m_pool.endFrame();
     if (timer)
         timer->pending = true;
 }
@@ -140,14 +143,18 @@ auto FrameGraph::describePasses() const -> std::vector<PassDescription>
 auto FrameGraph::recordTransitions(const rhi::CommandBuffer& cmd,
     const std::vector<detail::Transition>& transitions) const -> void
 {
-    for (const auto& [resource, from, to] : transitions)
+    for (const auto& transition : transitions)
     {
-        const auto fromState = from ? detail::toResourceState(*from) : rhi::ResourceState::Unknown;
-        const auto toState = detail::toResourceState(to);
-        if (m_kinds[resource] == detail::ResourceKind::Image)
-            cmd.transitionImageLayout(m_pool.texture({ resource }).image, fromState, toState);
-        else
-            cmd.memoryBarrier(fromState, toState);
+        const auto toState = detail::toResourceState(transition.to);
+        if (m_kinds[transition.resource] != detail::ResourceKind::Image)
+        {
+            cmd.memoryBarrier(detail::toResourceState(*transition.from), toState);
+            continue;
+        }
+        // A fresh image was never accessed in a previous frame: its contents are undefined.
+        const bool undefined = !transition.from || (transition.crossFrame && m_pool.isFreshAt(transition.resource));
+        cmd.transitionImageLayout(m_pool.textureAt(transition.resource, transition.previous).image,
+            undefined ? rhi::ResourceState::Unknown : detail::toResourceState(*transition.from), toState);
     }
 }
 }

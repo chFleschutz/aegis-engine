@@ -17,8 +17,7 @@ auto ResourceDeclarations::setPassName(std::uint32_t pass, std::string_view name
     m_passNames[pass] = name;
 }
 
-auto ResourceDeclarations::add(std::string_view name, Usage usage, std::variant<TextureDesc, BufferDesc, Reference> info)
-    -> ResourceId
+auto ResourceDeclarations::add(std::string_view name, Usage usage, Info info) -> ResourceId
 {
     assert(!m_passNames.empty() && "Declare resources after beginPass");
     m_entries.push_back({ std::string{ name }, usage, std::move(info), passCount() - 1 });
@@ -35,9 +34,24 @@ auto ResourceDeclarations::addBuffer(std::string_view name, Usage usage, const B
     return add(name, usage, desc);
 }
 
+auto ResourceDeclarations::importTexture(std::string_view name, Usage usage, const ImportedTextureDesc& desc) -> ResourceId
+{
+    return add(name, usage, desc);
+}
+
+auto ResourceDeclarations::importBuffer(std::string_view name, Usage usage, const ImportedBufferDesc& desc) -> ResourceId
+{
+    return add(name, usage, desc);
+}
+
 auto ResourceDeclarations::addReference(std::string_view name, Usage usage) -> ResourceId
 {
     return add(name, usage, Reference{});
+}
+
+auto ResourceDeclarations::addHistoryReference(std::string_view name, Usage usage) -> ResourceId
+{
+    return add(name, usage, Reference{ .previous = true });
 }
 
 namespace
@@ -96,7 +110,12 @@ auto ResourceDeclarations::describe() const -> std::vector<ResourceDescription>
             description.kind = ResourceDescription::Kind::Texture;
             description.format = texture->format;
         }
-        else if (std::holds_alternative<BufferDesc>(entry.info))
+        else if (const auto* imported = std::get_if<ImportedTextureDesc>(&entry.info))
+        {
+            description.kind = ResourceDescription::Kind::Texture;
+            description.format = imported->format;
+        }
+        else if (!std::holds_alternative<Reference>(entry.info))
         {
             description.kind = ResourceDescription::Kind::Buffer;
         }
@@ -159,11 +178,33 @@ auto compilePlan(const ResourceDeclarations& declarations) -> std::expected<Grap
         plan.target[i] = creator->second;
     }
 
+    // The previous frame's image exists only for a history pair, and passes only read it.
+    plan.previous.assign(count, false);
+    for (std::uint32_t i = 0; i < count; ++i)
+    {
+        const auto* reference = std::get_if<ResourceDeclarations::Reference>(&entries[i].info);
+        if (!reference || !reference->previous)
+            continue;
+        const auto* texture = std::get_if<TextureDesc>(&entries[plan.target[i]].info);
+        if (!texture || texture->lifetime != Lifetime::History)
+        {
+            return invalid(std::format("Pass '{}' reads the previous frame's '{}', which is not a texture created with Lifetime::History",
+                pass(i), entries[i].name));
+        }
+        if (isWrite(entries[i].usage))
+        {
+            return invalid(std::format("Pass '{}' accesses the previous frame's '{}' with Usage::{}, which writes it",
+                pass(i), entries[i].name, usageName(entries[i].usage)));
+        }
+        plan.previous[i] = true;
+    }
+
     // An access must be one its resource supports.
     plan.kinds.resize(count);
     for (std::uint32_t i = 0; i < count; ++i)
     {
-        const auto isBuffer = std::holds_alternative<BufferDesc>(entries[plan.target[i]].info);
+        const auto& created = entries[plan.target[i]].info;
+        const auto isBuffer = std::holds_alternative<BufferDesc>(created) || std::holds_alternative<ImportedBufferDesc>(created);
         plan.kinds[i] = isBuffer ? ResourceKind::Buffer : ResourceKind::Image;
         if (isBuffer ? !supportsBuffer(entries[i].usage) : !supportsImage(entries[i].usage))
         {
@@ -172,7 +213,8 @@ auto compilePlan(const ResourceDeclarations& declarations) -> std::expected<Grap
         }
     }
 
-    // Order the passes by what they read and write.
+    // Order the passes by what they read and write. The previous frame's image is another one than this
+    // frame's passes write: reading it orders nothing.
     std::vector<EntryDecl> entryDecls(count);
     for (std::uint32_t i = 0; i < count; ++i)
     {
@@ -183,7 +225,10 @@ auto compilePlan(const ResourceDeclarations& declarations) -> std::expected<Grap
     for (std::uint32_t p = 0; p < passDecls.size(); ++p)
     {
         for (const auto read : declarations.reads(p))
-            passDecls[p].reads.push_back(read.index);
+        {
+            if (!plan.previous[read.index])
+                passDecls[p].reads.push_back(read.index);
+        }
         for (const auto write : declarations.writes(p))
             passDecls[p].writes.push_back(write.index);
     }
@@ -217,17 +262,18 @@ auto compilePlan(const ResourceDeclarations& declarations) -> std::expected<Grap
     for (const auto p : plan.order)
     {
         auto& passAccesses = accesses.emplace_back();
-        std::unordered_map<std::uint32_t, std::uint32_t> imageAccess; // Target -> the first entry of this pass accessing it
+        std::map<std::pair<std::uint32_t, bool>, std::uint32_t> imageAccess; // Image -> the first entry of this pass accessing it
         for (const auto& handles : { declarations.reads(p), declarations.writes(p) })
         {
             for (const auto handle : handles)
             {
                 const auto target = plan.target[handle.index];
-                passAccesses.push_back({ target, entries[handle.index].usage });
+                const bool previous = plan.previous[handle.index];
+                passAccesses.push_back({ target, entries[handle.index].usage, previous });
                 if (plan.kinds[target] != ResourceKind::Image)
                     continue;
 
-                const auto [first, inserted] = imageAccess.try_emplace(target, handle.index);
+                const auto [first, inserted] = imageAccess.try_emplace(std::pair{ target, previous }, handle.index);
                 if (!inserted && layoutClass(entries[first->second].usage) != layoutClass(entries[handle.index].usage))
                 {
                     return invalid(std::format("Pass '{}' accesses texture '{}' as both {} and {}, which need different layouts",
@@ -237,13 +283,32 @@ auto compilePlan(const ResourceDeclarations& declarations) -> std::expected<Grap
             }
         }
     }
-    plan.transitions = planTransitions(accesses, plan.kinds);
+
+    std::vector<PlannedResource> resources(count);
+    for (std::uint32_t i = 0; i < count; ++i)
+    {
+        resources[i].kind = plan.kinds[i];
+        if (const auto* texture = std::get_if<TextureDesc>(&entries[i].info))
+            resources[i].lifetime = texture->lifetime;
+        else if (const auto* importedTexture = std::get_if<ImportedTextureDesc>(&entries[i].info))
+            resources[i] = { .kind = plan.kinds[i], .imported = true, .before = importedTexture->before, .after = importedTexture->after };
+        else if (const auto* importedBuffer = std::get_if<ImportedBufferDesc>(&entries[i].info))
+            resources[i] = { .kind = plan.kinds[i], .imported = true, .before = importedBuffer->before, .after = importedBuffer->after };
+    }
+    plan.transitions = planTransitions(accesses, resources);
+    plan.endOfFrame = planEndOfFrame(accesses, resources);
     return plan;
 }
 
 auto describePlan(const ResourceDeclarations& declarations, const GraphPlan& plan) -> std::string
 {
     const auto entries = declarations.entries();
+    const auto describeBarrier = [&](const Transition& transition) {
+        return std::format("    barrier {}{}: {}{} -> {}\n", entries[transition.resource].name,
+            transition.previous ? " (previous frame)" : "", transition.crossFrame ? "last frame's " : "",
+            transition.from ? usageName(*transition.from) : "undefined", usageName(transition.to));
+    };
+
     std::string text;
     for (std::size_t i = 0; i < plan.order.size(); ++i)
     {
@@ -254,15 +319,23 @@ auto describePlan(const ResourceDeclarations& declarations, const GraphPlan& pla
             for (const auto handle : handles)
             {
                 const auto& entry = entries[handle.index];
-                const bool creates = !std::holds_alternative<ResourceDeclarations::Reference>(entry.info);
-                text += std::format("    {} {} {}\n", creates ? "create" : "use   ", entry.name, usageName(entry.usage));
+                const bool imports = std::holds_alternative<ImportedTextureDesc>(entry.info) || std::holds_alternative<ImportedBufferDesc>(entry.info);
+                const bool references = std::holds_alternative<ResourceDeclarations::Reference>(entry.info);
+                text += std::format("    {} {} {}{}\n", imports ? "import" : references ? "use   "
+                                                                                        : "create",
+                    entry.name,
+                    usageName(entry.usage), plan.previous[handle.index] ? " (previous frame)" : "");
             }
         }
         for (const auto& transition : plan.transitions[i])
-        {
-            text += std::format("    barrier {}: {} -> {}\n", entries[transition.resource].name,
-                transition.from ? usageName(*transition.from) : "undefined", usageName(transition.to));
-        }
+            text += describeBarrier(transition);
+    }
+
+    if (!plan.endOfFrame.empty())
+    {
+        text += "end of frame\n";
+        for (const auto& transition : plan.endOfFrame)
+            text += describeBarrier(transition);
     }
 
     text += "resources\n";
@@ -272,9 +345,23 @@ auto describePlan(const ResourceDeclarations& declarations, const GraphPlan& pla
             continue;
         const auto& entry = entries[i];
         if (const auto* texture = std::get_if<TextureDesc>(&entry.info))
-            text += std::format("    {}: texture {}\n", entry.name, rhi::formatName(texture->format));
+        {
+            text += std::format("    {}: texture {}{}\n", entry.name, rhi::formatName(texture->format),
+                texture->lifetime == Lifetime::Persistent ? ", persistent" : texture->lifetime == Lifetime::History ? ", history pair"
+                                                                                                                    : "");
+        }
+        else if (const auto* imported = std::get_if<ImportedTextureDesc>(&entry.info))
+        {
+            text += std::format("    {}: imported texture {}\n", entry.name, rhi::formatName(imported->format));
+        }
+        else if (std::holds_alternative<ImportedBufferDesc>(entry.info))
+        {
+            text += std::format("    {}: imported buffer\n", entry.name);
+        }
         else
+        {
             text += std::format("    {}: buffer{}\n", entry.name, plan.hostWritten[i] ? ", host written" : "");
+        }
     }
     return text;
 }

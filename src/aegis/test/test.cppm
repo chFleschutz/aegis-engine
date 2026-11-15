@@ -83,6 +83,7 @@ public:
 
     // checks/graph.cpp
     auto verifyGraphTextures() -> std::expected<void, std::string>;
+    auto verifyGraphHistory() -> std::expected<void, std::string>;
     auto verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::string>;
 
 private:
