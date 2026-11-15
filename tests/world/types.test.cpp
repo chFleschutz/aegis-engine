@@ -35,7 +35,7 @@ TEST_SUITE("world::registerComponents")
     {
         TypeRegistry types;
         REQUIRE(aegis::world::registerComponents(types).has_value());
-        for (auto name : { "Transform", "DynamicTag", "MainCamera", "Camera", "AmbientLight", "DirectionalLight", "PointLight", "MeshRenderer", "Sky" })
+        for (auto name : { "Transform", "DynamicTag", "MainCamera", "Camera", "PostProcess", "AmbientLight", "DirectionalLight", "PointLight", "MeshRenderer", "Sky" })
         {
             CAPTURE(name);
             const auto* info = types.find(name);
@@ -92,6 +92,12 @@ TEST_SUITE("world::registerComponents")
         REQUIRE(fov.max.has_value());
         CHECK(*fov.min > 0.0);
         CHECK(*fov.max < std::numbers::pi); // Radians, like the field
+        const auto* postProcess = types.find<aegis::PostProcess>();
+        CHECK(postProcess->displayName() == "Post Process");
+        CHECK(postProcess->findField("toneMapping")->kind == FieldKind::Enum);
+        CHECK(postProcess->findField("toneMapping")->enumEntries.size() == 2);
+        CHECK(postProcess->findField("exposure")->meta.widget == FieldWidget::Slider);
+        CHECK(postProcess->findField("exposure")->meta.min > 0.0);
         const auto& ambient = types.find<aegis::AmbientLight>()->findField("intensity")->meta;
         CHECK(ambient.widget == FieldWidget::Slider);
 

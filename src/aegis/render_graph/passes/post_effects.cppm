@@ -8,16 +8,16 @@ import aegis.rhi;
 export namespace aegis::render_graph
 {
 /// @brief Extracts the bright parts of "SceneColor" and blurs them through a mip chain into
-///        "Bloom" (mip 0 holds the result), which PostProcessingPass adds back.
+///        "Bloom" (mip 0 holds the result), which PostProcessingPass adds back. The threshold is the frame's
+///        (FrameScene::PostProcess).
 class BloomPass : public RenderPass
 {
 public:
     static constexpr std::uint32_t mipLevels{ 6 };
 
+    /// @brief Tuning knobs of the blur, not scene data: drawUI shows them and a new graph starts from these.
     struct Settings
     {
-        float threshold{ 0.0f };
-        float softThreshold{ 0.5f };
         float downsampleScale{ 1.0f };
         float upsampleScale{ 1.0f };
     };

@@ -205,8 +205,8 @@ private:
     }
 
     // --unlit, in the second frame (the camera has its global transform): an unlit cube to the right of a PBR one, side
-    // by side in front of the main camera, both instances of the engine's cube. Bloom goes off and tone mapping is
-    // Reinhard at exposure 1, so the unlit cube's colour reaches the last frame as verifyUnlit expects.
+    // by side in front of the main camera, both instances of the engine's cube. The main camera's PostProcess turns
+    // bloom off and tone maps with Reinhard at exposure 1, so the unlit cube's colour reaches the last frame as verifyUnlit expects.
     auto addUnlitCubes(FrameContext& frame) -> std::expected<void, std::string>
     {
         auto& registry = frame.world.registry();
@@ -238,11 +238,14 @@ private:
             }
         }
 
-        for (auto* pass : frame.frameGraph.passes())
-        {
-            if (auto* post = dynamic_cast<render_graph::PostProcessingPass*>(pass))
-                post->settings() = { .toneMapping = render_graph::ToneMapping::Reinhard, .bloomIntensity = 0.0f, .exposure = 1.0f, .gamma = 2.2f };
-        }
+        const auto mainCamera = frame.world.mainCamera();
+        if (!mainCamera)
+            return std::unexpected{ "the scene has no main camera" };
+        const PostProcess settings{ .toneMapping = ToneMapping::Reinhard, .exposure = 1.0f, .gamma = 2.2f, .bloomIntensity = 0.0f };
+        if (registry.has<PostProcess>(mainCamera))
+            registry.get<PostProcess>(mainCamera) = settings;
+        else
+            registry.add<PostProcess>(mainCamera, settings);
         return {};
     }
 

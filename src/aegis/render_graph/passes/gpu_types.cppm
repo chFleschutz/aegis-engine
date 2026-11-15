@@ -39,13 +39,6 @@ enum class LightingViewMode : std::int32_t
     Emissive = 5,
 };
 
-/// @brief post_process.slang's tone mapping modes (the 'toneMappingMode' switch).
-enum class ToneMapping : std::int32_t
-{
-    Reinhard = 0,
-    Aces = 1,
-};
-
 /// @brief indirect_draw.slang's INSTANCE_* bits: InstanceData::flags.
 enum class InstanceFlags : std::uint32_t
 {
@@ -174,7 +167,7 @@ struct PostProcessConstants
     rhi::StorageImageDescriptor final;
     rhi::StorageImageDescriptor sceneColor;
     rhi::StorageImageDescriptor bloom;
-    ToneMapping toneMapping;
+    ToneMapping toneMapping; // FrameScene's
     float bloomIntensity;
     float exposure;
     float gamma;

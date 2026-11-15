@@ -1,6 +1,3 @@
-module;
-#include <imgui.h>
-
 module aegis.render_passes;
 import std;
 import aegis.assets;
@@ -94,6 +91,7 @@ auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
     const auto targetFormat = pool.device().get(frameInfo.target).format();
     const bool targetEncodes = targetFormat == rhi::Format::BGRA8_SRGB || targetFormat == rhi::Format::RGBA8_SRGB;
 
+    const auto& settings = frameInfo.frameScene.postProcess;
     const auto sceneColor = pool.storageDescriptor(m_sceneColor);
     const auto& cmd = frameInfo.cmd;
     cmd.bindPipeline(*m_pipeline);
@@ -101,23 +99,12 @@ auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
         .final = pool.storageDescriptor(m_final),
         .sceneColor = sceneColor,
         .bloom = m_bloom ? pool.storageDescriptor(*m_bloom) : sceneColor,
-        .toneMapping = m_settings.toneMapping,
-        .bloomIntensity = m_bloom ? m_settings.bloomIntensity : 0.0f,
-        .exposure = m_settings.exposure,
-        .gamma = targetEncodes ? 1.0f : m_settings.gamma,
+        .toneMapping = settings.toneMapping,
+        .bloomIntensity = m_bloom ? settings.bloomIntensity : 0.0f,
+        .exposure = settings.exposure,
+        .gamma = targetEncodes ? 1.0f : settings.gamma,
     });
     cmd.dispatch(groupCount(frameInfo.extent.x, computeGroupSize), groupCount(frameInfo.extent.y, computeGroupSize));
-}
-
-auto PostProcessingPass::drawUI() -> void
-{
-    static constexpr std::array toneMappingNames{ "Reinhard", "ACES" };
-    int mode = static_cast<int>(m_settings.toneMapping);
-    if (ImGui::Combo("Tone Mapping", &mode, toneMappingNames.data(), static_cast<int>(toneMappingNames.size())))
-        m_settings.toneMapping = static_cast<ToneMapping>(mode);
-    ImGui::SliderFloat("Bloom Intensity", &m_settings.bloomIntensity, 0.0f, 2.0f);
-    ImGui::SliderFloat("Exposure", &m_settings.exposure, 0.1f, 10.0f);
-    ImGui::SliderFloat("Gamma", &m_settings.gamma, 1.0f, 5.0f);
 }
 
 // Present -------------------------------------------------------------------------------------------

@@ -66,6 +66,54 @@ TEST_SUITE("render_bridge::extractFrameScene")
         CHECK(component.aspect == 1.5f); // Read, not written
     }
 
+    TEST_CASE("without a PostProcess on the main camera the frame has the default settings")
+    {
+        aegis::world::World world;
+        const InstanceStore instances;
+        auto& registry = world.registry();
+        const auto camera = registry.create("Camera");
+        registry.add<aegis::Camera>(camera);
+        registry.add<aegis::PostProcess>(registry.create("Other"), aegis::PostProcess{ .exposure = 3.0f });
+        world.setMainCamera(camera);
+
+        const auto settings = aegis::extractFrameScene(world, instances).postProcess;
+        // The component's defaults are the frame's
+        const aegis::PostProcess component;
+        CHECK(settings.toneMapping == aegis::render_graph::ToneMapping::Aces);
+        CHECK(component.toneMapping == aegis::ToneMapping::Aces);
+        CHECK(settings.exposure == component.exposure);
+        CHECK(settings.gamma == component.gamma);
+        CHECK(settings.bloomIntensity == component.bloomIntensity);
+        CHECK(settings.bloomThreshold == component.bloomThreshold);
+        CHECK(settings.bloomSoftThreshold == component.bloomSoftThreshold);
+    }
+
+    TEST_CASE("copies the main camera's post-processing settings")
+    {
+        aegis::world::World world;
+        const InstanceStore instances;
+        auto& registry = world.registry();
+        const auto camera = registry.create("Camera");
+        registry.add<aegis::Camera>(camera);
+        registry.add<aegis::PostProcess>(camera, aegis::PostProcess{
+                                                     .toneMapping = aegis::ToneMapping::Reinhard,
+                                                     .exposure = 2.0f,
+                                                     .gamma = 1.8f,
+                                                     .bloomIntensity = 0.5f,
+                                                     .bloomThreshold = 1.0f,
+                                                     .bloomSoftThreshold = 0.25f,
+                                                 });
+        world.setMainCamera(camera);
+
+        const auto settings = aegis::extractFrameScene(world, instances).postProcess;
+        CHECK(settings.toneMapping == aegis::render_graph::ToneMapping::Reinhard);
+        CHECK(settings.exposure == 2.0f);
+        CHECK(settings.gamma == 1.8f);
+        CHECK(settings.bloomIntensity == 0.5f);
+        CHECK(settings.bloomThreshold == 1.0f);
+        CHECK(settings.bloomSoftThreshold == 0.25f);
+    }
+
     TEST_CASE("copies ambient and directional light with the direction normalized")
     {
         aegis::world::World world;
