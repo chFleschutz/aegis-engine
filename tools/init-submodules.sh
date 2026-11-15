@@ -11,9 +11,12 @@
 # submodules check out in parallel. Submodules already checked out are left alone, so a second run
 # does nothing. In the main checkout itself, for a submodule the main checkout lacks, and for one
 # whose copy there is shallow (git takes no shallow repository as a reference), it falls back to a
-# normal clone, at the depth .gitmodules recommends. Shallow copies are zstd's (`shallow = true` in
-# .gitmodules) and, in a main checkout cloned before #327, the samples': run
-# `git -C samples fetch --unshallow` there once, so worktrees share them.
+# normal clone. No submodule sets `shallow = true` in .gitmodules: the samples' full history is
+# barely larger than the pinned commit (#327), and zstd's pinned release isn't the tip of its
+# default branch, so a depth-1 clone fetches the release's whole history anyway (41 MB, against
+# 43 MB for a full clone; #370). An older main checkout still has shallow copies; run once there,
+# so worktrees share them: `git -C samples fetch --unshallow` if it was cloned before #327, and
+# `git -C external/zstd fetch --unshallow` if before #370.
 #
 # The worktree's submodules depend on the main checkout's submodule object stores. To make one
 # self-contained: `git -C <path> repack -a -d`, then delete objects/info/alternates in its git dir.
