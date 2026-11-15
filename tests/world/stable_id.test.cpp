@@ -153,7 +153,7 @@ TEST_SUITE("world::Registry queries")
         bool seenWithName = false;
         int calls = 0;
         const int owner = 0;
-        registry.addDestroyListener(&owner, [&](Entity destroyed) {
+        registry.addDestroyListener(&owner, [&](Registry&, Entity destroyed) {
             calls++;
             seenWithName = destroyed == entity && registry.has<aegis::Name>(destroyed) && registry.valid(destroyed);
         });

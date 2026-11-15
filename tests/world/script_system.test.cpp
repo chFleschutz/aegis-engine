@@ -103,7 +103,7 @@ struct Fixture
         REQUIRE(registerScript<MultiBase>(types, "MultiBase"));
         REQUIRE(types.script<Orphan>("Orphan"));
         REQUIRE(types.component<Transform>("Transform"));
-        scene.addSystem<ScriptSystem>(scene.registry());
+        scene.addSystem<ScriptSystem>();
     }
 
     auto spawn(std::string_view script, const std::string& name = "Entity") -> Entity
@@ -311,7 +311,7 @@ TEST_SUITE("scripting::ScriptSystem")
         Fixture f;
         {
             World scene;
-            scene.addSystem<ScriptSystem>(scene.registry());
+            scene.addSystem<ScriptSystem>();
             const auto entity = scene.registry().create("a");
             auto script = attachScript(scene.registry(), f.types, entity, "Recorder");
             REQUIRE(script);
@@ -330,11 +330,12 @@ TEST_SUITE("scripting::ScriptSystem")
         f.scene.reset();
         g_log.clear();
 
-        f.scene.addSystem<ScriptSystem>(f.scene.registry());
-        f.spawnRecorder("new");
+        f.scene.addSystem<ScriptSystem>();
+        const auto entity = f.spawnRecorder("new");
         f.scene.begin();
         f.scene.update(0.016f);
-        CHECK(g_log == std::vector<std::string>{ "new.create", "new.update" });
+        f.scene.registry().destroy(entity); // Only the new system's destroy listener is left
+        CHECK(g_log == std::vector<std::string>{ "new.create", "new.update", "new.destroy" });
     }
 
     TEST_CASE("a script can destroy its own entity during its update")
@@ -381,7 +382,7 @@ TEST_SUITE("scripting::ScriptSystem")
         TypeRegistry types;
         REQUIRE(registerScript<Recorder>(types, "Recorder"));
         World scene;
-        scene.addSystem<ScriptSystem>(scene.registry());
+        scene.addSystem<ScriptSystem>();
         const auto entity = scene.registry().create();
         REQUIRE(attachScript(scene.registry(), types, entity, "Recorder"));
         scene.begin();

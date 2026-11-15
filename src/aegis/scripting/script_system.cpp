@@ -5,18 +5,9 @@ import aegis.platform;
 
 namespace aegis::scripting
 {
-ScriptSystem::ScriptSystem(world::Registry& registry, const platform::InputState& input, platform::Input* cursor) :
-    m_registry(registry),
-    m_input(input),
-    m_cursor(cursor)
+void ScriptSystem::onAttach(world::Registry& registry)
 {
-    m_registry.addDestroyListener(this, [this](world::Entity entity) { destroyScripts(entity); });
-}
-
-ScriptSystem::~ScriptSystem()
-{
-    destroyAll(); // Whatever still runs ends properly
-    m_registry.removeDestroyListener(this);
+    registry.addDestroyListener(this, [this](world::Registry& owner, world::Entity entity) { destroyScripts(owner, entity); });
 }
 
 void ScriptSystem::run(world::Registry& registry, float deltaSeconds, bool update)
@@ -51,31 +42,31 @@ void ScriptSystem::run(world::Registry& registry, float deltaSeconds, bool updat
     }
 }
 
-void ScriptSystem::destroyScripts(world::Entity entity)
+void ScriptSystem::destroyScripts(world::Registry& registry, world::Entity entity)
 {
-    if (!m_registry.valid(entity) || !m_registry.has<Scripts>(entity))
+    if (!registry.valid(entity) || !registry.has<Scripts>(entity))
         return;
 
-    for (std::size_t i = 0; i < m_registry.get<Scripts>(entity).entries.size(); i++)
+    for (std::size_t i = 0; i < registry.get<Scripts>(entity).entries.size(); i++)
     {
-        auto& entry = m_registry.get<Scripts>(entity).entries[i];
+        auto& entry = registry.get<Scripts>(entity).entries[i];
         const bool running = entry.state == ScriptEntry::State::Created;
         entry.state = ScriptEntry::State::Destroyed;
         if (!running)
             continue;
 
         const auto script = entry.script;
-        ScriptContext context{ m_registry, entity, m_input, m_cursor };
+        ScriptContext context{ registry, entity, m_input, m_cursor };
         script->onDestroy(context);
     }
 }
 
-void ScriptSystem::destroyAll()
+void ScriptSystem::destroyAll(world::Registry& registry)
 {
     std::vector<world::Entity> entities;
-    for (const auto entity : m_registry.view<Scripts>())
+    for (const auto entity : registry.view<Scripts>())
         entities.push_back(world::Entity{ entity });
     for (const auto entity : entities)
-        destroyScripts(entity);
+        destroyScripts(registry, entity);
 }
 }

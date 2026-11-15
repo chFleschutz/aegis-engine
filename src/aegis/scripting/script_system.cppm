@@ -17,37 +17,41 @@ export namespace aegis::scripting
 class ScriptSystem : public world::System
 {
 public:
-    /// @param registry The registry of the world this system runs in (it must outlive the system)
     /// @param input What scripts see as input; it is read every frame, so whoever owns it updates it in place
     /// @param cursor Lets scripts change the cursor mode, or null in a world without a window
-    ScriptSystem(world::Registry& registry, const platform::InputState& input, platform::Input* cursor = nullptr);
+    explicit ScriptSystem(const platform::InputState& input, platform::Input* cursor = nullptr) :
+        m_input(input),
+        m_cursor(cursor)
+    {
+    }
     /// @brief For a world without a window: scripts see no input
-    explicit ScriptSystem(world::Registry& registry) :
-        ScriptSystem(registry, m_noInput)
+    ScriptSystem() :
+        ScriptSystem(m_noInput)
     {
     }
     ScriptSystem(const ScriptSystem&) = delete;
     ScriptSystem& operator=(const ScriptSystem&) = delete;
 
-    ~ScriptSystem() override;
+    /// @brief Starts listening for destroyed entities, to end their scripts
+    void onAttach(world::Registry& registry) override;
+    void onDetach(world::Registry& registry) override { registry.removeDestroyListener(this); }
 
     /// @brief Creates the scripts that exist when the scene begins
     void onBegin(world::Registry& registry) override { run(registry, 0.0f, false); }
 
     void onUpdate(world::Registry& registry, float deltaSeconds) override { run(registry, deltaSeconds, true); }
 
-    void onReset(world::Registry&) override { destroyAll(); }
+    void onReset(world::Registry& registry) override { destroyAll(registry); }
 
 private:
     /// @brief Creates the scripts that need it and optionally updates them all
     void run(world::Registry& registry, float deltaSeconds, bool update);
 
     /// @brief Calls onDestroy on the entity's running scripts
-    void destroyScripts(world::Entity entity);
+    void destroyScripts(world::Registry& registry, world::Entity entity);
 
-    void destroyAll();
+    void destroyAll(world::Registry& registry);
 
-    world::Registry& m_registry;
     const platform::InputState& m_input;
     platform::Input* m_cursor;
     platform::InputState m_noInput;        // What the constructor without input points at

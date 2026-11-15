@@ -297,9 +297,9 @@ void Engine::setUpWorld(world::World& world)
     // The engine's systems, always present. Their phases order them (scripts, then transforms,
     // then cameras); the game's come after them (setWorldSetup), in the phase they declare.
     if (m_input)
-        world.addSystem<scripting::ScriptSystem>(world.registry(), m_input->state(), m_input.get());
+        world.addSystem<scripting::ScriptSystem>(m_input->state(), m_input.get());
     else
-        world.addSystem<scripting::ScriptSystem>(world.registry()); // Scripts see no input
+        world.addSystem<scripting::ScriptSystem>(); // Scripts see no input
     world.addSystem<world::TransformSystem>();
     world.addSystem<world::CameraSystem>();
     if (m_worldSetup)

@@ -65,9 +65,9 @@ public:
     /// @note The StableIds are released; ids are random, so a new entity is unlikely to get a cleared one
     void clear();
 
-    /// @brief Calls callback(entity) at the start of every destroy(), before the entity loses anything
+    /// @brief Calls callback(*this, entity) at the start of every destroy(), before the entity loses anything
     /// @param owner Identifies the listener for removeDestroyListener
-    void addDestroyListener(const void* owner, std::function<void(Entity)> callback);
+    void addDestroyListener(const void* owner, std::function<void(Registry&, Entity)> callback);
 
     void removeDestroyListener(const void* owner);
 
@@ -219,7 +219,7 @@ private:
     struct DestroyListener
     {
         const void* owner;
-        std::function<void(Entity)> callback;
+        std::function<void(Registry&, Entity)> callback;
     };
 
     /// @brief The listener of the entt signals that change the hierarchy
