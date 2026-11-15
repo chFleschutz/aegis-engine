@@ -423,7 +423,7 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
     if (!pipelineLayout)
         return std::unexpected{ pipelineLayout.error() };
 
-    auto result = std::make_unique<Device>(
+    auto result = std::unique_ptr<Device>{ new Device(
         std::move(*physicalDevice),
         std::move(*device),
         std::move(*allocator),
@@ -434,7 +434,7 @@ auto Device::create(const vk::raii::Instance& instance, const vk::raii::SurfaceK
         capabilities,
         properties,
         std::move(*bindless),
-        std::move(*pipelineLayout));
+        std::move(*pipelineLayout)) };
 
     // Created after the Device exists because UploadManager::create calls back into
     // device.createBuffer / createCommandPool. Flushes on the graphics queue for now.
