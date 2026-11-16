@@ -30,6 +30,14 @@ _Avoid_: handle
 
 ### Frame graph
 
+**Scene passes**:
+The passes that render the scene into "Final" (`addScenePasses`); a game's graph hook adds to them or replaces them.
+_Avoid_: default passes (those are the scene passes plus the output passes)
+
+**Output passes**:
+The passes that show "Final" once everything has drawn onto it: UI and present (`addOutputPasses`). The engine adds them last, after the game's and the shell's passes.
+_Avoid_: final passes
+
 **Persistent texture**:
 A graph texture whose contents survive the frame: what a pass leaves in it is there in the next frame.
 _Avoid_: static texture, retained texture

@@ -129,6 +129,8 @@ auto run(int argc, char** argv) -> int
     }
     if (game.setupWorld)
         engine.setWorldSetup([&engine, setup = game.setupWorld](world::World& world) { setup(engine, world); });
+    if (game.buildGraph)
+        engine.setGraphBuild(game.buildGraph);
 #ifdef AEGIS_LAUNCH_EDITOR
     engine.setShell(std::make_unique<editor::EditorShell>());
 #endif

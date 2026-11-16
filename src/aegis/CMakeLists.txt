@@ -86,6 +86,7 @@ PUBLIC
 	aegis-reflect
 	aegis-render-bridge
 	aegis-render-graph
+	aegis-render-passes # GameModule::buildGraph and Shell::buildGraph declare passes
 	aegis-renderer
 	aegis-rhi
 	aegis-world
@@ -96,7 +97,6 @@ PUBLIC
 target_link_libraries(aegis-engine
 PRIVATE
 	imgui::imgui # Presentation: the ImGui context and its GLFW backend
-	aegis-render-passes # The default graph
 	stb # stb_image_write for the headless screenshot
 )
 
