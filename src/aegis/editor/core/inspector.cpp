@@ -3,7 +3,6 @@ import std;
 import aegis.core;
 import aegis.reflect;
 import aegis.world;
-import aegis.world.types;
 
 namespace aegis::editor
 {

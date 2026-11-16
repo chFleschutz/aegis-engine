@@ -22,8 +22,8 @@ PRIVATE
 	systems/transform_system.cpp
 )
 
-# PUBLIC: the module interfaces import aegis.math, render_components imports aegis.assets,
-# types imports aegis.reflect, world imports aegis.core (its clock), and they export EnTT's names.
+# PUBLIC: the module interfaces import aegis.math, :render_components imports aegis.assets,
+# :types imports aegis.reflect, the primary interface imports aegis.core (its clock), and they export EnTT's names.
 target_link_libraries(aegis-world
 PUBLIC
 	aegis-assets

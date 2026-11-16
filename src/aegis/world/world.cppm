@@ -5,13 +5,30 @@ module;
 #include <entt/entity/registry.hpp>
 #include <entt/entity/view.hpp>
 
+// aegis.world: the entities, their components and the systems that run them.
+//
+// Partitions:
+//   :entity            Entity and the EnTT names the world exports.
+//   :components        The core components: Name, StableId, Transform, the hierarchy, Camera, the lights and post-process.
+//   :render_components MeshRenderer and Sky, which name assets.
+//   :registry          Registry: the entities' storage, the hierarchy and the StableId lookup.
+//   :system            System, Phase and UpdateMode.
+//   :types             The registered components, reachable without naming their type (ComponentStorage).
+//   :transform_system  TransformSystem: the global transforms, from the hierarchy.
+//   :camera_system     CameraSystem: the cameras' matrices.
 export module aegis.world;
 
 import std;
-export import aegis.world.registry;
 import aegis.core;
 import aegis.math;
-export import aegis.world.system; // System and UpdateMode, which begin and update take
+export import :camera_system;
+export import :components;
+export import :entity;
+export import :registry;
+export import :render_components;
+export import :system;
+export import :transform_system;
+export import :types;
 
 export namespace aegis::world
 {

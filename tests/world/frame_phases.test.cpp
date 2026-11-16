@@ -3,10 +3,6 @@
 import std;
 import aegis.math;
 import aegis.world;
-import aegis.world.components;
-import aegis.world.system;
-import aegis.world.systems.camera_system;
-import aegis.world.systems.transform_system;
 
 namespace
 {

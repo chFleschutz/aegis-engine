@@ -6,9 +6,6 @@ import aegis.reflect;
 import aegis.render_bridge;
 import aegis.serialize;
 import aegis.world;
-import aegis.world.registry;
-import aegis.world.render_components;
-import aegis.world.types;
 
 namespace
 {

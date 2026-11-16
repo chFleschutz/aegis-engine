@@ -1,8 +1,8 @@
-export module aegis.world.systems.transform_system;
+export module aegis.world:transform_system;
 
 import std;
-import aegis.world.registry;
-import aegis.world.system;
+import :registry;
+import :system;
 
 export namespace aegis::world::detail
 {

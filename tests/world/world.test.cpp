@@ -3,7 +3,6 @@
 import std;
 import aegis.core;
 import aegis.world;
-import aegis.world.system;
 
 namespace
 {

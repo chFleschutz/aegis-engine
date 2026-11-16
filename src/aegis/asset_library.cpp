@@ -10,7 +10,7 @@ import aegis.paths;
 import aegis.reflect;
 import aegis.render_passes;
 import aegis.serialize;
-import aegis.world.render_components;
+import aegis.world;
 
 namespace aegis
 {

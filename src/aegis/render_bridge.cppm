@@ -3,8 +3,6 @@ export module aegis.render_bridge;
 import std;
 import aegis.render_graph;
 import aegis.world;
-import aegis.world.registry;
-import aegis.world.render_components;
 
 // Between the world and the render graph, which knows no world: the instance store follows the world's mesh
 // renderers, and each frame's FrameScene is copied out of the world.

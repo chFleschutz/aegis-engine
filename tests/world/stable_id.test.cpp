@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 import std;
-import aegis.world.registry;
+import aegis.world;
 
 namespace
 {

@@ -1,4 +1,4 @@
-module aegis.world.systems.transform_system;
+module aegis.world;
 
 import std;
 

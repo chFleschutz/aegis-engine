@@ -6,7 +6,7 @@ module aegis.scripting.script;
 
 import std;
 import aegis.reflect;
-import aegis.world.registry;
+import aegis.world;
 
 namespace aegis::scripting
 {

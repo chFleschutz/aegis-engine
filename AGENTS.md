@@ -59,7 +59,7 @@ The engine uses `import std` instead of standard headers, on both standard libra
   templates), Clang hides standard concepts from that module's importers:
   `missing '#include <concepts>'; 'derived_from' must be declared before it is used`, with a note
   "declaration here is not visible". Import a module instead (entt names come from
-  `aegis.world.entity`), move the code into a `.cpp`, or, as a last resort, `#include` the named
+  `aegis.world`), move the code into a `.cpp`, or, as a last resort, `#include` the named
   header in the failing file's global module fragment.
 - A fresh build prints about 110 `-Winclude-angled-in-module-purview` warnings under "Diagnostics
   while scanning dependencies" for `std.ixx` and `vulkan.cppm`. They come from the dependency scan
@@ -105,7 +105,7 @@ it today").
 |---|---|---|
 | Vulkan | vulkan-hpp `vk::raii`, `import vulkan` | none — go through `aegis::rhi` and friends |
 | Errors | `std::expected<T, Error>` + `makeError`, never throw | `assert` |
-| Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm` only, dotted submodules (`aegis.world.entity`, `aegis.utils.timer`); `math` is one module |
+| Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm` only, dotted submodules (`aegis.scripting.script`); `math` is one module |
 
 New-style folders under `src/aegis/`, one per line so moving a folder doesn't conflict with another PR
 (everything else, `examples/` included, is legacy):

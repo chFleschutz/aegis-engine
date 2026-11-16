@@ -6,7 +6,6 @@ module aegis.editor;
 import std;
 import aegis.render_graph;
 import aegis.world;
-import aegis.world.render_components;
 import :panels;
 import :theme;
 

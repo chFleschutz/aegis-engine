@@ -8,7 +8,6 @@ import aegis.reflect;
 import aegis.scripting.script;
 import aegis.serialize;
 import aegis.world;
-import aegis.world.types;
 
 namespace
 {

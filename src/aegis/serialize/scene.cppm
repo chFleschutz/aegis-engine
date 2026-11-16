@@ -2,7 +2,7 @@ export module aegis.serialize:scene;
 import std;
 import aegis.assets;
 import aegis.reflect;
-import aegis.world.registry;
+import aegis.world;
 import :error;
 
 // Scene files (docs/asset-system.md, "Scene files"):

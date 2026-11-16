@@ -2,12 +2,12 @@ module;
 
 #include <cassert>
 
-export module aegis.world.registry;
+export module aegis.world:registry;
 
 import std;
 export import aegis.math;
-export import aegis.world.entity;
-export import aegis.world.components;
+import :entity;
+import :components;
 
 export namespace aegis::world
 {

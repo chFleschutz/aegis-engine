@@ -1,11 +1,11 @@
-export module aegis.world.systems.camera_system;
+export module aegis.world:camera_system;
 
 import std;
 import aegis.math;
-import aegis.world.registry;
-import aegis.world.entity;
-import aegis.world.system;
-import aegis.world.components;
+import :registry;
+import :entity;
+import :system;
+import :components;
 
 export namespace aegis::world
 {
