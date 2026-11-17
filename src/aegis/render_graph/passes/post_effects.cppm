@@ -1,5 +1,6 @@
 export module aegis.render_passes:post_effects;
 import std;
+import :frame_scene;
 import :gpu_types;
 import :render_system;
 import aegis.render_graph;
@@ -22,7 +23,7 @@ public:
         float upsampleScale{ 1.0f };
     };
 
-    explicit BloomPass(ResourceDeclarations& declarations);
+    BloomPass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
     ~BloomPass() override;
 
     [[nodiscard]] auto name() const -> std::string_view override;
@@ -37,6 +38,7 @@ private:
     [[nodiscard]] auto createMipViews(ResourcePool& pool) -> std::expected<void, Error>;
     auto freeMipViews() -> void;
 
+    const FrameSceneSource& m_scene;
     ResourceId m_sceneColor;
     ResourceId m_bloom;
     Settings m_settings;
@@ -53,7 +55,7 @@ private:
 class TransparentPass : public RenderPass
 {
 public:
-    explicit TransparentPass(ResourceDeclarations& declarations);
+    TransparentPass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
 
     template<typename T, typename... Args>
         requires std::derived_from<T, RenderSystem> && std::constructible_from<T, Args...>
@@ -67,10 +69,11 @@ public:
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
-    [[nodiscard]] auto prepare(ResourcePool& pool, const FrameScene& frameScene) -> std::expected<void, Error> override;
+    [[nodiscard]] auto prepare(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
+    const FrameSceneSource& m_scene;
     ResourceId m_sceneColor;
     ResourceId m_depth;
     ResourceId m_cameraData;

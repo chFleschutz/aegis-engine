@@ -2,8 +2,10 @@ aegis_add_test(render_passes
     SOURCES
         default_graph.test.cpp
         frame_data.test.cpp
+        frame_scene_source.test.cpp
         gpu_driven.test.cpp
         gpu_types.test.cpp
+        instance_store.test.cpp
         pipeline_cache.test.cpp
     LIBS aegis-render-passes
 )

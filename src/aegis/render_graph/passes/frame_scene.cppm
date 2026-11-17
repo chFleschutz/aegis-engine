@@ -1,4 +1,7 @@
-export module aegis.render_graph:frame_scene;
+module;
+#include <cassert>
+
+export module aegis.render_passes:frame_scene;
 import std;
 import aegis.math;
 import aegis.rhi;
@@ -75,5 +78,61 @@ struct FrameScene
     std::vector<PointLight> pointLights; // All of them; LightingPass shades the first maxPointLights
     Environment environment;
     PostProcess postProcess;
+};
+
+/// @brief Where the passes that read the frame scene find it. Whoever builds the graph owns one, hands it to those
+///        passes (DefaultPassesDesc::scene) and points it at each frame's scene (bind) around FrameGraph::prepare
+///        and execute; the frame graph itself never sees the scene.
+class FrameSceneSource
+{
+public:
+    /// @brief Keeps the source pointed at a scene until it ends, then points it back where it was.
+    class [[nodiscard]] Scope
+    {
+    public:
+        Scope(const Scope&) = delete;
+        Scope(Scope&&) = delete;
+        ~Scope() { m_source.m_current = m_previous; }
+
+        auto operator=(const Scope&) -> Scope& = delete;
+        auto operator=(Scope&&) -> Scope& = delete;
+
+    private:
+        friend class FrameSceneSource;
+
+        Scope(FrameSceneSource& source, const FrameScene& scene) :
+            m_source{ source },
+            m_previous{ source.m_current }
+        {
+            m_source.m_current = &scene;
+        }
+
+        FrameSceneSource& m_source;
+        const FrameScene* m_previous;
+    };
+
+    FrameSceneSource() = default;
+    FrameSceneSource(const FrameSceneSource&) = delete;
+    FrameSceneSource(FrameSceneSource&&) = delete;
+    ~FrameSceneSource() = default;
+
+    auto operator=(const FrameSceneSource&) -> FrameSceneSource& = delete;
+    auto operator=(FrameSceneSource&&) -> FrameSceneSource& = delete;
+
+    /// @brief Points the source at 'scene' for as long as the returned scope lives.
+    [[nodiscard]] auto bind(const FrameScene& scene) -> Scope { return Scope{ *this, scene }; }
+    auto bind(const FrameScene&& scene) -> Scope = delete;
+
+    /// @brief Whether a scene is bound.
+    [[nodiscard]] auto bound() const noexcept -> bool { return m_current != nullptr; }
+    /// @brief The bound scene. Only while one is bound: in FrameGraph::prepare and execute.
+    [[nodiscard]] auto current() const -> const FrameScene&
+    {
+        assert(m_current && "No frame scene is bound: bind one around FrameGraph::prepare and execute");
+        return *m_current;
+    }
+
+private:
+    const FrameScene* m_current{ nullptr };
 };
 }

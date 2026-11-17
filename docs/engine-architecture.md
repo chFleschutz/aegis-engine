@@ -88,7 +88,10 @@ So render passes read ECS components directly, and the render graph can't be dri
 *Resolved for the render graph:* passes read a per-frame `render_graph::FrameScene` (#181) whose
 instances come from a `render_graph::InstanceStore` (#86). The world-facing side (`aegis::InstanceBridge`,
 which took over the registry's entt signals, and `extractFrameScene`) lives in `aegis.render_bridge`, so
-`render_graph` no longer imports `aegis.world`.
+`render_graph` no longer imports `aegis.world`. Both types live in `aegis.render_passes`, not in the
+framework (#350): the frame graph carries no frame data, and the passes that read the scene get a
+`FrameSceneSource` when the graph is built (`DefaultPassesDesc::scene`), which the engine binds to each
+frame's scene. So the framework doesn't import `aegis.assets` either.
 
 ### 7. Leftovers
 

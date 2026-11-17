@@ -2,7 +2,6 @@ export module aegis.render_graph:frame_graph;
 import std;
 import :declarations;
 import :error;
-import :frame_scene;
 import :graph_builder;
 import :render_pass;
 import :resource_pool;
@@ -60,10 +59,11 @@ public:
     /// @brief Sets the buffer behind an imported buffer, like the texture overload.
     auto bind(ResourceId resource, rhi::BufferHandle buffer) -> void { m_pool.bind(resource, buffer); }
 
-    /// @brief Lets every pass create what recording 'frameScene' needs (RenderPass::prepare). Call before each
-    ///        execute, with the frame scene it records; a pass not prepared for a draw batch skips it.
+    /// @brief Lets every pass create what recording the coming frame needs (RenderPass::prepare). Call before each
+    ///        execute, once what the passes read for that frame is in place; a pass not prepared for a draw batch
+    ///        skips it.
     /// @return The first pass's error; the passes after it are not prepared then.
-    [[nodiscard]] auto prepare(const FrameScene& frameScene) -> std::expected<void, Error>;
+    [[nodiscard]] auto prepare() -> std::expected<void, Error>;
 
     /// @brief Records every pass, in order, into frameInfo.cmd, then the barriers that leave imported
     ///        resources as declared. Afterwards persistent textures and history pairs are no longer fresh, and

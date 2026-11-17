@@ -1,5 +1,7 @@
 export module aegis.render_passes:gpu_driven;
 import std;
+import :frame_scene;
+import :instance_store;
 import :gpu_types;
 import :pipeline_cache;
 import aegis.render_graph;
@@ -38,7 +40,7 @@ public:
     static constexpr std::uint32_t initialStaticCapacity{ 65536 };
     static constexpr std::uint32_t initialDynamicCapacity{ 4096 };
 
-    explicit InstanceUpdatePass(ResourceDeclarations& declarations);
+    InstanceUpdatePass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
@@ -60,6 +62,7 @@ private:
     static auto write(ResourcePool& pool, InstanceBuffer& buffer, std::span<const Instance> instances,
         DirtyRange dirty, std::uint32_t frameIndex) -> void;
 
+    const FrameSceneSource& m_scene;
     InstanceBuffer m_static;
     InstanceBuffer m_dynamic;
     ResourceId m_drawBatchData;
@@ -84,13 +87,14 @@ private:
 class CullingPass : public RenderPass
 {
 public:
-    CullingPass(ResourceDeclarations& declarations, const InstanceUpdatePass& instances);
+    CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
+    const FrameSceneSource& m_scene;
     const InstanceUpdatePass& m_instances;
     ResourceId m_cameraData;
     ResourceId m_staticInstances;
@@ -110,12 +114,12 @@ private:
 class GpuDrivenGeometryPass : public RenderPass
 {
 public:
-    GpuDrivenGeometryPass(ResourceDeclarations& declarations, const InstanceUpdatePass& instances);
+    GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     /// @brief Creates the pipelines of the frame's draw batches it draws.
-    [[nodiscard]] auto prepare(ResourcePool& pool, const FrameScene& frameScene) -> std::expected<void, Error> override;
+    [[nodiscard]] auto prepare(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
     [[nodiscard]] auto pipelines() const noexcept -> const PipelineCache<>& { return m_pipelines; }
@@ -123,6 +127,7 @@ public:
 private:
     [[nodiscard]] auto createPipeline(const PipelineKey& key) const -> std::expected<rhi::Pipeline, Error>;
 
+    const FrameSceneSource& m_scene;
     const InstanceUpdatePass& m_instances;
     std::array<ResourceId, 5> m_gBuffer;
     ResourceId m_depth;

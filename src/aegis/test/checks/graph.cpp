@@ -245,8 +245,6 @@ auto Harness::verifyGraphHistory() -> std::expected<void, std::string>
         }
         graph.bind(exporting.exported(), *exported);
 
-        const render_graph::InstanceStore instances;
-        const render_graph::FrameScene frameScene{ .instances = instances };
         std::uint32_t frame{ 0 };
         const auto run = [&](std::uint32_t frames) -> std::expected<void, std::string> {
             for (std::uint32_t i = 0; i < frames; ++i, ++frame)
@@ -254,7 +252,6 @@ auto Harness::verifyGraphHistory() -> std::expected<void, std::string>
                 auto ran = submitAndWait("GraphHistoryFrame", [&](const auto& cmd) {
                     graph.execute({
                         .cmd = cmd,
-                        .frameScene = frameScene,
                         .frameIndex = frame % renderer::Renderer::maxFramesInFlight,
                         .extent = graph.pool().output(),
                         .target = {},
@@ -327,9 +324,11 @@ auto Harness::verifyGraphHistory() -> std::expected<void, std::string>
 // create, so the number of live device resources is the same each time. Then resizes a rebuilt graph.
 auto Harness::verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::string>
 {
+    // The graphs never record a frame, so nothing is ever bound to it.
+    const render_graph::FrameSceneSource scene;
     const auto build = [&](std::unique_ptr<render_graph::FrameGraph>& graph) -> std::expected<void, std::string> {
         graph = std::make_unique<render_graph::FrameGraph>(*m_device, m_renderer->extent());
-        render_graph::addDefaultPasses(*graph, { .gpuDriven = gpuDriven });
+        render_graph::addDefaultPasses(*graph, { .scene = scene, .gpuDriven = gpuDriven });
         if (auto compiled = graph->compile(); !compiled)
             return std::unexpected{ std::format("Compiling the default graph: {}", describe(compiled.error())) };
         return {};

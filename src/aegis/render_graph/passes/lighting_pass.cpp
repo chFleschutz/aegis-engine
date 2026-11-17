@@ -10,7 +10,8 @@ import aegis.math;
 
 namespace aegis::render_graph
 {
-LightingPass::LightingPass(ResourceDeclarations& declarations) :
+LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+    m_scene{ scene },
     m_gBuffer{
         declarations.addReference(names::position, Usage::StorageRead),
         declarations.addReference(names::normal, Usage::StorageRead),
@@ -47,7 +48,7 @@ auto LightingPass::createResources(ResourcePool& pool) -> std::expected<void, Er
 
 auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    const auto& scene = frameInfo.frameScene;
+    const auto& scene = m_scene.current();
     const auto& environment = scene.environment;
     if (!environment.irradiance || !environment.prefiltered)
     {

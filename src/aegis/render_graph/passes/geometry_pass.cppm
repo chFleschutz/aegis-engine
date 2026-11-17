@@ -1,5 +1,6 @@
 export module aegis.render_passes:geometry_pass;
 import std;
+import :frame_scene;
 import :names;
 import :render_system;
 import aegis.render_graph;
@@ -21,7 +22,7 @@ public:
     };
     static constexpr auto depthFormat = rhi::Format::D32_SFLOAT;
 
-    explicit GeometryPass(ResourceDeclarations& declarations);
+    GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
 
     /// @brief Declares the G-buffer textures, in the order of gBufferFormats. The GPU-driven geometry pass fills the
     ///        same targets, so both declare them here.
@@ -43,10 +44,11 @@ public:
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
-    [[nodiscard]] auto prepare(ResourcePool& pool, const FrameScene& frameScene) -> std::expected<void, Error> override;
+    [[nodiscard]] auto prepare(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
+    const FrameSceneSource& m_scene;
     std::array<ResourceId, gBufferFormats.size()> m_gBuffer;
     ResourceId m_depth;
     ResourceId m_cameraData;

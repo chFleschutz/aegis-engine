@@ -3,7 +3,6 @@ aegis_add_test(render_graph
         declarations.test.cpp
         error.test.cpp
         frustum.test.cpp
-        instance_store.test.cpp
         resource_usage.test.cpp
         schedule.test.cpp
         texture_extent.test.cpp

@@ -1,5 +1,6 @@
 export module aegis.render_passes:default_graph;
 import std;
+import :frame_scene;
 import aegis.render_graph;
 import aegis.rhi;
 
@@ -15,6 +16,9 @@ struct DefaultPassesDesc
         rhi::Format targetFormat;
     };
 
+    /// @brief Where the scene passes read the frame scene; it must outlive the graph. The engine's is bound to
+    ///        each frame's scene; a game's passes that read the scene take it from here too.
+    const FrameSceneSource& scene;
     /// @brief The mesh-shader geometry path; needs rhi::Device::Capabilities::meshShaders.
     bool gpuDriven;
     /// @brief Draws ImGui over the frame: the draw data of the frame the caller ended (see UiPass).

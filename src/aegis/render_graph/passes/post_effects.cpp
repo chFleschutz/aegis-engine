@@ -10,7 +10,8 @@ namespace aegis::render_graph
 {
 // Bloom ----------------------------------------------------------------------------------------------
 
-BloomPass::BloomPass(ResourceDeclarations& declarations) :
+BloomPass::BloomPass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+    m_scene{ scene },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
     m_bloom{ declarations.addTexture(names::bloom, Usage::StorageWrite,
         { .format = rhi::Format::RGBA16_SFLOAT, .mipLevels = mipLevels, .usage = rhi::ImageUsage::Sampled }) }
@@ -104,14 +105,15 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     };
 
     const auto& cmd = frameInfo.cmd;
+    const auto& settings = m_scene.current().postProcess;
 
     // Bright regions into mip 0. The graph left every mip in ComputeStorage.
     cmd.bindPipeline(*m_threshold);
     cmd.pushConstants(BloomThresholdConstants{
         .input = pool.storageDescriptor(m_sceneColor),
         .output = storage(m_mipViews[0]),
-        .threshold = frameInfo.frameScene.postProcess.bloomThreshold,
-        .softThreshold = frameInfo.frameScene.postProcess.bloomSoftThreshold,
+        .threshold = settings.bloomThreshold,
+        .softThreshold = settings.bloomSoftThreshold,
     });
     dispatchMip(0);
 
@@ -159,7 +161,8 @@ auto BloomPass::drawUI() -> void
 
 // Transparent ----------------------------------------------------------------------------------------
 
-TransparentPass::TransparentPass(ResourceDeclarations& declarations) :
+TransparentPass::TransparentPass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+    m_scene{ scene },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::ColorAttachment) },
     m_depth{ declarations.addReference(names::depth, Usage::DepthRead) },
     m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) }
@@ -182,11 +185,11 @@ auto TransparentPass::createResources(ResourcePool& pool) -> std::expected<void,
     return {};
 }
 
-auto TransparentPass::prepare(ResourcePool& /*pool*/, const FrameScene& frameScene) -> std::expected<void, Error>
+auto TransparentPass::prepare(ResourcePool& /*pool*/) -> std::expected<void, Error>
 {
     for (const auto& system : m_renderSystems)
     {
-        if (auto prepared = system->prepare(frameScene); !prepared)
+        if (auto prepared = system->prepare(m_scene.current()); !prepared)
             return prepared;
     }
     return {};
@@ -205,7 +208,7 @@ auto TransparentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
 
     const RenderContext context{
         .cmd = cmd,
-        .frameScene = frameInfo.frameScene,
+        .frameScene = m_scene.current(),
         .frameIndex = frameInfo.frameIndex,
         .camera = pool.bufferAddress(m_cameraData, frameInfo.frameIndex),
     };

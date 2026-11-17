@@ -1,5 +1,6 @@
 export module aegis.render_passes:scene_update_pass;
 import std;
+import :frame_scene;
 import :gpu_types;
 import aegis.render_graph;
 
@@ -10,12 +11,13 @@ export namespace aegis::render_graph
 class SceneUpdatePass : public RenderPass
 {
 public:
-    explicit SceneUpdatePass(ResourceDeclarations& declarations);
+    SceneUpdatePass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
+    const FrameSceneSource& m_scene;
     ResourceId m_cameraData;
 };
 }

@@ -1,5 +1,6 @@
 export module aegis.render_passes:pipeline_cache;
 import std;
+import :instance_store;
 import aegis.assets;
 import aegis.render_graph;
 import aegis.rhi;

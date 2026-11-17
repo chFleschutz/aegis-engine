@@ -4,24 +4,25 @@ namespace aegis::render_graph
 {
 auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 {
-    graph.add<SceneUpdatePass>();
+    const auto& scene = desc.scene;
+    graph.add<SceneUpdatePass>(scene);
     if (desc.gpuDriven)
     {
-        const auto& instances = graph.add<InstanceUpdatePass>();
+        const auto& instances = graph.add<InstanceUpdatePass>(scene);
         graph.add<ClearDrawCountsPass>();
-        graph.add<CullingPass>(instances);
-        graph.add<GpuDrivenGeometryPass>(instances);
+        graph.add<CullingPass>(scene, instances);
+        graph.add<GpuDrivenGeometryPass>(scene, instances);
     }
     else
     {
-        graph.add<GeometryPass>().addRenderSystem<StaticMeshRenderSystem>();
+        graph.add<GeometryPass>(scene).addRenderSystem<StaticMeshRenderSystem>();
     }
 
-    graph.add<LightingPass>();
-    graph.add<SkyBoxPass>();
-    graph.add<TransparentPass>().addRenderSystem<PointLightRenderSystem>();
-    graph.add<BloomPass>();
-    graph.add<PostProcessingPass>();
+    graph.add<LightingPass>(scene);
+    graph.add<SkyBoxPass>(scene);
+    graph.add<TransparentPass>(scene).addRenderSystem<PointLightRenderSystem>();
+    graph.add<BloomPass>(scene);
+    graph.add<PostProcessingPass>(scene);
 }
 
 auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void

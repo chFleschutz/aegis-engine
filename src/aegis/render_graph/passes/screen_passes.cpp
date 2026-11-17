@@ -8,7 +8,8 @@ namespace aegis::render_graph
 {
 // Sky box -------------------------------------------------------------------------------------------
 
-SkyBoxPass::SkyBoxPass(ResourceDeclarations& declarations) :
+SkyBoxPass::SkyBoxPass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+    m_scene{ scene },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::ColorAttachment) },
     m_depth{ declarations.addReference(names::depth, Usage::DepthRead) }
 {
@@ -38,7 +39,7 @@ auto SkyBoxPass::createResources(ResourcePool& pool) -> std::expected<void, Erro
 
 auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    const auto& scene = frameInfo.frameScene;
+    const auto& scene = m_scene.current();
     if (!scene.camera || !scene.environment.skybox)
         return;
 
@@ -61,7 +62,8 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 
 // Post-processing -----------------------------------------------------------------------------------
 
-PostProcessingPass::PostProcessingPass(ResourceDeclarations& declarations, bool bloom) :
+PostProcessingPass::PostProcessingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, bool bloom) :
+    m_scene{ scene },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
     m_bloom{ bloom ? std::optional{ declarations.addReference(names::bloom, Usage::StorageRead) } : std::nullopt },
     // 16-bit: the image may stay linear until the blit onto an sRGB target encodes it (see execute). As a
@@ -91,7 +93,7 @@ auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
     const auto targetFormat = pool.device().get(frameInfo.target).format();
     const bool targetEncodes = targetFormat == rhi::Format::BGRA8_SRGB || targetFormat == rhi::Format::RGBA8_SRGB;
 
-    const auto& settings = frameInfo.frameScene.postProcess;
+    const auto& settings = m_scene.current().postProcess;
     const auto sceneColor = pool.storageDescriptor(m_sceneColor);
     const auto& cmd = frameInfo.cmd;
     cmd.bindPipeline(*m_pipeline);

@@ -3,7 +3,7 @@
 import std;
 import aegis.assets;
 import aegis.math;
-import aegis.render_graph;
+import aegis.render_passes;
 import aegis.rhi;
 
 // Meshes and materials need a device, so these instances have neither, only a model matrix and a variant:

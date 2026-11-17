@@ -56,6 +56,9 @@ _Avoid_: invalidated, reset
 
 ### Rendering
 
+**Frame scene**:
+What the passes draw of one world in one frame: its instances, the main camera, the lights, the sky's environment and the post-processing settings.
+
 **Material template**:
 The parameters a kind of material has, with their defaults, and the surface shader that reads them.
 _Avoid_: material type, shader template

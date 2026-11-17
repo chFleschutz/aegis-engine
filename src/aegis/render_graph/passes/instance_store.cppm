@@ -1,8 +1,8 @@
-export module aegis.render_graph:instance_store;
+export module aegis.render_passes:instance_store;
 import std;
 import aegis.assets;
 import aegis.math;
-import :error;
+import aegis.render_graph;
 
 export namespace aegis::render_graph::detail
 {

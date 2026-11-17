@@ -59,7 +59,8 @@ auto makeInstance(const Instance& instance, std::uint32_t frameIndex) -> Instanc
 
 // Instance update ------------------------------------------------------------------------------------
 
-InstanceUpdatePass::InstanceUpdatePass(ResourceDeclarations& declarations) :
+InstanceUpdatePass::InstanceUpdatePass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+    m_scene{ scene },
     m_static{
         .buffer = declarations.addBuffer(names::staticInstances, Usage::HostWrite,
             { .size = sizeof(InstanceData) * initialStaticCapacity, .perFrame = true }),
@@ -111,7 +112,7 @@ auto InstanceUpdatePass::write(ResourcePool& pool, InstanceBuffer& buffer, std::
 
 auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    const auto& store = frameInfo.frameScene.instances;
+    const auto& store = m_scene.current().instances;
     // Edits to a material reach the GPU through its block for this frame, which no frame in flight reads
     // any more.
     for (const auto& material : store.materials())
@@ -148,7 +149,8 @@ auto ClearDrawCountsPass::execute(ResourcePool& pool, const FrameInfo& frameInfo
 
 // Culling --------------------------------------------------------------------------------------------
 
-CullingPass::CullingPass(ResourceDeclarations& declarations, const InstanceUpdatePass& instances) :
+CullingPass::CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances) :
+    m_scene{ scene },
     m_instances{ instances },
     m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) },
     m_staticInstances{ declarations.addReference(names::staticInstances, Usage::ShaderRead) },
@@ -181,7 +183,7 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
     // Culling appends each batch's visible instances at its batch offset, so both buffers need an
     // entry per instance in the store. Should they fail to grow, nothing is culled: the counts stay zero
     // and nothing is drawn.
-    const auto registered = frameInfo.frameScene.instances.instanceCount();
+    const auto registered = m_scene.current().instances.instanceCount();
     if (!ensureCapacity(pool, m_visibility, m_visibilityCapacity, registered, sizeof(std::uint32_t)) ||
         !ensureCapacity(pool, m_commands, m_commandCapacity, registered, indirectCommandSize))
         return;
@@ -209,7 +211,9 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
 
 // GPU-driven geometry --------------------------------------------------------------------------------
 
-GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations, const InstanceUpdatePass& instances) :
+GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene,
+    const InstanceUpdatePass& instances) :
+    m_scene{ scene },
     m_instances{ instances },
     m_gBuffer{ GeometryPass::declareGBuffer(declarations) },
     m_depth{ GeometryPass::declareDepth(declarations) },
@@ -240,9 +244,9 @@ auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected
     return {};
 }
 
-auto GpuDrivenGeometryPass::prepare(ResourcePool& /*pool*/, const FrameScene& frameScene) -> std::expected<void, Error>
+auto GpuDrivenGeometryPass::prepare(ResourcePool& /*pool*/) -> std::expected<void, Error>
 {
-    for (const auto& batch : frameScene.instances.batches())
+    for (const auto& batch : m_scene.current().instances.batches())
     {
         if (!drawsInGBuffer(batch))
             continue;
@@ -299,7 +303,7 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
     // skipped: its maximum draw count would read beyond the buffer.
     const auto commandCapacity = pool.bufferSize(m_commands) / indirectCommandSize;
     const rhi::Pipeline* bound{ nullptr };
-    for (const auto& batch : frameInfo.frameScene.instances.batches())
+    for (const auto& batch : m_scene.current().instances.batches())
     {
         // The G-buffer holds opaque surfaces only, as on the CPU path (StaticMeshRenderSystem). A batch that was
         // not prepared has no pipeline and is skipped.

@@ -1,7 +1,7 @@
 export module aegis.render_bridge;
 
 import std;
-import aegis.render_graph;
+import aegis.render_passes;
 import aegis.world;
 
 // Between the world and the render graph, which knows no world: the instance store follows the world's mesh

@@ -2,7 +2,6 @@ export module aegis.render_graph:render_pass;
 import std;
 import :declarations;
 import :error;
-import :frame_scene;
 import :resource;
 import :resource_pool;
 import aegis.rhi;
@@ -13,8 +12,6 @@ export namespace aegis::render_graph
 struct FrameInfo
 {
     const rhi::CommandBuffer& cmd;
-    /// @brief What to draw: instances, camera, lights and environment. Passes read these here, not from the world.
-    const FrameScene& frameScene;
     std::uint32_t frameIndex;
     rhi::Extent2D extent;
     /// @brief The renderer's target for this frame (swapchain image or offscreen target), in
@@ -47,13 +44,9 @@ public:
     ///        textures, for a pass to recreate what it derived from them (e.g. extra image views).
     [[nodiscard]] virtual auto resized(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
 
-    /// @brief Creates what recording 'frameScene' needs and the pass lacks, such as the pipelines of its draw
-    ///        batches. Called by FrameGraph::prepare for every pass, before the frame is recorded.
-    [[nodiscard]] virtual auto prepare(ResourcePool& /*pool*/, const FrameScene& /*frameScene*/)
-        -> std::expected<void, Error>
-    {
-        return {};
-    }
+    /// @brief Creates what recording the coming frame needs and the pass lacks, such as the pipelines of the draw
+    ///        batches it draws. Called by FrameGraph::prepare for every pass, before the frame is recorded.
+    [[nodiscard]] virtual auto prepare(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
 
     /// @brief Records the pass. The graph has already recorded the barriers its accesses need.
     virtual auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void = 0;

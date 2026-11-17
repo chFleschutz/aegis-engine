@@ -1,5 +1,6 @@
 export module aegis.render_passes:screen_passes;
 import std;
+import :frame_scene;
 import :gpu_types;
 import :names;
 import aegis.render_graph;
@@ -12,13 +13,14 @@ export namespace aegis::render_graph
 class SkyBoxPass : public RenderPass
 {
 public:
-    explicit SkyBoxPass(ResourceDeclarations& declarations);
+    SkyBoxPass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
+    const FrameSceneSource& m_scene;
     ResourceId m_sceneColor;
     ResourceId m_depth;
     std::optional<rhi::Pipeline> m_pipeline;
@@ -31,13 +33,14 @@ class PostProcessingPass : public RenderPass
 {
 public:
     /// @param bloom Read "Bloom" (a BloomPass must be in the graph); otherwise bloom is off.
-    PostProcessingPass(ResourceDeclarations& declarations, bool bloom = true);
+    PostProcessingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, bool bloom = true);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
+    const FrameSceneSource& m_scene;
     ResourceId m_sceneColor;
     std::optional<ResourceId> m_bloom;
     ResourceId m_final;
