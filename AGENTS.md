@@ -207,6 +207,12 @@ against the current code. An issue you file goes to the Planning milestone or `B
 Active one, unless the Active milestone can't finish without it. `/plan-milestone` holds the
 milestone rules and the issue format.
 
+**Decisions are ADRs** in `docs/adr/`, indexed in its README; the `domain-modeling` skill writes
+them. Cite one by its file name (`docs/adr/0007-engine-hosts-the-game.md`, linked in docs), never
+by a bare number. An ADR may land in the feature PR that makes the decision; when parallel PRs pick
+the same number, the one that merges later renumbers. `docs/roadmap.md` keeps each milestone's goal
+and order.
+
 1. **One worktree per PR.** `tools/new-worktree.sh <branch> [base]` creates
    `../aegis-engine.worktrees/<branch>` from `origin/main` with submodules, then configures and
    builds it; after the PR merges, `tools/remove-worktree.sh <branch> --delete-branch`. Name branches

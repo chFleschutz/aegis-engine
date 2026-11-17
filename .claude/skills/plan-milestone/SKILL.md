@@ -31,16 +31,16 @@ milestone beside `Backlog`, and the Active one's scope frozen. Pick the branch b
 - Once "done when" is met the milestone closes, even with issues left, which move to Planning or
   `Backlog`; Planning becomes Active, the roadmap's next target becomes Planning, and the roadmap drops
   the closed milestone (a docs-only commit).
-- The roadmap and the decisions (D1–D8, F1/F2) are in `docs/audit/backlog.md`: the targets after
-  Planning, in order. Feature PRs don't edit it.
+- The roadmap, `docs/roadmap.md`, holds the targets after Planning, in order: each milestone's goal
+  and order. Feature PRs don't edit it. The decisions are ADRs in `docs/adr/`.
 
 ## 1. Gather context
 
 Every branch starts here. Read the open milestones with their descriptions
 (`gh api repos/{owner}/{repo}/milestones --jq '.[] | "\(.number) \(.title)\n\(.description)"'`), their
 issues and the `Backlog` (`gh issue list --milestone "<title>" --json number,title,labels`), and the
-roadmap (`docs/audit/backlog.md`). For a target or a plan, also read what it leans on:
-the design docs and decisions it cites, `GLOSSARY.md` for names, and enough of the code to know what
+roadmap (`docs/roadmap.md`). For a target or a plan, also read what it leans on:
+the design docs and ADRs it cites, `GLOSSARY.md` for names, and enough of the code to know what
 exists. Branches that draft issues read [`ISSUE-FORMAT.md`](ISSUE-FORMAT.md).
 
 Done when you can say, for each piece of the subject, what exists today and what changes.

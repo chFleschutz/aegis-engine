@@ -10,7 +10,7 @@ The title is one imperative line. The body:
 ```md
 Branch `<kind>/<slug>` · size <S|M|L>
 
-**Design:** <the doc section, decisions and finding IDs it follows; drop the line if there are none>
+**Design:** <the doc section, ADRs (by file name) and finding IDs it follows; drop the line if there are none>
 
 **Problem:** <what is wrong today, with where and how much>
 

@@ -1,8 +1,8 @@
 # Architecture decisions
 
-One file per decision, `NNNN-slug.md`. Cite one by its file name, never by a bare number. A
-decision first recorded in `docs/audit/backlog.md` as D1–D8 keeps its number here, so old citations
-in closed issues and commits still resolve through the last column.
+One file per decision, `NNNN-slug.md`. Cite one by its file name, never by a bare number. The first
+eight were D1–D8 in the audit's decision list and keep their numbers here, so old citations in closed
+issues and commits still resolve through the last column.
 
 | ADR | Decision | Status | Formerly |
 | --- | --- | --- | --- |
