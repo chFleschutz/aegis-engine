@@ -201,8 +201,8 @@ issue to an open PR.
 relations. **The assignee is the status:** whoever starts an item assigns it (`gh issue edit <n>
 --add-assignee @me`), and an assigned issue is taken. Leave `needs-design` (an open decision) and
 `idea` issues alone unless the owner asks; never run two items with the same `area/*` label in
-parallel. Before starting an item, read its issue and the decisions and finding IDs it cites
-(`docs/audit/backlog.md`, `docs/audit/findings-*.md` corrected by `verify-*.md`), then re-check them
+parallel. Before starting an item, read its issue and the ADRs and finding IDs it cites
+(`docs/adr/`, `docs/audit/findings-*.md` corrected by `verify-*.md`), then re-check them
 against the current code. An issue you file goes to the Planning milestone or `Backlog`, not the
 Active one, unless the Active milestone can't finish without it. `/plan-milestone` holds the
 milestone rules and the issue format.

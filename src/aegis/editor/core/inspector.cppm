@@ -57,14 +57,15 @@ using FieldValues = std::vector<FieldValue>;
 using PrepareField = std::function<void(const reflect::TypeInfo& type, void* object)>;
 
 /// @brief Writes 'value' to 'field' of 'object', the entity's component or script of 'type', runs 'prepare' on it,
-///        then the component's change hook (world::ComponentStorage::changed), so the edit keeps the type's rules (D2).
+///        then the component's change hook (world::ComponentStorage::changed), so the edit keeps the type's rules
+///        (docs/adr/0002-static-dynamic-hybrid.md).
 /// @return The setter's error (a value of the wrong kind); nothing is written then
 [[nodiscard]] auto setField(const reflect::TypeInfo& type, const reflect::FieldInfo& field, world::Registry& registry,
     world::Entity entity, void* object, const reflect::Value& value, const PrepareField& prepare = {}) -> std::expected<void, reflect::Error>;
 
 /// @brief Writes 'values' to the fields of 'object', the entity's component or script of 'type', runs 'prepare' on it,
 ///        then the component's change hook, like setField: the one way the editor writes a component it did not just
-///        create (D2).
+///        create (docs/adr/0002-static-dynamic-hybrid.md).
 /// @return UnknownField for a value of no registered field, or a setter's error; the fields before it are written
 ///         then, and neither 'prepare' nor the hook runs
 [[nodiscard]] auto writeComponent(const reflect::TypeInfo& type, world::Registry& registry, world::Entity entity, void* object,

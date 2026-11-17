@@ -1,10 +1,10 @@
-# Foundation plan: decisions and milestones
+# Foundation plan: milestones
 
 The work from [report.md](audit/report.md) §7. The work items are GitHub issues, grouped into milestones
 (`M1`–`M14`, then "Backlog"; the numbers are IDs in creation order, not the working order), with
 their dependencies as "Blocked by" relations; labels give the kind,
 size, area and the `needs-gpu` / `needs-design` flags (AGENTS.md "Planned work"). This file keeps
-what the issues don't: the decisions with their reasons, and each milestone's goal and working
+what the issues don't: each milestone's goal and working
 order. Status lives only in the issues: an assigned issue is being worked on.
 
 - **Closes** in an issue lists the canonical finding IDs, with merged duplicates in parentheses. The
@@ -34,13 +34,13 @@ The decisions are architecture decision records in [`docs/adr/`](adr/README.md).
 
 **[M1. Independent bug fixes](https://github.com/chFleschutz/aegis-engine/milestone/1?closed=1)** (done) fixed the audit's bugs that needed no design change, in
 parallel lanes: tests and math, render, content. Its one leftover, the front-face flip for mirrored
-instances (D6), is under Polish.
+instances ([`0006-preserve-mirrored-transforms.md`](adr/0006-preserve-mirrored-transforms.md)), is under Polish.
 
 **[M2. Mechanical cleanup](https://github.com/chFleschutz/aegis-engine/milestone/2?closed=1)** (done) deleted dead code and renamed, each in its own
 blame-ignored PR, following the dead-code verdicts in `verify-conventions.md` §3.
 
 **[M3. Foundation policy](https://github.com/chFleschutz/aegis-engine/milestone/3?closed=1)** (done) set the shared rules the later milestones build on:
-`aegis.base` (D3, D4), the D1 error shape in every new-style module, the shader build helper with
+`aegis.base` ([`0003-drop-aegis-log.md`](adr/0003-drop-aegis-log.md), [`0004-foundation-module-name.md`](adr/0004-foundation-module-name.md)), the error shape of [`0001-one-error-type-per-module.md`](adr/0001-one-error-type-per-module.md) in every new-style module, the shader build helper with
 `spirv-val`, the guarded CPU/GPU data contract, subproject-safe paths and link visibility.
 
 **[M4. Render-graph authoring](https://github.com/chFleschutz/aegis-engine/milestone/4?closed=1)** (done) made passes declare their resources once and let the
@@ -52,10 +52,10 @@ instantiation out of `aegis.assets`, and gave input and windowing explicit APIs.
 **M6, first part** (done, under the old name "`aegis.app`"): `Engine::create` and headless mode
 ([#79](https://github.com/chFleschutz/aegis-engine/issues/79)), no engine singleton ([#80](https://github.com/chFleschutz/aegis-engine/issues/80)), the type registry ([#129](https://github.com/chFleschutz/aegis-engine/issues/129)), the world lifecycle ([#81](https://github.com/chFleschutz/aegis-engine/issues/81)),
 frame phases ([#82](https://github.com/chFleschutz/aegis-engine/issues/82)), the `World` rename ([#138](https://github.com/chFleschutz/aegis-engine/issues/138)) and the asset types ([#139](https://github.com/chFleschutz/aegis-engine/issues/139)). On 2026-10-21 the
-rest was split by goal: the asset work (D8) stayed in M6, the launcher and editor (D7) moved to M9.
+rest was split by goal: the asset work ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md)) stayed in M6, the launcher and editor ([`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md)) moved to M9.
 Item numbers like "6.9" are gone from the titles; refer to items by issue number.
 
-**[M6. Assets and scene files (D8)](https://github.com/chFleschutz/aegis-engine/milestone/6)**: asset IDs ([#130](https://github.com/chFleschutz/aegis-engine/issues/130)) first. Then, in parallel, the
+**[M6. Assets and scene files](https://github.com/chFleschutz/aegis-engine/milestone/6)** ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md)): asset IDs ([#130](https://github.com/chFleschutz/aegis-engine/issues/130)) first. Then, in parallel, the
 import cache for meshes ([#137](https://github.com/chFleschutz/aegis-engine/issues/137), `needs-design`) → KTX2 textures ([#169](https://github.com/chFleschutz/aegis-engine/issues/169)), and scene files
 ([#131](https://github.com/chFleschutz/aegis-engine/issues/131)). Before #169: derived sub-asset IDs ([#236](https://github.com/chFleschutz/aegis-engine/issues/236)) → settings per part ([#244](https://github.com/chFleschutz/aegis-engine/issues/244)), and the cache by
 key ([#238](https://github.com/chFleschutz/aegis-engine/issues/238)). Scene instances follow both #130 and #131, in two steps: nested instances with derived
@@ -67,7 +67,7 @@ Do it before the first terrain, vegetation or shadow pass. The `FrameScene` ([#1
 and runs in parallel with M6; the `InstanceStore` ([#86](https://github.com/chFleschutz/aegis-engine/issues/86)) follows it, then [#87](https://github.com/chFleschutz/aegis-engine/issues/87) (mechanical). The
 mirrored-instance fix ([#171](https://github.com/chFleschutz/aegis-engine/issues/171)) has landed.
 
-**[M9. Game launcher and editor split (D7)](https://github.com/chFleschutz/aegis-engine/milestone/10)** makes the engine host the game
+**[M9. Game launcher and editor split](https://github.com/chFleschutz/aegis-engine/milestone/10)** ([`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md)) makes the engine host the game
 ([`docs/editor-runtime-split.md`](editor-runtime-split.md)). The launcher follows scene files,
 in two steps: the engine stops linking the editor ([#182](https://github.com/chFleschutz/aegis-engine/issues/182)), then the launcher itself ([#132](https://github.com/chFleschutz/aegis-engine/issues/132)). The
 examples become one game ([#167](https://github.com/chFleschutz/aegis-engine/issues/167)) after it and scene instances, one example per commit.
@@ -104,7 +104,7 @@ that each of M12's features stays one PR. It runs in parallel with M10.
   M6's open items.
 
 **[M12. Render features](https://github.com/chFleschutz/aegis-engine/milestone/14)** adds what a game shows on screen, on both geometry paths:
-- alpha-mask and double-sided materials ([#135](https://github.com/chFleschutz/aegis-engine/issues/135), D5, after #251);
+- alpha-mask and double-sided materials ([#135](https://github.com/chFleschutz/aegis-engine/issues/135), [`0005-alpha-mask-in-material-system.md`](adr/0005-alpha-mask-in-material-system.md), after #251);
 - shadows, cascaded for the directional light first, then spot and point lights (after #251 and
   #254; issue to be filed);
 - blended materials in a forward pass (issue to be filed), then back-to-front sorting ([#9](https://github.com/chFleschutz/aegis-engine/issues/9));
@@ -126,9 +126,9 @@ M13 (issue to be filed), and with it what a shipped game needs. The game is the 
 target beyond the render tests: what it lacks becomes issues here.
 - background work: a job system ([#259](https://github.com/chFleschutz/aegis-engine/issues/259)), then background asset loading ([#260](https://github.com/chFleschutz/aegis-engine/issues/260), `needs-design`,
   after [#154](https://github.com/chFleschutz/aegis-engine/issues/154));
-- the later asset features (D8): hot reload ([#143](https://github.com/chFleschutz/aegis-engine/issues/143)), prefab overrides and unpacking ([#142](https://github.com/chFleschutz/aegis-engine/issues/142)) and
+- the later asset features ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md)): hot reload ([#143](https://github.com/chFleschutz/aegis-engine/issues/143)), prefab overrides and unpacking ([#142](https://github.com/chFleschutz/aegis-engine/issues/142)) and
   native material files ([#141](https://github.com/chFleschutz/aegis-engine/issues/141));
-- last, exporting the game ([#134](https://github.com/chFleschutz/aegis-engine/issues/134), D7/F1/D8, `needs-design`): the cook step, install rules and the
+- last, exporting the game ([#134](https://github.com/chFleschutz/aegis-engine/issues/134), [`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md), [`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md), `needs-design`): the cook step, install rules and the
   shipping build, tried on the slice.
 
 **Lanes.** With three agents, run one lane each: editor (M10), render (M11, then M12), assets (M6,
@@ -171,7 +171,7 @@ winding fix has its own issue ([#171](https://github.com/chFleschutz/aegis-engin
 ## Deferred until the feature
 
 From report §3: persistent and imported graph images, pooled pipelines and `ShaderLibrary`,
-multi-queue submit, asset streaming, job system, transient aliasing. From D7: automatic field lists
+multi-queue submit, asset streaming, job system, transient aliasing. From [`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md): automatic field lists
 for the type registry, a DLL/hot-reload game build, a scripting language. (Prefabs, the hierarchy's
 file format and the asset cache are now planned: [#131](https://github.com/chFleschutz/aegis-engine/issues/131), [#137](https://github.com/chFleschutz/aegis-engine/issues/137), [#140](https://github.com/chFleschutz/aegis-engine/issues/140), [#142](https://github.com/chFleschutz/aegis-engine/issues/142). So are persistent
 and imported graph images, pooled pipelines and the job system: [#253](https://github.com/chFleschutz/aegis-engine/issues/253), [#251](https://github.com/chFleschutz/aegis-engine/issues/251), [#259](https://github.com/chFleschutz/aegis-engine/issues/259).)

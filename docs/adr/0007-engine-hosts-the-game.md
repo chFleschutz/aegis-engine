@@ -15,4 +15,8 @@ Formerly D7. Decided 2026-10-19, see
 - Why: the editor stays out of shipped games, a game needs no `main()` of its own, and scenes
   become savable and editable. Save games need the same serializer anyway.
 - → `aegis.app` and the type registry ([#79](https://github.com/chFleschutz/aegis-engine/issues/79)–[#82](https://github.com/chFleschutz/aegis-engine/issues/82), [#129](https://github.com/chFleschutz/aegis-engine/issues/129), done), then [M9](https://github.com/chFleschutz/aegis-engine/milestone/10); export
-  ([#134](https://github.com/chFleschutz/aegis-engine/issues/134)). Decides F1.
+  ([#134](https://github.com/chFleschutz/aegis-engine/issues/134)).
+
+This settles the former open question F1, how a game uses the engine. What it leaves to the export step
+([#134](https://github.com/chFleschutz/aegis-engine/issues/134)): install rules, and whether a game outside this repo consumes the engine as a subproject
+([`0011-subproject-safe-paths.md`](0011-subproject-safe-paths.md) makes that safe) or as an installed package.

@@ -28,5 +28,7 @@ Formerly D8. Decided 2026-10-19, see
   version and shader-pinned layouts, is never committed, so a layout change needs no migration.
   Sidecars survive moves and git merges, unlike paths or one database file.
 - → the renames ([#138](https://github.com/chFleschutz/aegis-engine/issues/138), [#139](https://github.com/chFleschutz/aegis-engine/issues/139), done), then [M6](https://github.com/chFleschutz/aegis-engine/milestone/6); export ([#134](https://github.com/chFleschutz/aegis-engine/issues/134)); later save games
-  ([#168](https://github.com/chFleschutz/aegis-engine/issues/168)), material files ([#141](https://github.com/chFleschutz/aegis-engine/issues/141)), prefab overrides ([#142](https://github.com/chFleschutz/aegis-engine/issues/142)) and hot reload ([#143](https://github.com/chFleschutz/aegis-engine/issues/143)). Decides
-  F2.
+  ([#168](https://github.com/chFleschutz/aegis-engine/issues/168)), material files ([#141](https://github.com/chFleschutz/aegis-engine/issues/141)), prefab overrides ([#142](https://github.com/chFleschutz/aegis-engine/issues/142)) and hot reload ([#143](https://github.com/chFleschutz/aegis-engine/issues/143)).
+
+This settles the former open question F2, the asset system design. What it leaves open is listed in
+[`docs/asset-system.md`](../asset-system.md), "Open".

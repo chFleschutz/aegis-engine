@@ -36,8 +36,9 @@ struct ComponentStorage
     ///        (reflect::TypeMeta::required, read when it is called).
     std::function<bool(Registry&, Entity)> remove;
     /// @brief Call it after writing the entity's component through find's pointer, which entt cannot observe. It
-    ///        keeps the type's rule for such writes in one place (D2): a static entity's Transform marks it
-    ///        static-dirty, a MeshRenderer invalidates the static set. Does nothing for the other types.
+    ///        keeps the type's rule for such writes in one place (docs/adr/0002-static-dynamic-hybrid.md): a static
+    ///        entity's Transform marks it static-dirty, a MeshRenderer invalidates the static set. Does nothing for
+    ///        the other types.
     Hook changed;
     /// @brief The first entity that has one (a null Entity if none does)
     std::function<Entity(Registry&)> first;

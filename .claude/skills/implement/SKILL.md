@@ -35,7 +35,7 @@ the comment and stop.
   agents skip assigned issues.
 
 ## 2. Check the issue against the code
-- Read the decisions it cites (`docs/audit/backlog.md`) and the findings it lists
+- Read the ADRs it cites (`docs/adr/`) and the findings it lists
   (`docs/audit/findings-*.md`, corrected by `verify-*.md`), then re-check them against the current
   code. If the issue is wrong or already done, stop and say so.
 - Stop and ask when the scope is ambiguous, the change would cross the issue's **Out of scope**,

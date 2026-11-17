@@ -1,9 +1,9 @@
 # Editor: architecture, features and implementation plan
 
 Status: **in progress.** E1 ([#83]) is merged; the [M10 milestone][m10] tracks the rest. It plans the
-editor that M9 (D7) splits off and M10 builds.
+editor that M9 ([`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md)) splits off and M10 builds.
 It builds on [`editor-runtime-split.md`](editor-runtime-split.md) (the launcher, the type registry, play-in-editor),
-[`asset-system.md`](asset-system.md) (D8: asset IDs, scene files, `World` vs `Scene`) and
+[`asset-system.md`](asset-system.md) ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md): asset IDs, scene files, `World` vs `Scene`) and
 [`engine-architecture.md`](engine-architecture.md) (services, `Presentation`). It fixes how the editor is
 built, what it does in M10, and which runtime features have to exist first.
 
@@ -161,7 +161,7 @@ Still to come: the views to render (world, camera and target per view, R5 [#192]
   instantiates that `Scene` into a new `World` (`Engine::createWorld`), which gets the engine's and the
   game's systems (R7) and its own clock, and begins with its first update in `Play`. Stop destroys it. Pause stops updating it; Step runs one fixed-step
   frame. Instances come back through their holders' `SceneInstance`, as they do when a file loads.
-- **Identity across play:** a world's root scene keeps its local IDs (D8), so the play world's
+- **Identity across play:** a world's root scene keeps its local IDs ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md)), so the play world's
   entities have the edit world's `StableId`s. Selection survives Play and Stop unchanged.
 - **Edits during play** go to the play world and are lost on Stop, as in Unity. They don't enter the
   edit world's undo stack (the play session keeps its own and drops it). The UI is tinted while
@@ -183,7 +183,7 @@ Still to come: the views to render (world, camera and target per view, R5 [#192]
   world. In play mode the viewport shows
   the world's main camera, and "eject" switches back to the editor camera while playing (nice to have).
 - **Controls:** RMB + WASD/QE to fly (wheel changes the speed, which the speed field shows), Alt + LMB to orbit,
-  MMB to pan, wheel to dolly, F to focus the selection (its bounding sphere). Z is up, matching D8.
+  MMB to pan, wheel to dolly, F to focus the selection (its bounding sphere). Z is up, matching [`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md).
 - **Overlays** ([#325]): the tool buttons sit in the image's top left corner. The top right holds the camera speed,
   a field marked with a gauge that drags to change it (logarithmically, 0.01 to 1000 units per second) and takes a
   typed value on a click, and the stats toggle. Below them the navigation gizmo shows the world axes in the camera's
@@ -242,7 +242,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - **Widgets map from `FieldKind` plus metadata (R2):** Bool → checkbox; Int/UInt → drag (or a slider
   with a range); Float/Double → drag with a step, and the `Angle` hint shows radians as degrees;
   Vec2/3/4 → axis-colored drags, and the `Color` hint shows a linear color picker that edits in sRGB
-  (D8); Quat → Euler degrees; Enum → combo from the `EnumEntry` list; String → text field (edits
+  ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md)); Quat → Euler degrees; Enum → combo from the `EnumEntry` list; String → text field (edits
   commit on deactivate); AssetRef → an asset slot that shows the asset's kind icon and short name (a
   file's name without folder and extension, a part's key without the type prefix: `assetDisplayName`;
   the full path in the tooltip), opens a picker of the field's asset type (a search above the list,
@@ -254,7 +254,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   angles it started from and derives the quaternion from them. It re-reads the quaternion only when
   nothing is active.
 - **Change hooks (R1):** after a write, `ComponentStorage::changed(registry, entity)` runs. For
-  `Transform` it calls `markStaticDirty` on non-dynamic entities (D2's rule, now in one place instead
+  `Transform` it calls `markStaticDirty` on non-dynamic entities (the rule of [`0002-static-dynamic-hybrid.md`](adr/0002-static-dynamic-hybrid.md), now in one place instead
   of in each editor widget). For `MeshRenderer` it calls `invalidateStatic`. The editor stays generic.
 - **Entity properties and required components:** the inspector shows name and ID (read-only, with a
   copy button) as the entity's header. Only registered components get sections, so GlobalTransform,
@@ -331,7 +331,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 ### Persistence
 
 - **Layout:** `imgui.ini` goes in `<project>/.aegis/editor/imgui.ini` (per project, per machine, never
-  committed, D8's one ignored folder), with the pinned drawer panels in its `[Aegis][Drawers]` section and the
+  committed, the one ignored folder of [`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md)), with the pinned drawer panels in its `[Aegis][Drawers]` section and the
   folded side column in `[Aegis][Rail]`. A View → Reset Layout action rebuilds the default with `DockBuilder`.
 - **Preferences** (camera speed, snap values, the viewport icons' and stats' toggles, recent projects, UI scale, the autosave interval, the drawer's height, full viewport on play) go in the user config folder
   (`%APPDATA%/Aegis/editor.json`, `$XDG_CONFIG_HOME/aegis/editor.json`), as JSON through glaze in a
@@ -582,7 +582,7 @@ instantiation (`saveScene` / `instantiate`, [#131], [#183]), the `FrameScene` ([
 
 | # | Runtime feature | Why the editor needs it | Lands in | Needed by |
 |---|---|---|---|---|
-| R1 | **Component storage, complete:** `remove(registry, entity)` and a change hook `changed(registry, entity)` on `world::ComponentStorage`. Transform → `markStaticDirty` unless dynamic, MeshRenderer → `invalidateStatic` | Remove Component by name; generic edits keep D2's rule | [#191] (with R2) | E3 |
+| R1 | **Component storage, complete:** `remove(registry, entity)` and a change hook `changed(registry, entity)` on `world::ComponentStorage`. Transform → `markStaticDirty` unless dynamic, MeshRenderer → `invalidateStatic` | Remove Component by name; generic edits keep the rule of [`0002-static-dynamic-hybrid.md`](adr/0002-static-dynamic-hybrid.md) | [#191] (with R2) | E3 |
 | R2 | **Type and field metadata** in `reflect`: display name, category, `required`; per field a widget hint (`Color`, `Angle`, `Slider`), min/max/step, a unit (`"m"`; angles and rotations show degrees), `readOnly`, tooltip; the asset type of `AssetRef` fields. The serializer ignores it | Generated widgets; replaces `ComponentTraits` | [#191] (with R1) | E3 |
 | R3 | **UI at the safe point:** `Presentation` owns the ImGui context and both backends, builds the UI before the world update and calls `ImGui::Render` before rendering; `UiPass` only records. Headless UI with no platform backend | Edits outside the frame; headless editor screenshots | [#83] | E1 |
 | R4 | **`Shell`:** startup, frame safe point, update mode, input capture (views with R5, close veto with E5); `GameShell` default; replaces `Engine::pushLayer` and the layer stack | The editor plugs in without runtime hooks of its own | [#83] (merged, layers removed too) | E1 |
@@ -592,7 +592,7 @@ instantiation (`saveScene` / `instantiate`, [#131], [#183]), the `FrameScene` ([
 | R8 | **Edit-mode update:** `World::update(dt, UpdateMode)`; systems opt in to `Edit` (TransformSystem, CameraSystem) | Moving things without running the game | [#83] | E1 |
 | R9 | **Subtree snapshots:** `saveScene` of one entity and its descendants, and `instantiate` that keeps the IDs (undo) or gives new ones (duplicate, later paste) | Structural undo, Duplicate | [#195] | E4 |
 | R10 | **Asset database for the browser:** the asset type of every entry (from the importer and the sub-asset key prefix), adding a file the editor wrote, rescan | Typed browser, picker filter, Save As | [#196] | E5, E6 |
-| R11 | **Hierarchy API:** insert a child at an index (sibling order is saved, D8); misuse returns an error instead of asserting (`assert` in `registry.cppm`) | Reorder by drag and drop; undo of Reparent | [#197] | E4 |
+| R11 | **Hierarchy API:** insert a child at an index (sibling order is saved, [`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md)); misuse returns an error instead of asserting (`assert` in `registry.cppm`) | Reorder by drag and drop; undo of Reparent | [#197] | E4 |
 | R12 | **Window:** content scale and its change event, title, close request that the shell can veto | High DPI, dirty title, unsaved prompt | [#198] | E5, E8 |
 | R13 | **Log sinks:** add a sink without replacing stderr (today `log::setSink` replaces it); validation messages go through `aegis::log` | Console | [#199] | E7 |
 | R14 | **Project and launcher:** project file (startup scene) read/write, `--project`, `--scene`, runtime data lookup | Open the project; New/Save update it | [#132] (merged) | E1 |

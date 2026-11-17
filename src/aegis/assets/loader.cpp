@@ -106,7 +106,8 @@ private:
                 MaterialValue value;
             };
             // The default PBR template has no alpha or sidedness parameters yet; data.alphaMode and
-            // data.doubleSided wait for the material-system feature (D5).
+            // data.doubleSided wait for the material-system feature
+            // (docs/adr/0005-alpha-mask-in-material-system.md).
             std::vector<Override> overrides{
                 { pbr::albedo, glm::vec3{ data.baseColor } },
                 { pbr::metallic, data.metallic },
