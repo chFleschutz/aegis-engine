@@ -521,18 +521,19 @@ auto Engine::run() -> int
         auto frameScene = aegis::extractFrameScene(shown, instances);
         if (view && view->camera)
             frameScene.camera = view->camera;
+        // The passes read it until the end of this frame's iteration.
+        const auto boundScene = m_frameScene.bind(frameScene);
         // Pipelines the frame's draw batches need are created before recording; failing that, a shader is missing.
-        if (auto prepared = m_frameGraph->prepare(frameScene); !prepared)
+        if (auto prepared = m_frameGraph->prepare(); !prepared)
         {
             log::fatal("Failed to prepare a frame: {}", render_graph::describe(prepared.error()));
             exitCode = exitFailure;
             break;
         }
-        auto rendered = m_renderer->renderFrame([this, &frameScene, &instances](const aegis::renderer::Renderer::FrameInfo& frame) {
+        auto rendered = m_renderer->renderFrame([this, &instances](const aegis::renderer::Renderer::FrameInfo& frame) {
             m_lastFrameIndex = frame.frameIndex;
             m_frameGraph->execute({
                 .cmd = frame.cmd,
-                .frameScene = frameScene,
                 .frameIndex = frame.frameIndex,
                 .extent = m_viewExtent.value_or(frame.extent), // The scene passes' extent: the graph's output
                 .target = frame.target,
@@ -640,6 +641,7 @@ auto Engine::createFrameGraph(std::optional<rhi::Extent2D> view) -> std::expecte
     m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, view.value_or(m_renderer->extent()));
     buildFrameGraph(*m_frameGraph,
         {
+            .scene = m_frameScene,
             .gpuDriven = useGpuDrivenRendering(),
             .ui = true, // The shell's UI, empty for a game; headless too, for screenshots of it
             .context = m_context.get(),

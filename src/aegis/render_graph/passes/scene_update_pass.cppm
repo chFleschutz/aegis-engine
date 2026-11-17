@@ -10,12 +10,13 @@ export namespace aegis::render_graph
 class SceneUpdatePass : public RenderPass
 {
 public:
-    explicit SceneUpdatePass(ResourceDeclarations& declarations);
+    SceneUpdatePass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
+    const FrameSceneSource& m_scene;
     ResourceId m_cameraData;
 };
 }

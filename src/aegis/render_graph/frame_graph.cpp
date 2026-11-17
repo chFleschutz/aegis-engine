@@ -78,11 +78,11 @@ auto FrameGraph::resized(rhi::Extent2D output) -> std::expected<void, Error>
     return {};
 }
 
-auto FrameGraph::prepare(const FrameScene& frameScene) -> std::expected<void, Error>
+auto FrameGraph::prepare() -> std::expected<void, Error>
 {
     for (const auto index : m_order)
     {
-        if (auto prepared = m_passes[index]->prepare(m_pool, frameScene); !prepared)
+        if (auto prepared = m_passes[index]->prepare(m_pool); !prepared)
             return prepared;
     }
     return {};

@@ -15,7 +15,7 @@ class LightingPass : public RenderPass
 public:
     static constexpr std::uint32_t maxPointLights{ render_graph::maxPointLights };
 
-    explicit LightingPass(ResourceDeclarations& declarations);
+    LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -23,6 +23,7 @@ public:
     auto drawUI() -> void override;
 
 private:
+    const FrameSceneSource& m_scene;
     std::array<ResourceId, 5> m_gBuffer; // Position, Normal, Albedo, ARM, Emissive
     ResourceId m_sceneColor;
     ResourceId m_uniforms;

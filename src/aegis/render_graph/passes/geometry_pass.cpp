@@ -4,7 +4,8 @@ import aegis.rhi;
 
 namespace aegis::render_graph
 {
-GeometryPass::GeometryPass(ResourceDeclarations& declarations) :
+GeometryPass::GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+    m_scene{ scene },
     m_gBuffer{ declareGBuffer(declarations) },
     m_depth{ declareDepth(declarations) },
     m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) }
@@ -46,11 +47,11 @@ auto GeometryPass::createResources(ResourcePool& pool) -> std::expected<void, Er
     return {};
 }
 
-auto GeometryPass::prepare(ResourcePool& /*pool*/, const FrameScene& frameScene) -> std::expected<void, Error>
+auto GeometryPass::prepare(ResourcePool& /*pool*/) -> std::expected<void, Error>
 {
     for (const auto& system : m_renderSystems)
     {
-        if (auto prepared = system->prepare(frameScene); !prepared)
+        if (auto prepared = system->prepare(m_scene.current()); !prepared)
             return prepared;
     }
     return {};
@@ -72,7 +73,7 @@ auto GeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
 
     const RenderContext context{
         .cmd = cmd,
-        .frameScene = frameInfo.frameScene,
+        .frameScene = m_scene.current(),
         .frameIndex = frameInfo.frameIndex,
         .camera = pool.bufferAddress(m_cameraData, frameInfo.frameIndex),
     };

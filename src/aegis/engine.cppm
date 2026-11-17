@@ -484,6 +484,7 @@ private:
     std::vector<WorldUpdate> m_updates;            // This frame's, from the shell (FrameContext::update)
     world::World* m_renderRequest{ nullptr };      // This frame's, from the shell (FrameContext::render); none for the main world
     const world::World* m_lastRendered{ nullptr }; // The world whose instances the passes' buffers hold
+    render_graph::FrameSceneSource m_frameScene;   // Where the passes read the frame scene; outlives the graph
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
     std::optional<rhi::Extent2D> m_viewExtent; // The extent of the view the frame graph renders into; none for the target
     std::optional<assets::AssetId> m_scene;    // The scene file the main world was loaded from

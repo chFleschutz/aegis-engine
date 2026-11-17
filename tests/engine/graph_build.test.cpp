@@ -13,6 +13,8 @@ namespace
 {
 using namespace aegis::render_graph;
 
+const FrameSceneSource scene; // Never bound: the graphs are only planned
+
 // Draws onto "Final", as an overlay would.
 class OverlayPass final : public RenderPass
 {
@@ -84,7 +86,7 @@ TEST_SUITE("engine::buildFrameGraph")
             {
                 CAPTURE(gpuDriven);
                 CAPTURE(withView);
-                const DefaultPassesDesc desc{ .gpuDriven = gpuDriven, .ui = true, .view = withView ? view : std::nullopt };
+                const DefaultPassesDesc desc{ .scene = scene, .gpuDriven = gpuDriven, .ui = true, .view = withView ? view : std::nullopt };
                 GraphBuilder engine;
                 aegis::GameShell shell;
                 buildFrameGraph(engine, desc, {}, shell);
@@ -108,7 +110,7 @@ TEST_SUITE("engine::buildFrameGraph")
             addScenePasses(graph, desc);
             graph.add<OverlayPass>("Game Overlay");
         };
-        buildFrameGraph(builder, { .gpuDriven = false, .ui = true }, game, shell);
+        buildFrameGraph(builder, { .scene = scene, .gpuDriven = false, .ui = true }, game, shell);
 
         const auto names = plannedNames(builder);
         CHECK(position(names, "Post Processing") < position(names, "Game Overlay"));
@@ -122,7 +124,7 @@ TEST_SUITE("engine::buildFrameGraph")
         GraphBuilder builder;
         aegis::GameShell shell;
         const aegis::GraphBuild game = [](GraphBuilder& graph, const DefaultPassesDesc& /*desc*/) { graph.add<FinalPass>(); };
-        buildFrameGraph(builder, { .gpuDriven = false, .ui = true }, game, shell);
+        buildFrameGraph(builder, { .scene = scene, .gpuDriven = false, .ui = true }, game, shell);
 
         CHECK(plannedNames(builder) == std::vector<std::string_view>{ "Game Final", "UI", "Present" });
     }
