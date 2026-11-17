@@ -4,7 +4,7 @@ Status: **proposal**, not implemented. It builds on `engine-architecture.md` (se
 -> std::expected`, runtime configuration, no singleton) and replaces two of its choices: scenes as
 named C++ functions, and a `main()` per example.
 
-> **The asset system is designed in [`asset-system.md`](asset-system.md)** (D8): sidecars, the import
+> **The asset system is designed in [`asset-system.md`](asset-system.md)** ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md)): sidecars, the import
 > cache, `AssetRef`, cooking, and the World/Scene terminology with scenes as prefabs. This document
 > fixes the boundaries it fits: assets referenced only by stable ID, one serializer for scenes and save
 > games, a cook step for export.
@@ -244,8 +244,8 @@ M6 should be reworked before it starts. These items would otherwise be built and
 - **"Component table with serialization"** is listed as deferred. Here it is the foundation, so it moves
   into M6, before **6.5** (the editor), or the editor gets built twice.
 - **6.2** (removing the singleton) stays, extended to allow several `World` instances.
-- The **"F1 follow-up"** (install rules once the game-usage model is decided) is decided by this
-  document.
+- The open question of how a game uses the engine (install rules once the game-usage model is
+  decided) is decided by this document, recorded as [`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md).
 
 Suggested order:
 

@@ -1,6 +1,6 @@
 ---
 name: domain-modeling
-description: Build and sharpen aegis's domain model. Use when naming a new concept, discussing terminology, editing GLOSSARY.md, or recording a D-n decision.
+description: Build and sharpen aegis's domain model. Use when naming a new concept, discussing terminology, editing GLOSSARY.md, or recording an ADR.
 ---
 
 # Domain Modeling
@@ -44,10 +44,9 @@ happen. Use the format in [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md).
 pad, or a repository for implementation decisions. It is a glossary and nothing else. When a term
 moves in from AGENTS.md, a rule that uses it stays there.
 
-### Draft D-n decisions sparingly
+### Offer ADRs sparingly
 
-Decisions live in `docs/audit/backlog.md`, "Decisions", as the next free **D-n**. Only offer to draft
-one when all three are true:
+Decisions are ADRs in `docs/adr/`. Only offer to write one when all three are true:
 
 1. **Hard to reverse**: the cost of changing your mind later is meaningful
 2. **Surprising without context**: a future reader will wonder "why did they do it this way?"
@@ -58,12 +57,4 @@ If any of the three is missing, skip it. What qualifies: the shape of the archit
 explicit no-s, technology that carries lock-in, deliberate deviations from the obvious path, and
 constraints not visible in the code.
 
-Draft it in the form of the entries already there, and give the text to the owner in the conversation:
-
-```md
-- **D<n>. <The decision, as a statement>** (<date>, see [`docs/<doc>.md`](../<doc>.md)). <What was
-  decided.> Why: <the trade-off>. → <the issues it drives>.
-```
-
-Feature PRs don't edit `backlog.md`, so a draft stays out of the branch you're on: it lands as a
-docs-only change on `main`, which the owner makes.
+Write it in the format of [ADR-FORMAT.md](./ADR-FORMAT.md), which also says where it lands.

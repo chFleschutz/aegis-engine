@@ -1,8 +1,8 @@
 # Asset system, scenes and worlds
 
-Status: **decided** (D8, 2026-10-19; formats 2026-10-20; sample project 2026-10-21; project layout
+Status: **decided** ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md), 2026-10-19; formats 2026-10-20; sample project 2026-10-21; project layout
 and external images 2026-10-22; derived sub-asset IDs, settings per part and the cache by key
-2026-10-23; settles F2 in `audit/backlog.md`).
+2026-10-23).
 Implemented so far (#130, #137, #236, #237, #238, #244): IDs, sidecars, the database, engine content, `AssetRef`,
 `AssetLibrary`, the import cache for models (by key), external images as their own assets, derived
 sub-asset IDs and settings per part (embedded images only); scene files and the pak are not. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md): assets
@@ -93,7 +93,7 @@ my_game/
   `src/` is optional in the format: a content-only project (once scripting exists) runs on a
   prebuilt player.
 - **The engine is a subproject** (a submodule at `engine/`, `FetchContent` or `AEGIS_ENGINE_DIR`).
-  The editor links the game module (D7), so a prebuilt, installed editor can't load a game's types
+  The editor links the game module ([`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md)), so a prebuilt, installed editor can't load a game's types
   until game modules are DLLs, and an installed package of C++ modules makes the consumer rebuild
   their BMIs anyway. A submodule also pins the exact engine version; `project.aegis`'s engine
   version becomes a check. An installed package (`find_package(Aegis)`, defining the same
@@ -528,7 +528,7 @@ Renames:
   6.14 (#138). `Scene` becomes the serializer's asset type (6.10, #131).
 - 6.15 (#139): the `Mesh` and `Material` components merge into
   `MeshRenderer { AssetRef<StaticMesh> mesh; AssetRef<Material> material; }` (every pass views both
-  anyway, and D2's signals then watch one component); `MaterialInstance` → `Material`; the
+  anyway, and the signals of [`0002-static-dynamic-hybrid.md`](adr/0002-static-dynamic-hybrid.md) then watch one component); `MaterialInstance` → `Material`; the
   `Environment` component → `Sky { AssetRef<Environment> environment; }`, without the BRDF LUT.
 - `Engine::loadModel` / `loadTexture` / `loadEnvironment` → `AssetLibrary` calls by ID (#130);
   `core::Asset` goes (#75).

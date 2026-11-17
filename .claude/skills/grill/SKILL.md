@@ -5,7 +5,7 @@ disable-model-invocation: true
 ---
 
 The subject is `$ARGUMENTS`: an issue number (read it with
-`gh issue view <n> --json title,body,comments`, and the D-n decisions it cites in
-`docs/audit/backlog.md`), or else the plan in this conversation.
+`gh issue view <n> --json title,body,comments`, and the ADRs it cites in
+`docs/adr/`), or else the plan in this conversation.
 
 Call the Skill tool twice, for "grilling" and "domain-modeling".

@@ -9,7 +9,8 @@ export namespace aegis::assets
 ///       case-sensitively on every platform, so a key means the same on Windows and Linux. 'subIndex' is the
 ///       position of the part among the parts of its kind in the file (a glTF's mesh 3 is {path, 3}); a
 ///       single-asset file (an OBJ, a PNG) uses 0. The key is only a name: the importer decides what kind of
-///       asset it names, and asset IDs (D8) are expected to map to keys.
+///       asset it names, and asset IDs are expected to map to keys
+///       (docs/adr/0008-asset-sources-and-import-cache.md).
 struct AssetKey
 {
     std::string path;

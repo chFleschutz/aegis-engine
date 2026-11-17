@@ -201,11 +201,17 @@ issue to an open PR.
 relations. **The assignee is the status:** whoever starts an item assigns it (`gh issue edit <n>
 --add-assignee @me`), and an assigned issue is taken. Leave `needs-design` (an open decision) and
 `idea` issues alone unless the owner asks; never run two items with the same `area/*` label in
-parallel. Before starting an item, read its issue and the decisions and finding IDs it cites
-(`docs/audit/backlog.md`, `docs/audit/findings-*.md` corrected by `verify-*.md`), then re-check them
+parallel. Before starting an item, read its issue and the ADRs and finding IDs it cites
+(`docs/adr/`, `docs/audit/findings-*.md` corrected by `verify-*.md`), then re-check them
 against the current code. An issue you file goes to the Planning milestone or `Backlog`, not the
 Active one, unless the Active milestone can't finish without it. `/plan-milestone` holds the
 milestone rules and the issue format.
+
+**Decisions are ADRs** in `docs/adr/`, indexed in its README; the `domain-modeling` skill writes
+them. Cite one by its file name (`docs/adr/0007-engine-hosts-the-game.md`, linked in docs), never
+by a bare number. An ADR may land in the feature PR that makes the decision; when parallel PRs pick
+the same number, the one that merges later renumbers. `docs/roadmap.md` keeps each milestone's goal
+and order.
 
 1. **One worktree per PR.** `tools/new-worktree.sh <branch> [base]` creates
    `../aegis-engine.worktrees/<branch>` from `origin/main` with submodules, then configures and
