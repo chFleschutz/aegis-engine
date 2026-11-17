@@ -79,7 +79,8 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     const auto& cmd = frameInfo.cmd;
     cmd.bindPipeline(*m_pipeline);
     cmd.pushConstants(constants);
-    cmd.dispatch(groupCount(frameInfo.extent.x, computeGroupSize), groupCount(frameInfo.extent.y, computeGroupSize));
+    const auto extent = pool.extent(m_sceneColor);
+    cmd.dispatch(groupCount(extent.x, computeGroupSize), groupCount(extent.y, computeGroupSize));
 }
 
 auto LightingPass::drawUI() -> void

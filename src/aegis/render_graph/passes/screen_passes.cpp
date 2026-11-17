@@ -49,8 +49,8 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
         .colorAttachments = colorAttachments,
         .depthAttachment = rhi::Attachment::depthReadOnly(pool.texture(m_depth).view),
     });
-    cmd.setViewport(frameInfo.extent);
-    cmd.setScissor(frameInfo.extent);
+    cmd.setViewport(pool.extent(m_depth));
+    cmd.setScissor(pool.extent(m_depth));
     cmd.bindPipeline(*m_pipeline);
     cmd.pushConstants(SkyBoxConstants{
         .viewProjection = detail::makeSkyBoxViewProjection(*scene.camera),
@@ -106,7 +106,8 @@ auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
         .exposure = settings.exposure,
         .gamma = targetEncodes ? 1.0f : settings.gamma,
     });
-    cmd.dispatch(groupCount(frameInfo.extent.x, computeGroupSize), groupCount(frameInfo.extent.y, computeGroupSize));
+    const auto extent = pool.extent(m_final);
+    cmd.dispatch(groupCount(extent.x, computeGroupSize), groupCount(extent.y, computeGroupSize));
 }
 
 // Present -------------------------------------------------------------------------------------------

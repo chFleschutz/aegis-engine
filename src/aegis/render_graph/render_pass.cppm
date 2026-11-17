@@ -13,6 +13,8 @@ struct FrameInfo
 {
     const rhi::CommandBuffer& cmd;
     std::uint32_t frameIndex;
+    /// @brief The extent of 'target'. A pass drawing into graph textures sizes its viewport and dispatches by them
+    ///        (ResourcePool::extent): in a scope (one view) they follow the scope's extent, not the target's.
     rhi::Extent2D extent;
     /// @brief The renderer's target for this frame (swapchain image or offscreen target), in
     ///        ResourceState::ColorAttachment; a pass using it must leave it in that state.
