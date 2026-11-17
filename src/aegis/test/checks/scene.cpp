@@ -28,6 +28,10 @@ struct SceneResult
     std::uint32_t viewShown{ 0 };     // --view: frames whose UI showed the view (Presentation::uiTexture)
 };
 
+// --views: the views, by name; the main one renders through the main camera.
+constexpr std::string_view mainView{ "Main" };
+constexpr std::string_view sideView{ "Side" };
+
 // The static entities of 'registry' a geometry pass draws: those with a mesh and a material.
 auto drawableStatic(world::Registry& registry) -> std::uint32_t
 {
@@ -105,8 +109,23 @@ constexpr PostProcess postProcessSettings{
     .bloomThreshold = 0.5f,
 };
 
+// --views: the pixels of 'pixels' (RGBA8) that show --unlit's cube colour unlit (see verifyUnlit).
+auto unlitPixels(std::span<const std::byte> pixels) -> std::size_t
+{
+    std::size_t count{ 0 };
+    for (std::size_t i = 0; i + 3 < pixels.size(); i += 4)
+    {
+        const auto red = std::to_integer<int>(pixels[i]);
+        const auto green = std::to_integer<int>(pixels[i + 1]);
+        const auto blue = std::to_integer<int>(pixels[i + 2]);
+        if (red == 0 && green >= 184 && green <= 190 && blue >= 184 && blue <= 190)
+            ++count;
+    }
+    return count;
+}
+
 // The test's side of the app: edits the loaded scene at the safe point (--mirror, --mutate-scene, --post-process), renders it
-// through a second camera into a view of its own (--view), renders a second world for a while (--worlds), draws the
+// through a second camera into a view of its own (--view) or next to the main camera's (--views), renders a second world for a while (--worlds), draws the
 // stats window and checks the frame graph's timings. Failures go to the SceneResult; the run carries on.
 class SceneShell final : public Shell
 {
@@ -133,7 +152,20 @@ public:
             if (auto added = addUnlitCubes(frame); !added)
                 m_result.errors.push_back(std::format("Adding the unlit cubes failed: {}", added.error()));
         }
-        frame.update(frame.world, world::UpdateMode::Play);
+        if (m_options.views && m_frame == 1)
+        {
+            if (auto added = addSideCube(frame); !added)
+                m_result.errors.push_back(std::format("Adding the side view's cube failed: {}", added.error()));
+        }
+        // --views compares frames rendered apart: the world stands still once it is set up.
+        if (!m_options.views || m_frame < viewsFreezeFrame)
+            frame.update(frame.world, world::UpdateMode::Play);
+        if (m_options.views)
+        {
+            registry.get<Camera>(m_viewCamera).aspect = static_cast<float>(sideViewExtent.x) / static_cast<float>(sideViewExtent.y);
+            if (auto checked = checkViews(); !checked)
+                m_result.errors.push_back(std::format("Views check failed: {}", checked.error()));
+        }
 
         if (m_options.mutateScene)
         {
@@ -175,20 +207,19 @@ public:
                 return { RenderView{ .extent = sceneExtent } };
             return {};
         }
+        if (m_options.views)
+        {
+            // Both views, or one of them alone while checkViews renders it apart.
+            std::vector<RenderView> views;
+            if (m_viewsShown != ViewsShown::Side)
+                views.push_back({ .name = std::string{ mainView }, .extent = viewExtent });
+            if (m_viewsShown != ViewsShown::Main)
+                views.push_back({ .name = std::string{ sideView }, .camera = viewCamera(), .extent = sideViewExtent });
+            return views;
+        }
         if (!m_options.view)
             return {};
-        std::optional<RenderView::Camera> camera;
-        if (m_frame > 1)
-        {
-            auto& registry = m_world->registry(); // Registry::get has no const overload
-            const auto& view = registry.get<Camera>(m_viewCamera);
-            camera = RenderView::Camera{
-                .view = view.viewMatrix,
-                .projection = view.projectionMatrix,
-                .position = registry.get<GlobalTransform>(m_viewCamera).location,
-            };
-        }
-        return { RenderView{ .camera = camera, .extent = m_result.view } };
+        return { RenderView{ .camera = viewCamera(), .extent = m_result.view } };
     }
 
 private:
@@ -219,13 +250,127 @@ private:
                 m_result.errors.push_back(std::format("{} has no main camera", sceneFile));
         }
 
-        if (m_options.view)
+        if (m_options.view || m_options.views)
         {
             // Ahead and to the right of the main camera, turned towards the helmet; CameraSystem keeps its matrices.
             m_viewCamera = registry.create("View Camera", glm::vec3{ 2.2f, -2.2f, 0.3f }, glm::quat{ glm::radians(glm::vec3{ 0.0f, 0.0f, 45.0f }) });
             registry.add<Camera>(m_viewCamera);
             registry.markStaticDirty(m_viewCamera); // Once the world has begun, a new static entity needs it for its global transform
         }
+    }
+
+    // --views: the views checkViews renders, together or one alone.
+    enum class ViewsShown
+    {
+        Both,
+        Main,
+        Side,
+    };
+
+    // --views: the frame from which the world no longer updates, so each view renders the same scene together and alone.
+    static constexpr std::uint32_t viewsFreezeFrame{ 10 };
+
+    // --view, --views: the second camera, once the update has given it its matrices (from the second frame).
+    [[nodiscard]] auto viewCamera() const -> std::optional<RenderView::Camera>
+    {
+        if (m_frame <= 1)
+            return std::nullopt;
+        auto& registry = m_world->registry(); // Registry::get has no const overload
+        const auto& view = registry.get<Camera>(m_viewCamera);
+        return RenderView::Camera{
+            .view = view.viewMatrix,
+            .projection = view.projectionMatrix,
+            .position = registry.get<GlobalTransform>(m_viewCamera).location,
+        };
+    }
+
+    // --views, in the second frame: an unlit cube just ahead of the second camera, outside the main camera's frustum,
+    // so culling must keep it in the side view and drop it from the main one. The main camera's PostProcess is
+    // --unlit's, so its colour reaches the image as unlitPixels expects.
+    auto addSideCube(FrameContext& frame) -> std::expected<void, std::string>
+    {
+        auto& registry = frame.world.registry();
+        const auto& camera = registry.get<GlobalTransform>(m_viewCamera);
+        auto unlit = frame.assets.createMaterial(frame.assets.defaults().unlitTemplate);
+        if (auto set = unlit->setParameter("color", unlitColor); !set)
+            return std::unexpected{ assets::describe(set.error()) };
+        auto cube = frame.assets.instantiateScene(frame.world, frame.types, assets::engine::cube, {});
+        if (!cube)
+            return std::unexpected{ cube.error() };
+        auto& transform = registry.get<Transform>(*cube);
+        transform.location = camera.location + camera.forward() * 0.5f;
+        transform.rotation = camera.rotation;
+        transform.scale = glm::vec3{ 0.1f };
+        for (const auto entity : subtree(registry, *cube))
+        {
+            if (registry.has<MeshRenderer>(entity))
+                registry.get<MeshRenderer>(entity).material = unlit;
+            registry.markStaticDirty(entity);
+        }
+
+        const auto mainCamera = frame.world.mainCamera();
+        if (!mainCamera)
+            return std::unexpected{ "the scene has no main camera" };
+        const PostProcess settings{ .toneMapping = ToneMapping::Reinhard, .exposure = 1.0f, .gamma = 2.2f, .bloomIntensity = 0.0f };
+        if (registry.has<PostProcess>(mainCamera))
+            registry.get<PostProcess>(mainCamera) = settings;
+        else
+            registry.add<PostProcess>(mainCamera, settings);
+        return {};
+    }
+
+    // --views, at the safe point. Frame 40 reads both views rendered together in the frame before (the world stood
+    // still since viewsFreezeFrame): the side cube shows in the side view only. Then each view renders alone (the frame
+    // graph rebuilt for it), and its image, read the frame after, must equal the one rendered together, pixel for
+    // pixel. From frame 45 on both render again, for the screenshots.
+    auto checkViews() -> std::expected<void, std::string>
+    {
+        constexpr std::uint32_t togetherFrame{ 40 };
+        const auto read = [&](std::string_view view) -> std::expected<std::vector<std::byte>, std::string> {
+            auto pixels = m_engine->readView(view);
+            if (!pixels)
+                return std::unexpected{ std::format("reading the view '{}' back failed: {}", view, pixels.error()) };
+            return pixels;
+        };
+        const auto alone = [&](std::string_view view, ViewsShown next) -> std::expected<void, std::string> {
+            m_viewsShown = next;
+            const auto pixels = read(view);
+            if (!pixels)
+                return std::unexpected{ pixels.error() };
+            const auto& together = m_together.find(view)->second;
+            if (pixels->size() != together.size())
+                return std::unexpected{ std::format("the view '{}' alone has {} bytes, together {}", view, pixels->size(), together.size()) };
+            std::size_t differing{ 0 };
+            for (std::size_t i = 0; i < pixels->size(); i += 4)
+                differing += std::memcmp(pixels->data() + i, together.data() + i, 4) != 0 ? 1 : 0;
+            if (differing > 0)
+                return std::unexpected{ std::format("the view '{}' rendered alone differs from it rendered with the other in {} pixels", view, differing) };
+            std::println("Views verified: '{}' rendered alone matches it rendered with the other", view);
+            return {};
+        };
+
+        if (m_frame == togetherFrame)
+        {
+            for (const auto view : { mainView, sideView })
+            {
+                auto pixels = read(view);
+                if (!pixels)
+                    return std::unexpected{ pixels.error() };
+                m_together.insert_or_assign(std::string{ view }, std::move(*pixels));
+            }
+            constexpr std::size_t minimum{ 100 };
+            const auto inMain = unlitPixels(m_together.find(mainView)->second);
+            const auto inSide = unlitPixels(m_together.find(sideView)->second);
+            if (inMain != 0 || inSide < minimum)
+                return std::unexpected{ std::format("the side cube shows in {} pixels of the main view and {} of the side view; it belongs in at least {} of the side view only", inMain, inSide, minimum) };
+            std::println("Views verified: the side cube is drawn in {} pixels of the side view and culled from the main view", inSide);
+            m_viewsShown = ViewsShown::Main;
+        }
+        else if (m_frame == togetherFrame + 2)
+            return alone(mainView, ViewsShown::Side);
+        else if (m_frame == togetherFrame + 4)
+            return alone(sideView, ViewsShown::Both);
+        return {};
     }
 
     // --unlit, in the second frame (the camera has its global transform): an unlit cube to the right of a PBR one, side
@@ -498,13 +643,15 @@ private:
     SceneResult& m_result;
     Engine* m_engine{ nullptr };
     world::World* m_world{ nullptr };
-    std::uint32_t m_frame{ 0 };                              // Frames begun so far
-    world::Entity m_helmet;                                  // The holder of the model instance the scene file holds
-    world::Entity m_addedModel;                              // --mutate-scene: the holder of the model instance loaded later
-    world::Entity m_viewCamera;                              // --view: the camera the view renders through, not the main one
-    std::uint32_t m_staticDrawn{ 0 };                        // --mutate-scene: drawable static entities before the last change
-    std::vector<std::shared_ptr<assets::Material>> m_culled; // --mutate-scene: the materials set to cull nothing
-    world::World* m_second{ nullptr };                       // --worlds: the second world, from the same scene file
+    std::uint32_t m_frame{ 0 };                                            // Frames begun so far
+    world::Entity m_helmet;                                                // The holder of the model instance the scene file holds
+    world::Entity m_addedModel;                                            // --mutate-scene: the holder of the model instance loaded later
+    world::Entity m_viewCamera;                                            // --view, --views: the camera the view renders through, not the main one
+    ViewsShown m_viewsShown{ ViewsShown::Both };                           // --views: the views rendered
+    std::map<std::string, std::vector<std::byte>, std::less<>> m_together; // --views: each view's image, rendered with the other
+    std::uint32_t m_staticDrawn{ 0 };                                      // --mutate-scene: drawable static entities before the last change
+    std::vector<std::shared_ptr<assets::Material>> m_culled;               // --mutate-scene: the materials set to cull nothing
+    world::World* m_second{ nullptr };                                     // --worlds: the second world, from the same scene file
 };
 
 // --unlit: the unlit cube shows its colour, (0, 1, 1), as it is: Reinhard maps 1 to 0.5, which gamma 2.2 or an sRGB
@@ -541,7 +688,7 @@ auto verifyFrame(const Options& options, const std::filesystem::path& file, rhi:
     if (!image)
         return std::unexpected{ std::format("failed to read the frame '{}'", file.string()) };
     if (std::cmp_not_equal(width, extent.x) || std::cmp_not_equal(height, extent.y))
-        return std::unexpected{ std::format("the frame is {}x{}, the {} {}x{}", width, height, options.view ? "view" : "target", extent.x, extent.y) };
+        return std::unexpected{ std::format("the frame is {}x{}, the {} {}x{}", width, height, options.view || options.views ? "view" : "target", extent.x, extent.y) };
     const auto pixels = std::as_bytes(std::span{ image.get(), std::size_t{ extent.x } * extent.y * 4 });
 
     if (!options.compare.empty())
@@ -562,7 +709,7 @@ auto verifyFrame(const Options& options, const std::filesystem::path& file, rhi:
     };
     if (texel(extent.x / 2, extent.y / 2) == texel(0, 0))
         return std::unexpected{ "the scene frame's centre and corner have the same color" };
-    std::println("Offscreen scene frame verified: {}x{} {} read back, not uniform", extent.x, extent.y, options.view ? "view" : "target");
+    std::println("Offscreen scene frame verified: {}x{} {} read back, not uniform", extent.x, extent.y, options.view || options.views ? "view" : "target");
     return {};
 }
 }
@@ -634,7 +781,25 @@ auto runScene(const Options& options) -> int
 
     if (options.headless && exitCode == exitSuccess)
     {
-        if (auto verified = verifyFrame(options, frameFile, options.view ? result.view : sceneExtent); !verified)
+        if (options.views)
+        {
+            // One screenshot per view, named after it.
+            for (const auto& [view, extent] : { std::pair{ mainView, viewExtent }, std::pair{ sideView, sideViewExtent } })
+            {
+                const auto file = frameFile.parent_path() / std::format("{}-{}{}", frameFile.stem().string(), view, frameFile.extension().string());
+                if (auto verified = verifyFrame(options, file, extent); !verified)
+                {
+                    std::println("Offscreen frame check failed for the view '{}': {}", view, verified.error());
+                    exitCode = exitFailure;
+                }
+                if (options.screenshot.empty())
+                {
+                    std::error_code ignored;
+                    std::filesystem::remove(file, ignored);
+                }
+            }
+        }
+        else if (auto verified = verifyFrame(options, frameFile, options.view ? result.view : sceneExtent); !verified)
         {
             std::println("Offscreen frame check failed: {}", verified.error());
             exitCode = exitFailure;

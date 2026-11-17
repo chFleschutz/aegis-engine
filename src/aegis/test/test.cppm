@@ -34,6 +34,9 @@ struct Options
     bool noOverlay{ false };   // With --scene: leave the stats window out, its per-frame timings change every run
     bool view{ false };        // With --scene: render through a second camera into a view of its own size, which
                                // --screenshot and --compare then read (see viewExtent)
+    bool views{ false };       // With --scene: render two views of different sizes in one frame, the main camera's and a
+                               // second camera's, and check each against the view rendered alone (see SceneShell::checkViews);
+                               // --screenshot then writes one PNG per view
     bool worlds{ false };      // With --scene: render a second world from the scene file in the middle third of the
                                // frames (see SceneShell::switchWorlds)
     bool postProcess{ false }; // With --scene: give the main camera a PostProcess (postProcessSettings), and rebuild the
@@ -42,9 +45,11 @@ struct Options
 };
 
 // --scene: the target's size. --view: the view's size, unlike the target's, and the one it is resized to halfway.
+// --views: the main view has viewExtent, the second camera's view sideViewExtent.
 inline constexpr rhi::Extent2D sceneExtent{ 800, 600 };
 inline constexpr rhi::Extent2D viewExtent{ 480, 270 };
 inline constexpr rhi::Extent2D resizedViewExtent{ 400, 300 };
+inline constexpr rhi::Extent2D sideViewExtent{ 320, 240 };
 
 // checks/scene.cpp: --scene, the test scene file loaded and run by aegis::Engine (see the Options). Returns the exit code.
 auto runScene(const Options& options) -> int;

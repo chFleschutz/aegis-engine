@@ -90,6 +90,10 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
     aegis_add_device_test(aegis-test-scene-view ARGS --headless --scene --view --frames 120)
     aegis_add_device_test(aegis-test-scene-gpu-driven-view ARGS --headless --gpu-driven --view --frames 120 LABELS mesh-shaders)
 
+    # Two views of different sizes in one frame, each matching itself rendered alone; culling keeps a cube in one only.
+    aegis_add_device_test(aegis-test-scene-views ARGS --headless --scene --views --no-overlay --frames 60)
+    aegis_add_device_test(aegis-test-scene-gpu-driven-views ARGS --headless --gpu-driven --views --no-overlay --frames 60 LABELS mesh-shaders)
+
     # A second world from the scene file, without the helmet, renders in the middle third of the frames.
     aegis_add_device_test(aegis-test-scene-worlds ARGS --headless --scene --worlds --frames 120)
     aegis_add_device_test(aegis-test-scene-gpu-driven-worlds ARGS --headless --gpu-driven --worlds --frames 120 LABELS mesh-shaders)
