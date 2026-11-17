@@ -86,7 +86,7 @@ paragraph under "Decouple the editor from the renderer" should say so. Its cost 
 | Dockspace and DockBuilder default | Done | None |
 | Layout persistence and Reset | Done, per project | Named layouts deferred (above) |
 | Multi-viewport | Not used; `editor.md` lists it under Avoid (a swapchain per OS window, fragile with GLFW and Vulkan) | Agree. Revisit after [#254] (several views per frame), which a torn-off Game view would need anyway |
-| Viewport panel | Done: offscreen `RenderView`, extent applied once the panel's size settles, UI textures released after the frames in flight | When next editing `viewport.cpp`: take the view's image from `FrameContext` instead of looking up the final image in the frame graph's declarations |
+| Viewport panel | Done: offscreen `RenderView`, extent applied once the panel's size settles, UI textures released after the frames in flight, the view's image taken from `FrameContext::views` ([#254](https://github.com/chFleschutz/aegis-engine/issues/254)) | |
 | Input routing | Done ([#280]) | None |
 | Undo through the widget lifecycle | Done another way: every change applies live and merges into the open entry while the item is active; deactivation seals it. Same result, and the gizmo uses the same path | None |
 | Stable IDs | Entities: `StableId` everywhere. Asset browser rows and folders use vector indices, so their open state moves to another row after a rescan or an import | UX-5 |

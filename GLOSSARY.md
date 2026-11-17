@@ -31,11 +31,15 @@ _Avoid_: handle
 ### Frame graph
 
 **Scene passes**:
-The passes that render the scene into "Final" (`addScenePasses`); a game's graph hook adds to them or replaces them.
+The passes that render one view of the scene into its "Final" (`addScenePasses`); a game's graph hook adds to them or replaces them.
 _Avoid_: default passes (those are the scene passes plus the output passes)
 
+**Scope**:
+A named group of passes in the frame graph whose resources are named after it ("Main/Depth"); its passes find their scope's resources first, then the unscoped ones. Each view's scene passes run in a scope of the view's name.
+_Avoid_: subgraph, namespace, prefix
+
 **Output passes**:
-The passes that show "Final" once everything has drawn onto it: UI and present (`addOutputPasses`). The engine adds them last, after the game's and the shell's passes.
+The passes that show the views' "Final" once everything has drawn onto them: UI and present (`addOutputPasses`). The engine adds them last, after the game's and the shell's passes.
 _Avoid_: final passes
 
 **Persistent texture**:
@@ -57,7 +61,11 @@ _Avoid_: invalidated, reset
 ### Rendering
 
 **Frame scene**:
-What the passes draw of one world in one frame: its instances, the main camera, the lights, the sky's environment and the post-processing settings.
+What the passes draw of one world in one frame: its instances, its views, the lights, the sky's environment and the post-processing settings.
+
+**View**:
+One rendering of the world in a frame: a camera, an extent and a kind (main, later shadow). Without a shell's views the main camera's view, "Main", renders onto the window; a shell's views each render into a target of their own.
+_Avoid_: render view (the shell's request for one, `RenderView`), viewport (the editor's panel), camera
 
 **Material template**:
 The parameters a kind of material has, with their defaults, and the surface shader that reads them.
