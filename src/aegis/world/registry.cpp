@@ -1,4 +1,4 @@
-module aegis.world.registry;
+module aegis.world;
 
 import std;
 

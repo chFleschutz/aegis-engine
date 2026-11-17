@@ -11,7 +11,7 @@ import aegis.engine;
 import aegis.render_graph;
 import aegis.render_passes;
 import aegis.rhi;
-import aegis.world.registry;
+import aegis.world;
 
 namespace aegis::test
 {

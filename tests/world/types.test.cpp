@@ -2,9 +2,7 @@
 
 import std;
 import aegis.reflect;
-import aegis.world.registry;
-import aegis.world.render_components;
-import aegis.world.types;
+import aegis.world;
 
 namespace
 {

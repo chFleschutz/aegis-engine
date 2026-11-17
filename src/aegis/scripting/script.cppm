@@ -3,7 +3,7 @@ export module aegis.scripting.script;
 import std;
 import aegis.platform;
 import aegis.reflect;
-import aegis.world.registry;
+import aegis.world;
 
 export namespace aegis::scripting
 {

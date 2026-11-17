@@ -1,8 +1,8 @@
-export module aegis.world.components;
+export module aegis.world:components;
 
 import std;
 export import aegis.math;
-export import aegis.world.entity;
+import :entity;
 
 export namespace aegis
 {

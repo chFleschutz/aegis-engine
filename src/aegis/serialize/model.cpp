@@ -2,8 +2,7 @@ module aegis.serialize;
 import std;
 import aegis.assets;
 import aegis.reflect;
-import aegis.world.registry;
-import aegis.world.render_components;
+import aegis.world;
 
 namespace aegis::serialize
 {

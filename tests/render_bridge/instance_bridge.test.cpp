@@ -4,8 +4,7 @@ import std;
 import aegis.assets;
 import aegis.render_bridge;
 import aegis.render_graph;
-import aegis.world.registry;
-import aegis.world.render_components;
+import aegis.world;
 
 // Meshes and materials need a device, so these renderers draw nothing: the cases check what the bridge
 // reports to the world, and that a renderer without a mesh or material never reaches the store.

@@ -2,7 +2,7 @@ module;
 
 #include <cassert>
 
-module aegis.world.systems.camera_system;
+module aegis.world;
 
 import std;
 

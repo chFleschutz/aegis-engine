@@ -1,10 +1,10 @@
-export module aegis.world.types;
+export module aegis.world:types;
 
 import std;
 import aegis.assets;
 import aegis.reflect;
-import aegis.world.registry;
-import aegis.world.render_components;
+import :registry;
+import :render_components;
 
 // The save-file names of PostProcess's tone mapping
 export template<>

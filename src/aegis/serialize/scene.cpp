@@ -8,8 +8,7 @@ import aegis.assets;
 import aegis.core;
 import aegis.reflect;
 import aegis.scripting.script;
-import aegis.world.registry;
-import aegis.world.types;
+import aegis.world;
 
 namespace aegis::serialize
 {

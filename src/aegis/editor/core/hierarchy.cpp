@@ -4,7 +4,6 @@ import aegis.core;
 import aegis.scripting.script;
 import aegis.serialize;
 import aegis.world;
-import aegis.world.render_components;
 
 namespace aegis::editor
 {

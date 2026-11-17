@@ -5,8 +5,6 @@ import aegis.editor.core;
 import aegis.math;
 import aegis.reflect;
 import aegis.world;
-import aegis.world.render_components;
-import aegis.world.types;
 
 namespace
 {

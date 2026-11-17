@@ -2,7 +2,6 @@ export module aegis.defaults;
 
 import std;
 import aegis.world;
-import aegis.world.render_components;
 import aegis.scene_description;
 import aegis.assets;
 

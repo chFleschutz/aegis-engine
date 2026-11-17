@@ -1,9 +1,7 @@
-module aegis.world.types;
+module aegis.world;
 
 import std;
 import aegis.reflect;
-import aegis.world.registry;
-import aegis.world.render_components;
 
 namespace aegis::world
 {

@@ -2,7 +2,6 @@ export module aegis.editor.core:inspector;
 import std;
 import aegis.reflect;
 import aegis.world;
-import aegis.world.types;
 
 export namespace aegis::editor
 {

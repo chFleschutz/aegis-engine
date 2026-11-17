@@ -6,7 +6,6 @@ import aegis.math;
 import aegis.reflect;
 import aegis.scripting.script;
 import aegis.world;
-import aegis.world.types;
 
 namespace
 {

@@ -5,7 +5,7 @@ module;
 #include <entt/entity/registry.hpp>
 #include <entt/entity/view.hpp>
 
-export module aegis.world.entity;
+export module aegis.world:entity;
 
 export namespace entt
 {

@@ -4,7 +4,7 @@ import std;
 import aegis.reflect;
 import aegis.math;
 import aegis.platform;
-import aegis.world.components;
+import aegis.world;
 
 namespace aegis::scripting
 {

@@ -1,7 +1,7 @@
-export module aegis.world.system;
+export module aegis.world:system;
 
 import std;
-export import aegis.world.registry;
+import :registry;
 
 export namespace aegis::world
 {

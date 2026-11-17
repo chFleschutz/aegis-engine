@@ -2,8 +2,7 @@
 
 import std;
 import aegis.math;
-import aegis.world.registry;
-import aegis.world.systems.transform_system;
+import aegis.world;
 
 namespace
 {

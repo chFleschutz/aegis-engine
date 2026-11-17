@@ -2,7 +2,7 @@ export module aegis.scripting.script_system;
 
 import std;
 import aegis.platform;
-import aegis.world.system;
+import aegis.world;
 export import aegis.scripting.script;
 
 export namespace aegis::scripting
