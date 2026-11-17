@@ -4,7 +4,6 @@ add_library(aegis-render-graph STATIC)
 
 target_link_libraries(aegis-render-graph
     PUBLIC
-        aegis-assets
         aegis-math
         aegis-renderer
         aegis-rhi
@@ -19,10 +18,8 @@ target_sources(aegis-render-graph
     declarations.cppm
     error.cppm
     frame_graph.cppm
-    frame_scene.cppm
     graph_builder.cppm
     frustum.cppm
-    instance_store.cppm
     immediate.cppm
     render_pass.cppm
     resource.cppm
@@ -31,7 +28,6 @@ target_sources(aegis-render-graph
     PRIVATE
     declarations.cpp
     frame_graph.cpp
-    instance_store.cpp
     resource_pool.cpp
     schedule.cpp
 )

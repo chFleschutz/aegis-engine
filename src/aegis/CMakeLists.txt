@@ -29,7 +29,7 @@ PRIVATE
 add_library(aegis-render-bridge STATIC)
 target_link_libraries(aegis-render-bridge
 PUBLIC
-	aegis-render-graph
+	aegis-render-passes # FrameScene and InstanceStore
 	aegis-world
 	EnTT::EnTT # Follows the world's component signals
 PRIVATE

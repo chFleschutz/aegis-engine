@@ -12,7 +12,7 @@ import std;
 import aegis.assets;
 import aegis.core;
 import aegis.math;
-import aegis.render_graph;
+import aegis.render_passes;
 import aegis.rhi;
 import aegis.world;
 

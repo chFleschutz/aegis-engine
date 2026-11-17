@@ -1,5 +1,7 @@
 export module aegis.render_passes:gpu_driven;
 import std;
+import :frame_scene;
+import :instance_store;
 import :gpu_types;
 import :pipeline_cache;
 import aegis.render_graph;

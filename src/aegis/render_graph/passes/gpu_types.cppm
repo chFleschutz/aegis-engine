@@ -3,6 +3,8 @@ module;
 
 export module aegis.render_passes:gpu_types;
 import std;
+import :frame_scene;
+import :instance_store;
 import aegis.render_graph;
 import aegis.rhi;
 import aegis.math;

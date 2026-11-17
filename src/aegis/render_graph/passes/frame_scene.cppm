@@ -1,7 +1,7 @@
 module;
 #include <cassert>
 
-export module aegis.render_graph:frame_scene;
+export module aegis.render_passes:frame_scene;
 import std;
 import aegis.math;
 import aegis.rhi;

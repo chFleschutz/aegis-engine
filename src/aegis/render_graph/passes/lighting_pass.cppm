@@ -1,5 +1,6 @@
 export module aegis.render_passes:lighting_pass;
 import std;
+import :frame_scene;
 import :gpu_types;
 import aegis.render_graph;
 import aegis.assets;

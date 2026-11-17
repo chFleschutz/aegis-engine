@@ -1,5 +1,6 @@
 export module aegis.render_passes:default_graph;
 import std;
+import :frame_scene;
 import aegis.render_graph;
 import aegis.rhi;
 

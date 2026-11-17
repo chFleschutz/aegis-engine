@@ -1,5 +1,5 @@
-# The engine's passes, IBL and the shader loader (module aegis.render_passes). Depends on
-# compile_shaders (shaders/CMakeLists.txt).
+# The engine's passes, the frame scene they draw, IBL and the shader loader (module
+# aegis.render_passes). Depends on compile_shaders (shaders/CMakeLists.txt).
 add_library(aegis-render-passes STATIC)
 
 target_link_libraries(aegis-render-passes
@@ -21,10 +21,12 @@ target_sources(aegis-render-passes
     FILE_SET CXX_MODULES FILES
     render_passes.cppm
     default_graph.cppm
+    frame_scene.cppm
     geometry_pass.cppm
     gpu_driven.cppm
     gpu_types.cppm
     ibl.cppm
+    instance_store.cppm
     lighting_pass.cppm
     names.cppm
     pipeline_cache.cppm
@@ -40,6 +42,7 @@ target_sources(aegis-render-passes
     geometry_pass.cpp
     gpu_driven.cpp
     ibl.cpp
+    instance_store.cpp
     lighting_pass.cpp
     post_effects.cpp
     scene_update_pass.cpp

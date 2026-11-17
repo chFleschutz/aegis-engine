@@ -1,5 +1,6 @@
 export module aegis.render_passes:screen_passes;
 import std;
+import :frame_scene;
 import :gpu_types;
 import :names;
 import aegis.render_graph;

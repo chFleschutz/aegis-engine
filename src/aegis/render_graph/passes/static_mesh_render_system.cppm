@@ -1,5 +1,6 @@
 export module aegis.render_passes:static_mesh_render_system;
 import std;
+import :frame_scene;
 import :pipeline_cache;
 import :render_system;
 import aegis.render_graph;

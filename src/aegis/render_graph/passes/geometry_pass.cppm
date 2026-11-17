@@ -1,5 +1,6 @@
 export module aegis.render_passes:geometry_pass;
 import std;
+import :frame_scene;
 import :names;
 import :render_system;
 import aegis.render_graph;
