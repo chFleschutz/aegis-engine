@@ -1,6 +1,6 @@
 # Foundation plan: decisions and milestones
 
-The work from [report.md](report.md) §7. The work items are GitHub issues, grouped into milestones
+The work from [report.md](audit/report.md) §7. The work items are GitHub issues, grouped into milestones
 (`M1`–`M14`, then "Backlog"; the numbers are IDs in creation order, not the working order), with
 their dependencies as "Blocked by" relations; labels give the kind,
 size, area and the `needs-gpu` / `needs-design` flags (AGENTS.md "Planned work"). This file keeps
@@ -52,7 +52,7 @@ Taken 2026-10-17 (report §8 lists the original questions).
 - **D6. Preserve mirrored transforms.** `decomposeTRS` keeps negative scale; check winding of
   mirrored instances in the same PR. → 1.8c ([#43](https://github.com/chFleschutz/aegis-engine/issues/43)); the front-face flip is still open ([#171](https://github.com/chFleschutz/aegis-engine/issues/171)).
 - **D7. Game-usage model: the engine hosts the game** (2026-10-19, see
-  [`docs/editor-runtime-split.md`](../editor-runtime-split.md)).
+  [`docs/editor-runtime-split.md`](editor-runtime-split.md)).
   - **Executables:** Aegis owns `main()`. `aegis_add_game` builds one engine-owned launcher into
     `<Game>` (runtime) and `<Game>-Editor`, and only the editor executable links `aegis-editor`.
   - **A game** is a C++ game module (`AEGIS_GAME_MODULE`, one registration function, statically
@@ -67,7 +67,7 @@ Taken 2026-10-17 (report §8 lists the original questions).
   - → `aegis.app` and the type registry ([#79](https://github.com/chFleschutz/aegis-engine/issues/79)–[#82](https://github.com/chFleschutz/aegis-engine/issues/82), [#129](https://github.com/chFleschutz/aegis-engine/issues/129), done), then [M9](https://github.com/chFleschutz/aegis-engine/milestone/10); export
     ([#134](https://github.com/chFleschutz/aegis-engine/issues/134)). Decides F1.
 - **D8. Asset system: sources in the project, imported data in a cache** (2026-10-19, see
-  [`docs/asset-system.md`](../asset-system.md)).
+  [`docs/asset-system.md`](asset-system.md)).
   - **Identity:** `AssetId` is one random 64-bit ID (16 lowercase hex digits in files) for every
     asset and every part of a file, found through an index (scanned in development, a pak table when
     shipped). Foreign source files (glTF, OBJ, PNG, HDR) get a `<file>.<ext>.meta` sidecar with the
@@ -160,14 +160,14 @@ and runs in parallel with M6; the `InstanceStore` ([#86](https://github.com/chFl
 mirrored-instance fix ([#171](https://github.com/chFleschutz/aegis-engine/issues/171)) has landed.
 
 **[M9. Game launcher and editor split (D7)](https://github.com/chFleschutz/aegis-engine/milestone/10)** makes the engine host the game
-([`docs/editor-runtime-split.md`](../editor-runtime-split.md)). The launcher follows scene files,
+([`docs/editor-runtime-split.md`](editor-runtime-split.md)). The launcher follows scene files,
 in two steps: the engine stops linking the editor ([#182](https://github.com/chFleschutz/aegis-engine/issues/182)), then the launcher itself ([#132](https://github.com/chFleschutz/aegis-engine/issues/132)). The
 examples become one game ([#167](https://github.com/chFleschutz/aegis-engine/issues/167)) after it and scene instances, one example per commit.
 The editor becomes a library ([#83](https://github.com/chFleschutz/aegis-engine/issues/83)); building the editor itself is M10. `aegis-test`: the per-check split ([#170](https://github.com/chFleschutz/aegis-engine/issues/170)) can start any time;
 running its scenes through the app ([#84](https://github.com/chFleschutz/aegis-engine/issues/84)) follows [#132](https://github.com/chFleschutz/aegis-engine/issues/132). Last, the legacy core goes ([#172](https://github.com/chFleschutz/aegis-engine/issues/172), after
 [#83](https://github.com/chFleschutz/aegis-engine/issues/83)) and `aegis.base` becomes `aegis.core` ([#85](https://github.com/chFleschutz/aegis-engine/issues/85)).
 
-**[M10. Editor](https://github.com/chFleschutz/aegis-engine/milestone/11)** builds the editor on the runtime ([`docs/editor.md`](../editor.md)). It
+**[M10. Editor](https://github.com/chFleschutz/aegis-engine/milestone/11)** builds the editor on the runtime ([`docs/editor.md`](editor.md)). It
 starts once [#83](https://github.com/chFleschutz/aegis-engine/issues/83) (M9) has made the editor a library.
 - **Editor steps,** one at a time, since all are `area/editor`: the viewport ([#200](https://github.com/chFleschutz/aegis-engine/issues/200)), the
   registry-driven inspector ([#133](https://github.com/chFleschutz/aegis-engine/issues/133)), undo of field edits ([#165](https://github.com/chFleschutz/aegis-engine/issues/165)) and of structural edits ([#201](https://github.com/chFleschutz/aegis-engine/issues/201)),
