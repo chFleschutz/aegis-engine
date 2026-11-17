@@ -3,6 +3,7 @@ import std;
 import :declarations;
 import :error;
 import :render_pass;
+import aegis.rhi;
 
 export namespace aegis::render_graph
 {
@@ -33,6 +34,15 @@ public:
         m_passes.push_back(std::move(pass));
         return ref;
     }
+
+    /// @brief Starts a scope: the passes added until endScope create resources of their own, named after it
+    ///        (ResourceDeclarations::beginScope), and its textures follow 'extent' (none: the output).
+    auto beginScope(std::string_view name, std::optional<rhi::Extent2D> extent = std::nullopt) -> void
+    {
+        m_declarations.beginScope(name, extent);
+    }
+    /// @brief Ends the current scope.
+    auto endScope() -> void { m_declarations.endScope(); }
 
     [[nodiscard]] auto declarations() const noexcept -> const ResourceDeclarations& { return m_declarations; }
 

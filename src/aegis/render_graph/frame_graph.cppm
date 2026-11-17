@@ -51,6 +51,10 @@ public:
     /// @brief Call after renderer::Renderer::resize with its new extent: recreates the textures that follow
     ///        the output. They keep their handles, but passes may hold views of the replaced images.
     [[nodiscard]] auto resized(rhi::Extent2D output) -> std::expected<void, Error>;
+    /// @brief Gives the scope 'scope' (ResourceDeclarations::beginScope) the extent 'extent': recreates its textures
+    ///        that follow it, as resized does for the output's. The GPU must be idle.
+    /// @return InvalidGraph for a scope the graph doesn't have.
+    [[nodiscard]] auto resized(std::string_view scope, rhi::Extent2D extent) -> std::expected<void, Error>;
 
     /// @brief Sets the image behind an imported texture ('resource' from ResourceDeclarations::importTexture or
     ///        find), in the state it was declared to be in when a frame starts. Call after compile and before
@@ -82,6 +86,7 @@ public:
     [[nodiscard]] auto timings() const noexcept -> std::span<const PassTiming> { return m_timings; }
 
 private:
+    [[nodiscard]] auto resizedPasses() -> std::expected<void, Error>;
     auto recordTransitions(const rhi::CommandBuffer& cmd, const std::vector<detail::Transition>& transitions) const -> void;
 
     ResourcePool m_pool;

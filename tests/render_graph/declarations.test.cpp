@@ -307,6 +307,86 @@ TEST_SUITE("render_graph::compilePlan")
     }
 }
 
+TEST_SUITE("render_graph::ResourceDeclarations scopes")
+{
+    using aegis::render_graph::detail::compilePlan;
+
+    // The same producer and consumer, declared in a scope: what one view's scene passes do.
+    auto declareView(ResourceDeclarations & declarations, std::string_view scope) -> void
+    {
+        declarations.beginScope(scope);
+        declarations.beginPass("Producer");
+        declarations.addTexture("Image", Usage::ColorAttachment, color);
+        declarations.beginPass("Consumer");
+        declarations.addReference("Image", Usage::SampledFragment);
+        declarations.addReference("Shared", Usage::ShaderRead);
+        declarations.endScope();
+    }
+
+    TEST_CASE("names what a scoped pass creates, and the pass, after the scope")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginPass("Shared");
+        declarations.addBuffer("Shared", Usage::HostWrite, small);
+        declareView(declarations, "Main");
+
+        CHECK(declarations.passName(0) == "Shared");
+        CHECK(declarations.passName(1) == "Main/Producer");
+        CHECK(declarations.find("Main/Image") == ResourceId{ 1 });
+        CHECK_FALSE(declarations.find("Image").has_value());
+        CHECK(declarations.findScope("Main") == 0u);
+        CHECK(scopedName("Main", "Image") == "Main/Image");
+    }
+
+    TEST_CASE("a scoped reference finds its scope's resource, then an unscoped one")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginPass("Shared");
+        declarations.addBuffer("Shared", Usage::HostWrite, small);
+        declarations.addTexture("Image", Usage::ColorAttachment, color); // Unscoped: no scope's pass finds it
+        declareView(declarations, "Main");
+        declareView(declarations, "Play");
+
+        const auto plan = compilePlan(declarations);
+        REQUIRE_MESSAGE(plan.has_value(), plan.error().message);
+        const auto entries = declarations.entries();
+        // Main's consumer: its "Image" is Main's, its "Shared" the unscoped one.
+        CHECK(entries[plan->target[3]].name == "Main/Image");
+        CHECK(entries[plan->target[4]].name == "Shared");
+        CHECK(entries[plan->target[6]].name == "Play/Image");
+        CHECK(entries[plan->target[7]].name == "Shared");
+        CHECK(plan->order.size() == 5);
+    }
+
+    TEST_CASE("a scoped reference to a resource no pass creates fails")
+    {
+        ResourceDeclarations declarations;
+        declareView(declarations, "Main");
+
+        CHECK(messageOf(compilePlan(declarations)).contains("'Shared' is referenced by pass 'Main/Consumer'"));
+    }
+
+    TEST_CASE("keeps a scope's extent, and the passes after endScope are unscoped")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginScope("Main");
+        declarations.endScope();
+        declarations.beginScope("Thumbnail", aegis::rhi::Extent2D{ 64, 32 });
+        declarations.beginPass("Inside");
+        declarations.endScope();
+        declarations.beginPass("Outside");
+        declarations.addTexture("Image", Usage::ColorAttachment, color);
+
+        REQUIRE(declarations.scopes().size() == 2);
+        CHECK_FALSE(declarations.scopes()[0].extent.has_value());
+        CHECK(declarations.scopes()[1].extent == aegis::rhi::Extent2D{ 64, 32 });
+        CHECK(declarations.passName(0) == "Thumbnail/Inside");
+        CHECK(declarations.passName(1) == "Outside");
+        CHECK(declarations.find("Image").has_value());
+        CHECK_FALSE(declarations.entries()[0].scope.has_value());
+    }
+}
+
 TEST_SUITE("render_graph::describePlan")
 {
     using aegis::render_graph::detail::compilePlan;

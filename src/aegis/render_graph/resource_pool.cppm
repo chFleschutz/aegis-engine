@@ -28,8 +28,11 @@ public:
     auto operator=(ResourcePool&&) -> ResourcePool& = delete;
 
     [[nodiscard]] auto device() const noexcept -> rhi::Device& { return m_device; }
-    /// @brief The extent textures that follow the output are sized by.
+    /// @brief The extent unscoped textures that follow the output are sized by.
     [[nodiscard]] auto output() const noexcept -> rhi::Extent2D { return m_output; }
+    /// @brief The extent the textures of the scope 'scope' (an index into ResourceDeclarations::scopes) that have none
+    ///        of their own are sized by: the scope's, or the output's. Valid after FrameGraph::compile.
+    [[nodiscard]] auto scopeExtent(std::uint32_t scope) const -> rhi::Extent2D;
 
     /// @brief Every declaration, in the order passes made them.
     [[nodiscard]] auto describe() const -> std::vector<ResourceDescription> { return m_declarations.describe(); }
@@ -100,9 +103,14 @@ private:
     [[nodiscard]] auto createBuffer(const std::string& name, const BufferDesc& desc, rhi::BufferUsage usage,
         rhi::MemoryUsage memory) const -> std::expected<CreatedBuffer, Error>;
     [[nodiscard]] auto createResources(const GraphPlan& plan) -> std::expected<void, Error>;
-    /// @brief Recreates the textures that follow the output at the new extent; their handles stay valid.
+    /// @brief Recreates the textures that follow the output at the new extent (not those of a scope with an extent
+    ///        of its own); their handles stay valid.
     /// @warning The GPU must be idle (the renderer waits when it resizes).
     [[nodiscard]] auto resize(rhi::Extent2D output) -> std::expected<void, Error>;
+    /// @brief Gives the scope 'scope' the extent 'extent' and recreates its textures that follow it, like resize.
+    [[nodiscard]] auto resize(std::uint32_t scope, rhi::Extent2D extent) -> std::expected<void, Error>;
+    /// @brief Recreates the textures without an extent of their own whose scope (none: unscoped) 'inScope' accepts.
+    [[nodiscard]] auto recreateFollowing(const std::function<bool(std::optional<std::uint32_t>)>& inScope) -> std::expected<void, Error>;
     /// @brief After a frame was recorded: nothing is fresh any more, and the history pairs swap.
     auto endFrame() -> void;
     auto bind(ResourceId handle, const renderer::Texture& texture) -> void;
@@ -119,6 +127,7 @@ private:
     rhi::Device& m_device;
     const ResourceDeclarations& m_declarations;
     rhi::Extent2D m_output;
+    std::vector<std::optional<rhi::Extent2D>> m_scopeExtents;                                                            // Per scope: its own extent, or none to follow the output
     std::vector<std::uint32_t> m_targets;                                                                                // Per entry: the entry creating its resource
     std::vector<bool> m_previous;                                                                                        // Per entry: it reads the previous frame's image of a history pair
     std::vector<std::variant<std::monostate, CreatedTexture, CreatedBuffer, ImportedTexture, ImportedBuffer>> m_created; // Per entry

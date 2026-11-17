@@ -6,21 +6,63 @@ import std;
 
 namespace aegis::render_graph
 {
+auto scopedName(std::string_view scope, std::string_view name) -> std::string
+{
+    return std::format("{}/{}", scope, name);
+}
+
 auto ResourceDeclarations::beginPass(std::string_view name) -> std::uint32_t
 {
-    m_passNames.emplace_back(name);
-    return static_cast<std::uint32_t>(m_passNames.size() - 1);
+    m_passNames.emplace_back();
+    m_passScopes.push_back(m_scope);
+    const auto pass = passCount() - 1;
+    setPassName(pass, name);
+    return pass;
 }
 
 auto ResourceDeclarations::setPassName(std::uint32_t pass, std::string_view name) -> void
 {
-    m_passNames[pass] = name;
+    const auto scope = m_passScopes[pass];
+    m_passNames[pass] = scope && !name.empty() ? scopedName(m_scopes[*scope].name, name) : std::string{ name };
+}
+
+auto ResourceDeclarations::beginScope(std::string_view name, std::optional<rhi::Extent2D> extent) -> std::uint32_t
+{
+    assert(!m_scope && "Frame graph scopes don't nest: end the current one first");
+    assert(!name.empty() && !name.contains('/') && "A frame graph scope's name is not empty and has no '/'");
+    assert(!findScope(name) && "Each frame graph scope's name is used once");
+    m_scopes.push_back({ .name = std::string{ name }, .extent = extent });
+    m_scope = static_cast<std::uint32_t>(m_scopes.size() - 1);
+    return *m_scope;
+}
+
+auto ResourceDeclarations::endScope() -> void
+{
+    assert(m_scope && "No frame graph scope to end");
+    m_scope.reset();
+}
+
+auto ResourceDeclarations::findScope(std::string_view name) const -> std::optional<std::uint32_t>
+{
+    const auto found = std::ranges::find(m_scopes, name, &Scope::name);
+    if (found == m_scopes.end())
+        return std::nullopt;
+    return static_cast<std::uint32_t>(found - m_scopes.begin());
 }
 
 auto ResourceDeclarations::add(std::string_view name, Usage usage, Info info) -> ResourceId
 {
     assert(!m_passNames.empty() && "Declare resources after beginPass");
-    m_entries.push_back({ std::string{ name }, usage, std::move(info), passCount() - 1 });
+    // A reference keeps its name, resolved at compile time; what a scoped pass creates gets the scope's name.
+    const auto scope = m_passScopes.back();
+    const bool scoped = scope && !std::holds_alternative<Reference>(info);
+    m_entries.push_back({
+        .name = scoped ? scopedName(m_scopes[*scope].name, name) : std::string{ name },
+        .usage = usage,
+        .info = std::move(info),
+        .pass = passCount() - 1,
+        .scope = scope,
+    });
     return { static_cast<std::uint32_t>(m_entries.size() - 1) };
 }
 
@@ -165,11 +207,17 @@ auto compilePlan(const ResourceDeclarations& declarations) -> std::expected<Grap
                 entries[i].name, pass(existing->second), pass(i)));
         }
     }
+    const auto scopes = declarations.scopes();
     for (std::uint32_t i = 0; i < count; ++i)
     {
         if (!isReference(i))
             continue;
-        const auto creator = creators.find(entries[i].name);
+        // A scoped pass's reference finds its scope's resource first, then an unscoped one.
+        auto creator = creators.end();
+        if (const auto scope = entries[i].scope)
+            creator = creators.find(scopedName(scopes[*scope].name, entries[i].name));
+        if (creator == creators.end())
+            creator = creators.find(entries[i].name);
         if (creator == creators.end())
         {
             return invalid(std::format("Frame graph resource '{}' is referenced by pass '{}' but never created",
@@ -323,7 +371,7 @@ auto describePlan(const ResourceDeclarations& declarations, const GraphPlan& pla
                 const bool references = std::holds_alternative<ResourceDeclarations::Reference>(entry.info);
                 text += std::format("    {} {} {}{}\n", imports ? "import" : references ? "use   "
                                                                                         : "create",
-                    entry.name,
+                    entries[plan.target[handle.index]].name, // A reference by the name it resolved to
                     usageName(entry.usage), plan.previous[handle.index] ? " (previous frame)" : "");
             }
         }
