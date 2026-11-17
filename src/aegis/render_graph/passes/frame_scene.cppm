@@ -16,18 +16,37 @@ enum class ToneMapping : std::int32_t
     Aces = 1,
 };
 
-/// @brief What the passes draw of the world in one frame: the instances, the main camera, the lights, the
-///        sky's environment and the post-processing settings. Camera, lights and environment are copied out of the world once per frame
-///        (aegis::extractFrameScene); the instances are not copied, the store follows the world as it changes
-///        (aegis::InstanceBridge). Passes read it instead of the ECS, and tests build one by hand.
+/// @brief What a view is for. Each kind renders with its own passes; only Main exists so far (later Shadow, for a
+///        cascade or a light's depth).
+enum class ViewKind
+{
+    Main, // The scene through a camera, lit and post-processed into its "Final"
+};
+
+/// @brief What the passes draw of the world in one frame: the instances, the views (each a camera), the lights, the
+///        sky's environment and the post-processing settings. Cameras, lights and environment are copied out of the
+///        world once per frame (aegis::extractFrameScene); the instances are not copied, the store follows the world
+///        as it changes (aegis::InstanceBridge). Passes read it instead of the ECS, and tests build one by hand.
 struct FrameScene
 {
-    /// @brief The main camera, with this frame's matrices.
+    /// @brief A camera with this frame's matrices.
     struct Camera
     {
         glm::mat4 view{ 1.0f };
         glm::mat4 projection{ 1.0f };
         glm::vec3 position{ 0.0f };
+    };
+
+    /// @brief One rendering of the world in the frame: its scene passes run in a frame graph scope of its name, with
+    ///        resources of their own (DefaultPassesDesc::view picks the view by its index in 'views').
+    struct View
+    {
+        std::string name;
+        /// @brief None: the world has no camera to render through, and the view's passes draw nothing.
+        std::optional<Camera> camera;
+        /// @brief The extent its textures have; none: the output's (the window, or the offscreen target).
+        std::optional<rhi::Extent2D> extent;
+        ViewKind kind{ ViewKind::Main };
     };
 
     struct AmbientLight
@@ -72,12 +91,19 @@ struct FrameScene
     };
 
     const InstanceStore& instances;
-    std::optional<Camera> camera;
+    /// @brief In the order of the frame graph's view scopes (DefaultPassesDesc::views).
+    std::vector<View> views;
     std::optional<AmbientLight> ambientLight;
     std::optional<DirectionalLight> directionalLight;
     std::vector<PointLight> pointLights; // All of them; LightingPass shades the first maxPointLights
     Environment environment;
     PostProcess postProcess;
+
+    /// @brief The camera of the view at 'view' in views; none without one, or past the end.
+    [[nodiscard]] auto camera(std::uint32_t view) const -> std::optional<Camera>
+    {
+        return view < views.size() ? views[view].camera : std::nullopt;
+    }
 };
 
 /// @brief Where the passes that read the frame scene find it. Whoever builds the graph owns one, hands it to those

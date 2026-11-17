@@ -352,12 +352,20 @@ void Engine::resetWorld()
 auto buildFrameGraph(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc, const GraphBuild& game,
     Shell& shell) -> void
 {
-    if (game)
-        game(graph, desc);
-    else
-        render_graph::addScenePasses(graph, desc);
-    shell.buildGraph(graph, desc);
-    render_graph::addOutputPasses(graph, desc);
+    auto viewDesc = desc;
+    viewDesc.instances = render_graph::addSharedPasses(graph, desc);
+    for (std::uint32_t view = 0; view < desc.views.size(); ++view)
+    {
+        graph.beginScope(desc.views[view].name, desc.views[view].extent);
+        viewDesc.view = view;
+        if (game)
+            game(graph, viewDesc);
+        else
+            render_graph::addScenePasses(graph, viewDesc);
+        shell.buildGraph(graph, viewDesc);
+        graph.endScope();
+    }
+    render_graph::addOutputPasses(graph, viewDesc);
 }
 
 void Engine::setShell(std::unique_ptr<Shell> shell)
@@ -482,8 +490,8 @@ auto Engine::run() -> int
         }
         // The clock clamps a long frame (a breakpoint, a load) so the UI doesn't get the whole stall; so do the worlds'.
         const float frameTimeSec = m_clock.tick(currentFrameBegin);
-        // The graph follows the view the shell's UI asked for last frame, before this frame's UI shows its textures.
-        if (!followView(m_shell->renderView()))
+        // The graph follows the views the shell's UI asked for last frame, before this frame's UI shows their textures.
+        if (!followViews(m_shell->renderViews()))
         {
             exitCode = exitFailure;
             break;
@@ -494,9 +502,9 @@ auto Engine::run() -> int
         // A shortcut the shell ran this frame keeps its key from the game's update too.
         if (!headless)
             captureInput();
-        // The camera the shell's UI asks for this frame; every world's main camera gets the graph's aspect.
-        const auto view = m_shell->renderView();
-        updateCameraAspect(m_viewExtent.value_or(m_window ? rhi::Extent2D{ m_window->extent() } : m_renderer->extent()));
+        // The cameras the shell's UI asks for this frame; every world's main camera gets the aspect it renders at.
+        const auto views = m_shell->renderViews();
+        updateCameraAspect(views);
         // Update: each world's systems run phase by phase, scripts first: they write the transforms, the others
         // derive from them (camera matrices included). In edit mode only the derived ones run.
         updateWorlds(currentFrameBegin);
@@ -518,11 +526,9 @@ auto Engine::run() -> int
             m_lastRendered = &shown;
         }
         m_worlds.sync(shown);
-        auto frameScene = aegis::extractFrameScene(shown, instances);
-        if (view && view->camera)
-            frameScene.camera = view->camera;
+        const auto scene = frameScene(shown, instances, views);
         // The passes read it until the end of this frame's iteration.
-        const auto boundScene = m_frameScene.bind(frameScene);
+        const auto boundScene = m_frameScene.bind(scene);
         // Pipelines the frame's draw batches need are created before recording; failing that, a shader is missing.
         if (auto prepared = m_frameGraph->prepare(); !prepared)
         {
@@ -535,7 +541,7 @@ auto Engine::run() -> int
             m_frameGraph->execute({
                 .cmd = frame.cmd,
                 .frameIndex = frame.frameIndex,
-                .extent = m_viewExtent.value_or(frame.extent), // The scene passes' extent: the graph's output
+                .extent = frame.extent,
                 .target = frame.target,
             });
             // Recorded: the next frame needs only what changes after this one.
@@ -622,7 +628,7 @@ auto Engine::createAssets() -> std::expected<void, EngineError>
     return {};
 }
 
-auto Engine::createFrameGraph(std::optional<rhi::Extent2D> view) -> std::expected<void, EngineError>
+auto Engine::createFrameGraph(std::vector<ViewTarget> views) -> std::expected<void, EngineError>
 {
     using aegis::render_graph::DefaultPassesDesc;
 
@@ -637,45 +643,75 @@ auto Engine::createFrameGraph(std::optional<rhi::Extent2D> view) -> std::expecte
             m_presentation.attach(*m_window);
         }
     }
-    m_viewExtent = view;
-    m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, view.value_or(m_renderer->extent()));
-    buildFrameGraph(*m_frameGraph,
-        {
-            .scene = m_frameScene,
-            .gpuDriven = useGpuDrivenRendering(),
-            .ui = true, // The shell's UI, empty for a game; headless too, for screenshots of it
-            .context = m_context.get(),
-            .view = view ? std::optional{ DefaultPassesDesc::View{ .targetFormat = m_renderer->targetFormat() } } : std::nullopt,
-        },
-        m_graphBuild, *m_shell);
+    m_views = std::move(views);
+    m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, m_renderer->extent());
+    DefaultPassesDesc desc{
+        .scene = m_frameScene,
+        .gpuDriven = useGpuDrivenRendering(),
+        .ui = true, // The shell's UI, empty for a game; headless too, for screenshots of it
+        .context = m_context.get(),
+    };
+    // Without views of its own the main camera renders onto the target, following it.
+    if (!m_views.empty())
+    {
+        desc.views.clear();
+        for (const auto& view : m_views)
+            desc.views.push_back({ .name = view.name, .extent = view.extent });
+        desc.shownViews = DefaultPassesDesc::ShownViews{ .targetFormat = m_renderer->targetFormat() };
+    }
+    buildFrameGraph(*m_frameGraph, desc, m_graphBuild, *m_shell);
     if (auto compiled = m_frameGraph->compile(); !compiled)
         return std::unexpected{ makeError(EngineErrorCode::FrameGraphFailed, std::format("Failed to compile the frame graph: {}", describe(compiled.error()))) };
+    for (auto& view : m_views)
+    {
+        const auto final = m_frameGraph->declarations().find(render_graph::scopedName(view.name, render_graph::names::finalImage));
+        if (!final)
+            return std::unexpected{ makeError(EngineErrorCode::FrameGraphFailed, std::format("The frame graph's view '{}' has no \"Final\"", view.name)) };
+        view.final = *final;
+    }
     return {};
 }
 
-bool Engine::followView(const std::optional<RenderView>& view)
+bool Engine::followViews(const std::vector<RenderView>& views)
 {
-    const auto extent = view ? std::optional{ rhi::Extent2D{ std::max(view->extent.x, 1u), std::max(view->extent.y, 1u) } } : std::nullopt;
-    if (extent == m_viewExtent)
+    std::vector<ViewTarget> wanted;
+    for (const auto& view : views)
+    {
+        auto name = view.name.empty() ? std::string{ render_graph::names::mainView } : view.name;
+        if (name.contains('/') || std::ranges::contains(wanted, name, &ViewTarget::name))
+        {
+            log::fatal("The shell's view name '{}' is used twice or has a '/'", name);
+            return false;
+        }
+        wanted.push_back({ .name = std::move(name), .extent = { std::max(view.extent.x, 1u), std::max(view.extent.y, 1u) } });
+    }
+    const bool sameViews = std::ranges::equal(wanted, m_views, {}, &ViewTarget::name, &ViewTarget::name);
+    if (sameViews && std::ranges::equal(wanted, m_views, {}, &ViewTarget::extent, &ViewTarget::extent))
         return true;
 
     // Frames in flight still use the graph's textures (and, rebuilding, its passes), the UI's registrations too.
     m_device->waitIdle();
     m_presentation.releaseTextures();
-    if (extent.has_value() != m_viewExtent.has_value())
+    if (!sameViews)
     {
-        if (auto created = createFrameGraph(extent); !created)
+        if (auto created = createFrameGraph(std::move(wanted)); !created)
         {
             log::fatal("{}", describe(created.error()));
             return false;
         }
         return true;
     }
-    m_viewExtent = extent;
-    if (auto resized = m_frameGraph->resized(*extent); !resized)
+    // The same views, some at a new extent: only their textures are recreated.
+    for (std::size_t i = 0; i < wanted.size(); ++i)
     {
-        log::fatal("Failed to resize the view: {}", describe(resized.error()));
-        return false;
+        if (wanted[i].extent == m_views[i].extent)
+            continue;
+        m_views[i].extent = wanted[i].extent;
+        if (auto resized = m_frameGraph->resized(m_views[i].name, m_views[i].extent); !resized)
+        {
+            log::fatal("Failed to resize the view '{}': {}", m_views[i].name, describe(resized.error()));
+            return false;
+        }
     }
     return true;
 }
@@ -688,8 +724,8 @@ bool Engine::resize()
         return false;
     }
     m_window->resetResized();
-    if (m_viewExtent)
-        return true; // The graph follows the view, not the window
+    if (!m_views.empty())
+        return true; // The graph follows the views, not the window
     // The renderer waited for the frames in flight; the graph's views are about to be recreated.
     m_presentation.releaseTextures();
     if (auto resized = m_frameGraph->resized(m_renderer->extent()); !resized)
@@ -714,7 +750,7 @@ void Engine::runShell(float deltaSeconds)
         .types = m_types,
         .assets = *m_assets,
         .frameGraph = *m_frameGraph,
-        .viewExtent = m_viewExtent,
+        .views = m_views,
         .presentation = m_presentation,
         .instances = m_worlds.instances(world()),
         .renderer = *m_renderer,
@@ -743,8 +779,20 @@ void Engine::resetClocks(core::FrameClock::Clock::time_point now)
         each->clock().reset(now);
 }
 
-void Engine::updateCameraAspect(rhi::Extent2D extent)
+void Engine::updateCameraAspect(const std::vector<RenderView>& views)
 {
+    // The main camera renders into the first view without a camera of its own, or onto the window.
+    auto extent = m_window ? rhi::Extent2D{ m_window->extent() } : m_renderer->extent();
+    if (!m_views.empty())
+    {
+        const auto throughMain = std::ranges::find_if(m_views, [&](const ViewTarget& target) {
+            const auto view = std::ranges::find_if(views, [&](const RenderView& each) {
+                return (each.name.empty() ? render_graph::names::mainView : std::string_view{ each.name }) == target.name;
+            });
+            return view == views.end() || !view->camera;
+        });
+        extent = throughMain != m_views.end() ? throughMain->extent : m_views.front().extent;
+    }
     if (extent.y == 0)
         return;
     const auto aspect = static_cast<float>(extent.x) / static_cast<float>(extent.y);
@@ -756,23 +804,34 @@ void Engine::updateCameraAspect(rhi::Extent2D extent)
     }
 }
 
-// Reads the offscreen target back (the last frame's slot), the whole frame with the shell's UI over it, or with
-// AppDesc::screenshotView the view's target, and writes it as PNG. The device is idle.
-auto Engine::saveScreenshot() -> std::expected<void, std::string>
+auto Engine::frameScene(world::World& shown, const render_graph::InstanceStore& instances, const std::vector<RenderView>& views) const
+    -> render_graph::FrameScene
 {
-    // The target's format also decides the view's encoding (PostProcessingPass): RGBA8 gets it gamma encoded.
-    if (!m_renderer->offscreen() || m_renderer->targetFormat() != rhi::Format::RGBA8_UNORM)
-        return std::unexpected{ "screenshots need the headless RGBA8 target" };
+    auto scene = aegis::extractFrameScene(shown, instances);
+    if (m_views.empty())
+        return scene; // The main camera's view, onto the target
+    // The views the graph renders, in its order; a shell view asked for this frame gives its camera.
+    const auto mainCamera = scene.camera(0);
+    scene.views.clear();
+    for (const auto& target : m_views)
+    {
+        const auto view = std::ranges::find_if(views, [&](const RenderView& each) {
+            return (each.name.empty() ? render_graph::names::mainView : std::string_view{ each.name }) == target.name;
+        });
+        scene.views.push_back({
+            .name = target.name,
+            .camera = view != views.end() && view->camera ? view->camera : mainCamera,
+            .extent = target.extent,
+        });
+    }
+    return scene;
+}
 
-    const bool viewOnly = m_viewExtent && m_desc.screenshotView;
-    // A view's target is the graph's "Final" (RGBA16F), left sampled by the UI pass.
-    const auto final = m_frameGraph->declarations().find(render_graph::names::finalImage);
-    if (viewOnly && !final)
-        return std::unexpected{ "the view's frame graph has no \"Final\"" };
-    const auto& target = viewOnly ? m_frameGraph->pool().texture(*final) : m_renderer->offscreenTarget(m_lastFrameIndex);
-    const auto state = viewOnly ? rhi::ResourceState::ShaderReadFragment : rhi::ResourceState::ColorAttachment;
-    const auto extent = viewOnly ? *m_viewExtent : m_renderer->extent();
-    const std::size_t texelSize{ viewOnly ? 4 * sizeof(std::uint16_t) : 4 };
+auto Engine::readBack(const renderer::Texture& image, rhi::Extent2D extent, bool view) -> std::expected<std::vector<std::byte>, std::string>
+{
+    // A view's target is its "Final" (RGBA16F), left sampled by the UI pass; the offscreen target a color attachment.
+    const auto state = view ? rhi::ResourceState::ShaderReadFragment : rhi::ResourceState::ColorAttachment;
+    const std::size_t texelSize{ view ? 4 * sizeof(std::uint16_t) : 4 };
     const auto byteSize = std::size_t{ extent.x } * extent.y * texelSize;
 
     auto readback = m_device->createBuffer({
@@ -791,10 +850,12 @@ auto Engine::saveScreenshot() -> std::expected<void, std::string>
     if (!cmd)
         return std::unexpected{ "failed to create the command buffer" };
 
+    // The image goes back to the state it was in, so the next frame's barriers still hold.
     const std::array regions{ rhi::BufferImageCopy{ .extent = rhi::Extent3D{ extent } } };
     cmd->begin(true);
-    cmd->transitionImageLayout(target.view, state, rhi::ResourceState::CopySrc);
-    cmd->copyImageToBuffer(target.image, m_device->get(*readback), regions);
+    cmd->transitionImageLayout(image.view, state, rhi::ResourceState::CopySrc);
+    cmd->copyImageToBuffer(image.image, m_device->get(*readback), regions);
+    cmd->transitionImageLayout(image.view, rhi::ResourceState::CopySrc, state);
     cmd->end();
     auto submitted = m_device->graphicsQueue().submit(*cmd);
     if (!submitted)
@@ -804,7 +865,7 @@ auto Engine::saveScreenshot() -> std::expected<void, std::string>
     std::vector<std::byte> pixels(byteSize);
     m_device->get(*readback).read(pixels.data(), byteSize);
     m_device->free(*readback);
-    if (viewOnly)
+    if (view)
     {
         // RGBA16F to RGBA8, rounded to the nearest.
         std::vector<std::uint16_t> halves(byteSize / sizeof(std::uint16_t));
@@ -814,12 +875,55 @@ auto Engine::saveScreenshot() -> std::expected<void, std::string>
             return static_cast<std::byte>(std::lround(std::clamp(glm::unpackHalf1x16(half), 0.0f, 1.0f) * 255.0f));
         });
     }
+    return pixels;
+}
 
-    constexpr int channels{ 4 };
-    if (!stbi_write_png(m_desc.screenshot.c_str(), static_cast<int>(extent.x), static_cast<int>(extent.y), channels,
-            pixels.data(), static_cast<int>(extent.x) * channels))
-        return std::unexpected{ std::format("failed to write '{}'", m_desc.screenshot) };
-    log::info("Screenshot saved: {}", m_desc.screenshot);
+auto Engine::readView(std::string_view name) -> std::expected<std::vector<std::byte>, std::string>
+{
+    const auto view = std::ranges::find(m_views, name, &ViewTarget::name);
+    if (view == m_views.end())
+        return std::unexpected{ std::format("the frame graph renders no view '{}'", name) };
+    m_device->waitIdle();
+    return readBack(m_frameGraph->pool().texture(view->final), view->extent, true);
+}
+
+// Reads the offscreen target back (the last frame's slot), the whole frame with the shell's UI over it, or with
+// AppDesc::screenshotView each view's target, and writes it as PNG. The device is idle.
+auto Engine::saveScreenshot() -> std::expected<void, std::string>
+{
+    // The target's format also decides the view's encoding (PostProcessingPass): RGBA8 gets it gamma encoded.
+    if (!m_renderer->offscreen() || m_renderer->targetFormat() != rhi::Format::RGBA8_UNORM)
+        return std::unexpected{ "screenshots need the headless RGBA8 target" };
+
+    const auto write = [](const std::string& path, rhi::Extent2D extent, const std::vector<std::byte>& pixels) -> std::expected<void, std::string> {
+        constexpr int channels{ 4 };
+        if (!stbi_write_png(path.c_str(), static_cast<int>(extent.x), static_cast<int>(extent.y), channels, pixels.data(),
+                static_cast<int>(extent.x) * channels))
+            return std::unexpected{ std::format("failed to write '{}'", path) };
+        log::info("Screenshot saved: {}", path);
+        return {};
+    };
+
+    if (m_views.empty() || !m_desc.screenshotView)
+    {
+        const auto pixels = readBack(m_renderer->offscreenTarget(m_lastFrameIndex), m_renderer->extent(), false);
+        if (!pixels)
+            return std::unexpected{ pixels.error() };
+        return write(m_desc.screenshot, m_renderer->extent(), *pixels);
+    }
+    // One view's goes to the path; several go next to it, each named after its view.
+    const std::filesystem::path path{ m_desc.screenshot };
+    for (const auto& view : m_views)
+    {
+        const auto pixels = readBack(m_frameGraph->pool().texture(view.final), view.extent, true);
+        if (!pixels)
+            return std::unexpected{ pixels.error() };
+        const auto viewPath = m_views.size() == 1
+                                  ? path
+                                  : path.parent_path() / std::format("{}-{}{}", path.stem().string(), view.name, path.extension().string());
+        if (auto written = write(viewPath.string(), view.extent, *pixels); !written)
+            return written;
+    }
     return {};
 }
 }

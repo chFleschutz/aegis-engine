@@ -8,8 +8,9 @@ namespace aegis::render_graph
 {
 // Sky box -------------------------------------------------------------------------------------------
 
-SkyBoxPass::SkyBoxPass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+SkyBoxPass::SkyBoxPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view) :
     m_scene{ scene },
+    m_view{ view },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::ColorAttachment) },
     m_depth{ declarations.addReference(names::depth, Usage::DepthRead) }
 {
@@ -40,7 +41,8 @@ auto SkyBoxPass::createResources(ResourcePool& pool) -> std::expected<void, Erro
 auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
     const auto& scene = m_scene.current();
-    if (!scene.camera || !scene.environment.skybox)
+    const auto camera = scene.camera(m_view);
+    if (!camera || !scene.environment.skybox)
         return;
 
     const auto& cmd = frameInfo.cmd;
@@ -53,7 +55,7 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     cmd.setScissor(pool.extent(m_depth));
     cmd.bindPipeline(*m_pipeline);
     cmd.pushConstants(SkyBoxConstants{
-        .viewProjection = detail::makeSkyBoxViewProjection(*scene.camera),
+        .viewProjection = detail::makeSkyBoxViewProjection(*camera),
         .skybox = *scene.environment.skybox,
     });
     cmd.draw(36);

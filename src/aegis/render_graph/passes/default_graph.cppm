@@ -1,6 +1,8 @@
 export module aegis.render_passes:default_graph;
 import std;
 import :frame_scene;
+import :gpu_driven;
+import :names;
 import aegis.render_graph;
 import aegis.rhi;
 
@@ -8,9 +10,18 @@ export namespace aegis::render_graph
 {
 struct DefaultPassesDesc
 {
-    /// @brief The scene renders into a view's own target instead of the frame's: the graph's output extent is
-    ///        the view's, and "Final" is the view's target, left for the UI to show.
+    /// @brief A view the graph renders (FrameScene::View): its scene passes are declared in a frame graph scope of
+    ///        its name, so its resources are "<name>/Depth" and so on (scopedName).
     struct View
+    {
+        std::string name;
+        /// @brief The extent its textures follow (the scope's); none: the output's.
+        std::optional<rhi::Extent2D> extent;
+    };
+
+    /// @brief The views render into targets of their own, which the UI shows: the frame's target shows only the UI,
+    ///        and there is no present pass.
+    struct ShownViews
     {
         /// @brief The frame's target format (renderer::Renderer::targetFormat()), which the UI draws onto.
         rhi::Format targetFormat;
@@ -25,20 +36,36 @@ struct DefaultPassesDesc
     bool ui{ false };
     /// @brief Needed with ui to compile the graph (ImGui's backend takes the instance); declaring it needs none.
     const rhi::Context* context{ nullptr };
-    /// @brief Render into a view (see View): the UI pass reads "Final" and draws onto the frame's target,
-    ///        and there is no present pass. Implies ui.
-    std::optional<View> view;
+    /// @brief The views, in the order of FrameScene::views; at least one.
+    std::vector<View> views{ View{ .name = std::string{ names::mainView } } };
+    /// @brief The index in 'views' (and FrameScene::views) of the view whose scene passes are being declared; set
+    ///        before each view's passes (addDefaultPasses, the engine).
+    std::uint32_t view{ 0 };
+    /// @brief The pass writing the instances all views share (addSharedPasses), which the GPU-driven scene passes
+    ///        read; none: addScenePasses adds one of its own to the view.
+    const InstanceUpdatePass* instances{ nullptr };
+    /// @brief Render the views into targets of their own (see ShownViews): the UI pass reads each view's "Final" and
+    ///        draws onto the frame's target. Implies ui. Without it, the first view's "Final" is presented.
+    std::optional<ShownViews> shownViews;
 };
 
-/// @brief Adds the passes that render the scene into "Final": scene update, CPU- or GPU-driven geometry, lighting,
-///        sky box, transparent (point lights), bloom and post-processing. Passes added after these and before
-///        addOutputPasses draw onto "Final" before the frame shows it (a game's or the editor's overlays).
+/// @brief Adds the passes all views share, outside any scope: with gpuDriven, the InstanceUpdatePass writing the
+///        frame's instances and draw batches.
+/// @return That pass, for DefaultPassesDesc::instances; none without gpuDriven.
+auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> const InstanceUpdatePass*;
+
+/// @brief Adds the passes that render the view desc.view into "Final": scene update, CPU- or GPU-driven geometry,
+///        lighting, sky box, transparent (point lights), bloom and post-processing. Call it inside the view's scope
+///        (GraphBuilder::beginScope). Passes added after these and before addOutputPasses draw onto "Final" before the
+///        frame shows it (a game's or the editor's overlays).
 auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 
-/// @brief Adds the passes that show "Final": UI (if requested) and present (not with a view).
+/// @brief Adds the passes that show the views' "Final", outside any scope: UI (if requested) and present (not with
+///        shownViews).
 auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 
-/// @brief Adds the engine's standard passes: addScenePasses, then addOutputPasses. Compile the graph afterwards
-///        (FrameGraph::compile, or GraphBuilder::plan without a device).
+/// @brief Adds the engine's standard passes: addSharedPasses, then addScenePasses in each view's scope, then
+///        addOutputPasses. Compile the graph afterwards (FrameGraph::compile, or GraphBuilder::plan
+///        without a device).
 auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 }

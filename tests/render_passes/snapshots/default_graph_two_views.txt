@@ -1,0 +1,187 @@
+1. Instance Update
+    create StaticInstances HostWrite
+    create DynamicInstances HostWrite
+    create DrawBatches HostWrite
+2. Edit/Scene Update
+    create Edit/CameraData HostWrite
+3. Edit/Clear Draw Counts
+    create Edit/IndirectDrawCounts TransferDst
+    barrier Edit/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
+4. Edit/Culling
+    use    Edit/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    DrawBatches ShaderRead
+    create Edit/VisibleInstances StorageWrite
+    create Edit/IndirectDrawCommands StorageWrite
+    use    Edit/IndirectDrawCounts StorageWrite
+    barrier Edit/VisibleInstances: last frame's ShaderRead -> StorageWrite
+    barrier Edit/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
+    barrier Edit/IndirectDrawCounts: TransferDst -> StorageWrite
+5. Edit/GPU Driven Geometry
+    use    Edit/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    Edit/VisibleInstances ShaderRead
+    use    Edit/IndirectDrawCommands IndirectRead
+    use    Edit/IndirectDrawCounts IndirectRead
+    create Edit/Position ColorAttachment
+    create Edit/Normal ColorAttachment
+    create Edit/Albedo ColorAttachment
+    create Edit/ARM ColorAttachment
+    create Edit/Emissive ColorAttachment
+    create Edit/Depth DepthAttachment
+    barrier Edit/VisibleInstances: StorageWrite -> ShaderRead
+    barrier Edit/IndirectDrawCommands: StorageWrite -> IndirectRead
+    barrier Edit/IndirectDrawCounts: StorageWrite -> IndirectRead
+    barrier Edit/Position: undefined -> ColorAttachment
+    barrier Edit/Normal: undefined -> ColorAttachment
+    barrier Edit/Albedo: undefined -> ColorAttachment
+    barrier Edit/ARM: undefined -> ColorAttachment
+    barrier Edit/Emissive: undefined -> ColorAttachment
+    barrier Edit/Depth: undefined -> DepthAttachment
+6. Edit/Lighting
+    use    Edit/Position StorageRead
+    use    Edit/Normal StorageRead
+    use    Edit/Albedo StorageRead
+    use    Edit/ARM StorageRead
+    use    Edit/Emissive StorageRead
+    create Edit/SceneColor StorageWrite
+    create Edit/LightingUniforms HostWrite
+    barrier Edit/Position: ColorAttachment -> StorageRead
+    barrier Edit/Normal: ColorAttachment -> StorageRead
+    barrier Edit/Albedo: ColorAttachment -> StorageRead
+    barrier Edit/ARM: ColorAttachment -> StorageRead
+    barrier Edit/Emissive: ColorAttachment -> StorageRead
+    barrier Edit/SceneColor: undefined -> StorageWrite
+7. Edit/Sky Box
+    use    Edit/Depth DepthRead
+    use    Edit/SceneColor ColorAttachment
+    barrier Edit/Depth: DepthAttachment -> DepthRead
+    barrier Edit/SceneColor: StorageWrite -> ColorAttachment
+8. Edit/Transparent
+    use    Edit/Depth DepthRead
+    use    Edit/CameraData ShaderRead
+    use    Edit/SceneColor ColorAttachment
+    barrier Edit/SceneColor: ColorAttachment -> ColorAttachment
+9. Edit/Bloom
+    use    Edit/SceneColor StorageRead
+    create Edit/Bloom StorageWrite
+    barrier Edit/SceneColor: ColorAttachment -> StorageRead
+    barrier Edit/Bloom: undefined -> StorageWrite
+10. Edit/Post Processing
+    use    Edit/SceneColor StorageRead
+    use    Edit/Bloom StorageRead
+    create Edit/Final StorageWrite
+    barrier Edit/Bloom: StorageWrite -> StorageRead
+    barrier Edit/Final: undefined -> StorageWrite
+11. Play/Scene Update
+    create Play/CameraData HostWrite
+12. Play/Clear Draw Counts
+    create Play/IndirectDrawCounts TransferDst
+    barrier Play/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
+13. Play/Culling
+    use    Play/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    DrawBatches ShaderRead
+    create Play/VisibleInstances StorageWrite
+    create Play/IndirectDrawCommands StorageWrite
+    use    Play/IndirectDrawCounts StorageWrite
+    barrier Play/VisibleInstances: last frame's ShaderRead -> StorageWrite
+    barrier Play/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
+    barrier Play/IndirectDrawCounts: TransferDst -> StorageWrite
+14. Play/GPU Driven Geometry
+    use    Play/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    Play/VisibleInstances ShaderRead
+    use    Play/IndirectDrawCommands IndirectRead
+    use    Play/IndirectDrawCounts IndirectRead
+    create Play/Position ColorAttachment
+    create Play/Normal ColorAttachment
+    create Play/Albedo ColorAttachment
+    create Play/ARM ColorAttachment
+    create Play/Emissive ColorAttachment
+    create Play/Depth DepthAttachment
+    barrier Play/VisibleInstances: StorageWrite -> ShaderRead
+    barrier Play/IndirectDrawCommands: StorageWrite -> IndirectRead
+    barrier Play/IndirectDrawCounts: StorageWrite -> IndirectRead
+    barrier Play/Position: undefined -> ColorAttachment
+    barrier Play/Normal: undefined -> ColorAttachment
+    barrier Play/Albedo: undefined -> ColorAttachment
+    barrier Play/ARM: undefined -> ColorAttachment
+    barrier Play/Emissive: undefined -> ColorAttachment
+    barrier Play/Depth: undefined -> DepthAttachment
+15. Play/Lighting
+    use    Play/Position StorageRead
+    use    Play/Normal StorageRead
+    use    Play/Albedo StorageRead
+    use    Play/ARM StorageRead
+    use    Play/Emissive StorageRead
+    create Play/SceneColor StorageWrite
+    create Play/LightingUniforms HostWrite
+    barrier Play/Position: ColorAttachment -> StorageRead
+    barrier Play/Normal: ColorAttachment -> StorageRead
+    barrier Play/Albedo: ColorAttachment -> StorageRead
+    barrier Play/ARM: ColorAttachment -> StorageRead
+    barrier Play/Emissive: ColorAttachment -> StorageRead
+    barrier Play/SceneColor: undefined -> StorageWrite
+16. Play/Sky Box
+    use    Play/Depth DepthRead
+    use    Play/SceneColor ColorAttachment
+    barrier Play/Depth: DepthAttachment -> DepthRead
+    barrier Play/SceneColor: StorageWrite -> ColorAttachment
+17. Play/Transparent
+    use    Play/Depth DepthRead
+    use    Play/CameraData ShaderRead
+    use    Play/SceneColor ColorAttachment
+    barrier Play/SceneColor: ColorAttachment -> ColorAttachment
+18. Play/Bloom
+    use    Play/SceneColor StorageRead
+    create Play/Bloom StorageWrite
+    barrier Play/SceneColor: ColorAttachment -> StorageRead
+    barrier Play/Bloom: undefined -> StorageWrite
+19. Play/Post Processing
+    use    Play/SceneColor StorageRead
+    use    Play/Bloom StorageRead
+    create Play/Final StorageWrite
+    barrier Play/Bloom: StorageWrite -> StorageRead
+    barrier Play/Final: undefined -> StorageWrite
+20. UI
+    use    Edit/Final SampledFragment
+    use    Play/Final SampledFragment
+    barrier Edit/Final: StorageWrite -> SampledFragment
+    barrier Play/Final: StorageWrite -> SampledFragment
+resources
+    StaticInstances: buffer, host written
+    DynamicInstances: buffer, host written
+    DrawBatches: buffer, host written
+    Edit/CameraData: buffer, host written
+    Edit/IndirectDrawCounts: buffer
+    Edit/VisibleInstances: buffer
+    Edit/IndirectDrawCommands: buffer
+    Edit/Position: texture RGBA16_SFLOAT
+    Edit/Normal: texture RGBA16_SFLOAT
+    Edit/Albedo: texture RGBA8_UNORM
+    Edit/ARM: texture RGBA8_UNORM
+    Edit/Emissive: texture RGBA8_UNORM
+    Edit/Depth: texture D32_SFLOAT
+    Edit/SceneColor: texture RGBA16_SFLOAT
+    Edit/LightingUniforms: buffer, host written
+    Edit/Bloom: texture RGBA16_SFLOAT
+    Edit/Final: texture RGBA16_SFLOAT
+    Play/CameraData: buffer, host written
+    Play/IndirectDrawCounts: buffer
+    Play/VisibleInstances: buffer
+    Play/IndirectDrawCommands: buffer
+    Play/Position: texture RGBA16_SFLOAT
+    Play/Normal: texture RGBA16_SFLOAT
+    Play/Albedo: texture RGBA8_UNORM
+    Play/ARM: texture RGBA8_UNORM
+    Play/Emissive: texture RGBA8_UNORM
+    Play/Depth: texture D32_SFLOAT
+    Play/SceneColor: texture RGBA16_SFLOAT
+    Play/LightingUniforms: buffer, host written
+    Play/Bloom: texture RGBA16_SFLOAT
+    Play/Final: texture RGBA16_SFLOAT

@@ -65,7 +65,7 @@ private:
 };
 
 /// @brief The FrameScene of a world whose transforms and camera matrices are current (after its update):
-///        the main camera if it has a Camera and a GlobalTransform, the main camera's PostProcess (the defaults
+///        one view, names::mainView, through the main camera if it has a Camera and a GlobalTransform, the main camera's PostProcess (the defaults
 ///        without one), the ambient and directional light, every point light, the environment of the first
 ///        aegis::Sky, and 'instances' (kept by an InstanceBridge).
 ///        Reads the world, never writes it.

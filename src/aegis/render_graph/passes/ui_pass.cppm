@@ -1,12 +1,14 @@
 export module aegis.render_passes:ui_pass;
 import std;
+import :names;
 import aegis.render_graph;
 import aegis.rhi;
 
 export namespace aegis::render_graph
 {
-/// @brief Draws ImGui over "Final" before it is presented, or, rendering into a view (Desc::targetFormat),
-///        onto the frame's target while reading "Final", so the scene passes come first. Owns ImGui's Vulkan
+/// @brief Draws ImGui over a "Final" before it is presented, or, rendering the views into targets of their own
+///        (Desc::targetFormat), onto the frame's target while reading each view's "Final", so the scene passes come
+///        first. Owns ImGui's Vulkan
 ///        backend on the device: initialized in createResources, shut down with the pass.
 /// @note The ImGui context, any platform backend (e.g. ImGui_ImplGlfw) and the frame's UI belong to the
 ///       caller: it builds the UI and calls ImGui::Render before the graph executes, so the pass only
@@ -18,9 +20,12 @@ public:
     {
         /// @brief ImGui's backend takes the instance; needed by createResources, so a graph can be declared without it.
         const rhi::Context* context{ nullptr };
-        /// @brief Draw onto the frame's target, of this format and cleared first, and sample "Final" (a view's
-        ///        target, which the UI shows) instead of drawing over it.
+        /// @brief Draw onto the frame's target, of this format and cleared first, and sample every one of 'finals'
+        ///        (the views' targets, which the UI shows) instead of drawing over the first.
         std::optional<rhi::Format> targetFormat;
+        /// @brief The images the UI draws over (the first) or samples (all, with targetFormat), by their names in the
+        ///        graph: a view's is scopedName(view, names::finalImage).
+        std::vector<std::string> finals{ std::string{ names::finalImage } };
     };
 
     /// @brief Descriptor sets the backend may allocate: the font atlas plus textures the UI shows.
@@ -36,7 +41,7 @@ public:
 private:
     const rhi::Context* m_context;
     std::optional<rhi::Format> m_targetFormat; // Drawing onto the frame's target
-    ResourceId m_final;
+    std::vector<ResourceId> m_finals;
     bool m_initialized{ false };
 };
 

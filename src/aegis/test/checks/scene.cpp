@@ -165,18 +165,18 @@ public:
     }
 
     // The view's camera replaces the main one once the update has given it its matrices (from the second frame).
-    [[nodiscard]] auto renderView() const -> std::optional<RenderView> override
+    [[nodiscard]] auto renderViews() const -> std::vector<RenderView> override
     {
         // --post-process: through the main camera into a view, then onto the target, so the frame graph is rebuilt
         // halfway and the last frame shows whether the settings survived it.
         if (m_options.postProcess)
         {
             if (m_options.frames != 0 && m_frame < m_options.frames / 2)
-                return RenderView{ .extent = sceneExtent };
-            return std::nullopt;
+                return { RenderView{ .extent = sceneExtent } };
+            return {};
         }
         if (!m_options.view)
-            return std::nullopt;
+            return {};
         std::optional<RenderView::Camera> camera;
         if (m_frame > 1)
         {
@@ -188,7 +188,7 @@ public:
                 .position = registry.get<GlobalTransform>(m_viewCamera).location,
             };
         }
-        return RenderView{ .camera = camera, .extent = m_result.view };
+        return { RenderView{ .camera = camera, .extent = m_result.view } };
     }
 
 private:
@@ -298,13 +298,13 @@ private:
     // --view: the view in a window of the UI, as an editor's viewport shows it, across the halfway resize.
     void showView(FrameContext& frame)
     {
-        const auto final = frame.frameGraph.declarations().find(render_graph::names::finalImage);
-        if (!frame.viewExtent || !final)
+        if (frame.views.empty())
             return;
-        const auto texture = frame.presentation.uiTexture(frame.frameGraph.pool().texture(*final).view);
+        const auto& view = frame.views.front();
+        const auto texture = frame.presentation.uiTexture(frame.frameGraph.pool().texture(view.final).view);
         if (texture == 0)
             return;
-        const auto extent = *frame.viewExtent;
+        const auto extent = view.extent;
         ImGui::SetNextWindowPos(ImVec2{ static_cast<float>(sceneExtent.x) / 2.0f, 10.0f });
         ImGui::Begin("View", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Image(ImTextureRef{ texture }, ImVec2{ static_cast<float>(extent.x) / 2.0f, static_cast<float>(extent.y) / 2.0f });

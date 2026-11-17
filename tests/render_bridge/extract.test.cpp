@@ -29,12 +29,16 @@ auto equal(const glm::mat4& a, const glm::mat4& b) -> bool
 
 TEST_SUITE("render_bridge::extractFrameScene")
 {
-    TEST_CASE("an empty world has no camera, lights or environment")
+    TEST_CASE("an empty world has the main view without a camera, and no lights or environment")
     {
         aegis::world::World world;
         const InstanceStore instances;
         const auto scene = aegis::extractFrameScene(world, instances);
-        CHECK_FALSE(scene.camera.has_value());
+        REQUIRE(scene.views.size() == 1);
+        CHECK(scene.views[0].name == "Main");
+        CHECK(scene.views[0].kind == aegis::render_graph::ViewKind::Main);
+        CHECK_FALSE(scene.views[0].extent.has_value());
+        CHECK_FALSE(scene.views[0].camera.has_value());
         CHECK_FALSE(scene.ambientLight.has_value());
         CHECK_FALSE(scene.directionalLight.has_value());
         CHECK(scene.pointLights.empty());
@@ -57,10 +61,11 @@ TEST_SUITE("render_bridge::extractFrameScene")
         world.setMainCamera(camera);
 
         const auto scene = aegis::extractFrameScene(world, instances);
-        REQUIRE(scene.camera.has_value());
-        CHECK(equal(scene.camera->view, component.viewMatrix));
-        CHECK(equal(scene.camera->projection, component.projectionMatrix));
-        CHECK(equal(scene.camera->position, glm::vec3{ 5.0f, 6.0f, 7.0f }));
+        const auto mainCamera = scene.camera(0);
+        REQUIRE(mainCamera.has_value());
+        CHECK(equal(mainCamera->view, component.viewMatrix));
+        CHECK(equal(mainCamera->projection, component.projectionMatrix));
+        CHECK(equal(mainCamera->position, glm::vec3{ 5.0f, 6.0f, 7.0f }));
         CHECK(component.aspect == 1.5f); // Read, not written
     }
 

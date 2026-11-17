@@ -172,12 +172,11 @@ void Viewport::draw(EditorContext& editor, FrameContext& frame, const std::funct
         m_hovered = ImGui::IsWindowHovered() && cursor.x >= rect.x && cursor.y >= rect.y && cursor.x < rect.x + rect.width && cursor.y < rect.y + rect.height;
         m_focused = ImGui::IsWindowFocused();
 
-        // The graph renders into the view the viewport asked for last frame; until then "Final" is the window's.
-        // While a new size settles, the image stretches to the panel.
-        const auto final = frame.frameGraph.declarations().find(render_graph::names::finalImage);
-        if (frame.viewExtent && final)
+        // The graph renders into the view the viewport asked for last frame (the editor's only one); until then the
+        // scene renders onto the window. While a new size settles, the image stretches to the panel.
+        if (!frame.views.empty())
         {
-            if (const auto texture = frame.presentation.uiTexture(frame.frameGraph.pool().texture(*final).view))
+            if (const auto texture = frame.presentation.uiTexture(frame.frameGraph.pool().texture(frame.views.front().final).view))
                 ImGui::GetWindowDrawList()->AddImage(ImTextureRef{ texture }, origin, ImVec2{ rect.x + rect.width, rect.y + rect.height });
         }
         if (editor.playing())

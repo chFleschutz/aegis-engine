@@ -4,8 +4,9 @@ import aegis.math;
 
 namespace aegis::render_graph
 {
-SceneUpdatePass::SceneUpdatePass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+SceneUpdatePass::SceneUpdatePass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view) :
     m_scene{ scene },
+    m_view{ view },
     m_cameraData{ declarations.addBuffer(names::cameraData, Usage::HostWrite, { .size = sizeof(CameraData), .perFrame = true }) }
 {
 }
@@ -17,7 +18,7 @@ auto SceneUpdatePass::name() const -> std::string_view
 
 auto SceneUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    const auto& camera = m_scene.current().camera;
+    const auto camera = m_scene.current().camera(m_view);
     if (!camera)
         return;
 

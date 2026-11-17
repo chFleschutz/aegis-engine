@@ -13,7 +13,8 @@ export namespace aegis::render_graph
 class SkyBoxPass : public RenderPass
 {
 public:
-    SkyBoxPass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
+    /// @param view The index of the view in FrameScene::views whose camera it draws the sky for.
+    SkyBoxPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view = 0);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -21,6 +22,7 @@ public:
 
 private:
     const FrameSceneSource& m_scene;
+    std::uint32_t m_view;
     ResourceId m_sceneColor;
     ResourceId m_depth;
     std::optional<rhi::Pipeline> m_pipeline;

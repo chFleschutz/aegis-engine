@@ -56,7 +56,7 @@ TEST_SUITE("render_graph::detail::packLighting")
 
     TEST_CASE("an empty scene keeps the defaults and the given settings")
     {
-        const auto uniforms = packLighting(FrameScene{ .instances = InstanceStore{} }, 0.5f, LightingViewMode::Albedo);
+        const auto uniforms = packLighting(FrameScene{ .instances = InstanceStore{} }, 0, 0.5f, LightingViewMode::Albedo);
         CHECK(uniforms.ambientOcclusionFactor == 0.5f);
         CHECK(uniforms.viewMode == LightingViewMode::Albedo);
         CHECK(uniforms.pointLightCount == 0);
@@ -71,17 +71,34 @@ TEST_SUITE("render_graph::detail::packLighting")
         const InstanceStore instances;
         const FrameScene scene{
             .instances = instances,
-            .camera = FrameScene::Camera{ .position = { 1.0f, 2.0f, 3.0f } },
+            .views = { { .name = "Main", .camera = FrameScene::Camera{ .position = { 1.0f, 2.0f, 3.0f } } } },
             .ambientLight = FrameScene::AmbientLight{ .color = { 0.1f, 0.2f, 0.3f }, .intensity = 0.5f },
             .directionalLight = FrameScene::DirectionalLight{
                 .color = { 1.0f, 0.5f, 0.25f }, .intensity = 2.0f, .direction = { 0.0f, -1.0f, 0.0f } },
         };
 
-        const auto uniforms = packLighting(scene, 1.0f, LightingViewMode::SceneColor);
+        const auto uniforms = packLighting(scene, 0, 1.0f, LightingViewMode::SceneColor);
         CHECK(equal(uniforms.cameraPosition, glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f }));
         CHECK(equal(uniforms.ambientColor, glm::vec4{ 0.1f, 0.2f, 0.3f, 0.5f }));
         CHECK(equal(uniforms.directionalColor, glm::vec4{ 1.0f, 0.5f, 0.25f, 2.0f }));
         CHECK(equal(uniforms.directionalDirection, glm::vec4{ 0.0f, -1.0f, 0.0f, 0.0f }));
+    }
+
+    TEST_CASE("takes the camera of the view it lights")
+    {
+        const InstanceStore instances;
+        const FrameScene scene{
+            .instances = instances,
+            .views = {
+                { .name = "Main", .camera = FrameScene::Camera{ .position = { 1.0f, 2.0f, 3.0f } } },
+                { .name = "Play", .camera = FrameScene::Camera{ .position = { 4.0f, 5.0f, 6.0f } } },
+                { .name = "Empty" },
+            },
+        };
+
+        CHECK(equal(packLighting(scene, 1, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 4.0f, 5.0f, 6.0f, 1.0f }));
+        CHECK(equal(packLighting(scene, 2, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 0.0f }));
+        CHECK(equal(packLighting(scene, 3, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 0.0f }));
     }
 
     TEST_CASE("packs point lights and stops at the maximum")
@@ -94,7 +111,7 @@ TEST_SUITE("render_graph::detail::packLighting")
                 { .position = { static_cast<float>(i), 0.0f, 0.0f }, .color = { 1.0f, 0.0f, 0.0f }, .intensity = 3.0f });
         }
 
-        const auto uniforms = packLighting(scene, 1.0f, LightingViewMode::SceneColor);
+        const auto uniforms = packLighting(scene, 0, 1.0f, LightingViewMode::SceneColor);
         CHECK(uniforms.pointLightCount == static_cast<std::int32_t>(aegis::render_graph::maxPointLights));
         CHECK(equal(uniforms.pointLights[1].position, glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f }));
         CHECK(equal(uniforms.pointLights[0].color, glm::vec4{ 1.0f, 0.0f, 0.0f, 3.0f }));

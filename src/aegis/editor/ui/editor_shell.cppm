@@ -52,7 +52,7 @@ public:
     ///        While the game has the input (the focused viewport, in play), only an editor chord's key until it is released.
     [[nodiscard]] auto inputCapture() const -> InputCapture override;
     /// @brief The viewport's view while it is open: the editor camera at the panel's settled size.
-    [[nodiscard]] auto renderView() const -> std::optional<RenderView> override;
+    [[nodiscard]] auto renderViews() const -> std::vector<RenderView> override;
     /// @brief With unsaved changes, asks whether to save them first and keeps the window open until answered.
     [[nodiscard]] auto canClose() -> bool override;
     void onShutdown() override;
