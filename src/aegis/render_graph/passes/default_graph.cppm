@@ -66,8 +66,9 @@ auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> Shar
 
 /// @brief Adds the passes that render the view desc.view into "Final": scene update, light update (without
 ///        desc.lights), CPU- or GPU-driven geometry, lighting, sky box, transparent (point lights), bloom and
-///        post-processing. Call it inside the view's scope (GraphBuilder::beginScope). Passes added after these and before addOutputPasses draw onto "Final" before the
-///        frame shows it (a game's or the editor's overlays).
+///        post-processing. Call it inside the view's scope (GraphBuilder::beginScope). Passes added after these
+///        and before addOutputPasses draw onto "Final" before the frame shows it (a game's or the editor's
+///        overlays).
 auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 
 /// @brief Adds the passes that show the views' "Final", outside any scope: UI (if requested) and present (not with
