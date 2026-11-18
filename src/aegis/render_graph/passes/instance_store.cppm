@@ -92,8 +92,9 @@ struct Instance
 
 /// @brief The instances both geometry paths draw, in two dense arrays: the static set and the dynamic set.
 ///        Each array is slot-allocated: a new instance goes to the end, a removed one is replaced by the last.
-///        Instances are grouped into draw batches by material variant, and each array records the range
-///        of positions that changed since the last clearDirty(), so the GPU-driven path rewrites only those.
+///        Instances are grouped into draw batches by material variant; a batch's id is freed with its last instance
+///        and reused by the next new variant. Each array records the range of positions that changed since the last
+///        clearDirty(), so the GPU-driven path rewrites only those.
 ///        A plain value, filled by the app from the world (aegis::InstanceBridge) and read by the passes
 ///        through FrameScene::instances.
 class InstanceStore
@@ -147,10 +148,14 @@ public:
     ///        passes' buffers when the app renders another world's store than in the last frame.
     auto markAllDirty() noexcept -> void;
 
-    /// @brief Every batch ever created, by id; a batch whose instances are all gone stays, with a count of 0.
+    /// @brief The batches by id. A freed id's entry has no instances and no variant until a new variant reuses it.
     [[nodiscard]] auto batches() const noexcept -> const std::vector<DrawBatch>& { return m_batches; }
-    [[nodiscard]] auto batchCount() const noexcept -> std::uint32_t { return static_cast<std::uint32_t>(m_batches.size()); }
-    /// @return nullopt if no instance of 'variant' was ever added.
+    /// @brief The batches that have instances: batches() without the freed ids.
+    [[nodiscard]] auto batchCount() const noexcept -> std::uint32_t
+    {
+        return static_cast<std::uint32_t>(m_batches.size() - m_freeBatchIds.size());
+    }
+    /// @return nullopt if no instance of 'variant' is in the store.
     [[nodiscard]] auto batchId(const assets::MaterialVariant& variant) const -> std::optional<std::uint32_t>;
 
     [[nodiscard]] auto instanceCount() const noexcept -> std::uint32_t { return staticInstanceCount() + dynamicInstanceCount(); }
@@ -183,8 +188,10 @@ private:
 
     [[nodiscard]] auto set(bool dynamic) noexcept -> Set& { return dynamic ? m_dynamic : m_static; }
     [[nodiscard]] auto location(InstanceId id) const -> const Location&;
-    /// @brief The id of the batch of 'variant', created if it is new.
+    /// @brief The id of the batch of 'variant', created if it is new, on a freed id if there is one.
     [[nodiscard]] auto acquireBatch(const assets::MaterialVariant& variant) -> std::expected<std::uint32_t, Error>;
+    /// @brief Takes one instance out of the batch's count, freeing its id when that was the last.
+    auto leaveBatch(std::uint32_t batch) -> void;
     auto addMaterial(const std::shared_ptr<assets::Material>& material, const assets::MaterialVariant& variant) -> void;
     /// @brief Moves every instance of 'material' to 'batch'.
     auto moveMaterial(const assets::Material* material, std::uint32_t batch) -> void;
@@ -200,6 +207,7 @@ private:
     std::vector<std::optional<Location>> m_locations; // By InstanceId::index
     std::vector<std::uint32_t> m_freeIds;
     std::vector<DrawBatch> m_batches;
+    std::vector<std::uint32_t> m_freeBatchIds;
     std::unordered_map<assets::MaterialVariant, std::uint32_t, assets::MaterialVariant::Hash> m_batchIds;
     std::vector<std::shared_ptr<assets::Material>> m_materials;
     std::unordered_map<const assets::Material*, MaterialUse> m_materialUses;
