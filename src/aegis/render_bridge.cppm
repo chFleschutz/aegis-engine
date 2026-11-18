@@ -14,7 +14,6 @@ export namespace aegis
 struct RenderInstance
 {
     std::optional<render_graph::InstanceId> id; // None while the renderer cannot be drawn
-    bool warned{ false };                       // Its instance could not be stored; logged once
 };
 
 /// @brief Keeps a render_graph::InstanceStore in step with the aegis::MeshRenderer components of a world.
@@ -54,14 +53,16 @@ private:
     auto onDynamicConstruct(entt::registry& registry, entt::entity entity) -> void;
     auto onDynamicDestroy(entt::registry& registry, entt::entity entity) -> void;
     auto setDynamic(entt::registry& registry, entt::entity entity, bool dynamic) -> void;
-    /// @brief Adds, updates or removes the instance of 'entity' from its components.
-    auto refresh(entt::entity entity, RenderInstance& instance, const MeshRenderer& renderer,
+    /// @brief Adds, updates or removes an entity's instance from its components.
+    auto refresh(RenderInstance& instance, const MeshRenderer& renderer,
         const GlobalTransform& transform, bool dynamic) -> void;
+    /// @brief Logs the first renderer the store could not hold as it is (the draw batch limit); later ones are silent.
+    auto warnOnce(const render_graph::Error& error) -> void;
 
     render_graph::InstanceStore& m_store;
     world::Registry* m_registry{ nullptr };
     std::optional<std::uint64_t> m_syncedVersion; // The static version sync() last read the static entities at
-    bool m_variantsWarned{ false };               // A variant change could not be followed; logged once
+    bool m_warned{ false };                       // A renderer could not be stored as it is; logged once
 };
 
 /// @brief The FrameScene of a world whose transforms and camera matrices are current (after its update):

@@ -90,21 +90,18 @@ auto InstanceBridge::sync() -> void
         m_syncedVersion = version;
         auto statics = m_registry->view<RenderInstance, MeshRenderer, GlobalTransform>(entt::exclude<DynamicTag>);
         for (auto&& [entity, instance, renderer, transform] : statics.each())
-            refresh(entity, instance, renderer, transform, false);
+            refresh(instance, renderer, transform, false);
     }
     // DynamicTag is empty, so the view's each() does not yield it.
     auto dynamics = m_registry->view<RenderInstance, MeshRenderer, GlobalTransform, DynamicTag>();
     for (auto&& [entity, instance, renderer, transform] : dynamics.each())
-        refresh(entity, instance, renderer, transform, true);
+        refresh(instance, renderer, transform, true);
 
-    if (auto synced = m_store.syncVariants(); !synced && !m_variantsWarned)
-    {
-        log::warn("InstanceBridge: a material is drawn with its old variant: {}", describe(synced.error()));
-        m_variantsWarned = true;
-    }
+    if (auto synced = m_store.syncVariants(); !synced)
+        warnOnce(synced.error());
 }
 
-auto InstanceBridge::refresh(entt::entity entity, RenderInstance& instance, const MeshRenderer& renderer,
+auto InstanceBridge::refresh(RenderInstance& instance, const MeshRenderer& renderer,
     const GlobalTransform& transform, bool dynamic) -> void
 {
     if (!renderer.mesh || !renderer.material)
@@ -147,11 +144,17 @@ auto InstanceBridge::refresh(entt::entity entity, RenderInstance& instance, cons
         stored = std::unexpected{ added.error() };
     }
 
-    if (!stored && !instance.warned)
-    {
-        log::warn("InstanceBridge: {} not drawn as it is: {}", static_cast<std::uint32_t>(entity), describe(stored.error()));
-        instance.warned = true;
-    }
+    if (!stored)
+        warnOnce(stored.error());
+}
+
+auto InstanceBridge::warnOnce(const render_graph::Error& error) -> void
+{
+    if (m_warned)
+        return;
+    log::warn("InstanceBridge: renderers are not drawn as they are, or with their material's old variant (logged once): {}",
+        describe(error));
+    m_warned = true;
 }
 
 auto InstanceBridge::setDynamic(entt::registry& registry, entt::entity entity, bool dynamic) -> void
