@@ -56,6 +56,8 @@ auto entityKind(world::Registry& registry, world::Entity entity) -> EntityKind
         return EntityKind::DirectionalLight;
     if (registry.has<PointLight>(entity))
         return EntityKind::PointLight;
+    if (registry.has<SpotLight>(entity))
+        return EntityKind::SpotLight;
     if (registry.has<AmbientLight>(entity))
         return EntityKind::AmbientLight;
     if (registry.has<Sky>(entity))

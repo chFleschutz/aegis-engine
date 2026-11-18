@@ -33,7 +33,7 @@ TEST_SUITE("world::registerComponents")
     {
         TypeRegistry types;
         REQUIRE(aegis::world::registerComponents(types).has_value());
-        for (auto name : { "Transform", "DynamicTag", "MainCamera", "Camera", "PostProcess", "AmbientLight", "DirectionalLight", "PointLight", "MeshRenderer", "Sky" })
+        for (auto name : { "Transform", "DynamicTag", "MainCamera", "Camera", "PostProcess", "AmbientLight", "DirectionalLight", "PointLight", "SpotLight", "MeshRenderer", "Sky" })
         {
             CAPTURE(name);
             const auto* info = types.find(name);

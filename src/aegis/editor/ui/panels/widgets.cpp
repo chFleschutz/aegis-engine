@@ -38,6 +38,8 @@ auto entityIcon(EntityKind kind) -> const char*
         return theme::icons::sun;
     case EntityKind::PointLight:
         return theme::icons::light;
+    case EntityKind::SpotLight:
+        return theme::icons::spotLight;
     case EntityKind::AmbientLight:
         return theme::icons::ambientLight;
     case EntityKind::Sky:
@@ -65,6 +67,7 @@ auto entityIconColor(EntityKind kind) -> std::uint32_t
         return theme::packed(theme::cameraIcon);
     case EntityKind::DirectionalLight:
     case EntityKind::PointLight:
+    case EntityKind::SpotLight:
     case EntityKind::AmbientLight:
     case EntityKind::Sky:
         return theme::packed(theme::lightIcon);
@@ -82,7 +85,7 @@ auto componentIcon(const reflect::TypeInfo& type) -> const char*
     if (type.category == reflect::TypeCategory::Script)
         return theme::icons::script;
     // The engine's components by their registered names; a game's get the generic icon
-    static constexpr std::array<std::pair<std::string_view, const char*>, 10> icons{ {
+    static constexpr std::array<std::pair<std::string_view, const char*>, 11> icons{ {
         { "Transform", theme::icons::transform },
         { "DynamicTag", theme::icons::dynamic },
         { "MainCamera", theme::icons::mainCamera },
@@ -90,6 +93,7 @@ auto componentIcon(const reflect::TypeInfo& type) -> const char*
         { "AmbientLight", theme::icons::ambientLight },
         { "DirectionalLight", theme::icons::sun },
         { "PointLight", theme::icons::light },
+        { "SpotLight", theme::icons::spotLight },
         { "MeshRenderer", theme::icons::mesh },
         { "Sky", theme::icons::environment },
         { "SceneInstance", theme::icons::instance },

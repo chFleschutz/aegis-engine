@@ -10,6 +10,38 @@ import aegis.math;
 
 namespace aegis::render_graph
 {
+// Light update ---------------------------------------------------------------------------------------
+
+LightUpdatePass::LightUpdatePass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+    m_scene{ scene },
+    m_lights{ declarations.addBuffer(names::lights, Usage::HostWrite, { .size = sizeof(LightData) * initialCapacity, .perFrame = true }) }
+{
+}
+
+auto LightUpdatePass::name() const -> std::string_view
+{
+    return "Light Update";
+}
+
+auto LightUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
+{
+    const auto lights = detail::packLights(m_scene.current());
+    const auto count = static_cast<std::uint32_t>(lights.size());
+    if (const auto grown = detail::grownCapacity(m_capacity, count); grown != m_capacity)
+    {
+        if (auto resized = pool.resizeBuffer(m_lights, sizeof(LightData) * grown); resized)
+            m_capacity = grown;
+        else
+            log::warn("{}: {} lights need {} bytes, the light buffer holds {}", describe(resized.error()), count,
+                sizeof(LightData) * grown, sizeof(LightData) * m_capacity);
+    }
+    const auto written = std::span{ lights }.first(std::min(count, m_capacity));
+    if (!written.empty())
+        pool.write(m_lights, frameInfo.frameIndex, std::as_bytes(written));
+}
+
+// Lighting -------------------------------------------------------------------------------------------
+
 LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view) :
     m_scene{ scene },
     m_view{ view },
@@ -21,7 +53,8 @@ LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneS
         declarations.addReference(names::emissive, Usage::StorageRead),
     },
     m_sceneColor{ declarations.addTexture(names::sceneColor, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT }) },
-    m_uniforms{ declarations.addBuffer(names::lightingUniforms, Usage::HostWrite, { .size = sizeof(LightingUniforms), .perFrame = true }) }
+    m_uniforms{ declarations.addBuffer(names::lightingUniforms, Usage::HostWrite, { .size = sizeof(LightingUniforms), .perFrame = true }) },
+    m_lights{ declarations.addReference(names::lights, Usage::ShaderRead) }
 {
 }
 
@@ -59,7 +92,10 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
         return;
     }
 
-    const auto uniforms = detail::packLighting(scene, m_view, m_ambientOcclusionFactor, m_viewMode);
+    // The light update pass grew the buffer for this frame's lights, or holds as many as fit.
+    const auto lightCapacity = static_cast<std::uint32_t>(pool.bufferSize(m_lights) / sizeof(LightData));
+    const auto uniforms = detail::packLighting(scene, m_view, pool.bufferAddress(m_lights, frameInfo.frameIndex),
+        lightCapacity, m_ambientOcclusionFactor, m_viewMode);
     pool.write(m_uniforms, frameInfo.frameIndex, std::as_bytes(std::span{ &uniforms, 1 }));
 
     const LightingConstants constants{
@@ -96,10 +132,56 @@ auto LightingPass::drawUI() -> void
 
 namespace detail
 {
-auto packLighting(const FrameScene& scene, std::uint32_t view, float ambientOcclusionFactor, LightingViewMode viewMode)
-    -> LightingUniforms
+auto packLight(const FrameScene::PointLight& light) -> LightData
 {
+    return {
+        .position = light.position,
+        .range = light.range,
+        .color = light.color,
+        .intensity = light.intensity,
+        .direction = glm::vec3{ 0.0f },
+        .coneScale = 0.0f,
+        .coneOffset = 1.0f,
+    };
+}
+
+auto packLight(const FrameScene::SpotLight& light) -> LightData
+{
+    // glTF's KHR_lights_punctual: the cone's falloff is linear in the cosine between the inner and the outer cone.
+    const float cosOuter = std::cos(light.outerConeAngle);
+    const float cosInner = std::max(std::cos(light.innerConeAngle), cosOuter);
+    const float coneScale = 1.0f / std::max(cosInner - cosOuter, 1e-3f);
+    return {
+        .position = light.position,
+        .range = light.range,
+        .color = light.color,
+        .intensity = light.intensity,
+        .direction = light.direction,
+        .coneScale = coneScale,
+        .coneOffset = -cosOuter * coneScale,
+    };
+}
+
+auto packLights(const FrameScene& scene) -> std::vector<LightData>
+{
+    std::vector<LightData> lights;
+    lights.reserve(scene.pointLights.size() + scene.spotLights.size());
+    for (const auto& light : scene.pointLights)
+        lights.push_back(packLight(light));
+    for (const auto& light : scene.spotLights)
+        lights.push_back(packLight(light));
+    return lights;
+}
+
+auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddress lights, std::uint32_t lightCapacity,
+    float ambientOcclusionFactor, LightingViewMode viewMode) -> LightingUniforms
+{
+    const auto pointCount = std::min(static_cast<std::uint32_t>(scene.pointLights.size()), lightCapacity);
+    const auto spotCount = std::min(static_cast<std::uint32_t>(scene.spotLights.size()), lightCapacity - pointCount);
     LightingUniforms uniforms{
+        .lights = lights,
+        .pointLightCount = pointCount,
+        .spotLightCount = spotCount,
         .ambientOcclusionFactor = ambientOcclusionFactor,
         .viewMode = viewMode,
     };
@@ -111,15 +193,6 @@ auto packLighting(const FrameScene& scene, std::uint32_t view, float ambientOccl
     {
         uniforms.directionalColor = glm::vec4{ light->color, light->intensity };
         uniforms.directionalDirection = glm::vec4{ light->direction, 0.0f };
-    }
-    for (const auto& light : scene.pointLights)
-    {
-        if (uniforms.pointLightCount == static_cast<std::int32_t>(maxPointLights))
-            break;
-        uniforms.pointLights[static_cast<std::size_t>(uniforms.pointLightCount++)] = {
-            .position = glm::vec4{ light.position, 1.0f },
-            .color = glm::vec4{ light.color, light.intensity },
-        };
     }
     return uniforms;
 }

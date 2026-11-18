@@ -68,13 +68,24 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(LightingUniforms, ambientColor) == 16);
         CHECK(offsetof(LightingUniforms, directionalDirection) == 32);
         CHECK(offsetof(LightingUniforms, directionalColor) == 48);
-        CHECK(offsetof(LightingUniforms, pointLights) == 64);
-        CHECK(sizeof(LightingUniforms::PointLight) == 32);
-        CHECK(offsetof(LightingUniforms, pointLightCount) == 64 + 128 * 32);
-        CHECK(offsetof(LightingUniforms, ambientOcclusionFactor) == 64 + 128 * 32 + 4);
-        CHECK(offsetof(LightingUniforms, viewMode) == 64 + 128 * 32 + 8);
-        CHECK(sizeof(LightingUniforms) == 64 + 128 * 32 + 12);
-        CHECK(maxPointLights == 128);
+        CHECK(offsetof(LightingUniforms, lights) == 64);
+        CHECK(offsetof(LightingUniforms, pointLightCount) == 72);
+        CHECK(offsetof(LightingUniforms, spotLightCount) == 76);
+        CHECK(offsetof(LightingUniforms, ambientOcclusionFactor) == 80);
+        CHECK(offsetof(LightingUniforms, viewMode) == 84);
+        CHECK(sizeof(LightingUniforms) == 88);
+    }
+
+    TEST_CASE("LightData matches lighting.slang's Light")
+    {
+        CHECK(offsetof(LightData, position) == 0);
+        CHECK(offsetof(LightData, range) == 12);
+        CHECK(offsetof(LightData, color) == 16);
+        CHECK(offsetof(LightData, intensity) == 28);
+        CHECK(offsetof(LightData, direction) == 32);
+        CHECK(offsetof(LightData, coneScale) == 44);
+        CHECK(offsetof(LightData, coneOffset) == 48);
+        CHECK(sizeof(LightData) == 52);
     }
 
     TEST_CASE("the enums have the values the shaders switch on")

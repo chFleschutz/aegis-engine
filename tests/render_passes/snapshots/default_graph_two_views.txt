@@ -1,13 +1,15 @@
-1. Instance Update
+1. Light Update
+    create Lights HostWrite
+2. Instance Update
     create StaticInstances HostWrite
     create DynamicInstances HostWrite
     create DrawBatches HostWrite
-2. Edit/Scene Update
+3. Edit/Scene Update
     create Edit/CameraData HostWrite
-3. Edit/Clear Draw Counts
+4. Edit/Clear Draw Counts
     create Edit/IndirectDrawCounts TransferDst
     barrier Edit/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
-4. Edit/Culling
+5. Edit/Culling
     use    Edit/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -18,7 +20,7 @@
     barrier Edit/VisibleInstances: last frame's ShaderRead -> StorageWrite
     barrier Edit/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
     barrier Edit/IndirectDrawCounts: TransferDst -> StorageWrite
-5. Edit/GPU Driven Geometry
+6. Edit/GPU Driven Geometry
     use    Edit/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -40,12 +42,13 @@
     barrier Edit/ARM: undefined -> ColorAttachment
     barrier Edit/Emissive: undefined -> ColorAttachment
     barrier Edit/Depth: undefined -> DepthAttachment
-6. Edit/Lighting
+7. Edit/Lighting
     use    Edit/Position StorageRead
     use    Edit/Normal StorageRead
     use    Edit/Albedo StorageRead
     use    Edit/ARM StorageRead
     use    Edit/Emissive StorageRead
+    use    Lights ShaderRead
     create Edit/SceneColor StorageWrite
     create Edit/LightingUniforms HostWrite
     barrier Edit/Position: ColorAttachment -> StorageRead
@@ -54,33 +57,33 @@
     barrier Edit/ARM: ColorAttachment -> StorageRead
     barrier Edit/Emissive: ColorAttachment -> StorageRead
     barrier Edit/SceneColor: undefined -> StorageWrite
-7. Edit/Sky Box
+8. Edit/Sky Box
     use    Edit/Depth DepthRead
     use    Edit/SceneColor ColorAttachment
     barrier Edit/Depth: DepthAttachment -> DepthRead
     barrier Edit/SceneColor: StorageWrite -> ColorAttachment
-8. Edit/Transparent
+9. Edit/Transparent
     use    Edit/Depth DepthRead
     use    Edit/CameraData ShaderRead
     use    Edit/SceneColor ColorAttachment
     barrier Edit/SceneColor: ColorAttachment -> ColorAttachment
-9. Edit/Bloom
+10. Edit/Bloom
     use    Edit/SceneColor StorageRead
     create Edit/Bloom StorageWrite
     barrier Edit/SceneColor: ColorAttachment -> StorageRead
     barrier Edit/Bloom: undefined -> StorageWrite
-10. Edit/Post Processing
+11. Edit/Post Processing
     use    Edit/SceneColor StorageRead
     use    Edit/Bloom StorageRead
     create Edit/Final StorageWrite
     barrier Edit/Bloom: StorageWrite -> StorageRead
     barrier Edit/Final: undefined -> StorageWrite
-11. Play/Scene Update
+12. Play/Scene Update
     create Play/CameraData HostWrite
-12. Play/Clear Draw Counts
+13. Play/Clear Draw Counts
     create Play/IndirectDrawCounts TransferDst
     barrier Play/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
-13. Play/Culling
+14. Play/Culling
     use    Play/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -91,7 +94,7 @@
     barrier Play/VisibleInstances: last frame's ShaderRead -> StorageWrite
     barrier Play/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
     barrier Play/IndirectDrawCounts: TransferDst -> StorageWrite
-14. Play/GPU Driven Geometry
+15. Play/GPU Driven Geometry
     use    Play/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -113,12 +116,13 @@
     barrier Play/ARM: undefined -> ColorAttachment
     barrier Play/Emissive: undefined -> ColorAttachment
     barrier Play/Depth: undefined -> DepthAttachment
-15. Play/Lighting
+16. Play/Lighting
     use    Play/Position StorageRead
     use    Play/Normal StorageRead
     use    Play/Albedo StorageRead
     use    Play/ARM StorageRead
     use    Play/Emissive StorageRead
+    use    Lights ShaderRead
     create Play/SceneColor StorageWrite
     create Play/LightingUniforms HostWrite
     barrier Play/Position: ColorAttachment -> StorageRead
@@ -127,33 +131,34 @@
     barrier Play/ARM: ColorAttachment -> StorageRead
     barrier Play/Emissive: ColorAttachment -> StorageRead
     barrier Play/SceneColor: undefined -> StorageWrite
-16. Play/Sky Box
+17. Play/Sky Box
     use    Play/Depth DepthRead
     use    Play/SceneColor ColorAttachment
     barrier Play/Depth: DepthAttachment -> DepthRead
     barrier Play/SceneColor: StorageWrite -> ColorAttachment
-17. Play/Transparent
+18. Play/Transparent
     use    Play/Depth DepthRead
     use    Play/CameraData ShaderRead
     use    Play/SceneColor ColorAttachment
     barrier Play/SceneColor: ColorAttachment -> ColorAttachment
-18. Play/Bloom
+19. Play/Bloom
     use    Play/SceneColor StorageRead
     create Play/Bloom StorageWrite
     barrier Play/SceneColor: ColorAttachment -> StorageRead
     barrier Play/Bloom: undefined -> StorageWrite
-19. Play/Post Processing
+20. Play/Post Processing
     use    Play/SceneColor StorageRead
     use    Play/Bloom StorageRead
     create Play/Final StorageWrite
     barrier Play/Bloom: StorageWrite -> StorageRead
     barrier Play/Final: undefined -> StorageWrite
-20. UI
+21. UI
     use    Edit/Final SampledFragment
     use    Play/Final SampledFragment
     barrier Edit/Final: StorageWrite -> SampledFragment
     barrier Play/Final: StorageWrite -> SampledFragment
 resources
+    Lights: buffer, host written
     StaticInstances: buffer, host written
     DynamicInstances: buffer, host written
     DrawBatches: buffer, host written

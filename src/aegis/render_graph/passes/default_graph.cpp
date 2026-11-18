@@ -2,17 +2,20 @@ module aegis.render_passes;
 
 namespace aegis::render_graph
 {
-auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> const InstanceUpdatePass*
+auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> SharedPasses
 {
-    if (!desc.gpuDriven)
-        return nullptr;
-    return &graph.add<InstanceUpdatePass>(desc.scene);
+    SharedPasses shared{ .lights = &graph.add<LightUpdatePass>(desc.scene) };
+    if (desc.gpuDriven)
+        shared.instances = &graph.add<InstanceUpdatePass>(desc.scene);
+    return shared;
 }
 
 auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 {
     const auto& scene = desc.scene;
     graph.add<SceneUpdatePass>(scene, desc.view);
+    if (!desc.lights)
+        graph.add<LightUpdatePass>(scene);
     if (desc.gpuDriven)
     {
         const auto& instances = desc.instances ? *desc.instances : graph.add<InstanceUpdatePass>(scene);
@@ -52,7 +55,9 @@ auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 {
     auto viewDesc = desc;
-    viewDesc.instances = addSharedPasses(graph, desc);
+    const auto shared = addSharedPasses(graph, desc);
+    viewDesc.instances = shared.instances;
+    viewDesc.lights = shared.lights;
     for (std::uint32_t view = 0; view < desc.views.size(); ++view)
     {
         graph.beginScope(desc.views[view].name, desc.views[view].extent);

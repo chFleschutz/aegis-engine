@@ -33,6 +33,7 @@ public:
         ImGui::Separator();
         ImGui::Text("Mesh renderers: %d", static_cast<int>(registry.view<MeshRenderer>().size()));
         ImGui::Text("Point Lights: %d", static_cast<int>(registry.view<PointLight>().size()));
+        ImGui::Text("Spot Lights: %d", static_cast<int>(registry.view<SpotLight>().size()));
         ImGui::Text("Cameras: %d", static_cast<int>(registry.view<Camera>().size()));
         ImGui::Separator();
         ImGui::Text("Draw Batches: %d", static_cast<int>(summary.drawBatches));

@@ -759,6 +759,8 @@ auto Viewport::drawIcons(const EditorContext& editor, const Rect& rect) -> std::
     };
     for (const auto entity : registry.view<PointLight>())
         addIcon(entity, theme::icons::light, "P", lightTint(registry.get<PointLight>(world::Entity{ entity }).color));
+    for (const auto entity : registry.view<SpotLight>())
+        addIcon(entity, theme::icons::spotLight, "S", lightTint(registry.get<SpotLight>(world::Entity{ entity }).color));
     for (const auto entity : registry.view<DirectionalLight>())
         addIcon(entity, theme::icons::sun, "D", lightTint(registry.get<DirectionalLight>(world::Entity{ entity }).color));
     for (const auto entity : registry.view<Camera>())

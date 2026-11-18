@@ -6,10 +6,23 @@ namespace PBR
 {
     public static const float F_DIELECTRIC = 0.04;
 
-    public func lightAttenuation(float3 lightPos, float3 fragPos) -> float
+    // The C++ twins are render_graph::detail::distanceAttenuation and coneAttenuation (gpu_types.cppm): change
+    // them together.
+
+    // Inverse-square falloff windowed to reach zero at 'range' (glTF's KHR_lights_punctual).
+    public func distanceAttenuation(float distance, float range) -> float
     {
-        float distance = length(lightPos - fragPos);
-        return 1.0 / max(distance * distance, constants::EPSILON);
+        float ratio = distance / max(range, constants::EPSILON);
+        float window = saturate(1.0 - ratio * ratio * ratio * ratio);
+        return window * window / max(distance * distance, constants::EPSILON);
+    }
+
+    // A spot light's cone falloff for 'toSurface' (normalized, from the light to the surface): 1 inside the inner
+    // cone, 0 outside the outer one. coneScale 0 and coneOffset 1 (a point light) let everything through.
+    public func coneAttenuation(float3 direction, float coneScale, float coneOffset, float3 toSurface) -> float
+    {
+        float factor = saturate(dot(direction, toSurface) * coneScale + coneOffset);
+        return factor * factor;
     }
 
     public func specularReflection(float VdotH, float3 F0) -> float3

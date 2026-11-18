@@ -97,7 +97,22 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
             builder->displayName("Point Light")
                 .category("Lighting")
                 .field("color", &PointLight::color, { .widget = FieldWidget::Color })
-                .field("intensity", &PointLight::intensity, { .min = 0.0, .step = 1.0 });
+                .field("intensity", &PointLight::intensity, { .min = 0.0, .step = 1.0 })
+                .field("range", &PointLight::range, { .min = 0.01, .step = 0.1, .tooltip = "Distance in meters where the light fades to zero" });
+        }
+        check(builder);
+    }
+    {
+        auto builder = registerComponent<SpotLight>(types, "SpotLight");
+        if (builder)
+        {
+            builder->displayName("Spot Light")
+                .category("Lighting")
+                .field("color", &SpotLight::color, { .widget = FieldWidget::Color })
+                .field("intensity", &SpotLight::intensity, { .min = 0.0, .step = 1.0 })
+                .field("range", &SpotLight::range, { .min = 0.01, .step = 0.1, .tooltip = "Distance in meters where the light fades to zero" })
+                .field("innerConeAngle", &SpotLight::innerConeAngle, { .widget = FieldWidget::Angle, .min = 0.0, .max = glm::radians(90.0), .tooltip = "Angle from the axis where the light starts to fade" })
+                .field("outerConeAngle", &SpotLight::outerConeAngle, { .widget = FieldWidget::Angle, .min = 0.0, .max = glm::radians(90.0), .tooltip = "Angle from the axis where the light reaches zero" });
         }
         check(builder);
     }

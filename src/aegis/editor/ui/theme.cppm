@@ -40,6 +40,7 @@ inline constexpr const char* profiler = lucide::activity;
 inline constexpr const char* allEntities = lucide::list;
 inline constexpr const char* camera = lucide::camera;
 inline constexpr const char* light = lucide::lightbulb;
+inline constexpr const char* spotLight = lucide::spotlight;
 inline constexpr const char* sun = lucide::sun;
 
 // The hierarchy's button that opens the Create menu, the inspector's Add button, and the search fields' mark.

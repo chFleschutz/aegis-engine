@@ -24,8 +24,6 @@ export namespace aegis::render_graph
 inline constexpr std::uint32_t computeGroupSize{ 16 };
 /// @brief Threads per workgroup of the culling shader: [numthreads(64, 1, 1)] in gpu-driven/culling.slang.
 inline constexpr std::uint32_t cullingGroupSize{ 64 };
-/// @brief lighting.slang's MAX_POINT_LIGHTS.
-inline constexpr std::uint32_t maxPointLights{ 128 };
 /// @brief lighting.slang's MAX_REFLECTION_LOD: the last mip of the prefiltered environment map (checked
 ///        against Ibl::prefilteredMipLevels).
 inline constexpr float maxReflectionLod{ 4.0f };
@@ -83,21 +81,30 @@ struct DrawBatchData
     std::uint32_t count;
 };
 
-/// @brief lighting.slang's Lighting block, one per frame in flight.
+/// @brief lighting.slang's Light: a point or spot light in the frame's light buffer ("Lights"), which holds the point
+///        lights first, then the spot lights. Both shade alike: a point light is a spot light whose cone lets
+///        everything through (coneScale 0, coneOffset 1).
+struct LightData
+{
+    glm::vec3 position;
+    float range; // Meters; the light fades to zero there (detail::distanceAttenuation)
+    glm::vec3 color;
+    float intensity;
+    glm::vec3 direction; // World space, normalized: where a spot light's cone points; zero for a point light
+    float coneScale;     // The cone's falloff (detail::coneAttenuation): 1 / (cos inner - cos outer)
+    float coneOffset;    // -cos outer * coneScale
+};
+
+/// @brief lighting.slang's Lighting block, one per view and frame in flight.
 struct LightingUniforms
 {
-    struct PointLight
-    {
-        glm::vec4 position;
-        glm::vec4 color; // rgb, intensity
-    };
-
     glm::vec4 cameraPosition{ 0.0f };
     glm::vec4 ambientColor{ 0.0f }; // rgb, intensity
     glm::vec4 directionalDirection{ 0.0f, 0.0f, 1.0f, 0.0f };
     glm::vec4 directionalColor{ 0.0f }; // rgb, intensity
-    std::array<PointLight, maxPointLights> pointLights{};
-    std::int32_t pointLightCount{ 0 };
+    rhi::DeviceAddress lights{ 0 };     // LightData[pointLightCount + spotLightCount]
+    std::uint32_t pointLightCount{ 0 };
+    std::uint32_t spotLightCount{ 0 }; // After the point lights
     float ambientOcclusionFactor{ 1.0f };
     LightingViewMode viewMode{ LightingViewMode::SceneColor };
 };
@@ -280,5 +287,28 @@ struct GpuTransform
 [[nodiscard]] inline auto toGpuTransform(const glm::mat4& model) -> GpuTransform
 {
     return toGpuTransform(toModelRows(model));
+}
+
+// The C++ twins of lighting.slang's light falloff (PBR::distanceAttenuation and PBR::coneAttenuation in
+// modules/pbr.slang), so tests can pin it. Change them together.
+
+/// @brief modules/constants.slang's EPSILON.
+inline constexpr float lightEpsilon{ 1e-6f };
+
+/// @brief The inverse-square falloff of a light at 'distance' from it, windowed to reach zero at 'range' (glTF's
+///        KHR_lights_punctual): clamp(1 - (distance / range)^4, 0, 1)^2 / distance^2.
+[[nodiscard]] inline auto distanceAttenuation(float distance, float range) -> float
+{
+    const float ratio = distance / std::max(range, lightEpsilon);
+    const float window = std::clamp(1.0f - ratio * ratio * ratio * ratio, 0.0f, 1.0f);
+    return window * window / std::max(distance * distance, lightEpsilon);
+}
+
+/// @brief The falloff of a light's cone for the direction 'toSurface' (normalized, from the light to the surface): 1
+///        inside the inner cone, 0 outside the outer one, smooth between. Always 1 for a point light.
+[[nodiscard]] inline auto coneAttenuation(const LightData& light, const glm::vec3& toSurface) -> float
+{
+    const float factor = std::clamp(glm::dot(light.direction, toSurface) * light.coneScale + light.coneOffset, 0.0f, 1.0f);
+    return factor * factor;
 }
 }

@@ -106,11 +106,22 @@ struct DirectionalLight
     float intensity = 1.0f;
 };
 
-/// @brief Creates a light
+/// @brief Light shining from the entity's location in all directions
 struct PointLight
 {
     glm::vec3 color = { 1.0f, 1.0f, 1.0f };
     float intensity = 100.0f;
+    float range = 20.0f; // Meters; the light fades to zero there
+};
+
+/// @brief Light shining from the entity's location in a cone along its transform's forward
+struct SpotLight
+{
+    glm::vec3 color = { 1.0f, 1.0f, 1.0f };
+    float intensity = 100.0f;
+    float range = 20.0f;                        // Meters; the light fades to zero there
+    float innerConeAngle = 0.0f;                // Radians from the axis where the light starts to fade
+    float outerConeAngle = glm::radians(45.0f); // Radians from the axis where it reaches zero
 };
 
 /// @brief Tags the camera the scene is viewed through (the first entity with it and a Camera wins)

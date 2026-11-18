@@ -21,6 +21,7 @@ inline constexpr std::string_view depth{ "Depth" };
 // Scene data the CPU writes every frame
 inline constexpr std::string_view cameraData{ "CameraData" };
 inline constexpr std::string_view lightingUniforms{ "LightingUniforms" };
+inline constexpr std::string_view lights{ "Lights" }; // The point and spot lights, LightData
 
 // GPU-driven path
 inline constexpr std::string_view staticInstances{ "StaticInstances" };

@@ -126,7 +126,7 @@ TEST_SUITE("engine::buildFrameGraph")
         const aegis::GraphBuild game = [](GraphBuilder& graph, const DefaultPassesDesc& /*desc*/) { graph.add<FinalPass>(); };
         buildFrameGraph(builder, { .scene = scene, .gpuDriven = false, .ui = true }, game, shell);
 
-        CHECK(plannedNames(builder) == std::vector<std::string_view>{ "Main/Game Final", "UI", "Present" });
+        CHECK(plannedNames(builder) == std::vector<std::string_view>{ "Light Update", "Main/Game Final", "UI", "Present" });
     }
 
     TEST_CASE("each view gets the game's and the shell's passes in its own scope")
@@ -144,9 +144,9 @@ TEST_SUITE("engine::buildFrameGraph")
             },
             game, shell);
 
-        // The shared instance pass comes first, then each view's; the UI shows both views.
+        // The shared light and instance passes come first, then each view's; the UI shows both views.
         CHECK(plannedNames(builder) == std::vector<std::string_view>{
-                                           "Instance Update", "Edit/Game Final", "Edit/Shell Overlay", "Play/Game Final", "Play/Shell Overlay", "UI" });
+                                           "Light Update", "Instance Update", "Edit/Game Final", "Edit/Shell Overlay", "Play/Game Final", "Play/Shell Overlay", "UI" });
         const auto scopes = builder.declarations().scopes();
         REQUIRE(scopes.size() == 2);
         CHECK(scopes[1].extent == aegis::rhi::Extent2D{ 320, 240 });
