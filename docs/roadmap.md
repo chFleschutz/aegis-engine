@@ -19,7 +19,8 @@ order. Status lives only in the issues: an assigned issue is being worked on.
   touched 167 files, mostly includes, so expect most line numbers to be off.
 
 How to work an item: AGENTS.md "Commits and pull requests" and the `/implement` skill. Up to
-about three items run in parallel, one worktree each, never two with the same `area/*` label.
+about three items run in parallel across the two lanes (see **Lanes** below), one worktree each,
+never two with the same `area/*` label.
 
 ## Decisions
 
@@ -131,10 +132,14 @@ target beyond the render tests: what it lacks becomes issues here.
 - last, exporting the game ([#134](https://github.com/chFleschutz/aegis-engine/issues/134), [`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md), [`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md), `needs-design`): the cook step, install rules and the
   shipping build, tried on the slice.
 
-**Lanes.** With three agents, run one lane each: editor (M10), render (M11, then M12), assets (M6,
-then [#217](https://github.com/chFleschutz/aegis-engine/issues/217)). M11's items that are also `area/assets` ([#251](https://github.com/chFleschutz/aegis-engine/issues/251), [#252](https://github.com/chFleschutz/aegis-engine/issues/252)) or `area/world` ([#255](https://github.com/chFleschutz/aegis-engine/issues/255),
-[#256](https://github.com/chFleschutz/aegis-engine/issues/256)) wait while the assets lane or M10's world items ([#194](https://github.com/chFleschutz/aegis-engine/issues/194), [#166](https://github.com/chFleschutz/aegis-engine/issues/166)) run. M13 starts once
-[#166](https://github.com/chFleschutz/aegis-engine/issues/166) is merged; M14's [#259](https://github.com/chFleschutz/aegis-engine/issues/259) can take the assets lane after #217.
+**Lanes.** Milestones run in two lanes, each with its own Active and Planning milestone; the lanes'
+areas and rules are in the [`plan-milestone` skill](../.claude/skills/plan-milestone/SKILL.md#milestone-rules).
+- **render** (`render_graph`, `render_passes`, `renderer`, `rhi`): M16 Render foundation (Active), M17
+  Shadows and materials (Planning), then the rest of Render features above: anti-aliasing, auto
+  exposure, vertex tangents ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) and clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22)).
+- **content** (`assets`, `world`, `app`, `editor`, `platform`): no milestone yet; next is Gameplay
+  foundation above. Until it is planned, this lane works its areas' `Backlog` issues.
+- The vertical slice needs both lanes' targets; plan it once they are done.
 
 **[M8. Verification tiers](https://github.com/chFleschutz/aegis-engine/milestone/8?closed=1)** (P9, done) added local reference-image comparison and the CI
 format check. The missing-include scanner (8.2) was dropped: since PR #91, `import std` gives both

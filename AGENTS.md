@@ -203,9 +203,10 @@ relations. **The assignee is the status:** whoever starts an item assigns it (`g
 `idea` issues alone unless the owner asks; never run two items with the same `area/*` label in
 parallel. Before starting an item, read its issue and the ADRs and finding IDs it cites
 (`docs/adr/`, `docs/audit/findings-*.md` corrected by `verify-*.md`), then re-check them
-against the current code. An issue you file goes to the Planning milestone or `Backlog`, not the
-Active one, unless the Active milestone can't finish without it. `/plan-milestone` holds the
-milestone rules and the issue format.
+against the current code. Milestones run in two lanes of different areas, `render` and `content`,
+each with an Active and a Planning milestone. An issue you file goes to its lane's Planning milestone
+or `Backlog`, not an Active one, unless that Active milestone can't finish without it.
+`/plan-milestone` holds the milestone rules, the lanes' areas and the issue format.
 
 **Decisions are ADRs** in `docs/adr/`, indexed in its README; the `domain-modeling` skill writes
 them. Cite one by its file name (`docs/adr/0007-engine-hosts-the-game.md`, linked in docs), never
