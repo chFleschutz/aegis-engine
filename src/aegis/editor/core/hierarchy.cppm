@@ -21,6 +21,7 @@ enum class EntityKind
     Camera,
     DirectionalLight,
     PointLight,
+    SpotLight,
     AmbientLight,
     Sky,
     Mesh,
@@ -30,7 +31,7 @@ enum class EntityKind
     Empty,
 };
 
-/// @brief The kind of 'entity': the first of Camera, DirectionalLight, PointLight, AmbientLight, Sky, Mesh (a
+/// @brief The kind of 'entity': the first of Camera, DirectionalLight, PointLight, SpotLight, AmbientLight, Sky, Mesh (a
 ///        MeshRenderer) and SceneInstance it has a component for; else Scripted with scripts, Group with children,
 ///        else Empty.
 [[nodiscard]] auto entityKind(world::Registry& registry, world::Entity entity) -> EntityKind;

@@ -56,10 +56,11 @@ TEST_SUITE("render_graph::detail::packLighting")
 
     TEST_CASE("an empty scene keeps the defaults and the given settings")
     {
-        const auto uniforms = packLighting(FrameScene{ .instances = InstanceStore{} }, 0, 0.5f, LightingViewMode::Albedo);
+        const auto uniforms = packLighting(FrameScene{ .instances = InstanceStore{} }, 0, 0, 16, 0.5f, LightingViewMode::Albedo);
         CHECK(uniforms.ambientOcclusionFactor == 0.5f);
         CHECK(uniforms.viewMode == LightingViewMode::Albedo);
         CHECK(uniforms.pointLightCount == 0);
+        CHECK(uniforms.spotLightCount == 0);
         CHECK(equal(uniforms.cameraPosition, glm::vec4{ 0.0f }));
         CHECK(equal(uniforms.ambientColor, glm::vec4{ 0.0f }));
         CHECK(equal(uniforms.directionalColor, glm::vec4{ 0.0f }));
@@ -77,7 +78,7 @@ TEST_SUITE("render_graph::detail::packLighting")
                 .color = { 1.0f, 0.5f, 0.25f }, .intensity = 2.0f, .direction = { 0.0f, -1.0f, 0.0f } },
         };
 
-        const auto uniforms = packLighting(scene, 0, 1.0f, LightingViewMode::SceneColor);
+        const auto uniforms = packLighting(scene, 0, 0, 16, 1.0f, LightingViewMode::SceneColor);
         CHECK(equal(uniforms.cameraPosition, glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f }));
         CHECK(equal(uniforms.ambientColor, glm::vec4{ 0.1f, 0.2f, 0.3f, 0.5f }));
         CHECK(equal(uniforms.directionalColor, glm::vec4{ 1.0f, 0.5f, 0.25f, 2.0f }));
@@ -96,25 +97,163 @@ TEST_SUITE("render_graph::detail::packLighting")
             },
         };
 
-        CHECK(equal(packLighting(scene, 1, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 4.0f, 5.0f, 6.0f, 1.0f }));
-        CHECK(equal(packLighting(scene, 2, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 0.0f }));
-        CHECK(equal(packLighting(scene, 3, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 0.0f }));
+        CHECK(equal(packLighting(scene, 1, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 4.0f, 5.0f, 6.0f, 1.0f }));
+        CHECK(equal(packLighting(scene, 2, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 0.0f }));
+        CHECK(equal(packLighting(scene, 3, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 0.0f }));
     }
 
-    TEST_CASE("packs point lights and stops at the maximum")
+    TEST_CASE("points at the light buffer and counts the lights that fit, point lights first")
     {
         const InstanceStore instances;
         FrameScene scene{ .instances = instances };
-        for (std::uint32_t i = 0; i < aegis::render_graph::maxPointLights + 10; ++i)
-        {
-            scene.pointLights.push_back(
-                { .position = { static_cast<float>(i), 0.0f, 0.0f }, .color = { 1.0f, 0.0f, 0.0f }, .intensity = 3.0f });
-        }
+        scene.pointLights.resize(3);
+        scene.spotLights.resize(4);
 
-        const auto uniforms = packLighting(scene, 0, 1.0f, LightingViewMode::SceneColor);
-        CHECK(uniforms.pointLightCount == static_cast<std::int32_t>(aegis::render_graph::maxPointLights));
-        CHECK(equal(uniforms.pointLights[1].position, glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f }));
-        CHECK(equal(uniforms.pointLights[0].color, glm::vec4{ 1.0f, 0.0f, 0.0f, 3.0f }));
+        const auto all = packLighting(scene, 0, 0x1000, 16, 1.0f, LightingViewMode::SceneColor);
+        CHECK(all.lights == 0x1000);
+        CHECK(all.pointLightCount == 3);
+        CHECK(all.spotLightCount == 4);
+
+        const auto someSpots = packLighting(scene, 0, 0x1000, 5, 1.0f, LightingViewMode::SceneColor);
+        CHECK(someSpots.pointLightCount == 3);
+        CHECK(someSpots.spotLightCount == 2);
+
+        const auto somePoints = packLighting(scene, 0, 0x1000, 2, 1.0f, LightingViewMode::SceneColor);
+        CHECK(somePoints.pointLightCount == 2);
+        CHECK(somePoints.spotLightCount == 0);
+    }
+}
+
+TEST_SUITE("render_graph::detail::packLights")
+{
+    using aegis::render_graph::detail::coneAttenuation;
+    using aegis::render_graph::detail::packLight;
+    using aegis::render_graph::detail::packLights;
+
+    TEST_CASE("packs the point lights, then the spot lights, each in the scene's order")
+    {
+        const InstanceStore instances;
+        FrameScene scene{ .instances = instances };
+        scene.spotLights.push_back({ .position = { 10.0f, 0.0f, 0.0f } });
+        scene.pointLights.push_back({ .position = { 1.0f, 0.0f, 0.0f } });
+        scene.pointLights.push_back({ .position = { 2.0f, 0.0f, 0.0f } });
+        scene.spotLights.push_back({ .position = { 20.0f, 0.0f, 0.0f } });
+
+        const auto lights = packLights(scene);
+        REQUIRE(lights.size() == 4);
+        CHECK(lights[0].position.x == 1.0f);
+        CHECK(lights[1].position.x == 2.0f);
+        CHECK(lights[2].position.x == 10.0f);
+        CHECK(lights[3].position.x == 20.0f);
+    }
+
+    TEST_CASE("packs every light of a scene with more than the old fixed maximum of 128")
+    {
+        const InstanceStore instances;
+        FrameScene scene{ .instances = instances };
+        scene.pointLights.resize(1024);
+        CHECK(packLights(scene).size() == 1024);
+    }
+
+    TEST_CASE("a point light keeps its values and a cone that lets everything through")
+    {
+        const FrameScene::PointLight light{
+            .position = { 1.0f, 2.0f, 3.0f }, .color = { 0.5f, 0.25f, 1.0f }, .intensity = 7.0f, .range = 12.0f
+        };
+
+        const auto data = packLight(light);
+        CHECK(equal(data.position, glm::vec3{ 1.0f, 2.0f, 3.0f }));
+        CHECK(equal(data.color, glm::vec3{ 0.5f, 0.25f, 1.0f }));
+        CHECK(data.intensity == 7.0f);
+        CHECK(data.range == 12.0f);
+        CHECK(data.coneScale == 0.0f);
+        CHECK(data.coneOffset == 1.0f);
+        for (const auto toSurface : { glm::vec3{ 1.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, -1.0f, 0.0f }, glm::vec3{ 0.0f, 0.0f, 1.0f } })
+            CHECK(coneAttenuation(data, toSurface) == 1.0f);
+    }
+
+    TEST_CASE("a spot light lights its inner cone fully, fades to its outer cone and lights nothing beyond")
+    {
+        const FrameScene::SpotLight light{
+            .position = { 0.0f, 5.0f, 0.0f },
+            .direction = { 0.0f, -1.0f, 0.0f },
+            .range = 10.0f,
+            .innerConeAngle = glm::radians(20.0f),
+            .outerConeAngle = glm::radians(40.0f),
+        };
+        const auto data = packLight(light);
+        CHECK(equal(data.direction, glm::vec3{ 0.0f, -1.0f, 0.0f }));
+        CHECK(data.range == 10.0f);
+
+        // A direction at 'degrees' from the cone's axis.
+        const auto at = [](float degrees) {
+            const float angle = glm::radians(degrees);
+            return glm::vec3{ std::sin(angle), -std::cos(angle), 0.0f };
+        };
+        CHECK(coneAttenuation(data, at(0.0f)) == doctest::Approx(1.0f));
+        CHECK(coneAttenuation(data, at(19.0f)) == doctest::Approx(1.0f));
+        const float between = coneAttenuation(data, at(30.0f));
+        CHECK(between > 0.0f);
+        CHECK(between < 1.0f);
+        CHECK(coneAttenuation(data, at(41.0f)) == 0.0f);
+        CHECK(coneAttenuation(data, at(90.0f)) == 0.0f);
+        CHECK(coneAttenuation(data, at(180.0f)) == 0.0f);
+    }
+
+    TEST_CASE("a spot light whose outer cone is narrower than its inner one has a hard edge at the outer cone")
+    {
+        const FrameScene::SpotLight light{
+            .direction = { 0.0f, 0.0f, 1.0f },
+            .innerConeAngle = glm::radians(30.0f),
+            .outerConeAngle = glm::radians(10.0f),
+        };
+        const auto data = packLight(light);
+        CHECK(std::isfinite(data.coneScale));
+        CHECK(coneAttenuation(data, { 0.0f, 0.0f, 1.0f }) == doctest::Approx(1.0f));
+        const float angle = glm::radians(20.0f);
+        CHECK(coneAttenuation(data, { std::sin(angle), 0.0f, std::cos(angle) }) == 0.0f);
+    }
+}
+
+TEST_SUITE("render_graph::detail::distanceAttenuation")
+{
+    using aegis::render_graph::detail::distanceAttenuation;
+
+    TEST_CASE("falls off with the inverse square close to the light")
+    {
+        // Far inside the range the window is about 1.
+        CHECK(distanceAttenuation(1.0f, 100.0f) == doctest::Approx(1.0f).epsilon(1e-4));
+        CHECK(distanceAttenuation(2.0f, 100.0f) == doctest::Approx(0.25f).epsilon(1e-4));
+    }
+
+    TEST_CASE("reaches zero at the range and stays there")
+    {
+        CHECK(distanceAttenuation(20.0f, 20.0f) == 0.0f);
+        CHECK(distanceAttenuation(25.0f, 20.0f) == 0.0f);
+        CHECK(distanceAttenuation(19.0f, 20.0f) > 0.0f);
+    }
+
+    TEST_CASE("decreases with distance up to the range")
+    {
+        float previous = distanceAttenuation(0.5f, 20.0f);
+        for (float distance = 1.0f; distance <= 20.0f; distance += 0.5f)
+        {
+            const float current = distanceAttenuation(distance, 20.0f);
+            CHECK(current < previous);
+            previous = current;
+        }
+    }
+
+    TEST_CASE("windows the inverse square as glTF's KHR_lights_punctual does")
+    {
+        // At half the range: (1 - 0.5^4)^2 / 10^2.
+        CHECK(distanceAttenuation(10.0f, 20.0f) == doctest::Approx((1.0f - 0.0625f) * (1.0f - 0.0625f) / 100.0f));
+    }
+
+    TEST_CASE("stays finite at the light and with a zero range")
+    {
+        CHECK(std::isfinite(distanceAttenuation(0.0f, 20.0f)));
+        CHECK(distanceAttenuation(1.0f, 0.0f) == 0.0f);
     }
 }
 

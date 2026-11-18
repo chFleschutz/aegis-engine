@@ -353,7 +353,9 @@ auto buildFrameGraph(render_graph::GraphBuilder& graph, const render_graph::Defa
     Shell& shell) -> void
 {
     auto viewDesc = desc;
-    viewDesc.instances = render_graph::addSharedPasses(graph, desc);
+    const auto shared = render_graph::addSharedPasses(graph, desc);
+    viewDesc.instances = shared.instances;
+    viewDesc.lights = shared.lights;
     for (std::uint32_t view = 0; view < desc.views.size(); ++view)
     {
         graph.beginScope(desc.views[view].name, desc.views[view].extent);

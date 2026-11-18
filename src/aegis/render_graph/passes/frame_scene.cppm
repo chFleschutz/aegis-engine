@@ -67,7 +67,19 @@ struct FrameScene
         glm::vec3 position{ 0.0f };
         glm::vec3 color{ 1.0f };
         float intensity{ 1.0f };
-        float scale{ 1.0f }; // The transform's x scale, which sizes the light's billboard
+        float range{ 20.0f }; // Meters; the light fades to zero there
+        float scale{ 1.0f };  // The transform's x scale, which sizes the light's billboard
+    };
+
+    struct SpotLight
+    {
+        glm::vec3 position{ 0.0f };
+        glm::vec3 direction{ 0.0f, 0.0f, 1.0f }; // World space, normalized: where the cone points
+        glm::vec3 color{ 1.0f };
+        float intensity{ 1.0f };
+        float range{ 20.0f };                        // Meters; the light fades to zero there
+        float innerConeAngle{ 0.0f };                // Radians from the axis where the light starts to fade
+        float outerConeAngle{ glm::radians(45.0f) }; // Radians from the axis where it reaches zero
     };
 
     /// @brief The sky's image-based lighting; a texture the environment lacks is empty.
@@ -95,7 +107,8 @@ struct FrameScene
     std::vector<View> views;
     std::optional<AmbientLight> ambientLight;
     std::optional<DirectionalLight> directionalLight;
-    std::vector<PointLight> pointLights; // All of them; LightingPass shades the first maxPointLights
+    std::vector<PointLight> pointLights;
+    std::vector<SpotLight> spotLights;
     Environment environment;
     PostProcess postProcess;
 

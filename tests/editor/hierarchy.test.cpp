@@ -317,6 +317,8 @@ TEST_SUITE("editor::entityKind")
         CHECK(entityKind(registry, entity) == EntityKind::Sky);
         registry.add<aegis::AmbientLight>(entity);
         CHECK(entityKind(registry, entity) == EntityKind::AmbientLight);
+        registry.add<aegis::SpotLight>(entity);
+        CHECK(entityKind(registry, entity) == EntityKind::SpotLight);
         registry.add<aegis::PointLight>(entity);
         CHECK(entityKind(registry, entity) == EntityKind::PointLight);
         registry.add<aegis::DirectionalLight>(entity);

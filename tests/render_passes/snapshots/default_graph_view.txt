@@ -1,6 +1,8 @@
-1. Main/Scene Update
+1. Light Update
+    create Lights HostWrite
+2. Main/Scene Update
     create Main/CameraData HostWrite
-2. Main/Geometry
+3. Main/Geometry
     use    Main/CameraData ShaderRead
     create Main/Position ColorAttachment
     create Main/Normal ColorAttachment
@@ -14,12 +16,13 @@
     barrier Main/ARM: undefined -> ColorAttachment
     barrier Main/Emissive: undefined -> ColorAttachment
     barrier Main/Depth: undefined -> DepthAttachment
-3. Main/Lighting
+4. Main/Lighting
     use    Main/Position StorageRead
     use    Main/Normal StorageRead
     use    Main/Albedo StorageRead
     use    Main/ARM StorageRead
     use    Main/Emissive StorageRead
+    use    Lights ShaderRead
     create Main/SceneColor StorageWrite
     create Main/LightingUniforms HostWrite
     barrier Main/Position: ColorAttachment -> StorageRead
@@ -28,31 +31,32 @@
     barrier Main/ARM: ColorAttachment -> StorageRead
     barrier Main/Emissive: ColorAttachment -> StorageRead
     barrier Main/SceneColor: undefined -> StorageWrite
-4. Main/Sky Box
+5. Main/Sky Box
     use    Main/Depth DepthRead
     use    Main/SceneColor ColorAttachment
     barrier Main/Depth: DepthAttachment -> DepthRead
     barrier Main/SceneColor: StorageWrite -> ColorAttachment
-5. Main/Transparent
+6. Main/Transparent
     use    Main/Depth DepthRead
     use    Main/CameraData ShaderRead
     use    Main/SceneColor ColorAttachment
     barrier Main/SceneColor: ColorAttachment -> ColorAttachment
-6. Main/Bloom
+7. Main/Bloom
     use    Main/SceneColor StorageRead
     create Main/Bloom StorageWrite
     barrier Main/SceneColor: ColorAttachment -> StorageRead
     barrier Main/Bloom: undefined -> StorageWrite
-7. Main/Post Processing
+8. Main/Post Processing
     use    Main/SceneColor StorageRead
     use    Main/Bloom StorageRead
     create Main/Final StorageWrite
     barrier Main/Bloom: StorageWrite -> StorageRead
     barrier Main/Final: undefined -> StorageWrite
-8. UI
+9. UI
     use    Main/Final SampledFragment
     barrier Main/Final: StorageWrite -> SampledFragment
 resources
+    Lights: buffer, host written
     Main/CameraData: buffer, host written
     Main/Position: texture RGBA16_SFLOAT
     Main/Normal: texture RGBA16_SFLOAT

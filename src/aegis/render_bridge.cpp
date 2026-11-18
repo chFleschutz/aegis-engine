@@ -247,7 +247,20 @@ auto extractFrameScene(world::World& world, const render_graph::InstanceStore& i
             .position = transform.location,
             .color = light.color,
             .intensity = light.intensity,
+            .range = light.range,
             .scale = transform.scale.x,
+        });
+    }
+    for (auto&& [entity, transform, light] : registry.view<GlobalTransform, SpotLight>().each())
+    {
+        scene.spotLights.push_back({
+            .position = transform.location,
+            .direction = glm::normalize(transform.forward()),
+            .color = light.color,
+            .intensity = light.intensity,
+            .range = light.range,
+            .innerConeAngle = light.innerConeAngle,
+            .outerConeAngle = light.outerConeAngle,
         });
     }
     if (const auto sky = registry.first<Sky>())

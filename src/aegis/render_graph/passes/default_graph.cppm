@@ -2,6 +2,7 @@ export module aegis.render_passes:default_graph;
 import std;
 import :frame_scene;
 import :gpu_driven;
+import :lighting_pass;
 import :names;
 import aegis.render_graph;
 import aegis.rhi;
@@ -44,19 +45,28 @@ struct DefaultPassesDesc
     /// @brief The pass writing the instances all views share (addSharedPasses), which the GPU-driven scene passes
     ///        read; none: addScenePasses adds one of its own to the view.
     const InstanceUpdatePass* instances{ nullptr };
+    /// @brief The pass writing the lights all views share (addSharedPasses), which the lighting passes read; none:
+    ///        addScenePasses adds one of its own to the view.
+    const LightUpdatePass* lights{ nullptr };
     /// @brief Render the views into targets of their own (see ShownViews): the UI pass reads each view's "Final" and
     ///        draws onto the frame's target. Implies ui. Without it, the first view's "Final" is presented.
     std::optional<ShownViews> shownViews;
 };
 
-/// @brief Adds the passes all views share, outside any scope: with gpuDriven, the InstanceUpdatePass writing the
-///        frame's instances and draw batches.
-/// @return That pass, for DefaultPassesDesc::instances; none without gpuDriven.
-auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> const InstanceUpdatePass*;
+/// @brief The passes addSharedPasses added, for the DefaultPassesDesc of the views' scene passes.
+struct SharedPasses
+{
+    const InstanceUpdatePass* instances{ nullptr }; // For DefaultPassesDesc::instances; none without gpuDriven
+    const LightUpdatePass* lights{ nullptr };       // For DefaultPassesDesc::lights
+};
 
-/// @brief Adds the passes that render the view desc.view into "Final": scene update, CPU- or GPU-driven geometry,
-///        lighting, sky box, transparent (point lights), bloom and post-processing. Call it inside the view's scope
-///        (GraphBuilder::beginScope). Passes added after these and before addOutputPasses draw onto "Final" before the
+/// @brief Adds the passes all views share, outside any scope: the LightUpdatePass writing the frame's lights and,
+///        with gpuDriven, the InstanceUpdatePass writing its instances and draw batches.
+auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> SharedPasses;
+
+/// @brief Adds the passes that render the view desc.view into "Final": scene update, light update (without
+///        desc.lights), CPU- or GPU-driven geometry, lighting, sky box, transparent (point lights), bloom and
+///        post-processing. Call it inside the view's scope (GraphBuilder::beginScope). Passes added after these and before addOutputPasses draw onto "Final" before the
 ///        frame shows it (a game's or the editor's overlays).
 auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 

@@ -143,16 +143,16 @@ TEST_SUITE("render_bridge::extractFrameScene")
         CHECK(scene.directionalLight->direction.z == doctest::Approx(expected.z));
     }
 
-    TEST_CASE("copies every point light with its position and x scale")
+    TEST_CASE("copies every point light with its position, range and x scale")
     {
         aegis::world::World world;
         const InstanceStore instances;
         auto& registry = world.registry();
-        const std::uint32_t count{ 138 }; // More than the lighting pass shades (render_graph::maxPointLights, 128)
+        const std::uint32_t count{ 1024 };
         for (std::uint32_t i = 0; i < count; ++i)
         {
             const auto light = registry.create("Light");
-            registry.add<aegis::PointLight>(light, glm::vec3{ 1.0f, 0.0f, 0.0f }, 3.0f);
+            registry.add<aegis::PointLight>(light, glm::vec3{ 1.0f, 0.0f, 0.0f }, 3.0f, 12.0f);
             auto& transform = registry.get<aegis::GlobalTransform>(light);
             transform.location = { static_cast<float>(i), 0.0f, 0.0f };
             transform.scale = { 2.0f, 4.0f, 8.0f };
@@ -162,7 +162,36 @@ TEST_SUITE("render_bridge::extractFrameScene")
         REQUIRE(scene.pointLights.size() == count);
         CHECK(equal(scene.pointLights[0].color, glm::vec3{ 1.0f, 0.0f, 0.0f }));
         CHECK(scene.pointLights[0].intensity == 3.0f);
+        CHECK(scene.pointLights[0].range == 12.0f);
         CHECK(scene.pointLights[0].scale == 2.0f);
+    }
+
+    TEST_CASE("copies a spot light with its position, cone and the direction of its transform's forward")
+    {
+        aegis::world::World world;
+        const InstanceStore instances;
+        auto& registry = world.registry();
+        const auto light = registry.create("Spot");
+        registry.add<aegis::SpotLight>(light, glm::vec3{ 0.0f, 1.0f, 0.0f }, 50.0f, 8.0f, 0.25f, 0.5f);
+        auto& transform = registry.get<aegis::GlobalTransform>(light);
+        transform.location = { 1.0f, 2.0f, 3.0f };
+        transform.rotation = glm::quat{ glm::vec3{ 0.3f, 0.0f, 1.2f } };
+
+        const auto scene = aegis::extractFrameScene(world, instances);
+        REQUIRE(scene.spotLights.size() == 1);
+        const auto& spot = scene.spotLights[0];
+        CHECK(equal(spot.position, glm::vec3{ 1.0f, 2.0f, 3.0f }));
+        CHECK(equal(spot.color, glm::vec3{ 0.0f, 1.0f, 0.0f }));
+        CHECK(spot.intensity == 50.0f);
+        CHECK(spot.range == 8.0f);
+        CHECK(spot.innerConeAngle == 0.25f);
+        CHECK(spot.outerConeAngle == 0.5f);
+        const auto expected = glm::normalize(transform.forward());
+        CHECK(glm::length(spot.direction) == doctest::Approx(1.0f));
+        CHECK(spot.direction.x == doctest::Approx(expected.x));
+        CHECK(spot.direction.y == doctest::Approx(expected.y));
+        CHECK(spot.direction.z == doctest::Approx(expected.z));
+        CHECK(scene.pointLights.empty());
     }
 
     TEST_CASE("a sky without an environment leaves the environment empty")

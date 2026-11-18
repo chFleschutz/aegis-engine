@@ -1,4 +1,5 @@
 import modules.bindless;
+import modules.constants;
 import modules.pbr;
 
 // Deferred PBR lighting: reads the G-buffer, writes HDR scene color.
@@ -14,24 +15,34 @@ struct DirectionalLight
     float4 color; // rgb, intensity
 }
 
-struct PointLight
+/// render_graph::LightData: a point or spot light; a point light's cone lets everything through.
+struct Light
 {
-    float4 position;
-    float4 color; // rgb, intensity
+    float3 position;
+    float range;
+    float3 color;
+    float intensity;
+    float3 direction; // Where a spot light's cone points
+    float coneScale;
+    float coneOffset;
 }
 
-static const uint MAX_POINT_LIGHTS = 128;
-
-/// render_graph::LightingPass::Uniforms
+/// render_graph::LightingUniforms
 struct Lighting
 {
     float4 cameraPosition;
     AmbientLight ambient;
     DirectionalLight directional;
-    PointLight pointLights[MAX_POINT_LIGHTS];
-    int pointLightCount;
+    uint64_t lightAddress; // Light*: the point lights, then the spot lights
+    uint pointLightCount;
+    uint spotLightCount;
     float ambientOcclusionFactor;
     int viewMode;
+
+    property Light* lights
+    {
+        get { return (Light*)lightAddress; }
+    }
 }
 
 struct PushConstants
@@ -116,14 +127,21 @@ func main(uint3 dispatchThreadID: SV_DispatchThreadID)
             float3 radiance = lighting->directional.color.rgb * lighting->directional.color.w;
             Lo += PBR::computeLighting(N, V, L, albedo, roughness, metallic, radiance, F0);
         }
-        // Point Lights
-        for (int i = 0; i < lighting->pointLightCount; i++)
+        // Point and spot lights: they shade alike
+        let lights = lighting->lights;
+        let lightCount = lighting->pointLightCount + lighting->spotLightCount;
+        for (uint i = 0; i < lightCount; i++)
         {
-            PointLight light = lighting->pointLights[i];
-            float3 L = normalize(light.position.xyz - position);
+            Light light = lights[i];
+            float3 toLight = light.position - position;
+            float distance = length(toLight);
+            if (distance >= light.range)
+                continue;
+            float3 L = toLight / max(distance, constants::EPSILON);
 
-            float attenuation = PBR::lightAttenuation(light.position.xyz, position);
-            float3 radiance = light.color.rgb * light.color.w * attenuation;
+            float attenuation = PBR::distanceAttenuation(distance, light.range) *
+                                PBR::coneAttenuation(light.direction, light.coneScale, light.coneOffset, -L);
+            float3 radiance = light.color * light.intensity * attenuation;
             Lo += PBR::computeLighting(N, V, L, albedo, roughness, metallic, radiance, F0);
         }
     }
