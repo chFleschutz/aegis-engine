@@ -204,20 +204,40 @@ auto ResourcePool::textureDesc(std::uint32_t entry, rhi::ImageUsage usage) const
     const auto& desc = std::get<TextureDesc>(declared.info);
     return {
         .name = declared.name,
-        .extent = rhi::Extent3D{ detail::textureExtent(desc, m_output) },
+        .extent = rhi::Extent3D{ detail::textureExtent(desc, declared.scope ? scopeExtent(*declared.scope) : m_output) },
         .format = desc.format,
         .usage = usage,
         .mipLevels = desc.mipLevels,
     };
 }
 
+auto ResourcePool::scopeExtent(std::uint32_t scope) const -> rhi::Extent2D
+{
+    assert(scope < m_scopeExtents.size() && "Invalid frame graph scope, or used before compile");
+    return m_scopeExtents[scope].value_or(m_output);
+}
+
 auto ResourcePool::resize(rhi::Extent2D output) -> std::expected<void, Error>
 {
     m_output = output;
+    // Textures of a scope with an extent of its own don't follow the output.
+    return recreateFollowing([this](std::optional<std::uint32_t> scope) { return !scope || !m_scopeExtents[*scope]; });
+}
+
+auto ResourcePool::resize(std::uint32_t scope, rhi::Extent2D extent) -> std::expected<void, Error>
+{
+    assert(scope < m_scopeExtents.size() && "Invalid frame graph scope, or used before compile");
+    m_scopeExtents[scope] = extent;
+    return recreateFollowing([scope](std::optional<std::uint32_t> of) { return of == scope; });
+}
+
+auto ResourcePool::recreateFollowing(const std::function<bool(std::optional<std::uint32_t>)>& inScope) -> std::expected<void, Error>
+{
     for (std::uint32_t i = 0; i < m_created.size(); ++i)
     {
         auto* created = std::get_if<CreatedTexture>(&m_created[i]);
-        if (!created || !detail::followsOutput(std::get<TextureDesc>(m_declarations.entries()[i].info)))
+        const auto& entry = m_declarations.entries()[i];
+        if (!created || !detail::followsOutput(std::get<TextureDesc>(entry.info)) || !inScope(entry.scope))
             continue;
         for (std::size_t image = 0; image < (created->lifetime == Lifetime::History ? 2u : 1u); ++image)
         {
@@ -235,6 +255,9 @@ auto ResourcePool::createResources(const GraphPlan& plan) -> std::expected<void,
     const auto entries = m_declarations.entries();
     m_targets = plan.target;
     m_previous = plan.previous;
+    m_scopeExtents.clear();
+    for (const auto& scope : m_declarations.scopes())
+        m_scopeExtents.push_back(scope.extent);
     m_created.resize(entries.size());
     for (std::uint32_t i = 0; i < entries.size(); ++i)
     {

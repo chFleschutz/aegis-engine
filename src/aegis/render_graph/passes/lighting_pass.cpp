@@ -10,8 +10,9 @@ import aegis.math;
 
 namespace aegis::render_graph
 {
-LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view) :
     m_scene{ scene },
+    m_view{ view },
     m_gBuffer{
         declarations.addReference(names::position, Usage::StorageRead),
         declarations.addReference(names::normal, Usage::StorageRead),
@@ -58,7 +59,7 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
         return;
     }
 
-    const auto uniforms = detail::packLighting(scene, m_ambientOcclusionFactor, m_viewMode);
+    const auto uniforms = detail::packLighting(scene, m_view, m_ambientOcclusionFactor, m_viewMode);
     pool.write(m_uniforms, frameInfo.frameIndex, std::as_bytes(std::span{ &uniforms, 1 }));
 
     const LightingConstants constants{
@@ -79,7 +80,8 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     const auto& cmd = frameInfo.cmd;
     cmd.bindPipeline(*m_pipeline);
     cmd.pushConstants(constants);
-    cmd.dispatch(groupCount(frameInfo.extent.x, computeGroupSize), groupCount(frameInfo.extent.y, computeGroupSize));
+    const auto extent = pool.extent(m_sceneColor);
+    cmd.dispatch(groupCount(extent.x, computeGroupSize), groupCount(extent.y, computeGroupSize));
 }
 
 auto LightingPass::drawUI() -> void
@@ -94,14 +96,15 @@ auto LightingPass::drawUI() -> void
 
 namespace detail
 {
-auto packLighting(const FrameScene& scene, float ambientOcclusionFactor, LightingViewMode viewMode) -> LightingUniforms
+auto packLighting(const FrameScene& scene, std::uint32_t view, float ambientOcclusionFactor, LightingViewMode viewMode)
+    -> LightingUniforms
 {
     LightingUniforms uniforms{
         .ambientOcclusionFactor = ambientOcclusionFactor,
         .viewMode = viewMode,
     };
-    if (scene.camera)
-        uniforms.cameraPosition = glm::vec4{ scene.camera->position, 1.0f };
+    if (const auto camera = scene.camera(view))
+        uniforms.cameraPosition = glm::vec4{ camera->position, 1.0f };
     if (const auto& light = scene.ambientLight)
         uniforms.ambientColor = glm::vec4{ light->color, light->intensity };
     if (const auto& light = scene.directionalLight)

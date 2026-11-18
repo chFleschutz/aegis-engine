@@ -79,14 +79,14 @@ TEST_SUITE("engine::buildFrameGraph")
 {
     TEST_CASE("without a game hook and with the game shell the frame graph is the default graph")
     {
-        const std::optional<DefaultPassesDesc::View> view{ DefaultPassesDesc::View{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB } };
+        const std::optional<DefaultPassesDesc::ShownViews> view{ DefaultPassesDesc::ShownViews{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB } };
         for (const bool gpuDriven : { false, true })
         {
             for (const bool withView : { false, true })
             {
                 CAPTURE(gpuDriven);
                 CAPTURE(withView);
-                const DefaultPassesDesc desc{ .scene = scene, .gpuDriven = gpuDriven, .ui = true, .view = withView ? view : std::nullopt };
+                const DefaultPassesDesc desc{ .scene = scene, .gpuDriven = gpuDriven, .ui = true, .shownViews = withView ? view : std::nullopt };
                 GraphBuilder engine;
                 aegis::GameShell shell;
                 buildFrameGraph(engine, desc, {}, shell);
@@ -113,9 +113,9 @@ TEST_SUITE("engine::buildFrameGraph")
         buildFrameGraph(builder, { .scene = scene, .gpuDriven = false, .ui = true }, game, shell);
 
         const auto names = plannedNames(builder);
-        CHECK(position(names, "Post Processing") < position(names, "Game Overlay"));
-        CHECK(position(names, "Game Overlay") < position(names, "Shell Overlay"));
-        CHECK(position(names, "Shell Overlay") < position(names, "UI"));
+        CHECK(position(names, "Main/Post Processing") < position(names, "Main/Game Overlay"));
+        CHECK(position(names, "Main/Game Overlay") < position(names, "Main/Shell Overlay"));
+        CHECK(position(names, "Main/Shell Overlay") < position(names, "UI"));
         CHECK(position(names, "UI") < position(names, "Present"));
     }
 
@@ -126,6 +126,29 @@ TEST_SUITE("engine::buildFrameGraph")
         const aegis::GraphBuild game = [](GraphBuilder& graph, const DefaultPassesDesc& /*desc*/) { graph.add<FinalPass>(); };
         buildFrameGraph(builder, { .scene = scene, .gpuDriven = false, .ui = true }, game, shell);
 
-        CHECK(plannedNames(builder) == std::vector<std::string_view>{ "Game Final", "UI", "Present" });
+        CHECK(plannedNames(builder) == std::vector<std::string_view>{ "Main/Game Final", "UI", "Present" });
+    }
+
+    TEST_CASE("each view gets the game's and the shell's passes in its own scope")
+    {
+        GraphBuilder builder;
+        OverlayShell shell;
+        const aegis::GraphBuild game = [](GraphBuilder& graph, const DefaultPassesDesc& /*desc*/) { graph.add<FinalPass>(); };
+        buildFrameGraph(builder,
+            {
+                .scene = scene,
+                .gpuDriven = true,
+                .ui = true,
+                .views = { { .name = "Edit" }, { .name = "Play", .extent = aegis::rhi::Extent2D{ 320, 240 } } },
+                .shownViews = DefaultPassesDesc::ShownViews{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB },
+            },
+            game, shell);
+
+        // The shared instance pass comes first, then each view's; the UI shows both views.
+        CHECK(plannedNames(builder) == std::vector<std::string_view>{
+                                           "Instance Update", "Edit/Game Final", "Edit/Shell Overlay", "Play/Game Final", "Play/Shell Overlay", "UI" });
+        const auto scopes = builder.declarations().scopes();
+        REQUIRE(scopes.size() == 2);
+        CHECK(scopes[1].extent == aegis::rhi::Extent2D{ 320, 240 });
     }
 }

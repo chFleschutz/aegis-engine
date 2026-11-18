@@ -29,7 +29,7 @@ auto FrameGraph::compile() -> std::expected<void, Error>
         if (auto created = m_passes[index]->createResources(m_pool); !created)
         {
             auto error = created.error();
-            error.message = std::format("{}: {}", m_passes[index]->name(), error.message);
+            error.message = std::format("{}: {}", m_declarations.passName(index), error.message);
             return std::unexpected{ std::move(error) };
         }
     }
@@ -59,7 +59,7 @@ auto FrameGraph::readTimings(FrameTimer& timer) -> void
     for (std::size_t i = 0; i < m_order.size(); ++i)
     {
         m_timings[i] = {
-            .name = std::string{ m_passes[m_order[i]]->name() },
+            .name = std::string{ m_declarations.passName(m_order[i]) },
             .gpuMs = timer.pool.elapsedMs((*timestamps)[2 * i], (*timestamps)[2 * i + 1]),
             .cpuMs = timer.cpuMs[i],
         };
@@ -70,6 +70,21 @@ auto FrameGraph::resized(rhi::Extent2D output) -> std::expected<void, Error>
 {
     if (auto recreated = m_pool.resize(output); !recreated)
         return recreated;
+    return resizedPasses();
+}
+
+auto FrameGraph::resized(std::string_view scope, rhi::Extent2D extent) -> std::expected<void, Error>
+{
+    const auto index = m_declarations.findScope(scope);
+    if (!index)
+        return makeError(ErrorCode::InvalidGraph, std::format("The frame graph has no scope '{}'", scope));
+    if (auto recreated = m_pool.resize(*index, extent); !recreated)
+        return recreated;
+    return resizedPasses();
+}
+
+auto FrameGraph::resizedPasses() -> std::expected<void, Error>
+{
     for (const auto index : m_order)
     {
         if (auto result = m_passes[index]->resized(m_pool); !result)
@@ -104,7 +119,7 @@ auto FrameGraph::execute(const FrameInfo& frameInfo) -> void
     {
         const auto cpuStart = std::chrono::steady_clock::now();
         auto& pass = *m_passes[m_order[i]];
-        frameInfo.cmd.beginLabel(pass.name());
+        frameInfo.cmd.beginLabel(m_declarations.passName(m_order[i]));
         if (timer)
             frameInfo.cmd.writeTimestamp(timer->pool, static_cast<std::uint32_t>(2 * i), rhi::TimestampStage::TopOfPipe);
 
@@ -142,7 +157,7 @@ auto FrameGraph::describePasses() const -> std::vector<PassDescription>
     {
         ordered.push_back({
             .pass = m_passes[index].get(),
-            .name = m_passes[index]->name(),
+            .name = m_declarations.passName(index),
             .reads = m_declarations.reads(index),
             .writes = m_declarations.writes(index),
         });

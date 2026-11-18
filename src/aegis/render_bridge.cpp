@@ -203,10 +203,11 @@ auto extractFrameScene(world::World& world, const render_graph::InstanceStore& i
     auto& registry = world.registry();
     FrameScene scene{ .instances = instances };
 
+    auto& view = scene.views.emplace_back(FrameScene::View{ .name = std::string{ render_graph::names::mainView } });
     if (const auto camera = world.mainCamera(); camera && registry.has<Camera, GlobalTransform>(camera))
     {
         const auto& component = registry.get<Camera>(camera);
-        scene.camera = FrameScene::Camera{
+        view.camera = FrameScene::Camera{
             .view = component.viewMatrix,
             .projection = component.projectionMatrix,
             .position = registry.get<GlobalTransform>(camera).location,

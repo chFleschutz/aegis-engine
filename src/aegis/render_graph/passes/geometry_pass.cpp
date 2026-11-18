@@ -68,8 +68,8 @@ auto GeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
         .colorAttachments = colorAttachments,
         .depthAttachment = rhi::Attachment::depth(pool.texture(m_depth).view, rhi::ClearDepthStencil{ 1.0f, 0 }),
     });
-    cmd.setViewport(frameInfo.extent);
-    cmd.setScissor(frameInfo.extent);
+    cmd.setViewport(pool.extent(m_depth));
+    cmd.setScissor(pool.extent(m_depth));
 
     const RenderContext context{
         .cmd = cmd,

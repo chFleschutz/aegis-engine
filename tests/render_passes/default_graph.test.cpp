@@ -38,10 +38,11 @@ auto updateRequested() -> bool
 #endif
 }
 
-auto planOfDefaultGraph(bool gpuDriven, std::optional<DefaultPassesDesc::View> view = std::nullopt) -> std::string
+auto planOfDefaultGraph(bool gpuDriven, std::optional<DefaultPassesDesc::ShownViews> shown = std::nullopt,
+    std::vector<DefaultPassesDesc::View> views = { { .name = "Main" } }) -> std::string
 {
     GraphBuilder builder;
-    addDefaultPasses(builder, { .scene = scene, .gpuDriven = gpuDriven, .ui = true, .view = view });
+    addDefaultPasses(builder, { .scene = scene, .gpuDriven = gpuDriven, .ui = true, .views = std::move(views), .shownViews = shown });
 
     const auto plan = builder.plan();
     REQUIRE(plan.has_value());
@@ -92,7 +93,16 @@ TEST_SUITE("render_graph::addDefaultPasses")
     TEST_CASE("the default graph rendering into a view matches its plan snapshot")
     {
         // The UI pass samples "Final" and comes last, with no present pass.
-        checkSnapshot("default_graph_view.txt", planOfDefaultGraph(false, DefaultPassesDesc::View{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB }));
+        checkSnapshot("default_graph_view.txt", planOfDefaultGraph(false, DefaultPassesDesc::ShownViews{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB }));
+    }
+
+    TEST_CASE("the GPU-driven default graph with two views matches its plan snapshot")
+    {
+        // One shared instance pass; each view's scene passes with resources of their own, culling included, and the
+        // barriers between them; the UI pass samples both views' "Final".
+        checkSnapshot("default_graph_two_views.txt",
+            planOfDefaultGraph(true, DefaultPassesDesc::ShownViews{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB },
+                { { .name = "Edit" }, { .name = "Play", .extent = aegis::rhi::Extent2D{ 320, 240 } } }));
     }
 
     TEST_CASE("every pass of the default graph has a name")

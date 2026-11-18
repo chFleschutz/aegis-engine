@@ -1,6 +1,7 @@
 module;
 // ImGui's Vulkan backend is a C API on the Vulkan headers; it is the one place the new stack hands
 // raw handles to a library.
+#include <cassert>
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 
@@ -49,10 +50,16 @@ auto backendInitialized() -> bool
 
 UiPass::UiPass(ResourceDeclarations& declarations, Desc desc) :
     m_context{ desc.context },
-    m_targetFormat{ desc.targetFormat },
-    // Onto the frame's target the read only orders the scene passes first and readies "Final" to be shown.
-    m_final{ declarations.addReference(names::finalImage, desc.targetFormat ? Usage::SampledFragment : Usage::ColorAttachment) }
+    m_targetFormat{ desc.targetFormat }
 {
+    assert(!desc.finals.empty() && "The UI pass draws over or shows at least one image");
+    // Onto the frame's target the reads only order the scene passes first and ready each "Final" to be shown.
+    for (const auto& final : desc.finals)
+    {
+        m_finals.push_back(declarations.addReference(final, desc.targetFormat ? Usage::SampledFragment : Usage::ColorAttachment));
+        if (!desc.targetFormat)
+            break; // Drawn over: only the first
+    }
 }
 
 UiPass::~UiPass()
@@ -70,7 +77,7 @@ auto UiPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
     if (!m_context)
         return makeError(ErrorCode::InitializationFailed, "The UI pass needs the rhi::Context");
-    const auto targetFormat = m_targetFormat.value_or(pool.format(m_final));
+    const auto targetFormat = m_targetFormat.value_or(pool.format(m_finals.front()));
     const auto vkTargetFormat = toVkFormat(targetFormat);
     if (!vkTargetFormat)
         return makeError(ErrorCode::InitializationFailed, std::format("The UI pass cannot draw onto a {} target", rhi::formatName(targetFormat)));
@@ -129,7 +136,7 @@ auto UiPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     const auto& cmd = frameInfo.cmd;
     std::array colorAttachments{ m_targetFormat
                                      ? rhi::Attachment::color(frameInfo.target, rhi::ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f })
-                                     : rhi::Attachment::colorLoad(pool.texture(m_final).view) };
+                                     : rhi::Attachment::colorLoad(pool.texture(m_finals.front()).view) };
     cmd.beginRendering({ .colorAttachments = colorAttachments });
     if (draws)
         ImGui_ImplVulkan_RenderDrawData(drawData, static_cast<VkCommandBuffer>(cmd.handle()));

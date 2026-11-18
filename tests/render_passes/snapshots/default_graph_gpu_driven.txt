@@ -1,101 +1,101 @@
-1. Scene Update
-    create CameraData HostWrite
-2. Instance Update
+1. Instance Update
     create StaticInstances HostWrite
     create DynamicInstances HostWrite
     create DrawBatches HostWrite
-3. Clear Draw Counts
-    create IndirectDrawCounts TransferDst
-    barrier IndirectDrawCounts: last frame's IndirectRead -> TransferDst
-4. Culling
-    use    CameraData ShaderRead
+2. Main/Scene Update
+    create Main/CameraData HostWrite
+3. Main/Clear Draw Counts
+    create Main/IndirectDrawCounts TransferDst
+    barrier Main/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
+4. Main/Culling
+    use    Main/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
     use    DrawBatches ShaderRead
-    create VisibleInstances StorageWrite
-    create IndirectDrawCommands StorageWrite
-    use    IndirectDrawCounts StorageWrite
-    barrier VisibleInstances: last frame's ShaderRead -> StorageWrite
-    barrier IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
-    barrier IndirectDrawCounts: TransferDst -> StorageWrite
-5. GPU Driven Geometry
-    use    CameraData ShaderRead
+    create Main/VisibleInstances StorageWrite
+    create Main/IndirectDrawCommands StorageWrite
+    use    Main/IndirectDrawCounts StorageWrite
+    barrier Main/VisibleInstances: last frame's ShaderRead -> StorageWrite
+    barrier Main/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
+    barrier Main/IndirectDrawCounts: TransferDst -> StorageWrite
+5. Main/GPU Driven Geometry
+    use    Main/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
-    use    VisibleInstances ShaderRead
-    use    IndirectDrawCommands IndirectRead
-    use    IndirectDrawCounts IndirectRead
-    create Position ColorAttachment
-    create Normal ColorAttachment
-    create Albedo ColorAttachment
-    create ARM ColorAttachment
-    create Emissive ColorAttachment
-    create Depth DepthAttachment
-    barrier VisibleInstances: StorageWrite -> ShaderRead
-    barrier IndirectDrawCommands: StorageWrite -> IndirectRead
-    barrier IndirectDrawCounts: StorageWrite -> IndirectRead
-    barrier Position: undefined -> ColorAttachment
-    barrier Normal: undefined -> ColorAttachment
-    barrier Albedo: undefined -> ColorAttachment
-    barrier ARM: undefined -> ColorAttachment
-    barrier Emissive: undefined -> ColorAttachment
-    barrier Depth: undefined -> DepthAttachment
-6. Lighting
-    use    Position StorageRead
-    use    Normal StorageRead
-    use    Albedo StorageRead
-    use    ARM StorageRead
-    use    Emissive StorageRead
-    create SceneColor StorageWrite
-    create LightingUniforms HostWrite
-    barrier Position: ColorAttachment -> StorageRead
-    barrier Normal: ColorAttachment -> StorageRead
-    barrier Albedo: ColorAttachment -> StorageRead
-    barrier ARM: ColorAttachment -> StorageRead
-    barrier Emissive: ColorAttachment -> StorageRead
-    barrier SceneColor: undefined -> StorageWrite
-7. Sky Box
-    use    Depth DepthRead
-    use    SceneColor ColorAttachment
-    barrier Depth: DepthAttachment -> DepthRead
-    barrier SceneColor: StorageWrite -> ColorAttachment
-8. Transparent
-    use    Depth DepthRead
-    use    CameraData ShaderRead
-    use    SceneColor ColorAttachment
-    barrier SceneColor: ColorAttachment -> ColorAttachment
-9. Bloom
-    use    SceneColor StorageRead
-    create Bloom StorageWrite
-    barrier SceneColor: ColorAttachment -> StorageRead
-    barrier Bloom: undefined -> StorageWrite
-10. Post Processing
-    use    SceneColor StorageRead
-    use    Bloom StorageRead
-    create Final StorageWrite
-    barrier Bloom: StorageWrite -> StorageRead
-    barrier Final: undefined -> StorageWrite
+    use    Main/VisibleInstances ShaderRead
+    use    Main/IndirectDrawCommands IndirectRead
+    use    Main/IndirectDrawCounts IndirectRead
+    create Main/Position ColorAttachment
+    create Main/Normal ColorAttachment
+    create Main/Albedo ColorAttachment
+    create Main/ARM ColorAttachment
+    create Main/Emissive ColorAttachment
+    create Main/Depth DepthAttachment
+    barrier Main/VisibleInstances: StorageWrite -> ShaderRead
+    barrier Main/IndirectDrawCommands: StorageWrite -> IndirectRead
+    barrier Main/IndirectDrawCounts: StorageWrite -> IndirectRead
+    barrier Main/Position: undefined -> ColorAttachment
+    barrier Main/Normal: undefined -> ColorAttachment
+    barrier Main/Albedo: undefined -> ColorAttachment
+    barrier Main/ARM: undefined -> ColorAttachment
+    barrier Main/Emissive: undefined -> ColorAttachment
+    barrier Main/Depth: undefined -> DepthAttachment
+6. Main/Lighting
+    use    Main/Position StorageRead
+    use    Main/Normal StorageRead
+    use    Main/Albedo StorageRead
+    use    Main/ARM StorageRead
+    use    Main/Emissive StorageRead
+    create Main/SceneColor StorageWrite
+    create Main/LightingUniforms HostWrite
+    barrier Main/Position: ColorAttachment -> StorageRead
+    barrier Main/Normal: ColorAttachment -> StorageRead
+    barrier Main/Albedo: ColorAttachment -> StorageRead
+    barrier Main/ARM: ColorAttachment -> StorageRead
+    barrier Main/Emissive: ColorAttachment -> StorageRead
+    barrier Main/SceneColor: undefined -> StorageWrite
+7. Main/Sky Box
+    use    Main/Depth DepthRead
+    use    Main/SceneColor ColorAttachment
+    barrier Main/Depth: DepthAttachment -> DepthRead
+    barrier Main/SceneColor: StorageWrite -> ColorAttachment
+8. Main/Transparent
+    use    Main/Depth DepthRead
+    use    Main/CameraData ShaderRead
+    use    Main/SceneColor ColorAttachment
+    barrier Main/SceneColor: ColorAttachment -> ColorAttachment
+9. Main/Bloom
+    use    Main/SceneColor StorageRead
+    create Main/Bloom StorageWrite
+    barrier Main/SceneColor: ColorAttachment -> StorageRead
+    barrier Main/Bloom: undefined -> StorageWrite
+10. Main/Post Processing
+    use    Main/SceneColor StorageRead
+    use    Main/Bloom StorageRead
+    create Main/Final StorageWrite
+    barrier Main/Bloom: StorageWrite -> StorageRead
+    barrier Main/Final: undefined -> StorageWrite
 11. UI
-    use    Final ColorAttachment
-    barrier Final: StorageWrite -> ColorAttachment
+    use    Main/Final ColorAttachment
+    barrier Main/Final: StorageWrite -> ColorAttachment
 12. Present
-    use    Final TransferSrc
-    barrier Final: ColorAttachment -> TransferSrc
+    use    Main/Final TransferSrc
+    barrier Main/Final: ColorAttachment -> TransferSrc
 resources
-    CameraData: buffer, host written
     StaticInstances: buffer, host written
     DynamicInstances: buffer, host written
     DrawBatches: buffer, host written
-    IndirectDrawCounts: buffer
-    VisibleInstances: buffer
-    IndirectDrawCommands: buffer
-    Position: texture RGBA16_SFLOAT
-    Normal: texture RGBA16_SFLOAT
-    Albedo: texture RGBA8_UNORM
-    ARM: texture RGBA8_UNORM
-    Emissive: texture RGBA8_UNORM
-    Depth: texture D32_SFLOAT
-    SceneColor: texture RGBA16_SFLOAT
-    LightingUniforms: buffer, host written
-    Bloom: texture RGBA16_SFLOAT
-    Final: texture RGBA16_SFLOAT
+    Main/CameraData: buffer, host written
+    Main/IndirectDrawCounts: buffer
+    Main/VisibleInstances: buffer
+    Main/IndirectDrawCommands: buffer
+    Main/Position: texture RGBA16_SFLOAT
+    Main/Normal: texture RGBA16_SFLOAT
+    Main/Albedo: texture RGBA8_UNORM
+    Main/ARM: texture RGBA8_UNORM
+    Main/Emissive: texture RGBA8_UNORM
+    Main/Depth: texture D32_SFLOAT
+    Main/SceneColor: texture RGBA16_SFLOAT
+    Main/LightingUniforms: buffer, host written
+    Main/Bloom: texture RGBA16_SFLOAT
+    Main/Final: texture RGBA16_SFLOAT

@@ -132,12 +132,12 @@ Still to come: the views to render (world, camera and target per view, R5 [#192]
 
 ```
 1. platform     window events; input update. Capture flags come from the shell (viewport focus), not raw ImGui flags;
-                the frame graph follows the RenderView extent the shell asked for last frame
+                the frame graph follows the views (RenderView names and extents) the shell asked for last frame
 2. UI + edits   Presentation: ImGui NewFrame
                 shell.onFrame(frame)    <- the editor builds its UI and applies edits directly (safe point)
                 Presentation: ImGui::Render() -> draw data ready
 3. simulate     the worlds the shell updated in onFrame: deferred commands, then the phases
-4. render       for each RenderView: render world W through camera C into target T;
+4. render       one world W; each view's scene passes, in its scope, through its camera into its target;
                 the UI pass then records the ready draw data onto the swapchain image
 5. present
 ```
@@ -179,8 +179,8 @@ Still to come: the views to render (world, camera and target per view, R5 [#192]
   rendering straight to the swapchain, with no extra copy.
 - **The editor camera belongs to the editor, not the world.** It has a position, yaw/pitch, FOV,
   near/far and a speed. It is never an entity, so it can't end up in a scene file or be moved by a
-  script. Its `RenderView` replaces the `FrameScene`'s camera that `extractFrameScene` takes from the
-  world. In play mode the viewport shows
+  script. Its `RenderView` becomes a view of the frame scene, in place of the main camera's that
+  `extractFrameScene` takes from the world (see [`0012-views-as-scoped-subgraphs.md`](adr/0012-views-as-scoped-subgraphs.md)). In play mode the viewport shows
   the world's main camera, and "eject" switches back to the editor camera while playing (nice to have).
 - **Controls:** RMB + WASD/QE to fly (wheel changes the speed, which the speed field shows), Alt + LMB to orbit,
   MMB to pan, wheel to dolly, F to focus the selection (its bounding sphere). Z is up, matching [`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md).

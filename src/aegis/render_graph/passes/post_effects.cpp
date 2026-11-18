@@ -203,8 +203,8 @@ auto TransparentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
         .colorAttachments = colorAttachments,
         .depthAttachment = rhi::Attachment::depthReadOnly(pool.texture(m_depth).view),
     });
-    cmd.setViewport(frameInfo.extent);
-    cmd.setScissor(frameInfo.extent);
+    cmd.setViewport(pool.extent(m_depth));
+    cmd.setScissor(pool.extent(m_depth));
 
     const RenderContext context{
         .cmd = cmd,

@@ -99,8 +99,9 @@ struct AppDesc
     std::uint32_t frames{ 0 };
     /// @brief Headless: save the last frame here as PNG.
     std::string screenshot;
-    /// @brief With a shell's view: the screenshot shows the view's target only, not the window's whole frame
-    ///        with the shell's UI over it.
+    /// @brief With a shell's views: the screenshot shows each view's target only, not the window's whole frame
+    ///        with the shell's UI over it. One view's goes to 'screenshot'; with several, each view's goes next to it,
+    ///        named after the view (`shot-Play.png` for `shot.png`).
     bool screenshotView{ false };
     /// @brief GPU-driven rendering (mesh shaders) where the device supports it; false renders CPU-driven.
     bool gpuDriven{ true };
@@ -211,11 +212,23 @@ struct RenderView
 {
     using Camera = render_graph::FrameScene::Camera;
 
+    /// @brief Names the view's resources in the frame graph (its scope, render_graph::scopedName): its image is
+    ///        "<name>/Final". Unique among the shell's views, without a '/'; empty is render_graph::names::mainView.
+    std::string name;
     /// @brief Replaces the world's main camera this frame; none renders through the main camera.
     std::optional<Camera> camera;
-    /// @brief The target's size, apart from the window's; at least 1x1. The scene renders into the frame graph's
-    ///        "Final" at this size, and the window shows only the UI.
+    /// @brief The target's size, apart from the window's; at least 1x1. The scene renders into the view's "Final" at
+    ///        this size, and the window shows only the UI.
     rhi::Extent2D extent;
+};
+
+/// @brief A view the frame graph renders into a target of its own this frame (Shell::renderViews).
+struct ViewTarget
+{
+    std::string name;
+    rhi::Extent2D extent;
+    /// @brief The view's image in the frame graph: "<name>/Final", in a state the UI can show (Presentation::uiTexture).
+    render_graph::ResourceId final;
 };
 
 /// @brief What a shell gets at the frame's safe point: input has been read and the ImGui frame is open,
@@ -234,9 +247,9 @@ struct FrameContext
     /// @brief Read-only introspection: the passes, their resources and timings. It stays as it is until the
     ///        frame has rendered, so its textures can be shown in the UI (Presentation::uiTexture).
     render_graph::FrameGraph& frameGraph;
-    /// @brief The extent of the view the frame graph renders into this frame (the shell's last RenderView); none
-    ///        when it renders onto the window. Only then is its "Final" in a state the UI can show.
-    std::optional<rhi::Extent2D> viewExtent;
+    /// @brief The views the frame graph renders this frame (the shell's last renderViews), in that order; empty when
+    ///        it renders onto the window. Only their images are in a state the UI can show.
+    std::span<const ViewTarget> views;
     Presentation& presentation;
     /// @brief The main world's instances.
     const render_graph::InstanceStore& instances;
@@ -280,15 +293,16 @@ public:
     /// @brief The input the game doesn't see this frame; asked before the input is read, and again after onFrame,
     ///        before the worlds update, so a shortcut the UI ran this frame keeps its key from the game.
     [[nodiscard]] virtual auto inputCapture() const -> InputCapture { return {}; }
-    /// @brief The view to render; none renders onto the window (or, headless, the offscreen target). Asked before
-    ///        onFrame for the frame graph, which is rebuilt when a view appears or goes and resized when its extent
-    ///        changes, and after it for the camera: a change of the extent the UI makes applies from the next frame,
-    ///        so the graph's textures the UI shows stay valid until they are drawn. Keep the extent steady while a
-    ///        panel is being dragged.
-    [[nodiscard]] virtual auto renderView() const -> std::optional<RenderView> { return std::nullopt; }
-    /// @brief Declares the shell's passes, after the game's (GameModule::buildGraph) and before the output passes (UI,
-    ///        present), so they can draw onto "Final", such as the editor's overlays. None by default. Runs on every
-    ///        rebuild of the frame graph (a view appearing or going): it only declares passes and keeps no state.
+    /// @brief The views to render, each into a target of its own; none renders the main camera onto the window (or,
+    ///        headless, the offscreen target). Asked before onFrame for the frame graph, which is rebuilt when the list
+    ///        of view names changes and resized when a view's extent changes, and after it for the cameras: a change
+    ///        of the views the UI makes applies from the next frame, so the graph's textures the UI shows stay valid
+    ///        until they are drawn. Keep an extent steady while a panel is being dragged.
+    [[nodiscard]] virtual auto renderViews() const -> std::vector<RenderView> { return {}; }
+    /// @brief Declares the shell's passes for one view (desc.view), after the game's (GameModule::buildGraph) and
+    ///        before the output passes (UI, present), so they can draw onto the view's "Final", such as the editor's
+    ///        overlays. None by default. Runs in each view's scope on every rebuild of the frame graph (the views
+    ///        changing): it only declares passes and keeps no state.
     virtual void buildGraph(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc) {}
     /// @brief Runs before the engine tears down, while the world, the frame graph and ImGui still exist.
     virtual void onShutdown() {}
@@ -306,8 +320,10 @@ public:
 /// @brief Declares the passes that render the scene, in place of the engine's (GameModule::buildGraph).
 using GraphBuild = std::function<void(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc)>;
 
-/// @brief Declares the frame graph's passes in the engine's order: the game's ('game', or render_graph::addScenePasses
-///        if it is empty), the shell's (Shell::buildGraph), then the output passes (render_graph::addOutputPasses).
+/// @brief Declares the frame graph's passes in the engine's order: the passes the views share
+///        (render_graph::addSharedPasses); for each of desc.views, in its scope, the game's ('game', or
+///        render_graph::addScenePasses if it is empty) and the shell's (Shell::buildGraph); then the output passes
+///        (render_graph::addOutputPasses).
 auto buildFrameGraph(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc, const GraphBuild& game,
     Shell& shell) -> void;
 
@@ -408,6 +424,10 @@ public:
     /// @brief Ends run() after this frame, without asking the shell (Shell::canClose).
     void quit() { m_quit = true; }
 
+    /// @brief The last frame's image of the view 'name' (FrameContext::views) as RGBA8 rows, its "Final" rounded,
+    ///        read back after waiting for the GPU. For checks, at the safe point (Shell::onFrame); headless only.
+    [[nodiscard]] auto readView(std::string_view name) -> std::expected<std::vector<std::byte>, std::string>;
+
     /// @brief Replaces the shell (GameShell by default), such as with the editor (editor::EditorShell). Call it
     ///        before run().
     void setShell(std::unique_ptr<Shell> shell);
@@ -436,14 +456,19 @@ private:
     auto createWindow() -> std::expected<void, EngineError>;
     auto createRenderer() -> std::expected<void, EngineError>;
     auto createAssets() -> std::expected<void, EngineError>;
-    /// @brief Replaces the frame graph with one rendering onto the renderer's target, or into a view of 'view's extent.
-    ///        Frames in flight must have finished.
-    auto createFrameGraph(std::optional<rhi::Extent2D> view = std::nullopt) -> std::expected<void, EngineError>;
+    /// @brief Replaces the frame graph with one rendering the main camera onto the renderer's target, or, with
+    ///        'views', each of them into a target of its own. Frames in flight must have finished.
+    auto createFrameGraph(std::vector<ViewTarget> views = {}) -> std::expected<void, EngineError>;
     bool resize();
-    /// @brief Rebuilds or resizes the frame graph for the shell's view, if it changed since the last frame.
-    bool followView(const std::optional<RenderView>& view);
-    /// @brief Gives every world's main camera the aspect of what the frame graph renders into.
-    void updateCameraAspect(rhi::Extent2D extent);
+    /// @brief Rebuilds or resizes the frame graph for the shell's views, if they changed since the last frame.
+    bool followViews(const std::vector<RenderView>& views);
+    /// @brief Gives every world's main camera the aspect of what it renders into: the first of 'views' without a
+    ///        camera of its own, or the window.
+    void updateCameraAspect(const std::vector<RenderView>& views);
+    /// @brief This frame's scene of the world 'shown': the main camera's view, or one per view the graph renders,
+    ///        through 'views' camera of the same name if it has one.
+    auto frameScene(world::World& shown, const render_graph::InstanceStore& instances, const std::vector<RenderView>& views) const
+        -> render_graph::FrameScene;
     /// @brief Opens the ImGui frame, lets the shell build its UI, apply its edits and pick the worlds that update and
     ///        render, and ends the frame.
     void runShell(float deltaSeconds);
@@ -458,6 +483,8 @@ private:
     /// @brief Empties the main world and sets it up again, ready for a scene's entities.
     void resetWorld();
     auto saveScreenshot() -> std::expected<void, std::string>;
+    /// @brief Reads 'image' back as RGBA8: the offscreen target, or a view's "Final" (RGBA16F, rounded). The device is idle.
+    auto readBack(const renderer::Texture& image, rhi::Extent2D extent, bool view) -> std::expected<std::vector<std::byte>, std::string>;
 
     /// @brief Longest frame time the scene and scripts see.
     static constexpr float MAX_FRAME_DELTA_SEC{ 0.1f };
@@ -486,9 +513,9 @@ private:
     const world::World* m_lastRendered{ nullptr }; // The world whose instances the passes' buffers hold
     render_graph::FrameSceneSource m_frameScene;   // Where the passes read the frame scene; outlives the graph
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
-    std::optional<rhi::Extent2D> m_viewExtent; // The extent of the view the frame graph renders into; none for the target
-    std::optional<assets::AssetId> m_scene;    // The scene file the main world was loaded from
-    bool m_quit{ false };                      // quit(): run() ends after this frame
+    std::vector<ViewTarget> m_views;        // The views the frame graph renders into targets of their own; none: onto the target
+    std::optional<assets::AssetId> m_scene; // The scene file the main world was loaded from
+    bool m_quit{ false };                   // quit(): run() ends after this frame
     // Last, so it goes first, while everything it may reference (the worlds, the frame graph, ImGui) exists.
     std::unique_ptr<Shell> m_shell{ std::make_unique<GameShell>() };
 };

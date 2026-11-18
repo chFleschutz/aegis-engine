@@ -457,9 +457,11 @@ void EditorShell::addSettingsHandler()
     ImGui::AddSettingsHandler(&handler);
 }
 
-auto EditorShell::renderView() const -> std::optional<RenderView>
+auto EditorShell::renderViews() const -> std::vector<RenderView>
 {
-    return m_viewport.renderView();
+    if (auto view = m_viewport.renderView())
+        return { std::move(*view) };
+    return {};
 }
 
 auto EditorShell::canClose() -> bool
