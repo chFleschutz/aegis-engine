@@ -17,8 +17,11 @@ Gotchas from past sessions, to read when a build, tool or test behaves unexpecte
   `-DVulkan_ROOT=` or export `VULKAN_SDK` explicitly. A configure that failed the SDK check can make
   the next `--fresh` fail once in compiler detection ("CMAKE_C_COMPILER not set"); run it again.
 - **Backslashes in Bash heredocs get mangled:** a doubled backslash in a Python heredoc arrives as a
-  single one (so `'\\'` becomes an unterminated string). Write scripts that need backslashes to a
-  file in the scratchpad instead.
+  single one (so `'\\'` becomes an unterminated string), and the call can fail with "unexpected EOF
+  while looking for matching `'`". Write scripts that need backslashes to a file in the scratchpad
+  instead, or edit with the Edit tool.
+- **A `cd` in a Bash call carries into the next call.** Later commands then run in that folder; use
+  `git -C <dir>` or absolute paths instead.
 
 ## Build
 
