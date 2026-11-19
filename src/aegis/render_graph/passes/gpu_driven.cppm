@@ -21,6 +21,13 @@ export namespace aegis::render_graph::detail
     constexpr std::uint32_t largestPowerOfTwo{ 1u << 31 };
     return required > largestPowerOfTwo ? required : std::bit_ceil(required);
 }
+
+/// @brief Grows 'buffer', which holds 'capacity' entries of 'entrySize' bytes, until 'required' entries fit
+///        (grownCapacity); its contents are not kept. For a pass's prepare: execute then records into a buffer
+///        that holds the frame.
+/// @return Whether the buffer grew, or the pool's error with the sizes; the old buffer and 'capacity' stay then.
+[[nodiscard]] auto growBuffer(ResourcePool& pool, ResourceId buffer, std::uint32_t& capacity, std::uint32_t required,
+    std::size_t entrySize) -> std::expected<bool, Error>;
 }
 
 export namespace aegis::render_graph
@@ -31,7 +38,7 @@ export namespace aegis::render_graph
 ///        Both instance buffers have a copy per frame in flight, which differ only in the material blocks they
 ///        address. A frame rewrites only the positions of its copy that changed since that copy was last
 ///        written (the store's dirty ranges, collected for each copy), so a frame still in flight never sees
-///        a write. The buffers grow to the store's counts (detail::grownCapacity), and a grown buffer is
+///        a write. The buffers grow to the store's counts in prepare (detail::growBuffer), and a grown buffer is
 ///        written whole. Each frame also updates the store's materials' blocks for that frame.
 class InstanceUpdatePass : public RenderPass
 {
@@ -43,6 +50,8 @@ public:
     InstanceUpdatePass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
 
     [[nodiscard]] auto name() const -> std::string_view override;
+    /// @brief Grows the instance buffers to the frame's store.
+    [[nodiscard]] auto prepare(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
     /// @brief The instances actually written: what culling dispatches over.
@@ -59,6 +68,8 @@ private:
         std::uint32_t written{ 0 }; // Instances in the copy last written
     };
 
+    [[nodiscard]] static auto grow(ResourcePool& pool, InstanceBuffer& buffer, std::uint32_t count)
+        -> std::expected<void, Error>;
     static auto write(ResourcePool& pool, InstanceBuffer& buffer, std::span<const Instance> instances,
         DirtyRange dirty, std::uint32_t frameIndex) -> void;
 
@@ -91,6 +102,8 @@ public:
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
+    /// @brief Grows the visibility and command buffers to the frame's store.
+    [[nodiscard]] auto prepare(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:

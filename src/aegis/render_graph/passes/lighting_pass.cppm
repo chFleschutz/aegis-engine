@@ -10,8 +10,8 @@ import aegis.math;
 export namespace aegis::render_graph
 {
 /// @brief Writes the frame's point and spot lights into "Lights" (a per-frame buffer of LightData, point lights
-///        first), which the lighting passes of all views read. The buffer grows with the light count
-///        (detail::grownCapacity); should it fail to, only the lights that fit are written, and lit.
+///        first), which the lighting passes of all views read. The buffer grows with the light count in prepare
+///        (detail::growBuffer).
 class LightUpdatePass : public RenderPass
 {
 public:
@@ -21,6 +21,8 @@ public:
     LightUpdatePass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
 
     [[nodiscard]] auto name() const -> std::string_view override;
+    /// @brief Grows the light buffer to the frame's lights.
+    [[nodiscard]] auto prepare(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
@@ -39,6 +41,8 @@ public:
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
+    /// @brief Warns once when the frame's scene has no environment to light with: execute then records nothing.
+    [[nodiscard]] auto prepare(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
     auto drawUI() -> void override;
 
