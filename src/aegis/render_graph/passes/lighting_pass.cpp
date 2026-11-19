@@ -1,4 +1,6 @@
 module;
+#include <cassert>
+
 #include <imgui.h>
 
 module aegis.render_passes;
@@ -23,21 +25,21 @@ auto LightUpdatePass::name() const -> std::string_view
     return "Light Update";
 }
 
+auto LightUpdatePass::prepare(ResourcePool& pool) -> std::expected<void, Error>
+{
+    const auto& scene = m_scene.current();
+    const auto count = static_cast<std::uint32_t>(scene.pointLights.size() + scene.spotLights.size());
+    if (auto grown = detail::growBuffer(pool, m_lights, m_capacity, count, sizeof(LightData)); !grown)
+        return std::unexpected{ std::move(grown.error()) };
+    return {};
+}
+
 auto LightUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
     const auto lights = detail::packLights(m_scene.current());
-    const auto count = static_cast<std::uint32_t>(lights.size());
-    if (const auto grown = detail::grownCapacity(m_capacity, count); grown != m_capacity)
-    {
-        if (auto resized = pool.resizeBuffer(m_lights, sizeof(LightData) * grown); resized)
-            m_capacity = grown;
-        else
-            log::warn("{}: {} lights need {} bytes, the light buffer holds {}", describe(resized.error()), count,
-                sizeof(LightData) * grown, sizeof(LightData) * m_capacity);
-    }
-    const auto written = std::span{ lights }.first(std::min(count, m_capacity));
-    if (!written.empty())
-        pool.write(m_lights, frameInfo.frameIndex, std::as_bytes(written));
+    assert(lights.size() <= m_capacity && "The light buffer was not grown in prepare");
+    if (!lights.empty())
+        pool.write(m_lights, frameInfo.frameIndex, std::as_bytes(std::span{ lights }));
 }
 
 // Lighting -------------------------------------------------------------------------------------------
@@ -80,19 +82,27 @@ auto LightingPass::createResources(ResourcePool& pool) -> std::expected<void, Er
     return {};
 }
 
-auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
+auto LightingPass::prepare(ResourcePool& /*pool*/) -> std::expected<void, Error>
 {
-    const auto& scene = m_scene.current();
-    const auto& environment = scene.environment;
+    const auto& environment = m_scene.current().environment;
     if (!environment.irradiance || !environment.prefiltered)
     {
         static bool reported{ false };
         if (!std::exchange(reported, true))
             log::warn("Lighting: the scene has no aegis::Sky with an environment; skipping lighting");
-        return;
     }
+    return {};
+}
 
-    // The light update pass grew the buffer for this frame's lights, or holds as many as fit.
+auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
+{
+    const auto& scene = m_scene.current();
+    const auto& environment = scene.environment;
+    // Without one, prepare warned.
+    if (!environment.irradiance || !environment.prefiltered)
+        return;
+
+    // The light update pass grew the buffer for this frame's lights.
     const auto lightCapacity = static_cast<std::uint32_t>(pool.bufferSize(m_lights) / sizeof(LightData));
     const auto uniforms = detail::packLighting(scene, m_view, pool.bufferAddress(m_lights, frameInfo.frameIndex),
         lightCapacity, m_ambientOcclusionFactor, m_viewMode);

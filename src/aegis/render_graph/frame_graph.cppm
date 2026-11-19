@@ -66,7 +66,8 @@ public:
     /// @brief Lets every pass create what recording the coming frame needs (RenderPass::prepare). Call before each
     ///        execute, once what the passes read for that frame is in place; a pass not prepared for a draw batch
     ///        skips it.
-    /// @return The first pass's error; the passes after it are not prepared then.
+    /// @return The first pass's error, its message prefixed with the pass name; the passes after it are not
+    ///         prepared then, and the frame must not be executed.
     [[nodiscard]] auto prepare() -> std::expected<void, Error>;
 
     /// @brief Records every pass, in order, into frameInfo.cmd, then the barriers that leave imported

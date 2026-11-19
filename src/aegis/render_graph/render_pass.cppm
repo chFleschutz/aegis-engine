@@ -21,9 +21,12 @@ struct FrameInfo
     rhi::ImageViewHandle target;
 };
 
-/// @brief One node of the frame graph. The constructor declares resources on the ResourceDeclarations;
-///        everything that can fail (pipelines, shaders) belongs in createResources, or in prepare when it depends
-///        on what a frame draws.
+/// @brief One node of the frame graph. The constructor declares resources on the ResourceDeclarations.
+///
+///        Everything that can fail (pipelines, shaders, buffer growth) runs in createResources, or in prepare when
+///        it depends on what a frame draws, and returns its error; execute only records, into what those created.
+///        A pass never logs a failure in execute and draws less instead: an error from prepare ends the frame loop
+///        (Engine::run), so a test run fails rather than shows a wrong image.
 class RenderPass
 {
 public:
@@ -47,10 +50,12 @@ public:
     [[nodiscard]] virtual auto resized(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
 
     /// @brief Creates what recording the coming frame needs and the pass lacks, such as the pipelines of the draw
-    ///        batches it draws. Called by FrameGraph::prepare for every pass, before the frame is recorded.
+    ///        batches it draws, or a larger buffer for its instances. Called by FrameGraph::prepare for every pass,
+    ///        before the frame is recorded: it has no command buffer, and only creates.
     [[nodiscard]] virtual auto prepare(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
 
-    /// @brief Records the pass. The graph has already recorded the barriers its accesses need.
+    /// @brief Records the pass. The graph has already recorded the barriers its accesses need. Cannot fail: what
+    ///        could was done in prepare.
     virtual auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void = 0;
 
     /// @brief Settings for the editor's renderer panel (ImGui).

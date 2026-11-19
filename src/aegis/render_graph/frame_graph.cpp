@@ -98,7 +98,11 @@ auto FrameGraph::prepare() -> std::expected<void, Error>
     for (const auto index : m_order)
     {
         if (auto prepared = m_passes[index]->prepare(m_pool); !prepared)
-            return prepared;
+        {
+            auto error = prepared.error();
+            error.message = std::format("{}: {}", m_declarations.passName(index), error.message);
+            return std::unexpected{ std::move(error) };
+        }
     }
     return {};
 }

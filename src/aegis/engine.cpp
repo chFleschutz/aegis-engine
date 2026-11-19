@@ -531,7 +531,8 @@ auto Engine::run() -> int
         const auto scene = frameScene(shown, instances, views);
         // The passes read it until the end of this frame's iteration.
         const auto boundScene = m_frameScene.bind(scene);
-        // Pipelines the frame's draw batches need are created before recording; failing that, a shader is missing.
+        // What recording can't do without (the draw batches' pipelines, buffers grown to the frame's instances and
+        // lights) is created before it; failing that ends the run, as a failed frame does.
         if (auto prepared = m_frameGraph->prepare(); !prepared)
         {
             log::fatal("Failed to prepare a frame: {}", render_graph::describe(prepared.error()));

@@ -16,24 +16,6 @@ namespace
 constexpr std::uint32_t initialCapacity = InstanceUpdatePass::initialStaticCapacity + InstanceUpdatePass::initialDynamicCapacity;
 constexpr std::size_t indirectCommandSize{ 3 * sizeof(std::uint32_t) }; // VkDrawMeshTasksIndirectCommandEXT
 
-// Grows 'buffer', holding 'capacity' elements of 'elementSize' bytes, until 'required' fit. False when
-// the larger buffer could not be created; the old one stays, with its capacity.
-auto ensureCapacity(ResourcePool& pool, ResourceId buffer, std::uint32_t& capacity, std::uint32_t required,
-    std::size_t elementSize) -> bool
-{
-    const auto grown = detail::grownCapacity(capacity, required);
-    if (grown == capacity)
-        return true;
-    if (auto resized = pool.resizeBuffer(buffer, elementSize * grown); !resized)
-    {
-        log::warn("{}: {} instances need {}, it holds {}", describe(resized.error()), required,
-            elementSize * grown, elementSize * capacity);
-        return false;
-    }
-    capacity = grown;
-    return true;
-}
-
 auto gpuKey(const assets::MaterialVariant& variant) -> PipelineKey
 {
     // Mirrored instances keep the counter-clockwise front face: the mesh shader flips their winding.
@@ -54,6 +36,26 @@ auto makeInstance(const Instance& instance, std::uint32_t frameIndex) -> Instanc
         .drawBatch = instance.drawBatch,
         .flags = gpuTransform.flags,
     };
+}
+}
+
+namespace detail
+{
+auto growBuffer(ResourcePool& pool, ResourceId buffer, std::uint32_t& capacity, std::uint32_t required,
+    std::size_t entrySize) -> std::expected<bool, Error>
+{
+    const auto grown = grownCapacity(capacity, required);
+    if (grown == capacity)
+        return false;
+    if (auto resized = pool.resizeBuffer(buffer, entrySize * grown); !resized)
+    {
+        auto error = resized.error();
+        error.message = std::format("{} entries need {} bytes, the buffer holds {}: {}", required, entrySize * grown,
+            entrySize * capacity, error.message);
+        return std::unexpected{ std::move(error) };
+    }
+    capacity = grown;
+    return true;
 }
 }
 
@@ -83,21 +85,36 @@ auto InstanceUpdatePass::name() const -> std::string_view
     return "Instance Update";
 }
 
-// Writes the positions of frame 'frameIndex's copy that changed since it was last written. Should the
-// buffer fail to grow, only the instances that fit are written (and drawn).
+auto InstanceUpdatePass::prepare(ResourcePool& pool) -> std::expected<void, Error>
+{
+    const auto& store = m_scene.current().instances;
+    if (auto grown = grow(pool, m_static, static_cast<std::uint32_t>(store.staticInstances().size())); !grown)
+        return grown;
+    return grow(pool, m_dynamic, static_cast<std::uint32_t>(store.dynamicInstances().size()));
+}
+
+auto InstanceUpdatePass::grow(ResourcePool& pool, InstanceBuffer& buffer, std::uint32_t count)
+    -> std::expected<void, Error>
+{
+    auto grown = detail::growBuffer(pool, buffer.buffer, buffer.capacity, count, sizeof(InstanceData));
+    if (!grown)
+        return std::unexpected{ std::move(grown.error()) };
+    // A new buffer starts empty in every copy.
+    if (*grown)
+        buffer.pending.fill(DirtyRange::all());
+    return {};
+}
+
+// Writes the positions of frame 'frameIndex's copy that changed since it was last written. prepare grew the
+// buffer to hold every instance.
 auto InstanceUpdatePass::write(ResourcePool& pool, InstanceBuffer& buffer, std::span<const Instance> instances,
     DirtyRange dirty, std::uint32_t frameIndex) -> void
 {
     for (auto& pending : buffer.pending)
         pending = pending.merged(dirty);
 
-    const auto count = static_cast<std::uint32_t>(instances.size());
-    const auto capacity = buffer.capacity;
-    // A new buffer starts empty in every copy.
-    if (ensureCapacity(pool, buffer.buffer, buffer.capacity, count, sizeof(InstanceData)) && buffer.capacity != capacity)
-        buffer.pending.fill(DirtyRange::all());
-
-    buffer.written = std::min(count, buffer.capacity);
+    buffer.written = static_cast<std::uint32_t>(instances.size());
+    assert(buffer.written <= buffer.capacity && "The instance buffer was not grown in prepare");
     const auto range = buffer.pending[frameIndex].clipped(buffer.written);
     buffer.pending[frameIndex] = {};
     if (range.empty())
@@ -178,16 +195,20 @@ auto CullingPass::createResources(ResourcePool& pool) -> std::expected<void, Err
     return {};
 }
 
-auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
+auto CullingPass::prepare(ResourcePool& pool) -> std::expected<void, Error>
 {
     // Culling appends each batch's visible instances at its batch offset, so both buffers need an
-    // entry per instance in the store. Should they fail to grow, nothing is culled: the counts stay zero
-    // and nothing is drawn.
+    // entry per instance in the store.
     const auto registered = m_scene.current().instances.instanceCount();
-    if (!ensureCapacity(pool, m_visibility, m_visibilityCapacity, registered, sizeof(std::uint32_t)) ||
-        !ensureCapacity(pool, m_commands, m_commandCapacity, registered, indirectCommandSize))
-        return;
+    if (auto grown = detail::growBuffer(pool, m_visibility, m_visibilityCapacity, registered, sizeof(std::uint32_t)); !grown)
+        return std::unexpected{ std::move(grown.error()) };
+    if (auto grown = detail::growBuffer(pool, m_commands, m_commandCapacity, registered, indirectCommandSize); !grown)
+        return std::unexpected{ std::move(grown.error()) };
+    return {};
+}
 
+auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
+{
     const auto instanceCount = m_instances.staticCount() + m_instances.dynamicCount();
     if (instanceCount == 0)
         return;
@@ -299,15 +320,15 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
     const auto frame = frameInfo.frameIndex;
     const auto& commands = pool.buffer(m_commands);
     const auto& counts = pool.buffer(m_counts);
-    // A batch past the command buffer's end (it failed to grow; culling then wrote nothing) is
-    // skipped: its maximum draw count would read beyond the buffer.
-    const auto commandCapacity = pool.bufferSize(m_commands) / indirectCommandSize;
+    // Culling's prepare grew the command buffer to every batch's maximum draw count.
+    assert(m_scene.current().instances.instanceCount() <= pool.bufferSize(m_commands) / indirectCommandSize &&
+           "The indirect command buffer was not grown in prepare");
     const rhi::Pipeline* bound{ nullptr };
     for (const auto& batch : m_scene.current().instances.batches())
     {
         // The G-buffer holds opaque surfaces only, as on the CPU path (StaticMeshRenderSystem). A batch that was
         // not prepared has no pipeline and is skipped.
-        if (!drawsInGBuffer(batch) || std::size_t{ batch.firstInstance } + batch.instanceCount > commandCapacity)
+        if (!drawsInGBuffer(batch))
             continue;
         const auto* pipeline = m_pipelines.find(gpuKey(batch.variant));
         if (!pipeline)
