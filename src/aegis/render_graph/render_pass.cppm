@@ -25,7 +25,7 @@ struct FrameInfo
 ///
 ///        Everything that can fail (pipelines, shaders, buffer growth) runs in createResources, or in prepare when
 ///        it depends on what a frame draws, and returns its error; execute only records, into what those created.
-///        A pass never logs a failure in execute and draws less instead: an error from prepare ends the frame loop
+///        A pass never logs a failure in execute and draws less: an error from prepare ends the frame loop
 ///        (Engine::run), so a test run fails rather than shows a wrong image.
 class RenderPass
 {
