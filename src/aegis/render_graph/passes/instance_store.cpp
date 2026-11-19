@@ -46,7 +46,7 @@ auto InstanceStore::add(Instance instance, const assets::MaterialVariant& varian
 auto InstanceStore::remove(InstanceId id) -> void
 {
     const auto instance = extract(id);
-    --m_batches[instance.drawBatch].instanceCount;
+    leaveBatch(instance.drawBatch);
     removeMaterial(instance.material.get());
     m_locations[id.index].reset();
     m_freeIds.push_back(id.index);
@@ -62,10 +62,16 @@ auto InstanceStore::update(InstanceId id, Instance instance, const assets::Mater
 
     if (variant != m_batches[current.drawBatch].variant)
     {
+        // Leaving first frees the current batch if this is its last instance, making room for the new variant at the
+        // batch limit. Acquiring fails only if it was not freed, and then the instance rejoins it.
+        const auto previous = current.drawBatch;
+        leaveBatch(previous);
         auto batch = acquireBatch(variant);
         if (!batch)
+        {
+            ++m_batches[previous].instanceCount;
             return std::unexpected{ batch.error() };
-        --m_batches[current.drawBatch].instanceCount;
+        }
         ++m_batches[*batch].instanceCount;
         current.drawBatch = *batch;
         updateOffsets();
@@ -129,6 +135,7 @@ auto InstanceStore::clear() -> void
     m_locations.clear();
     m_freeIds.clear();
     m_batches.clear();
+    m_freeBatchIds.clear();
     m_batchIds.clear();
     m_materials.clear();
     m_materialUses.clear();
@@ -178,13 +185,36 @@ auto InstanceStore::acquireBatch(const assets::MaterialVariant& variant) -> std:
 {
     if (const auto found = batchId(variant))
         return *found;
-    if (m_batches.size() >= maxDrawBatches)
-        return makeError(ErrorCode::LimitExceeded, std::format("Too many material variants: at most {} draw batches", maxDrawBatches));
 
-    const auto id = static_cast<std::uint32_t>(m_batches.size());
+    std::uint32_t id{ 0 };
+    if (!m_freeBatchIds.empty())
+    {
+        id = m_freeBatchIds.back();
+        m_freeBatchIds.pop_back();
+    }
+    else if (m_batches.size() < maxDrawBatches)
+    {
+        id = static_cast<std::uint32_t>(m_batches.size());
+        m_batches.push_back({ .id = id, .firstInstance = 0, .instanceCount = 0, .variant = {} });
+    }
+    else
+    {
+        return makeError(ErrorCode::LimitExceeded, std::format("Too many material variants: at most {} draw batches", maxDrawBatches));
+    }
     m_batchIds.emplace(variant, id);
-    m_batches.push_back({ .id = id, .firstInstance = 0, .instanceCount = 0, .variant = variant });
+    m_batches[id].variant = variant;
     return id;
+}
+
+auto InstanceStore::leaveBatch(std::uint32_t batch) -> void
+{
+    auto& entry = m_batches[batch];
+    assert(entry.instanceCount > 0 && "The batch has no instance to leave");
+    if (--entry.instanceCount > 0)
+        return;
+    m_batchIds.erase(entry.variant);
+    entry.variant = {};
+    m_freeBatchIds.push_back(batch);
 }
 
 auto InstanceStore::addMaterial(const std::shared_ptr<assets::Material>& material, const assets::MaterialVariant& variant)
@@ -209,7 +239,7 @@ auto InstanceStore::moveMaterial(const assets::Material* material, std::uint32_t
             auto& instance = source.instances[position];
             if (instance.material.get() != material || instance.drawBatch == batch)
                 continue;
-            --m_batches[instance.drawBatch].instanceCount;
+            leaveBatch(instance.drawBatch);
             ++m_batches[batch].instanceCount;
             instance.drawBatch = batch;
             markDirty(source.dirty, position);

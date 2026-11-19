@@ -215,8 +215,9 @@ TEST_SUITE("render_graph::InstanceStore")
 
         REQUIRE(store.update(id, at(), glass));
         CHECK(store.get(id).drawBatch == *store.batchId(glass));
-        CHECK(store.batches()[*store.batchId(opaque)].instanceCount == 0);
+        CHECK(!store.batchId(opaque).has_value());
         CHECK(store.batches()[*store.batchId(glass)].instanceCount == 1);
+        CHECK(store.batchCount() == 1);
         CHECK(store.instanceCount() == 1);
     }
 
@@ -311,6 +312,76 @@ TEST_SUITE("render_graph::InstanceStore")
         const auto id = add(store, templates.front());
         CHECK(!store.update(id, at(), extra).has_value());
         CHECK(store.get(id).drawBatch == 0);
+        CHECK(store.batches()[0].instanceCount == 2);
+    }
+
+    TEST_CASE("removing the last instance of a batch frees its id for the next new variant")
+    {
+        InstanceStore store;
+        const auto first = makeVariant();
+        const auto second = makeVariant();
+        const auto third = makeVariant();
+        const auto a = add(store, first);
+        add(store, second);
+
+        store.remove(a);
+        CHECK(!store.batchId(first).has_value());
+        CHECK(store.batchCount() == 1);
+        CHECK(store.batches()[0].instanceCount == 0);
+        CHECK(!store.batches()[0].variant.materialTemplate);
+
+        const auto c = add(store, third);
+        CHECK(store.batchId(third) == std::optional<std::uint32_t>{ 0 });
+        CHECK(store.get(c).drawBatch == 0);
+        CHECK(store.batches()[0].variant == third);
+        CHECK(store.batchCount() == 2);
+    }
+
+    TEST_CASE("more variants than the batch limit over time are all stored while at most the limit are live")
+    {
+        InstanceStore store;
+        std::deque<std::pair<InstanceId, MaterialVariant>> live;
+        for (std::uint32_t i = 0; i < 3 * InstanceStore::maxDrawBatches; ++i)
+        {
+            if (live.size() == InstanceStore::maxDrawBatches)
+            {
+                store.remove(live.front().first);
+                CHECK(!store.batchId(live.front().second).has_value());
+                live.pop_front();
+            }
+            auto variant = makeVariant();
+            const auto id = store.add(at(), variant, i % 2 == 0);
+            REQUIRE(id.has_value());
+            const auto batch = store.batchId(variant);
+            REQUIRE(batch.has_value());
+            CHECK(*batch < InstanceStore::maxDrawBatches);
+            CHECK(store.get(*id).drawBatch == *batch);
+            live.emplace_back(*id, std::move(variant));
+        }
+
+        CHECK(store.batchCount() == InstanceStore::maxDrawBatches);
+        CHECK(store.batches().size() == InstanceStore::maxDrawBatches);
+        for (const auto& [id, variant] : live)
+        {
+            const auto& batch = store.batches()[store.get(id).drawBatch];
+            CHECK(batch.variant == variant);
+            CHECK(batch.instanceCount == 1);
+        }
+    }
+
+    TEST_CASE("at the batch limit, an update moving a batch's last instance to a new variant reuses its id")
+    {
+        InstanceStore store;
+        std::vector<InstanceId> ids;
+        for (std::uint32_t i = 0; i < InstanceStore::maxDrawBatches; ++i)
+            ids.push_back(add(store, makeVariant()));
+
+        const auto extra = makeVariant();
+        const auto batch = store.get(ids.back()).drawBatch;
+        REQUIRE(store.update(ids.back(), at(), extra));
+        CHECK(store.batchId(extra) == std::optional{ batch });
+        CHECK(store.batches()[batch].variant == extra);
+        CHECK(store.batchCount() == InstanceStore::maxDrawBatches);
     }
 
     TEST_CASE("clear removes every instance and batch")

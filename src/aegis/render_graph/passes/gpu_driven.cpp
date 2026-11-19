@@ -122,7 +122,7 @@ auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
     write(pool, m_dynamic, store.dynamicInstances(), store.dynamicDirty(), frameInfo.frameIndex);
 
     std::vector<DrawBatchData> batches;
-    batches.reserve(store.batchCount());
+    batches.reserve(store.batches().size());
     for (const auto& batch : store.batches())
         batches.push_back({ batch.firstInstance, batch.instanceCount });
     pool.write(m_drawBatchData, frameInfo.frameIndex, std::as_bytes(std::span{ batches }));

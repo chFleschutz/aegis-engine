@@ -60,7 +60,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
 
     // Per draw batch, its pipelines (normal, mirrored); null for a batch this system skips or that was not prepared.
     std::vector<std::array<const rhi::Pipeline*, 2>> batchPipelines;
-    batchPipelines.reserve(instances.batchCount());
+    batchPipelines.reserve(instances.batches().size());
     for (const auto& batch : instances.batches())
     {
         if (!drawsInGBuffer(batch, m_type))
