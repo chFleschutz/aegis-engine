@@ -134,11 +134,11 @@ target beyond the render tests: what it lacks becomes issues here.
 
 **Lanes.** Milestones run in two lanes, each with its own Active and Planning milestone; the lanes'
 areas and rules are in the [`plan-milestone` skill](../.claude/skills/plan-milestone/SKILL.md#milestone-rules).
-- **render** (`render_graph`, `render_passes`, `renderer`, `rhi`): M16 Render foundation (Active), M17
-  Shadows and materials (Planning), then the rest of Render features above: anti-aliasing, auto
-  exposure, vertex tangents ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) and clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22)).
-- **content** (`assets`, `world`, `app`, `editor`, `platform`): no milestone yet; next is Gameplay
-  foundation above. Until it is planned, this lane works its areas' `Backlog` issues.
+- **render** (`render_graph`, `render_passes`, `renderer`, `rhi`): [M17 Shadows and materials](https://github.com/chFleschutz/aegis-engine/milestone/18)
+  (Active), [M19 Frame-graph rebuilds](https://github.com/chFleschutz/aegis-engine/milestone/20) (Planning), then the rest of Render features above:
+  anti-aliasing, auto exposure, vertex tangents ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) and clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22)).
+- **content** (`assets`, `world`, `app`, `editor`, `platform`): [M18 Editor structure](https://github.com/chFleschutz/aegis-engine/milestone/19)
+  (Active), then Gameplay foundation above.
 - The vertical slice needs both lanes' targets; plan it once they are done.
 
 **[M8. Verification tiers](https://github.com/chFleschutz/aegis-engine/milestone/8?closed=1)** (P9, done) added local reference-image comparison and the CI
