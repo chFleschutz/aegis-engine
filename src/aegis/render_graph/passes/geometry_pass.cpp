@@ -4,12 +4,14 @@ import aegis.rhi;
 
 namespace aegis::render_graph
 {
-GeometryPass::GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+GeometryPass::GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, Technique technique) :
     m_scene{ scene },
-    m_gBuffer{ declareGBuffer(declarations) },
-    m_depth{ declareDepth(declarations) },
-    m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) }
+    m_technique{ technique }
 {
+    if (technique == Technique::GBuffer)
+        m_gBuffer = std::ranges::to<std::vector>(declareGBuffer(declarations));
+    m_depth = declareDepth(declarations);
+    m_cameraData = declarations.addReference(names::cameraData, Usage::ShaderRead);
 }
 
 auto GeometryPass::declareGBuffer(ResourceDeclarations& declarations) -> std::array<ResourceId, gBufferFormats.size()>
@@ -30,14 +32,14 @@ auto GeometryPass::declareDepth(ResourceDeclarations& declarations) -> ResourceI
 
 auto GeometryPass::name() const -> std::string_view
 {
-    return "Geometry";
+    return m_technique == Technique::Depth ? "Depth" : "Geometry";
 }
 
 auto GeometryPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    std::array<rhi::Pipeline::ColorAttachment, gBufferFormats.size()> attachments;
-    for (std::size_t i = 0; i < gBufferFormats.size(); ++i)
-        attachments[i] = { .format = pool.format(m_gBuffer[i]) };
+    std::vector<rhi::Pipeline::ColorAttachment> attachments;
+    for (const auto texture : m_gBuffer)
+        attachments.push_back({ .format = pool.format(texture) });
 
     for (const auto& system : m_renderSystems)
     {
@@ -59,9 +61,9 @@ auto GeometryPass::prepare(ResourcePool& /*pool*/) -> std::expected<void, Error>
 
 auto GeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    std::array<rhi::Attachment, gBufferFormats.size()> colorAttachments;
-    for (std::size_t i = 0; i < m_gBuffer.size(); ++i)
-        colorAttachments[i] = rhi::Attachment::color(pool.texture(m_gBuffer[i]).view, rhi::ClearColor{});
+    std::vector<rhi::Attachment> colorAttachments;
+    for (const auto texture : m_gBuffer)
+        colorAttachments.push_back(rhi::Attachment::color(pool.texture(texture).view, rhi::ClearColor{}));
 
     const auto& cmd = frameInfo.cmd;
     cmd.beginRendering({

@@ -4,7 +4,7 @@ import modules.meshlet_cull;
 import modules.surface;
 import SURFACE_MODULE;
 
-// GPU-driven G-buffer technique, mesh and fragment stages: the mesh shader emits the meshlets task.slang
+// GPU-driven G-buffer and depth techniques, mesh and fragment stages: the mesh shader emits the meshlets task.slang
 // kept (one task group per 32 meshlets of a visible instance). Built once per surface shader, which
 // SURFACE_MODULE names (see modules/surface.slang), and again with ALPHA_MASK for masked materials.
 
@@ -71,3 +71,14 @@ func fragmentMain(MSOut input, bool isFrontFace : SV_IsFrontFace, out common::GB
 #endif
     output = toGBuffer<Surface>(surfaceInput, surface);
 }
+
+#if defined(ALPHA_MASK)
+// The depth technique's fragment stage (render_graph::Technique::Depth), as a shadow view draws: only the masked build
+// has one, which evaluates the surface for its alpha test. Unmasked depth pipelines have no fragment stage.
+[shader("fragment")]
+func depthFragmentMain(MSOut input, bool isFrontFace : SV_IsFrontFace)
+{
+    let surfaceInput = toSurfaceInput(input.uv, input.worldPosition, input.worldNormal, isFrontFace);
+    alphaTest(evaluateSurface<Surface>(push.getInstance(input.instanceID).material, surfaceInput));
+}
+#endif

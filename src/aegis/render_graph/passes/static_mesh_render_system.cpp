@@ -9,11 +9,11 @@ namespace aegis::render_graph
 {
 namespace
 {
-auto cpuKey(const assets::MaterialVariant& variant, bool mirrored) -> PipelineKey
+auto cpuKey(Technique technique, const assets::MaterialVariant& variant, bool mirrored) -> PipelineKey
 {
     // A mirrored model matrix reverses the winding of every triangle, so its front faces are clockwise.
     return {
-        .technique = Technique::GBuffer,
+        .technique = technique,
         .variant = variant,
         .path = GeometryPath::CpuDriven,
         .frontFace = mirrored ? rhi::FrontFace::Clockwise : rhi::FrontFace::CounterClockwise,
@@ -21,9 +21,9 @@ auto cpuKey(const assets::MaterialVariant& variant, bool mirrored) -> PipelineKe
 }
 }
 
-StaticMeshRenderSystem::StaticMeshRenderSystem(assets::MaterialType type, std::string technique) :
+StaticMeshRenderSystem::StaticMeshRenderSystem(Technique technique, assets::MaterialType type) :
+    m_technique{ technique },
     m_type{ type },
-    m_technique{ std::move(technique) },
     m_pipelines{ [this](const PipelineKey& key) { return createPipeline(key); } }
 {
 }
@@ -45,7 +45,7 @@ auto StaticMeshRenderSystem::prepare(const FrameScene& frameScene) -> std::expec
             continue;
         for (const bool mirrored : { false, true })
         {
-            if (auto prepared = m_pipelines.prepare(cpuKey(batch.variant, mirrored)); !prepared)
+            if (auto prepared = m_pipelines.prepare(cpuKey(m_technique, batch.variant, mirrored)); !prepared)
                 return prepared;
         }
     }
@@ -66,7 +66,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
         if (!drawsInGBuffer(batch, m_type))
             batchPipelines.push_back({ nullptr, nullptr });
         else
-            batchPipelines.push_back({ m_pipelines.find(cpuKey(batch.variant, false)), m_pipelines.find(cpuKey(batch.variant, true)) });
+            batchPipelines.push_back({ m_pipelines.find(cpuKey(m_technique, batch.variant, false)), m_pipelines.find(cpuKey(m_technique, batch.variant, true)) });
     }
 
     const auto& cmd = context.cmd;
@@ -110,13 +110,22 @@ auto StaticMeshRenderSystem::createPipeline(const PipelineKey& key) const -> std
     auto attachments = m_colorAttachments;
     for (auto& attachment : attachments)
         attachment.blend = state.blend;
-    return createGraphicsPipeline(*m_device, techniqueShader(m_technique, key.variant),
+
+    const auto shader = techniqueShader(shaderFile, key.variant);
+    std::vector stages{ ShaderEntry{ rhi::ShaderStage::Vertex, shader, "vertexMain" } };
+    if (const auto fragment = fragmentEntry(key.technique, key.variant))
+        stages.push_back(ShaderEntry{ rhi::ShaderStage::Fragment, shader, *fragment });
+
+    const bool mirrored = key.frontFace == rhi::FrontFace::Clockwise;
+    const bool depth = key.technique == Technique::Depth;
+    return createGraphicsPipeline(*m_device,
         rhi::Pipeline::GraphicsDesc{
-            .name = key.frontFace == rhi::FrontFace::Clockwise ? "StaticMeshesMirrored" : "StaticMeshes",
+            .name = depth ? (mirrored ? "StaticMeshDepthMirrored" : "StaticMeshDepth") : (mirrored ? "StaticMeshesMirrored" : "StaticMeshes"),
             .colorAttachments = attachments,
             .depthAttachment = m_depthAttachment,
             .cullMode = state.cullMode,
             .frontFace = state.frontFace,
-        });
+        },
+        stages);
 }
 }

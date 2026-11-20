@@ -25,4 +25,14 @@ namespace visibility
         float centerDist = length(cameraToCenter);
         return dot(cameraToCenter, worldConeAxis) < cone.cutoff * centerDist + worldBounds.radius;
     }
+
+    /// coneVisible for an orthographic camera, which sees every point along one direction: the limit of coneVisible
+    /// as the camera moves away along -viewDirection.
+    public func coneVisibleAlong(float3 worldConeAxis, common::NormalCone cone, float3 viewDirection) -> bool
+    {
+        if (cone.cutoff_s8 == 127)
+            return true; // Degenerate cone -> assume always visible
+
+        return dot(viewDirection, worldConeAxis) < cone.cutoff;
+    }
 }
