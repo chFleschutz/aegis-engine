@@ -62,7 +62,7 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(sizeof(DrawBatchData) == 8);
     }
 
-    TEST_CASE("LightingUniforms matches lighting.slang's Lighting")
+    TEST_CASE("LightingUniforms matches lighting::Lighting")
     {
         CHECK(offsetof(LightingUniforms, cameraPosition) == 0);
         CHECK(offsetof(LightingUniforms, ambientColor) == 16);
@@ -76,7 +76,7 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(sizeof(LightingUniforms) == 88);
     }
 
-    TEST_CASE("LightData matches lighting.slang's Light")
+    TEST_CASE("LightData matches lighting::Light")
     {
         CHECK(offsetof(LightData, position) == 0);
         CHECK(offsetof(LightData, range) == 12);

@@ -20,7 +20,7 @@ auto groups(std::uint32_t size) -> std::uint32_t
     return groupCount(size, computeGroupSize);
 }
 
-// lighting.slang reads the last mip of the prefiltered map as the roughest reflection.
+// modules/lighting.slang reads the last mip of the prefiltered map as the roughest reflection.
 static_assert(maxReflectionLod == static_cast<float>(Ibl::prefilteredMipLevels - 1));
 
 auto cubeDesc(std::string_view name, std::uint32_t size, std::uint32_t mipLevels) -> assets::Texture::Desc
