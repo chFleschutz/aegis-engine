@@ -404,10 +404,6 @@ public:
     ///         then empty.
     [[nodiscard]] auto loadScene(assets::AssetId scene) -> std::expected<void, EngineError>;
 
-    /// @brief The scene file the main world was loaded from last (loadScene); none before, after a failed load and
-    ///        after newScene.
-    [[nodiscard]] auto scene() const -> std::optional<assets::AssetId> { return m_scene; }
-
     /// @brief Empties the main world for a new scene that has no file yet. It begins with its next update.
     void newScene();
 
@@ -513,9 +509,8 @@ private:
     const world::World* m_lastRendered{ nullptr }; // The world whose instances the passes' buffers hold
     render_graph::FrameSceneSource m_frameScene;   // Where the passes read the frame scene; outlives the graph
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
-    std::vector<ViewTarget> m_views;        // The views the frame graph renders into targets of their own; none: onto the target
-    std::optional<assets::AssetId> m_scene; // The scene file the main world was loaded from
-    bool m_quit{ false };                   // quit(): run() ends after this frame
+    std::vector<ViewTarget> m_views; // The views the frame graph renders into targets of their own; none: onto the target
+    bool m_quit{ false };            // quit(): run() ends after this frame
     // Last, so it goes first, while everything it may reference (the worlds, the frame graph, ImGui) exists.
     std::unique_ptr<Shell> m_shell{ std::make_unique<GameShell>() };
 };

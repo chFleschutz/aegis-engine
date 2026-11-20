@@ -59,27 +59,20 @@ public:
 
     [[nodiscard]] auto context() -> EditorContext& { return m_context; }
 
-private:
-    // What waits for the unsaved-changes prompt: it runs once the changes are saved or discarded.
-    struct PendingAction
-    {
-        enum class Kind
-        {
-            New,
-            Open,
-            Close,
-        };
-        Kind kind;
-        assets::AssetId scene{}; // Open's
-    };
+    /// @brief The scene file the launcher loaded into the main world before run(): the document's scene at startup.
+    ///        None (not called) starts with a new scene.
+    void setStartupScene(assets::AssetId scene) { m_startupScene = scene; }
 
+private:
     /// @brief The frame's UI: the menus, the panels, the viewport and the popups, timed as "Editor UI" in the profiler.
     void drawUi(FrameContext& frame);
-    /// @brief Runs 'action' now, or once the user saved or discarded the unsaved changes.
-    void request(PendingAction action, FrameContext& frame);
-    void run(PendingAction action, FrameContext& frame);
-    /// @brief Writes the edit world to the open scene file, or opens Save As without one. Whether it was written.
-    auto save(FrameContext& frame) -> bool;
+    /// @brief Performs the actions the scene document asks for (SceneDocument::takeAction), once the panels are drawn.
+    void runSceneActions(FrameContext& frame);
+    void run(const SceneAction& action, FrameContext& frame);
+    /// @brief The document's scene (none for a new scene) as an asset ID.
+    [[nodiscard]] auto currentScene() const -> std::optional<assets::AssetId>;
+    /// @brief Writes the edit world to the open scene file, or opens Save As without one (SceneDocument::save).
+    void save(FrameContext& frame);
     /// @brief Writes the edit world to a new file at 'typed' in the project's content folder and opens that.
     auto saveAs(FrameContext& frame, std::string_view typed) -> std::expected<void, Error>;
     void drawFileMenu(FrameContext& frame);
@@ -200,21 +193,14 @@ private:
     /// @brief 'hints' between 'left' and 'right' (window x), centered; none when they don't fit.
     static void drawKeyHints(const std::vector<KeyHint>& hints, float left, float right);
     void savePreferencesIfChanged();
-    /// @brief The autosave of the scene file 'scene' (none for an untitled scene); empty without an autosave folder.
-    [[nodiscard]] auto autosaveFile(std::optional<assets::AssetId> scene) const -> std::filesystem::path;
-    /// @brief Autosaves the edit world when it has had unsaved changes for the preference's minutes since they began
-    ///        or since the last autosave.
-    void updateAutosave(FrameContext& frame);
-    /// @brief Writes the edit world to the open scene's autosave (unless autosaving is off).
+    /// @brief Writes the edit world to the open scene's autosave (SceneDocument::autosave); a failure is logged.
     void autosave(FrameContext& frame);
-    /// @brief Deletes the autosave of 'scene' (its changes were saved or discarded), and the bar that offers it.
-    void deleteAutosave(std::optional<assets::AssetId> scene);
     /// @brief Shows the recovery bar when the open scene has an autosave newer than its file; hides it otherwise.
     void offerRecovery(const assets::AssetDatabase& database);
     /// @brief The recovery bar's text, Restore and Discard; the viewport draws it above its image.
     void drawRecoveryBar();
-    /// @brief Opens the offered autosave as the open scene: its file and ID stay, it is unsaved, its history empty.
-    void restoreAutosave(FrameContext& frame);
+    /// @brief Opens the autosave 'file' as the open scene: its file and ID stay, it is unsaved, its history empty.
+    void restoreAutosave(const std::filesystem::path& file, FrameContext& frame);
 
     EditorContext m_context;
     log::SinkId m_logSink{};
@@ -247,32 +233,15 @@ private:
     RecentScenes m_recent;
     Viewport m_viewport;
     Engine* m_engine{ nullptr };
-    std::optional<assets::AssetId> m_scene; // The open scene file; none for a new scene
-    std::optional<PendingAction> m_pending; // Waits for the unsaved-changes prompt
-    bool m_openPrompt{ false };             // Open the prompt, the Open or the Save As popup in this frame
-    bool m_openOpen{ false };
+    SceneDocument m_document{ m_context };
+    std::optional<assets::AssetId> m_startupScene; // setStartupScene's
+    bool m_openOpen{ false };                      // Open the Open popup in this frame
     bool m_openSaveAs{ false };
     std::string m_openSearch;                       // What the Open popup lists
     std::optional<assets::AssetId> m_openSelection; // Its selected scene
     std::string m_saveAsPath;                       // What Save As shows
     std::string m_fileError;                        // Why the last Save As failed, in its popup
     std::string m_title;                            // The window's, as last set
-    // The autosave the recovery bar offers
-    struct Recovery
-    {
-        std::filesystem::path file;
-        std::string label; // What the bar says
-    };
-    enum class RecoveryChoice
-    {
-        None,
-        Restore,
-        Discard,
-    };
-    std::filesystem::path m_autosaveFolder;                              // Empty keeps none (headless, no project)
-    std::optional<std::chrono::steady_clock::time_point> m_autosaveFrom; // When the unsaved changes began, or the last autosave
-    std::optional<Recovery> m_recovery;                                  // While the bar shows
-    RecoveryChoice m_recoveryChoice{ RecoveryChoice::None };             // Clicked in the bar, run once the panels are drawn
     PlaySession m_play;
     world::World* m_playWorld{ nullptr }; // While a play session runs; the engine owns it
     bool m_playAfterFirstFrame{ false };  // --editor-play

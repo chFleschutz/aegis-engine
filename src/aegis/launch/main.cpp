@@ -132,7 +132,9 @@ auto run(int argc, char** argv) -> int
     if (game.buildGraph)
         engine.setGraphBuild(game.buildGraph);
 #ifdef AEGIS_LAUNCH_EDITOR
-    engine.setShell(std::make_unique<editor::EditorShell>());
+    auto editorShell = std::make_unique<editor::EditorShell>();
+    auto& shell = *editorShell; // The engine owns it from here on
+    engine.setShell(std::move(editorShell));
 #endif
     if (game.onStartup)
     {
@@ -155,6 +157,9 @@ auto run(int argc, char** argv) -> int
             log::fatal("{}", describe(loaded.error()));
             return exitFailure;
         }
+#ifdef AEGIS_LAUNCH_EDITOR
+        shell.setStartupScene(*id); // The editor's scene document owns the current scene
+#endif
     }
     return engine.run();
 }

@@ -275,14 +275,12 @@ auto Engine::loadScene(assets::AssetId scene) -> std::expected<void, EngineError
     newScene();
     if (auto created = m_assets->instantiateScene(world(), m_types, scene); !created)
         return std::unexpected{ makeError(EngineErrorCode::SceneFailed, std::move(created.error())) };
-    m_scene = scene;
     return {};
 }
 
 void Engine::newScene()
 {
     resetWorld();
-    m_scene.reset();
 }
 
 void Engine::setTitle(std::string_view title)
