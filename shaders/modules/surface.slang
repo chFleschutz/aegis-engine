@@ -21,7 +21,26 @@ public struct SurfaceInput
 {
     public float2 uv;
     public float3 worldPosition;
-    public float3 worldNormal;
+    public float3 worldNormal; // Flipped on a back face (toSurfaceInput)
+}
+
+/// The SurfaceInput of a fragment. A back face, which only a material that culls nothing (rhi::CullMode::None) draws, is
+/// shaded with its normal flipped, so a double-sided surface is lit like a front face from both sides.
+public func toSurfaceInput(float2 uv, float3 worldPosition, float3 worldNormal, bool isFrontFace) -> SurfaceInput
+{
+    SurfaceInput input;
+    input.uv = uv;
+    input.worldPosition = worldPosition;
+    input.worldNormal = isFrontFace ? worldNormal : -worldNormal;
+    return input;
+}
+
+/// The alpha test of a technique's masked build (ALPHA_MASK, see aegis_add_shaders): discards the fragment if the
+/// surface's alpha is below its cutoff. Only the masked build calls it, so opaque pipelines keep early depth testing.
+public func alphaTest(SurfaceOutput surface)
+{
+    if (surface.alpha < surface.alphaCutoff)
+        discard;
 }
 
 /// The properties of a surface point.
@@ -34,6 +53,7 @@ public struct SurfaceOutput
     public float metallic;
     public float3 emissive;
     public float alpha;
+    public float alphaCutoff; // The masked build of a technique discards the point if alpha is below it (alphaTest)
 }
 
 /// Where a material's parameter block is: the device address the renderer writes for the material. Its address is

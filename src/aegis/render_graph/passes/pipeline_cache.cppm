@@ -70,12 +70,14 @@ struct PipelineState
     return { .cullMode = key.variant.cullMode, .frontFace = key.frontFace, .blend = blend };
 }
 
-/// @brief The SPIR-V file of 'technique' (its path in the shader folder, without .slang) built with the surface shader
-///        of 'materialTemplate' (aegis_add_shaders TECHNIQUES): "gpu-driven/geometry" and "unlit" give
-///        "gpu-driven/geometry.unlit.spv".
-[[nodiscard]] inline auto techniqueShader(std::string_view technique, const assets::MaterialTemplate& materialTemplate) -> std::string
+/// @brief The SPIR-V file of 'technique' (its path in the shader folder, without .slang) built for 'variant'
+///        (aegis_add_shaders TECHNIQUES): with its template's surface shader, and masked if its alpha mode is
+///        AlphaMode::Mask. "gpu-driven/geometry" and an unlit variant give "gpu-driven/geometry.unlit.spv", or
+///        "gpu-driven/geometry.unlit.masked.spv" masked.
+[[nodiscard]] inline auto techniqueShader(std::string_view technique, const assets::MaterialVariant& variant) -> std::string
 {
-    return std::format("{}.{}.spv", technique, materialTemplate.surface());
+    const std::string_view masked = variant.alphaMode == assets::AlphaMode::Mask ? ".masked" : "";
+    return std::format("{}.{}{}.spv", technique, variant.materialTemplate->surface(), masked);
 }
 
 /// @brief Whether the G-buffer technique draws 'batch': it has instances, its template has MaterialType 'type',

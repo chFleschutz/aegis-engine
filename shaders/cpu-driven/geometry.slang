@@ -4,7 +4,7 @@ import SURFACE_MODULE;
 
 // CPU-driven G-buffer technique: one draw per entity, vertices pulled through the mesh's device address
 // (the index buffer is bound, so SV_VertexID is the vertex index). Built once per surface shader, which
-// SURFACE_MODULE names (see modules/surface.slang).
+// SURFACE_MODULE names (see modules/surface.slang), and again with ALPHA_MASK for masked materials.
 
 struct PushConstants
 {
@@ -51,13 +51,12 @@ func vertexMain(uint vertexID : SV_VertexID, out VSOut output)
 }
 
 [shader("fragment")]
-func fragmentMain(in VSOut input, out common::GBuffer output)
+func fragmentMain(in VSOut input, bool isFrontFace : SV_IsFrontFace, out common::GBuffer output)
 {
-    SurfaceInput surfaceInput;
-    surfaceInput.uv = input.uv;
-    surfaceInput.worldPosition = input.worldPosition;
-    surfaceInput.worldNormal = input.worldNormal;
-
+    let surfaceInput = toSurfaceInput(input.uv, input.worldPosition, input.worldNormal, isFrontFace);
     let surface = evaluateSurface<Surface>(push.material, surfaceInput);
+#if defined(ALPHA_MASK)
+    alphaTest(surface);
+#endif
     output = toGBuffer<Surface>(surfaceInput, surface);
 }

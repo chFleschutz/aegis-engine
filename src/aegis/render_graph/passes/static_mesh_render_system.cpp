@@ -110,7 +110,7 @@ auto StaticMeshRenderSystem::createPipeline(const PipelineKey& key) const -> std
     auto attachments = m_colorAttachments;
     for (auto& attachment : attachments)
         attachment.blend = state.blend;
-    return createGraphicsPipeline(*m_device, techniqueShader(m_technique, *key.variant.materialTemplate),
+    return createGraphicsPipeline(*m_device, techniqueShader(m_technique, key.variant),
         rhi::Pipeline::GraphicsDesc{
             .name = key.frontFace == rhi::FrontFace::Clockwise ? "StaticMeshesMirrored" : "StaticMeshes",
             .colorAttachments = attachments,

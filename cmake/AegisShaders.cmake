@@ -2,7 +2,7 @@
 #
 #   aegis_add_shaders(<target>
 #       SOURCES     <a.slang> ...        # entry-point files; each becomes <OUTPUT_DIR>/<path relative to BASE_DIR>.spv
-#       TECHNIQUES  <t.slang> ...        # entry-point files that import SURFACE_MODULE, built once per surface shader
+#       TECHNIQUES  <t.slang> ...        # entry-point files that import SURFACE_MODULE, built twice per surface shader
 #       SURFACES    <s.slang> ...        # surface shader modules (shaders/modules/surface.slang), under BASE_DIR
 #       BASE_DIR    <dir>                # defaults to the current source dir
 #       OUTPUT_DIR  <dir>                # defaults to the current binary dir
@@ -16,7 +16,8 @@
 # Outputs in OUTPUT_DIR that no longer belong to a source are removed at configure.
 #
 # Each (technique, surface shader) pair is compiled with -DSURFACE_MODULE=<the surface's module path, such as
-# surfaces.unlit> into <technique path without .slang>.<surface name>.spv (gpu-driven/geometry.unlit.spv). Each
+# surfaces.unlit> into <technique path without .slang>.<surface name>.spv (gpu-driven/geometry.unlit.spv), and again
+# with -DALPHA_MASK, the build for masked materials, into <...>.<surface name>.masked.spv. Each
 # surface shader also gets <its path without .slang>.layout.json (surfaces/unlit.layout.json): slangc's reflection
 # of its parameter block, from AegisSurfaceLayout.slang, which the material template loader checks templates against.
 
@@ -175,6 +176,10 @@ function(aegis_add_shaders target)
             _aegis_add_slang_command("${technique}" "${S_OUTPUT_DIR}/${technique_stem}.${surface_name}.spv"
                 "Compiling Slang shader: ${technique_rel} with ${surface_rel}"
                 DEFINES "SURFACE_MODULE=${surface_module}"
+                INCLUDE_FLAGS ${include_flags} MODULES ${S_MODULES} DEPENDS "${surface}")
+            _aegis_add_slang_command("${technique}" "${S_OUTPUT_DIR}/${technique_stem}.${surface_name}.masked.spv"
+                "Compiling Slang shader: ${technique_rel} with ${surface_rel}, masked"
+                DEFINES "SURFACE_MODULE=${surface_module}" "ALPHA_MASK=1"
                 INCLUDE_FLAGS ${include_flags} MODULES ${S_MODULES} DEPENDS "${surface}")
         endforeach()
     endforeach()

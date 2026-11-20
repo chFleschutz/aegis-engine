@@ -13,6 +13,8 @@ public struct PbrParams
     public float metallic;
     public float roughness;
     public float ambientOcclusion;
+    public float alpha;       // Times the albedo map's alpha
+    public float alphaCutoff; // A masked material (AlphaMode::Mask) discards fragments whose alpha is below it
     public bindless::TextureDescriptor albedoMap;
     public bindless::TextureDescriptor normalMap;
     public bindless::TextureDescriptor metalRoughnessMap;
@@ -28,16 +30,18 @@ public struct PbrSurface : ISurface
 
     public static func evaluate(PbrParams* material, SurfaceInput input) -> SurfaceOutput
     {
+        float4 albedo = material->albedoMap.sample(input.uv);
         float2 metallicRoughness = material->metalRoughnessMap.sample(input.uv).bg;
 
         SurfaceOutput output;
-        output.albedo = material->albedoMap.sample(input.uv).rgb * material->albedo;
+        output.albedo = albedo.rgb * material->albedo;
         output.normal = material->normalMap.sample(input.uv).rgb * 2.0 - 1.0;
         output.ambientOcclusion = material->ambientOcclusionMap.sample(input.uv).r * material->ambientOcclusion;
         output.roughness = metallicRoughness.g * material->roughness;
         output.metallic = metallicRoughness.r * material->metallic;
         output.emissive = material->emissiveMap.sample(input.uv).rgb * material->emissive;
-        output.alpha = 1.0;
+        output.alpha = albedo.a * material->alpha;
+        output.alphaCutoff = material->alphaCutoff;
         return output;
     }
 }

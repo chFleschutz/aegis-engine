@@ -84,8 +84,16 @@ A technique (`cpu-driven/geometry.slang`, `gpu-driven/geometry.slang`: the G-buf
 SURFACE_MODULE;` and names only `Surface`. It gets a material as a `MaterialAddress`, which only
 `evaluateSurface<Surface>` reads, as `Surface.Params*`: no technique casts the address itself. `shaders/CMakeLists.txt` lists the techniques; `aegis_add_shaders`
 builds each one once per surface shader, with `-DSURFACE_MODULE=surfaces.<name>`, into
-`<technique>.<name>.spv`, and reflects each surface shader's block into `surfaces/<name>.layout.json`. A render
-pass picks the file for a batch's template with `render_graph::techniqueShader`.
+`<technique>.<name>.spv`, and again with `-DALPHA_MASK` into `<technique>.<name>.masked.spv`, and reflects each surface
+shader's block into `surfaces/<name>.layout.json`. A render pass picks the file for a batch's material variant with
+`render_graph::techniqueShader`.
+
+**Masked and double-sided materials.** A technique's masked build calls `alphaTest`, which discards a fragment whose
+`SurfaceOutput.alpha` is below its `alphaCutoff` (the PBR surface: the albedo map's alpha times the `alpha`
+parameter, against the `alphaCutoff` parameter); only masked materials (`AlphaMode::Mask`) draw with it, so opaque
+pipelines keep early depth testing. A material that culls nothing (`rhi::CullMode::None`, glTF's `doubleSided`)
+draws back faces too: techniques build their `SurfaceInput` with `toSurfaceInput`, which flips the normal on a back
+face.
 
 To add a surface shader, add `surfaces/<name>.slang` and a template naming it (`"surface": "<name>"`) whose
 parameters list the `Params` fields in order: the template loader rejects a template whose parameters differ from
