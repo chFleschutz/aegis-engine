@@ -143,14 +143,16 @@ TEST_SUITE("editor::hierarchyRows")
 
     TEST_CASE("a deep chain does not recurse")
     {
+        // Built from the leaf up: each new entity adopts the chain so far, so addChild's cycle check
+        // walks up from a root (one step) instead of the whole chain, which made the build quadratic.
         Registry registry;
-        Entity parent = registry.create("0");
         constexpr std::uint32_t depth = 20000;
-        for (std::uint32_t i = 1; i <= depth; ++i)
+        Entity top = registry.create(std::to_string(depth));
+        for (std::uint32_t i = depth; i-- > 0;)
         {
-            const auto child = registry.create(std::to_string(i));
-            REQUIRE(registry.addChild(parent, child).has_value());
-            parent = child;
+            const auto parent = registry.create(std::to_string(i));
+            REQUIRE(registry.addChild(parent, top).has_value());
+            top = parent;
         }
         const auto rows = hierarchyRows(registry, [](StableId) { return true; });
         REQUIRE(rows.size() == depth + 1);
