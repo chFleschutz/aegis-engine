@@ -18,11 +18,16 @@ auto loadSPIRV(const std::filesystem::path& path) -> std::expected<SpirvBuffer, 
 
 export namespace aegis::test
 {
+// DamagedHelmet under the Kloppenheim sky, a camera and three lights, in the sample project: what --scene loads.
+inline constexpr std::string_view testSceneFile{ "scenes/tests/aegis_test.scene" };
+
 struct Options
 {
     bool headless{ false };
     std::uint32_t frames{ 0 }; // 0: until the window is closed
     bool scene{ false };       // Render the test scene file through the app instead of the triangle (runScene)
+    // With --scene: the scene file, relative to the sample project's content
+    std::string sceneFile{ testSceneFile };
     bool gpuDriven{ false };   // With --scene: the GPU-driven (mesh shader) geometry path
     bool mutateScene{ false }; // With --scene: change the loaded scene while frames are in flight (see SceneShell::mutateScene)
     bool mirror{ false };      // With --scene: mirror the helmet (a scale of -1 on x), which must not turn it inside out
