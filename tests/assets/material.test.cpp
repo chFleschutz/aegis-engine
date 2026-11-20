@@ -3,12 +3,18 @@
 import std;
 import aegis.assets;
 import aegis.math;
+import aegis.rhi;
 
 namespace
 {
+using aegis::assets::AlphaMode;
 using aegis::assets::ErrorCode;
 using aegis::assets::MaterialTemplate;
 using aegis::assets::MaterialValue;
+using aegis::assets::ModelMaterial;
+using aegis::assets::ModelMaterialModes;
+using aegis::assets::modelMaterialModes;
+using aegis::rhi::CullMode;
 
 template<typename T>
 auto readAt(const std::array<std::byte, 64>& block, std::size_t offset) -> T
@@ -140,5 +146,25 @@ TEST_SUITE("assets::detail::writeParameters")
         writeParameters(pbr, overrides, block);
         CHECK(readAt<float>(block, 0) == 0.75f);
         CHECK(readAt<float>(block, 8) == 2.0f);
+    }
+}
+
+TEST_SUITE("assets::modelMaterialModes")
+{
+    TEST_CASE("an opaque single-sided material is opaque and back-face culled")
+    {
+        CHECK(modelMaterialModes(ModelMaterial{}) == ModelMaterialModes{ .alphaMode = AlphaMode::Opaque, .cullMode = CullMode::Back });
+    }
+
+    TEST_CASE("a masked double-sided material is masked and culls nothing")
+    {
+        const ModelMaterial material{ .alphaMode = AlphaMode::Mask, .doubleSided = true };
+        CHECK(modelMaterialModes(material) == ModelMaterialModes{ .alphaMode = AlphaMode::Mask, .cullMode = CullMode::None });
+    }
+
+    TEST_CASE("a blended material draws opaque until a technique blends")
+    {
+        const ModelMaterial material{ .alphaMode = AlphaMode::Blend };
+        CHECK(modelMaterialModes(material) == ModelMaterialModes{ .alphaMode = AlphaMode::Opaque, .cullMode = CullMode::Back });
     }
 }
