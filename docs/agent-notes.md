@@ -20,6 +20,20 @@ Gotchas from past sessions, to read when a build, tool or test behaves unexpecte
   single one (so `'\\'` becomes an unterminated string), and the call can fail with "unexpected EOF
   while looking for matching `'`". Write scripts that need backslashes to a file in the scratchpad
   instead, or edit with the Edit tool.
+- **clangd needs `--experimental-modules-support`.** The root `.clangd` points clangd at
+  `build/windows-clang-debug`'s compile commands but strips the build's `-fmodule-file` and
+  `-fmodule-output` flags, so clangd builds its own BMIs (the first file takes 40–90 s). A clangd
+  that loads the build's BMIs keeps them mapped, and on Windows the next build then fails with "a
+  file with a user-mapped section open" until that clangd exits. Without the flag, each module unit
+  shows one `module '…' not found`: noise. The Claude Code clangd plugin starts clangd without it,
+  and doesn't map `.cppm`, so interface units get no diagnostics there;
+  `clangd --experimental-modules-support --check=<file>` parses one by hand (its error count includes
+  failed refactoring self-tests, `tweak: … FAIL`; only lines like `[unknown_typename] Line 1: …`
+  are diagnostics).
+- **clangd on Linux:** `.clangd` names the Windows preset and can't tell the OS apart (`If:` matches
+  paths only), and it beats `--compile-commands-dir`. Set `CompileFlags: CompilationDatabase:
+  <absolute path>/build/linux-clang-debug` in `~/.config/clangd/config.yaml`, which wins over
+  `.clangd` (not tried yet).
 - **A `cd` in a Bash call carries into the next call.** Later commands then run in that folder; use
   `git -C <dir>` or absolute paths instead.
 

@@ -744,7 +744,7 @@ auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t 
 {
     auto& registry = editor.world()->registry();
     const auto edits = editWorld(editor, frame);
-    const auto create = [&](world::Entity at) -> std::expected<world::Entity, std::string> {
+    const auto create = [&](world::Entity at) -> std::expected<world::Entity, Error> {
         auto holder = frame.assets.instantiateScene(*editor.world(), frame.types, assets::AssetId{ asset }, at);
         const auto* transformType = frame.types.find<Transform>();
         if (holder && location && transformType)
@@ -753,12 +753,14 @@ auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t 
             if (auto written = writeComponent(*transformType, registry, *holder, &registry.get<Transform>(*holder), values, edits.prepare); !written)
                 log::warn("Cannot place the instance: {}", reflect::describe(written.error()));
         }
-        return holder;
+        if (!holder)
+            return makeAssetError(std::move(holder.error()), "cannot instantiate the scene");
+        return *holder;
     };
     auto holder = instantiateEntity(edits, editor.undoStack(), parent, create);
     if (!holder)
     {
-        log::warn("Cannot instantiate {}: {}", assets::AssetId{ asset }, holder.error());
+        log::warn("Cannot instantiate {}: {}", assets::AssetId{ asset }, describe(holder.error()));
         return false;
     }
     editor.select(*holder);

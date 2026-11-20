@@ -107,7 +107,7 @@ void applyDrop(const Drop& drop, EditorContext& editor, FrameContext& frame)
     world::Entity previous;
     for (const auto entity : entities)
     {
-        std::expected<void, std::string> moved;
+        std::expected<void, Error> moved;
         if (drop.zone == DropZone::Into || !target)
         {
             if (entity == target)
@@ -121,7 +121,7 @@ void applyDrop(const Drop& drop, EditorContext& editor, FrameContext& frame)
         if (moved)
             previous = entity;
         else
-            log::warn("Cannot move '{}': {}", nameOf(registry, entity), moved.error());
+            log::warn("Cannot move '{}': {}", nameOf(registry, entity), describe(moved.error()));
     }
 }
 
@@ -523,7 +523,7 @@ auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool
         if (auto copy = duplicateEntity(editWorld(editor, frame), history, root))
             copies.push_back(registry.get<StableId>(*copy));
         else
-            log::warn("Cannot duplicate '{}': {}", nameOf(registry, root), copy.error());
+            log::warn("Cannot duplicate '{}': {}", nameOf(registry, root), describe(copy.error()));
     }
     if (copies.empty())
         return false;
@@ -551,7 +551,7 @@ auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool
         if (auto result = destroyEntity(editWorld(editor, frame), history, root))
             destroyed = true;
         else
-            log::warn("Cannot destroy '{}': {}", name, result.error());
+            log::warn("Cannot destroy '{}': {}", name, describe(result.error()));
     }
     editor.selection().clear();
     return destroyed;

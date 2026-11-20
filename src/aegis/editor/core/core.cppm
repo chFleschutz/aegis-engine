@@ -23,6 +23,7 @@
 //                   a Shift+click range over them, and the selected roots the actions act on.
 //   :editor_camera  EditorCamera: the viewport's camera (fly, orbit, pan, dolly, focus), never an entity.
 //   :edits          The edits the editor makes (fields, components, scripts, names, hierarchy, subtrees) and applyEdit.
+//   :error          Error: what the editor returns when an edit, a file or a copy fails, and describe().
 //   :undo_stack     UndoStack: the history of edits (merged drags, the saved marker).
 //   :commands       The structural edits (create, destroy, duplicate, move, ...), applied and recorded.
 //   :settled_extent SettledExtent: the viewport's render size, applied once the panel's size settles.
@@ -41,6 +42,7 @@ export import :console;
 export import :context;
 export import :drawers;
 export import :edits;
+export import :error;
 export import :editor_camera;
 export import :full_viewport;
 export import :hierarchy;

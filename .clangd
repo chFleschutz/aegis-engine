@@ -1,0 +1,6 @@
+# clangd parses with the default preset's compile commands but builds its own BMIs: on Windows, a
+# clangd that loads the build's BMIs keeps them mapped and the next build can't overwrite them.
+# Needs clangd's --experimental-modules-support; see docs/agent-notes.md ("clangd").
+CompileFlags:
+  CompilationDatabase: build/windows-clang-debug
+  Remove: [-fmodule-file=*, -fmodule-output=*]

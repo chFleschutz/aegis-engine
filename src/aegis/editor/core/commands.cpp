@@ -9,14 +9,15 @@ namespace aegis::editor
 {
 namespace
 {
-using Result = std::expected<void, std::string>;
+using Result = std::expected<void, Error>;
 
-auto checkEditable(world::Registry& registry, world::Entity entity) -> Result
+// 'role' names the entity in the message: "entity", "parent".
+auto checkEditable(world::Registry& registry, world::Entity entity, std::string_view role = "entity") -> Result
 {
     if (!registry.valid(entity))
-        return std::unexpected{ std::string{ "the entity is null or destroyed" } };
+        return makeError(ErrorCode::NotEditable, std::format("the {} is null or destroyed", role));
     if (registry.has<serialize::InstanceMember>(entity))
-        return std::unexpected{ std::string{ "the entity is part of a scene instance" } };
+        return makeError(ErrorCode::NotEditable, std::format("the {} is part of a scene instance", role));
     return {};
 }
 
@@ -42,11 +43,11 @@ auto indexOf(world::Registry& registry, world::Entity entity) -> std::size_t
     return index;
 }
 
-auto snapshot(const EditWorld& world, world::Entity root) -> std::expected<serialize::Scene, std::string>
+auto snapshot(const EditWorld& world, world::Entity root) -> std::expected<serialize::Scene, Error>
 {
     auto scene = serialize::saveScene(world.registry, world.types, root, world.registry.get<StableId>(root).value);
     if (!scene)
-        return std::unexpected{ serialize::describe(scene.error()) };
+        return makeError(scene.error(), "cannot capture the entities");
     return std::move(*scene);
 }
 
@@ -60,11 +61,11 @@ auto perform(const EditWorld& world, UndoStack& history, Edit edit, bool continu
 }
 
 // The field values of a default instance of 'type'.
-auto defaultValues(const reflect::TypeInfo& type) -> std::expected<FieldValues, std::string>
+auto defaultValues(const reflect::TypeInfo& type) -> std::expected<FieldValues, Error>
 {
     auto instance = type.create();
     if (!instance)
-        return std::unexpected{ reflect::describe(instance.error()) };
+        return makeError(instance.error(), std::format("cannot create a default '{}'", type.name));
     return fieldValues(type, instance->get());
 }
 
@@ -89,7 +90,7 @@ auto changeFields(const EditWorld& world, UndoStack& history, world::Entity enti
         return editable;
     const void* object = findObject(world, entity, type, scriptIndex);
     if (!object)
-        return std::unexpected{ std::format("the entity has no '{}'", type.name) };
+        return makeError(ErrorCode::MissingComponent, std::format("the entity has no '{}'", type.name));
 
     auto oldValues = fieldValues(type, object);
     auto newValues = oldValues;
@@ -104,18 +105,18 @@ auto changeFields(const EditWorld& world, UndoStack& history, world::Entity enti
 }
 
 auto createEntity(const EditWorld& world, UndoStack& history, std::string name, world::Entity parent, std::span<const reflect::TypeInfo* const> components)
-    -> std::expected<world::Entity, std::string>
+    -> std::expected<world::Entity, Error>
 {
     auto& registry = world.registry;
     if (parent)
     {
-        if (auto editable = checkEditable(registry, parent); !editable)
-            return std::unexpected{ std::format("cannot create a child: {}", editable.error()) };
+        if (auto editable = checkEditable(registry, parent, "parent"); !editable)
+            return std::unexpected{ std::move(editable.error()) };
     }
     for (const auto* type : components)
     {
         if (type->category != reflect::TypeCategory::Component || !type->attachment<world::ComponentStorage>())
-            return std::unexpected{ std::format("'{}' is not a component with storage", type->name) };
+            return makeError(ErrorCode::WrongCategory, std::format("'{}' is not a component with storage", type->name));
     }
 
     const auto entity = registry.create(name);
@@ -124,7 +125,7 @@ auto createEntity(const EditWorld& world, UndoStack& history, std::string name, 
         if (auto added = addComponent(*type, registry, entity); !added)
         {
             registry.destroy(entity);
-            return std::unexpected{ reflect::describe(added.error()) };
+            return makeError(added.error(), std::format("cannot add '{}'", type->name));
         }
     }
     if (parent)
@@ -140,13 +141,13 @@ auto createEntity(const EditWorld& world, UndoStack& history, std::string name, 
 }
 
 auto instantiateEntity(const EditWorld& world, UndoStack& history, world::Entity parent, const CreateInstance& create)
-    -> std::expected<world::Entity, std::string>
+    -> std::expected<world::Entity, Error>
 {
     auto& registry = world.registry;
     if (parent)
     {
-        if (auto editable = checkEditable(registry, parent); !editable)
-            return std::unexpected{ std::format("cannot instantiate there: {}", editable.error()) };
+        if (auto editable = checkEditable(registry, parent, "parent"); !editable)
+            return std::unexpected{ std::move(editable.error()) };
     }
 
     const auto holder = create(parent);
@@ -162,7 +163,7 @@ auto instantiateEntity(const EditWorld& world, UndoStack& history, world::Entity
     return *holder;
 }
 
-auto destroyEntity(const EditWorld& world, UndoStack& history, world::Entity entity) -> std::expected<void, std::string>
+auto destroyEntity(const EditWorld& world, UndoStack& history, world::Entity entity) -> std::expected<void, Error>
 {
     auto& registry = world.registry;
     if (auto editable = checkEditable(registry, entity); !editable)
@@ -174,7 +175,7 @@ auto destroyEntity(const EditWorld& world, UndoStack& history, world::Entity ent
         SubtreeEdit{ .subtree = std::move(*scene), .root = registry.get<StableId>(entity), .parent = idOf(registry, parentOf(registry, entity)), .index = indexOf(registry, entity), .destroy = true });
 }
 
-auto duplicateEntity(const EditWorld& world, UndoStack& history, world::Entity entity) -> std::expected<world::Entity, std::string>
+auto duplicateEntity(const EditWorld& world, UndoStack& history, world::Entity entity) -> std::expected<world::Entity, Error>
 {
     auto& registry = world.registry;
     if (auto editable = checkEditable(registry, entity); !editable)
@@ -187,7 +188,7 @@ auto duplicateEntity(const EditWorld& world, UndoStack& history, world::Entity e
     const auto index = indexOf(registry, entity) + 1;
     auto copy = serialize::instantiate(registry, world.types, *scene, parent, index, serialize::EntityIds::New, world.prepare);
     if (!copy)
-        return std::unexpected{ serialize::describe(copy.error()) };
+        return makeError(copy.error(), "cannot copy the entities");
 
     // Recorded with the copy's IDs, so redo restores the same ones
     auto copyScene = snapshot(world, *copy);
@@ -201,7 +202,7 @@ auto duplicateEntity(const EditWorld& world, UndoStack& history, world::Entity e
 }
 
 auto renameEntity(const EditWorld& world, UndoStack& history, world::Entity entity, std::string name, bool continuous)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     auto& registry = world.registry;
     if (auto editable = checkEditable(registry, entity); !editable)
@@ -211,17 +212,17 @@ auto renameEntity(const EditWorld& world, UndoStack& history, world::Entity enti
 }
 
 auto moveEntity(const EditWorld& world, UndoStack& history, world::Entity entity, world::Entity parent, std::size_t index)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     auto& registry = world.registry;
     if (auto editable = checkEditable(registry, entity); !editable)
         return editable;
     if (parent)
     {
-        if (auto editable = checkEditable(registry, parent); !editable)
-            return std::unexpected{ std::format("cannot move it there: {}", editable.error()) };
+        if (auto editable = checkEditable(registry, parent, "parent"); !editable)
+            return editable;
         if (registry.isInSubtree(parent, entity))
-            return std::unexpected{ std::string{ world::describe(world::HierarchyError::Cycle) } };
+            return makeError(world::HierarchyError::Cycle, "cannot move the entity into its own subtree");
     }
 
     const auto oldParent = parentOf(registry, entity);
@@ -236,11 +237,11 @@ auto moveEntity(const EditWorld& world, UndoStack& history, world::Entity entity
 }
 
 auto moveEntityBeside(const EditWorld& world, UndoStack& history, world::Entity entity, world::Entity sibling, bool after)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     auto& registry = world.registry;
     if (!registry.valid(sibling))
-        return std::unexpected{ std::string{ "the target entity is null or destroyed" } };
+        return makeError(ErrorCode::MissingEntity, "the target entity is null or destroyed");
     if (sibling == entity)
         return {};
     const auto parent = parentOf(registry, sibling);
@@ -252,12 +253,12 @@ auto moveEntityBeside(const EditWorld& world, UndoStack& history, world::Entity 
 }
 
 auto addComponent(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     if (auto editable = checkEditable(world.registry, entity); !editable)
         return editable;
     if (type.category != reflect::TypeCategory::Component || !type.attachment<world::ComponentStorage>())
-        return std::unexpected{ std::format("'{}' is not a component with storage", type.name) };
+        return makeError(ErrorCode::WrongCategory, std::format("'{}' is not a component with storage", type.name));
     auto values = defaultValues(type);
     if (!values)
         return std::unexpected{ values.error() };
@@ -265,27 +266,27 @@ auto addComponent(const EditWorld& world, UndoStack& history, world::Entity enti
 }
 
 auto removeComponent(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     if (auto editable = checkEditable(world.registry, entity); !editable)
         return editable;
     const auto* storage = type.attachment<world::ComponentStorage>();
     const void* object = storage ? storage->find(world.registry, entity) : nullptr;
     if (!object)
-        return std::unexpected{ std::format("the entity has no '{}'", type.name) };
+        return makeError(ErrorCode::MissingComponent, std::format("the entity has no '{}'", type.name));
     if (type.meta.required)
-        return std::unexpected{ std::format("'{}' is required", type.name) };
+        return makeError(ErrorCode::RequiredComponent, std::format("'{}' is required", type.name));
     return perform(world, history, AddComponentEdit{ .entity = world.registry.get<StableId>(entity), .type = type.name, .values = fieldValues(type, object), .remove = true });
 }
 
 auto attachScript(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     auto& registry = world.registry;
     if (auto editable = checkEditable(registry, entity); !editable)
         return editable;
     if (type.category != reflect::TypeCategory::Script)
-        return std::unexpected{ std::format("'{}' is not a script", type.name) };
+        return makeError(ErrorCode::WrongCategory, std::format("'{}' is not a script", type.name));
     auto values = defaultValues(type);
     if (!values)
         return std::unexpected{ values.error() };
@@ -294,22 +295,22 @@ auto attachScript(const EditWorld& world, UndoStack& history, world::Entity enti
 }
 
 auto detachScript(const EditWorld& world, UndoStack& history, world::Entity entity, std::size_t index)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     auto& registry = world.registry;
     if (auto editable = checkEditable(registry, entity); !editable)
         return editable;
     if (!registry.has<scripting::Scripts>(entity) || index >= registry.get<scripting::Scripts>(entity).entries.size())
-        return std::unexpected{ std::format("the entity has no script number {}", index) };
+        return makeError(ErrorCode::MissingComponent, std::format("the entity has no script number {}", index));
     const auto& entry = registry.get<scripting::Scripts>(entity).entries[index];
     const auto* type = world.types.find(entry.name);
     if (!type || !entry.object)
-        return std::unexpected{ std::format("the script '{}' is not registered", entry.name) };
+        return makeError(ErrorCode::UnknownType, std::format("the script '{}' is not registered", entry.name));
     return perform(world, history, AttachScriptEdit{ .entity = registry.get<StableId>(entity), .type = type->name, .index = index, .values = fieldValues(*type, entry.object), .detach = true });
 }
 
 auto resetFields(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type, std::optional<std::size_t> scriptIndex)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     auto defaults = defaultValues(type);
     if (!defaults)
@@ -318,7 +319,7 @@ auto resetFields(const EditWorld& world, UndoStack& history, world::Entity entit
 }
 
 auto pasteFields(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type, std::optional<std::size_t> scriptIndex, std::string_view text)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     auto pasted = componentFromText(type, text);
     if (!pasted)

@@ -22,7 +22,7 @@ void createAndSelect(EditorContext& editor, FrameContext& frame, std::string nam
     auto created = createEntity(editWorld(editor, frame), editor.undoStack(), name, parent, components);
     if (!created)
     {
-        log::warn("Cannot create '{}': {}", name, created.error());
+        log::warn("Cannot create '{}': {}", name, describe(created.error()));
         return;
     }
     editor.select(*created);
