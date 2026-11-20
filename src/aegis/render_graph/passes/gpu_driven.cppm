@@ -94,11 +94,14 @@ private:
 
 /// @brief Frustum-culls every instance on the GPU, appending the visible ones per draw batch to
 ///        "VisibleInstances" with their "IndirectDrawCommands", and counting them. Both buffers hold
-///        one entry per instance of the frame's InstanceStore, and grow with it.
+///        one entry per instance of the frame's InstanceStore, and grow with it. Without a camera for its view it
+///        culls nothing, and the geometry pass draws nothing.
 class CullingPass : public RenderPass
 {
 public:
-    CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances);
+    /// @param view The index of the view in FrameScene::views it culls for (whose "CameraData" it reads).
+    CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances,
+        std::uint32_t view = 0);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -109,6 +112,7 @@ public:
 private:
     const FrameSceneSource& m_scene;
     const InstanceUpdatePass& m_instances;
+    std::uint32_t m_view;
     ResourceId m_cameraData;
     ResourceId m_staticInstances;
     ResourceId m_dynamicInstances;

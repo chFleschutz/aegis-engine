@@ -100,8 +100,8 @@ struct AmbientLight
     float intensity = 0.1f;
 };
 
-/// @brief Light shining along the entity's transform's forward from infinitely far away (the sun), shadowed near the
-///        camera
+/// @brief Light from infinitely far away (the sun) in the direction of the entity's transform's forward: it shines
+///        along -forward. Shadowed near the camera
 struct DirectionalLight
 {
     glm::vec3 color = { 1.0f, 1.0f, 1.0f };

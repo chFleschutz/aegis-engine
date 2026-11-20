@@ -94,8 +94,8 @@ auto LightingPass::createResources(ResourcePool& pool) -> std::expected<void, Er
 
     if (m_shadowView)
     {
-        // A fetch compares the point's depth with the four nearest texels and blends the results: bilinear PCF. Past
-        // the map's edge the border is lit (depth 1).
+        // A fetch compares the point's depth with the four nearest texels and blends the results: bilinear PCF. A point
+        // outside the map is lit without a fetch (lighting::directionalShadow).
         m_device = &pool.device();
         auto sampler = m_device->createSampler({
             .name = "ShadowMapSampler",

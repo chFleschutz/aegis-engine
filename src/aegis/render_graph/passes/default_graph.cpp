@@ -39,7 +39,7 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
     {
         const auto& instances = desc.instances ? *desc.instances : graph.add<InstanceUpdatePass>(scene);
         graph.add<ClearDrawCountsPass>();
-        graph.add<CullingPass>(scene, instances);
+        graph.add<CullingPass>(scene, instances, desc.view);
         graph.add<GpuDrivenGeometryPass>(scene, instances, Technique::GBuffer, desc.view);
     }
     else
@@ -65,7 +65,7 @@ auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
     {
         const auto& instances = desc.instances ? *desc.instances : graph.add<InstanceUpdatePass>(scene);
         graph.add<ClearDrawCountsPass>();
-        graph.add<CullingPass>(scene, instances);
+        graph.add<CullingPass>(scene, instances, desc.view);
         graph.add<GpuDrivenGeometryPass>(scene, instances, Technique::Depth, desc.view);
     }
     else

@@ -166,9 +166,11 @@ auto ClearDrawCountsPass::execute(ResourcePool& pool, const FrameInfo& frameInfo
 
 // Culling --------------------------------------------------------------------------------------------
 
-CullingPass::CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances) :
+CullingPass::CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances,
+    std::uint32_t view) :
     m_scene{ scene },
     m_instances{ instances },
+    m_view{ view },
     m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) },
     m_staticInstances{ declarations.addReference(names::staticInstances, Usage::ShaderRead) },
     m_dynamicInstances{ declarations.addReference(names::dynamicInstances, Usage::ShaderRead) },
@@ -210,7 +212,7 @@ auto CullingPass::prepare(ResourcePool& pool) -> std::expected<void, Error>
 auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
     const auto instanceCount = m_instances.staticCount() + m_instances.dynamicCount();
-    if (instanceCount == 0)
+    if (instanceCount == 0 || !m_scene.current().camera(m_view))
         return;
 
     const auto frame = frameInfo.frameIndex;
