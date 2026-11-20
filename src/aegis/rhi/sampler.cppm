@@ -36,6 +36,9 @@ public:
         float maxAnisotropy{ 16.0f }; // 1 or less disables, larger is clamped to the device limit
         float minLod{ 0.0f };
         float maxLod{ LodClampNone };
+        /// @brief A comparison sampler: a fetch compares the reference value with each texel by this op and filters
+        ///        the results (0 or 1), as shadow maps are read (bindless::comparisonSampler in shaders).
+        std::optional<CompareOp> compare;
     };
 
     [[nodiscard]] auto vk() const noexcept -> vk::Sampler { return *m_sampler; }

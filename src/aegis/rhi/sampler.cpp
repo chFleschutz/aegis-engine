@@ -35,6 +35,8 @@ auto Sampler::create(const Device& device, const Desc& desc) -> std::expected<Sa
         .addressModeW = addressMode,
         .anisotropyEnable = anisotropy.has_value(),
         .maxAnisotropy = anisotropy.value_or(1.0f),
+        .compareEnable = desc.compare.has_value(),
+        .compareOp = toVulkan(desc.compare.value_or(CompareOp::Never)),
         .minLod = desc.minLod,
         .maxLod = desc.maxLod,
         .borderColor = vk::BorderColor::eFloatOpaqueBlack,
