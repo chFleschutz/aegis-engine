@@ -24,7 +24,7 @@ export namespace aegis::render_graph
 inline constexpr std::uint32_t computeGroupSize{ 16 };
 /// @brief Threads per workgroup of the culling shader: [numthreads(64, 1, 1)] in gpu-driven/culling.slang.
 inline constexpr std::uint32_t cullingGroupSize{ 64 };
-/// @brief lighting.slang's MAX_REFLECTION_LOD: the last mip of the prefiltered environment map (checked
+/// @brief MAX_REFLECTION_LOD in modules/lighting.slang: the last mip of the prefiltered environment map (checked
 ///        against Ibl::prefilteredMipLevels).
 inline constexpr float maxReflectionLod{ 4.0f };
 
@@ -81,9 +81,9 @@ struct DrawBatchData
     std::uint32_t count;
 };
 
-/// @brief lighting.slang's Light: a point or spot light in the frame's light buffer ("Lights"), which holds the point
-///        lights first, then the spot lights. Both shade alike: a point light is a spot light whose cone lets
-///        everything through (coneScale 0, coneOffset 1).
+/// @brief lighting::Light (modules/lighting.slang): a point or spot light in the frame's light buffer ("Lights"),
+///        which holds the point lights first, then the spot lights. Both shade alike: a point light is a spot light
+///        whose cone lets everything through (coneScale 0, coneOffset 1).
 struct LightData
 {
     glm::vec3 position;
@@ -95,7 +95,7 @@ struct LightData
     float coneOffset;    // -cos outer * coneScale
 };
 
-/// @brief lighting.slang's Lighting block, one per view and frame in flight.
+/// @brief lighting::Lighting (modules/lighting.slang), one per view and frame in flight.
 struct LightingUniforms
 {
     glm::vec4 cameraPosition{ 0.0f };
@@ -289,7 +289,7 @@ struct GpuTransform
     return toGpuTransform(toModelRows(model));
 }
 
-// The C++ twins of lighting.slang's light falloff (PBR::distanceAttenuation and PBR::coneAttenuation in
+// The C++ twins of the light falloff in lighting::shade (PBR::distanceAttenuation and PBR::coneAttenuation in
 // modules/pbr.slang), so tests can pin it. Change them together.
 
 /// @brief modules/constants.slang's EPSILON.

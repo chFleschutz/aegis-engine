@@ -72,6 +72,13 @@ and material parameter blocks rely on it. Matrices are row-major (`-matrix-layou
 Working examples: `computeMain` in `src/aegis/test/shader.slang`, and `shaders/ibl/*.slang`
 (driven by `render_graph::Ibl`).
 
+## Lighting
+
+`modules/lighting.slang` holds the shading by a view's lights: `lighting::shade` lights a `SurfacePoint` with the
+ambient light (the sky's `Environment` maps), the directional light and the point and spot lights of a
+`lighting::Lighting` block (`render_graph::LightingUniforms`). The lighting pass (`lighting.slang`) shades G-buffer
+pixels with it; any other pass that lights surfaces calls it too rather than copying it, so all passes shade alike.
+
 ## Techniques and surface shaders
 
 A material draws through its material template's surface shader (`surfaces/<name>.slang`), which implements
