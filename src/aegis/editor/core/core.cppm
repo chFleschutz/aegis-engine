@@ -30,6 +30,8 @@
 //   :play           PlaySession and copyWorld: play-in-editor's state and the play world's copy of the edit world.
 //   :scene_file     Writing the edited scene to its file (atomically), and Save As's file names.
 //   :autosave       The autosaves of the edited scenes: their files, which one to offer, and the recovery bar's text.
+//   :scene_document SceneDocument: the current scene file, its unsaved changes, the action waiting for them, autosave
+//                   timing and recovery.
 export module aegis.editor.core;
 
 export import :asset_browser;
@@ -52,6 +54,7 @@ export import :play;
 export import :preferences;
 export import :property_model;
 export import :recent_scenes;
+export import :scene_document;
 export import :scene_file;
 export import :selection;
 export import :side_rail;

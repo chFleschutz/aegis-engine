@@ -37,6 +37,7 @@ target_sources(aegis-editor-core
     core/preferences.cppm
     core/property_model.cppm
     core/recent_scenes.cppm
+    core/scene_document.cppm
     core/scene_file.cppm
     core/selection.cppm
     core/side_rail.cppm
@@ -63,6 +64,7 @@ target_sources(aegis-editor-core
     core/preferences.cpp
     core/property_model.cpp
     core/recent_scenes.cpp
+    core/scene_document.cpp
     core/scene_file.cpp
     core/selection.cpp
     core/side_rail.cpp
