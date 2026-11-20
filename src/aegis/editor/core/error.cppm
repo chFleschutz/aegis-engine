@@ -9,7 +9,7 @@ export namespace aegis::editor
 enum class ErrorCode
 {
     NotEditable,        // An entity to edit is null, destroyed or part of a scene instance
-    MissingEntity,      // An entity an edit names by its StableId is gone
+    MissingEntity,      // An entity an edit names by its StableId is gone, or a target entity is null or destroyed
     UnknownType,        // No type is registered under the name an edit or a script names
     UnknownField,       // The type has no field of the name an edit names
     WrongCategory,      // The type is not a component with storage, or not a script, where one is needed

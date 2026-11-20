@@ -26,7 +26,7 @@ struct RecentScenes
 [[nodiscard]] auto recentScenesPath(const std::filesystem::path& project) -> std::filesystem::path;
 
 /// @brief Reads 'file'. A missing file gives an empty list; more paths than the limit are cut, duplicates dropped.
-/// @return The reason as text when the file exists but cannot be read or parsed.
+/// @return FileFailed when the file exists but cannot be read, JsonFailed when it does not parse.
 [[nodiscard]] auto loadRecentScenes(const std::filesystem::path& file) -> std::expected<RecentScenes, Error>;
 
 /// @brief Writes 'file', creating its folder.

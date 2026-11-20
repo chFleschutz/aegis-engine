@@ -241,7 +241,7 @@ auto moveEntityBeside(const EditWorld& world, UndoStack& history, world::Entity 
 {
     auto& registry = world.registry;
     if (!registry.valid(sibling))
-        return makeError(ErrorCode::NotEditable, "the target entity is null or destroyed");
+        return makeError(ErrorCode::MissingEntity, "the target entity is null or destroyed");
     if (sibling == entity)
         return {};
     const auto parent = parentOf(registry, sibling);

@@ -67,7 +67,7 @@ inline constexpr std::array<float, 6> uiScaleSteps{ 0.75f, 1.0f, 1.25f, 1.5f, 1.
 [[nodiscard]] auto preferencesPath() -> std::filesystem::path;
 
 /// @brief Reads 'file'. A missing file gives the defaults; missing keys keep theirs.
-/// @return The reason as text when the file exists but cannot be read or parsed.
+/// @return FileFailed when the file exists but cannot be read, JsonFailed when it does not parse.
 [[nodiscard]] auto loadPreferences(const std::filesystem::path& file) -> std::expected<EditorPreferences, Error>;
 
 /// @brief Writes 'file', creating its folder.
