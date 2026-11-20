@@ -234,9 +234,8 @@ private:
     Viewport m_viewport;
     Engine* m_engine{ nullptr };
     SceneDocument m_document{ m_context };
-    std::optional<assets::AssetId> m_startupScene; // setStartupScene's
-    bool m_openOpen{ false };                      // Open the Open popup in this frame
-    bool m_openSaveAs{ false };
+    std::optional<assets::AssetId> m_startupScene;  // setStartupScene's
+    bool m_openOpen{ false };                       // Open the Open popup in this frame
     std::string m_openSearch;                       // What the Open popup lists
     std::optional<assets::AssetId> m_openSelection; // Its selected scene
     std::string m_saveAsPath;                       // What Save As shows

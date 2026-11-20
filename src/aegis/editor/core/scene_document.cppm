@@ -74,8 +74,8 @@ public:
     /// @brief Asks to run 'action' (New, Open, Quit): with unsaved changes it waits for the prompt, otherwise
     ///        takeAction returns it.
     void request(SceneAction action);
-    /// @brief Whether the window may close now; with unsaved changes it asks as request(Quit) does, unless an action
-    ///        waits already.
+    /// @brief Whether the window may close now; with unsaved changes it asks as request(Quit) does, unless the
+    ///        document waits already (the prompt, or Save As with or without an action).
     [[nodiscard]] auto canClose() -> bool;
     [[nodiscard]] auto waiting() const -> Wait { return m_wait; }
     /// @brief The action waiting for the unsaved changes to be saved or discarded; none if nothing waits.

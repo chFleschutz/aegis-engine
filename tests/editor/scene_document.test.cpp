@@ -200,6 +200,14 @@ TEST_SUITE("editor::SceneDocument")
             CHECK_FALSE(editor.document.canClose());
             CHECK(editor.document.pending() == open7);
         }
+        SUBCASE("Save As that is open stays open")
+        {
+            editor.document.cancel();
+            editor.document.requestSaveAs();
+            CHECK_FALSE(editor.document.canClose());
+            CHECK(editor.document.waiting() == Wait::SaveAs);
+            CHECK_FALSE(editor.document.pending());
+        }
         SUBCASE("Don't Save quits")
         {
             editor.document.discard();

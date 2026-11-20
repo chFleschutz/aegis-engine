@@ -41,7 +41,7 @@ auto SceneDocument::canClose() -> bool
 {
     if (!unsaved())
         return true;
-    if (!m_pending)
+    if (m_wait == Wait::None)
         request({ .kind = SceneAction::Kind::Quit });
     return false;
 }
