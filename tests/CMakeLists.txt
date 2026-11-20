@@ -11,11 +11,13 @@ target_link_libraries(aegis-test-main PUBLIC doctest::doctest)
 # Builds one executable per module linking only that module's library, then registers its
 # cases with CTest so `ctest` aggregates across every executable. Each case is labelled with its
 # module, so `ctest -L <module>` runs one module (CTest names cases by TEST_CASE, not TEST_SUITE).
+# A case that runs past AEGIS_UNIT_TEST_TIMEOUT seconds fails: every commit runs the suite, so it stays fast.
+set(AEGIS_UNIT_TEST_TIMEOUT 30)
 function(aegis_add_test module)
     cmake_parse_arguments(T "" "" "SOURCES;LIBS" ${ARGN})
     add_executable(aegis-tests-${module} ${T_SOURCES})
     target_link_libraries(aegis-tests-${module} PRIVATE aegis-test-main ${T_LIBS})
-    doctest_discover_tests(aegis-tests-${module} PROPERTIES LABELS ${module})
+    doctest_discover_tests(aegis-tests-${module} PROPERTIES LABELS ${module} TIMEOUT ${AEGIS_UNIT_TEST_TIMEOUT})
 endfunction()
 
 add_subdirectory(assets)
