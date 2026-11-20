@@ -217,7 +217,7 @@ and order.
 1. **One worktree per PR.** `tools/new-worktree.sh <branch> [base]` creates
    `../aegis-engine.worktrees/<branch>` from `origin/main` with submodules, then configures and
    builds it; after the PR merges, `tools/remove-worktree.sh <branch> --delete-branch`. Name branches
-   by kind: `fix/`, `test/`, `refactor/`, `cleanup/`, `style/`, `build/`, `feat/`, `ci/`. Run the
+   by kind: `fix/`, `test/`, `refactor/`, `cleanup/`, `style/`, `build/`, `feat/`, `ci/`, `docs/`. Run the
    `tools/*.sh` scripts from Git Bash (in PowerShell, `bash` is usually WSL:
    `& "C:\Program Files\Git\bin\bash.exe" tools/new-worktree.sh <branch>`). A Claude Code worktree
    (`.claude/worktrees/`) gets its submodules and a configured preset from the `SessionStart` hook

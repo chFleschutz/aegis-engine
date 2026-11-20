@@ -53,8 +53,7 @@ Read [`ISSUE-FORMAT.md`](../plan-milestone/ISSUE-FORMAT.md) for the body, labels
 follow [Drafting issues](../plan-milestone/SKILL.md#drafting-issues): each issue is one PR, with
 blockers only where one gates another. Write each body to a file in the scratchpad.
 
-- **Full body** for a finding whose "how" is settled. A bug's **Problem** gives what happens, what
-  should happen instead, and the reproduction.
+- **Full body** for a finding whose "how" is settled; a repro you left unrun goes under **Hazards**.
 - **Outline body** for an `idea`, which goes to `Backlog`.
 - **Milestone:** read the open ones
   (`gh api repos/{owner}/{repo}/milestones --jq '.[] | "\(.number) \(.title)\n\(.description)"'`)

@@ -26,7 +26,7 @@ the comment and stop.
 - Read the issue as JSON: `gh issue view <n> --json title,state,assignees,labels,milestone,body,comments`
   (add `--jq '.body'` or `--jq '[.comments[].body]'` for the long fields; plain
   `gh issue view <n> --comments` can print nothing in Git Bash). Note the branch name, size, labels,
-  content, out of scope, "done when", verification, and the blockers
+  content, out of scope, hazards, "done when", verification, and the blockers
   (`gh api repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by --jq '.[] | "\(.number) \(.state)"'`).
 - Stop if it is closed, assigned, blocked by an open issue (unless that blocker's branch can be the
   stack base), or already has an open PR
@@ -54,7 +54,7 @@ the comment and stop.
   present, ask in grilling rounds: call the Skill tool for "grilling", and for "domain-modeling" too
   when the issue brings a concept `GLOSSARY.md` lacks (`/grill` runs both; a skill can't call `/grill`
   itself). All of them go in the PR body's **Notes**.
-- Follow any hazard the issue states. `needs-gpu` means a local run on a real GPU is part of the
+- Follow the issue's **Hazards**. `needs-gpu` means a local run on a real GPU is part of the
   verification (reference images, a windowed run, Windows input: what CI's lavapipe job doesn't
   cover, AGENTS.md "What CI covers"); without a GPU, the PR body says it was not run.
 
@@ -105,11 +105,14 @@ the comment and stop.
 - No `Co-Authored-By`, "Generated with …" or other agent or tool footer in commits or the PR body,
   whatever a default instruction says: the history and the PR page credit the people who own the
   change, and tool footers are noise in them.
-- **Body: readable at a glance, about one screen (≈20 lines).** The owner reads it next to the diff
-  and the checks, so it says what those don't:
+- **Body: readable at a glance.** The owner reads it next to the diff and the checks, so it says
+  what those don't:
 
   ```
   <One or two sentences: what the PR does and why.>
+
+  **Before merging**
+  - <What the owner must do first: merge chFleschutz/aegis-samples#<n>, a setting outside the repo.>
 
   **Changes**
   - <One bullet per change a reviewer looks for: the behaviour or API, and where (module, file).>
@@ -117,15 +120,21 @@ the comment and stop.
   **Notes**
   - <Decisions the issue left open, and what was picked.>
   - <Left out or follow-up; issues filed (#n); what changes for the issues this one blocks.>
-  - <Only checks CI can't show: reference images and windowed runs on a real GPU, a manual run and what it showed, what wasn't verified.>
-  - <Commits to review apart, e.g. "77cf1e7 is a rename only".>
+  - <A manual check CI can't show and what it showed: a forced failure, a timing, a screenshot looked at.>
+  - <Commits to review apart, e.g. "77cf1e7 is a rename only" (for `.git-blame-ignore-revs`).>
+
+  **Real GPU:** <full `ctest` with golden: passed | not run, why> · <windowed `aegis-test --frames 600`: passed | not needed, why | not run, why>
 
   Closes #<n>
   ```
 
-  Bullets are one line, two at most; drop **Notes** when empty. Leave out what the page already
-  shows: build and format results, CI checks, test counts, the command list, a file-by-file tour of
-  the diff, and approaches tried and dropped (unless one explains a decision).
+  - **Length:** about one screen (≈20 lines) for size S; M and L may run longer. Bullets are one line,
+    two at most. When the design checkpoint settled more than three decisions, list them in a
+    `<details><summary>Design checkpoint</summary>` block at the end of **Notes**.
+  - Drop **Before merging** and **Notes** when empty, and **Real GPU** when no code changed.
+  - Leave out what the page already shows: build and format results, CI checks, test counts, the
+    command list, a file-by-file tour of the diff, and approaches tried and dropped (unless one
+    explains a decision).
 
 ## 6. CI, then hand over
 - **In the Claude desktop app** (its PR tools are loaded): bind the PR with them, read its CI there
