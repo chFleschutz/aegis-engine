@@ -647,21 +647,21 @@ auto drawSectionMenu(const reflect::TypeInfo& type, void* object, world::Entity 
     if (ImGui::MenuItem("Reset", nullptr, false, !readOnly && hasFields))
     {
         if (auto reset = resetFields(editWorld(editor, frame), editor.undoStack(), entity, type, scriptIndex); !reset)
-            log::warn("Cannot reset {}: {}", type.name, reset.error());
+            log::warn("Cannot reset {}: {}", type.name, describe(reset.error()));
     }
     if (ImGui::MenuItem("Copy", nullptr, false, hasFields))
     {
         if (auto text = componentToText(type, object))
             ImGui::SetClipboardText(text->c_str());
         else
-            log::warn("{}", text.error());
+            log::warn("{}", describe(text.error()));
     }
     const char* clipboard = ImGui::GetClipboardText();
     const bool pastable = !readOnly && hasFields && clipboard && componentFromText(type, clipboard).has_value();
     if (ImGui::MenuItem("Paste", nullptr, false, pastable))
     {
         if (auto pasted = pasteFields(editWorld(editor, frame), editor.undoStack(), entity, type, scriptIndex, clipboard); !pasted)
-            log::warn("Cannot paste {}: {}", type.name, pasted.error());
+            log::warn("Cannot paste {}: {}", type.name, describe(pasted.error()));
     }
     ImGui::Separator();
     const bool removable = !readOnly && !type.meta.required;
@@ -779,7 +779,7 @@ private:
             {
                 // Typing the name is one entry
                 if (auto renamed = renameEntity(editWorld(editor, frame), editor.undoStack(), entity, std::move(name), ImGui::IsItemActive()); !renamed)
-                    log::warn("Cannot rename the entity: {}", renamed.error());
+                    log::warn("Cannot rename the entity: {}", describe(renamed.error()));
             }
             if (ImGui::IsItemDeactivated())
                 editor.undoStack().seal();
@@ -834,7 +834,7 @@ private:
         if (removed)
         {
             if (auto done = removeComponent(editWorld(editor, frame), editor.undoStack(), entity, *removed); !done)
-                log::warn("Cannot remove {}: {}", removed->name, done.error());
+                log::warn("Cannot remove {}: {}", removed->name, describe(done.error()));
         }
     }
 
@@ -857,7 +857,7 @@ private:
         if (detached)
         {
             if (auto done = detachScript(editWorld(editor, frame), editor.undoStack(), entity, *detached); !done)
-                log::warn("Cannot detach the script: {}", done.error());
+                log::warn("Cannot detach the script: {}", describe(done.error()));
         }
     }
 
@@ -906,7 +906,7 @@ private:
             const bool script = picked->category == reflect::TypeCategory::Script;
             auto added = script ? attachScript(editWorld(editor, frame), editor.undoStack(), entity, *picked) : addComponent(editWorld(editor, frame), editor.undoStack(), entity, *picked);
             if (!added)
-                log::warn("Cannot {} {}: {}", script ? "attach" : "add", picked->name, added.error());
+                log::warn("Cannot {} {}: {}", script ? "attach" : "add", picked->name, describe(added.error()));
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();

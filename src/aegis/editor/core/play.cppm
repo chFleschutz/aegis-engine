@@ -2,6 +2,7 @@ export module aegis.editor.core:play;
 import std;
 import aegis.reflect;
 import aegis.world;
+import :error;
 import :inspector;
 
 export namespace aegis::editor
@@ -12,7 +13,7 @@ export namespace aegis::editor
 ///        finishing each component (the asset library resolves its references). 'from' is only read.
 /// @return Why the world could not be copied; 'to' is then unchanged.
 [[nodiscard]] auto copyWorld(world::Registry& from, world::Registry& to, const reflect::TypeRegistry& types, const PrepareField& prepare = {})
-    -> std::expected<void, std::string>;
+    -> std::expected<void, Error>;
 
 /// @brief Whether the play world runs: Play starts it, Pause and Step hold it and run one frame, Stop ends it. Pure
 ///        state; the editor shell creates and destroys the play world.

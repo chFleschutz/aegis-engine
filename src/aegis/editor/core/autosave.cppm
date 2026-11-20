@@ -2,6 +2,7 @@ export module aegis.editor.core:autosave;
 import std;
 import aegis.reflect;
 import aegis.world;
+import :error;
 
 export namespace aegis::editor
 {
@@ -25,10 +26,10 @@ export namespace aegis::editor
 /// @brief Writes the scene file of 'registry' as the scene 'id' (sceneText) to the autosave 'file', creating its
 ///        folder, atomically (writeFileAtomically).
 [[nodiscard]] auto writeAutosave(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id,
-    const std::filesystem::path& file) -> std::expected<void, std::string>;
+    const std::filesystem::path& file) -> std::expected<void, Error>;
 
 /// @brief The text of the autosave 'file', to restore.
-[[nodiscard]] auto readAutosave(const std::filesystem::path& file) -> std::expected<std::string, std::string>;
+[[nodiscard]] auto readAutosave(const std::filesystem::path& file) -> std::expected<std::string, Error>;
 
 /// @brief What the recovery bar says of an autosave of 'scene' (its file name) written at 'written', local time:
 ///        "Unsaved changes to sponza.scene from 14:32", with the date when that is not 'today'

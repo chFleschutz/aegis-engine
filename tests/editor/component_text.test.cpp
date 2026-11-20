@@ -156,8 +156,7 @@ TEST_SUITE("editor::componentText")
 
         const auto values = componentFromText(t.everything(), *text);
         REQUIRE_FALSE(values.has_value());
-        CHECK(values.error().find("'Other'") != std::string::npos);
-        CHECK(values.error().find("'Everything'") != std::string::npos);
+        CHECK(values.error().code == aegis::editor::ErrorCode::WrongComponent);
     }
 
     TEST_CASE("text that is no copied component is rejected")
@@ -174,7 +173,9 @@ TEST_SUITE("editor::componentText")
         Types t;
         const auto values = componentFromText(t.everything(), R"({"component":"Everything","fields":{"count":"3","speed":"fast"}})");
         REQUIRE_FALSE(values.has_value());
-        CHECK(values.error().find("speed") != std::string::npos);
+        CHECK(values.error().code == aegis::editor::ErrorCode::ReflectFailed);
+        REQUIRE(values.error().reflect.has_value());
+        CHECK(values.error().reflect->code == aegis::reflect::ErrorCode::ParseError);
     }
 
     TEST_CASE("fields missing from the text are left out and unknown ones ignored")

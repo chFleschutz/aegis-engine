@@ -3,6 +3,7 @@ import std;
 import aegis.reflect;
 import aegis.serialize;
 import aegis.world;
+import :error;
 import :inspector;
 
 export namespace aegis::editor
@@ -147,10 +148,17 @@ void destroySubtree(world::Registry& registry, world::Entity root);
 /// @return Why it no longer applies (the entity, component or script is gone, a type or field is not registered,
 ///         a restored ID is taken); nothing is changed then, except the fields a component edit wrote before the
 ///         one that failed
-[[nodiscard]] auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::expected<void, std::string>;
+[[nodiscard]] auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::expected<void, Error>;
+
+/// @brief An edit of an undo entry that no longer applies (applyEdits).
+struct EditFailure
+{
+    std::string edit; // describe(edit)
+    Error error;
+};
 
 /// @brief Writes one side of every edit of an undo entry (UndoStack::undo, redo): the old sides last to first, the new
 ///        sides first to last. An edit that no longer applies is skipped and the others are still written.
-/// @return Why each skipped edit no longer applies, as "<describe(edit)>: <reason>"; empty when every edit applied
-[[nodiscard]] auto applyEdits(const EditWorld& world, std::span<const Edit> edits, EditSide side) -> std::vector<std::string>;
+/// @return Why each skipped edit no longer applies; empty when every edit applied
+[[nodiscard]] auto applyEdits(const EditWorld& world, std::span<const Edit> edits, EditSide side) -> std::vector<EditFailure>;
 }
