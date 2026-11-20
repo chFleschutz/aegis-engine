@@ -108,8 +108,8 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         return std::unexpected{ "--views needs at least 50 frames to render the views together and alone" };
     if (options.views && options.unlit)
         return std::unexpected{ "--views adds an unlit cube of its own, so it can't run with --unlit" };
-    if (options.sceneFile != testSceneFile && (options.mirror || options.mutateScene || options.worlds))
-        return std::unexpected{ "--mirror, --mutate-scene and --worlds edit the test scene's helmet, so they can't run with --scene-file" };
+    if (options.sceneFile != testSceneFile && (options.mirror || options.mutateScene || options.worlds || options.unlit || options.view || options.views))
+        return std::unexpected{ "--mirror, --mutate-scene, --worlds, --unlit, --view and --views are written for the test scene, so they can't run with --scene-file" };
     if (options.scene && options.noSamples)
         return std::unexpected{ "--scene loads the sample project, so it can't run with --no-samples" };
 

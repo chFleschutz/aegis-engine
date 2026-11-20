@@ -165,6 +165,6 @@ TEST_SUITE("assets::modelMaterialModes")
     TEST_CASE("a blended material draws opaque until a technique blends")
     {
         const ModelMaterial material{ .alphaMode = AlphaMode::Blend };
-        CHECK(modelMaterialModes(material) == ModelMaterialModes{ .alphaMode = AlphaMode::Opaque, .cullMode = CullMode::Back });
+        CHECK(modelMaterialModes(material) == ModelMaterialModes{ .alphaMode = AlphaMode::Opaque, .cullMode = CullMode::Back, .blendDowngraded = true });
     }
 }

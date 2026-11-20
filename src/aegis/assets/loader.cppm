@@ -56,6 +56,7 @@ struct ModelMaterialModes
 {
     AlphaMode alphaMode{ AlphaMode::Opaque };
     rhi::CullMode cullMode{ rhi::CullMode::Back };
+    bool blendDowngraded{ false }; // The material blends, which draws as AlphaMode::Opaque
 
     auto operator==(const ModelMaterialModes&) const -> bool = default;
 };

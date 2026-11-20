@@ -130,7 +130,7 @@ private:
             }
 
             const auto modes = modelMaterialModes(data);
-            if (data.alphaMode == AlphaMode::Blend)
+            if (modes.blendDowngraded)
                 log::warn("Material {} ('{}') blends, which nothing draws yet: it draws opaque", m_materials.size(), data.name);
             instance.setAlphaMode(modes.alphaMode);
             instance.setCullMode(modes.cullMode);
@@ -201,6 +201,7 @@ auto modelMaterialModes(const ModelMaterial& material) noexcept -> ModelMaterial
     return {
         .alphaMode = material.alphaMode == AlphaMode::Blend ? AlphaMode::Opaque : material.alphaMode,
         .cullMode = material.doubleSided ? rhi::CullMode::None : rhi::CullMode::Back,
+        .blendDowngraded = material.alphaMode == AlphaMode::Blend,
     };
 }
 

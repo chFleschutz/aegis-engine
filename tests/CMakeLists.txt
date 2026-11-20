@@ -128,6 +128,9 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
     aegis_add_device_test(aegis-test-golden-scene-worlds-gpu-driven
         ARGS --headless --gpu-driven --worlds --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-gpu-driven.png --tolerance 0
         LABELS golden mesh-shaders)
+    # The same scene without a reference, so CI's lavapipe job builds the masked pipelines under validation.
+    aegis_add_device_test(aegis-test-scene-sponza ARGS --headless --scene-file scenes/sponza.scene --frames 10 --no-overlay)
+    aegis_add_device_test(aegis-test-scene-sponza-gpu-driven ARGS --headless --gpu-driven --scene-file scenes/sponza.scene --frames 10 --no-overlay LABELS mesh-shaders)
     # Sponza's masked, double-sided materials (foliage, #135): cut out by their alpha, both sides drawn.
     aegis_add_device_test(aegis-test-golden-sponza
         ARGS --headless --scene-file scenes/sponza.scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/sponza.png --tolerance 0

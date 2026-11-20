@@ -1,3 +1,5 @@
+module;
+#include <cassert>
 export module aegis.render_passes:pipeline_cache;
 import std;
 import :instance_store;
@@ -76,6 +78,7 @@ struct PipelineState
 ///        "gpu-driven/geometry.unlit.masked.spv" masked.
 [[nodiscard]] inline auto techniqueShader(std::string_view technique, const assets::MaterialVariant& variant) -> std::string
 {
+    assert(variant.materialTemplate && "a material variant names its template");
     const std::string_view masked = variant.alphaMode == assets::AlphaMode::Mask ? ".masked" : "";
     return std::format("{}.{}{}.spv", technique, variant.materialTemplate->surface(), masked);
 }
