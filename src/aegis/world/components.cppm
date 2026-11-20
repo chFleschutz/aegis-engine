@@ -100,10 +100,14 @@ struct AmbientLight
     float intensity = 0.1f;
 };
 
+/// @brief Light shining along the entity's transform's forward from infinitely far away (the sun), shadowed near the
+///        camera
 struct DirectionalLight
 {
     glm::vec3 color = { 1.0f, 1.0f, 1.0f };
     float intensity = 1.0f;
+    float shadowDistance = 50.0f; // Meters from the camera that its shadow covers
+    float shadowBias = 1.0f;      // Shadow-map texels a shaded point moves along its normal against self-shadowing
 };
 
 /// @brief Light shining from the entity's location in all directions

@@ -44,7 +44,8 @@ auto LightUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
 
 // Lighting -------------------------------------------------------------------------------------------
 
-LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view) :
+LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view,
+    std::optional<ShadowMap> shadow) :
     m_scene{ scene },
     m_view{ view },
     m_gBuffer{
@@ -58,6 +59,17 @@ LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneS
     m_uniforms{ declarations.addBuffer(names::lightingUniforms, Usage::HostWrite, { .size = sizeof(LightingUniforms), .perFrame = true }) },
     m_lights{ declarations.addReference(names::lights, Usage::ShaderRead) }
 {
+    if (shadow)
+    {
+        m_shadowView = shadow->view;
+        m_shadowMap = declarations.addReference(shadow->map, Usage::SampledCompute);
+    }
+}
+
+LightingPass::~LightingPass()
+{
+    if (m_shadowSampler)
+        m_device->free(*m_shadowSampler);
 }
 
 auto LightingPass::name() const -> std::string_view
@@ -79,6 +91,23 @@ auto LightingPass::createResources(ResourcePool& pool) -> std::expected<void, Er
     if (!brdfLut)
         return std::unexpected{ brdfLut.error() };
     m_brdfLut = std::move(*brdfLut);
+
+    if (m_shadowView)
+    {
+        // A fetch compares the point's depth with the four nearest texels and blends the results: bilinear PCF. Past
+        // the map's edge the border is lit (depth 1).
+        m_device = &pool.device();
+        auto sampler = m_device->createSampler({
+            .name = "ShadowMapSampler",
+            .mipmapMode = rhi::SamplerMipmapMode::Nearest,
+            .addressMode = rhi::SamplerAddressMode::ClampToEdge,
+            .maxAnisotropy = 1.0f,
+            .compare = rhi::CompareOp::LessOrEqual,
+        });
+        if (!sampler)
+            return makeError(ErrorCode::ResourceCreationFailed, "Failed to create the shadow map sampler", sampler.error());
+        m_shadowSampler = *sampler;
+    }
     return {};
 }
 
@@ -104,8 +133,17 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
 
     // The light update pass grew the buffer for this frame's lights.
     const auto lightCapacity = static_cast<std::uint32_t>(pool.bufferSize(m_lights) / sizeof(LightData));
+    std::optional<detail::ShadowMapInput> shadow;
+    if (m_shadowView)
+    {
+        const auto& map = pool.texture(m_shadowMap);
+        shadow = detail::ShadowMapInput{
+            .view = *m_shadowView,
+            .map = { *m_device->get(map.view).sampledDescriptor(), m_device->get(*m_shadowSampler).descriptor() },
+        };
+    }
     const auto uniforms = detail::packLighting(scene, m_view, pool.bufferAddress(m_lights, frameInfo.frameIndex),
-        lightCapacity, m_ambientOcclusionFactor, m_viewMode);
+        lightCapacity, m_ambientOcclusionFactor, m_viewMode, shadow);
     pool.write(m_uniforms, frameInfo.frameIndex, std::as_bytes(std::span{ &uniforms, 1 }));
 
     const LightingConstants constants{
@@ -184,7 +222,7 @@ auto packLights(const FrameScene& scene) -> std::vector<LightData>
 }
 
 auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddress lights, std::uint32_t lightCapacity,
-    float ambientOcclusionFactor, LightingViewMode viewMode) -> LightingUniforms
+    float ambientOcclusionFactor, LightingViewMode viewMode, std::optional<ShadowMapInput> shadow) -> LightingUniforms
 {
     const auto pointCount = std::min(static_cast<std::uint32_t>(scene.pointLights.size()), lightCapacity);
     const auto spotCount = std::min(static_cast<std::uint32_t>(scene.spotLights.size()), lightCapacity - pointCount);
@@ -203,6 +241,16 @@ auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddres
     {
         uniforms.directionalColor = glm::vec4{ light->color, light->intensity };
         uniforms.directionalDirection = glm::vec4{ light->direction, 0.0f };
+        if (const auto camera = shadow ? scene.camera(shadow->view) : std::nullopt)
+        {
+            // The orthographic projection spans 2 / projection[0][0] meters across the map.
+            const auto extent = scene.views[shadow->view].extent.value_or(shadowMapExtent);
+            uniforms.shadowViewProjection = glm::rowMajor4(camera->projection * camera->view);
+            uniforms.shadowMap = shadow->map;
+            uniforms.shadowTexelSize = 2.0f / (std::abs(camera->projection[0][0]) * static_cast<float>(std::max(extent.x, 1u)));
+            uniforms.shadowBias = light->shadowBias;
+            uniforms.shadowed = 1;
+        }
     }
     return uniforms;
 }

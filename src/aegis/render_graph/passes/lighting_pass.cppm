@@ -31,13 +31,28 @@ private:
     std::uint32_t m_capacity{ initialCapacity };
 };
 
-/// @brief Deferred PBR lighting: G-buffer + the frame's lights ("Lights", LightUpdatePass) and environment and the
-///        BRDF lookup table, which it owns -> "SceneColor" (RGBA16F).
+/// @brief Deferred PBR lighting: G-buffer + the frame's lights ("Lights", LightUpdatePass) and environment, the
+///        directional light's shadow map and the BRDF lookup table, which it owns -> "SceneColor" (RGBA16F).
 class LightingPass : public RenderPass
 {
 public:
+    /// @brief The shadow view whose "Depth" shadows the directional light, sampled with 3x3 PCF.
+    struct ShadowMap
+    {
+        std::uint32_t view; // Its index in FrameScene::views (its camera)
+        std::string map;    // Its "Depth" by scoped name, "<view>Shadow/Depth" (scopedName)
+    };
+
     /// @param view The index of the view in FrameScene::views it lights (its camera position).
-    LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view = 0);
+    /// @param shadow None: the directional light is unshadowed.
+    LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view = 0,
+        std::optional<ShadowMap> shadow = std::nullopt);
+    LightingPass(const LightingPass&) = delete;
+    LightingPass(LightingPass&&) = delete;
+    ~LightingPass() override;
+
+    auto operator=(const LightingPass&) -> LightingPass& = delete;
+    auto operator=(LightingPass&&) -> LightingPass& = delete;
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -53,6 +68,10 @@ private:
     ResourceId m_sceneColor;
     ResourceId m_uniforms;
     ResourceId m_lights;
+    std::optional<std::uint32_t> m_shadowView;
+    ResourceId m_shadowMap; // Invalid without a shadow view
+    rhi::Device* m_device{ nullptr };
+    std::optional<rhi::SamplerHandle> m_shadowSampler;
     std::optional<rhi::Pipeline> m_pipeline;
     std::shared_ptr<assets::Texture> m_brdfLut; // One per pass, not per environment
     LightingViewMode m_viewMode{ LightingViewMode::SceneColor };
@@ -72,10 +91,19 @@ export namespace aegis::render_graph::detail
 ///        (a hard edge).
 [[nodiscard]] auto packLight(const FrameScene::SpotLight& light) -> LightData;
 
+/// @brief A shadow map for packLighting: the shadow view it is the "Depth" of, and its descriptor.
+struct ShadowMapInput
+{
+    std::uint32_t view; // The index in FrameScene::views of the shadow view
+    rhi::TextureDescriptor map;
+};
+
 /// @brief The lighting block for the camera of the view 'view', the ambient and directional light, and the lights
 ///        in the buffer at 'lights' (packLights' records, of which 'lightCapacity' fit). A missing piece keeps its
 ///        default (no ambient, a dark directional light along +Z, the camera at the origin); lights that don't fit
-///        are left out, spot lights first.
+///        are left out, spot lights first. The directional light is shadowed by 'shadow' when there is one and its
+///        view has a camera (an orthographic one, fitDirectionalShadow's).
 [[nodiscard]] auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddress lights,
-    std::uint32_t lightCapacity, float ambientOcclusionFactor, LightingViewMode viewMode) -> LightingUniforms;
+    std::uint32_t lightCapacity, float ambientOcclusionFactor, LightingViewMode viewMode,
+    std::optional<ShadowMapInput> shadow = std::nullopt) -> LightingUniforms;
 }

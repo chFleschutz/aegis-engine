@@ -86,7 +86,9 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
             builder->displayName("Directional Light")
                 .category("Lighting")
                 .field("color", &DirectionalLight::color, { .widget = FieldWidget::Color })
-                .field("intensity", &DirectionalLight::intensity, { .min = 0.0, .step = 0.1 });
+                .field("intensity", &DirectionalLight::intensity, { .min = 0.0, .step = 0.1 })
+                .field("shadowDistance", &DirectionalLight::shadowDistance, { .min = 1.0, .step = 1.0, .tooltip = "Distance in meters from the camera that the shadow covers" })
+                .field("shadowBias", &DirectionalLight::shadowBias, { .min = 0.0, .step = 0.1, .tooltip = "Shadow-map texels a surface moves along its normal so it doesn't shadow itself" });
         }
         check(builder);
     }

@@ -107,6 +107,11 @@ struct LightingUniforms
     std::uint32_t spotLightCount{ 0 }; // After the point lights
     float ambientOcclusionFactor{ 1.0f };
     LightingViewMode viewMode{ LightingViewMode::SceneColor };
+    glm::mat4 shadowViewProjection{ 1.0f }; // Row-major: the directional light's shadow view
+    rhi::TextureDescriptor shadowMap{};     // Its "Depth", with a comparison sampler
+    float shadowTexelSize{ 0.0f };          // Meters a shadow-map texel spans
+    float shadowBias{ 0.0f };               // Texels a shaded point moves along its normal
+    std::uint32_t shadowed{ 0 };            // 1: the directional light is shadowed by shadowMap
 };
 
 // Push constants --------------------------------------------------------------------------------------

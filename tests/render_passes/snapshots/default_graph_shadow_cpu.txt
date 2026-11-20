@@ -1,0 +1,83 @@
+1. Light Update
+    create Lights HostWrite
+2. Main/Scene Update
+    create Main/CameraData HostWrite
+3. Main/Geometry
+    use    Main/CameraData ShaderRead
+    create Main/Position ColorAttachment
+    create Main/Normal ColorAttachment
+    create Main/Albedo ColorAttachment
+    create Main/ARM ColorAttachment
+    create Main/Emissive ColorAttachment
+    create Main/Depth DepthAttachment
+    barrier Main/Position: undefined -> ColorAttachment
+    barrier Main/Normal: undefined -> ColorAttachment
+    barrier Main/Albedo: undefined -> ColorAttachment
+    barrier Main/ARM: undefined -> ColorAttachment
+    barrier Main/Emissive: undefined -> ColorAttachment
+    barrier Main/Depth: undefined -> DepthAttachment
+4. MainShadow/Scene Update
+    create MainShadow/CameraData HostWrite
+5. MainShadow/Depth
+    use    MainShadow/CameraData ShaderRead
+    create MainShadow/Depth DepthAttachment
+    barrier MainShadow/Depth: undefined -> DepthAttachment
+6. Main/Lighting
+    use    Main/Position StorageRead
+    use    Main/Normal StorageRead
+    use    Main/Albedo StorageRead
+    use    Main/ARM StorageRead
+    use    Main/Emissive StorageRead
+    use    Lights ShaderRead
+    use    MainShadow/Depth SampledCompute
+    create Main/SceneColor StorageWrite
+    create Main/LightingUniforms HostWrite
+    barrier Main/Position: ColorAttachment -> StorageRead
+    barrier Main/Normal: ColorAttachment -> StorageRead
+    barrier Main/Albedo: ColorAttachment -> StorageRead
+    barrier Main/ARM: ColorAttachment -> StorageRead
+    barrier Main/Emissive: ColorAttachment -> StorageRead
+    barrier MainShadow/Depth: DepthAttachment -> SampledCompute
+    barrier Main/SceneColor: undefined -> StorageWrite
+7. Main/Sky Box
+    use    Main/Depth DepthRead
+    use    Main/SceneColor ColorAttachment
+    barrier Main/Depth: DepthAttachment -> DepthRead
+    barrier Main/SceneColor: StorageWrite -> ColorAttachment
+8. Main/Transparent
+    use    Main/Depth DepthRead
+    use    Main/CameraData ShaderRead
+    use    Main/SceneColor ColorAttachment
+    barrier Main/SceneColor: ColorAttachment -> ColorAttachment
+9. Main/Bloom
+    use    Main/SceneColor StorageRead
+    create Main/Bloom StorageWrite
+    barrier Main/SceneColor: ColorAttachment -> StorageRead
+    barrier Main/Bloom: undefined -> StorageWrite
+10. Main/Post Processing
+    use    Main/SceneColor StorageRead
+    use    Main/Bloom StorageRead
+    create Main/Final StorageWrite
+    barrier Main/Bloom: StorageWrite -> StorageRead
+    barrier Main/Final: undefined -> StorageWrite
+11. UI
+    use    Main/Final ColorAttachment
+    barrier Main/Final: StorageWrite -> ColorAttachment
+12. Present
+    use    Main/Final TransferSrc
+    barrier Main/Final: ColorAttachment -> TransferSrc
+resources
+    Lights: buffer, host written
+    Main/CameraData: buffer, host written
+    Main/Position: texture RGBA16_SFLOAT
+    Main/Normal: texture RGBA16_SFLOAT
+    Main/Albedo: texture RGBA8_UNORM
+    Main/ARM: texture RGBA8_UNORM
+    Main/Emissive: texture RGBA8_UNORM
+    Main/Depth: texture D32_SFLOAT
+    Main/SceneColor: texture RGBA16_SFLOAT
+    Main/LightingUniforms: buffer, host written
+    Main/Bloom: texture RGBA16_SFLOAT
+    Main/Final: texture RGBA16_SFLOAT
+    MainShadow/CameraData: buffer, host written
+    MainShadow/Depth: texture D32_SFLOAT

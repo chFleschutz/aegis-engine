@@ -233,10 +233,11 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
 // GPU-driven geometry --------------------------------------------------------------------------------
 
 GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene,
-    const InstanceUpdatePass& instances, Technique technique) :
+    const InstanceUpdatePass& instances, Technique technique, std::uint32_t view) :
     m_scene{ scene },
     m_instances{ instances },
     m_technique{ technique },
+    m_view{ view },
     m_gBuffer{ technique == Technique::GBuffer ? std::ranges::to<std::vector>(GeometryPass::declareGBuffer(declarations)) : std::vector<ResourceId>{} },
     m_depth{ GeometryPass::declareDepth(declarations) },
     m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) },
@@ -319,6 +320,12 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
     });
     cmd.setViewport(pool.extent(m_depth));
     cmd.setScissor(pool.extent(m_depth));
+    // Without a camera (a shadow view without a directional light) the targets stay cleared.
+    if (!m_scene.current().camera(m_view))
+    {
+        cmd.endRendering();
+        return;
+    }
 
     const auto frame = frameInfo.frameIndex;
     const auto& commands = pool.buffer(m_commands);

@@ -64,8 +64,12 @@ _Avoid_: invalidated, reset
 What the passes draw of one world in one frame: its instances, its views, the lights, the sky's environment and the post-processing settings.
 
 **View**:
-One rendering of the world in a frame: a camera, an extent and a kind (main, later shadow). Without a shell's views the main camera's view, "Main", renders onto the window; a shell's views each render into a target of their own.
+One rendering of the world in a frame: a camera, an extent and a kind, main or shadow. Without a shell's views the main camera's view, "Main", renders onto the window; a shell's views each render into a target of their own.
 _Avoid_: render view (the shell's request for one, `RenderView`), viewport (the editor's panel), camera
+
+**Shadow view**:
+A view of the depth of the world as a light sees it, its shadow map, which a main view's lighting samples. Each main view has one for the directional light, fitted to its camera ("MainShadow").
+_Avoid_: shadow pass (its passes), shadow camera (its camera), light view
 
 **Material template**:
 The parameters a kind of material has, with their defaults, and the surface shader that reads them.
@@ -84,7 +88,7 @@ The instances of one material variant, drawn together with one pipeline.
 _Avoid_: material batch, bucket
 
 **Technique**:
-How a pass draws a material: into the G-buffer, today; depth-only or forward later.
+How a pass draws a material: into the G-buffer, or its depth only (a shadow view); forward later.
 _Avoid_: render mode, shader pass
 
 **Pipeline key**:

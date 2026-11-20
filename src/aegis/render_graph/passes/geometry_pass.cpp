@@ -4,9 +4,11 @@ import aegis.rhi;
 
 namespace aegis::render_graph
 {
-GeometryPass::GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, Technique technique) :
+GeometryPass::GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, Technique technique,
+    std::uint32_t view) :
     m_scene{ scene },
-    m_technique{ technique }
+    m_technique{ technique },
+    m_view{ view }
 {
     if (technique == Technique::GBuffer)
         m_gBuffer = std::ranges::to<std::vector>(declareGBuffer(declarations));
@@ -72,6 +74,12 @@ auto GeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     });
     cmd.setViewport(pool.extent(m_depth));
     cmd.setScissor(pool.extent(m_depth));
+    // Without a camera (a shadow view without a directional light) the targets stay cleared.
+    if (!m_scene.current().camera(m_view))
+    {
+        cmd.endRendering();
+        return;
+    }
 
     const RenderContext context{
         .cmd = cmd,

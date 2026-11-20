@@ -52,7 +52,7 @@ auto writtenStatic(const render_graph::FrameGraph& frameGraph) -> std::optional<
     return std::nullopt;
 }
 
-// Whether the geometry pass of 'frameGraph' holds the G-buffer pipeline of 'variant': GpuDrivenGeometryPass on the
+// Whether the G-buffer pass of 'frameGraph' holds the G-buffer pipeline of 'variant': GpuDrivenGeometryPass on the
 // GPU-driven path, GeometryPass's StaticMeshRenderSystem (counter-clockwise front faces) on the CPU-driven one.
 auto hasGeometryPipeline(const render_graph::FrameGraph& frameGraph, const assets::MaterialVariant& variant) -> bool
 {
@@ -60,9 +60,12 @@ auto hasGeometryPipeline(const render_graph::FrameGraph& frameGraph, const asset
     using render_graph::Technique;
     for (const auto* pass : frameGraph.passes())
     {
-        if (const auto* gpuDriven = dynamic_cast<const render_graph::GpuDrivenGeometryPass*>(pass))
+        // A shadow view's geometry pass draws depth only.
+        const auto* gpuDriven = dynamic_cast<const render_graph::GpuDrivenGeometryPass*>(pass);
+        if (gpuDriven && gpuDriven->technique() == Technique::GBuffer)
             return gpuDriven->pipelines().contains({ .technique = Technique::GBuffer, .variant = variant, .path = GeometryPath::GpuDriven });
-        if (const auto* geometry = dynamic_cast<const render_graph::GeometryPass*>(pass))
+        const auto* geometry = dynamic_cast<const render_graph::GeometryPass*>(pass);
+        if (geometry && geometry->technique() == Technique::GBuffer)
         {
             for (const auto& system : geometry->renderSystems())
             {

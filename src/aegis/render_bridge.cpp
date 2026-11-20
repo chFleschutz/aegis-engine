@@ -242,6 +242,8 @@ auto extractFrameScene(world::World& world, const render_graph::InstanceStore& i
             .color = light.color,
             .intensity = light.intensity,
             .direction = glm::normalize(registry.get<GlobalTransform>(directional).forward()),
+            .shadowDistance = light.shadowDistance,
+            .shadowBias = light.shadowBias,
         };
     }
     for (auto&& [entity, transform, light] : registry.view<GlobalTransform, PointLight>().each())

@@ -6,7 +6,7 @@ import modules.pbr;
 import modules.surface;
 
 // The shading of a surface point by a view's lights: the ambient light (the sky's image-based lighting), the
-// directional light and the point and spot lights. The lighting pass (lighting.slang) shades its G-buffer pixels
+// directional light, shadowed by its shadow map, and the point and spot lights. The lighting pass (lighting.slang) shades its G-buffer pixels
 // with it; a pass that lights surfaces itself calls lighting::shade too, so every pass shades alike.
 
 namespace lighting
@@ -34,6 +34,16 @@ namespace lighting
         public float coneOffset;
     }
 
+    /// The directional light's shadow map: the depth of its shadow view (render_graph::fitDirectionalShadow).
+    public struct DirectionalShadow
+    {
+        public float4x4 viewProjection;
+        public bindless::TextureDescriptor map; // With a comparison sampler
+        public float texelSize;                 // Meters a texel spans
+        public float bias;                      // Texels a shaded point moves along its normal
+        public uint enabled;                    // 0: the directional light is unshadowed
+    }
+
     /// render_graph::LightingUniforms: a view's lights, one block per view and frame in flight.
     public struct Lighting
     {
@@ -45,6 +55,7 @@ namespace lighting
         public uint spotLightCount;
         public float ambientOcclusionFactor;
         public int viewMode; // The lighting pass's debug view (render_graph::LightingViewMode)
+        public DirectionalShadow shadow;
 
         public property Light* lights
         {
@@ -103,11 +114,46 @@ namespace lighting
         return ambient * lighting->ambient.color.rgb * lighting->ambient.color.w;
     }
 
-    func directionalLight(Lighting* lighting, float3 N, float3 V, float3 albedo, float roughness, float metallic,
-                          float3 F0) -> float3
+    /// How much of the directional light reaches 'position' (1: all, 0: none), from its shadow map: 3x3 comparison
+    /// taps, each a bilinear blend of four texels (PCF). The point moves along its normal by the light's bias, more the
+    /// more it faces away from the light, so a surface doesn't shadow itself (acne). Outside the map, it is lit.
+    public func directionalShadow(Lighting* lighting, float3 position, float3 N) -> float
+    {
+        let shadow = lighting->shadow;
+        if (shadow.enabled == 0)
+            return 1.0;
+
+        float3 L = normalize(lighting->directional.direction.xyz);
+        float NdotL = saturate(dot(N, L));
+        float offset = shadow.bias * shadow.texelSize * (1.0 + 2.0 * (1.0 - NdotL));
+        float4 clip = mul(shadow.viewProjection, float4(position + N * offset, 1.0));
+        float3 ndc = clip.xyz / clip.w;
+        float2 uv = ndc.xy * 0.5 + 0.5;
+        if (any(uv < 0.0) || any(uv > 1.0) || ndc.z > 1.0)
+            return 1.0;
+
+        let map = bindless::texture2D(shadow.map.image);
+        let comparison = bindless::comparisonSampler(shadow.map.sampler);
+        uint2 size;
+        map.GetDimensions(size.x, size.y);
+        float2 texel = 1.0 / float2(size);
+        float lit = 0.0;
+        for (int y = -1; y <= 1; y++)
+        {
+            for (int x = -1; x <= 1; x++)
+                lit += map.SampleCmpLevelZero(comparison, uv + float2(x, y) * texel, ndc.z);
+        }
+        return lit / 9.0;
+    }
+
+    func directionalLight(Lighting* lighting, float3 position, float3 N, float3 V, float3 albedo, float roughness,
+                          float metallic, float3 F0) -> float3
     {
         float3 L = normalize(lighting->directional.direction.xyz);
         float3 radiance = lighting->directional.color.rgb * lighting->directional.color.w;
+        if (dot(N, L) <= 0.0)
+            return float3(0.0);
+        radiance *= directionalShadow(lighting, position, N);
         return PBR::computeLighting(N, V, L, albedo, roughness, metallic, radiance, F0);
     }
 
@@ -151,7 +197,7 @@ namespace lighting
 
         float3 Lo = point.emissive * EMISSIVE_INTENSITY;
         Lo += ambientLight(lighting, environment, N, V, point.albedo, ao, point.roughness, point.metallic, F0);
-        Lo += directionalLight(lighting, N, V, point.albedo, point.roughness, point.metallic, F0);
+        Lo += directionalLight(lighting, point.position, N, V, point.albedo, point.roughness, point.metallic, F0);
         Lo += punctualLights(lighting, point.position, N, V, point.albedo, point.roughness, point.metallic, F0);
         return max(Lo, 0.0);
     }

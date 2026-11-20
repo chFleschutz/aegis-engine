@@ -123,16 +123,17 @@ private:
 
 /// @brief The GPU-driven geometry pass (mesh shaders): one indirect-count draw per opaque draw batch, with that
 ///        batch's pipeline for its technique, fills the same G-buffer GeometryPass does, or only "Depth" with
-///        Technique::Depth (a shadow view's), from the instances StaticMeshRenderSystem draws on the CPU path. Needs
-///        rhi::Device::Capabilities::meshShaders.
+///        Technique::Depth (a shadow view's), from the instances StaticMeshRenderSystem draws on the CPU path. Without
+///        a camera for its view it clears its targets and draws nothing. Needs rhi::Device::Capabilities::meshShaders.
 class GpuDrivenGeometryPass : public RenderPass
 {
 public:
     /// @brief The shader file both techniques' mesh and fragment stages are in (techniqueShader).
     static constexpr std::string_view shaderFile{ "gpu-driven/geometry" };
 
+    /// @param view The index of the view in FrameScene::views it draws (whose "CameraData" it reads).
     GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances,
-        Technique technique = Technique::GBuffer);
+        Technique technique = Technique::GBuffer, std::uint32_t view = 0);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -149,6 +150,7 @@ private:
     const FrameSceneSource& m_scene;
     const InstanceUpdatePass& m_instances;
     Technique m_technique;
+    std::uint32_t m_view;
     std::vector<ResourceId> m_gBuffer; // Empty with Technique::Depth
     ResourceId m_depth;
     ResourceId m_cameraData;
