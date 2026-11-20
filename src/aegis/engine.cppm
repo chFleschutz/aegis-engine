@@ -251,8 +251,6 @@ struct FrameContext
     ///        it renders onto the window. Only their images are in a state the UI can show.
     std::span<const ViewTarget> views;
     Presentation& presentation;
-    /// @brief The main world's instances.
-    const render_graph::InstanceStore& instances;
     const renderer::Renderer& renderer;
     /// @brief The time since the last frame, which the UI runs by; each world updates by its own (World::clock).
     float deltaSeconds;
@@ -263,6 +261,9 @@ struct FrameContext
     void update(world::World& world, world::UpdateMode mode);
     /// @brief Renders 'world', one of the engine's, this frame instead of the main world, as its last update left it.
     void render(world::World& world);
+    /// @brief The instances of 'world', one of the engine's, as they were last rendered: a world that hasn't rendered
+    ///        since it changed shows its earlier instances.
+    [[nodiscard]] auto instances(const world::World& world) const -> const render_graph::InstanceStore&;
 };
 
 /// @brief Decides, each frame, what the app shows around the game: its UI, which worlds update and render and

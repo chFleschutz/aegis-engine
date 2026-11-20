@@ -270,6 +270,12 @@ void FrameContext::render(world::World& world)
     engine.m_renderRequest = &world;
 }
 
+auto FrameContext::instances(const world::World& world) const -> const render_graph::InstanceStore&
+{
+    assert(engine.m_worlds.contains(world) && "FrameContext::instances: not one of the engine's worlds");
+    return engine.m_worlds.instances(world);
+}
+
 auto Engine::loadScene(assets::AssetId scene) -> std::expected<void, EngineError>
 {
     newScene();
@@ -753,7 +759,6 @@ void Engine::runShell(float deltaSeconds)
         .frameGraph = *m_frameGraph,
         .views = m_views,
         .presentation = m_presentation,
-        .instances = m_worlds.instances(world()),
         .renderer = *m_renderer,
         .deltaSeconds = deltaSeconds,
     };

@@ -25,7 +25,7 @@ public:
     void draw(EditorContext& editor, FrameContext& frame) override
     {
         auto& registry = editor.world()->registry();
-        const auto& instances = frame.instances;
+        const auto& instances = frame.instances(frame.world);
         const auto summary = statisticsSummary(editor, frame);
 
         ImGui::Text("Entities: %d", static_cast<int>(summary.entities));
@@ -51,8 +51,8 @@ auto statisticsSummary(const EditorContext& editor, const FrameContext& frame) -
         return {};
     return {
         .entities = world->registry().entityCount(),
-        .drawBatches = frame.instances.batchCount(),
-        .instances = frame.instances.instanceCount(),
+        .drawBatches = frame.instances(frame.world).batchCount(),
+        .instances = frame.instances(frame.world).instanceCount(),
     };
 }
 

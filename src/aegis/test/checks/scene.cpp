@@ -558,15 +558,16 @@ private:
     auto verifyCulled(const FrameContext& frame) const -> std::expected<void, std::string>
     {
         std::array<std::uint32_t, 2> moved{}; // Static, dynamic
+        const auto& instances = frame.instances(frame.world);
         for (const auto& material : m_culled)
         {
             const auto variant = material->variant();
-            const auto batch = frame.instances.batchId(variant);
+            const auto batch = instances.batchId(variant);
             if (!batch)
                 return std::unexpected{ "a material set to cull nothing has no batch for its variant" };
             for (const bool dynamic : { false, true })
             {
-                for (const auto& instance : dynamic ? frame.instances.dynamicInstances() : frame.instances.staticInstances())
+                for (const auto& instance : dynamic ? instances.dynamicInstances() : instances.staticInstances())
                 {
                     if (instance.material != material)
                         continue;
