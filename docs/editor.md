@@ -73,6 +73,8 @@ src/aegis/editor/
 │  ├─ commands         Command interface; SetField, Rename, Create/Destroy/Duplicate entity,
 │  │                   Add/Remove component, Attach/Detach script, Reparent
 │  ├─ undo_stack       history, merging of continuous edits, the saved marker (dirty flag)
+│  ├─ scene_document   SceneDocument: the current scene file, the action waiting on the unsaved-changes
+│  │                   prompt or Save As, autosave timing and recovery
 │  ├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, limits, unit, readOnly}
 │  ├─ inspector        the components and scripts an entity shows and can add; field writes + change hook
 │  ├─ hierarchy_model  entity tree as rows in sibling order, with the name filter; pure
@@ -315,7 +317,10 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   it to the database). The title bar and the scene tab show `*` while dirty. Open, New and closing the
   window ask about unsaved changes (`Shell::canClose`, R12). There are no native file dialogs. A save
   writes `.<name>.tmp` next to the scene and renames it over the scene, so a failed save leaves the
-  last good file ([#307]).
+  last good file ([#307]). `SceneDocument` (editor core) is the one owner of the current scene and
+  decides what waits for the prompt; the shell draws the popups, performs the engine calls it asks for
+  once the panels are drawn, and tells it the scene the launcher loaded (`EditorShell::setStartupScene`)
+  ([#393]).
 - **Autosave and recovery** ([#307]): while the edit world is dirty, every few minutes (a preference,
   0 turns it off) and on entering Play, the editor writes it to
   `<project>/.aegis/editor/autosave/<scene ID>.scene` (`untitled.scene` for a scene never saved), never
@@ -682,4 +687,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#323]: https://github.com/chFleschutz/aegis-engine/issues/323
 [#324]: https://github.com/chFleschutz/aegis-engine/issues/324
 [#325]: https://github.com/chFleschutz/aegis-engine/issues/325
+[#393]: https://github.com/chFleschutz/aegis-engine/issues/393
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11

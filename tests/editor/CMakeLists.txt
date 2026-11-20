@@ -20,6 +20,7 @@ aegis_add_test(editor
         preferences.test.cpp
         property_model.test.cpp
         recent_scenes.test.cpp
+        scene_document.test.cpp
         scene_file.test.cpp
         selection.test.cpp
         side_rail.test.cpp
