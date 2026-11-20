@@ -34,7 +34,7 @@ jobs:
         run: tools/format.sh --all --check
 
   linux:
-    name: ${{ matrix.lavapipe && 'Linux device tests (lavapipe)' || format('Linux ({0})', matrix.config) }}
+    name: ${{ matrix.lavapipe && format('Linux device tests (lavapipe, {0})', matrix.shard) || format('Linux ({0})', matrix.config) }}
     # Ubuntu 26.04 ships Clang 22 and libstdc++ 15 with a working libstdc++.modules.json (earlier
     # releases point it at the wrong std.cc path, which breaks `import std`). Public preview for now.
     runs-on: ubuntu-26.04
@@ -43,11 +43,19 @@ jobs:
       matrix:
         config: [debug, release]
         lavapipe: [false]
-        # One more debug build that runs the device tests on Mesa's lavapipe, a software Vulkan
-        # driver, under validation. Not a required check (yet): it runs as its own job.
+        # Two more debug builds that run the device tests on Mesa's lavapipe, a software Vulkan
+        # driver, under validation. The tests share a `gpu` resource lock and run one at a time, so
+        # they are split over two jobs (the games, then everything else) to run in parallel. Not
+        # required checks (yet): they run as their own jobs.
         include:
           - config: debug
             lavapipe: true
+            shard: games
+            ctest_filter: -L game
+          - config: debug
+            lavapipe: true
+            shard: scenes
+            ctest_filter: -L device -LE "golden|game"
     env:
       PRESET: linux-clang-${{ matrix.config }}
     steps:
@@ -145,7 +153,7 @@ jobs:
           export VK_ADD_LAYER_PATH=$(dirname "$layer")
           export VK_DRIVER_FILES=$(find /usr/share/vulkan/icd.d -name 'lvp_icd*.json' -print -quit)
           vulkaninfo --summary
-          ctest --preset "$PRESET" -L device -LE golden
+          ctest --preset "$PRESET" ${{ matrix.ctest_filter }}
 
   windows:
     name: Windows (${{ matrix.config }})
@@ -188,7 +196,8 @@ jobs:
 
       - name: Set up tool environment
         run: |
-          choco install ninja -y --no-progress
+          # The runner image usually ships Ninja; install it only when missing.
+          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) { choco install ninja -y --no-progress }
           "C:\LLVM\bin" >> $env:GITHUB_PATH
           "C:\CMake\bin" >> $env:GITHUB_PATH
           "C:\VulkanSDK\$env:VULKAN_SDK_VERSION\Bin" >> $env:GITHUB_PATH
