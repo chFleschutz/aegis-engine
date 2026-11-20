@@ -17,9 +17,6 @@ namespace aegis::test
 {
 namespace
 {
-// DamagedHelmet under the Kloppenheim sky, a camera and three lights, in the sample project.
-constexpr std::string_view sceneFile{ "scenes/tests/aegis_test.scene" };
-
 // What the shell found, read once the engine (and the shell with it) is gone.
 struct SceneResult
 {
@@ -233,8 +230,9 @@ private:
             if (name.name == "DamagedHelmet")
                 m_helmet = world::Entity{ entity };
         }
-        if (!m_helmet)
-            m_result.errors.push_back(std::format("{} has no entity named DamagedHelmet", sceneFile));
+        // Another scene file (--scene-file) has no helmet, and no option that edits it runs with one.
+        if (!m_helmet && m_options.sceneFile == testSceneFile)
+            m_result.errors.push_back(std::format("{} has no entity named DamagedHelmet", m_options.sceneFile));
         else if (m_options.mirror)
         {
             // A scale of -1 on x must not turn the helmet inside out.
@@ -247,7 +245,7 @@ private:
             if (const auto camera = world.mainCamera())
                 registry.add<PostProcess>(camera, postProcessSettings);
             else
-                m_result.errors.push_back(std::format("{} has no main camera", sceneFile));
+                m_result.errors.push_back(std::format("{} has no main camera", m_options.sceneFile));
         }
 
         if (m_options.view || m_options.views)
@@ -599,9 +597,9 @@ private:
         const auto shownUntil = 2 * m_options.frames / 3;
         if (m_frame == 0)
         {
-            const auto scene = m_engine->assets().find(sceneFile);
+            const auto scene = m_engine->assets().find(m_options.sceneFile);
             if (!scene || !m_helmet)
-                return std::unexpected{ std::format("{} is not in the sample project, or has no helmet", sceneFile) };
+                return std::unexpected{ std::format("{} is not in the sample project, or has no helmet", m_options.sceneFile) };
             auto& second = frame.engine.createWorld();
             if (auto created = m_engine->assets().instantiateScene(second, m_engine->types(), *scene); !created)
             {
@@ -748,10 +746,10 @@ auto runScene(const Options& options) -> int
 
     SceneResult result;
     (*engine)->setShell(std::make_unique<SceneShell>(options, result));
-    const auto scene = (*engine)->assets().find(sceneFile);
+    const auto scene = (*engine)->assets().find(options.sceneFile);
     if (!scene)
     {
-        std::println("'{}' is not in the sample project", sceneFile);
+        std::println("'{}' is not in the sample project", options.sceneFile);
         return exitFailure;
     }
     if (auto loaded = (*engine)->loadScene(*scene); !loaded)

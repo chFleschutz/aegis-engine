@@ -105,11 +105,10 @@ private:
                 const char* name;
                 MaterialValue value;
             };
-            // The default PBR template has no alpha or sidedness parameters yet; data.alphaMode and
-            // data.doubleSided wait for the material-system feature
-            // (docs/adr/0005-alpha-mask-in-material-system.md).
             std::vector<Override> overrides{
                 { pbr::albedo, glm::vec3{ data.baseColor } },
+                { pbr::alpha, data.baseColor.a },
+                { pbr::alphaCutoff, data.alphaCutoff },
                 { pbr::metallic, data.metallic },
                 { pbr::roughness, data.roughness },
                 { pbr::emissive, data.emissive },
@@ -129,6 +128,12 @@ private:
                 if (auto set = instance.setParameter(name, std::move(value)); !set)
                     return std::unexpected{ set.error() };
             }
+
+            const auto modes = modelMaterialModes(data);
+            if (modes.blendDowngraded)
+                log::warn("Material {} ('{}') blends, which nothing draws yet: it draws opaque", m_materials.size(), data.name);
+            instance.setAlphaMode(modes.alphaMode);
+            instance.setCullMode(modes.cullMode);
 
             m_materials.emplace_back(std::move(*material));
         }
@@ -189,6 +194,15 @@ private:
     std::vector<std::shared_ptr<Material>> m_materials;             // Per ModelData material
     std::shared_ptr<Material> m_defaultMaterial;                    // For primitives without one
 };
+}
+
+auto modelMaterialModes(const ModelMaterial& material) noexcept -> ModelMaterialModes
+{
+    return {
+        .alphaMode = material.alphaMode == AlphaMode::Blend ? AlphaMode::Opaque : material.alphaMode,
+        .cullMode = material.doubleSided ? rhi::CullMode::None : rhi::CullMode::Back,
+        .blendDowngraded = material.alphaMode == AlphaMode::Blend,
+    };
 }
 
 auto Loader::load(const Desc& desc, const std::filesystem::path& path) -> std::expected<Model, Error>

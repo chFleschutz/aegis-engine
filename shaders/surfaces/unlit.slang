@@ -28,6 +28,7 @@ public struct UnlitSurface : ISurface
         output.metallic = 0.0;
         output.emissive = material->colorMap.sample(input.uv).rgb * material->color;
         output.alpha = 1.0;
+        output.alphaCutoff = 0.0; // Never discards, masked or not
         return output;
     }
 }

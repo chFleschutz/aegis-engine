@@ -9,6 +9,8 @@
     { "name": "metallic", "type": "float", "default": 0 },
     { "name": "roughness", "type": "float", "default": 1 },
     { "name": "ambientOcclusion", "type": "float", "default": 1 },
+    { "name": "alpha", "type": "float", "default": 1 },
+    { "name": "alphaCutoff", "type": "float", "default": 0.5 },
     { "name": "albedoMap", "type": "texture", "default": "white" },
     { "name": "normalMap", "type": "texture", "default": "normal" },
     { "name": "metalRoughnessMap", "type": "texture", "default": "white" },

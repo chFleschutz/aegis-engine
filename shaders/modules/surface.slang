@@ -21,7 +21,28 @@ public struct SurfaceInput
 {
     public float2 uv;
     public float3 worldPosition;
-    public float3 worldNormal;
+    public float3 worldNormal; // The interpolated normal, as the vertices gave it
+    public bool isFrontFace;   // False on a back face, which toGBuffer shades with its normal flipped
+}
+
+/// The SurfaceInput of a fragment. A back face, which only a material that culls nothing (rhi::CullMode::None) draws, is
+/// shaded with its final normal flipped (after the normal map), so a double-sided surface is lit like a front face from both sides.
+public func toSurfaceInput(float2 uv, float3 worldPosition, float3 worldNormal, bool isFrontFace) -> SurfaceInput
+{
+    SurfaceInput input;
+    input.uv = uv;
+    input.worldPosition = worldPosition;
+    input.worldNormal = worldNormal;
+    input.isFrontFace = isFrontFace;
+    return input;
+}
+
+/// The alpha test of a technique's masked build (ALPHA_MASK, see aegis_add_shaders): discards the fragment if the
+/// surface's alpha is below its cutoff. Only the masked build calls it, so opaque pipelines keep early depth testing.
+public func alphaTest(SurfaceOutput surface)
+{
+    if (surface.alpha < surface.alphaCutoff)
+        discard;
 }
 
 /// The properties of a surface point.
@@ -34,6 +55,7 @@ public struct SurfaceOutput
     public float metallic;
     public float3 emissive;
     public float alpha;
+    public float alphaCutoff = 0.0; // The masked build of a technique discards the point if alpha is below it (alphaTest)
 }
 
 /// Where a material's parameter block is: the device address the renderer writes for the material. Its address is
@@ -68,6 +90,8 @@ public func toGBuffer<S : ISurface>(SurfaceInput input, SurfaceOutput surface) -
 {
     let tbn = TBN::calcMatrix(input.worldPosition, input.worldNormal, input.uv);
     float3 N = normalize(length(surface.normal) < 0.1 ? input.worldNormal : mul(surface.normal, tbn));
+    if (!input.isFrontFace)
+        N = -N;
 
     common::GBuffer output;
     output.position = float4(input.worldPosition, 1.0);

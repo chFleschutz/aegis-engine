@@ -18,14 +18,16 @@ inline constexpr const char* emissive{ "emissive" };
 inline constexpr const char* metallic{ "metallic" };
 inline constexpr const char* roughness{ "roughness" };
 inline constexpr const char* ambientOcclusion{ "ambientOcclusion" };
+inline constexpr const char* alpha{ "alpha" };
+inline constexpr const char* alphaCutoff{ "alphaCutoff" };
 inline constexpr const char* albedoMap{ "albedoMap" };
 inline constexpr const char* normalMap{ "normalMap" };
 inline constexpr const char* metalRoughnessMap{ "metalRoughnessMap" };
 inline constexpr const char* ambientOcclusionMap{ "ambientOcclusionMap" };
 inline constexpr const char* emissiveMap{ "emissiveMap" };
 
-inline constexpr std::array parameterNames{ albedo, emissive, metallic, roughness, ambientOcclusion, albedoMap,
-    normalMap, metalRoughnessMap, ambientOcclusionMap, emissiveMap };
+inline constexpr std::array parameterNames{ albedo, emissive, metallic, roughness, ambientOcclusion, alpha, alphaCutoff,
+    albedoMap, normalMap, metalRoughnessMap, ambientOcclusionMap, emissiveMap };
 }
 
 /// @brief An engine material template as its files give it: the template file, parsed, and its surface shader's

@@ -51,6 +51,20 @@ struct Model
     std::vector<ModelNode> nodes; // Depth-first preorder; node.mesh indexes meshes
 };
 
+/// @brief The alpha mode and cull mode a model material draws with, its variant besides the template.
+struct ModelMaterialModes
+{
+    AlphaMode alphaMode{ AlphaMode::Opaque };
+    rhi::CullMode cullMode{ rhi::CullMode::Back };
+    bool blendDowngraded{ false }; // The material blends, which draws as AlphaMode::Opaque
+
+    auto operator==(const ModelMaterialModes&) const -> bool = default;
+};
+
+/// @brief The modes 'material' draws with: its alpha mode, and no culling if it is double-sided. A blended material
+///        draws opaque until a technique can blend it (the transparency feature): no pass draws AlphaMode::Blend yet.
+[[nodiscard]] auto modelMaterialModes(const ModelMaterial& material) noexcept -> ModelMaterialModes;
+
 /// @brief Loads a model file into GPU objects.
 class Loader
 {
@@ -59,8 +73,9 @@ public:
     {
         rhi::Device& device;
         /// @brief The file's materials become instances of its pbrTemplate (the default PBR template's
-        ///        parameter names are expected; see DefaultAssets::pbrTemplate). Primitives without a
-        ///        material share one new instance of DefaultAssets::createPbrMaterial per load.
+        ///        parameter names are expected; see DefaultAssets::pbrTemplate), with the alpha and cull mode
+        ///        of modelMaterialModes. Primitives without a material share one new instance of
+        ///        DefaultAssets::createPbrMaterial per load.
         const DefaultAssets& defaults;
         std::uint32_t framesInFlight;
         /// @brief The texture of an external image (ModelImage::uri set), the asset library's texture of the image's
