@@ -60,8 +60,12 @@ auto fitDirectionalShadow(const FrameScene::DirectionalLight& light, const Frame
     const auto side = glm::normalize(glm::cross(forward, worldUp));
     const auto up = glm::cross(side, forward);
 
-    // The sphere's center in the light's axes, snapped to whole texels across the map.
-    const float texel = 2.0f * radius / static_cast<float>(std::max(extent.x, 1u));
+    // The sphere's center in the light's axes, snapped down to whole texels across the map. Snapping moves the map up to
+    // a texel from the center, so it reaches a texel further than the sphere: halfWidth = radius + texel, with
+    // texel = 2 * halfWidth / extent.
+    const float texels = static_cast<float>(std::max(extent.x, 3u));
+    const float halfWidth = radius * texels / (texels - 2.0f);
+    const float texel = 2.0f * halfWidth / texels;
     const auto snap = [&](float value) { return std::floor(value / texel) * texel; };
     const float x = snap(glm::dot(side, worldCenter));
     const float y = snap(glm::dot(up, worldCenter));
@@ -84,8 +88,8 @@ auto fitDirectionalShadow(const FrameScene::DirectionalLight& light, const Frame
     // Right-handed, depth 0 at the eye to 1 past the sphere, y flipped for Vulkan as the cameras' projections are.
     const float depth = 2.0f * radius + shadowCasterReach;
     glm::mat4 projection{ 1.0f };
-    projection[0][0] = 1.0f / radius;
-    projection[1][1] = -1.0f / radius;
+    projection[0][0] = 1.0f / halfWidth;
+    projection[1][1] = -1.0f / halfWidth;
     projection[2][2] = -1.0f / depth;
     projection[3][2] = 0.0f;
 

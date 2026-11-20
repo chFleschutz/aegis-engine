@@ -155,6 +155,35 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
         }
     }
 
+    TEST_CASE("the snapped shadow still covers the slice's bounding sphere")
+    {
+        // Wherever the snap moves the map, the sphere around the slice stays inside it along both of its axes.
+        for (int step = 0; step < 64; ++step)
+        {
+            const float offset = static_cast<float>(step) * 0.0137f;
+            const auto view = camera({ offset, 2.0f * offset, 1.5f }, { 0.0f, 1.0f, 0.0f });
+            const auto corners = sliceCorners(view, sun.shadowDistance);
+            glm::vec3 center{ 0.0f };
+            for (const auto& corner : corners)
+                center = center + corner;
+            center = center / static_cast<float>(corners.size());
+            float radius{ 0.0f };
+            for (const auto& corner : corners)
+                radius = std::max(radius, glm::length(corner - center));
+
+            const auto shadow = fitDirectionalShadow(sun, view);
+            const glm::vec3 side{ shadow.view[0][0], shadow.view[1][0], shadow.view[2][0] };
+            const glm::vec3 up{ shadow.view[0][1], shadow.view[1][1], shadow.view[2][1] };
+            for (const auto& edge : { side, -side, up, -up })
+            {
+                const auto ndc = project(shadow, center + edge * radius);
+                CAPTURE(step);
+                CHECK(std::abs(ndc.x) <= 1.0f);
+                CHECK(std::abs(ndc.y) <= 1.0f);
+            }
+        }
+    }
+
     TEST_CASE("a light shining straight down gives a valid shadow")
     {
         const FrameScene::DirectionalLight overhead{ .direction = { 0.0f, 0.0f, 1.0f } };
