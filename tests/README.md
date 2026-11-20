@@ -53,13 +53,13 @@ with synthetic key and mouse messages, on Windows only (other platforms skip tha
 `aegis-test --headless --compare <png> [--tolerance <0-255>]` compares the last frame with a reference
 and exits non-zero on a mismatch, writing `<name>.diff.png` (differing pixels in red) next to
 `--screenshot`, or into the working directory. The references in `tests/golden/` (triangle, `--scene`,
-`--gpu-driven`, both scene paths with `--mirror`, and `--post-process`) come from the dev GPU and run locally as `golden`-labelled device tests
+`--gpu-driven`, both scene paths with `--mirror`, `--post-process`, and Sponza on both paths with `--scene-file`) come from the dev GPU and run locally as `golden`-labelled device tests
 (`ctest --preset windows-clang-debug -L golden`); CI's lavapipe job runs the other device tests but
 excludes these (`-LE golden`): software rendering differs from the dev GPU's. Other
 GPUs or drivers may differ slightly, so raise `--tolerance` there rather than committing new images.
 The scene runs use `--no-overlay`, since the stats window shows timings that change every run. They render
-`scenes/tests/aegis_test.scene` of the sample project through the app (`aegis::Engine`), so editing that
-file changes their references too. When
+`scenes/tests/aegis_test.scene` of the sample project through the app (`aegis::Engine`), or with `--scene-file`
+`scenes/sponza.scene`, so editing those files changes their references too. When
 a render change is intended, regenerate the affected reference with the same arguments the test uses
 plus `--screenshot` (arguments are in `tests/CMakeLists.txt`), for example
 `aegis-test --headless --scene --frames 120 --no-overlay --screenshot tests/golden/scene.png`
