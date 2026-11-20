@@ -9,21 +9,21 @@ namespace aegis::editor
 {
 namespace
 {
-using Result = std::expected<void, std::string>;
+using Result = std::expected<void, Error>;
 
-auto findEntity(world::Registry& registry, StableId id) -> std::expected<world::Entity, std::string>
+auto findEntity(world::Registry& registry, StableId id) -> std::expected<world::Entity, Error>
 {
     const auto entity = registry.find(id);
     if (!entity)
-        return std::unexpected{ std::format("the entity {:016x} is gone", id.value) };
+        return makeError(ErrorCode::MissingEntity, std::format("the entity {:016x} is gone", id.value));
     return entity;
 }
 
-auto findType(const reflect::TypeRegistry& types, std::string_view name) -> std::expected<const reflect::TypeInfo*, std::string>
+auto findType(const reflect::TypeRegistry& types, std::string_view name) -> std::expected<const reflect::TypeInfo*, Error>
 {
     const auto* type = types.find(name);
     if (!type)
-        return std::unexpected{ std::format("no type '{}' is registered", name) };
+        return makeError(ErrorCode::UnknownType, std::format("no type '{}' is registered", name));
     return type;
 }
 
@@ -42,9 +42,9 @@ auto writeValues(const reflect::TypeInfo& type, void* object, const FieldValues&
     {
         const auto* field = type.findField(name);
         if (!field)
-            return std::unexpected{ std::format("'{}' has no field '{}'", type.name, name) };
+            return makeError(ErrorCode::UnknownField, std::format("'{}' has no field '{}'", type.name, name));
         if (auto written = field->setter(object, value); !written)
-            return std::unexpected{ reflect::describe(written.error()) };
+            return makeError(written.error(), std::format("cannot write {}.{}", type.name, name));
     }
     return {};
 }
@@ -56,7 +56,7 @@ auto applyField(const EditWorld& world, const FieldEdit& edit, EditSide side) ->
         return std::unexpected{ type.error() };
     const auto* field = (*type)->findField(edit.field);
     if (!field)
-        return std::unexpected{ std::format("'{}' has no field '{}'", edit.type, edit.field) };
+        return makeError(ErrorCode::UnknownField, std::format("'{}' has no field '{}'", edit.type, edit.field));
     const auto entity = findEntity(world.registry, edit.entity);
     if (!entity)
         return std::unexpected{ entity.error() };
@@ -67,10 +67,10 @@ auto applyField(const EditWorld& world, const FieldEdit& edit, EditSide side) ->
     else if (const auto* storage = (*type)->attachment<world::ComponentStorage>())
         object = storage->find(world.registry, *entity);
     if (!object)
-        return std::unexpected{ std::format("the entity no longer has '{}'", edit.type) };
+        return makeError(ErrorCode::MissingComponent, std::format("the entity no longer has '{}'", edit.type));
 
     if (auto written = setField(**type, *field, world.registry, *entity, object, side == EditSide::Old ? edit.oldValue : edit.newValue, world.prepare); !written)
-        return std::unexpected{ reflect::describe(written.error()) };
+        return makeError(written.error(), std::format("cannot write {}.{}", edit.type, edit.field));
     return {};
 }
 
@@ -89,10 +89,10 @@ auto applyComponent(const EditWorld& world, const ComponentEdit& edit, EditSide 
     else if (storage)
         object = storage->find(world.registry, *entity);
     if (!object)
-        return std::unexpected{ std::format("the entity no longer has '{}'", edit.type) };
+        return makeError(ErrorCode::MissingComponent, std::format("the entity no longer has '{}'", edit.type));
 
     if (auto written = writeComponent(**type, world.registry, *entity, object, side == EditSide::Old ? edit.oldValues : edit.newValues, world.prepare); !written)
-        return std::unexpected{ reflect::describe(written.error()) };
+        return makeError(written.error(), std::format("cannot write '{}'", edit.type));
     return {};
 }
 
@@ -106,21 +106,21 @@ auto applyAddComponent(const EditWorld& world, const AddComponentEdit& edit, Edi
         return std::unexpected{ entity.error() };
     const auto* storage = (*type)->attachment<world::ComponentStorage>();
     if (!storage)
-        return std::unexpected{ std::format("'{}' is not a component with storage", edit.type) };
+        return makeError(ErrorCode::WrongCategory, std::format("'{}' is not a component with storage", edit.type));
 
     if ((side == EditSide::New) == edit.remove)
     {
         if (!storage->remove(world.registry, *entity))
-            return std::unexpected{ std::format("the entity has no '{}' to remove", edit.type) };
+            return makeError(ErrorCode::MissingComponent, std::format("the entity has no '{}' to remove", edit.type));
         return {};
     }
 
     if (storage->find(world.registry, *entity))
-        return std::unexpected{ std::format("the entity already has '{}'", edit.type) };
+        return makeError(ErrorCode::DuplicateComponent, std::format("the entity already has '{}'", edit.type));
     // Built complete before it is added: observers of its construction see the final value
     auto instance = (*type)->create();
     if (!instance)
-        return std::unexpected{ reflect::describe(instance.error()) };
+        return makeError(instance.error(), std::format("cannot create a '{}'", edit.type));
     if (auto written = writeValues(**type, instance->get(), edit.values); !written)
         return written;
     if (world.prepare)
@@ -141,14 +141,14 @@ auto applyAttachScript(const EditWorld& world, const AttachScriptEdit& edit, Edi
     if ((side == EditSide::New) == edit.detach)
     {
         if (!findScript(world.registry, *entity, **type, edit.index))
-            return std::unexpected{ std::format("the entity has no '{}' at {} to detach", edit.type, edit.index) };
+            return makeError(ErrorCode::MissingComponent, std::format("the entity has no '{}' at {} to detach", edit.type, edit.index));
         auto& entries = world.registry.get<scripting::Scripts>(*entity).entries;
         entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(edit.index));
         return {};
     }
 
     if (auto attached = scripting::attachScript(world.registry, world.types, *entity, edit.type); !attached)
-        return std::unexpected{ reflect::describe(attached.error()) };
+        return makeError(attached.error(), std::format("cannot attach '{}'", edit.type));
     // Attached last; moved back to its place
     auto& entries = world.registry.get<scripting::Scripts>(*entity).entries;
     const auto index = std::min(edit.index, entries.size() - 1);
@@ -178,7 +178,7 @@ auto applyMove(const EditWorld& world, const MoveEdit& edit, EditSide side) -> R
 {
     const auto* transformType = world.types.find<Transform>();
     if (!transformType)
-        return std::unexpected{ "Transform is not registered" };
+        return makeError(ErrorCode::UnknownType, "Transform is not registered");
     const auto entity = findEntity(world.registry, edit.entity);
     if (!entity)
         return std::unexpected{ entity.error() };
@@ -198,10 +198,10 @@ auto applyMove(const EditWorld& world, const MoveEdit& edit, EditSide side) -> R
         moved = registry.removeParent(*entity);
     }
     if (!moved)
-        return std::unexpected{ std::string{ world::describe(moved.error()) } };
+        return makeError(moved.error(), "cannot move the entity");
 
     if (auto written = writeComponent(*transformType, registry, *entity, &registry.get<Transform>(*entity), fieldValues(*transformType, &place.transform), world.prepare); !written)
-        return std::unexpected{ reflect::describe(written.error()) };
+        return makeError(written.error(), "cannot write the Transform");
     return {};
 }
 
@@ -225,7 +225,7 @@ auto applySubtree(const EditWorld& world, const SubtreeEdit& edit, EditSide side
         parent = *found;
     }
     if (auto created = serialize::instantiate(world.registry, world.types, edit.subtree, parent, edit.index, serialize::EntityIds::Keep, world.prepare); !created)
-        return std::unexpected{ serialize::describe(created.error()) };
+        return makeError(created.error(), "cannot restore the entities");
     return {};
 }
 
@@ -401,7 +401,7 @@ void destroySubtree(world::Registry& registry, world::Entity root)
         registry.destroy(entity);
 }
 
-auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::expected<void, std::string>
+auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::expected<void, Error>
 {
     return std::visit(
         [&](const auto& entry) -> Result {
@@ -431,12 +431,12 @@ auto entryTitle(std::span<const Edit> edits, std::string_view groupTitle, const 
     return edits.empty() ? std::string{} : editTitle(edits.front(), registry);
 }
 
-auto applyEdits(const EditWorld& world, std::span<const Edit> edits, EditSide side) -> std::vector<std::string>
+auto applyEdits(const EditWorld& world, std::span<const Edit> edits, EditSide side) -> std::vector<EditFailure>
 {
-    std::vector<std::string> failures;
+    std::vector<EditFailure> failures;
     const auto applyOne = [&](const Edit& edit) {
         if (auto applied = applyEdit(world, edit, side); !applied)
-            failures.push_back(std::format("{}: {}", describe(edit), applied.error()));
+            failures.push_back({ .edit = describe(edit), .error = std::move(applied.error()) });
     };
     // An edit may need the ones before it (a component of an entity the group created)
     if (side == EditSide::Old)

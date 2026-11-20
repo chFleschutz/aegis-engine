@@ -36,7 +36,7 @@ auto recentScenesPath(const std::filesystem::path& project) -> std::filesystem::
     return project / ".aegis" / "editor" / "recent_scenes.json";
 }
 
-auto loadRecentScenes(const std::filesystem::path& file) -> std::expected<RecentScenes, std::string>
+auto loadRecentScenes(const std::filesystem::path& file) -> std::expected<RecentScenes, Error>
 {
     std::error_code error;
     if (!std::filesystem::exists(file, error))
@@ -44,12 +44,12 @@ auto loadRecentScenes(const std::filesystem::path& file) -> std::expected<Recent
 
     std::ifstream stream{ file, std::ios::binary };
     if (!stream)
-        return std::unexpected{ std::format("cannot open '{}'", file.string()) };
+        return makeError(ErrorCode::FileFailed, std::format("cannot open '{}'", file.string()));
     const std::string text{ std::istreambuf_iterator<char>{ stream }, std::istreambuf_iterator<char>{} };
 
     RecentScenes read;
     if (const auto parsed = glz::read<readOptions>(read, text); parsed)
-        return std::unexpected{ std::format("'{}': {}", file.string(), glz::format_error(parsed, text)) };
+        return makeError(ErrorCode::JsonFailed, std::format("'{}': {}", file.string(), glz::format_error(parsed, text)));
     // A hand-edited file: added from the oldest, so the order stays and the limit and duplicates hold
     RecentScenes scenes;
     for (const auto& path : read.paths | std::views::reverse)
@@ -57,21 +57,21 @@ auto loadRecentScenes(const std::filesystem::path& file) -> std::expected<Recent
     return scenes;
 }
 
-auto saveRecentScenes(const RecentScenes& scenes, const std::filesystem::path& file) -> std::expected<void, std::string>
+auto saveRecentScenes(const RecentScenes& scenes, const std::filesystem::path& file) -> std::expected<void, Error>
 {
     std::string text;
     if (const auto written = glz::write<writeOptions>(scenes, text); written)
-        return std::unexpected{ std::format("cannot serialize the recent scenes: {}", glz::format_error(written, text)) };
+        return makeError(ErrorCode::JsonFailed, std::format("cannot serialize the recent scenes: {}", glz::format_error(written, text)));
 
     std::error_code error;
     std::filesystem::create_directories(file.parent_path(), error);
     if (error)
-        return std::unexpected{ std::format("cannot create '{}': {}", file.parent_path().string(), error.message()) };
+        return makeError(ErrorCode::FileFailed, std::format("cannot create '{}': {}", file.parent_path().string(), error.message()));
 
     std::ofstream stream{ file, std::ios::binary | std::ios::trunc };
     stream << text << '\n';
     if (!stream)
-        return std::unexpected{ std::format("cannot write '{}'", file.string()) };
+        return makeError(ErrorCode::FileFailed, std::format("cannot write '{}'", file.string()));
     return {};
 }
 }

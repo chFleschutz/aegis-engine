@@ -14,7 +14,7 @@ auto apply(std::span<const Edit> edits, EditSide side, const EditorContext& edit
 {
     const auto failures = applyEdits(editWorld(editor, frame), edits, side);
     for (const auto& failure : failures)
-        log::warn("Cannot {} {}", side == EditSide::Old ? "undo" : "redo", failure);
+        log::warn("Cannot {} {}: {}", side == EditSide::Old ? "undo" : "redo", failure.edit, describe(failure.error));
     return failures.empty();
 }
 }

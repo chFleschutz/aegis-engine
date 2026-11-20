@@ -1,5 +1,6 @@
 export module aegis.editor.core:recent_scenes;
 import std;
+import :error;
 
 export namespace aegis::editor
 {
@@ -25,9 +26,9 @@ struct RecentScenes
 [[nodiscard]] auto recentScenesPath(const std::filesystem::path& project) -> std::filesystem::path;
 
 /// @brief Reads 'file'. A missing file gives an empty list; more paths than the limit are cut, duplicates dropped.
-/// @return The reason as text when the file exists but cannot be read or parsed.
-[[nodiscard]] auto loadRecentScenes(const std::filesystem::path& file) -> std::expected<RecentScenes, std::string>;
+/// @return FileFailed when the file exists but cannot be read, JsonFailed when it does not parse.
+[[nodiscard]] auto loadRecentScenes(const std::filesystem::path& file) -> std::expected<RecentScenes, Error>;
 
 /// @brief Writes 'file', creating its folder.
-[[nodiscard]] auto saveRecentScenes(const RecentScenes& scenes, const std::filesystem::path& file) -> std::expected<void, std::string>;
+[[nodiscard]] auto saveRecentScenes(const RecentScenes& scenes, const std::filesystem::path& file) -> std::expected<void, Error>;
 }

@@ -7,14 +7,14 @@ import aegis.world;
 namespace aegis::editor
 {
 auto copyWorld(world::Registry& from, world::Registry& to, const reflect::TypeRegistry& types, const PrepareField& prepare)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     // The copy is never written: its ID names no file.
     const auto scene = serialize::saveScene(from, types, 0);
     if (!scene)
-        return std::unexpected{ std::format("Cannot capture the world: {}", serialize::describe(scene.error())) };
+        return makeError(scene.error(), "cannot capture the world");
     if (auto created = serialize::instantiate(to, types, *scene, prepare); !created)
-        return std::unexpected{ std::format("Cannot copy the world: {}", serialize::describe(created.error())) };
+        return makeError(created.error(), "cannot copy the world");
     return {};
 }
 

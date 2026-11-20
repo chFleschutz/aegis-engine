@@ -227,11 +227,11 @@ TEST_SUITE("editor::instantiateEntity")
                              } };
         }
 
-        auto create(Entity parent) -> std::expected<Entity, std::string>
+        auto create(Entity parent) -> std::expected<Entity, aegis::editor::Error>
         {
             auto holder = aegis::serialize::instantiate(registry(), types, scene, parent);
             if (!holder)
-                return std::unexpected{ aegis::serialize::describe(holder.error()) };
+                return aegis::editor::makeError(holder.error(), "cannot instantiate the scene");
             return *holder;
         }
 
@@ -287,9 +287,10 @@ TEST_SUITE("editor::instantiateEntity")
     TEST_CASE("passes on the error of a failed instance and records nothing")
     {
         InstanceFixture f;
-        const auto holder = instantiateEntity(f.instanceEdits(), f.history, {}, [](Entity) -> std::expected<Entity, std::string> { return std::unexpected{ std::string{ "no such scene" } }; });
+        const auto holder = instantiateEntity(f.instanceEdits(), f.history, {}, [](Entity) -> std::expected<Entity, aegis::editor::Error> { return aegis::editor::makeAssetError("no such scene", "cannot instantiate"); });
         REQUIRE_FALSE(holder.has_value());
-        CHECK(holder.error() == "no such scene");
+        CHECK(holder.error().code == aegis::editor::ErrorCode::AssetFailed);
+        CHECK(holder.error().assets == "no such scene");
         CHECK_FALSE(f.history.canUndo());
     }
 }
@@ -344,7 +345,9 @@ TEST_SUITE("editor::destroyEntity")
         Fixture f;
         const auto member = f.registry().create("Member");
         f.registry().add<aegis::serialize::InstanceMember>(member);
-        CHECK_FALSE(destroyEntity(f.edits(), f.history, member).has_value());
+        const auto destroyed = destroyEntity(f.edits(), f.history, member);
+        REQUIRE_FALSE(destroyed.has_value());
+        CHECK(destroyed.error().code == aegis::editor::ErrorCode::NotEditable);
         CHECK(f.registry().valid(member));
         CHECK_FALSE(f.history.canUndo());
     }
@@ -604,7 +607,10 @@ TEST_SUITE("editor::moveEntity")
         const auto child = registry.create("Child");
         REQUIRE(registry.addChild(parent, child).has_value());
 
-        CHECK_FALSE(moveEntity(f.edits(), f.history, parent, child, 0).has_value());
+        const auto below = moveEntity(f.edits(), f.history, parent, child, 0);
+        REQUIRE_FALSE(below.has_value());
+        CHECK(below.error().code == aegis::editor::ErrorCode::HierarchyFailed);
+        CHECK(below.error().hierarchy == aegis::world::HierarchyError::Cycle);
         CHECK_FALSE(moveEntity(f.edits(), f.history, parent, parent, 0).has_value());
         CHECK(f.parentOf(child) == parent);
         CHECK_FALSE(f.history.canUndo());

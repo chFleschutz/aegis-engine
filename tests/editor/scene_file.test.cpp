@@ -176,6 +176,13 @@ TEST_SUITE("editor::sceneFilePath")
         CHECK_FALSE(sceneFilePath("folder/").has_value());
     }
 
+    TEST_CASE("a refused path is an InvalidPath error")
+    {
+        const auto path = sceneFilePath("../out.scene");
+        REQUIRE_FALSE(path.has_value());
+        CHECK(path.error().code == aegis::editor::ErrorCode::InvalidPath);
+    }
+
     TEST_CASE("refuses hidden files and folders")
     {
         CHECK_FALSE(sceneFilePath(".hidden.scene").has_value());

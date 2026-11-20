@@ -40,23 +40,23 @@ auto findAutosave(const std::filesystem::path& file, const std::filesystem::path
 }
 
 auto writeAutosave(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id, const std::filesystem::path& file)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     std::error_code error;
     std::filesystem::create_directories(file.parent_path(), error);
     if (error)
-        return std::unexpected{ std::format("Cannot create '{}': {}", file.parent_path().string(), error.message()) };
+        return makeError(ErrorCode::FileFailed, std::format("cannot create '{}': {}", file.parent_path().string(), error.message()));
     return writeSceneFile(registry, types, id, file);
 }
 
-auto readAutosave(const std::filesystem::path& file) -> std::expected<std::string, std::string>
+auto readAutosave(const std::filesystem::path& file) -> std::expected<std::string, Error>
 {
     std::ifstream stream{ file, std::ios::binary };
     if (!stream)
-        return std::unexpected{ std::format("Cannot open '{}'", file.string()) };
+        return makeError(ErrorCode::FileFailed, std::format("cannot open '{}'", file.string()));
     std::string text{ std::istreambuf_iterator<char>{ stream }, std::istreambuf_iterator<char>{} };
     if (stream.bad())
-        return std::unexpected{ std::format("Cannot read '{}'", file.string()) };
+        return makeError(ErrorCode::FileFailed, std::format("cannot read '{}'", file.string()));
     return text;
 }
 

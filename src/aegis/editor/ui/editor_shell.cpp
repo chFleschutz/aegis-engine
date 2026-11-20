@@ -389,7 +389,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
         if (auto loaded = loadRecentScenes(m_recentFile))
             m_recent = std::move(*loaded);
         else
-            log::warn("The recent scenes are reset: {}", loaded.error());
+            log::warn("The recent scenes are reset: {}", describe(loaded.error()));
     }
     addSettingsHandler(); // Before the layout file is read, at the first frame
     ImGui::GetIO().IniFilename = m_layoutFile.empty() ? nullptr : m_layoutFile.c_str();
@@ -403,7 +403,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
         else if (auto loaded = loadPreferences(m_preferencesFile))
             m_context.preferences() = std::move(*loaded);
         else
-            log::warn("The editor preferences are reset: {}", loaded.error());
+            log::warn("The editor preferences are reset: {}", describe(loaded.error()));
         m_savedPreferences = m_context.preferences(); // What the file holds
         if (!engine.project().empty())
             m_context.preferences().addRecentProject(engine.project());
@@ -637,7 +637,7 @@ auto EditorShell::save(FrameContext& frame) -> bool
     const auto file = frame.assets.database().absolutePath(*entry);
     if (auto written = writeSceneFile(m_context.editWorld()->registry(), frame.types, m_scene->value, file); !written)
     {
-        log::warn("Cannot save the scene: {}", written.error());
+        log::warn("Cannot save the scene: {}", describe(written.error()));
         return false;
     }
     m_context.markSaved();
@@ -646,7 +646,7 @@ auto EditorShell::save(FrameContext& frame) -> bool
     return true;
 }
 
-auto EditorShell::saveAs(FrameContext& frame, std::string_view typed) -> std::expected<void, std::string>
+auto EditorShell::saveAs(FrameContext& frame, std::string_view typed) -> std::expected<void, Error>
 {
     const auto path = sceneFilePath(typed);
     if (!path)
@@ -655,17 +655,17 @@ auto EditorShell::saveAs(FrameContext& frame, std::string_view typed) -> std::ex
     const auto file = database.roots().front().path / std::filesystem::path{ std::u8string{ path->begin(), path->end() } };
     std::error_code error;
     if (std::filesystem::exists(file, error))
-        return std::unexpected{ std::format("'{}' exists already", *path) };
+        return makeError(ErrorCode::FileExists, std::format("'{}' exists already", *path));
     std::filesystem::create_directories(file.parent_path(), error);
     if (error)
-        return std::unexpected{ std::format("Cannot create the folder of '{}': {}", *path, error.message()) };
+        return makeError(ErrorCode::FileFailed, std::format("cannot create the folder of '{}': {}", *path, error.message()));
     const auto id = assets::AssetId::generate();
     const auto before = m_scene; // Its autosave holds the changes this saves
     if (auto written = writeSceneFile(m_context.editWorld()->registry(), frame.types, id.value, file); !written)
         return std::unexpected{ written.error() };
     auto added = frame.assets.addFile(*path);
     if (!added)
-        return std::unexpected{ std::format("Saved, but the asset database does not take it: {}", added.error()) };
+        return makeAssetError(std::move(added.error()), "saved, but the asset database does not take it");
     m_scene = *added;
     m_context.markSaved();
     deleteAutosave(before);
@@ -738,7 +738,7 @@ void EditorShell::saveRecentScenes()
     if (m_recentFile.empty())
         return;
     if (const auto saved = aegis::editor::saveRecentScenes(m_recent, m_recentFile); !saved)
-        log::warn("The recent scenes are not saved: {}", saved.error());
+        log::warn("The recent scenes are not saved: {}", describe(saved.error()));
 }
 
 void EditorShell::drawOpenPopup(FrameContext& frame)
@@ -850,7 +850,7 @@ void EditorShell::drawSaveAsPopup(FrameContext& frame)
         if (auto saved = saveAs(frame, m_saveAsPath); saved)
             done = true;
         else
-            m_fileError = std::move(saved.error());
+            m_fileError = describe(saved.error());
     }
     ImGui::SameLine();
     const bool cancelled = ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape);
@@ -922,7 +922,7 @@ void EditorShell::startPlay(FrameContext& frame)
     const auto prepare = [&frame](const reflect::TypeInfo& type, void* component) { frame.assets.resolve(type, component, frame.types); };
     if (auto copied = copyWorld(frame.world.registry(), play.registry(), frame.types, prepare); !copied)
     {
-        log::warn("Cannot play: {}", copied.error());
+        log::warn("Cannot play: {}", describe(copied.error()));
         frame.engine.destroyWorld(play);
         return;
     }
@@ -975,7 +975,7 @@ void EditorShell::savePreferencesIfChanged()
     preferences.clamp();
     m_savedPreferences = preferences; // Also after a failure: it is reported once, not every frame
     if (const auto saved = savePreferences(preferences, m_preferencesFile); !saved)
-        log::warn("The editor preferences are not saved: {}", saved.error());
+        log::warn("The editor preferences are not saved: {}", describe(saved.error()));
 }
 
 auto EditorShell::autosaveFile(std::optional<assets::AssetId> scene) const -> std::filesystem::path
@@ -1007,7 +1007,7 @@ void EditorShell::autosave(FrameContext& frame)
         return;
     const auto file = autosaveFile(m_scene);
     if (auto written = writeAutosave(m_context.editWorld()->registry(), frame.types, m_scene ? m_scene->value : 0, file); !written)
-        log::warn("The scene is not autosaved: {}", written.error());
+        log::warn("The scene is not autosaved: {}", describe(written.error()));
 }
 
 void EditorShell::deleteAutosave(std::optional<assets::AssetId> scene)
@@ -1067,7 +1067,7 @@ void EditorShell::restoreAutosave(FrameContext& frame)
     const auto text = readAutosave(file);
     if (!text)
     {
-        log::warn("Cannot restore the autosave: {}", text.error());
+        log::warn("Cannot restore the autosave: {}", describe(text.error()));
         return;
     }
     const auto scene = serialize::parseScene(*text, frame.types);

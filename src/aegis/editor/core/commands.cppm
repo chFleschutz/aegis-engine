@@ -3,6 +3,7 @@ import std;
 import aegis.reflect;
 import aegis.world;
 import :edits;
+import :error;
 import :undo_stack;
 
 // The editor's structural edits: each changes the world and records an edit on the undo stack, so undo and redo
@@ -16,65 +17,65 @@ export namespace aegis::editor
 /// @return The entity, or an error (and nothing changed) for a parent of a scene instance or a type that is not a
 ///         component with storage
 [[nodiscard]] auto createEntity(const EditWorld& world, UndoStack& history, std::string name, world::Entity parent = {},
-    std::span<const reflect::TypeInfo* const> components = {}) -> std::expected<world::Entity, std::string>;
+    std::span<const reflect::TypeInfo* const> components = {}) -> std::expected<world::Entity, Error>;
 
 /// @brief Makes the entities of a scene or model instance under 'parent' (a root entity for a null one).
-using CreateInstance = std::function<std::expected<world::Entity, std::string>(world::Entity parent)>;
+using CreateInstance = std::function<std::expected<world::Entity, Error>(world::Entity parent)>;
 
 /// @brief Creates an instance through 'create' (the asset library's instantiateScene) under 'parent' and records it:
 ///        undo destroys the holder and its descendants, redo restores the holder with its StableId, and the holder's
 ///        SceneInstance recreates the instance's entities (through EditWorld::prepare).
 /// @return The holder, or an error (and nothing changed) for a parent of a scene instance or a failed 'create'
 [[nodiscard]] auto instantiateEntity(const EditWorld& world, UndoStack& history, world::Entity parent, const CreateInstance& create)
-    -> std::expected<world::Entity, std::string>;
+    -> std::expected<world::Entity, Error>;
 
 /// @brief Destroys 'entity' and its descendants; undo restores them with their StableIds.
-auto destroyEntity(const EditWorld& world, UndoStack& history, world::Entity entity) -> std::expected<void, std::string>;
+auto destroyEntity(const EditWorld& world, UndoStack& history, world::Entity entity) -> std::expected<void, Error>;
 
 /// @brief Copies 'entity' and its descendants with new StableIds, right after it among its siblings.
 /// @return The copy
 [[nodiscard]] auto duplicateEntity(const EditWorld& world, UndoStack& history, world::Entity entity)
-    -> std::expected<world::Entity, std::string>;
+    -> std::expected<world::Entity, Error>;
 
 /// @brief Renames 'entity'. With 'continuous' (the name is still being typed) the next rename extends this one.
 auto renameEntity(const EditWorld& world, UndoStack& history, world::Entity entity, std::string name, bool continuous = false)
-    -> std::expected<void, std::string>;
+    -> std::expected<void, Error>;
 
 /// @brief Makes 'entity' the child of 'parent' at 'index' (see Registry::insertChild), or a root entity for a null
 ///        'parent', keeping its place in the world: its local Transform is recomputed below the new parent.
 /// @return An error (and nothing changed) for a cycle, or a parent of a scene instance
 auto moveEntity(const EditWorld& world, UndoStack& history, world::Entity entity, world::Entity parent, std::size_t index)
-    -> std::expected<void, std::string>;
+    -> std::expected<void, Error>;
 
 /// @brief Moves 'entity' next to 'sibling', before or after it under the sibling's parent (a drop between two rows of
 ///        the hierarchy), as moveEntity does.
 auto moveEntityBeside(const EditWorld& world, UndoStack& history, world::Entity entity, world::Entity sibling, bool after)
-    -> std::expected<void, std::string>;
+    -> std::expected<void, Error>;
 
 /// @brief Gives 'entity' a default instance of the component 'type' (see addComponent).
 auto addComponent(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type)
-    -> std::expected<void, std::string>;
+    -> std::expected<void, Error>;
 
 /// @brief Removes the entity's component 'type'; undo adds it back with its field values.
 auto removeComponent(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type)
-    -> std::expected<void, std::string>;
+    -> std::expected<void, Error>;
 
 /// @brief Sets every field of the entity's component 'type' (or, with 'scriptIndex', its script of that number and
 ///        type) to the values of a default instance. One undo entry; none if they already are the defaults.
 auto resetFields(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type,
-    std::optional<std::size_t> scriptIndex = std::nullopt) -> std::expected<void, std::string>;
+    std::optional<std::size_t> scriptIndex = std::nullopt) -> std::expected<void, Error>;
 
 /// @brief Writes the fields that 'text' (componentToText of the same type, copied from any entity) holds to the
 ///        entity's component 'type' or script, as resetFields does; the other fields keep their values. One undo entry.
 /// @return Why 'text' does not apply (see componentFromText); nothing is changed then
 auto pasteFields(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type,
-    std::optional<std::size_t> scriptIndex, std::string_view text) -> std::expected<void, std::string>;
+    std::optional<std::size_t> scriptIndex, std::string_view text) -> std::expected<void, Error>;
 
 /// @brief Attaches a new script of type 'type' to 'entity', after its other scripts.
 auto attachScript(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type)
-    -> std::expected<void, std::string>;
+    -> std::expected<void, Error>;
 
 /// @brief Detaches the entity's script number 'index'; undo attaches it back there with its field values.
 auto detachScript(const EditWorld& world, UndoStack& history, world::Entity entity, std::size_t index)
-    -> std::expected<void, std::string>;
+    -> std::expected<void, Error>;
 }

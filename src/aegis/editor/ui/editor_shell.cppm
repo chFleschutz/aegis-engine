@@ -81,7 +81,7 @@ private:
     /// @brief Writes the edit world to the open scene file, or opens Save As without one. Whether it was written.
     auto save(FrameContext& frame) -> bool;
     /// @brief Writes the edit world to a new file at 'typed' in the project's content folder and opens that.
-    auto saveAs(FrameContext& frame, std::string_view typed) -> std::expected<void, std::string>;
+    auto saveAs(FrameContext& frame, std::string_view typed) -> std::expected<void, Error>;
     void drawFileMenu(FrameContext& frame);
     /// @brief The project's recent scenes, the most recent first; one that is gone is dropped from the list.
     void drawOpenRecentMenu(FrameContext& frame);

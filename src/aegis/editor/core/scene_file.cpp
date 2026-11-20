@@ -18,7 +18,7 @@ auto tempFile(const std::filesystem::path& file) -> std::filesystem::path
 }
 }
 
-auto writeFileAtomically(const std::filesystem::path& file, std::string_view text) -> std::expected<void, std::string>
+auto writeFileAtomically(const std::filesystem::path& file, std::string_view text) -> std::expected<void, Error>
 {
     const auto temp = tempFile(file);
     std::error_code ignored;
@@ -28,7 +28,7 @@ auto writeFileAtomically(const std::filesystem::path& file, std::string_view tex
     if (!stream)
     {
         std::filesystem::remove(temp, ignored);
-        return std::unexpected{ std::format("Cannot write '{}'", temp.string()) };
+        return makeError(ErrorCode::FileFailed, std::format("cannot write '{}'", temp.string()));
     }
     // Replaces 'file' on both platforms (MoveFileEx's MOVEFILE_REPLACE_EXISTING on Windows)
     std::error_code error;
@@ -36,21 +36,21 @@ auto writeFileAtomically(const std::filesystem::path& file, std::string_view tex
     if (error)
     {
         std::filesystem::remove(temp, ignored);
-        return std::unexpected{ std::format("Cannot replace '{}': {}", file.string(), error.message()) };
+        return makeError(ErrorCode::FileFailed, std::format("cannot replace '{}': {}", file.string(), error.message()));
     }
     return {};
 }
 
-auto sceneText(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id) -> std::expected<std::string, std::string>
+auto sceneText(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id) -> std::expected<std::string, Error>
 {
     const auto scene = serialize::saveScene(registry, types, id);
     if (!scene)
-        return std::unexpected{ std::format("Cannot capture the scene: {}", serialize::describe(scene.error())) };
+        return makeError(scene.error(), "cannot capture the scene");
     return serialize::writeScene(*scene);
 }
 
 auto writeSceneFile(world::Registry& registry, const reflect::TypeRegistry& types, std::uint64_t id, const std::filesystem::path& file)
-    -> std::expected<void, std::string>
+    -> std::expected<void, Error>
 {
     const auto text = sceneText(registry, types, id);
     if (!text)
@@ -58,25 +58,25 @@ auto writeSceneFile(world::Registry& registry, const reflect::TypeRegistry& type
     return writeFileAtomically(file, *text);
 }
 
-auto sceneFilePath(std::string_view typed) -> std::expected<std::string, std::string>
+auto sceneFilePath(std::string_view typed) -> std::expected<std::string, Error>
 {
     const auto first = typed.find_first_not_of(" \t");
     if (first == std::string_view::npos)
-        return std::unexpected{ std::string{ "No file name" } };
+        return makeError(ErrorCode::InvalidPath, "no file name");
     std::string path{ typed.substr(first, typed.find_last_not_of(" \t") - first + 1) };
     std::ranges::replace(path, '\\', '/');
     // A drive letter on any platform: the project must open on Windows too, where ':' names no file
     if (path.starts_with('/') || path.contains(':'))
-        return std::unexpected{ std::format("'{}' is not a path in the content folder", path) };
+        return makeError(ErrorCode::InvalidPath, std::format("'{}' is not a path in the content folder", path));
     if (path.ends_with('/'))
-        return std::unexpected{ std::format("'{}' names a folder", path) };
+        return makeError(ErrorCode::InvalidPath, std::format("'{}' names a folder", path));
     for (const auto part : std::views::split(path, '/'))
     {
         const std::string_view name{ part.begin(), part.end() };
         if (name.empty() || name == ".")
-            return std::unexpected{ std::format("'{}' has an empty folder name", path) };
+            return makeError(ErrorCode::InvalidPath, std::format("'{}' has an empty folder name", path));
         if (name.starts_with('.'))
-            return std::unexpected{ std::format("'{}' leaves the content folder or names a hidden file", path) };
+            return makeError(ErrorCode::InvalidPath, std::format("'{}' leaves the content folder or names a hidden file", path));
     }
     if (!path.ends_with(".scene"))
         path += ".scene";
