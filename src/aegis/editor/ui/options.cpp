@@ -29,12 +29,14 @@ auto parseOptions(std::span<const ShellOption> options) -> std::expected<EditorO
             else
                 return invalid(std::format("--editor-panels takes 'all', got '{}'", *option.value));
         }
-        else if (name == "--editor-play" || name == "--editor-full-viewport" || name == "--editor-fold")
+        else if (name == "--editor-play" || name == "--editor-full-viewport" || name == "--editor-fold" || name == "--editor-check-stats")
         {
             if (option.value)
                 return invalid(std::format("{} takes no value, got '{}'", name, *option.value));
-            auto& flag = name == "--editor-play" ? parsed.play : name == "--editor-full-viewport" ? parsed.fullViewport
-                                                                                                  : parsed.fold;
+            auto& flag = name == "--editor-play"            ? parsed.play
+                         : name == "--editor-full-viewport" ? parsed.fullViewport
+                         : name == "--editor-fold"          ? parsed.fold
+                                                            : parsed.checkStats;
             flag = true;
         }
         else

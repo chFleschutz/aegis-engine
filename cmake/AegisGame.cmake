@@ -18,7 +18,8 @@
 # next to its executables and uses the build and source trees, so it never sees stale data; laying out a
 # copied or installed game is the export step's job (#134). With tests on, <Name> renders headless as a
 # `device` test: once per scene of SCENES (game-<name>-<scene file stem>), else once with its startup scene.
-# <Name>-Editor runs headless too (game-<name>-editor, -editor-default, -editor-play, -editor-full and -editor-folded). A missing asset only logs a warning and renders a fallback, so that warning fails the test too.
+# <Name>-Editor runs headless too (game-<name>-editor, -editor-default, -editor-play, -editor-full and -editor-folded,
+# and with SCENES -editor-stats). A missing asset only logs a warning and renders a fallback, so that warning fails the test too.
 function(aegis_add_game name)
     cmake_parse_arguments(G "" "PROJECT;EDITOR_SELECT" "SOURCES;SCENES" ${ARGN})
     if(NOT G_SOURCES OR NOT G_PROJECT)
@@ -95,5 +96,13 @@ function(aegis_add_game name)
             set_tests_properties(${editor_test} PROPERTIES LABELS "device;game;editor" RESOURCE_LOCK gpu TIMEOUT 300
                 FAIL_REGULAR_EXPRESSION "Failed to load")
         endforeach()
+        # During play the editor's statistics must count the play world: the check adds an instance that draws nothing
+        # to it (StatisticsCheck), so it needs a scene with a mesh. It logs a failure, also when it never ran.
+        if(G_SCENES)
+            set(stats_test game-${lowered}-editor-stats)
+            add_test(NAME ${stats_test} COMMAND ${name}-Editor ${editor_args} --editor-play --editor-check-stats)
+            set_tests_properties(${stats_test} PROPERTIES LABELS "device;game;editor" RESOURCE_LOCK gpu TIMEOUT 300
+                FAIL_REGULAR_EXPRESSION "Failed to load;Editor statistics check failed")
+        endif()
     endif()
 endfunction()
