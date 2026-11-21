@@ -91,6 +91,22 @@ auto finite(const glm::mat4& matrix) -> bool
 }
 
 const FrameScene::DirectionalLight sun{ .direction = glm::normalize(glm::vec3{ -0.35f, 0.35f, 0.87f }) };
+
+// The shadow of the camera's whole slice, from its near plane to the light's shadow distance: a single cascade's.
+auto whole(const FrameScene::DirectionalLight& light, const FrameScene::Camera& camera) -> FrameScene::Camera
+{
+    return fitDirectionalShadow(light, camera, 0.0f, light.shadowDistance);
+}
+
+// The world-space corners of the camera's frustum between 'near' and 'far' meters along its axis.
+auto sliceCorners(const FrameScene::Camera& camera, float near, float far) -> std::vector<glm::vec3>
+{
+    auto corners = sliceCorners(camera, far);
+    const auto nearCorners = sliceCorners(camera, near);
+    for (std::size_t i = 0; i < 4; ++i)
+        corners[i] = nearCorners[i + 4];
+    return corners;
+}
 }
 
 TEST_SUITE("render_passes::fitDirectionalShadow")
@@ -98,7 +114,7 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
     TEST_CASE("the shadow covers the camera's frustum up to the shadow distance")
     {
         const auto view = camera({ 3.0f, -2.0f, 1.5f }, { 0.3f, 1.0f, -0.2f });
-        const auto shadow = fitDirectionalShadow(sun, view);
+        const auto shadow = whole(sun, view);
         for (const auto& corner : sliceCorners(view, sun.shadowDistance))
         {
             const auto ndc = project(shadow, corner);
@@ -115,7 +131,7 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
     TEST_CASE("the shadow reaches towards the light beyond the frustum, for casters above it")
     {
         const auto view = camera({ 0.0f, 0.0f, 1.5f }, { 0.0f, 1.0f, 0.0f });
-        const auto shadow = fitDirectionalShadow(sun, view);
+        const auto shadow = whole(sun, view);
         // A point just inside the reach, above the camera along the light's direction.
         const auto caster = view.position + sun.direction * (shadowCasterReach * 0.9f);
         const auto ndc = project(shadow, caster);
@@ -125,7 +141,7 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
 
     TEST_CASE("the shadow looks along the light with an orthographic projection")
     {
-        const auto shadow = fitDirectionalShadow(sun, camera({ 0.0f, 0.0f, 1.5f }, { 0.0f, 1.0f, 0.0f }));
+        const auto shadow = whole(sun, camera({ 0.0f, 0.0f, 1.5f }, { 0.0f, 1.0f, 0.0f }));
         CHECK(shadow.projection[3][3] == 1.0f); // Orthographic: what the task shader's cone culling checks
         // The view's -Z is the direction the light shines in.
         const glm::vec3 forward{ -shadow.view[0][2], -shadow.view[1][2], -shadow.view[2][2] };
@@ -137,15 +153,15 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
     TEST_CASE("turning the camera keeps the shadow's size")
     {
         const glm::vec3 position{ 1.0f, 2.0f, 1.5f };
-        const auto ahead = fitDirectionalShadow(sun, camera(position, { 0.0f, 1.0f, 0.0f }));
-        const auto turned = fitDirectionalShadow(sun, camera(position, { 0.7f, -0.4f, 0.1f }));
+        const auto ahead = whole(sun, camera(position, { 0.0f, 1.0f, 0.0f }));
+        const auto turned = whole(sun, camera(position, { 0.7f, -0.4f, 0.1f }));
         CHECK(ahead.projection[0][0] == doctest::Approx(turned.projection[0][0]).epsilon(1e-5));
         CHECK(ahead.projection[2][2] == doctest::Approx(turned.projection[2][2]).epsilon(1e-5));
     }
 
     TEST_CASE("the shadow moves in whole texels of its map")
     {
-        const auto shadow = fitDirectionalShadow(sun, camera({ 0.37f, 1.91f, 1.5f }, { 0.0f, 1.0f, 0.0f }));
+        const auto shadow = whole(sun, camera({ 0.37f, 1.91f, 1.5f }, { 0.0f, 1.0f, 0.0f }));
         const float texel = 2.0f / (shadow.projection[0][0] * static_cast<float>(shadowMapExtent.x));
         for (const float offset : { shadow.view[3][0], shadow.view[3][1] })
         {
@@ -171,7 +187,7 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
             for (const auto& corner : corners)
                 radius = std::max(radius, glm::length(corner - center));
 
-            const auto shadow = fitDirectionalShadow(sun, view);
+            const auto shadow = whole(sun, view);
             const glm::vec3 side{ shadow.view[0][0], shadow.view[1][0], shadow.view[2][0] };
             const glm::vec3 up{ shadow.view[0][1], shadow.view[1][1], shadow.view[2][1] };
             for (const auto& edge : { side, -side, up, -up })
@@ -187,7 +203,7 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
     TEST_CASE("a light shining straight down gives a valid shadow")
     {
         const FrameScene::DirectionalLight overhead{ .direction = { 0.0f, 0.0f, 1.0f } };
-        const auto shadow = fitDirectionalShadow(overhead, camera({ 0.0f, 0.0f, 1.5f }, { 0.0f, 1.0f, 0.0f }));
+        const auto shadow = whole(overhead, camera({ 0.0f, 0.0f, 1.5f }, { 0.0f, 1.0f, 0.0f }));
         CHECK(finite(shadow.view));
         CHECK(finite(shadow.projection));
     }
@@ -198,13 +214,103 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
         auto far = sun;
         far.shadowDistance = 200.0f;
         // A smaller scale is a wider projection.
-        CHECK(fitDirectionalShadow(far, view).projection[0][0] < fitDirectionalShadow(sun, view).projection[0][0]);
+        CHECK(whole(far, view).projection[0][0] < whole(sun, view).projection[0][0]);
+    }
+
+    TEST_CASE("a cascade's shadow covers its slice of the frustum")
+    {
+        const auto view = camera({ 3.0f, -2.0f, 1.5f }, { 0.3f, 1.0f, -0.2f });
+        const auto shadow = fitDirectionalShadow(sun, view, 8.0f, 20.0f);
+        for (const auto& corner : sliceCorners(view, 8.0f, 20.0f))
+        {
+            const auto ndc = project(shadow, corner);
+            CAPTURE(ndc.x);
+            CAPTURE(ndc.y);
+            CHECK(std::abs(ndc.x) <= 1.0f);
+            CHECK(std::abs(ndc.y) <= 1.0f);
+            CHECK(ndc.z >= 0.0f);
+            CHECK(ndc.z <= 1.0f);
+        }
+        // A slice is narrower than the whole distance, so its map is sharper.
+        CHECK(shadow.projection[0][0] > whole(sun, view).projection[0][0]);
+    }
+}
+
+TEST_SUITE("render_passes::shadowCascadeSplits")
+{
+    const auto projection = perspective(glm::radians(60.0f), 4.0f / 3.0f, 0.1f, 1000.0f);
+
+    TEST_CASE("the cascades grow from the near plane to the shadow distance")
+    {
+        const auto splits = shadowCascadeSplits(sun, projection);
+        REQUIRE(splits.size() == 4);
+        CHECK(splits.front() > 0.1f);
+        for (std::size_t i = 1; i < splits.size(); ++i)
+        {
+            CAPTURE(i);
+            CHECK(splits[i] > splits[i - 1]);
+            // Each cascade is at least as long as the one before.
+            const float before = splits[i - 1] - (i == 1 ? 0.1f : splits[i - 2]);
+            CHECK(splits[i] - splits[i - 1] >= before);
+        }
+        CHECK(splits.back() == sun.shadowDistance);
+    }
+
+    TEST_CASE("the split lambda mixes uniform and logarithmic splits")
+    {
+        auto light = sun;
+        light.shadowSplitLambda = 0.0f;
+        const auto uniform = shadowCascadeSplits(light, projection);
+        REQUIRE(uniform.size() == 4);
+        const float length = (light.shadowDistance - 0.1f) / 4.0f;
+        for (std::size_t i = 0; i < uniform.size(); ++i)
+        {
+            CAPTURE(i);
+            CHECK(uniform[i] == doctest::Approx(0.1f + length * static_cast<float>(i + 1)).epsilon(1e-4));
+        }
+
+        light.shadowSplitLambda = 1.0f;
+        const auto logarithmic = shadowCascadeSplits(light, projection);
+        REQUIRE(logarithmic.size() == 4);
+        const float ratio = logarithmic[0] / 0.1f;
+        for (std::size_t i = 1; i < logarithmic.size(); ++i)
+        {
+            CAPTURE(i);
+            CHECK(logarithmic[i] / logarithmic[i - 1] == doctest::Approx(ratio).epsilon(1e-3));
+        }
+
+        // A mix lies between the two.
+        const auto mixed = shadowCascadeSplits(sun, projection);
+        for (std::size_t i = 0; i + 1 < mixed.size(); ++i)
+        {
+            CAPTURE(i);
+            CHECK(mixed[i] > logarithmic[i]);
+            CHECK(mixed[i] < uniform[i]);
+        }
+    }
+
+    TEST_CASE("the cascade count is clamped to 1 to maxShadowCascades")
+    {
+        auto light = sun;
+        light.shadowCascades = 0;
+        CHECK(shadowCascadeSplits(light, projection).size() == 1);
+        light.shadowCascades = 2;
+        CHECK(shadowCascadeSplits(light, projection).size() == 2);
+        light.shadowCascades = 9;
+        CHECK(shadowCascadeSplits(light, projection).size() == maxShadowCascades);
+    }
+
+    TEST_CASE("the shadow ends at the camera's far plane")
+    {
+        auto light = sun;
+        light.shadowDistance = 5000.0f;
+        CHECK(shadowCascadeSplits(light, projection).back() == doctest::Approx(1000.0f).epsilon(1e-3));
     }
 }
 
 TEST_SUITE("render_passes::addShadowViews")
 {
-    TEST_CASE("each main view gets a shadow view of the directional light, fitted to its camera")
+    TEST_CASE("each main view gets a shadow view per cascade of the directional light, fitted to its slice")
     {
         const InstanceStore instances;
         FrameScene scene{
@@ -217,47 +323,74 @@ TEST_SUITE("render_passes::addShadowViews")
         };
         addShadowViews(scene);
 
-        REQUIRE(scene.views.size() == 4);
+        REQUIRE(scene.views.size() == 2 + 2 * maxShadowCascades);
         CHECK(scene.views[0].shadow == 2u);
-        CHECK(scene.views[1].shadow == 3u);
-        CHECK(scene.views[2].name == "EditShadow");
-        CHECK(scene.views[3].name == "PlayShadow");
+        CHECK(scene.views[1].shadow == 6u);
+        CHECK(scene.views[2].name == "EditShadow0");
+        CHECK(scene.views[5].name == "EditShadow3");
+        CHECK(scene.views[6].name == "PlayShadow0");
         for (const auto& view : std::span{ scene.views }.subspan(2))
         {
             CHECK(view.kind == ViewKind::Shadow);
             CHECK(view.extent == shadowMapExtent);
             CHECK_FALSE(view.shadow.has_value());
+            CHECK(view.camera.has_value());
         }
-        REQUIRE(scene.views[3].camera.has_value());
-        CHECK(equal(scene.views[3].camera->view, fitDirectionalShadow(sun, *scene.views[1].camera).view));
+
+        const auto& play = *scene.views[1].camera;
+        const auto splits = shadowCascadeSplits(sun, play.projection);
+        REQUIRE(splits.size() == maxShadowCascades);
+        for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
+        {
+            CAPTURE(cascade);
+            const float near = cascade == 0 ? 0.0f : splits[cascade - 1];
+            REQUIRE(scene.views[6 + cascade].camera.has_value());
+            CHECK(equal(scene.views[6 + cascade].camera->view, fitDirectionalShadow(sun, play, near, splits[cascade]).view));
+        }
     }
 
-    TEST_CASE("without a directional light or a camera the shadow view has no camera")
+    TEST_CASE("cascades past the light's count have no camera")
+    {
+        const InstanceStore instances;
+        auto light = sun;
+        light.shadowCascades = 2;
+        FrameScene scene{ .instances = instances, .views = { { .name = "Main", .camera = camera({}, { 0.0f, 1.0f, 0.0f }) } }, .directionalLight = light };
+        addShadowViews(scene);
+        REQUIRE(scene.views.size() == 1 + maxShadowCascades);
+        CHECK(scene.views[1].camera.has_value());
+        CHECK(scene.views[2].camera.has_value());
+        CHECK_FALSE(scene.views[3].camera.has_value());
+        CHECK_FALSE(scene.views[4].camera.has_value());
+    }
+
+    TEST_CASE("without a directional light or a camera the shadow views have no camera")
     {
         const InstanceStore instances;
         FrameScene unlit{ .instances = instances, .views = { { .name = "Main", .camera = camera({}, { 0.0f, 1.0f, 0.0f }) } } };
         addShadowViews(unlit);
-        REQUIRE(unlit.views.size() == 2);
-        CHECK_FALSE(unlit.views[1].camera.has_value());
+        REQUIRE(unlit.views.size() == 1 + maxShadowCascades);
+        for (const auto& view : std::span{ unlit.views }.subspan(1))
+            CHECK_FALSE(view.camera.has_value());
 
         FrameScene noCamera{ .instances = instances, .views = { { .name = "Main" } }, .directionalLight = sun };
         addShadowViews(noCamera);
-        REQUIRE(noCamera.views.size() == 2);
-        CHECK_FALSE(noCamera.views[1].camera.has_value());
+        REQUIRE(noCamera.views.size() == 1 + maxShadowCascades);
+        for (const auto& view : std::span{ noCamera.views }.subspan(1))
+            CHECK_FALSE(view.camera.has_value());
     }
 
-    TEST_CASE("a main view that has a shadow view gets no second one")
+    TEST_CASE("a main view that has shadow views gets no second set")
     {
         const InstanceStore instances;
         FrameScene scene{ .instances = instances, .views = { { .name = "Main" } } };
         addShadowViews(scene);
         addShadowViews(scene);
-        CHECK(scene.views.size() == 2);
+        CHECK(scene.views.size() == 1 + maxShadowCascades);
 
         std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
         addShadowViews(views);
         addShadowViews(views);
-        CHECK(views.size() == 2);
+        CHECK(views.size() == 1 + maxShadowCascades);
     }
 
     TEST_CASE("the graph's views and the frame scene's come in the same order")
@@ -276,6 +409,6 @@ TEST_SUITE("render_passes::addShadowViews")
             CHECK(views[i].kind == scene.views[i].kind);
             CHECK(views[i].shadow == scene.views[i].shadow);
         }
-        CHECK(views[3].extent == shadowMapExtent);
+        CHECK(views.back().extent == shadowMapExtent);
     }
 }

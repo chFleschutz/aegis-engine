@@ -73,12 +73,21 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(LightingUniforms, spotLightCount) == 76);
         CHECK(offsetof(LightingUniforms, ambientOcclusionFactor) == 80);
         CHECK(offsetof(LightingUniforms, viewMode) == 84);
-        CHECK(offsetof(LightingUniforms, shadowViewProjection) == 88);
-        CHECK(offsetof(LightingUniforms, shadowMap) == 152);
-        CHECK(offsetof(LightingUniforms, shadowTexelSize) == 160);
-        CHECK(offsetof(LightingUniforms, shadowBias) == 164);
-        CHECK(offsetof(LightingUniforms, shadowed) == 168);
-        CHECK(sizeof(LightingUniforms) == 176); // Padded to the alignment of lights, which the shader never reads
+        CHECK(offsetof(LightingUniforms, cameraForward) == 88);
+        CHECK(offsetof(LightingUniforms, shadowCascades) == 104);
+        CHECK(offsetof(LightingUniforms, shadowBias) == 424);
+        CHECK(offsetof(LightingUniforms, shadowCascadeBlend) == 428);
+        CHECK(offsetof(LightingUniforms, shadowCascadeCount) == 432);
+        CHECK(sizeof(LightingUniforms) == 440); // Padded to the alignment of lights, which the shader never reads
+    }
+
+    TEST_CASE("ShadowCascadeData matches lighting::ShadowCascade")
+    {
+        CHECK(offsetof(ShadowCascadeData, viewProjection) == 0);
+        CHECK(offsetof(ShadowCascadeData, map) == 64);
+        CHECK(offsetof(ShadowCascadeData, texelSize) == 72);
+        CHECK(offsetof(ShadowCascadeData, splitFar) == 76);
+        CHECK(sizeof(ShadowCascadeData) == 80);
     }
 
     TEST_CASE("LightData matches lighting::Light")

@@ -7,42 +7,68 @@ namespace aegis::render_graph
 {
 namespace
 {
-// The view-space corners of the camera's frustum between its near plane and 'distance' meters along its axis (as far as
-// its far plane): the near corners, then the far ones.
-auto frustumSlice(const glm::mat4& projection, float distance) -> std::array<glm::vec3, 8>
+// The view-space point of the camera's frustum at the NDC position (x, y, depth).
+auto unproject(const glm::mat4& inverseProjection, float x, float y, float depth) -> glm::vec3
+{
+    const auto point = inverseProjection * glm::vec4{ x, y, depth, 1.0f };
+    return glm::vec3{ point } / point.w;
+}
+
+// The view-space corners of the camera's frustum between 'near' and 'far' meters along its axis (clamped to its near
+// and far planes): the near corners, then the far ones.
+auto frustumSlice(const glm::mat4& projection, float near, float far) -> std::array<glm::vec3, 8>
 {
     const auto inverseProjection = glm::inverse(projection);
-    const auto unproject = [&](float x, float y, float depth) {
-        const auto point = inverseProjection * glm::vec4{ x, y, depth, 1.0f };
-        return glm::vec3{ point } / point.w;
-    };
-
     std::array<glm::vec3, 8> corners;
     std::size_t i = 0;
     for (const auto [x, y] : { std::pair{ -1.0f, -1.0f }, { 1.0f, -1.0f }, { -1.0f, 1.0f }, { 1.0f, 1.0f } })
     {
-        // Along each edge from the near plane (depth 0) to the far plane (depth 1), to the point 'distance' deep.
-        const auto near = unproject(x, y, 0.0f);
-        const auto far = unproject(x, y, 1.0f);
-        const float t = std::clamp((distance + near.z) / (near.z - far.z), 0.0f, 1.0f);
-        corners[i] = near;
-        corners[i + 4] = near + (far - near) * t;
+        // Along each edge from the near plane (depth 0) to the far plane (depth 1), to the points 'near' and 'far' deep.
+        const auto nearPlane = unproject(inverseProjection, x, y, 0.0f);
+        const auto farPlane = unproject(inverseProjection, x, y, 1.0f);
+        const auto along = [&](float distance) {
+            const float t = std::clamp((distance + nearPlane.z) / (nearPlane.z - farPlane.z), 0.0f, 1.0f);
+            return nearPlane + (farPlane - nearPlane) * t;
+        };
+        corners[i] = along(near);
+        corners[i + 4] = along(far);
         ++i;
     }
     return corners;
 }
 }
 
-auto shadowViewName(std::string_view view) -> std::string
+auto shadowViewName(std::string_view view, std::uint32_t cascade) -> std::string
 {
-    return std::format("{}Shadow", view);
+    return std::format("{}Shadow{}", view, cascade);
 }
 
-auto fitDirectionalShadow(const FrameScene::DirectionalLight& light, const FrameScene::Camera& camera, rhi::Extent2D extent)
-    -> FrameScene::Camera
+auto shadowCascadeSplits(const FrameScene::DirectionalLight& light, const glm::mat4& projection) -> std::vector<float>
+{
+    const auto inverseProjection = glm::inverse(projection);
+    const float nearPlane = std::max(-unproject(inverseProjection, 0.0f, 0.0f, 0.0f).z, 1e-4f);
+    const float farPlane = -unproject(inverseProjection, 0.0f, 0.0f, 1.0f).z;
+    const float far = std::max(std::min(light.shadowDistance, farPlane), nearPlane * 1.001f);
+    const float lambda = std::clamp(light.shadowSplitLambda, 0.0f, 1.0f);
+    const auto count = std::clamp(light.shadowCascades, 1u, maxShadowCascades);
+
+    std::vector<float> splits(count);
+    for (std::uint32_t i = 1; i < count; ++i)
+    {
+        const float fraction = static_cast<float>(i) / static_cast<float>(count);
+        const float logarithmic = nearPlane * std::pow(far / nearPlane, fraction);
+        const float uniform = nearPlane + (far - nearPlane) * fraction;
+        splits[i - 1] = lambda * logarithmic + (1.0f - lambda) * uniform;
+    }
+    splits.back() = far;
+    return splits;
+}
+
+auto fitDirectionalShadow(const FrameScene::DirectionalLight& light, const FrameScene::Camera& camera, float near, float far,
+    rhi::Extent2D extent) -> FrameScene::Camera
 {
     // The bounding sphere of the slice in view space, where it depends on the projection alone.
-    const auto corners = frustumSlice(camera.projection, light.shadowDistance);
+    const auto corners = frustumSlice(camera.projection, near, far);
     glm::vec3 center{ 0.0f };
     for (const auto& corner : corners)
         center = center + corner;
@@ -107,16 +133,25 @@ auto addShadowViews(FrameScene& scene) -> void
     {
         if (scene.views[i].kind != ViewKind::Main || scene.views[i].shadow)
             continue;
-        std::optional<FrameScene::Camera> camera;
+        std::vector<float> splits;
         if (scene.directionalLight && scene.views[i].camera)
-            camera = fitDirectionalShadow(*scene.directionalLight, *scene.views[i].camera);
+            splits = shadowCascadeSplits(*scene.directionalLight, scene.views[i].camera->projection);
         scene.views[i].shadow = static_cast<std::uint32_t>(scene.views.size());
-        scene.views.push_back({
-            .name = shadowViewName(scene.views[i].name),
-            .camera = camera,
-            .extent = shadowMapExtent,
-            .kind = ViewKind::Shadow,
-        });
+        for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
+        {
+            std::optional<FrameScene::Camera> camera;
+            if (cascade < splits.size())
+            {
+                const float near = cascade == 0 ? 0.0f : splits[cascade - 1];
+                camera = fitDirectionalShadow(*scene.directionalLight, *scene.views[i].camera, near, splits[cascade]);
+            }
+            scene.views.push_back({
+                .name = shadowViewName(scene.views[i].name, cascade),
+                .camera = camera,
+                .extent = shadowMapExtent,
+                .kind = ViewKind::Shadow,
+            });
+        }
     }
 }
 }

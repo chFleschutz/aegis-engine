@@ -68,8 +68,12 @@ One rendering of the world in a frame: a camera, an extent and a kind, main or s
 _Avoid_: render view (the shell's request for one, `RenderView`), viewport (the editor's panel), camera
 
 **Shadow view**:
-A view of the depth of the world as a light sees it, its shadow map, which a main view's lighting samples. Each main view has one for the directional light, fitted to its camera ("MainShadow").
+A view of the depth of the world as a light sees it, its shadow map, which a main view's lighting samples. Each main view has one per cascade of the directional light ("MainShadow0" to "MainShadow3").
 _Avoid_: shadow pass (its passes), shadow camera (its camera), light view
+
+**Shadow cascade**:
+One slice of a main view's camera axis, up to the directional light's shadow distance, with a shadow view fitted to it; nearer cascades are shorter, so their shadows are sharper.
+_Avoid_: split (the distance where one ends), cascade level, shadow layer
 
 **Material template**:
 The parameters a kind of material has, with their defaults, and the surface shader that reads them.

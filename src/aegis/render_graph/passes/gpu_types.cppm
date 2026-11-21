@@ -5,6 +5,7 @@ export module aegis.render_passes:gpu_types;
 import std;
 import :frame_scene;
 import :instance_store;
+import :shadows;
 import aegis.render_graph;
 import aegis.rhi;
 import aegis.math;
@@ -95,6 +96,16 @@ struct LightData
     float coneOffset;    // -cos outer * coneScale
 };
 
+/// @brief lighting::ShadowCascade (modules/lighting.slang): one cascade of the directional light's shadow, the
+///        "Depth" of one of a main view's shadow views.
+struct ShadowCascadeData
+{
+    glm::mat4 viewProjection{ 1.0f }; // Row-major: the shadow view's
+    rhi::TextureDescriptor map{};     // Its "Depth", with a comparison sampler
+    float texelSize{ 0.0f };          // Meters a shadow-map texel spans
+    float splitFar{ 0.0f };           // Meters along the main view's camera axis where the cascade ends
+};
+
 /// @brief lighting::Lighting (modules/lighting.slang), one per view and frame in flight.
 struct LightingUniforms
 {
@@ -107,11 +118,11 @@ struct LightingUniforms
     std::uint32_t spotLightCount{ 0 }; // After the point lights
     float ambientOcclusionFactor{ 1.0f };
     LightingViewMode viewMode{ LightingViewMode::SceneColor };
-    glm::mat4 shadowViewProjection{ 1.0f }; // Row-major: the directional light's shadow view
-    rhi::TextureDescriptor shadowMap{};     // Its "Depth", with a comparison sampler
-    float shadowTexelSize{ 0.0f };          // Meters a shadow-map texel spans
-    float shadowBias{ 0.0f };               // Texels a shaded point moves along its normal
-    std::uint32_t shadowed{ 0 };            // 1: the directional light is shadowed by shadowMap
+    glm::vec4 cameraForward{ 0.0f, 0.0f, -1.0f, 0.0f }; // World space: the axis the cascades split along
+    std::array<ShadowCascadeData, maxShadowCascades> shadowCascades{};
+    float shadowBias{ 0.0f };              // Texels of its cascade a shaded point moves along its normal
+    float shadowCascadeBlend{ 0.0f };      // The fraction of each cascade blended into the next (shadowCascadeBlend)
+    std::uint32_t shadowCascadeCount{ 0 }; // 0: the directional light is unshadowed
 };
 
 // Push constants --------------------------------------------------------------------------------------

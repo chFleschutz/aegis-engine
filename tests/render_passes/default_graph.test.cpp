@@ -105,17 +105,18 @@ TEST_SUITE("render_graph::addDefaultPasses")
                 { { .name = "Edit" }, { .name = "Play", .extent = aegis::rhi::Extent2D{ 320, 240 } } }));
     }
 
-    TEST_CASE("the CPU-driven default graph with a shadow view matches its plan snapshot")
+    TEST_CASE("the CPU-driven default graph with shadow views matches its plan snapshot")
     {
-        // The shadow view draws "MainShadow/Depth" with the depth technique, which the main view's lighting samples.
+        // Each cascade's shadow view draws "MainShadow<cascade>/Depth" with the depth technique, which the main view's
+        // lighting samples.
         std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
         addShadowViews(views);
         checkSnapshot("default_graph_shadow_cpu.txt", planOfDefaultGraph(false, std::nullopt, std::move(views)));
     }
 
-    TEST_CASE("the GPU-driven default graph with a shadow view matches its plan snapshot")
+    TEST_CASE("the GPU-driven default graph with shadow views matches its plan snapshot")
     {
-        // The shadow view culls with its own camera into buffers of its own.
+        // Each shadow view culls with its own camera into buffers of its own.
         std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
         addShadowViews(views);
         checkSnapshot("default_graph_shadow_gpu_driven.txt", planOfDefaultGraph(true, std::nullopt, std::move(views)));
@@ -127,8 +128,9 @@ TEST_SUITE("render_graph::addDefaultPasses")
         addShadowViews(views);
         GraphBuilder builder;
         addDefaultPasses(builder, { .scene = scene, .gpuDriven = false, .ui = true, .views = std::move(views) });
-        CHECK(builder.declarations().find("MainShadow/Final") == std::nullopt);
-        CHECK(builder.declarations().find("MainShadow/Depth").has_value());
+        CHECK(builder.declarations().find("MainShadow0/Final") == std::nullopt);
+        CHECK(builder.declarations().find("MainShadow0/Depth").has_value());
+        CHECK(builder.declarations().find("MainShadow3/Depth").has_value());
         CHECK(builder.declarations().find("Main/Final").has_value());
     }
 

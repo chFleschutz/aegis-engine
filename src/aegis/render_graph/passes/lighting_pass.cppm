@@ -2,6 +2,7 @@ export module aegis.render_passes:lighting_pass;
 import std;
 import :frame_scene;
 import :gpu_types;
+import :shadows;
 import aegis.render_graph;
 import aegis.assets;
 import aegis.rhi;
@@ -32,21 +33,22 @@ private:
 };
 
 /// @brief Deferred PBR lighting: G-buffer + the frame's lights ("Lights", LightUpdatePass) and environment, the
-///        directional light's shadow map and the BRDF lookup table, which it owns -> "SceneColor" (RGBA16F).
+///        directional light's shadow maps (its cascades) and the BRDF lookup table, which it owns -> "SceneColor" (RGBA16F).
 class LightingPass : public RenderPass
 {
 public:
-    /// @brief The shadow view whose "Depth" shadows the directional light, sampled with 3x3 PCF.
-    struct ShadowMap
+    /// @brief The shadow views whose "Depth" shadow the directional light, one per cascade, each sampled with 3x3 PCF.
+    struct ShadowMaps
     {
-        std::uint32_t view; // Its index in FrameScene::views (its camera)
-        std::string map;    // Its "Depth" by scoped name, "<view>Shadow/Depth" (scopedName)
+        std::uint32_t view; // The index in FrameScene::views of the first; the others follow it (their cameras)
+        /// @brief Each cascade's "Depth" by scoped name, "<view>Shadow<cascade>/Depth" (scopedName).
+        std::array<std::string, maxShadowCascades> maps;
     };
 
     /// @param view The index of the view in FrameScene::views it lights (its camera position).
     /// @param shadow None: the directional light is unshadowed.
     LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view = 0,
-        std::optional<ShadowMap> shadow = std::nullopt);
+        std::optional<ShadowMaps> shadow = std::nullopt);
     LightingPass(const LightingPass&) = delete;
     LightingPass(LightingPass&&) = delete;
     ~LightingPass() override;
@@ -69,7 +71,7 @@ private:
     ResourceId m_uniforms;
     ResourceId m_lights;
     std::optional<std::uint32_t> m_shadowView;
-    ResourceId m_shadowMap; // Invalid without a shadow view
+    std::array<ResourceId, maxShadowCascades> m_shadowMaps{}; // Invalid without shadow views
     rhi::Device* m_device{ nullptr };
     std::optional<rhi::SamplerHandle> m_shadowSampler;
     std::optional<rhi::Pipeline> m_pipeline;
@@ -91,18 +93,19 @@ export namespace aegis::render_graph::detail
 ///        (a hard edge).
 [[nodiscard]] auto packLight(const FrameScene::SpotLight& light) -> LightData;
 
-/// @brief A shadow map for packLighting: the shadow view it is the "Depth" of, and its descriptor.
+/// @brief The shadow maps for packLighting: the shadow views they are the "Depth" of, and their descriptors.
 struct ShadowMapInput
 {
-    std::uint32_t view; // The index in FrameScene::views of the shadow view
-    rhi::TextureDescriptor map;
+    std::uint32_t view; // The index in FrameScene::views of the first cascade's shadow view; the others follow it
+    std::array<rhi::TextureDescriptor, maxShadowCascades> maps{};
 };
 
 /// @brief The lighting block for the camera of the view 'view', the ambient and directional light, and the lights
 ///        in the buffer at 'lights' (packLights' records, of which 'lightCapacity' fit). A missing piece keeps its
 ///        default (no ambient, a dark directional light along +Z, the camera at the origin); lights that don't fit
-///        are left out, spot lights first. The directional light is shadowed by 'shadow' when there is one and its
-///        view has a camera (an orthographic one, fitDirectionalShadow's).
+///        are left out, spot lights first. The directional light is shadowed by the cascades of 'shadow' when there
+///        is one and the view has a camera: the light's cascade count of them (shadowCascadeSplits), as far as their
+///        views have cameras (orthographic ones, fitDirectionalShadow's).
 [[nodiscard]] auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddress lights,
     std::uint32_t lightCapacity, float ambientOcclusionFactor, LightingViewMode viewMode,
     std::optional<ShadowMapInput> shadow = std::nullopt) -> LightingUniforms;
