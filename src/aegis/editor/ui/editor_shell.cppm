@@ -27,7 +27,7 @@ export namespace aegis::editor
 ///        Restore opens it as the scene, unsaved; Discard deletes it; an edit hides the bar. The window layout is kept in
 ///        `<project>/.aegis/editor/imgui.ini` (none, like the autosaves, when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
-///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every docked panel at startup (not the ImGui demo),
+///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every panel at startup but the floating ones,
 ///        `--editor-select <name>` selects the first entity of that name, `--editor-play` enters play after the first frame
 ///        and `--editor-fold` starts with the right column folded and the Inspector in the flyout.
 ///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of
@@ -153,6 +153,7 @@ private:
     /// @brief The dockspace between the menu bar and the status bar; builds the default layout when there is none.
     void drawDockspace();
     void resetLayout();
+    /// @brief The Debug menu's ImGui windows: the demo and the style editor, while open.
     void drawStyleEditor();
     void drawMenuBar(FrameContext& frame);
     /// @brief "Undo Move 'Helmet'": 'verb' and the title of the entry it would take (its edits and group title), or
@@ -233,6 +234,7 @@ private:
     bool m_dragFromDrawer{ false };             // The drag going on began in the drawer
     bool m_dragHidDrawer{ false };              // ... and left it, which closed it
     bool m_styleEditor{ false };                // ImGui's style editor window, in the Debug menu
+    bool m_demoWindow{ false };                 // ImGui's demo window, in the Debug menu
     std::string m_layoutFile;                   // UTF-8; ImGui reads and writes the layout there. Empty keeps none.
     std::filesystem::path m_recentFile;         // Next to the layout; empty keeps none
     RecentScenes m_recent;

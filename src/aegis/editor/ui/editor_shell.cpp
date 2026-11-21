@@ -335,7 +335,6 @@ EditorShell::EditorShell()
     m_panels.push_back(makeStatisticsPanel());
     m_panels.push_back(makeProfilerPanel());
     m_panels.push_back(makeAllEntitiesPanel());
-    m_panels.push_back(makeDemoPanel());
     m_preferencesWindow = makePreferencesPanel();
     m_shortcutsWindow = makeShortcutsPanel(m_actions);
     m_aboutWindow = makeAboutPanel();
@@ -366,7 +365,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     {
         for (const auto& panel : m_panels)
         {
-            panel->setOpen(panel->docked()); // Not the ImGui demo: it floats over the viewport
+            panel->setOpen(panel->docked()); // Not All Entities: it floats over the viewport
             if (panel->drawer())
                 pin(panel->name()); // The drawer shows only one
         }
@@ -1732,6 +1731,8 @@ void EditorShell::resetLayout()
 
 void EditorShell::drawStyleEditor()
 {
+    if (m_demoWindow)
+        ImGui::ShowDemoWindow(&m_demoWindow); // Every widget, for reference while building panels
     if (!m_styleEditor)
         return;
     if (ImGui::Begin("Style Editor", &m_styleEditor))
@@ -1825,6 +1826,7 @@ void EditorShell::drawMenuBar(FrameContext& frame)
             else if (ImGui::MenuItem(name.c_str(), nullptr, panel->isOpen()))
                 panel->setOpen(!panel->isOpen());
         }
+        ImGui::MenuItem("ImGui Demo", nullptr, &m_demoWindow);
         ImGui::MenuItem("Style Editor", nullptr, &m_styleEditor);
         ImGui::EndMenu();
     }

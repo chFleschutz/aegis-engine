@@ -24,7 +24,6 @@ namespace aegis::editor
 [[nodiscard]] auto makeRendererPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeStatisticsPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeProfilerPanel() -> std::unique_ptr<Panel>;
-[[nodiscard]] auto makeDemoPanel() -> std::unique_ptr<Panel>;
 }
 
 namespace aegis::editor
