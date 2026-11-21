@@ -1,7 +1,7 @@
 #pragma once
 
 /// Defines the one function the engine's launcher calls to find the game (see aegis::GameModule and
-/// aegis_add_game). Use it once, in one source file of the game, after `import aegis.engine;`:
+/// aegis_add_game). Use it once, in one source file of the game, after `import aegis.game;`:
 ///
 ///     AEGIS_GAME_MODULE({ .name = "Template", .onStartup = onStartup })
 ///

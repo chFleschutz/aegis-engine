@@ -7,7 +7,9 @@
 // for development builds only.
 
 import std;
+import aegis.core;
 import aegis.engine;
+import aegis.paths;
 #ifdef AEGIS_LAUNCH_EDITOR
 import aegis.editor;
 #endif

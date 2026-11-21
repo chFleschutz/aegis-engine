@@ -81,7 +81,8 @@ PUBLIC
 	aegis-asset-library
 	aegis-assets
 	aegis-core
-	aegis-paths
+	aegis-math # aegis.game re-exports it
+	aegis-paths # The launcher (launch/main.cpp, compiled into each game) locates the project
 	aegis-platform
 	aegis-reflect
 	aegis-render-bridge
@@ -110,6 +111,7 @@ PUBLIC
 	FILE_SET CXX_MODULES 
 	FILES
 		engine.cppm
+		game.cppm
 		scene_defaults.cppm
 		scene_description.cppm
 )
