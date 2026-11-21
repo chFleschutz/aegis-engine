@@ -9,8 +9,8 @@ module aegis.editor;
 import std;
 import aegis.editor.core;
 import aegis.reflect;
-import :panels;
 import :theme;
+import :widgets;
 
 namespace aegis::editor
 {
@@ -144,5 +144,20 @@ auto assetIconColor(AssetKind kind) -> std::uint32_t
         return theme::packed(theme::textDim);
     }
     return theme::packed(theme::textDim);
+}
+
+auto acceptAssetPayload(const std::function<bool(const AssetPayload& payload)>& accepts) -> std::optional<AssetPayload>
+{
+    const ImGuiPayload* active = ImGui::GetDragDropPayload();
+    if (!active || !active->IsDataType(assetPayloadType) || active->DataSize != static_cast<int>(sizeof(AssetPayload)))
+        return std::nullopt;
+    AssetPayload payload;
+    std::memcpy(&payload, active->Data, sizeof(payload));
+    if (!accepts(payload))
+    {
+        ImGui::SetTooltip("%s", std::format("A {} cannot go here", payload.assetType()).c_str());
+        return std::nullopt;
+    }
+    return ImGui::AcceptDragDropPayload(assetPayloadType) ? std::optional{ payload } : std::nullopt;
 }
 }

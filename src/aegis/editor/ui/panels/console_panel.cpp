@@ -10,6 +10,7 @@ import std;
 import aegis.core;
 import :panels;
 import :theme;
+import :widgets;
 
 namespace aegis::editor
 {

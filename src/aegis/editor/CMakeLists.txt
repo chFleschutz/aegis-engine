@@ -104,14 +104,17 @@ target_sources(aegis-editor
     PUBLIC
     FILE_SET CXX_MODULES FILES
     ui/actions.cppm
+    ui/edits.cppm
     ui/editor.cppm
     ui/editor_shell.cppm
     ui/lucide.cppm
     ui/options.cppm
     ui/panel.cppm
     ui/panels.cppm
+    ui/statistics.cppm
     ui/theme.cppm
     ui/viewport.cppm
+    ui/widgets.cppm
     ui/workspace.cppm
     PRIVATE
     ui/actions.cpp
@@ -131,6 +134,7 @@ target_sources(aegis-editor
     ui/panels/scene_panel.cpp
     ui/panels/shortcuts_panel.cpp
     ui/panels/statistics_panel.cpp
+    ui/statistics.cpp
     ui/theme.cpp
     ui/viewport.cpp
     ui/widgets.cpp

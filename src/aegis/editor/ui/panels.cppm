@@ -1,9 +1,5 @@
 module aegis.editor:panels;
 import std;
-import aegis.editor.core;
-import aegis.math;
-import aegis.reflect;
-import aegis.world;
 import :actions;
 import :panel;
 
@@ -36,93 +32,4 @@ inline constexpr std::string_view about = "About";
 [[nodiscard]] auto makeRendererPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeStatisticsPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeProfilerPanel() -> std::unique_ptr<Panel>;
-}
-
-namespace aegis::editor
-{
-/// @brief The world the panels show (the edit world, or the play world while playing) as the edits see it; the asset library resolves the references of written components.
-[[nodiscard]] auto editWorld(const EditorContext& editor, FrameContext& frame) -> EditWorld;
-
-/// @brief Steps the edit history back (or forward) and writes the value to the world; false if there is nothing to do or
-///        the edit no longer applies (logged).
-auto undoEdit(EditorContext& editor, FrameContext& frame) -> bool;
-auto redoEdit(EditorContext& editor, FrameContext& frame) -> bool;
-
-/// @brief Duplicates the selected roots (selectedRoots) as one undo entry and selects the copies; false if nothing is
-///        selected or every copy failed (logged).
-auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool;
-
-/// @brief Destroys the selected roots (selectedRoots) and their descendants as one undo entry and clears the
-///        selection; false if nothing is selected or every destroy failed (logged).
-auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool;
-
-/// @brief The Statistics panel's summary numbers, which the viewport's stats overlay shows too.
-struct StatisticsSummary
-{
-    std::size_t entities{ 0 };
-    std::uint32_t drawBatches{ 0 };
-    std::uint32_t instances{ 0 };
-};
-
-/// @brief The summary of the world the panels show and of its instances; zeros without a world.
-[[nodiscard]] auto statisticsSummary(const EditorContext& editor, const FrameContext& frame) -> StatisticsSummary;
-
-/// @brief --editor-check-stats: proves that during play the statistics describe the play world, not the edit world.
-///        In the first frame of play it adds an instance that draws nothing to the play world (a copy of a mesh at scale
-///        0, which leaves the image and the scene's bounds as they were), so the two worlds' counts differ; a few frames
-///        later, once the play world has rendered it, it compares statisticsSummary with both worlds. A failure, also of
-///        a run that ends before the check ran, is logged as "Editor statistics check failed: ...".
-class StatisticsCheck
-{
-public:
-    /// @brief Takes the check's next step; call once a frame, after the panels drew.
-    void onFrame(const EditorContext& editor, FrameContext& frame);
-    /// @brief Logs the failure of a check that hasn't finished.
-    void onShutdown() const;
-
-private:
-    enum class Step
-    {
-        Add,
-        Verify,
-        Done,
-    };
-
-    Step m_step{ Step::Add };
-    int m_waitFrames{ 0 }; // Before Verify, until the play world has rendered the copy
-};
-
-/// @brief Draws 'text' dimmed in the window's free space, centered line by line and wrapped inside a margin, for an empty panel. The
-///        cursor stays where it was, so what follows (a drop target over the free space) still covers it.
-void drawCenteredHint(std::string_view text);
-
-/// @brief A text field with the search icon inside its left end and 'hint' while empty; returns what
-///        ImGui::InputTextWithHint returns. 'flags' are ImGuiInputTextFlags.
-auto searchField(const char* id, const char* hint, std::string& text, int flags = 0) -> bool;
-
-/// @brief The icon of an entity of 'kind' (the hierarchy's rows, the inspector's header), and its color as an ImU32:
-///        the viewport's for the cameras, the lights and the sky, the mesh's and the instance's own, the dimmed
-///        text's for the rest.
-[[nodiscard]] auto entityIcon(EntityKind kind) -> const char*;
-[[nodiscard]] auto entityIconColor(EntityKind kind) -> std::uint32_t;
-
-/// @brief The icon of the component or script 'type' (the inspector's sections, the Add menu).
-[[nodiscard]] auto componentIcon(const reflect::TypeInfo& type) -> const char*;
-
-/// @brief The icon of an asset of 'kind' (the asset list, the inspector's asset slots), and its color as an ImU32.
-[[nodiscard]] auto assetIcon(AssetKind kind) -> const char*;
-[[nodiscard]] auto assetIconColor(AssetKind kind) -> std::uint32_t;
-
-/// @brief The Create menu's items, for a menu or a popup: an empty entity, then an entity of each registered component
-///        type that can be created, by category, each a click away. Each creates one entity under 'parent' (a root entity
-///        for a null one) as one undo entry, selects it and asks for its name to be typed (EditorContext::requestRename).
-void drawCreateMenu(EditorContext& editor, FrameContext& frame, world::Entity parent = {});
-
-/// @brief The asset dragged onto the item of the open drag and drop target, once dropped, if 'accepts' takes it; one it
-///        refuses shows a tooltip saying so while it hovers. Call between BeginDragDropTarget and EndDragDropTarget.
-[[nodiscard]] auto acceptAssetPayload(const std::function<bool(const AssetPayload& payload)>& accepts) -> std::optional<AssetPayload>;
-
-/// @brief Instantiates the scene or model 'asset' under 'parent' (a root for a null one), at 'location' if given,
-///        undoably, and selects it; false if it failed (logged).
-auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t asset, world::Entity parent, std::optional<glm::vec3> location = std::nullopt) -> bool;
 }

@@ -17,8 +17,10 @@ import aegis.reflect;
 import aegis.scripting;
 import aegis.serialize;
 import aegis.world;
+import :edits;
 import :panels;
 import :theme;
+import :widgets;
 
 namespace aegis::editor
 {

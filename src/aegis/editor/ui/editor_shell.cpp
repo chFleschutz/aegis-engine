@@ -19,9 +19,12 @@ import aegis.reflect;
 import aegis.serialize;
 import aegis.world;
 import :actions;
+import :edits;
 import :options;
 import :panels;
+import :statistics;
 import :theme;
+import :widgets;
 
 namespace aegis::editor
 {
