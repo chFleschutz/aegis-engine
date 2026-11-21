@@ -37,18 +37,20 @@ TEST_SUITE("editor::parseOptions")
         CHECK_FALSE(options->play);
         CHECK_FALSE(options->fullViewport);
         CHECK_FALSE(options->fold);
+        CHECK_FALSE(options->checkStats);
     }
 
     TEST_CASE("reads every editor option")
     {
         const auto options = parse({ valued("--editor-panels", "all"), valued("--editor-select", "Helmet"), flag("--editor-play"),
-            flag("--editor-full-viewport"), flag("--editor-fold") });
+            flag("--editor-full-viewport"), flag("--editor-fold"), flag("--editor-check-stats") });
         REQUIRE(options.has_value());
         CHECK(options->allPanels);
         CHECK(options->select == "Helmet");
         CHECK(options->play);
         CHECK(options->fullViewport);
         CHECK(options->fold);
+        CHECK(options->checkStats);
     }
 
     TEST_CASE("rejects an unknown option by name")

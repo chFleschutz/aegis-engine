@@ -380,6 +380,8 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     if (options->fullViewport)
         toggleFullViewport();
     m_foldOnFirstFrame = options->fold;
+    if (options->checkStats)
+        m_statisticsCheck = std::make_unique<StatisticsCheck>();
     // A headless run (a test, a screenshot) neither reads nor changes the user's layout.
     if (!engine.headless() && !engine.project().empty())
     {
@@ -417,6 +419,8 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
 
 void EditorShell::onShutdown()
 {
+    if (m_statisticsCheck)
+        m_statisticsCheck->onShutdown();
     savePreferencesIfChanged();
     // ImGui would save on destroying its context, after this shell (and the file name) are gone.
     if (!m_layoutFile.empty())
@@ -489,6 +493,8 @@ void EditorShell::onFrame(FrameContext& frame)
 
     drawUi(frame);
     updateWorlds(frame);
+    if (m_statisticsCheck)
+        m_statisticsCheck->onFrame(m_context, frame);
     // --editor-play: the first frame shows edit mode, the next ones play
     if (std::exchange(m_playAfterFirstFrame, false))
         startPlay(frame);

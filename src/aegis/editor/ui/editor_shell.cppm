@@ -8,6 +8,11 @@ import :actions;
 import :panel;
 import :viewport;
 
+namespace aegis::editor
+{
+class StatisticsCheck; // :panels
+}
+
 export namespace aegis::editor
 {
 /// @brief The editor flavor's shell: the world stays in edit mode (no scripts run), and the editor's panels
@@ -242,9 +247,10 @@ private:
     std::string m_fileError;                        // Why the last Save As failed, in its popup
     std::string m_title;                            // The window's, as last set
     PlaySession m_play;
-    world::World* m_playWorld{ nullptr }; // While a play session runs; the engine owns it
-    bool m_playAfterFirstFrame{ false };  // --editor-play
-    bool m_foldOnFirstFrame{ false };     // --editor-fold
-    RollingAverage<20> m_gpuMs;           // The frame graph's GPU time, which varies from frame to frame
+    world::World* m_playWorld{ nullptr };               // While a play session runs; the engine owns it
+    bool m_playAfterFirstFrame{ false };                // --editor-play
+    bool m_foldOnFirstFrame{ false };                   // --editor-fold
+    std::unique_ptr<StatisticsCheck> m_statisticsCheck; // --editor-check-stats
+    RollingAverage<20> m_gpuMs;                         // The frame graph's GPU time, which varies from frame to frame
 };
 }

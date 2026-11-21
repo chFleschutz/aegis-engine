@@ -18,6 +18,8 @@ struct EditorOptions
     bool fullViewport{ false };
     /// @brief --editor-fold: start with the right column folded into the side rail and the Inspector in its flyout.
     bool fold{ false };
+    /// @brief --editor-check-stats: check that during play the statistics count the play world (StatisticsCheck).
+    bool checkStats{ false };
 };
 
 /// @brief The editor's options for the help text (helpText's 'shellOptions').
@@ -27,6 +29,7 @@ inline constexpr std::array optionsHelp{
     OptionHelp{ "--editor-play", "Enter play after the first frame." },
     OptionHelp{ "--editor-full-viewport", "Start in full viewport." },
     OptionHelp{ "--editor-fold", "Start with the right column folded into the side rail and the Inspector\nin its flyout." },
+    OptionHelp{ "--editor-check-stats", "Check that during play the statistics count the play world (a test,\nwith --editor-play)." },
 };
 
 /// @brief Reads the editor's options.
