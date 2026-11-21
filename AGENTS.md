@@ -189,9 +189,9 @@ issue to an open PR.
 relations. **The assignee is the status:** whoever starts an item assigns it (`gh issue edit <n>
 --add-assignee @me`), and an assigned issue is taken. Leave `needs-design` (an open decision) and
 `idea` issues alone unless the owner asks; never run two items with the same `area/*` label in
-parallel. Before starting an item, read its issue and the ADRs and finding IDs it cites
-(`docs/adr/`, `docs/audit/findings-*.md` corrected by `verify-*.md`), then re-check them
-against the current code. Milestones run in two lanes of different areas, `render` and `content`,
+parallel. Before starting an item, read its issue and the ADRs it cites (`docs/adr/`), then
+re-check them against the current code. Finding IDs (`A-RENDER-05`) name the October audit, which is
+out of the tree: `git show 144e655c:docs/audit/findings-a-render.md` (`verify-*.md` corrects them). Milestones run in two lanes of different areas, `render` and `content`,
 each with an Active and a Planning milestone. An issue you file goes to its lane's Planning milestone
 or `Backlog`, not an Active one, unless that Active milestone can't finish without it.
 `/plan-milestone` holds the milestone rules, the lanes' areas and the issue format.

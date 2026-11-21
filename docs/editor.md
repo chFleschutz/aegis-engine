@@ -2,9 +2,8 @@
 
 Status: **in progress.** E1 ([#83]) is merged; the [M10 milestone][m10] tracks the rest. It plans the
 editor that M9 ([`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md)) splits off and M10 builds.
-It builds on [`editor-runtime-split.md`](editor-runtime-split.md) (the launcher, the type registry, play-in-editor),
-[`asset-system.md`](asset-system.md) ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md): asset IDs, scene files, `World` vs `Scene`) and
-[`engine-architecture.md`](engine-architecture.md) (services, `Presentation`). It fixes how the editor is
+It builds on the launcher, the type registry and play-in-editor of that ADR, and on
+[`asset-system.md`](asset-system.md) ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md): asset IDs, scene files, `World` vs `Scene`). It fixes how the editor is
 built, what it does in M10, and which runtime features have to exist first.
 
 Plan items are numbered here so the issues can refer to them: **R1–R14** are runtime prerequisites,

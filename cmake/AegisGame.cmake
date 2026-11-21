@@ -1,4 +1,4 @@
-# Games on the engine's launcher (docs/adr/0007-engine-hosts-the-game.md, docs/editor-runtime-split.md).
+# Games on the engine's launcher (docs/adr/0007-engine-hosts-the-game.md).
 #
 #   aegis_add_game(<Name>
 #       SOURCES <a.cpp> ...     # the game's code; one file uses AEGIS_GAME_MODULE (aegis/launch/game_module.h)

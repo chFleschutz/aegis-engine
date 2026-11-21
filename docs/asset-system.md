@@ -5,7 +5,7 @@ and external images 2026-10-22; derived sub-asset IDs, settings per part and the
 2026-10-23).
 Implemented so far (#130, #137, #236, #237, #238, #244): IDs, sidecars, the database, engine content, `AssetRef`,
 `AssetLibrary`, the import cache for models (by key), external images as their own assets, derived
-sub-asset IDs and settings per part (embedded images only); scene files and the pak are not. It fills in the boundaries of [`editor-runtime-split.md`](editor-runtime-split.md): assets
+sub-asset IDs and settings per part (embedded images only); scene files and the pak are not. It fills in the boundaries of [`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md): assets
 referenced only by stable ID, one serializer for scenes and save games, a cook step for export.
 
 **Today** loaders decode and upload in one step and create entities directly, nothing is cached
