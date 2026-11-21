@@ -130,7 +130,7 @@ void applyDrop(const Drop& drop, EditorContext& editor, FrameContext& frame)
 class ScenePanel final : public Panel
 {
 public:
-    explicit ScenePanel(const ActionRegistry& actions) :
+    explicit ScenePanel(ActionRegistry& actions) :
         m_actions{ actions }
     {
         setOpen(true);
@@ -488,7 +488,7 @@ private:
         ImGui::EndDragDropTarget();
     }
 
-    const ActionRegistry& m_actions;
+    ActionRegistry& m_actions;
     std::string m_filter;
     std::vector<HierarchyRow> m_rows;                        // The rows drawn, see cachedRows
     std::uint64_t m_rowsVersion{ 0 };                        // The hierarchy version m_rows were built at
@@ -557,7 +557,7 @@ auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool
     return destroyed;
 }
 
-auto makeScenePanel(const ActionRegistry& actions) -> std::unique_ptr<Panel>
+auto makeScenePanel(ActionRegistry& actions) -> std::unique_ptr<Panel>
 {
     return std::make_unique<ScenePanel>(actions);
 }

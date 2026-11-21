@@ -35,6 +35,7 @@ TEST_SUITE("editor::parseOptions")
         CHECK_FALSE(options->allPanels);
         CHECK(options->select.empty());
         CHECK_FALSE(options->play);
+        CHECK_FALSE(options->stopAfter);
         CHECK_FALSE(options->fullViewport);
         CHECK_FALSE(options->fold);
         CHECK_FALSE(options->checkStats);
@@ -43,11 +44,12 @@ TEST_SUITE("editor::parseOptions")
     TEST_CASE("reads every editor option")
     {
         const auto options = parse({ valued("--editor-panels", "all"), valued("--editor-select", "Helmet"), flag("--editor-play"),
-            flag("--editor-full-viewport"), flag("--editor-fold"), flag("--editor-check-stats") });
+            valued("--editor-stop", "10"), flag("--editor-full-viewport"), flag("--editor-fold"), flag("--editor-check-stats") });
         REQUIRE(options.has_value());
         CHECK(options->allPanels);
         CHECK(options->select == "Helmet");
         CHECK(options->play);
+        CHECK(options->stopAfter == std::optional{ 10 });
         CHECK(options->fullViewport);
         CHECK(options->fold);
         CHECK(options->checkStats);
@@ -66,6 +68,13 @@ TEST_SUITE("editor::parseOptions")
         CHECK_FALSE(parse({ flag("--editor-select") }).has_value());
         CHECK_FALSE(parse({ flag("--editor-panels") }).has_value());
         CHECK_FALSE(parse({ valued("--editor-panels", "some") }).has_value());
+    }
+
+    TEST_CASE("rejects a frame count that is no whole number of at least 1")
+    {
+        CHECK_FALSE(parse({ flag("--editor-stop") }).has_value());
+        for (const char* frames : { "0", "-3", "ten", "10x", "" })
+            CHECK_FALSE(parse({ valued("--editor-stop", frames) }).has_value());
     }
 
     TEST_CASE("rejects a value on a flag")

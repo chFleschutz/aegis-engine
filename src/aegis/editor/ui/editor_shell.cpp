@@ -1,5 +1,6 @@
 module;
 
+#include <cassert>
 #include <cfloat>
 
 #include <imgui.h>
@@ -247,6 +248,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     if (!options->select.empty())
         selectByName(options->select);
     m_playAfterFirstFrame = options->play;
+    m_stopAfter = options->stopAfter;
     if (options->fullViewport)
         m_workspace.toggleFullViewport();
     m_foldOnFirstFrame = options->fold;
@@ -291,6 +293,8 @@ void EditorShell::onShutdown()
 {
     if (m_statisticsCheck)
         m_statisticsCheck->onShutdown();
+    if (m_stopAfter && m_stops == 0)
+        log::error("--editor-stop: play never stopped");
     savePreferencesIfChanged();
     // ImGui would save on destroying its context, after this shell (and the file name) are gone.
     if (!m_layoutFile.empty())
@@ -335,9 +339,12 @@ void EditorShell::onFrame(FrameContext& frame)
     updateWorlds(frame);
     if (m_statisticsCheck)
         m_statisticsCheck->onFrame(m_context, frame);
-    // --editor-play: the first frame shows edit mode, the next ones play
+    // --editor-play: the first frame shows edit mode; the next one clicks Play
     if (std::exchange(m_playAfterFirstFrame, false))
-        startPlay(frame);
+        m_clickPlay = true;
+    // --editor-stop: once play has run that many frames, the next one clicks Stop
+    if (m_stopAfter && m_play.active() && ++m_playedFrames == *m_stopAfter)
+        m_clickPlay = true;
     updateTitle();
 
     // Not while a value is being dragged: that would write the file every frame
@@ -348,6 +355,7 @@ void EditorShell::onFrame(FrameContext& frame)
 void EditorShell::drawUi(FrameContext& frame)
 {
     const ScopeProfiler profiler{ "Editor UI" };
+    m_drawing = true;
     updateStyle();
     ImGuizmo::BeginFrame();
 
@@ -384,7 +392,10 @@ void EditorShell::drawUi(FrameContext& frame)
     drawOpenPopup(frame);
     drawSaveAsPopup(frame);
     drawUnsavedPrompt(frame);
-    runSceneActions(frame); // Once the panels and the popups are drawn: an action replaces the world they show
+    // Once the panels and the popups are drawn: these create, replace or destroy the world they show
+    m_drawing = false;
+    m_actions.runDeferred(frame);
+    runSceneActions(frame);
     ImGui::End();
     ImGui::PopStyleColor(tint);
 }
@@ -398,6 +409,7 @@ void EditorShell::runSceneActions(FrameContext& frame)
 
 void EditorShell::run(const SceneAction& action, FrameContext& frame)
 {
+    assert(!m_drawing && "A scene action replaces the world while the panels draw: run it from runSceneActions");
     std::optional<std::uint64_t> opened;
     switch (action.kind)
     {
@@ -705,6 +717,7 @@ void EditorShell::updateWorlds(FrameContext& frame)
 
 void EditorShell::startPlay(FrameContext& frame)
 {
+    assert(!m_drawing && "Play creates a world while the panels draw: make its action deferred");
     if (m_playWorld)
         return;
     // The game's code runs in this process from here on: a crash must not take the unsaved changes with it
@@ -722,6 +735,7 @@ void EditorShell::startPlay(FrameContext& frame)
     m_context.undoStack().seal();
     m_context.enterPlay(play);
     m_playWorld = &play;
+    m_playedFrames = 0;
     m_play.play();
     m_viewport.setGameView(true);
     m_workspace.play(m_context.preferences().fullViewportOnPlay);
@@ -729,11 +743,13 @@ void EditorShell::startPlay(FrameContext& frame)
 
 void EditorShell::stopPlay(FrameContext& frame)
 {
+    assert(!m_drawing && "Stop destroys a world while the panels draw: make its action deferred");
     if (!m_playWorld)
         return;
     m_context.exitPlay();
     frame.engine.destroyWorld(*m_playWorld);
     m_playWorld = nullptr;
+    ++m_stops;
     m_play.stop();
     m_viewport.setGameView(false);
     frame.engine.restoreCursor(); // The game may have hidden it
@@ -807,6 +823,7 @@ void EditorShell::drawRecoveryBar()
 
 void EditorShell::restoreAutosave(const std::filesystem::path& file, FrameContext& frame)
 {
+    assert(!m_drawing && "Restore replaces the world while the panels draw: run it from runSceneActions");
     const auto text = readAutosave(file);
     if (!text)
     {
@@ -1011,8 +1028,8 @@ void EditorShell::buildActions()
     const auto chord = [](Key key, bool ctrl = true, bool shift = false, bool alt = false) { return Chord{ .key = key, .ctrl = ctrl, .shift = shift, .alt = alt }; };
     const auto hasSelection = [this] { return static_cast<bool>(m_context.selectedEntity()); };
 
-    m_actions.add({ .id = "file.new", .label = "New", .chord = chord(Key::N), .run = [this](FrameContext&) { m_document.request({ .kind = SceneAction::Kind::New }); } });
-    m_actions.add({ .id = "file.open", .label = "Open...", .chord = chord(Key::O), .run = [this](FrameContext&) { m_openOpen = true; } });
+    m_actions.add({ .id = "file.new", .label = "New", .chord = chord(Key::N), .deferred = true, .run = [this](FrameContext&) { m_document.request({ .kind = SceneAction::Kind::New }); } });
+    m_actions.add({ .id = "file.open", .label = "Open...", .chord = chord(Key::O), .deferred = true, .run = [this](FrameContext&) { m_openOpen = true; } });
     m_actions.add({ .id = "file.save", .label = "Save", .chord = chord(Key::S), .run = [this](FrameContext& frame) { save(frame); } });
     m_actions.add({ .id = "file.saveAs", .label = "Save As...", .chord = chord(Key::S, true, true), .run = [this](FrameContext&) { m_document.requestSaveAs(); } });
 
@@ -1058,7 +1075,7 @@ void EditorShell::buildActions()
     m_actions.add({ .id = "help.shortcuts", .label = "Keyboard Shortcuts", .run = [this](FrameContext&) { m_workspace.open(panels::shortcuts); } });
     m_actions.add({ .id = "help.about", .label = "About", .run = [this](FrameContext&) { m_workspace.open(panels::about); } });
 
-    m_actions.add({ .id = "play.toggle", .label = "Play", .chord = chord(Key::P), .run = [this](FrameContext& frame) { m_play.active() ? stopPlay(frame) : startPlay(frame); } });
+    m_actions.add({ .id = "play.toggle", .label = "Play", .chord = chord(Key::P), .deferred = true, .run = [this](FrameContext& frame) { m_play.active() ? stopPlay(frame) : startPlay(frame); } });
     m_actions.add({ .id = "play.pause",
         .label = "Pause",
         .chord = chord(Key::P, true, true),
@@ -1258,8 +1275,7 @@ void EditorShell::drawSceneName(FrameContext& frame)
 
 void EditorShell::runAction(std::string_view id, FrameContext& frame)
 {
-    if (const auto* action = m_actions.find(id); action && (!action->enabled || action->enabled()))
-        action->run(frame);
+    m_actions.run(id, frame);
 }
 
 void EditorShell::drawPlayControls(FrameContext& frame)
@@ -1305,7 +1321,9 @@ void EditorShell::drawPlayButtons(FrameContext& frame)
     const auto run = [&](std::string_view id) { runAction(id, frame); };
 
     const bool active = state != PlaySession::State::Stopped;
-    if (button(active ? theme::icons::stop : theme::icons::play, "play", "play.toggle", false, theme::text, active))
+    // --editor-play and --editor-stop click it here, where the user does: in full viewport, while the viewport draws
+    const bool scripted = std::exchange(m_clickPlay, false);
+    if (button(active ? theme::icons::stop : theme::icons::play, "play", "play.toggle", false, theme::text, active) || scripted)
         run("play.toggle");
     ImGui::SameLine(); // A menu bar lays its items out in a row by itself; full viewport's top bar doesn't
     ImGui::BeginDisabled(!m_play.active());
