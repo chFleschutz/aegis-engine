@@ -4,15 +4,41 @@ import aegis.rhi;
 
 namespace aegis::render_graph
 {
+// Spot shadow atlas ----------------------------------------------------------------------------------
+
+SpotShadowAtlasPass::SpotShadowAtlasPass(ResourceDeclarations& declarations) :
+    m_atlas{ declarations.addTexture(names::spotShadowAtlas, Usage::DepthAttachment,
+        { .format = GeometryPass::depthFormat, .extent = spotShadowAtlasExtent }) }
+{
+}
+
+auto SpotShadowAtlasPass::name() const -> std::string_view
+{
+    return "Spot Shadow Atlas";
+}
+
+auto SpotShadowAtlasPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
+{
+    // Each spot shadow view clears its own tile too; this clears the tiles no view draws, and gives the atlas its first
+    // layout.
+    frameInfo.cmd.beginRendering({
+        .depthAttachment = rhi::Attachment::depth(pool.texture(m_atlas).view, rhi::ClearDepthStencil{ 1.0f, 0 }),
+    });
+    frameInfo.cmd.endRendering();
+}
+
+// Geometry -------------------------------------------------------------------------------------------
+
 GeometryPass::GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, Technique technique,
-    std::uint32_t view) :
+    std::uint32_t view, std::optional<DepthTile> tile) :
     m_scene{ scene },
     m_technique{ technique },
-    m_view{ view }
+    m_view{ view },
+    m_tile{ std::move(tile) }
 {
     if (technique == Technique::GBuffer)
         m_gBuffer = std::ranges::to<std::vector>(declareGBuffer(declarations));
-    m_depth = declareDepth(declarations);
+    m_depth = declareDepth(declarations, m_tile);
     m_cameraData = declarations.addReference(names::cameraData, Usage::ShaderRead);
 }
 
@@ -27,9 +53,16 @@ auto GeometryPass::declareGBuffer(ResourceDeclarations& declarations) -> std::ar
     };
 }
 
-auto GeometryPass::declareDepth(ResourceDeclarations& declarations) -> ResourceId
+auto GeometryPass::declareDepth(ResourceDeclarations& declarations, const std::optional<DepthTile>& tile) -> ResourceId
 {
+    if (tile)
+        return declarations.addReference(tile->texture, Usage::DepthAttachment);
     return declarations.addTexture(names::depth, Usage::DepthAttachment, { .format = depthFormat });
+}
+
+auto GeometryPass::depthArea(const std::optional<DepthTile>& tile, rhi::Extent2D extent) -> rhi::Rect2D
+{
+    return tile ? tile->rect : rhi::Rect2D{ .extent = extent };
 }
 
 auto GeometryPass::name() const -> std::string_view
@@ -68,12 +101,14 @@ auto GeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
         colorAttachments.push_back(rhi::Attachment::color(pool.texture(texture).view, rhi::ClearColor{}));
 
     const auto& cmd = frameInfo.cmd;
+    const auto area = depthArea(m_tile, pool.extent(m_depth));
     cmd.beginRendering({
         .colorAttachments = colorAttachments,
         .depthAttachment = rhi::Attachment::depth(pool.texture(m_depth).view, rhi::ClearDepthStencil{ 1.0f, 0 }),
+        .area = area,
     });
-    cmd.setViewport(pool.extent(m_depth));
-    cmd.setScissor(pool.extent(m_depth));
+    cmd.setViewport(area);
+    cmd.setScissor(area);
     // Without a camera (a shadow view without a directional light, or past its cascade count) the targets stay
     // cleared.
     if (!m_scene.current().camera(m_view))

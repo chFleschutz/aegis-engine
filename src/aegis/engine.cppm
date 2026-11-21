@@ -316,9 +316,10 @@ public:
 using GraphBuild = std::function<void(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc)>;
 
 /// @brief Declares the frame graph's passes in the engine's order: the passes the views share
-///        (render_graph::addSharedPasses); for each main view of desc.views, in its scope, the game's ('game', or
-///        render_graph::addScenePasses if it is empty) and the shell's (Shell::buildGraph), and for each shadow view
-///        the engine's (render_graph::addShadowPasses); then the output passes (render_graph::addOutputPasses).
+///        (render_graph::addSharedPasses); for each view of desc.views in render_graph::viewDeclarationOrder (the spot
+///        shadow views first), in its scope, for a main view the game's ('game', or render_graph::addScenePasses if it
+///        is empty) and the shell's (Shell::buildGraph), and for a shadow view the engine's
+///        (render_graph::addShadowPasses); then the output passes (render_graph::addOutputPasses).
 auto buildFrameGraph(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc, const GraphBuild& game,
     Shell& shell) -> void;
 

@@ -95,7 +95,9 @@ auto CommandBuffer::beginRendering(const RenderingCmd& desc) const -> void
     auto stencilAttachment = desc.stencilAttachment.transform(transformAttachment);
 
     vk::RenderingInfo renderingInfo{
-        .renderArea = vk::Rect2D{ vk::Offset2D{ 0, 0 }, deriveExtent(desc) },
+        .renderArea = desc.area ? vk::Rect2D{ vk::Offset2D{ static_cast<std::int32_t>(desc.area->x), static_cast<std::int32_t>(desc.area->y) },
+                                      vk::Extent2D{ desc.area->extent.x, desc.area->extent.y } }
+                                : vk::Rect2D{ vk::Offset2D{ 0, 0 }, deriveExtent(desc) },
         .layerCount = 1,
         .viewMask = 0,
         .colorAttachmentCount = static_cast<std::uint32_t>(desc.colorAttachments.size()),
@@ -178,11 +180,16 @@ auto CommandBuffer::dispatch(std::uint32_t groupCountX, std::uint32_t groupCount
 
 auto CommandBuffer::setViewport(Extent2D extent) const -> void
 {
+    setViewport(Rect2D{ .extent = extent });
+}
+
+auto CommandBuffer::setViewport(Rect2D rect) const -> void
+{
     vk::Viewport viewport{
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = static_cast<float>(extent.x),
-        .height = static_cast<float>(extent.y),
+        .x = static_cast<float>(rect.x),
+        .y = static_cast<float>(rect.y),
+        .width = static_cast<float>(rect.extent.x),
+        .height = static_cast<float>(rect.extent.y),
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
     };
@@ -191,9 +198,14 @@ auto CommandBuffer::setViewport(Extent2D extent) const -> void
 
 auto CommandBuffer::setScissor(Extent2D extent) const -> void
 {
+    setScissor(Rect2D{ .extent = extent });
+}
+
+auto CommandBuffer::setScissor(Rect2D rect) const -> void
+{
     vk::Rect2D scissor{
-        .offset = { 0, 0 },
-        .extent = { extent.x, extent.y },
+        .offset = { static_cast<std::int32_t>(rect.x), static_cast<std::int32_t>(rect.y) },
+        .extent = { rect.extent.x, rect.extent.y },
     };
     m_commandBuffer.setScissor(0, scissor);
 }

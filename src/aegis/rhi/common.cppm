@@ -255,6 +255,16 @@ struct Extent2D
     constexpr auto operator==(const Extent2D&) const -> bool = default;
 };
 
+/// @brief A rectangle of an image in texels: its top-left corner (x, y) and its extent.
+struct Rect2D
+{
+    std::uint32_t x{ 0 };
+    std::uint32_t y{ 0 };
+    Extent2D extent{ 0, 0 };
+
+    constexpr auto operator==(const Rect2D&) const -> bool = default;
+};
+
 struct Extent3D
 {
     std::uint32_t x;

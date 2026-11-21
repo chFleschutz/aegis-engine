@@ -41,6 +41,9 @@ public:
     auto bindPipeline(const Pipeline& pipeline) const -> void;
     auto setViewport(Extent2D extent) const -> void;
     auto setScissor(Extent2D extent) const -> void;
+    /// @brief The viewport and scissor covering only 'rect' (a tile of an atlas, say).
+    auto setViewport(Rect2D rect) const -> void;
+    auto setScissor(Rect2D rect) const -> void;
     auto draw(std::uint32_t vertexCount, std::uint32_t instanceCount = 1, std::uint32_t firstVertex = 0,
         std::uint32_t firstInstance = 0) const -> void;
     /// @brief Binds 'buffer' (32-bit indices, created with BufferUsage::Index) for drawIndexed.

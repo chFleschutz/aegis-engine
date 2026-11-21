@@ -184,6 +184,21 @@ TEST_SUITE("render_graph::detail::packLighting")
         CHECK(packLighting(twoCascades, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, shadow).shadowCascadeCount == 2);
     }
 
+    TEST_CASE("shadows the spot lights through the atlas only when it is given")
+    {
+        const InstanceStore instances;
+        FrameScene scene{ .instances = instances, .views = { { .name = "Main", .camera = FrameScene::Camera{} } } };
+        aegis::render_graph::addShadowViews(scene);
+        aegis::render_graph::detail::ShadowMapInput shadow{ .view = 1 };
+        CHECK(packLighting(scene, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, shadow).spotShadows == 0);
+
+        shadow.spotAtlas = aegis::rhi::TextureDescriptor{ { 11 }, { 3 } };
+        const auto uniforms = packLighting(scene, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, shadow);
+        CHECK(uniforms.spotShadows == 1);
+        CHECK(uniforms.spotShadowAtlas.image.index == 11);
+        CHECK(uniforms.spotShadowAtlas.sampler.index == 3);
+    }
+
     TEST_CASE("points at the light buffer and counts the lights that fit, point lights first")
     {
         const InstanceStore instances;
@@ -252,6 +267,44 @@ TEST_SUITE("render_graph::detail::packLights")
         CHECK(data.coneOffset == 1.0f);
         for (const auto toSurface : { glm::vec3{ 1.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, -1.0f, 0.0f }, glm::vec3{ 0.0f, 0.0f, 1.0f } })
             CHECK(coneAttenuation(data, toSurface) == 1.0f);
+    }
+
+    TEST_CASE("a spot light with a spot shadow view carries its matrix, its tile, its bias and its texel size")
+    {
+        const InstanceStore instances;
+        FrameScene scene{
+            .instances = instances,
+            .views = { { .name = "Main", .camera = FrameScene::Camera{} } },
+        };
+        scene.spotLights = {
+            { .position = { 0.0f, 0.0f, 3.0f }, .direction = { 0.0f, 0.0f, -1.0f }, .outerConeAngle = glm::radians(45.0f), .castsShadows = true, .shadowBias = 2.0f },
+            { .position = { 0.0f, 0.0f, 1.0f }, .direction = { 0.0f, 0.0f, -1.0f }, .castsShadows = true },
+            { .position = { 0.0f, 0.0f, 2.0f }, .castsShadows = false },
+        };
+        scene.pointLights.resize(1);
+        aegis::render_graph::addShadowViews(scene);
+        REQUIRE(scene.spotLights[0].shadowView.has_value());
+        const auto lights = packLights(scene);
+        REQUIRE(lights.size() == 4);
+
+        // The light 3 m away is the second closest: the second tile, the atlas's top right quarter.
+        const auto& data = lights[1];
+        const auto& camera = *scene.views[*scene.spotLights[0].shadowView].camera;
+        CHECK(equal(data.shadowViewProjection, glm::rowMajor4(camera.projection * camera.view)));
+        CHECK(equal(data.shadowRegion, glm::vec4{ 0.5f, 0.0f, 0.5f, 0.5f }));
+        CHECK(data.shadowBias == 2.0f);
+        // A 90 degree cone spans 2 m across the tile's 1024 texels one meter from the light.
+        CHECK(data.shadowTexelSize == doctest::Approx(2.0f / 1024.0f));
+        CHECK(equal(lights[2].shadowRegion, glm::vec4{ 0.0f, 0.0f, 0.5f, 0.5f }));
+
+        // The point light and the light that casts no shadow have no tile.
+        CHECK(lights[0].shadowRegion.z == 0.0f);
+        CHECK(lights[3].shadowRegion.z == 0.0f);
+
+        // Nor does a light whose view lost its camera.
+        auto noCamera = scene;
+        noCamera.views[*scene.spotLights[0].shadowView].camera.reset();
+        CHECK(packLights(noCamera)[1].shadowRegion.z == 0.0f);
     }
 
     TEST_CASE("a spot light lights its inner cone fully, fades to its outer cone and lights nothing beyond")

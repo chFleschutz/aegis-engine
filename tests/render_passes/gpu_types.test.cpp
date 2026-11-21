@@ -78,7 +78,9 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(LightingUniforms, shadowBias) == 424);
         CHECK(offsetof(LightingUniforms, shadowCascadeBlend) == 428);
         CHECK(offsetof(LightingUniforms, shadowCascadeCount) == 432);
-        CHECK(sizeof(LightingUniforms) == 440); // Padded to the alignment of lights, which the shader never reads
+        CHECK(offsetof(LightingUniforms, spotShadowAtlas) == 436);
+        CHECK(offsetof(LightingUniforms, spotShadows) == 444);
+        CHECK(sizeof(LightingUniforms) == 448);
     }
 
     TEST_CASE("ShadowCascadeData matches lighting::ShadowCascade")
@@ -99,7 +101,11 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(LightData, direction) == 32);
         CHECK(offsetof(LightData, coneScale) == 44);
         CHECK(offsetof(LightData, coneOffset) == 48);
-        CHECK(sizeof(LightData) == 52);
+        CHECK(offsetof(LightData, shadowBias) == 52);
+        CHECK(offsetof(LightData, shadowTexelSize) == 56);
+        CHECK(offsetof(LightData, shadowRegion) == 60);
+        CHECK(offsetof(LightData, shadowViewProjection) == 76);
+        CHECK(sizeof(LightData) == 140);
     }
 
     TEST_CASE("the enums have the values the shaders switch on")

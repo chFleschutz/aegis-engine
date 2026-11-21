@@ -13,11 +13,41 @@ auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void
         for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
             views.push_back({ .name = shadowViewName(views[i].name, cascade), .extent = shadowMapExtent, .kind = ViewKind::Shadow });
     }
+
+    if (std::ranges::any_of(views, [](const DefaultPassesDesc::View& view) { return view.tile.has_value(); }))
+        return;
+    for (std::uint32_t index = 0; index < maxShadowedSpotLights; ++index)
+        views.push_back({ .name = spotShadowViewName(index), .extent = spotShadowTileExtent, .kind = ViewKind::Shadow, .tile = spotShadowTile(index) });
+}
+
+auto viewDeclarationOrder(std::span<const DefaultPassesDesc::View> views) -> std::vector<std::uint32_t>
+{
+    std::vector<std::uint32_t> order;
+    order.reserve(views.size());
+    for (const bool tiled : { true, false })
+    {
+        for (std::uint32_t view = 0; view < views.size(); ++view)
+        {
+            if (views[view].tile.has_value() == tiled)
+                order.push_back(view);
+        }
+    }
+    return order;
+}
+
+namespace
+{
+auto drawsSpotShadows(const DefaultPassesDesc& desc) -> bool
+{
+    return std::ranges::any_of(desc.views, [](const DefaultPassesDesc::View& view) { return view.tile.has_value(); });
+}
 }
 
 auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> SharedPasses
 {
     SharedPasses shared{ .lights = &graph.add<LightUpdatePass>(desc.scene) };
+    if (drawsSpotShadows(desc))
+        graph.add<SpotShadowAtlasPass>();
     if (desc.gpuDriven)
         shared.instances = &graph.add<InstanceUpdatePass>(desc.scene);
     return shared;
@@ -54,6 +84,8 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
         shadow = LightingPass::ShadowMaps{ .view = *view.shadow };
         for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
             shadow->maps[cascade] = scopedName(desc.views[*view.shadow + cascade].name, names::depth);
+        if (drawsSpotShadows(desc))
+            shadow->spotAtlas = std::string{ names::spotShadowAtlas };
     }
     graph.add<LightingPass>(scene, desc.view, std::move(shadow));
     graph.add<SkyBoxPass>(scene, desc.view);
@@ -65,17 +97,20 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 {
     const auto& scene = desc.scene;
+    std::optional<DepthTile> tile;
+    if (const auto& rect = desc.views[desc.view].tile)
+        tile = DepthTile{ .texture = std::string{ names::spotShadowAtlas }, .rect = *rect };
     graph.add<SceneUpdatePass>(scene, desc.view);
     if (desc.gpuDriven)
     {
         const auto& instances = desc.instances ? *desc.instances : graph.add<InstanceUpdatePass>(scene);
         graph.add<ClearDrawCountsPass>();
         graph.add<CullingPass>(scene, instances, desc.view);
-        graph.add<GpuDrivenGeometryPass>(scene, instances, Technique::Depth, desc.view);
+        graph.add<GpuDrivenGeometryPass>(scene, instances, Technique::Depth, desc.view, std::move(tile));
     }
     else
     {
-        graph.add<GeometryPass>(scene, Technique::Depth, desc.view).addRenderSystem<StaticMeshRenderSystem>(Technique::Depth);
+        graph.add<GeometryPass>(scene, Technique::Depth, desc.view, std::move(tile)).addRenderSystem<StaticMeshRenderSystem>(Technique::Depth);
     }
 }
 
@@ -105,7 +140,7 @@ auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> voi
     const auto shared = addSharedPasses(graph, desc);
     viewDesc.instances = shared.instances;
     viewDesc.lights = shared.lights;
-    for (std::uint32_t view = 0; view < desc.views.size(); ++view)
+    for (const auto view : viewDeclarationOrder(desc.views))
     {
         graph.beginScope(desc.views[view].name, desc.views[view].extent);
         viewDesc.view = view;

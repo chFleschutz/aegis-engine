@@ -335,14 +335,15 @@ TEST_SUITE("render_passes::addShadowViews")
         };
         addShadowViews(scene);
 
-        REQUIRE(scene.views.size() == 2 + 2 * maxShadowCascades);
+        REQUIRE(scene.views.size() == 2 + 2 * maxShadowCascades + maxShadowedSpotLights);
         CHECK(scene.views[0].shadow == 2u);
         CHECK(scene.views[1].shadow == 6u);
         CHECK(scene.views[2].name == "EditShadow0");
         CHECK(scene.views[5].name == "EditShadow3");
         CHECK(scene.views[6].name == "PlayShadow0");
-        for (const auto& view : std::span{ scene.views }.subspan(2))
+        for (const auto& view : std::span{ scene.views }.subspan(2, 2 * maxShadowCascades))
         {
+            CHECK_FALSE(view.tile.has_value());
             CHECK(view.kind == ViewKind::Shadow);
             CHECK(view.extent == shadowMapExtent);
             CHECK_FALSE(view.shadow.has_value());
@@ -398,7 +399,7 @@ TEST_SUITE("render_passes::addShadowViews")
         light.shadowCascades = 2;
         FrameScene scene{ .instances = instances, .views = { { .name = "Main", .camera = camera({}, { 0.0f, 1.0f, 0.0f }) } }, .directionalLight = light };
         addShadowViews(scene);
-        REQUIRE(scene.views.size() == 1 + maxShadowCascades);
+        REQUIRE(scene.views.size() == 1 + maxShadowCascades + maxShadowedSpotLights);
         CHECK(scene.views[1].camera.has_value());
         CHECK(scene.views[2].camera.has_value());
         CHECK_FALSE(scene.views[3].camera.has_value());
@@ -410,13 +411,13 @@ TEST_SUITE("render_passes::addShadowViews")
         const InstanceStore instances;
         FrameScene unlit{ .instances = instances, .views = { { .name = "Main", .camera = camera({}, { 0.0f, 1.0f, 0.0f }) } } };
         addShadowViews(unlit);
-        REQUIRE(unlit.views.size() == 1 + maxShadowCascades);
+        REQUIRE(unlit.views.size() == 1 + maxShadowCascades + maxShadowedSpotLights);
         for (const auto& view : std::span{ unlit.views }.subspan(1))
             CHECK_FALSE(view.camera.has_value());
 
         FrameScene noCamera{ .instances = instances, .views = { { .name = "Main" } }, .directionalLight = sun };
         addShadowViews(noCamera);
-        REQUIRE(noCamera.views.size() == 1 + maxShadowCascades);
+        REQUIRE(noCamera.views.size() == 1 + maxShadowCascades + maxShadowedSpotLights);
         for (const auto& view : std::span{ noCamera.views }.subspan(1))
             CHECK_FALSE(view.camera.has_value());
     }
@@ -427,12 +428,12 @@ TEST_SUITE("render_passes::addShadowViews")
         FrameScene scene{ .instances = instances, .views = { { .name = "Main" } } };
         addShadowViews(scene);
         addShadowViews(scene);
-        CHECK(scene.views.size() == 1 + maxShadowCascades);
+        CHECK(scene.views.size() == 1 + maxShadowCascades + maxShadowedSpotLights);
 
         std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
         addShadowViews(views);
         addShadowViews(views);
-        CHECK(views.size() == 1 + maxShadowCascades);
+        CHECK(views.size() == 1 + maxShadowCascades + maxShadowedSpotLights);
     }
 
     TEST_CASE("the graph's views and the frame scene's come in the same order")
@@ -450,7 +451,186 @@ TEST_SUITE("render_passes::addShadowViews")
             CHECK(views[i].name == scene.views[i].name);
             CHECK(views[i].kind == scene.views[i].kind);
             CHECK(views[i].shadow == scene.views[i].shadow);
+            CHECK(views[i].tile == scene.views[i].tile);
         }
-        CHECK(views.back().extent == shadowMapExtent);
+        CHECK(views[2 + 2 * maxShadowCascades - 1].extent == shadowMapExtent);
+        CHECK(views.back().extent == spotShadowTileExtent);
+    }
+
+    TEST_CASE("the closest shadow-casting spot lights get the spot shadow views, which all main views share")
+    {
+        const InstanceStore instances;
+        FrameScene scene{
+            .instances = instances,
+            .views = {
+                { .name = "Edit", .camera = camera({ 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }) },
+                { .name = "Play", .camera = camera({ 100.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }) },
+            },
+        };
+        // Six casting lights 1 to 6 meters from the first main view's camera, out of order, and a closer one that doesn't
+        // cast.
+        for (const float distance : { 5.0f, 1.0f, 6.0f, 3.0f, 2.0f, 4.0f })
+            scene.spotLights.push_back({ .position = { distance, 0.0f, 0.0f }, .direction = { 0.0f, 0.0f, -1.0f }, .castsShadows = true });
+        scene.spotLights.push_back({ .position = { 0.5f, 0.0f, 0.0f }, .castsShadows = false });
+        addShadowViews(scene);
+
+        const auto first = static_cast<std::uint32_t>(2 + 2 * maxShadowCascades);
+        REQUIRE(scene.views.size() == first + maxShadowedSpotLights);
+        for (std::uint32_t index = 0; index < maxShadowedSpotLights; ++index)
+        {
+            CAPTURE(index);
+            const auto& view = scene.views[first + index];
+            CHECK(view.name == spotShadowViewName(index));
+            CHECK(view.kind == ViewKind::Shadow);
+            CHECK(view.extent == spotShadowTileExtent);
+            CHECK(view.tile == spotShadowTile(index));
+            CHECK(view.camera.has_value());
+        }
+        // The views go to the lights 1, 2, 3 and 4 meters away, closest first.
+        CHECK(scene.spotLights[1].shadowView == first + 0);
+        CHECK(scene.spotLights[4].shadowView == first + 1);
+        CHECK(scene.spotLights[3].shadowView == first + 2);
+        CHECK(scene.spotLights[5].shadowView == first + 3);
+        CHECK_FALSE(scene.spotLights[0].shadowView.has_value());
+        CHECK_FALSE(scene.spotLights[2].shadowView.has_value());
+        CHECK_FALSE(scene.spotLights[6].shadowView.has_value());
+        REQUIRE(scene.views[first].camera.has_value());
+        CHECK(equal(scene.views[first].camera->view, fitSpotShadow(scene.spotLights[1]).view));
+        CHECK(equal(scene.views[first].camera->projection, fitSpotShadow(scene.spotLights[1]).projection));
+    }
+
+    TEST_CASE("spot shadow views without a light to cast have no camera")
+    {
+        const InstanceStore instances;
+        FrameScene scene{
+            .instances = instances,
+            .views = { { .name = "Main", .camera = camera({}, { 0.0f, 1.0f, 0.0f }) } },
+            .spotLights = { { .position = { 1.0f, 0.0f, 0.0f }, .castsShadows = true } },
+        };
+        addShadowViews(scene);
+        const auto first = 1 + maxShadowCascades;
+        CHECK(scene.views[first].camera.has_value());
+        for (std::uint32_t index = 1; index < maxShadowedSpotLights; ++index)
+            CHECK_FALSE(scene.views[first + index].camera.has_value());
+
+        // Without a camera to measure from, no light casts.
+        FrameScene noCamera{ .instances = instances, .views = { { .name = "Main" } }, .spotLights = scene.spotLights };
+        noCamera.spotLights[0].shadowView.reset();
+        addShadowViews(noCamera);
+        CHECK_FALSE(noCamera.spotLights[0].shadowView.has_value());
+        for (std::uint32_t index = 0; index < maxShadowedSpotLights; ++index)
+            CHECK_FALSE(noCamera.views[first + index].camera.has_value());
+    }
+}
+
+TEST_SUITE("render_passes::selectShadowedSpotLights")
+{
+    TEST_CASE("picks the casting lights closest to the point, ties in the scene's order, up to the budget")
+    {
+        const InstanceStore instances;
+        FrameScene scene{ .instances = instances };
+        scene.spotLights = {
+            { .position = { 3.0f, 0.0f, 0.0f }, .castsShadows = true },
+            { .position = { 0.0f, 2.0f, 0.0f }, .castsShadows = true },
+            { .position = { 0.0f, 0.0f, 1.0f }, .castsShadows = false },
+            { .position = { -2.0f, 0.0f, 0.0f }, .castsShadows = true },
+            { .position = { 0.0f, 0.0f, 4.0f }, .castsShadows = true },
+        };
+        CHECK(selectShadowedSpotLights(scene, glm::vec3{ 0.0f }) == std::vector<std::uint32_t>{ 1, 3, 0, 4 });
+        CHECK(selectShadowedSpotLights(scene, glm::vec3{ 0.0f }, 2) == std::vector<std::uint32_t>{ 1, 3 });
+        CHECK(selectShadowedSpotLights(scene, glm::vec3{ 0.0f, 0.0f, 4.0f }, 1) == std::vector<std::uint32_t>{ 4 });
+        CHECK(selectShadowedSpotLights(scene, glm::vec3{ 0.0f }, 0).empty());
+    }
+
+    TEST_CASE("selects nothing without casting lights")
+    {
+        const InstanceStore instances;
+        FrameScene scene{ .instances = instances, .spotLights = { { .castsShadows = false } } };
+        CHECK(selectShadowedSpotLights(scene, glm::vec3{ 0.0f }).empty());
+    }
+}
+
+TEST_SUITE("render_passes::spotShadowTile")
+{
+    TEST_CASE("the tiles fill the atlas row by row without overlapping")
+    {
+        CHECK(spotShadowTile(0) == aegis::rhi::Rect2D{ .x = 0, .y = 0, .extent = spotShadowTileExtent });
+        CHECK(spotShadowTile(1) == aegis::rhi::Rect2D{ .x = 1024, .y = 0, .extent = spotShadowTileExtent });
+        CHECK(spotShadowTile(2) == aegis::rhi::Rect2D{ .x = 0, .y = 1024, .extent = spotShadowTileExtent });
+        CHECK(spotShadowTile(3) == aegis::rhi::Rect2D{ .x = 1024, .y = 1024, .extent = spotShadowTileExtent });
+        for (std::uint32_t index = 0; index < maxShadowedSpotLights; ++index)
+        {
+            const auto tile = spotShadowTile(index);
+            CHECK(tile.x + tile.extent.x <= spotShadowAtlasExtent.x);
+            CHECK(tile.y + tile.extent.y <= spotShadowAtlasExtent.y);
+        }
+        CHECK(spotShadowViewName(2) == "SpotShadow2");
+    }
+}
+
+TEST_SUITE("render_passes::fitSpotShadow")
+{
+    TEST_CASE("covers the cone from near the light to its range")
+    {
+        const FrameScene::SpotLight light{
+            .position = { 1.0f, 2.0f, 3.0f },
+            .direction = glm::normalize(glm::vec3{ 1.0f, 1.0f, -0.5f }),
+            .range = 10.0f,
+            .outerConeAngle = glm::radians(30.0f),
+        };
+        const auto shadow = fitSpotShadow(light);
+        CHECK(shadow.position.x == light.position.x);
+
+        // On the axis: the tile's center, depth between 0 and 1, growing with the distance.
+        const auto middle = project(shadow, light.position + light.direction * 5.0f);
+        CHECK(near(middle.x, 0.0f));
+        CHECK(near(middle.y, 0.0f));
+        CHECK(middle.z > 0.0f);
+        CHECK(middle.z < 1.0f);
+        CHECK(project(shadow, light.position + light.direction * 9.0f).z > middle.z);
+        CHECK(near(project(shadow, light.position + light.direction * 10.0f).z, 1.0f));
+        CHECK(project(shadow, light.position + light.direction * 0.01f).z < 0.0f); // Before the near plane
+
+        // On the outer cone: the edge of the tile, whichever way round the axis.
+        const auto side = glm::normalize(glm::cross(light.direction, glm::vec3{ 0.0f, 0.0f, 1.0f }));
+        const auto up = glm::cross(side, light.direction);
+        for (const auto& across : { side, up })
+        {
+            const auto edge = project(shadow, light.position + (light.direction * std::cos(light.outerConeAngle) + across * std::sin(light.outerConeAngle)) * 5.0f);
+            CHECK(near(std::max(std::abs(edge.x), std::abs(edge.y)), 1.0f, 1e-3f));
+        }
+    }
+
+    TEST_CASE("a light shining straight down or up has finite matrices")
+    {
+        for (const float z : { -1.0f, 1.0f })
+        {
+            CAPTURE(z);
+            const auto shadow = fitSpotShadow({ .position = { 0.0f, 0.0f, 5.0f }, .direction = { 0.0f, 0.0f, z } });
+            CHECK(finite(shadow.view));
+            CHECK(finite(shadow.projection));
+            const auto below = project(shadow, glm::vec3{ 0.0f, 0.0f, 5.0f + 3.0f * z });
+            CHECK(near(below.x, 0.0f));
+            CHECK(near(below.y, 0.0f));
+        }
+    }
+
+    TEST_CASE("a cone wider than the widest view is shadowed within it")
+    {
+        const FrameScene::SpotLight light{ .direction = { 0.0f, 1.0f, 0.0f }, .range = 10.0f, .outerConeAngle = glm::radians(89.0f) };
+        const auto shadow = fitSpotShadow(light);
+        CHECK(near(1.0f / shadow.projection[0][0], std::tan(maxSpotShadowFov / 2.0f)));
+        CHECK(near(-1.0f / shadow.projection[1][1], std::tan(maxSpotShadowFov / 2.0f)));
+    }
+
+    TEST_CASE("the near plane is a thousandth of the range, at least 5 cm")
+    {
+        // A point on the axis at the near plane has depth 0.
+        for (const auto [range, nearPlane] : { std::pair{ 20.0f, 0.05f }, { 200.0f, 0.2f } })
+        {
+            CAPTURE(range);
+            const FrameScene::SpotLight light{ .direction = { 0.0f, 1.0f, 0.0f }, .range = range };
+            CHECK(near(project(fitSpotShadow(light), glm::vec3{ 0.0f, nearPlane, 0.0f }).z, 0.0f));
+        }
     }
 }

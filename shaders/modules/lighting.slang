@@ -6,7 +6,8 @@ import modules.pbr;
 import modules.surface;
 
 // The shading of a surface point by a view's lights: the ambient light (the sky's image-based lighting), the
-// directional light, shadowed by its cascades' shadow maps, and the point and spot lights. The lighting pass
+// directional light, shadowed by its cascades' shadow maps, and the point and spot lights, the shadowed spot lights
+// through their tiles of the spot shadow atlas. The lighting pass
 // (lighting.slang) shades its G-buffer pixels with it; a pass that lights surfaces itself calls lighting::shade too, so
 // every pass shades alike.
 
@@ -23,7 +24,8 @@ namespace lighting
         public float4 color; // rgb, intensity
     }
 
-    /// render_graph::LightData: a point or spot light; a point light's cone lets everything through.
+    /// render_graph::LightData: a point or spot light; a point light's cone lets everything through. A shadowed spot
+    /// light carries its shadow view's matrix and its tile of the spot shadow atlas.
     public struct Light
     {
         public float3 position;
@@ -33,6 +35,10 @@ namespace lighting
         public float3 direction; // Where a spot light's cone points
         public float coneScale;
         public float coneOffset;
+        public float shadowBias;            // Texels of its tile a shaded point moves along its normal
+        public float shadowTexelSize;       // Meters a texel of its tile spans per meter along its axis
+        public float4 shadowRegion;         // Its tile in the atlas's uv: offset xy, size zw; zero: unshadowed
+        public float4x4 shadowViewProjection;
     }
 
     /// render_graph::ShadowCascadeData: one cascade of the directional light's shadow, the depth of one of its shadow
@@ -78,6 +84,8 @@ namespace lighting
         public float ambientOcclusionFactor;
         public int viewMode; // The lighting pass's debug view (render_graph::LightingViewMode)
         public DirectionalShadow shadow;
+        public bindless::TextureDescriptor spotShadowAtlas; // With a comparison sampler
+        public uint spotShadows;                            // 0: the spot lights are unshadowed
 
         public property Light* lights
         {
@@ -204,6 +212,44 @@ namespace lighting
         return lit;
     }
 
+    /// How much of a spot light reaches 'position' through its tile of the spot shadow atlas: 3x3 comparison taps, kept
+    /// inside the tile so its neighbours don't bleed in. The point moves along its normal by the light's bias in texels of
+    /// the tile at its distance, more the more it faces away from the light. Outside the light's view, or for a light
+    /// without a tile, it is lit.
+    func spotShadow(Lighting* lighting, Light light, float3 position, float3 N, float3 L) -> float
+    {
+        if (lighting->spotShadows == 0 || light.shadowRegion.z <= 0.0)
+            return 1.0;
+
+        float depth = max(dot(position - light.position, light.direction), 0.0);
+        float NdotL = saturate(dot(N, L));
+        float offset = light.shadowBias * light.shadowTexelSize * depth * (1.0 + 2.0 * (1.0 - NdotL));
+        float4 clip = mul(light.shadowViewProjection, float4(position + N * offset, 1.0));
+        if (clip.w <= 0.0)
+            return 1.0;
+        float3 ndc = clip.xyz / clip.w;
+        float2 local = ndc.xy * 0.5 + 0.5;
+        if (any(local < 0.0) || any(local > 1.0) || ndc.z > 1.0)
+            return 1.0;
+
+        let map = bindless::texture2D(lighting->spotShadowAtlas.image);
+        let comparison = bindless::comparisonSampler(lighting->spotShadowAtlas.sampler);
+        uint2 size;
+        map.GetDimensions(size.x, size.y);
+        float2 texel = 1.0 / float2(size);
+        // A bilinear tap reads half a texel around its center: keep the taps' centers 1.5 texels inside the tile.
+        float2 lowest = light.shadowRegion.xy + 1.5 * texel;
+        float2 highest = light.shadowRegion.xy + light.shadowRegion.zw - 1.5 * texel;
+        float2 uv = light.shadowRegion.xy + local * light.shadowRegion.zw;
+        float lit = 0.0;
+        for (int y = -1; y <= 1; y++)
+        {
+            for (int x = -1; x <= 1; x++)
+                lit += map.SampleCmpLevelZero(comparison, clamp(uv + float2(x, y) * texel, lowest, highest), ndc.z);
+        }
+        return lit / 9.0;
+    }
+
     func directionalLight(Lighting* lighting, float3 position, float3 N, float3 V, float3 albedo, float roughness,
                           float metallic, float3 F0) -> float3
     {
@@ -233,6 +279,9 @@ namespace lighting
 
             float attenuation = PBR::distanceAttenuation(distance, light.range) *
                                 PBR::coneAttenuation(light.direction, light.coneScale, light.coneOffset, -L);
+            if (attenuation <= 0.0)
+                continue;
+            attenuation *= spotShadow(lighting, light, position, N, L);
             float3 radiance = light.color * light.intensity * attenuation;
             Lo += PBR::computeLighting(N, V, L, albedo, roughness, metallic, radiance, F0);
         }

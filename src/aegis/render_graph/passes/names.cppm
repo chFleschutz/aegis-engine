@@ -17,6 +17,7 @@ inline constexpr std::string_view albedo{ "Albedo" };
 inline constexpr std::string_view arm{ "ARM" }; // Ambient occlusion, roughness, metallic
 inline constexpr std::string_view emissive{ "Emissive" };
 inline constexpr std::string_view depth{ "Depth" };
+inline constexpr std::string_view spotShadowAtlas{ "SpotShadowAtlas" }; // Unscoped: every spot shadow view's tile
 
 // Scene data the CPU writes every frame
 inline constexpr std::string_view cameraData{ "CameraData" };

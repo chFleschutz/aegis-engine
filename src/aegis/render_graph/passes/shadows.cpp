@@ -38,6 +38,21 @@ auto frustumSlice(const glm::mat4& projection, float near, float far) -> std::ar
 }
 }
 
+auto spotShadowViewName(std::uint32_t index) -> std::string
+{
+    return std::format("SpotShadow{}", index);
+}
+
+auto spotShadowTile(std::uint32_t index) -> rhi::Rect2D
+{
+    const auto perRow = spotShadowAtlasExtent.x / spotShadowTileExtent.x;
+    return {
+        .x = (index % perRow) * spotShadowTileExtent.x,
+        .y = (index / perRow) * spotShadowTileExtent.y,
+        .extent = spotShadowTileExtent,
+    };
+}
+
 auto shadowViewName(std::string_view view, std::uint32_t cascade) -> std::string
 {
     return std::format("{}Shadow{}", view, cascade);
@@ -126,6 +141,65 @@ auto fitDirectionalShadow(const FrameScene::DirectionalLight& light, const Frame
     };
 }
 
+auto selectShadowedSpotLights(const FrameScene& scene, const glm::vec3& from, std::uint32_t budget) -> std::vector<std::uint32_t>
+{
+    std::vector<std::uint32_t> casting;
+    for (std::uint32_t i = 0; i < scene.spotLights.size(); ++i)
+    {
+        if (scene.spotLights[i].castsShadows)
+            casting.push_back(i);
+    }
+    const auto distance = [&](std::uint32_t i) {
+        const auto offset = scene.spotLights[i].position - from;
+        return glm::dot(offset, offset);
+    };
+    std::ranges::stable_sort(casting, std::less{}, distance);
+    if (casting.size() > budget)
+        casting.resize(budget);
+    return casting;
+}
+
+auto fitSpotShadow(const FrameScene::SpotLight& light) -> FrameScene::Camera
+{
+    // The light's axes: it looks along its direction; up is the world's up unless it shines (nearly) along it.
+    const auto forward = glm::normalize(light.direction);
+    const auto worldUp = std::abs(glm::dot(forward, math::world::UP)) > 0.99f ? math::world::FORWARD : math::world::UP;
+    const auto side = glm::normalize(glm::cross(forward, worldUp));
+    const auto up = glm::cross(side, forward);
+
+    glm::mat4 view{ 1.0f };
+    view[0][0] = side.x;
+    view[1][0] = side.y;
+    view[2][0] = side.z;
+    view[0][1] = up.x;
+    view[1][1] = up.y;
+    view[2][1] = up.z;
+    view[0][2] = -forward.x;
+    view[1][2] = -forward.y;
+    view[2][2] = -forward.z;
+    view[3][0] = -glm::dot(side, light.position);
+    view[3][1] = -glm::dot(up, light.position);
+    view[3][2] = glm::dot(forward, light.position);
+
+    // Right-handed, depth 0 at the near plane to 1 at the range, y flipped for Vulkan as the cameras' projections are.
+    const float fov = std::clamp(2.0f * light.outerConeAngle, 0.01f, maxSpotShadowFov);
+    const float tanHalfFov = std::tan(fov / 2.0f);
+    const float near = std::max(light.range / 1000.0f, 0.05f);
+    const float far = std::max(light.range, 2.0f * near);
+    glm::mat4 projection{ 0.0f };
+    projection[0][0] = 1.0f / tanHalfFov;
+    projection[1][1] = -1.0f / tanHalfFov;
+    projection[2][2] = far / (near - far);
+    projection[2][3] = -1.0f;
+    projection[3][2] = -(far * near) / (far - near);
+
+    return {
+        .view = view,
+        .projection = projection,
+        .position = light.position,
+    };
+}
+
 auto addShadowViews(FrameScene& scene) -> void
 {
     const auto mainViews = static_cast<std::uint32_t>(scene.views.size());
@@ -152,6 +226,31 @@ auto addShadowViews(FrameScene& scene) -> void
                 .kind = ViewKind::Shadow,
             });
         }
+    }
+
+    // The spot shadow views, once: all main views share them, as they share the light records.
+    if (std::ranges::any_of(scene.views, [](const FrameScene::View& view) { return view.tile.has_value(); }))
+        return;
+    const auto mainView = std::ranges::find_if(scene.views, [](const FrameScene::View& view) { return view.kind == ViewKind::Main; });
+    std::vector<std::uint32_t> selected;
+    if (mainView != scene.views.end() && mainView->camera)
+        selected = selectShadowedSpotLights(scene, mainView->camera->position);
+    for (std::uint32_t index = 0; index < maxShadowedSpotLights; ++index)
+    {
+        std::optional<FrameScene::Camera> camera;
+        if (index < selected.size())
+        {
+            auto& light = scene.spotLights[selected[index]];
+            camera = fitSpotShadow(light);
+            light.shadowView = static_cast<std::uint32_t>(scene.views.size());
+        }
+        scene.views.push_back({
+            .name = spotShadowViewName(index),
+            .camera = camera,
+            .extent = spotShadowTileExtent,
+            .kind = ViewKind::Shadow,
+            .tile = spotShadowTile(index),
+        });
     }
 }
 }

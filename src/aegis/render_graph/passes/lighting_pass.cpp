@@ -64,6 +64,8 @@ LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneS
         m_shadowView = shadow->view;
         for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
             m_shadowMaps[cascade] = declarations.addReference(shadow->maps[cascade], Usage::SampledCompute);
+        if (!shadow->spotAtlas.empty())
+            m_spotShadowAtlas = declarations.addReference(shadow->spotAtlas, Usage::SampledCompute);
     }
 }
 
@@ -144,6 +146,8 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
             const auto& map = pool.texture(m_shadowMaps[cascade]);
             shadow->maps[cascade] = { *m_device->get(map.view).sampledDescriptor(), sampler };
         }
+        if (m_spotShadowAtlas.isValid())
+            shadow->spotAtlas = rhi::TextureDescriptor{ *m_device->get(pool.texture(m_spotShadowAtlas).view).sampledDescriptor(), sampler };
     }
     const auto uniforms = detail::packLighting(scene, m_view, pool.bufferAddress(m_lights, frameInfo.frameIndex),
         lightCapacity, m_ambientOcclusionFactor, m_viewMode, shadow);
@@ -213,6 +217,17 @@ auto packLight(const FrameScene::SpotLight& light) -> LightData
     };
 }
 
+auto packSpotShadow(LightData& data, const FrameScene::SpotLight& light, const FrameScene::Camera& camera, rhi::Rect2D tile) -> void
+{
+    const auto atlas = glm::vec2{ static_cast<float>(spotShadowAtlasExtent.x), static_cast<float>(spotShadowAtlasExtent.y) };
+    data.shadowViewProjection = glm::rowMajor4(camera.projection * camera.view);
+    data.shadowRegion = glm::vec4{ static_cast<float>(tile.x) / atlas.x, static_cast<float>(tile.y) / atlas.y,
+        static_cast<float>(tile.extent.x) / atlas.x, static_cast<float>(tile.extent.y) / atlas.y };
+    data.shadowBias = light.shadowBias;
+    // The perspective projection spans 2 / projection[0][0] meters across the tile one meter along the light's axis.
+    data.shadowTexelSize = 2.0f / (std::abs(camera.projection[0][0]) * static_cast<float>(std::max(tile.extent.x, 1u)));
+}
+
 auto packLights(const FrameScene& scene) -> std::vector<LightData>
 {
     std::vector<LightData> lights;
@@ -220,7 +235,14 @@ auto packLights(const FrameScene& scene) -> std::vector<LightData>
     for (const auto& light : scene.pointLights)
         lights.push_back(packLight(light));
     for (const auto& light : scene.spotLights)
-        lights.push_back(packLight(light));
+    {
+        auto& data = lights.emplace_back(packLight(light));
+        if (!light.shadowView || *light.shadowView >= scene.views.size())
+            continue;
+        const auto& view = scene.views[*light.shadowView];
+        if (view.camera && view.tile)
+            packSpotShadow(data, light, *view.camera, *view.tile);
+    }
     return lights;
 }
 
@@ -268,6 +290,11 @@ auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddres
                 uniforms.shadowCascadeCount = cascade + 1;
             }
         }
+    }
+    if (shadow && shadow->spotAtlas)
+    {
+        uniforms.spotShadowAtlas = *shadow->spotAtlas;
+        uniforms.spotShadows = 1;
     }
     return uniforms;
 }

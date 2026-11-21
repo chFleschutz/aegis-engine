@@ -1,6 +1,7 @@
 export module aegis.render_passes:gpu_driven;
 import std;
 import :frame_scene;
+import :geometry_pass;
 import :instance_store;
 import :gpu_types;
 import :pipeline_cache;
@@ -136,8 +137,9 @@ public:
     static constexpr std::string_view shaderFile{ "gpu-driven/geometry" };
 
     /// @param view The index of the view in FrameScene::views it draws (whose "CameraData" it reads).
+    /// @param tile Where a Technique::Depth pass draws instead of its own "Depth" (GeometryPass's); none: its own.
     GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances,
-        Technique technique = Technique::GBuffer, std::uint32_t view = 0);
+        Technique technique = Technique::GBuffer, std::uint32_t view = 0, std::optional<DepthTile> tile = std::nullopt);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -156,6 +158,7 @@ private:
     Technique m_technique;
     std::uint32_t m_view;
     std::vector<ResourceId> m_gBuffer; // Empty with Technique::Depth
+    std::optional<DepthTile> m_tile;
     ResourceId m_depth;
     ResourceId m_cameraData;
     ResourceId m_staticInstances;
