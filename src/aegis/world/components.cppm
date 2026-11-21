@@ -138,17 +138,25 @@ struct MainCamera
 {
 };
 
-/// @brief Holds a camera to view the scene
+/// @brief Holds a camera to view the scene: its lens, as the scene file saves it
+/// @note Its run-time data is the entity's CameraMatrices
 struct Camera
 {
     float fov = glm::radians(60.0f);
-    float aspect = 1.0f;
     float near = 0.1f;
     float far = 1000.0f;
+};
 
-    glm::mat4 viewMatrix = glm::mat4{ 1.0f };
-    glm::mat4 inverseViewMatrix = glm::mat4{ 1.0f };
-    glm::mat4 projectionMatrix = glm::mat4{ 1.0f };
+/// @brief What a Camera's entity views the scene through, rebuilt at run time and never saved: the Registry adds it
+///        with a Camera and removes it with one
+struct CameraMatrices
+{
+    float aspect = 1.0f; // Of what the camera renders into, written by whoever renders it (the engine for the main camera)
+
+    // Written by the CameraSystem from the entity's GlobalTransform, the Camera and the aspect
+    glm::mat4 view = glm::mat4{ 1.0f };
+    glm::mat4 inverseView = glm::mat4{ 1.0f };
+    glm::mat4 projection = glm::mat4{ 1.0f };
 };
 
 /// @brief How PostProcess maps the frame's HDR colors to the screen

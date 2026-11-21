@@ -20,8 +20,8 @@ public:
     virtual void onUpdate(Registry& registry, float deltaSeconds) override;
 
 private:
-    void calcViewMatrix(Camera& camera, GlobalTransform& transform);
+    void calcViewMatrix(CameraMatrices& matrices, GlobalTransform& transform);
 
-    void calcPerspectiveProjection(Camera& camera);
+    void calcPerspectiveProjection(CameraMatrices& matrices, const Camera& camera);
 };
 }

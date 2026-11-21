@@ -207,12 +207,12 @@ auto extractFrameScene(world::World& world, const render_graph::InstanceStore& i
     FrameScene scene{ .instances = instances };
 
     auto& view = scene.views.emplace_back(FrameScene::View{ .name = std::string{ render_graph::names::mainView } });
-    if (const auto camera = world.mainCamera(); camera && registry.has<Camera, GlobalTransform>(camera))
+    if (const auto camera = world.mainCamera(); camera && registry.has<CameraMatrices, GlobalTransform>(camera))
     {
-        const auto& component = registry.get<Camera>(camera);
+        const auto& matrices = registry.get<CameraMatrices>(camera);
         view.camera = FrameScene::Camera{
-            .view = component.viewMatrix,
-            .projection = component.projectionMatrix,
+            .view = matrices.view,
+            .projection = matrices.projection,
             .position = registry.get<GlobalTransform>(camera).location,
         };
     }

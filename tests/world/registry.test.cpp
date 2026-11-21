@@ -403,6 +403,30 @@ TEST_SUITE("world::Registry")
         registry.invalidateStatic();
         CHECK(registry.staticVersion() != before);
     }
+
+    TEST_CASE("a Camera brings its CameraMatrices and takes them when removed")
+    {
+        Registry registry;
+        const auto camera = registry.create();
+        CHECK(!registry.has<aegis::CameraMatrices>(camera));
+
+        registry.add<aegis::Camera>(camera);
+        REQUIRE(registry.has<aegis::CameraMatrices>(camera));
+        registry.get<aegis::CameraMatrices>(camera).aspect = 2.0f;
+
+        registry.remove<aegis::Camera>(camera);
+        CHECK(!registry.has<aegis::CameraMatrices>(camera));
+    }
+
+    TEST_CASE("destroying a camera's entity destroys its CameraMatrices")
+    {
+        Registry registry;
+        const auto camera = registry.create();
+        registry.add<aegis::Camera>(camera);
+        registry.destroy(camera);
+
+        CHECK(registry.view<aegis::CameraMatrices>().size() == 0);
+    }
 }
 
 TEST_SUITE("world::Registry::hierarchyVersion")

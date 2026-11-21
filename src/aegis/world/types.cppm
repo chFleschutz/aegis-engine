@@ -149,7 +149,7 @@ template<typename T>
 /// @brief Registers the built-in components a scene file holds, under their C++ names, with their editor metadata
 /// @note Not registered, because the file holds them another way or they are rebuilt at run time: Name and
 ///       StableId (an entity's "name" and "id"), Parent, Siblings and Children (its "children"),
-///       GlobalTransform and StaticDirtyTag (computed by the TransformSystem), and Scripts (scripts are
-///       registered types of their own). Camera saves its lens; its aspect and matrices are recomputed.
+///       GlobalTransform and StaticDirtyTag (computed by the TransformSystem), CameraMatrices (computed by the
+///       CameraSystem), and Scripts (scripts are registered types of their own).
 auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, reflect::Error>;
 }
