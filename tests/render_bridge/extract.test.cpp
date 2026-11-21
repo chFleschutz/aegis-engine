@@ -172,7 +172,7 @@ TEST_SUITE("render_bridge::extractFrameScene")
         const InstanceStore instances;
         auto& registry = world.registry();
         const auto light = registry.create("Spot");
-        registry.add<aegis::SpotLight>(light, glm::vec3{ 0.0f, 1.0f, 0.0f }, 50.0f, 8.0f, 0.25f, 0.5f);
+        registry.add<aegis::SpotLight>(light, glm::vec3{ 0.0f, 1.0f, 0.0f }, 50.0f, 8.0f, 0.25f, 0.5f, true, 2.5f);
         auto& transform = registry.get<aegis::GlobalTransform>(light);
         transform.location = { 1.0f, 2.0f, 3.0f };
         transform.rotation = glm::quat{ glm::vec3{ 0.3f, 0.0f, 1.2f } };
@@ -186,6 +186,8 @@ TEST_SUITE("render_bridge::extractFrameScene")
         CHECK(spot.range == 8.0f);
         CHECK(spot.innerConeAngle == 0.25f);
         CHECK(spot.outerConeAngle == 0.5f);
+        CHECK(spot.castsShadows);
+        CHECK(spot.shadowBias == 2.5f);
         const auto expected = glm::normalize(transform.forward());
         CHECK(glm::length(spot.direction) == doctest::Approx(1.0f));
         CHECK(spot.direction.x == doctest::Approx(expected.x));

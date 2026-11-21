@@ -128,6 +128,8 @@ struct SpotLight
     float range = 20.0f;                        // Meters; the light fades to zero there
     float innerConeAngle = 0.0f;                // Radians from the axis where the light starts to fade
     float outerConeAngle = glm::radians(45.0f); // Radians from the axis where it reaches zero
+    bool castsShadows = false;                  // Whether it competes for one of the frame's shadowed spot lights
+    float shadowBias = 1.0f;                    // Shadow-map texels a shaded point moves along its normal against self-shadowing
 };
 
 /// @brief Tags the camera the scene is viewed through (the first entity with it and a Camera wins)

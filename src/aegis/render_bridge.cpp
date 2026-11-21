@@ -268,6 +268,8 @@ auto extractFrameScene(world::World& world, const render_graph::InstanceStore& i
             .range = light.range,
             .innerConeAngle = light.innerConeAngle,
             .outerConeAngle = light.outerConeAngle,
+            .castsShadows = light.castsShadows,
+            .shadowBias = light.shadowBias,
         });
     }
     if (const auto sky = registry.first<Sky>())
