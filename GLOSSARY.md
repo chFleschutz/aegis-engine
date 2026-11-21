@@ -96,7 +96,7 @@ The instances of one material variant, drawn together with one pipeline.
 _Avoid_: material batch, bucket
 
 **Technique**:
-How a pass draws a material: into the G-buffer, or its depth only (a shadow view); forward later.
+How a pass draws a material: into the G-buffer, its depth only (a shadow view), or forward: lit and blended into the scene color, as the forward pass draws blended materials, which the G-buffer can't hold.
 _Avoid_: render mode, shader pass
 
 **Pipeline key**:
