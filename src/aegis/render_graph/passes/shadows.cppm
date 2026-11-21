@@ -5,6 +5,8 @@ import aegis.math;
 import aegis.rhi;
 
 // The directional light's shadow: each main view samples shadow views of its own, one per cascade, fitted to its camera.
+// The spot lights' shadows: the frame's closest shadow-casting spot lights each get a shadow view, shared by all main
+// views, drawn into a tile of one atlas texture ("SpotShadowAtlas").
 
 export namespace aegis::render_graph
 {
@@ -20,9 +22,27 @@ inline constexpr std::uint32_t maxShadowCascades{ 4 };
 ///        (the last into no shadow).
 inline constexpr float shadowCascadeBlend{ 0.1f };
 
+/// @brief The spot lights that cast shadows in one frame, at most: there is a spot shadow view for each, whether a light
+///        uses it or not (the unused ones have no camera, and their passes draw nothing).
+inline constexpr std::uint32_t maxShadowedSpotLights{ 4 };
+/// @brief The extent of a spot shadow view, and so of its tile of the atlas.
+inline constexpr rhi::Extent2D spotShadowTileExtent{ 1024, 1024 };
+/// @brief The extent of "SpotShadowAtlas", the depth texture all spot shadow views draw into, a tile each.
+inline constexpr rhi::Extent2D spotShadowAtlasExtent{ 2048, 2048 };
+static_assert((spotShadowAtlasExtent.x / spotShadowTileExtent.x) * (spotShadowAtlasExtent.y / spotShadowTileExtent.y) >= maxShadowedSpotLights,
+    "The spot shadow atlas must hold a tile per shadowed spot light");
+/// @brief The widest field of view a spot shadow view has, in radians: a wider cone is shadowed only within it.
+inline constexpr float maxSpotShadowFov{ 160.0f * std::numbers::pi_v<float> / 180.0f };
+
 /// @brief The name of the shadow view of cascade 'cascade' of the main view 'view' (and its frame graph scope):
 ///        "<view>Shadow<cascade>".
 [[nodiscard]] auto shadowViewName(std::string_view view, std::uint32_t cascade) -> std::string;
+
+/// @brief The name of the spot shadow view 'index' (and its frame graph scope): "SpotShadow<index>".
+[[nodiscard]] auto spotShadowViewName(std::uint32_t index) -> std::string;
+
+/// @brief The tile of "SpotShadowAtlas" the spot shadow view 'index' draws into, in texels: row by row.
+[[nodiscard]] auto spotShadowTile(std::uint32_t index) -> rhi::Rect2D;
 
 /// @brief The distances along the camera's axis where each of the light's cascades ends (light.shadowCascades of them,
 ///        clamped to 1..maxShadowCascades), for a camera with 'projection': from its near plane to light.shadowDistance
@@ -41,10 +61,23 @@ inline constexpr float shadowCascadeBlend{ 0.1f };
 [[nodiscard]] auto fitDirectionalShadow(const FrameScene::DirectionalLight& light, const FrameScene::Camera& camera,
     float near, float far, rhi::Extent2D extent = shadowMapExtent) -> FrameScene::Camera;
 
+/// @brief The indices in scene.spotLights of the spot lights that cast shadows this frame: those with castsShadows, the
+///        closest to 'from' first (ties in the scene's order), at most 'budget' of them.
+[[nodiscard]] auto selectShadowedSpotLights(const FrameScene& scene, const glm::vec3& from,
+    std::uint32_t budget = maxShadowedSpotLights) -> std::vector<std::uint32_t>;
+
+/// @brief The camera of a spot light's shadow view, for a square tile: a perspective projection from the light along
+///        its direction, covering its outer cone (at most maxSpotShadowFov), from max(range / 1000, 5 cm) to its range.
+[[nodiscard]] auto fitSpotShadow(const FrameScene::SpotLight& light) -> FrameScene::Camera;
+
 /// @brief Appends maxShadowCascades shadow views (ViewKind::Shadow, shadowViewName, shadowMapExtent) for each main view
 ///        of 'scene' that has none, and points the main view at the first (FrameScene::View::shadow). Each cascade's
 ///        camera is the directional light's, fitted to its slice of the main view's camera (shadowCascadeSplits,
 ///        fitDirectionalShadow); none without either or past the light's cascade count, and its passes then draw
-///        nothing. The views come in the order addShadowViews gives the graph's (DefaultPassesDesc::views).
+///        nothing. Then, once, maxShadowedSpotLights spot shadow views (ViewKind::Shadow, spotShadowViewName,
+///        spotShadowTileExtent, spotShadowTile) shared by all main views: one for each spot light
+///        selectShadowedSpotLights picks by distance to the first main view's camera, with fitSpotShadow's camera, which
+///        it points at its view (FrameScene::SpotLight::shadowView); the others have no camera. The views come in the
+///        order addShadowViews gives the graph's (DefaultPassesDesc::views).
 auto addShadowViews(FrameScene& scene) -> void;
 }

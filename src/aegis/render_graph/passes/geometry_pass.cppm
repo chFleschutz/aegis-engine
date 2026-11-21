@@ -9,10 +9,32 @@ import aegis.rhi;
 
 export namespace aegis::render_graph
 {
+/// @brief Where a depth-only geometry pass draws instead of a "Depth" of its own: a tile of a depth texture another pass
+///        creates, such as a spot shadow view's tile of "SpotShadowAtlas". The pass clears and draws only the tile.
+struct DepthTile
+{
+    std::string texture; // Its name, found as addReference finds it
+    rhi::Rect2D rect;    // In texels
+};
+
+/// @brief Creates "SpotShadowAtlas" (spotShadowAtlasExtent, GeometryPass::depthFormat) and clears it, before the spot
+///        shadow views draw their tiles into it (DepthTile).
+class SpotShadowAtlasPass : public RenderPass
+{
+public:
+    explicit SpotShadowAtlasPass(ResourceDeclarations& declarations);
+
+    [[nodiscard]] auto name() const -> std::string_view override;
+    auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
+
+private:
+    ResourceId m_atlas;
+};
+
 /// @brief The CPU-driven geometry pass: clears and fills "Position", "Normal", "Albedo", "ARM", "Emissive" and
-///        "Depth" through its render systems, or only "Depth" with Technique::Depth (a shadow view's). Its render
-///        systems draw with the same technique (StaticMeshRenderSystem's). Without a camera for its view it clears
-///        its targets and draws nothing.
+///        "Depth" through its render systems, or only "Depth" with Technique::Depth (a shadow view's), or only a tile
+///        of another pass's depth texture (DepthTile). Its render systems draw with the same technique
+///        (StaticMeshRenderSystem's). Without a camera for its view it clears its targets and draws nothing.
 class GeometryPass : public RenderPass
 {
 public:
@@ -26,14 +48,17 @@ public:
     static constexpr auto depthFormat = rhi::Format::D32_SFLOAT;
 
     /// @param view The index of the view in FrameScene::views it draws (whose "CameraData" it reads).
+    /// @param tile Where a Technique::Depth pass draws instead of its own "Depth"; none: its own.
     GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, Technique technique = Technique::GBuffer,
-        std::uint32_t view = 0);
+        std::uint32_t view = 0, std::optional<DepthTile> tile = std::nullopt);
 
     /// @brief Declares the G-buffer textures, in the order of gBufferFormats. The GPU-driven geometry pass fills the
     ///        same targets, so both declare them here.
     static auto declareGBuffer(ResourceDeclarations& declarations) -> std::array<ResourceId, gBufferFormats.size()>;
-    /// @brief Declares the depth texture, in depthFormat.
-    static auto declareDepth(ResourceDeclarations& declarations) -> ResourceId;
+    /// @brief Declares the depth texture, in depthFormat; with a tile, the access to the texture it is a tile of.
+    static auto declareDepth(ResourceDeclarations& declarations, const std::optional<DepthTile>& tile = std::nullopt) -> ResourceId;
+    /// @brief The rendering area of a depth target: the tile, or all of 'extent'.
+    [[nodiscard]] static auto depthArea(const std::optional<DepthTile>& tile, rhi::Extent2D extent) -> rhi::Rect2D;
 
     template<typename T, typename... Args>
         requires std::derived_from<T, RenderSystem> && std::constructible_from<T, Args...>
@@ -59,6 +84,7 @@ private:
     std::uint32_t m_view;
     std::vector<ResourceId> m_gBuffer; // Empty with Technique::Depth
     ResourceId m_depth;
+    std::optional<DepthTile> m_tile;
     ResourceId m_cameraData;
     std::vector<std::unique_ptr<RenderSystem>> m_renderSystems;
 };

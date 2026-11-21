@@ -85,16 +85,21 @@ struct DrawBatchData
 
 /// @brief lighting::Light (modules/lighting.slang): a point or spot light in the frame's light buffer ("Lights"),
 ///        which holds the point lights first, then the spot lights. Both shade alike: a point light is a spot light
-///        whose cone lets everything through (coneScale 0, coneOffset 1).
+///        whose cone lets everything through (coneScale 0, coneOffset 1). A spot light with a spot shadow view this
+///        frame carries its matrix and its tile of "SpotShadowAtlas".
 struct LightData
 {
     glm::vec3 position;
     float range; // Meters; the light fades to zero there (detail::distanceAttenuation)
     glm::vec3 color;
     float intensity;
-    glm::vec3 direction; // World space, normalized: where a spot light's cone points; zero for a point light
-    float coneScale;     // The cone's falloff (detail::coneAttenuation): 1 / (cos inner - cos outer)
-    float coneOffset;    // -cos outer * coneScale
+    glm::vec3 direction;                    // World space, normalized: where a spot light's cone points; zero for a point light
+    float coneScale;                        // The cone's falloff (detail::coneAttenuation): 1 / (cos inner - cos outer)
+    float coneOffset;                       // -cos outer * coneScale
+    float shadowBias{ 0.0f };               // Texels of its tile a shaded point moves along its normal
+    float shadowTexelSize{ 0.0f };          // Meters a texel of its tile spans per meter along its axis
+    glm::vec4 shadowRegion{ 0.0f };         // Its tile of "SpotShadowAtlas" in uv: offset xy, size zw; zero: unshadowed
+    glm::mat4 shadowViewProjection{ 1.0f }; // Row-major: its spot shadow view's
 };
 
 /// @brief lighting::ShadowCascade (modules/lighting.slang): one cascade of the directional light's shadow, the
@@ -121,9 +126,11 @@ struct LightingUniforms
     LightingViewMode viewMode{ LightingViewMode::SceneColor };
     glm::vec4 cameraForward{ 0.0f, 0.0f, -1.0f, 0.0f }; // World space: the axis the cascades split along
     std::array<ShadowCascadeData, maxShadowCascades> shadowCascades{};
-    float shadowBias{ 0.0f };              // Texels of its cascade a shaded point moves along its normal
-    float shadowCascadeBlend{ 0.0f };      // The fraction of each cascade blended into the next (shadowCascadeBlend)
-    std::uint32_t shadowCascadeCount{ 0 }; // 0: the directional light is unshadowed
+    float shadowBias{ 0.0f };                 // Texels of its cascade a shaded point moves along its normal
+    float shadowCascadeBlend{ 0.0f };         // The fraction of each cascade blended into the next (shadowCascadeBlend)
+    std::uint32_t shadowCascadeCount{ 0 };    // 0: the directional light is unshadowed
+    rhi::TextureDescriptor spotShadowAtlas{}; // "SpotShadowAtlas", with a comparison sampler
+    std::uint32_t spotShadows{ 0 };           // 0: the spot lights are unshadowed, whatever their records say
 };
 
 // Push constants --------------------------------------------------------------------------------------

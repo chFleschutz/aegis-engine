@@ -20,7 +20,8 @@ enum class ToneMapping : std::int32_t
 enum class ViewKind
 {
     Main,   // The scene through a camera, lit and post-processed into its "Final"
-    Shadow, // The depth of the scene seen from a light, into its "Depth": the shadow map a main view's lighting samples
+    Shadow, // The depth of the scene seen from a light, into its "Depth" (or its tile of "SpotShadowAtlas"): a shadow map
+            // a main view's lighting samples
 };
 
 /// @brief What the passes draw of the world in one frame: the instances, the views (each a camera), the lights, the
@@ -51,6 +52,9 @@ struct FrameScene
         ///        cascades, maxShadowCascades of them one after another) that its lighting samples (addShadowViews);
         ///        none: it is lit unshadowed.
         std::optional<std::uint32_t> shadow;
+        /// @brief A spot shadow view's: the tile of "SpotShadowAtlas" it draws into (spotShadowTile), in texels; none:
+        ///        it draws into its own "Depth".
+        std::optional<rhi::Rect2D> tile;
     };
 
     struct AmbientLight
@@ -90,6 +94,9 @@ struct FrameScene
         float outerConeAngle{ glm::radians(45.0f) }; // Radians from the axis where it reaches zero
         bool castsShadows{ false };                  // Whether it competes for a spot shadow view (selectShadowedSpotLights)
         float shadowBias{ 1.0f };                    // Shadow-map texels a shaded point moves along its normal
+        /// @brief The index in 'views' of the spot shadow view it casts its shadow through (addShadowViews); none: it
+        ///        is unshadowed this frame.
+        std::optional<std::uint32_t> shadowView;
     };
 
     /// @brief The sky's image-based lighting; a texture the environment lacks is empty.

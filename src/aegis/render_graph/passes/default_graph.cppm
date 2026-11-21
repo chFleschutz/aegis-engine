@@ -24,6 +24,9 @@ struct DefaultPassesDesc
         /// @brief A main view's: the index in 'views' of the first of its maxShadowCascades shadow views, which follow
         ///        one another and its lighting samples (addShadowViews).
         std::optional<std::uint32_t> shadow;
+        /// @brief A spot shadow view's: the tile of "SpotShadowAtlas" it draws into (spotShadowTile); none: it draws
+        ///        into its own "Depth".
+        std::optional<rhi::Rect2D> tile;
     };
 
     /// @brief The views render into targets of their own, which the UI shows: the frame's target shows only the UI,
@@ -68,32 +71,40 @@ struct SharedPasses
 };
 
 /// @brief Appends maxShadowCascades shadow views (ViewKind::Shadow, shadowViewName, shadowMapExtent) for each main view
-///        of 'views' that has none, and points the main view at the first, as addShadowViews(FrameScene&) does for the
-///        frame scene's views.
+///        of 'views' that has none, and points the main view at the first; then, once, the maxShadowedSpotLights spot
+///        shadow views (spotShadowViewName, spotShadowTileExtent, spotShadowTile), as addShadowViews(FrameScene&) does
+///        for the frame scene's views.
 auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void;
 
-/// @brief Adds the passes all views share, outside any scope: the LightUpdatePass writing the frame's lights and,
-///        with gpuDriven, the InstanceUpdatePass writing its instances and draw batches.
+/// @brief The order to declare the views' passes in: the indices of 'views', the spot shadow views (View::tile) first,
+///        then the others in their order. A reference is ordered after the writes declared before it, so the spot
+///        shadow views must draw their tiles of the shared "SpotShadowAtlas" before the main views' lighting reads it.
+[[nodiscard]] auto viewDeclarationOrder(std::span<const DefaultPassesDesc::View> views) -> std::vector<std::uint32_t>;
+
+/// @brief Adds the passes all views share, outside any scope: the LightUpdatePass writing the frame's lights, the
+///        SpotShadowAtlasPass creating "SpotShadowAtlas" when a view draws into it (View::tile) and, with gpuDriven,
+///        the InstanceUpdatePass writing its instances and draw batches.
 auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> SharedPasses;
 
 /// @brief Adds the passes that render the view desc.view: for a main view, into "Final": scene update, light update
 ///        (without desc.lights), CPU- or GPU-driven geometry, lighting (sampling its shadow views' "Depth"), sky box,
-///        transparent (point lights), bloom and post-processing; for a shadow view, addShadowPasses. Call it inside the
+///        transparent (point lights), bloom and post-processing; for a shadow view, addShadowPasses. Its lighting samples
+///        "SpotShadowAtlas" when its view has shadow views and a view draws into the atlas. Call it inside the
 ///        view's scope (GraphBuilder::beginScope). Passes added after a main view's and before addOutputPasses draw
 ///        onto "Final" before the frame shows it (a game's or the editor's overlays).
 auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 
-/// @brief Adds the passes that render the shadow view desc.view's "Depth" (its shadow map): scene update, then the
-///        CPU-driven geometry pass or culling and the GPU-driven geometry pass, with Technique::Depth. Call it inside
-///        the view's scope.
+/// @brief Adds the passes that render the shadow view desc.view's "Depth" (its shadow map), or its tile of
+///        "SpotShadowAtlas" (View::tile): scene update, then the CPU-driven geometry pass or culling and the GPU-driven
+///        geometry pass, with Technique::Depth. Call it inside the view's scope.
 auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 
 /// @brief Adds the passes that show the main views' "Final", outside any scope: UI (if requested) and present (not with
 ///        shownViews).
 auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 
-/// @brief Adds the engine's standard passes: addSharedPasses, then addScenePasses in each view's scope, then
-///        addOutputPasses. Compile the graph afterwards (FrameGraph::compile, or GraphBuilder::plan
+/// @brief Adds the engine's standard passes: addSharedPasses, then addScenePasses in each view's scope (in
+///        viewDeclarationOrder: the spot shadow views first), then addOutputPasses. Compile the graph afterwards (FrameGraph::compile, or GraphBuilder::plan
 ///        without a device).
 auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 }

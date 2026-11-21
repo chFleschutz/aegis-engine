@@ -1,15 +1,130 @@
 1. Light Update
     create Lights HostWrite
-2. Instance Update
+2. Spot Shadow Atlas
+    create SpotShadowAtlas DepthAttachment
+    barrier SpotShadowAtlas: undefined -> DepthAttachment
+3. Instance Update
     create StaticInstances HostWrite
     create DynamicInstances HostWrite
     create DrawBatches HostWrite
-3. Main/Scene Update
+4. SpotShadow0/Scene Update
+    create SpotShadow0/CameraData HostWrite
+5. SpotShadow0/Clear Draw Counts
+    create SpotShadow0/IndirectDrawCounts TransferDst
+    barrier SpotShadow0/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
+6. SpotShadow0/Culling
+    use    SpotShadow0/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    DrawBatches ShaderRead
+    create SpotShadow0/VisibleInstances StorageWrite
+    create SpotShadow0/IndirectDrawCommands StorageWrite
+    use    SpotShadow0/IndirectDrawCounts StorageWrite
+    barrier SpotShadow0/VisibleInstances: last frame's ShaderRead -> StorageWrite
+    barrier SpotShadow0/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
+    barrier SpotShadow0/IndirectDrawCounts: TransferDst -> StorageWrite
+7. SpotShadow0/GPU Driven Depth
+    use    SpotShadow0/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    SpotShadow0/VisibleInstances ShaderRead
+    use    SpotShadow0/IndirectDrawCommands IndirectRead
+    use    SpotShadow0/IndirectDrawCounts IndirectRead
+    use    SpotShadowAtlas DepthAttachment
+    barrier SpotShadow0/VisibleInstances: StorageWrite -> ShaderRead
+    barrier SpotShadow0/IndirectDrawCommands: StorageWrite -> IndirectRead
+    barrier SpotShadow0/IndirectDrawCounts: StorageWrite -> IndirectRead
+    barrier SpotShadowAtlas: DepthAttachment -> DepthAttachment
+8. SpotShadow1/Scene Update
+    create SpotShadow1/CameraData HostWrite
+9. SpotShadow1/Clear Draw Counts
+    create SpotShadow1/IndirectDrawCounts TransferDst
+    barrier SpotShadow1/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
+10. SpotShadow1/Culling
+    use    SpotShadow1/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    DrawBatches ShaderRead
+    create SpotShadow1/VisibleInstances StorageWrite
+    create SpotShadow1/IndirectDrawCommands StorageWrite
+    use    SpotShadow1/IndirectDrawCounts StorageWrite
+    barrier SpotShadow1/VisibleInstances: last frame's ShaderRead -> StorageWrite
+    barrier SpotShadow1/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
+    barrier SpotShadow1/IndirectDrawCounts: TransferDst -> StorageWrite
+11. SpotShadow1/GPU Driven Depth
+    use    SpotShadow1/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    SpotShadow1/VisibleInstances ShaderRead
+    use    SpotShadow1/IndirectDrawCommands IndirectRead
+    use    SpotShadow1/IndirectDrawCounts IndirectRead
+    use    SpotShadowAtlas DepthAttachment
+    barrier SpotShadow1/VisibleInstances: StorageWrite -> ShaderRead
+    barrier SpotShadow1/IndirectDrawCommands: StorageWrite -> IndirectRead
+    barrier SpotShadow1/IndirectDrawCounts: StorageWrite -> IndirectRead
+    barrier SpotShadowAtlas: DepthAttachment -> DepthAttachment
+12. SpotShadow2/Scene Update
+    create SpotShadow2/CameraData HostWrite
+13. SpotShadow2/Clear Draw Counts
+    create SpotShadow2/IndirectDrawCounts TransferDst
+    barrier SpotShadow2/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
+14. SpotShadow2/Culling
+    use    SpotShadow2/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    DrawBatches ShaderRead
+    create SpotShadow2/VisibleInstances StorageWrite
+    create SpotShadow2/IndirectDrawCommands StorageWrite
+    use    SpotShadow2/IndirectDrawCounts StorageWrite
+    barrier SpotShadow2/VisibleInstances: last frame's ShaderRead -> StorageWrite
+    barrier SpotShadow2/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
+    barrier SpotShadow2/IndirectDrawCounts: TransferDst -> StorageWrite
+15. SpotShadow2/GPU Driven Depth
+    use    SpotShadow2/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    SpotShadow2/VisibleInstances ShaderRead
+    use    SpotShadow2/IndirectDrawCommands IndirectRead
+    use    SpotShadow2/IndirectDrawCounts IndirectRead
+    use    SpotShadowAtlas DepthAttachment
+    barrier SpotShadow2/VisibleInstances: StorageWrite -> ShaderRead
+    barrier SpotShadow2/IndirectDrawCommands: StorageWrite -> IndirectRead
+    barrier SpotShadow2/IndirectDrawCounts: StorageWrite -> IndirectRead
+    barrier SpotShadowAtlas: DepthAttachment -> DepthAttachment
+16. SpotShadow3/Scene Update
+    create SpotShadow3/CameraData HostWrite
+17. SpotShadow3/Clear Draw Counts
+    create SpotShadow3/IndirectDrawCounts TransferDst
+    barrier SpotShadow3/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
+18. SpotShadow3/Culling
+    use    SpotShadow3/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    DrawBatches ShaderRead
+    create SpotShadow3/VisibleInstances StorageWrite
+    create SpotShadow3/IndirectDrawCommands StorageWrite
+    use    SpotShadow3/IndirectDrawCounts StorageWrite
+    barrier SpotShadow3/VisibleInstances: last frame's ShaderRead -> StorageWrite
+    barrier SpotShadow3/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
+    barrier SpotShadow3/IndirectDrawCounts: TransferDst -> StorageWrite
+19. SpotShadow3/GPU Driven Depth
+    use    SpotShadow3/CameraData ShaderRead
+    use    StaticInstances ShaderRead
+    use    DynamicInstances ShaderRead
+    use    SpotShadow3/VisibleInstances ShaderRead
+    use    SpotShadow3/IndirectDrawCommands IndirectRead
+    use    SpotShadow3/IndirectDrawCounts IndirectRead
+    use    SpotShadowAtlas DepthAttachment
+    barrier SpotShadow3/VisibleInstances: StorageWrite -> ShaderRead
+    barrier SpotShadow3/IndirectDrawCommands: StorageWrite -> IndirectRead
+    barrier SpotShadow3/IndirectDrawCounts: StorageWrite -> IndirectRead
+    barrier SpotShadowAtlas: DepthAttachment -> DepthAttachment
+20. Main/Scene Update
     create Main/CameraData HostWrite
-4. Main/Clear Draw Counts
+21. Main/Clear Draw Counts
     create Main/IndirectDrawCounts TransferDst
     barrier Main/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
-5. Main/Culling
+22. Main/Culling
     use    Main/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -20,7 +135,7 @@
     barrier Main/VisibleInstances: last frame's ShaderRead -> StorageWrite
     barrier Main/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
     barrier Main/IndirectDrawCounts: TransferDst -> StorageWrite
-6. Main/GPU Driven Geometry
+23. Main/GPU Driven Geometry
     use    Main/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -42,12 +157,12 @@
     barrier Main/ARM: undefined -> ColorAttachment
     barrier Main/Emissive: undefined -> ColorAttachment
     barrier Main/Depth: undefined -> DepthAttachment
-7. MainShadow0/Scene Update
+24. MainShadow0/Scene Update
     create MainShadow0/CameraData HostWrite
-8. MainShadow0/Clear Draw Counts
+25. MainShadow0/Clear Draw Counts
     create MainShadow0/IndirectDrawCounts TransferDst
     barrier MainShadow0/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
-9. MainShadow0/Culling
+26. MainShadow0/Culling
     use    MainShadow0/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -58,7 +173,7 @@
     barrier MainShadow0/VisibleInstances: last frame's ShaderRead -> StorageWrite
     barrier MainShadow0/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
     barrier MainShadow0/IndirectDrawCounts: TransferDst -> StorageWrite
-10. MainShadow0/GPU Driven Depth
+27. MainShadow0/GPU Driven Depth
     use    MainShadow0/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -70,12 +185,12 @@
     barrier MainShadow0/IndirectDrawCommands: StorageWrite -> IndirectRead
     barrier MainShadow0/IndirectDrawCounts: StorageWrite -> IndirectRead
     barrier MainShadow0/Depth: undefined -> DepthAttachment
-11. MainShadow1/Scene Update
+28. MainShadow1/Scene Update
     create MainShadow1/CameraData HostWrite
-12. MainShadow1/Clear Draw Counts
+29. MainShadow1/Clear Draw Counts
     create MainShadow1/IndirectDrawCounts TransferDst
     barrier MainShadow1/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
-13. MainShadow1/Culling
+30. MainShadow1/Culling
     use    MainShadow1/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -86,7 +201,7 @@
     barrier MainShadow1/VisibleInstances: last frame's ShaderRead -> StorageWrite
     barrier MainShadow1/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
     barrier MainShadow1/IndirectDrawCounts: TransferDst -> StorageWrite
-14. MainShadow1/GPU Driven Depth
+31. MainShadow1/GPU Driven Depth
     use    MainShadow1/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -98,12 +213,12 @@
     barrier MainShadow1/IndirectDrawCommands: StorageWrite -> IndirectRead
     barrier MainShadow1/IndirectDrawCounts: StorageWrite -> IndirectRead
     barrier MainShadow1/Depth: undefined -> DepthAttachment
-15. MainShadow2/Scene Update
+32. MainShadow2/Scene Update
     create MainShadow2/CameraData HostWrite
-16. MainShadow2/Clear Draw Counts
+33. MainShadow2/Clear Draw Counts
     create MainShadow2/IndirectDrawCounts TransferDst
     barrier MainShadow2/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
-17. MainShadow2/Culling
+34. MainShadow2/Culling
     use    MainShadow2/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -114,7 +229,7 @@
     barrier MainShadow2/VisibleInstances: last frame's ShaderRead -> StorageWrite
     barrier MainShadow2/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
     barrier MainShadow2/IndirectDrawCounts: TransferDst -> StorageWrite
-18. MainShadow2/GPU Driven Depth
+35. MainShadow2/GPU Driven Depth
     use    MainShadow2/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -126,12 +241,12 @@
     barrier MainShadow2/IndirectDrawCommands: StorageWrite -> IndirectRead
     barrier MainShadow2/IndirectDrawCounts: StorageWrite -> IndirectRead
     barrier MainShadow2/Depth: undefined -> DepthAttachment
-19. MainShadow3/Scene Update
+36. MainShadow3/Scene Update
     create MainShadow3/CameraData HostWrite
-20. MainShadow3/Clear Draw Counts
+37. MainShadow3/Clear Draw Counts
     create MainShadow3/IndirectDrawCounts TransferDst
     barrier MainShadow3/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
-21. MainShadow3/Culling
+38. MainShadow3/Culling
     use    MainShadow3/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -142,7 +257,7 @@
     barrier MainShadow3/VisibleInstances: last frame's ShaderRead -> StorageWrite
     barrier MainShadow3/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
     barrier MainShadow3/IndirectDrawCounts: TransferDst -> StorageWrite
-22. MainShadow3/GPU Driven Depth
+39. MainShadow3/GPU Driven Depth
     use    MainShadow3/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -154,7 +269,7 @@
     barrier MainShadow3/IndirectDrawCommands: StorageWrite -> IndirectRead
     barrier MainShadow3/IndirectDrawCounts: StorageWrite -> IndirectRead
     barrier MainShadow3/Depth: undefined -> DepthAttachment
-23. Main/Lighting
+40. Main/Lighting
     use    Main/Position StorageRead
     use    Main/Normal StorageRead
     use    Main/Albedo StorageRead
@@ -165,6 +280,7 @@
     use    MainShadow1/Depth SampledCompute
     use    MainShadow2/Depth SampledCompute
     use    MainShadow3/Depth SampledCompute
+    use    SpotShadowAtlas SampledCompute
     create Main/SceneColor StorageWrite
     create Main/LightingUniforms HostWrite
     barrier Main/Position: ColorAttachment -> StorageRead
@@ -176,39 +292,57 @@
     barrier MainShadow1/Depth: DepthAttachment -> SampledCompute
     barrier MainShadow2/Depth: DepthAttachment -> SampledCompute
     barrier MainShadow3/Depth: DepthAttachment -> SampledCompute
+    barrier SpotShadowAtlas: DepthAttachment -> SampledCompute
     barrier Main/SceneColor: undefined -> StorageWrite
-24. Main/Sky Box
+41. Main/Sky Box
     use    Main/Depth DepthRead
     use    Main/SceneColor ColorAttachment
     barrier Main/Depth: DepthAttachment -> DepthRead
     barrier Main/SceneColor: StorageWrite -> ColorAttachment
-25. Main/Transparent
+42. Main/Transparent
     use    Main/Depth DepthRead
     use    Main/CameraData ShaderRead
     use    Main/SceneColor ColorAttachment
     barrier Main/SceneColor: ColorAttachment -> ColorAttachment
-26. Main/Bloom
+43. Main/Bloom
     use    Main/SceneColor StorageRead
     create Main/Bloom StorageWrite
     barrier Main/SceneColor: ColorAttachment -> StorageRead
     barrier Main/Bloom: undefined -> StorageWrite
-27. Main/Post Processing
+44. Main/Post Processing
     use    Main/SceneColor StorageRead
     use    Main/Bloom StorageRead
     create Main/Final StorageWrite
     barrier Main/Bloom: StorageWrite -> StorageRead
     barrier Main/Final: undefined -> StorageWrite
-28. UI
+45. UI
     use    Main/Final ColorAttachment
     barrier Main/Final: StorageWrite -> ColorAttachment
-29. Present
+46. Present
     use    Main/Final TransferSrc
     barrier Main/Final: ColorAttachment -> TransferSrc
 resources
     Lights: buffer, host written
+    SpotShadowAtlas: texture D32_SFLOAT
     StaticInstances: buffer, host written
     DynamicInstances: buffer, host written
     DrawBatches: buffer, host written
+    SpotShadow0/CameraData: buffer, host written
+    SpotShadow0/IndirectDrawCounts: buffer
+    SpotShadow0/VisibleInstances: buffer
+    SpotShadow0/IndirectDrawCommands: buffer
+    SpotShadow1/CameraData: buffer, host written
+    SpotShadow1/IndirectDrawCounts: buffer
+    SpotShadow1/VisibleInstances: buffer
+    SpotShadow1/IndirectDrawCommands: buffer
+    SpotShadow2/CameraData: buffer, host written
+    SpotShadow2/IndirectDrawCounts: buffer
+    SpotShadow2/VisibleInstances: buffer
+    SpotShadow2/IndirectDrawCommands: buffer
+    SpotShadow3/CameraData: buffer, host written
+    SpotShadow3/IndirectDrawCounts: buffer
+    SpotShadow3/VisibleInstances: buffer
+    SpotShadow3/IndirectDrawCommands: buffer
     Main/CameraData: buffer, host written
     Main/IndirectDrawCounts: buffer
     Main/VisibleInstances: buffer

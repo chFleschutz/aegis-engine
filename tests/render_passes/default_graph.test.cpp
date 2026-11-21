@@ -122,6 +122,55 @@ TEST_SUITE("render_graph::addDefaultPasses")
         checkSnapshot("default_graph_shadow_gpu_driven.txt", planOfDefaultGraph(true, std::nullopt, std::move(views)));
     }
 
+    TEST_CASE("the spot shadow views are declared first, then the other views in their order")
+    {
+        std::vector<DefaultPassesDesc::View> views{ { .name = "Edit" }, { .name = "Play" } };
+        addShadowViews(views);
+        const auto order = viewDeclarationOrder(views);
+        REQUIRE(order.size() == views.size());
+        const auto others = static_cast<std::uint32_t>(2 + 2 * maxShadowCascades);
+        for (std::uint32_t i = 0; i < maxShadowedSpotLights; ++i)
+            CHECK(order[i] == others + i);
+        for (std::uint32_t i = 0; i < others; ++i)
+            CHECK(order[maxShadowedSpotLights + i] == i);
+    }
+
+    TEST_CASE("the spot shadow views draw their tiles of the atlas before the main view's lighting reads it")
+    {
+        for (const bool gpuDriven : { false, true })
+        {
+            CAPTURE(gpuDriven);
+            std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
+            addShadowViews(views);
+            GraphBuilder builder;
+            addDefaultPasses(builder, { .scene = scene, .gpuDriven = gpuDriven, .ui = true, .views = std::move(views) });
+            const auto plan = builder.plan();
+            REQUIRE(plan.has_value());
+            CHECK(builder.declarations().find("SpotShadowAtlas").has_value());
+            CHECK(builder.declarations().find("SpotShadow0/Depth") == std::nullopt);
+
+            // The position in the plan's order of each pass named 'name'.
+            const auto positions = [&](std::string_view name) {
+                std::vector<std::size_t> found;
+                for (std::size_t i = 0; i < plan->order.size(); ++i)
+                {
+                    if (builder.declarations().passName(plan->order[i]) == name)
+                        found.push_back(i);
+                }
+                return found;
+            };
+            const auto lighting = positions("Main/Lighting");
+            REQUIRE(lighting.size() == 1);
+            for (std::uint32_t index = 0; index < maxShadowedSpotLights; ++index)
+            {
+                CAPTURE(index);
+                const auto depth = positions(std::format("SpotShadow{}/{}", index, gpuDriven ? "GPU Driven Depth" : "Depth"));
+                REQUIRE(depth.size() == 1);
+                CHECK(depth.front() < lighting.front());
+            }
+        }
+    }
+
     TEST_CASE("only the main views reach the output passes")
     {
         std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
