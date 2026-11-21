@@ -112,6 +112,7 @@ target_sources(aegis-editor
     ui/panels.cppm
     ui/theme.cppm
     ui/viewport.cppm
+    ui/workspace.cppm
     PRIVATE
     ui/actions.cpp
     ui/editor_shell.cpp
@@ -121,7 +122,6 @@ target_sources(aegis-editor
     ui/panels/content_panel.cpp
     ui/panels/console_panel.cpp
     ui/panels/preferences_panel.cpp
-    ui/panels/demo_panel.cpp
     ui/panels/hint.cpp
     ui/panels/history.cpp
     ui/panels/inspector_panel.cpp
@@ -134,4 +134,5 @@ target_sources(aegis-editor
     ui/panels/widgets.cpp
     ui/theme.cpp
     ui/viewport.cpp
+    ui/workspace.cpp
 )

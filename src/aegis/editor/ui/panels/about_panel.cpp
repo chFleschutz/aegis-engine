@@ -1,7 +1,5 @@
 module;
 
-#include <cfloat>
-
 #include <imgui.h>
 
 #include "aegis/editor/ui/theme.h"
@@ -42,23 +40,13 @@ auto readText(const std::filesystem::path& file) -> std::string
 class AboutPanel final : public Panel
 {
 public:
-    [[nodiscard]] auto name() const -> std::string_view override { return "About"; }
+    [[nodiscard]] auto name() const -> std::string_view override { return panels::about; }
+    [[nodiscard]] auto placement() const -> Placement override { return Placement::Dialog; }
+    [[nodiscard]] auto menu() const -> Menu override { return Menu::None; }
+    [[nodiscard]] auto dialogWidth() const -> float override { return 520.0f; } // The licenses wrap at it
 
     void draw(EditorContext&, FrameContext&) override
     {
-        bool open = true;
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2{ 0.5f, 0.5f });
-        const float width = 520.0f * theme::scale(); // The licenses wrap at it
-        ImGui::SetNextWindowSizeConstraints(ImVec2{ width, 0.0f }, ImVec2{ width, FLT_MAX });
-        const bool visible = ImGui::Begin("About", &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings);
-        setOpen(open);
-        if (!visible)
-        {
-            ImGui::End();
-            return;
-        }
-
         ImGui::Text("Aegis Engine %s", AEGIS_VERSION);
         ImGui::TextDisabled("A C++23 Vulkan render engine");
 
@@ -80,7 +68,6 @@ public:
             ImGui::EndChild();
             ImGui::TreePop();
         }
-        ImGui::End();
     }
 
 private:

@@ -42,21 +42,12 @@ public:
     {
     }
 
-    [[nodiscard]] auto name() const -> std::string_view override { return "Keyboard Shortcuts"; }
+    [[nodiscard]] auto name() const -> std::string_view override { return panels::shortcuts; }
+    [[nodiscard]] auto placement() const -> Placement override { return Placement::Dialog; }
+    [[nodiscard]] auto menu() const -> Menu override { return Menu::None; }
 
     void draw(EditorContext&, FrameContext&) override
     {
-        bool open = true;
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2{ 0.5f, 0.5f });
-        const bool visible = ImGui::Begin("Keyboard Shortcuts", &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings);
-        setOpen(open);
-        if (!visible)
-        {
-            ImGui::End();
-            return;
-        }
-
         ImGui::SeparatorText("Editor");
         if (beginTable("##actions"))
         {
@@ -82,7 +73,6 @@ public:
                 row(control.does, control.input);
             ImGui::EndTable();
         }
-        ImGui::End();
     }
 
 private:

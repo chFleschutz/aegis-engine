@@ -1,5 +1,6 @@
 export module aegis.editor:panel;
 import std;
+import aegis.core;
 import aegis.editor.core;
 import aegis.engine;
 
@@ -21,7 +22,34 @@ inline auto windowLabel(const char* icon, std::string_view title) -> std::string
     return icon ? std::format("{} {}{}", icon, caps, windowName(title)) : std::format("{}{}", caps, windowName(title));
 }
 
-/// @brief One window of the editor, or a group of them: listed in the View or the Debug menu and drawn while open.
+/// @brief Where a panel's window sits. The editor begins and ends the window by it; the panel draws only its contents.
+enum class Placement
+{
+    Dock,   // A window of its own, docked anywhere in the layout
+    Column, // In the right column of the default layout (the Hierarchy, the Inspector), which folds into the side rail
+    Drawer, // In the drawer over the bottom of the viewport, or docked in a bottom node of the layout while pinned
+    Float,  // A window of its own that floats over the others; not opened by `--editor-panels all`
+    Dialog, // A floating window centered as it appears, sized to its contents, with the panel's title and no saved layout
+};
+
+/// @brief The menu that lists a panel.
+enum class Menu
+{
+    None,  // No menu: an action opens it (the dialogs)
+    View,  // For the user
+    Debug, // For the editor's developers
+};
+
+/// @brief A count on a panel's status-bar button (the console's warnings): its icon (one of theme::icons) and the
+///        number, both in the color of 'level' (the warning's or the error's).
+struct StatusBadge
+{
+    const char* icon;
+    std::size_t count;
+    log::Level level;
+};
+
+/// @brief One window of the editor: listed in its menu and drawn while open.
 class Panel
 {
 public:
@@ -35,25 +63,30 @@ public:
 
     /// @brief The name in its menu, which is also its window's title.
     [[nodiscard]] virtual auto name() const -> std::string_view = 0;
-    /// @brief Whether it is a tool for the editor's developers (the Debug menu) rather than for the user (the View menu).
-    [[nodiscard]] virtual auto debug() const -> bool { return false; }
-    /// @brief Whether it has its place in the default layout; one that floats over the other panels (the ImGui demo) is
-    ///        not opened by `--editor-panels all`.
-    [[nodiscard]] virtual auto docked() const -> bool { return true; }
-    /// @brief Whether it opens in the drawer over the bottom of the viewport, or pinned in a bottom node of the layout,
-    ///        instead of a window of its own (Content, Console, the debug panels). The shell begins and ends its window;
-    ///        draw draws only its contents.
-    [[nodiscard]] virtual auto drawer() const -> bool { return false; }
-    /// @brief Whether it sits in the right column of the default layout (the Hierarchy, the Inspector). The shell begins
-    ///        and ends its window, titled title(); draw draws only its contents.
-    [[nodiscard]] virtual auto column() const -> bool { return false; }
+    /// @brief Where its window sits; a docked window of its own by default.
+    [[nodiscard]] virtual auto placement() const -> Placement { return Placement::Dock; }
+    /// @brief The menu that lists it; the View menu by default.
+    [[nodiscard]] virtual auto menu() const -> Menu { return Menu::View; }
+    /// @brief For a dialog: its fixed width at 100% scale, at which its text wraps; 0 sizes it to its contents.
+    [[nodiscard]] virtual auto dialogWidth() const -> float { return 0.0f; }
     /// @brief Its window's title; its name by default.
     [[nodiscard]] virtual auto title() const -> std::string_view { return name(); }
     /// @brief The icon its tab shows before the title (one of theme::icons); none for a dialog, which has its own title.
     [[nodiscard]] virtual auto icon() const -> const char* { return nullptr; }
     /// @brief Its window's label: the icon and the title in capitals, identified by windowName(title()).
     [[nodiscard]] auto label() const -> std::string { return windowLabel(icon(), title()); }
-    /// @brief Draws the panel at the frame's safe point. Panels share state only through 'editor'.
+    /// @brief For a drawer panel: the id of the action that opens and closes it in the drawer, whose chord its menu item
+    ///        shows; none (empty) by default.
+    [[nodiscard]] virtual auto toggleAction() const -> std::string_view { return {}; }
+    /// @brief For a drawer panel: whether the status bar has a button for it, its icon and name, lit while the drawer
+    ///        shows it; the button's tooltip is its toggle action's.
+    [[nodiscard]] virtual auto statusButton() const -> bool { return false; }
+    /// @brief The counts its status-bar button shows after its name, each only while it isn't 0; none by default.
+    [[nodiscard]] virtual auto statusBadges(const EditorContext& /*editor*/) const -> std::vector<StatusBadge> { return {}; }
+    /// @brief A line its status-bar button's tooltip adds below the action's; none (empty) by default.
+    [[nodiscard]] virtual auto statusTooltip(const EditorContext& /*editor*/) const -> std::string { return {}; }
+    /// @brief Draws the panel's contents at the frame's safe point, inside the window the editor began for it. Panels
+    ///        share state only through 'editor'.
     virtual void draw(EditorContext& editor, FrameContext& frame) = 0;
 
     [[nodiscard]] auto isOpen() const -> bool { return m_open; }

@@ -5,10 +5,11 @@
 //
 // Partitions:
 //   :actions        ActionRegistry: the actions the menus and the shortcuts share.
-//   :panel          Panel, one window (or group of windows) listed in the View menu.
+//   :panel          Panel, one window of the editor, with its Placement and Menu.
 //   :editor_shell   EditorShell.
 //   :options        EditorOptions: the editor's command-line options (parseOptions).
 //   :viewport       Viewport: the scene view with the editor camera, the gizmo and picking; EditorShell owns it.
+//   :workspace      Workspace: the panels and where they sit (dock, column and side rail, drawer, full viewport).
 //   :panels         (internal) The built-in panels, created by name.
 export module aegis.editor;
 
@@ -18,3 +19,4 @@ export import :editor_shell;
 export import :options;
 export import :panel;
 export import :viewport;
+export import :workspace;
