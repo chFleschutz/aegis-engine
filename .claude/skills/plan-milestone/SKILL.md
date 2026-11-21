@@ -25,7 +25,7 @@ frozen. Pick the branch by `$ARGUMENTS`:
   | Lane | Areas |
   | --- | --- |
   | `render` | `render_graph`, `render_passes`, `renderer`, `rhi` |
-  | `content` | `assets`, `world`, `app`, `editor`, `platform` |
+  | `content` | `assets`, `world`, `app`, `editor`, `platform`, `math` |
 
   A new `area/*` label joins one lane here. A milestone's issues sit in its lane's areas; one may also
   carry an area of the other lane (`render_passes` + `world`), and then waits while the other lane
