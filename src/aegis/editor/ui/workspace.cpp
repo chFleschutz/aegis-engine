@@ -139,6 +139,22 @@ void drawWindowPanel(Panel& panel, EditorContext& editor, FrameContext& frame)
         panel.draw(editor, frame);
     ImGui::End();
 }
+
+// A drawer panel's contents with the pin button over the right end of their first row, which the panel leaves free
+// (Panel::trailingWidth): lit while 'pinned', where it unpins, and pins otherwise. Returns whether it was pressed.
+auto drawWithPinButton(Panel& panel, EditorContext& editor, FrameContext& frame, bool pinned) -> bool
+{
+    const float button = ImGui::GetFrameHeight();
+    const ImVec2 start = ImGui::GetCursorScreenPos();
+    const float right = start.x + ImGui::GetContentRegionAvail().x;
+    panel.setTrailingWidth(button + ImGui::GetStyle().ItemSpacing.x);
+    panel.draw(editor, frame);
+    panel.setTrailingWidth(0.0f);
+    ImGui::SetCursorScreenPos(ImVec2{ right - button, start.y });
+    const bool pressed = theme::iconButton(theme::icons::pin, pinned ? "##unpin" : "##pin", pinned);
+    ImGui::SetItemTooltip("%s", pinned ? "Unpin: back to the drawer" : "Pin: dock it below the viewport");
+    return pressed;
+}
 }
 
 Workspace::Workspace(EditorContext& editor, Viewport& viewport) :
@@ -566,20 +582,8 @@ void Workspace::drawPinned(Panel& panel, FrameContext& frame)
     // viewport before the next frame's dockspace. Only as it appears: a drag to another node undocks it meanwhile.
     if (ImGui::IsWindowAppearing() && !ImGui::IsWindowDocked() && std::ranges::find(m_dockRequests, name) == m_dockRequests.end())
         m_dockRequests.push_back(name);
-    if (visible)
-    {
-        const float button = ImGui::GetFrameHeight();
-        const ImVec2 start = ImGui::GetCursorScreenPos();
-        const float right = start.x + ImGui::GetContentRegionAvail().x;
-        panel.setTrailingWidth(button + ImGui::GetStyle().ItemSpacing.x);
-        panel.draw(m_editor, frame);
-        panel.setTrailingWidth(0.0f);
-        // Over the right end of the panel's first row, which leaves it free
-        ImGui::SetCursorScreenPos(ImVec2{ right - button, start.y });
-        if (theme::iconButton(theme::icons::pin, "##unpin", true))
-            unpin(name);
-        ImGui::SetItemTooltip("Unpin: back to the drawer");
-    }
+    if (visible && drawWithPinButton(panel, m_editor, frame, true))
+        unpin(name);
     ImGui::End();
 }
 
@@ -649,27 +653,16 @@ void Workspace::drawDrawer(FrameContext& frame)
     {
         drawDrawerResize(*viewport, rect.y);
 
-        // The shown panel with no header: the status bar's lit button names it. Its pin button sits over the right end of
-        // its first row, which the panel leaves free (Panel::trailingWidth), as a pinned panel's unpin button does.
+        // The shown panel with no header: the status bar's lit button names it
         bool pinShown = false;
         const auto now = m_drawers.shown();
         if (auto* contents = now ? find(*now) : nullptr; contents && contents->isOpen())
         {
             const std::string id{ *now };
             ImGui::PushID(id.c_str());
+            // In the child, which takes the hover from the drawer's window beneath it
             if (ImGui::BeginChild("##contents"))
-            {
-                // In the child, which takes the hover from the drawer's window beneath it
-                const float button = ImGui::GetFrameHeight();
-                const ImVec2 start = ImGui::GetCursorScreenPos();
-                const float right = start.x + ImGui::GetContentRegionAvail().x;
-                contents->setTrailingWidth(button + ImGui::GetStyle().ItemSpacing.x);
-                contents->draw(m_editor, frame);
-                contents->setTrailingWidth(0.0f);
-                ImGui::SetCursorScreenPos(ImVec2{ right - button, start.y });
-                pinShown = theme::iconButton(theme::icons::pin, "##pin");
-                ImGui::SetItemTooltip("Pin: dock it below the viewport");
-            }
+                pinShown = drawWithPinButton(*contents, m_editor, frame, false);
             ImGui::EndChild();
             ImGui::PopID();
         }
