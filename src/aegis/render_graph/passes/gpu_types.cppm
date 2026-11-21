@@ -38,6 +38,7 @@ enum class LightingViewMode : std::int32_t
     Roughness = 3,
     Metallic = 4,
     Emissive = 5,
+    ShadowCascades = 6, // Each cascade of the directional light's shadow tinted, darker where shadowed
 };
 
 /// @brief indirect_draw.slang's INSTANCE_* bits: InstanceData::flags.

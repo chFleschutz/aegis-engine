@@ -110,6 +110,7 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(static_cast<int>(LightingViewMode::Roughness) == 3);
         CHECK(static_cast<int>(LightingViewMode::Metallic) == 4);
         CHECK(static_cast<int>(LightingViewMode::Emissive) == 5);
+        CHECK(static_cast<int>(LightingViewMode::ShadowCascades) == 6);
         CHECK(static_cast<int>(ToneMapping::Reinhard) == 0);
         CHECK(static_cast<int>(ToneMapping::Aces) == 1);
         CHECK(sizeof(LightingViewMode) == 4);

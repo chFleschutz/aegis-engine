@@ -175,7 +175,7 @@ auto LightingPass::drawUI() -> void
 {
     ImGui::DragFloat("AO Factor", &m_ambientOcclusionFactor, 0.01f, 0.0f, 1.0f);
     static constexpr std::array viewModeNames{ "Scene Color", "Albedo", "Ambient Occlusion", "Roughness", "Metallic",
-        "Emissive" };
+        "Emissive", "Shadow Cascades" };
     int mode = static_cast<int>(m_viewMode);
     if (ImGui::Combo("View Mode", &mode, viewModeNames.data(), static_cast<int>(viewModeNames.size())))
         m_viewMode = static_cast<LightingViewMode>(mode);
