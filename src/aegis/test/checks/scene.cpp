@@ -162,7 +162,7 @@ public:
             frame.update(frame.world, world::UpdateMode::Play);
         if (m_options.views)
         {
-            registry.get<Camera>(m_viewCamera).aspect = static_cast<float>(sideViewExtent.x) / static_cast<float>(sideViewExtent.y);
+            registry.get<CameraMatrices>(m_viewCamera).aspect = static_cast<float>(sideViewExtent.x) / static_cast<float>(sideViewExtent.y);
             if (auto checked = checkViews(); !checked)
                 m_result.errors.push_back(std::format("Views check failed: {}", checked.error()));
         }
@@ -185,7 +185,7 @@ public:
             if (m_options.frames != 0 && m_frame == m_options.frames / 2)
                 m_result.view = resizedViewExtent;
             const auto extent = m_result.view;
-            registry.get<Camera>(m_viewCamera).aspect = static_cast<float>(extent.x) / static_cast<float>(extent.y);
+            registry.get<CameraMatrices>(m_viewCamera).aspect = static_cast<float>(extent.x) / static_cast<float>(extent.y);
         }
 
         buildUi(frame.frameGraph);
@@ -277,10 +277,10 @@ private:
         if (m_frame <= 1)
             return std::nullopt;
         auto& registry = m_world->registry(); // Registry::get has no const overload
-        const auto& view = registry.get<Camera>(m_viewCamera);
+        const auto& view = registry.get<CameraMatrices>(m_viewCamera);
         return RenderView::Camera{
-            .view = view.viewMatrix,
-            .projection = view.projectionMatrix,
+            .view = view.view,
+            .projection = view.projection,
             .position = registry.get<GlobalTransform>(m_viewCamera).location,
         };
     }

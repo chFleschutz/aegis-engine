@@ -8,6 +8,17 @@ namespace
 {
 // The last hierarchy version handed out to any registry: each change takes the next, so no two registries share one
 std::atomic<std::uint64_t> g_lastHierarchyVersion{ 0 };
+
+// A Camera's entity carries its CameraMatrices for as long as it has the Camera
+auto addCameraMatrices(entt::registry& registry, entt::entity entity) -> void
+{
+    std::ignore = registry.get_or_emplace<CameraMatrices>(entity);
+}
+
+auto removeCameraMatrices(entt::registry& registry, entt::entity entity) -> void
+{
+    registry.remove<CameraMatrices>(entity);
+}
 }
 
 Registry::Registry()
@@ -19,6 +30,8 @@ Registry::Registry()
     m_registry.on_update<Parent>().connect<&Registry::onHierarchySignal>(*this);
     m_registry.on_update<Siblings>().connect<&Registry::onHierarchySignal>(*this);
     m_registry.on_update<Children>().connect<&Registry::onHierarchySignal>(*this);
+    m_registry.on_construct<Camera>().connect<&addCameraMatrices>();
+    m_registry.on_destroy<Camera>().connect<&removeCameraMatrices>();
     invalidateHierarchy();
 }
 

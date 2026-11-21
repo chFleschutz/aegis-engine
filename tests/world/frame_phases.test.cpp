@@ -79,10 +79,10 @@ TEST_SUITE("world::World phases")
         registry.get<aegis::Transform>(camera).location = { 3.0f, 0.0f, 0.0f };
         scene.update(0.016f);
 
-        const float translationX = registry.get<aegis::Camera>(camera).viewMatrix[3][0];
+        const float translationX = registry.get<aegis::CameraMatrices>(camera).view[3][0];
         CHECK(translationX != 0.0f); // The view already saw the move
         scene.update(0.016f);        // Nothing moved: the view must not change
-        CHECK(registry.get<aegis::Camera>(camera).viewMatrix[3][0] == doctest::Approx(translationX));
+        CHECK(registry.get<aegis::CameraMatrices>(camera).view[3][0] == doctest::Approx(translationX));
         CHECK(registry.get<aegis::GlobalTransform>(camera).location.x == doctest::Approx(3.0f));
     }
 
@@ -188,6 +188,6 @@ TEST_SUITE("world::World update modes")
         scene.update(0.016f, UpdateMode::Edit);
 
         CHECK(registry.get<aegis::GlobalTransform>(camera).location.x == doctest::Approx(3.0f));
-        CHECK(registry.get<aegis::Camera>(camera).viewMatrix[3][0] != 0.0f);
+        CHECK(registry.get<aegis::CameraMatrices>(camera).view[3][0] != 0.0f);
     }
 }

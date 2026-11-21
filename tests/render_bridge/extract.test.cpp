@@ -53,20 +53,21 @@ TEST_SUITE("render_bridge::extractFrameScene")
         const InstanceStore instances;
         auto& registry = world.registry();
         const auto camera = registry.create("Camera");
-        auto& component = registry.add<aegis::Camera>(camera);
-        component.viewMatrix[3] = glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f };
-        component.projectionMatrix[0][0] = 2.0f;
-        component.aspect = 1.5f;
+        registry.add<aegis::Camera>(camera);
+        auto& matrices = registry.get<aegis::CameraMatrices>(camera);
+        matrices.view[3] = glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f };
+        matrices.projection[0][0] = 2.0f;
+        matrices.aspect = 1.5f;
         registry.get<aegis::GlobalTransform>(camera).location = { 5.0f, 6.0f, 7.0f };
         world.setMainCamera(camera);
 
         const auto scene = aegis::extractFrameScene(world, instances);
         const auto mainCamera = scene.camera(0);
         REQUIRE(mainCamera.has_value());
-        CHECK(equal(mainCamera->view, component.viewMatrix));
-        CHECK(equal(mainCamera->projection, component.projectionMatrix));
+        CHECK(equal(mainCamera->view, matrices.view));
+        CHECK(equal(mainCamera->projection, matrices.projection));
         CHECK(equal(mainCamera->position, glm::vec3{ 5.0f, 6.0f, 7.0f }));
-        CHECK(component.aspect == 1.5f); // Read, not written
+        CHECK(matrices.aspect == 1.5f); // Read, not written
     }
 
     TEST_CASE("without a PostProcess on the main camera the frame has the default settings")

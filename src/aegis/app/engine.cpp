@@ -814,8 +814,8 @@ void Engine::updateCameraAspect(const std::vector<RenderView>& views)
     for (auto* each : m_worlds.all())
     {
         auto& registry = each->registry();
-        if (const auto mainCamera = each->mainCamera(); mainCamera && registry.has<Camera>(mainCamera))
-            registry.get<Camera>(mainCamera).aspect = aspect;
+        if (const auto mainCamera = each->mainCamera(); mainCamera && registry.has<CameraMatrices>(mainCamera))
+            registry.get<CameraMatrices>(mainCamera).aspect = aspect;
     }
 }
 
