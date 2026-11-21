@@ -1,17 +1,13 @@
 export module aegis.engine;
 
 import std;
-export import aegis.math;
 export import aegis.asset_library;
-export import aegis.scene_description;
-export import aegis.paths;
-export import aegis.core;
-export import aegis.world;
-export import aegis.defaults;
-export import aegis.reflect;
-export import aegis.scripting;
-import aegis.serialize;
 export import aegis.assets;
+export import aegis.reflect;
+export import aegis.scene_description;
+export import aegis.world;
+import aegis.core;
+import aegis.serialize;
 import aegis.platform;
 import aegis.render_bridge;
 import aegis.render_graph;
