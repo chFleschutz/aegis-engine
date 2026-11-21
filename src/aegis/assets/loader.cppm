@@ -56,13 +56,11 @@ struct ModelMaterialModes
 {
     AlphaMode alphaMode{ AlphaMode::Opaque };
     rhi::CullMode cullMode{ rhi::CullMode::Back };
-    bool blendDowngraded{ false }; // The material blends, which draws as AlphaMode::Opaque
 
     auto operator==(const ModelMaterialModes&) const -> bool = default;
 };
 
-/// @brief The modes 'material' draws with: its alpha mode, and no culling if it is double-sided. A blended material
-///        draws opaque until a technique can blend it (the transparency feature): no pass draws AlphaMode::Blend yet.
+/// @brief The modes 'material' draws with: its alpha mode, and no culling if it is double-sided.
 [[nodiscard]] auto modelMaterialModes(const ModelMaterial& material) noexcept -> ModelMaterialModes;
 
 /// @brief Loads a model file into GPU objects.
