@@ -6,8 +6,9 @@ import modules.pbr;
 import modules.surface;
 
 // The shading of a surface point by a view's lights: the ambient light (the sky's image-based lighting), the
-// directional light, shadowed by its shadow map, and the point and spot lights. The lighting pass (lighting.slang) shades its G-buffer pixels
-// with it; a pass that lights surfaces itself calls lighting::shade too, so every pass shades alike.
+// directional light, shadowed by its cascades' shadow maps, and the point and spot lights. The lighting pass
+// (lighting.slang) shades its G-buffer pixels with it; a pass that lights surfaces itself calls lighting::shade too, so
+// every pass shades alike.
 
 namespace lighting
 {
@@ -34,14 +35,35 @@ namespace lighting
         public float coneOffset;
     }
 
-    /// The directional light's shadow map: the depth of its shadow view (render_graph::fitDirectionalShadow).
-    public struct DirectionalShadow
+    /// render_graph::ShadowCascadeData: one cascade of the directional light's shadow, the depth of one of its shadow
+    /// views (render_graph::fitDirectionalShadow).
+    public struct ShadowCascade
     {
         public float4x4 viewProjection;
         public bindless::TextureDescriptor map; // With a comparison sampler
         public float texelSize;                 // Meters a texel spans
-        public float bias;                      // Texels a shaded point moves along its normal
-        public uint enabled;                    // 0: the directional light is unshadowed
+        public float splitFar;                  // Meters along the camera's axis where the cascade ends
+    }
+
+    /// render_graph::maxShadowCascades
+    public static const uint MAX_SHADOW_CASCADES = 4;
+
+    /// The directional light's shadow: its cascades, each covering the camera's axis up to its splitFar.
+    public struct DirectionalShadow
+    {
+        public float4 cameraForward; // The axis the cascades split along
+        public ShadowCascade cascades[MAX_SHADOW_CASCADES];
+        public float bias;           // Texels of its cascade a shaded point moves along its normal
+        public float blend;          // The fraction at the far end of each cascade blended into the next
+        public uint cascadeCount;    // 0: the directional light is unshadowed
+    }
+
+    /// Where a point falls among the cascades: the first that covers it, and how far it is blended into the next
+    /// one (0 to 1; the last cascade blends into no shadow). Past the last, cascade is the cascade count.
+    public struct CascadeSelection
+    {
+        public uint cascade;
+        public float blend;
     }
 
     /// render_graph::LightingUniforms: a view's lights, one block per view and frame in flight.
@@ -114,26 +136,44 @@ namespace lighting
         return ambient * lighting->ambient.color.rgb * lighting->ambient.color.w;
     }
 
-    /// How much of the directional light reaches 'position' (1: all, 0: none), from its shadow map: 3x3 comparison
-    /// taps, each a bilinear blend of four texels (PCF). The point moves along its normal by the light's bias, more the
-    /// more it faces away from the light, so a surface doesn't shadow itself (acne). Outside the map, it is lit.
-    public func directionalShadow(Lighting* lighting, float3 position, float3 N) -> float
+    /// The cascade of the directional light's shadow that covers 'position', by its distance along the camera's axis.
+    public func shadowCascade(Lighting* lighting, float3 position) -> CascadeSelection
     {
-        let shadow = lighting->shadow;
-        if (shadow.enabled == 0)
-            return 1.0;
+        let count = lighting->shadow.cascadeCount;
+        float depth = dot(position - lighting->cameraPosition.xyz, lighting->shadow.cameraForward.xyz);
+        CascadeSelection selection;
+        selection.cascade = 0;
+        selection.blend = 0.0;
+        while (selection.cascade < count && depth > lighting->shadow.cascades[selection.cascade].splitFar)
+            selection.cascade++;
+        if (selection.cascade == count)
+            return selection;
 
+        float near = selection.cascade == 0 ? 0.0 : lighting->shadow.cascades[selection.cascade - 1].splitFar;
+        float far = lighting->shadow.cascades[selection.cascade].splitFar;
+        float band = max((far - near) * lighting->shadow.blend, constants::EPSILON);
+        selection.blend = saturate((depth - (far - band)) / band);
+        return selection;
+    }
+
+    /// How much of the directional light reaches 'position' through one cascade's map: 3x3 comparison taps, each a
+    /// bilinear blend of four texels (PCF). The point moves along its normal by the light's bias in the cascade's
+    /// texels, more the more it faces away from the light, so a surface doesn't shadow itself (acne). Outside the map,
+    /// it is lit.
+    func cascadeShadow(Lighting* lighting, uint index, float3 position, float3 N) -> float
+    {
+        let cascade = lighting->shadow.cascades[index];
         float3 L = normalize(lighting->directional.direction.xyz);
         float NdotL = saturate(dot(N, L));
-        float offset = shadow.bias * shadow.texelSize * (1.0 + 2.0 * (1.0 - NdotL));
-        float4 clip = mul(shadow.viewProjection, float4(position + N * offset, 1.0));
+        float offset = lighting->shadow.bias * cascade.texelSize * (1.0 + 2.0 * (1.0 - NdotL));
+        float4 clip = mul(cascade.viewProjection, float4(position + N * offset, 1.0));
         float3 ndc = clip.xyz / clip.w;
         float2 uv = ndc.xy * 0.5 + 0.5;
         if (any(uv < 0.0) || any(uv > 1.0) || ndc.z > 1.0)
             return 1.0;
 
-        let map = bindless::texture2D(shadow.map.image);
-        let comparison = bindless::comparisonSampler(shadow.map.sampler);
+        let map = bindless::texture2D(cascade.map.image);
+        let comparison = bindless::comparisonSampler(cascade.map.sampler);
         uint2 size;
         map.GetDimensions(size.x, size.y);
         float2 texel = 1.0 / float2(size);
@@ -144,6 +184,24 @@ namespace lighting
                 lit += map.SampleCmpLevelZero(comparison, uv + float2(x, y) * texel, ndc.z);
         }
         return lit / 9.0;
+    }
+
+    /// How much of the directional light reaches 'position' (1: all, 0: none), from the cascade that covers it,
+    /// blended into the next one near its far end. Past the last cascade, it is lit.
+    public func directionalShadow(Lighting* lighting, float3 position, float3 N) -> float
+    {
+        let selection = shadowCascade(lighting, position);
+        let count = lighting->shadow.cascadeCount;
+        if (selection.cascade >= count)
+            return 1.0;
+
+        float lit = cascadeShadow(lighting, selection.cascade, position, N);
+        if (selection.blend > 0.0)
+        {
+            float next = selection.cascade + 1 < count ? cascadeShadow(lighting, selection.cascade + 1, position, N) : 1.0;
+            lit = lerp(lit, next, selection.blend);
+        }
+        return lit;
     }
 
     func directionalLight(Lighting* lighting, float3 position, float3 N, float3 V, float3 albedo, float roughness,

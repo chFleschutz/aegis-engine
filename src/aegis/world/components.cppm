@@ -106,8 +106,10 @@ struct DirectionalLight
 {
     glm::vec3 color = { 1.0f, 1.0f, 1.0f };
     float intensity = 1.0f;
-    float shadowDistance = 50.0f; // Meters from the camera that its shadow covers
-    float shadowBias = 1.0f;      // Shadow-map texels a shaded point moves along its normal against self-shadowing
+    float shadowDistance = 50.0f;     // Meters from the camera that its shadow covers
+    float shadowBias = 1.0f;          // Shadow-map texels a shaded point moves along its normal against self-shadowing
+    std::uint32_t shadowCascades = 4; // Shadow maps the shadow distance is split into, 1 to 4
+    float shadowSplitLambda = 0.75f;  // How the cascades split the distance: 1 logarithmic, 0 uniform
 };
 
 /// @brief Light shining from the entity's location in all directions

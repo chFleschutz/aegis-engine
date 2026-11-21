@@ -21,6 +21,19 @@ auto equal(const glm::vec4& a, const glm::vec4& b) -> bool
     return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
 }
 
+// A camera as aegis::CameraSystem builds it: right-handed, depth 0 to 1, y flipped.
+auto perspective(float fov, float aspect, float near, float far) -> glm::mat4
+{
+    const float tanHalfFov = std::tan(fov / 2.0f);
+    glm::mat4 projection{ 0.0f };
+    projection[0][0] = 1.0f / (aspect * tanHalfFov);
+    projection[1][1] = -1.0f / tanHalfFov;
+    projection[2][2] = far / (near - far);
+    projection[2][3] = -1.0f;
+    projection[3][2] = -(far * near) / (far - near);
+    return projection;
+}
+
 auto equal(const glm::mat4& a, const glm::mat4& b) -> bool
 {
     return equal(a[0], b[0]) && equal(a[1], b[1]) && equal(a[2], b[2]) && equal(a[3], b[3]);
@@ -103,31 +116,49 @@ TEST_SUITE("render_graph::detail::packLighting")
         CHECK(equal(packLighting(scene, 3, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 0.0f }));
     }
 
-    TEST_CASE("shadows the directional light by the shadow view's map")
+    TEST_CASE("shadows the directional light by its cascades' maps")
     {
         const InstanceStore instances;
+        const FrameScene::Camera camera{
+            .view = aegis::math::viewMatrix({ 0.0f, 0.0f, 2.0f }, { 0.0f, 1.0f, 0.0f }),
+            .projection = perspective(glm::radians(60.0f), 1.0f, 0.1f, 1000.0f),
+            .position = { 0.0f, 0.0f, 2.0f },
+        };
         FrameScene scene{
             .instances = instances,
-            .views = { { .name = "Main", .camera = FrameScene::Camera{ .position = { 0.0f, 0.0f, 2.0f } } } },
-            .directionalLight = FrameScene::DirectionalLight{ .direction = { 0.0f, 0.0f, 1.0f }, .shadowBias = 1.5f },
+            .views = { { .name = "Main", .camera = camera } },
+            .directionalLight = FrameScene::DirectionalLight{ .direction = { 0.0f, 0.0f, 1.0f }, .shadowBias = 1.5f, .shadowCascades = 3 },
         };
         aegis::render_graph::addShadowViews(scene);
-        REQUIRE(scene.views[1].camera.has_value());
-        const auto& shadowCamera = *scene.views[1].camera;
-        const aegis::rhi::TextureDescriptor map{ { 7 }, { 3 } };
+        aegis::render_graph::detail::ShadowMapInput shadow{ .view = 1 };
+        for (std::uint32_t cascade = 0; cascade < aegis::render_graph::maxShadowCascades; ++cascade)
+            shadow.maps[cascade] = { { 7 + cascade }, { 3 } };
 
-        const auto uniforms = packLighting(scene, 0, 0, 16, 1.0f, LightingViewMode::SceneColor,
-            aegis::render_graph::detail::ShadowMapInput{ .view = 1, .map = map });
-        CHECK(uniforms.shadowed == 1);
-        CHECK(equal(uniforms.shadowViewProjection, glm::rowMajor4(shadowCamera.projection * shadowCamera.view)));
-        CHECK(uniforms.shadowMap.image.index == 7);
-        CHECK(uniforms.shadowMap.sampler.index == 3);
+        const auto uniforms = packLighting(scene, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, shadow);
+        REQUIRE(uniforms.shadowCascadeCount == 3);
         CHECK(uniforms.shadowBias == 1.5f);
-        // The orthographic projection is 2 / projection[0][0] meters across the map's texels.
-        CHECK(uniforms.shadowTexelSize == doctest::Approx(2.0f / (shadowCamera.projection[0][0] * 2048.0f)));
+        CHECK(uniforms.shadowCascadeBlend == aegis::render_graph::shadowCascadeBlend);
+        // The axis the cascades split: the camera's forward.
+        CHECK(equal(uniforms.cameraForward, glm::vec4{ 0.0f, 1.0f, 0.0f, 0.0f }));
+        const auto splits = aegis::render_graph::shadowCascadeSplits(*scene.directionalLight, camera.projection);
+        for (std::uint32_t cascade = 0; cascade < 3; ++cascade)
+        {
+            CAPTURE(cascade);
+            const auto& data = uniforms.shadowCascades[cascade];
+            const auto& shadowCamera = *scene.views[1 + cascade].camera;
+            CHECK(equal(data.viewProjection, glm::rowMajor4(shadowCamera.projection * shadowCamera.view)));
+            CHECK(data.map.image.index == 7 + cascade);
+            CHECK(data.map.sampler.index == 3);
+            CHECK(data.splitFar == splits[cascade]);
+            // The orthographic projection is 2 / projection[0][0] meters across the map's texels.
+            CHECK(data.texelSize == doctest::Approx(2.0f / (shadowCamera.projection[0][0] * 2048.0f)));
+        }
+        // Each cascade is wider than the one before, so its texels are larger.
+        CHECK(uniforms.shadowCascades[1].texelSize > uniforms.shadowCascades[0].texelSize);
+        CHECK(uniforms.shadowCascades[2].texelSize > uniforms.shadowCascades[1].texelSize);
     }
 
-    TEST_CASE("leaves the directional light unshadowed without a shadow map, a light or a shadow camera")
+    TEST_CASE("leaves the directional light unshadowed without shadow maps, a light or shadow cameras")
     {
         const InstanceStore instances;
         FrameScene scene{
@@ -137,15 +168,20 @@ TEST_SUITE("render_graph::detail::packLighting")
         };
         aegis::render_graph::addShadowViews(scene);
         const aegis::render_graph::detail::ShadowMapInput shadow{ .view = 1 };
-        CHECK(packLighting(scene, 0, 0, 16, 1.0f, LightingViewMode::SceneColor).shadowed == 0);
+        CHECK(packLighting(scene, 0, 0, 16, 1.0f, LightingViewMode::SceneColor).shadowCascadeCount == 0);
 
         auto unlit = scene;
         unlit.directionalLight.reset();
-        CHECK(packLighting(unlit, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, shadow).shadowed == 0);
+        CHECK(packLighting(unlit, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, shadow).shadowCascadeCount == 0);
 
         auto noCamera = scene;
         noCamera.views[1].camera.reset();
-        CHECK(packLighting(noCamera, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, shadow).shadowed == 0);
+        CHECK(packLighting(noCamera, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, shadow).shadowCascadeCount == 0);
+
+        // The cascades end at the first without a camera.
+        auto twoCascades = scene;
+        twoCascades.views[3].camera.reset();
+        CHECK(packLighting(twoCascades, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, shadow).shadowCascadeCount == 2);
     }
 
     TEST_CASE("points at the light buffer and counts the lights that fit, point lights first")

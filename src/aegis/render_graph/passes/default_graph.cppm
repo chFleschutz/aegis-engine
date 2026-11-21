@@ -21,7 +21,8 @@ struct DefaultPassesDesc
         std::optional<rhi::Extent2D> extent;
         /// @brief Which passes render it (addScenePasses): the lit scene, or a light's depth.
         ViewKind kind{ ViewKind::Main };
-        /// @brief A main view's: the index in 'views' of the shadow view its lighting samples (addShadowViews).
+        /// @brief A main view's: the index in 'views' of the first of its maxShadowCascades shadow views, which follow
+        ///        one another and its lighting samples (addShadowViews).
         std::optional<std::uint32_t> shadow;
     };
 
@@ -66,8 +67,9 @@ struct SharedPasses
     const LightUpdatePass* lights{ nullptr };       // For DefaultPassesDesc::lights
 };
 
-/// @brief Appends a shadow view (ViewKind::Shadow, shadowViewName, shadowMapExtent) for each main view of 'views' that
-///        has none, and points the main view at it, as addShadowViews(FrameScene&) does for the frame scene's views.
+/// @brief Appends maxShadowCascades shadow views (ViewKind::Shadow, shadowViewName, shadowMapExtent) for each main view
+///        of 'views' that has none, and points the main view at the first, as addShadowViews(FrameScene&) does for the
+///        frame scene's views.
 auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void;
 
 /// @brief Adds the passes all views share, outside any scope: the LightUpdatePass writing the frame's lights and,
@@ -75,7 +77,7 @@ auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void;
 auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> SharedPasses;
 
 /// @brief Adds the passes that render the view desc.view: for a main view, into "Final": scene update, light update
-///        (without desc.lights), CPU- or GPU-driven geometry, lighting (sampling its shadow view's "Depth"), sky box,
+///        (without desc.lights), CPU- or GPU-driven geometry, lighting (sampling its shadow views' "Depth"), sky box,
 ///        transparent (point lights), bloom and post-processing; for a shadow view, addShadowPasses. Call it inside the
 ///        view's scope (GraphBuilder::beginScope). Passes added after a main view's and before addOutputPasses draw
 ///        onto "Final" before the frame shows it (a game's or the editor's overlays).

@@ -45,7 +45,7 @@ auto LightUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
 // Lighting -------------------------------------------------------------------------------------------
 
 LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view,
-    std::optional<ShadowMap> shadow) :
+    std::optional<ShadowMaps> shadow) :
     m_scene{ scene },
     m_view{ view },
     m_gBuffer{
@@ -62,7 +62,8 @@ LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneS
     if (shadow)
     {
         m_shadowView = shadow->view;
-        m_shadowMap = declarations.addReference(shadow->map, Usage::SampledCompute);
+        for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
+            m_shadowMaps[cascade] = declarations.addReference(shadow->maps[cascade], Usage::SampledCompute);
     }
 }
 
@@ -136,11 +137,13 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     std::optional<detail::ShadowMapInput> shadow;
     if (m_shadowView)
     {
-        const auto& map = pool.texture(m_shadowMap);
-        shadow = detail::ShadowMapInput{
-            .view = *m_shadowView,
-            .map = { *m_device->get(map.view).sampledDescriptor(), m_device->get(*m_shadowSampler).descriptor() },
-        };
+        shadow = detail::ShadowMapInput{ .view = *m_shadowView };
+        const auto sampler = m_device->get(*m_shadowSampler).descriptor();
+        for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
+        {
+            const auto& map = pool.texture(m_shadowMaps[cascade]);
+            shadow->maps[cascade] = { *m_device->get(map.view).sampledDescriptor(), sampler };
+        }
     }
     const auto uniforms = detail::packLighting(scene, m_view, pool.bufferAddress(m_lights, frameInfo.frameIndex),
         lightCapacity, m_ambientOcclusionFactor, m_viewMode, shadow);
@@ -172,7 +175,7 @@ auto LightingPass::drawUI() -> void
 {
     ImGui::DragFloat("AO Factor", &m_ambientOcclusionFactor, 0.01f, 0.0f, 1.0f);
     static constexpr std::array viewModeNames{ "Scene Color", "Albedo", "Ambient Occlusion", "Roughness", "Metallic",
-        "Emissive" };
+        "Emissive", "Shadow Cascades" };
     int mode = static_cast<int>(m_viewMode);
     if (ImGui::Combo("View Mode", &mode, viewModeNames.data(), static_cast<int>(viewModeNames.size())))
         m_viewMode = static_cast<LightingViewMode>(mode);
@@ -241,15 +244,29 @@ auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddres
     {
         uniforms.directionalColor = glm::vec4{ light->color, light->intensity };
         uniforms.directionalDirection = glm::vec4{ light->direction, 0.0f };
-        if (const auto camera = shadow ? scene.camera(shadow->view) : std::nullopt)
+        const auto camera = scene.camera(view);
+        if (shadow && camera)
         {
-            // The orthographic projection spans 2 / projection[0][0] meters across the map.
-            const auto extent = scene.views[shadow->view].extent.value_or(shadowMapExtent);
-            uniforms.shadowViewProjection = glm::rowMajor4(camera->projection * camera->view);
-            uniforms.shadowMap = shadow->map;
-            uniforms.shadowTexelSize = 2.0f / (std::abs(camera->projection[0][0]) * static_cast<float>(std::max(extent.x, 1u)));
+            // The cascades split the main view's camera axis; the shadow views hold their fitted cameras.
+            uniforms.cameraForward = glm::vec4{ -camera->view[0][2], -camera->view[1][2], -camera->view[2][2], 0.0f };
             uniforms.shadowBias = light->shadowBias;
-            uniforms.shadowed = 1;
+            uniforms.shadowCascadeBlend = shadowCascadeBlend;
+            const auto splits = shadowCascadeSplits(*light, camera->projection);
+            for (std::uint32_t cascade = 0; cascade < splits.size(); ++cascade)
+            {
+                const auto shadowCamera = scene.camera(shadow->view + cascade);
+                if (!shadowCamera)
+                    break;
+                // The orthographic projection spans 2 / projection[0][0] meters across the map.
+                const auto extent = scene.views[shadow->view + cascade].extent.value_or(shadowMapExtent);
+                uniforms.shadowCascades[cascade] = {
+                    .viewProjection = glm::rowMajor4(shadowCamera->projection * shadowCamera->view),
+                    .map = shadow->maps[cascade],
+                    .texelSize = 2.0f / (std::abs(shadowCamera->projection[0][0]) * static_cast<float>(std::max(extent.x, 1u))),
+                    .splitFar = splits[cascade],
+                };
+                uniforms.shadowCascadeCount = cascade + 1;
+            }
         }
     }
     return uniforms;
