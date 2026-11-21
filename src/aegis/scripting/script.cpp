@@ -2,7 +2,7 @@ module;
 
 #include <cassert>
 
-module aegis.scripting.script;
+module aegis.scripting;
 
 import std;
 import aegis.reflect;

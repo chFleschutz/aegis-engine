@@ -5,7 +5,7 @@ module;
 module aegis.defaults;
 
 import std;
-import aegis.scripting.script;
+import aegis.scripting;
 
 namespace aegis
 {

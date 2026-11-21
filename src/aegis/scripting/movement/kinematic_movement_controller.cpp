@@ -1,4 +1,4 @@
-module aegis.scripting.movement.kinematic_movement_controller;
+module aegis.scripting;
 
 import std;
 import aegis.reflect;

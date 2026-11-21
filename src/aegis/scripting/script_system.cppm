@@ -1,9 +1,9 @@
-export module aegis.scripting.script_system;
+export module aegis.scripting:script_system;
 
 import std;
 import aegis.platform;
 import aegis.world;
-export import aegis.scripting.script;
+import :script;
 
 export namespace aegis::scripting
 {

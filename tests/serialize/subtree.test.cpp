@@ -4,7 +4,7 @@ import std;
 import aegis.assets;
 import aegis.math;
 import aegis.reflect;
-import aegis.scripting.script;
+import aegis.scripting;
 import aegis.serialize;
 import aegis.world;
 

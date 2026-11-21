@@ -1,4 +1,4 @@
-module aegis.scripting.script_system;
+module aegis.scripting;
 
 import std;
 import aegis.platform;

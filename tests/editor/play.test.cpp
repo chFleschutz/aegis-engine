@@ -4,7 +4,7 @@ import std;
 import aegis.editor.core;
 import aegis.math;
 import aegis.reflect;
-import aegis.scripting.script;
+import aegis.scripting;
 import aegis.world;
 
 namespace

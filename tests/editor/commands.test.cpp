@@ -5,7 +5,7 @@ import aegis.assets;
 import aegis.editor.core;
 import aegis.math;
 import aegis.reflect;
-import aegis.scripting.script;
+import aegis.scripting;
 import aegis.serialize;
 import aegis.world;
 

@@ -15,6 +15,7 @@ PUBLIC
 	FILE_SET CXX_MODULES 
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
+		scripting.cppm
 		script.cppm
 		script_system.cppm
 		movement/kinematic_movement_controller.cppm

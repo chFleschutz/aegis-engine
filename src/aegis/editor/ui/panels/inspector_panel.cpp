@@ -14,7 +14,7 @@ import aegis.assets;
 import aegis.core;
 import aegis.math;
 import aegis.reflect;
-import aegis.scripting.script;
+import aegis.scripting;
 import aegis.serialize;
 import aegis.world;
 import :panels;
