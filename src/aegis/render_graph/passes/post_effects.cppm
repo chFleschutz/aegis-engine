@@ -1,5 +1,6 @@
 export module aegis.render_passes:post_effects;
 import std;
+import :draw_order;
 import :frame_scene;
 import :gpu_types;
 import :render_system;
@@ -55,7 +56,9 @@ private:
 class TransparentPass : public RenderPass
 {
 public:
-    TransparentPass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
+    /// @param view The index of the view in FrameScene::views it draws (its camera), whose view matrix its render
+    ///        systems sort their blended draws by.
+    TransparentPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view = 0);
 
     template<typename T, typename... Args>
         requires std::derived_from<T, RenderSystem> && std::constructible_from<T, Args...>
@@ -74,13 +77,15 @@ public:
 
 private:
     const FrameSceneSource& m_scene;
+    std::uint32_t m_view;
     ResourceId m_sceneColor;
     ResourceId m_depth;
     ResourceId m_cameraData;
     std::vector<std::unique_ptr<RenderSystem>> m_renderSystems;
 };
 
-/// @brief Draws each of the frame's point lights as a glowing, alpha-blended billboard.
+/// @brief Draws each of the frame's point lights as a glowing, alpha-blended billboard, back to front in the view of
+///        its pass.
 class PointLightRenderSystem : public RenderSystem
 {
 public:
@@ -90,6 +95,7 @@ public:
 
 private:
     std::optional<rhi::Pipeline> m_pipeline;
+    std::vector<detail::DepthSortedDraw> m_order; // This frame's billboards, back to front: indices into pointLights
 };
 }
 

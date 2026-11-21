@@ -1,5 +1,6 @@
 export module aegis.render_passes:static_mesh_render_system;
 import std;
+import :draw_order;
 import :frame_scene;
 import :pipeline_cache;
 import :render_system;
@@ -15,7 +16,8 @@ export namespace aegis::render_graph
 ///        each (the CPU-driven path), with its batch's pipeline for its technique (mirrored instances with the
 ///        clockwise one), built for the batch template's surface shader: from cpu-driven/geometry.slang into the
 ///        G-buffer, or depth only for a shadow view; from cpu-driven/forward.slang lit and blended into the scene
-///        color, with the lighting block of its pass (RenderContext::lighting).
+///        color, with the lighting block of its pass (RenderContext::lighting), back to front by the view depth of each
+///        instance's bounding-sphere centre (RenderContext::view), so the blends compose.
 class StaticMeshRenderSystem : public RenderSystem
 {
 public:
@@ -45,5 +47,6 @@ private:
     std::vector<rhi::Pipeline::ColorAttachment> m_colorAttachments;
     rhi::Format m_depthAttachment{ rhi::Format::Unknown };
     PipelineCache<> m_pipelines;
+    std::vector<detail::DepthSortedDraw> m_order; // Forward: this frame's draws, back to front (indices: static, then dynamic)
 };
 }

@@ -115,10 +115,34 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
         cmd.bindIndexBuffer(m_device->get(instance.mesh->indexBuffer()));
         cmd.drawIndexed(instance.mesh->indexCount());
     };
-    for (const auto& instance : instances.staticInstances())
-        draw(instance);
-    for (const auto& instance : instances.dynamicInstances())
-        draw(instance);
+    const auto staticInstances = instances.staticInstances();
+    const auto dynamicInstances = instances.dynamicInstances();
+    if (m_technique != Technique::Forward)
+    {
+        for (const auto& instance : staticInstances)
+            draw(instance);
+        for (const auto& instance : dynamicInstances)
+            draw(instance);
+        return;
+    }
+
+    // Blended draws compose only back to front: sort the ones this system draws by their bounding sphere's view depth.
+    const auto instanceAt = [&](std::uint32_t index) -> const Instance& {
+        return index < staticInstances.size() ? staticInstances[index] : dynamicInstances[index - staticInstances.size()];
+    };
+    m_order.clear();
+    const auto count = static_cast<std::uint32_t>(staticInstances.size() + dynamicInstances.size());
+    for (std::uint32_t i = 0; i < count; ++i)
+    {
+        const auto& instance = instanceAt(i);
+        if (!instance.mesh || !instance.material || !batchPipelines[instance.drawBatch][0])
+            continue;
+        const auto center = detail::worldCenter(instance.model, instance.mesh->bounds().center);
+        m_order.push_back({ .depth = detail::viewDepth(context.view, center), .index = i });
+    }
+    detail::sortBackToFront(m_order);
+    for (const auto& entry : m_order)
+        draw(instanceAt(entry.index));
 }
 
 auto StaticMeshRenderSystem::createPipeline(const PipelineKey& key) const -> std::expected<rhi::Pipeline, Error>

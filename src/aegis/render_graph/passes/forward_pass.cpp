@@ -72,6 +72,7 @@ auto ForwardPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
         .frameIndex = frameInfo.frameIndex,
         .camera = pool.bufferAddress(m_cameraData, frameInfo.frameIndex),
         .lighting = pool.bufferAddress(m_lighting, frameInfo.frameIndex),
+        .view = scene.camera(m_view)->view,
     };
     for (const auto& system : m_renderSystems)
         system->render(context);
