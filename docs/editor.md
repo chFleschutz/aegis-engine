@@ -82,7 +82,8 @@ src/aegis/editor/
 │  ├─ picking          ray against bounding spheres, icon hits in screen space
 │  └─ settled_extent   the viewport's render size, applied once the panel's size settles
 └─ ui/                            aegis-editor, module aegis.editor (ImGui in .cpp only)
-   ├─ editor_shell     implements Shell; owns the context and the panels
+   ├─ editor_shell     implements Shell; owns the context, the viewport and the workspace; menus, status bar, scene
+   ├─ workspace        the panels and where they sit: dockspace, column and rail, drawer and pins, full viewport
    ├─ actions          action registry: id, label, shortcut, enabled(), run()
    ├─ theme            colors, sizes, fonts and icons in one place (theme.h: tokens)
    ├─ widgets          property grid, one widget per FieldKind, asset slot, axis-colored vec3
@@ -91,7 +92,10 @@ src/aegis/editor/
                        statistics, project settings
 ```
 
-`Panel` is a small interface (`name()`, `draw(EditorContext&)`, `open` flag). Panels never call each
+`Panel` is a small interface (`name()`, `draw(EditorContext&)`, `open` flag). It says where it sits with one
+`Placement` (dock, column, drawer, float, dialog) and which menu lists it with `Menu`; the `Workspace` begins and ends
+its window, and `draw` draws only its contents. A drawer panel declares its toggle action and its status-bar button
+(with the console's counts as `StatusBadge`s), so the shell names no panel. Panels never call each
 other: they share state only through `EditorContext` (selection, active world, play state) and act
 through commands and actions. Menus, toolbar buttons and keyboard shortcuts all trigger the same
 `Action`, so each behavior is written once (and a command palette can list the actions later).
@@ -417,7 +421,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 ## UI design
 
 Decided in E8 ([#204]) and built: the theme is `ui/theme.h` (the tokens), `ui/theme.cppm` (the icons) and `ui/theme.cpp` (the
-fonts and the style), the layout is `EditorShell::drawDockspace`. What the owner's workflow and scale trials show (below) tunes the
+fonts and the style), the layout is `Workspace::drawDockspace`. What the owner's workflow and scale trials show (below) tunes the
 tokens, not this structure.
 
 ### Layout
@@ -498,12 +502,13 @@ tokens, not this structure.
   the viewport closes the Hierarchy's flyout after it picked, while the Inspector's stays and follows the selection.
   F2 opens the Inspector's flyout for its name field. The layout comes back unchanged: while folded the dockspace is wider than the
   window by the column's width minus the rail, so the column lies off screen at its width with its panels docked in it
-  and submitted empty, and ImGui gives the width to the central node. The shell begins the Hierarchy's and the
-  Inspector's windows (the column panels, `Panel::column()`), so their contents go in the docked window or in the
+  and submitted empty, and ImGui gives the width to the central node. The workspace begins the Hierarchy's and the
+  Inspector's windows (the column panels, `Placement::Column`), so their contents go in the docked window or in the
   flyout. A column panel docked outside the right column or floating stays where it is, and its rail button focuses it.
   The layout file keeps the column folded; full viewport hides the rail and closes the flyout. `--editor-fold` starts
   folded with the Inspector in the flyout (the `game-<name>-editor-folded` screenshot).
-- **Preferences** is a floating, auto-sized window that Edit → Preferences… opens, not a panel. So are Help →
+- **Preferences** is a floating, auto-sized window that Edit → Preferences… opens, a panel in no menu
+  (`Placement::Dialog`). So are Help →
   Keyboard Shortcuts (the registry's chords and the viewport's controls) and Help → About (the version and the
   fonts' licenses).
 - **Open Scene** lists the project's scenes under a search field: a click selects, Enter or **Open** opens the

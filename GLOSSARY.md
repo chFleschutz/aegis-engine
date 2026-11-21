@@ -145,6 +145,9 @@ The runtime's shell and the engine's default: the game plays in the main world a
 **EditorShell**:
 The editor flavor's shell: it keeps the world in edit mode, where no scripts run, and builds the editor's UI around it.
 
+**Workspace**:
+The editor's panels and where each one sits: docked in the layout, in the right column or its side rail, in the drawer or pinned below the viewport, or floating.
+
 **Safe point**:
 The moment in each frame when the shell runs: input has been read, and no world is being updated or rendered.
 
@@ -152,7 +155,7 @@ The moment in each frame when the shell runs: input has been read, and no world 
 
 **Project**:
 A game's folder of data, found by the launcher. The sample project is the `samples/` submodule.
-_Avoid_: game folder, workspace
+_Avoid_: game folder
 
 **Project content**:
 The `content/` folder of a project, which holds its assets.

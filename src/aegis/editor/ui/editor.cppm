@@ -5,7 +5,7 @@
 //
 // Partitions:
 //   :actions        ActionRegistry: the actions the menus and the shortcuts share.
-//   :panel          Panel, one window (or group of windows) listed in the View menu.
+//   :panel          Panel, one window of the editor, with its Placement and Menu.
 //   :editor_shell   EditorShell.
 //   :options        EditorOptions: the editor's command-line options (parseOptions).
 //   :viewport       Viewport: the scene view with the editor camera, the gizmo and picking; EditorShell owns it.
