@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 4.5)
 
 project(AegisEngine VERSION 0.1.0)
 
+include(cmake/AegisBuildTypes.cmake)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -10,17 +12,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # name a module `std` and include headers in its purview), so silence just those two.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Wno-reserved-module-identifier;-Wno-include-angled-in-module-purview>")
-endif()
-
-# Debug with optimisation (the `*-dev` presets): `-O1` after CMake's Debug flags, so it wins over their
-# `-O0` while `NDEBUG` stays undefined (asserts and Vulkan validation stay on) and the Debug runtime
-# defines are kept. Before any subdirectory, so the external libraries get it too.
-option(AEGIS_OPTIMIZE_DEBUG "Compile Debug builds with -O1" OFF)
-if(AEGIS_OPTIMIZE_DEBUG)
-    if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU")
-        message(FATAL_ERROR "AEGIS_OPTIMIZE_DEBUG needs a compiler with a GNU-style command line (Clang)")
-    endif()
-    add_compile_options("$<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:C,CXX>>:-O1>")
 endif()
 
 option(BUILD_EXAMPLES "Build example projects" ON)

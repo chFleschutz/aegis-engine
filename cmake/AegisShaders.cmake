@@ -118,8 +118,8 @@ function(_aegis_add_slang_command source spv comment)
             -fvk-use-scalar-layout # C++-compatible packing for device-address reads (modules/README.md)
             -warnings-as-errors all # like the C++ build; a disabled warning stays disabled
             -warnings-disable 39001 # binding overlap: the bindless arrays alias their bindings (modules/bindless.slang)
-            $<$<CONFIG:Debug>:-O0> $<$<CONFIG:Release>:-O3>
-            $<$<CONFIG:Debug>:-g>
+            $<$<CONFIG:Debug,Development>:-O0> $<$<CONFIG:Release>:-O3>
+            $<$<CONFIG:Debug,Development>:-g> # Development's speed-up is on the CPU; shaders as in Debug
         ${validate}
         DEPENDS "${source}" ${module_deps} ${C_DEPENDS}
         ${depfile_args}

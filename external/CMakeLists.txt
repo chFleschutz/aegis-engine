@@ -3,11 +3,9 @@ add_subdirectory(entt)
 
 set(FASTGLTF_COMPILE_AS_CPP20 ON)
 add_subdirectory(fastgltf)
-# Optimised Debug (AEGIS_OPTIMIZE_DEBUG) turns simdjson's development checks into `__assume`s with
+# Development (cmake/AegisBuildTypes.cmake) turns simdjson's development checks into `__assume`s with
 # side effects, which Clang warns about and fastgltf builds with its own -Werror.
-if(AEGIS_OPTIMIZE_DEBUG)
-    target_compile_options(fastgltf PRIVATE -Wno-assume)
-endif()
+target_compile_options(fastgltf PRIVATE $<$<AND:$<CONFIG:Development>,$<CXX_COMPILER_ID:Clang>>:-Wno-assume>)
 
 set(GLFW_BUILD_DOCS OFF)
 add_subdirectory(glfw)

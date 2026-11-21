@@ -13,16 +13,19 @@ unexpectedly, check `docs/agent-notes.md`: gotchas from past sessions.
 ## Build & run
 
 CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets (`build/<preset>/`):
-`windows-clang-*`, `windows-msvc-*`, `linux-clang-*`, each `-debug` / `-release`. Default
+`windows-clang-*`, `windows-msvc-*`, `linux-clang-*`, each `-debug` / `-dev` / `-release`. Default
 `windows-clang-debug`; on Linux `linux-clang-debug`. Main library target: `aegis-engine`.
 
     cmake --preset windows-clang-debug
     cmake --build --preset windows-clang-debug
 
-- **Day-to-day runs: `windows-clang-dev` / `linux-clang-dev`**, Debug with `-O1` added
-  (`AEGIS_OPTIMIZE_DEBUG`): asserts and validation stay on, and a headless `aegis-test` Sponza run
-  takes about half as long. Keep `-debug` for stepping through code in a debugger.
-- The MSVC presets **don't build yet** (internal compiler errors in `render_graph`).
+- **Day-to-day runs: `windows-clang-dev` / `linux-clang-dev`**, the `Development` build type
+  (`cmake/AegisBuildTypes.cmake`): Debug with optimisation, so asserts and validation stay on and a
+  headless `aegis-test` Sponza run takes about half as long. Keep `-debug` for stepping through code.
+  `CMAKE_BUILD_TYPE` is `Debug`, `Development` or `Release`; generator expressions that mean "not
+  Release" name both (`$<CONFIG:Debug,Development>`).
+- The MSVC presets **don't build yet** (internal compiler errors in `render_graph`) and configure only
+  from a shell with the Visual Studio environment (`vcvars64.bat`).
 - Clone with `--recurse-submodules`. The sample project (the examples' scenes and the assets the
   device tests load) is the opt-in submodule `samples/`: `git submodule update --init --checkout
   samples`. Without it configure skips the `Examples` game and the device tests that load samples.
