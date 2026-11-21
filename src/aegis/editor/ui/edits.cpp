@@ -26,12 +26,17 @@ auto apply(std::span<const Edit> edits, EditSide side, const EditorContext& edit
 }
 }
 
+auto resolveAssets(FrameContext& frame) -> PrepareField
+{
+    return [&frame](const reflect::TypeInfo& type, void* object) { frame.assets.resolve(type, object, frame.types); };
+}
+
 auto editWorld(const EditorContext& editor, FrameContext& frame) -> EditWorld
 {
     return EditWorld{
         .types = frame.types,
         .registry = editor.world()->registry(),
-        .prepare = [&frame](const reflect::TypeInfo& type, void* object) { frame.assets.resolve(type, object, frame.types); },
+        .prepare = resolveAssets(frame),
     };
 }
 

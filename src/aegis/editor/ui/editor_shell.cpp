@@ -727,8 +727,7 @@ void EditorShell::startPlay(FrameContext& frame)
     if (m_document.unsaved())
         autosave(frame);
     auto& play = frame.engine.createWorld();
-    const auto prepare = [&frame](const reflect::TypeInfo& type, void* component) { frame.assets.resolve(type, component, frame.types); };
-    if (auto copied = copyWorld(frame.world.registry(), play.registry(), frame.types, prepare); !copied)
+    if (auto copied = copyWorld(frame.world.registry(), play.registry(), frame.types, resolveAssets(frame)); !copied)
     {
         log::warn("Cannot play: {}", describe(copied.error()));
         frame.engine.destroyWorld(play);
@@ -841,8 +840,7 @@ void EditorShell::restoreAutosave(const std::filesystem::path& file, FrameContex
     }
     stopPlay(frame);
     frame.engine.newScene();
-    const auto prepare = [&frame](const reflect::TypeInfo& type, void* component) { frame.assets.resolve(type, component, frame.types); };
-    if (auto created = serialize::instantiate(frame.world.registry(), frame.types, *scene, prepare); !created)
+    if (auto created = serialize::instantiate(frame.world.registry(), frame.types, *scene, resolveAssets(frame)); !created)
     {
         // Nothing was created: the scene as its file has it again (runSceneActions reopens it), and the bar with it
         log::warn("Cannot restore the autosave '{}': {}", file.string(), serialize::describe(created.error()));

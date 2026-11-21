@@ -9,6 +9,10 @@ import aegis.world;
 // the edit history's steps.
 namespace aegis::editor
 {
+/// @brief Resolves the asset references of a component or field just written, through the frame's asset library: the
+///        PrepareField of the edits, the play copy and the scenes the editor instantiates.
+[[nodiscard]] auto resolveAssets(FrameContext& frame) -> PrepareField;
+
 /// @brief The world the panels show (the edit world, or the play world while playing) as the edits see it; the asset library resolves the references of written components.
 [[nodiscard]] auto editWorld(const EditorContext& editor, FrameContext& frame) -> EditWorld;
 
