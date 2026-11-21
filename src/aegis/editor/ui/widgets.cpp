@@ -32,18 +32,14 @@ auto labelButton(const char* id, std::span<const LabelPart> parts, bool lit) -> 
         width += part.gap + ImGui::CalcTextSize(part.text.c_str()).x;
     const ImGuiStyle& style = ImGui::GetStyle();
     const ImVec2 padding{ style.FramePadding.x, std::max(style.FramePadding.y - std::round(2.0f * theme::scale()), 0.0f) };
-    if (lit)
+    bool pressed = false;
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
+        const theme::AccentFillScope fill{ lit };
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, padding);
+        const std::string label = std::format("##{}", id);
+        pressed = ImGui::ButtonEx(label.c_str(), ImVec2{ width + 2.0f * padding.x, ImGui::GetFontSize() + 2.0f * padding.y }, ImGuiButtonFlags_AlignTextBaseLine);
+        ImGui::PopStyleVar();
     }
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, padding);
-    const std::string label = std::format("##{}", id);
-    const bool pressed = ImGui::ButtonEx(label.c_str(), ImVec2{ width + 2.0f * padding.x, ImGui::GetFontSize() + 2.0f * padding.y }, ImGuiButtonFlags_AlignTextBaseLine);
-    ImGui::PopStyleVar();
-    if (lit)
-        ImGui::PopStyleColor(3);
     ImVec2 position{ ImGui::GetItemRectMin().x + padding.x, ImGui::GetItemRectMin().y + padding.y };
     for (const auto& part : parts)
     {

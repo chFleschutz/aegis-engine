@@ -537,11 +537,11 @@ void EditorShell::drawOpenPopup(FrameContext& frame)
 
     // Open is the default: Enter takes it, and it has the accent fill
     ImGui::BeginDisabled(!m_openSelection);
-    ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
-    const bool open = ImGui::Button("Open") || ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter);
-    ImGui::PopStyleColor(3);
+    bool open = false;
+    {
+        const theme::AccentFillScope fill;
+        open = ImGui::Button("Open") || ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter);
+    }
     ImGui::EndDisabled();
     if (open && m_openSelection)
         chosen = m_openSelection;
@@ -724,12 +724,11 @@ void EditorShell::drawRecoveryBar()
     ImGui::SameLine();
     ImGui::TextUnformatted(label.c_str());
     ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
-    if (ImGui::Button("Restore"))
-        m_document.restoreRecovery(); // Runs once the panels are drawn (runSceneActions)
-    ImGui::PopStyleColor(3);
+    {
+        const theme::AccentFillScope fill;
+        if (ImGui::Button("Restore"))
+            m_document.restoreRecovery(); // Runs once the panels are drawn (runSceneActions)
+    }
     ImGui::SetItemTooltip("Open the autosaved changes as the scene, unsaved");
     ImGui::SameLine();
     if (ImGui::Button("Discard"))
