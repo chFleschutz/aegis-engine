@@ -24,7 +24,7 @@ inline constexpr std::string_view about = "About";
 // The built-in panels, in their menus' order; each is defined in its own .cpp (ui/panels/). The dialogs are not
 // listed in a menu: Edit > Preferences... and the Help menu open them.
 // The hierarchy; its menus show the actions' labels and shortcuts, so 'actions' must outlive it.
-[[nodiscard]] auto makeScenePanel(const ActionRegistry& actions) -> std::unique_ptr<Panel>;
+[[nodiscard]] auto makeScenePanel(ActionRegistry& actions) -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeAllEntitiesPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeInspectorPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeContentPanel() -> std::unique_ptr<Panel>;

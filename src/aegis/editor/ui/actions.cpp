@@ -94,7 +94,35 @@ auto ActionRegistry::tooltip(std::string_view id) const -> std::string
     return action->chord ? std::format("{} ({})", action->label, describe(*action->chord)) : action->label;
 }
 
-void ActionRegistry::menuItem(std::string_view id, FrameContext& frame, std::string_view label, bool checked) const
+void ActionRegistry::run(std::string_view id, FrameContext& frame)
+{
+    if (const auto* action = find(id); action && canRun(*action))
+        trigger(*action, frame);
+}
+
+void ActionRegistry::runDeferred(FrameContext& frame)
+{
+    for (const auto index : std::exchange(m_queued, {}))
+    {
+        if (const auto& action = m_actions[index]; canRun(action))
+            action.run(frame);
+    }
+}
+
+void ActionRegistry::trigger(const Action& action, FrameContext& frame)
+{
+    if (!action.deferred)
+    {
+        action.run(frame);
+        return;
+    }
+    // Asked twice before it ran (a click and its chord), it runs once
+    const auto index = static_cast<std::size_t>(&action - m_actions.data());
+    if (!std::ranges::contains(m_queued, index))
+        m_queued.push_back(index);
+}
+
+void ActionRegistry::menuItem(std::string_view id, FrameContext& frame, std::string_view label, bool checked)
 {
     const auto* action = find(id);
     assert(action && "Unknown action");
@@ -103,7 +131,7 @@ void ActionRegistry::menuItem(std::string_view id, FrameContext& frame, std::str
     const std::string text{ label.empty() ? std::string_view{ action->label } : label };
     const std::string chord = shortcut(id);
     if (ImGui::MenuItem(text.c_str(), chord.empty() ? nullptr : chord.c_str(), checked, canRun(*action)))
-        action->run(frame);
+        trigger(*action, frame);
 }
 
 void ActionRegistry::handleShortcuts(FrameContext& frame, bool gameHasKeyboard)
@@ -122,7 +150,7 @@ void ActionRegistry::handleShortcuts(FrameContext& frame, bool gameHasKeyboard)
             continue;
         m_heldKey = chord->key;
         if (canRun(action))
-            action.run(frame);
+            trigger(action, frame);
         return;
     }
 }

@@ -18,3 +18,4 @@ issues and commits still resolve through the last column.
 | [0010](0010-local-reference-images.md) | Reference images: local comparison | Accepted | |
 | [0011](0011-subproject-safe-paths.md) | Subproject use | Accepted | |
 | [0012](0012-views-as-scoped-subgraphs.md) | Views render as scoped subgraphs of one frame graph, culling per view | Accepted | |
+| [0013](0013-own-generic-row-major-math-library.md) | An own generic, row-major math library replaces glm | Accepted | |

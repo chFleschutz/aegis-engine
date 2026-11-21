@@ -60,7 +60,7 @@ void drawRepeats(std::size_t repeats)
 }
 
 // The log lines of the editor (EditorContext::console) with level toggles and their counts, Collapse, a search, Clear
-// and Copy. The status bar's counts show it with only the warnings and errors on.
+// and Copy.
 class ConsolePanel final : public Panel
 {
 public:
@@ -93,13 +93,6 @@ public:
 
     void draw(EditorContext& editor, FrameContext&) override
     {
-        if (editor.takeConsoleProblemsRequest())
-        {
-            m_filter.info = false;
-            m_filter.warn = true;
-            m_filter.error = true;
-        }
-
         auto& console = editor.console();
         const auto counts = console.counts();
         toggleButton(std::format("Info {}###info", counts.info), m_filter.info);
