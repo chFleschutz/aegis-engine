@@ -1,7 +1,7 @@
 #include <aegis/launch/game_module.h>
 
 import std;
-import aegis.engine;
+import aegis.game;
 
 namespace
 {
