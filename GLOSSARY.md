@@ -68,8 +68,12 @@ One rendering of the world in a frame: a camera, an extent and a kind, main or s
 _Avoid_: render view (the shell's request for one, `RenderView`), viewport (the editor's panel), camera
 
 **Shadow view**:
-A view of the depth of the world as a light sees it, its shadow map, which a main view's lighting samples. Each main view has one per cascade of the directional light ("MainShadow0" to "MainShadow3").
+A view of the depth of the world as a light sees it, its shadow map, which a main view's lighting samples. Each main view has one per cascade of the directional light ("MainShadow0" to "MainShadow3"); the frame's closest shadow-casting spot lights each have one ("SpotShadow0" to "SpotShadow3"), which all main views share.
 _Avoid_: shadow pass (its passes), shadow camera (its camera), light view
+
+**Shadow atlas**:
+One depth texture holding the spot lights' shadow maps, a tile per spot shadow view ("SpotShadowAtlas"); a spot light's light record names its tile.
+_Avoid_: shadow texture array, shadow page, tile map
 
 **Shadow cascade**:
 One slice of a main view's camera axis, up to the directional light's shadow distance, with a shadow view fitted to it; nearer cascades are shorter, so their shadows are sharper.
