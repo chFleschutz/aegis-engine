@@ -44,5 +44,7 @@ struct RenderingCmd
     std::optional<Attachment> depthAttachment;
     /// @brief For a combined depth/stencil format, the same view as 'depthAttachment'.
     std::optional<Attachment> stencilAttachment;
+    /// @brief The part of the attachments rendered to, which a clear clears; none: all of them.
+    std::optional<Rect2D> area;
 };
 }
