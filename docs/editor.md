@@ -61,7 +61,7 @@ replaced the hand-written type lists and `ComponentTraits` with the type registr
   `.cpp` implementation, partitions, `std::expected` and `[[nodiscard]]`. ImGui and ImGuizmo headers
   appear only in `.cpp` files, which keeps module interfaces free of third-party headers (AGENTS.md,
   "keep std-using headers out of interface fragments") and stops a panel edit from rebuilding its
-  importers. The style table in AGENTS.md moves `editor/` to the new-style column once E1 lands.
+  importers.
 
 ### Module layout
 

@@ -96,6 +96,6 @@ Gotchas from past sessions, to read when a build, tool or test behaves unexpecte
 
 ## Open idea
 
-- **Finish converting the legacy modules** (`scripting`, `world`). Formatting and naming already
-  match the new style; what remains is `assert` → `std::expected` where misuse is recoverable, and
-  dotted submodules → partitions, best done as part of their redesign.
+- **Finish converting `scripting` and `world`.** Both are partitions and in the new style; what
+  remains is `assert` → `std::expected` where misuse is recoverable, best done as part of their
+  redesign.
