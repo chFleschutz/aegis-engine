@@ -50,19 +50,7 @@ void beginMainWindow()
 // The menu bar's frame padding: taller than a frame's, so its buttons have room above and below them.
 auto menuBarPadding() -> ImVec2
 {
-    const ImGuiStyle& style = ImGui::GetStyle();
-    return ImVec2{ style.FramePadding.x, style.FramePadding.y + std::round(2.0f * theme::scale()) };
-}
-
-auto menuBarHeight() -> float
-{
-    return ImGui::GetFontSize() + 2.0f * menuBarPadding().y;
-}
-
-// The status bar's height: a frame's and an inset above and below, around its buttons.
-auto statusBarHeight() -> float
-{
-    return ImGui::GetFrameHeight() + 2.0f * std::round(3.0f * theme::scale());
+    return ImVec2{ ImGui::GetStyle().FramePadding.x, theme::menuBarPaddingY() };
 }
 
 // A slim vertical line at 'x' on the bar's text line starting at 'top', between groups of the status bar.
@@ -73,19 +61,6 @@ void drawBarLine(ImDrawList* drawList, float x, float top)
     const float height = std::round(fontSize * 0.8f);
     const float lineTop = std::round(top + (fontSize - height) * 0.5f);
     drawList->AddRectFilled(ImVec2{ x, lineTop }, ImVec2{ x + width, lineTop + height }, theme::packed(theme::bgFrameActive));
-}
-
-// The top-level window that 'window' belongs to: through a child window's parents and a popup's opener.
-auto ownerWindow(const ImGuiWindow* window) -> const ImGuiWindow*
-{
-    while (window)
-    {
-        const ImGuiWindow* root = window->RootWindow;
-        if (root->RootWindowPopupTree == root)
-            return root;
-        window = root->RootWindowPopupTree;
-    }
-    return nullptr;
 }
 
 // A button in the menu bar, the status bar or a top bar: shorter than a frame by an inset above and below, its label
@@ -229,120 +204,6 @@ auto findProjectScene(const assets::AssetDatabase& database, std::string_view pa
     return std::nullopt;
 }
 
-// The right column's width in the default layout, at 100% scale.
-constexpr float columnWidth = 360.0f;
-// The width of the side rail the column folds into, at 100% scale.
-constexpr float railWidth = 32.0f;
-
-// The default layout in the dockspace 'dockspace' of 'size': one column on the right over the full height, the
-// hierarchy above the inspector, and the viewport in the rest. The column is about 360 px wide (scaled, at most 30%
-// of the window) and keeps that width when the window is resized: ImGui gives the change to the central node. The
-// drawer panels (assets, console, the debug panels) have no node: they open in the drawer, and a node below the
-// viewport is split off when one is pinned (EditorShell::pinNode).
-void buildDefaultLayout(ImGuiID dockspace, ImVec2 size)
-{
-    constexpr float maxColumnShare = 0.3f;
-    constexpr float hierarchyShare = 0.4f; // Of the column's height
-
-    ImGui::DockBuilderRemoveNode(dockspace);
-    ImGui::DockBuilderAddNode(dockspace, ImGuiDockNodeFlags_DockSpace);
-    ImGui::DockBuilderSetNodeSize(dockspace, size);
-
-    ImGuiID center = dockspace;
-    const float columnShare = std::min(columnWidth * theme::scale() / std::max(size.x, 1.0f), maxColumnShare);
-    ImGuiID inspector = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, columnShare, nullptr, &center);
-    const ImGuiID hierarchy = ImGui::DockBuilderSplitNode(inspector, ImGuiDir_Up, hierarchyShare, nullptr, &inspector);
-
-    const auto dock = [](const std::string& window, ImGuiID node) {
-        ImGui::DockBuilderDockWindow(window.c_str(), node);
-        ImGui::DockBuilderGetNode(node)->SelectedTabId = ImGui::GetID(window.c_str());
-    };
-    dock(windowName("Hierarchy"), hierarchy);
-    dock(windowName("Inspector"), inspector);
-    dock("Viewport", center); // Its tab bar is hidden: no label of its own
-    ImGui::DockBuilderFinish(dockspace);
-}
-
-// The share of the viewport's node the node of the pinned panels takes when it is split off.
-constexpr float pinnedShare = 0.3f;
-
-// Whether 'node' is the central node or holds it. By the node's flag, not the root's CentralNode, which the dockspace
-// sets only once it is drawn: the first frame after the layout file was read needs the column too.
-auto holdsCentral(const ImGuiDockNode* node) -> bool
-{
-    return node && (node->IsCentralNode() || holdsCentral(node->ChildNodes[0]) || holdsCentral(node->ChildNodes[1]));
-}
-
-// The right column of the dockspace 'dockspace': its root's right child when the root is split left and right and the
-// central node is in the left one. Null otherwise (the user rearranged the layout), and before the first dockspace.
-auto columnNode(ImGuiID dockspace) -> ImGuiDockNode*
-{
-    ImGuiDockNode* root = dockspace != 0 ? ImGui::DockBuilderGetNode(dockspace) : nullptr;
-    if (!root || !root->IsSplitNode() || root->SplitAxis != ImGuiAxis_X)
-        return nullptr;
-    return holdsCentral(root->ChildNodes[0]) && !holdsCentral(root->ChildNodes[1]) ? root->ChildNodes[1] : nullptr;
-}
-
-// The window of the flyout that shows the column panel 'title'.
-auto flyoutWindow(std::string_view title) -> std::string
-{
-    return std::format("{}##Flyout", title);
-}
-
-// The column panels in the rail, top to bottom, with their buttons' icons.
-struct RailButton
-{
-    std::string_view title;
-    const char* icon;
-};
-constexpr std::array railButtons{ RailButton{ "Hierarchy", theme::icons::hierarchy }, RailButton{ "Inspector", theme::icons::inspector } };
-
-// Whether 'point' is inside 'rect'.
-auto contains(const std::optional<Viewport::Rect>& rect, ImVec2 point) -> bool
-{
-    return rect && point.x >= rect->x && point.y >= rect->y && point.x < rect->x + rect->width && point.y < rect->y + rect->height;
-}
-
-// Whether the window 'title' floats now: it exists and is docked nowhere.
-auto floats(std::string_view title) -> bool
-{
-    const std::string name = windowName(title);
-    const ImGuiWindow* window = ImGui::FindWindowByName(name.c_str());
-    return window && window->DockId == 0;
-}
-
-// The dock node the window 'title' is docked in, or was docked in last (its settings, before it is first drawn); 0 for none.
-auto dockIdOf(std::string_view title) -> ImGuiID
-{
-    const std::string name = windowName(title);
-    if (const ImGuiWindow* window = ImGui::FindWindowByName(name.c_str()))
-        return window->DockId;
-    const ImGuiWindowSettings* settings = ImGui::FindWindowSettingsByID(ImHashStr(name.c_str()));
-    return settings ? settings->DockId : 0;
-}
-
-// A docked, floating or dialog panel's window with its contents; its close button closes the panel. A dialog is centered
-// as it appears and sized to its contents (or as wide as it asks), with its title and no saved layout.
-void drawWindowPanel(Panel& panel, EditorContext& editor, FrameContext& frame)
-{
-    bool open = true;
-    bool visible = false;
-    if (panel.placement() == Placement::Dialog)
-    {
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2{ 0.5f, 0.5f });
-        if (const float width = panel.dialogWidth() * theme::scale(); width > 0.0f)
-            ImGui::SetNextWindowSizeConstraints(ImVec2{ width, 0.0f }, ImVec2{ width, FLT_MAX });
-        const std::string title{ panel.title() };
-        visible = ImGui::Begin(title.c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings);
-    }
-    else
-        visible = ImGui::Begin(panel.label().c_str(), &open);
-    panel.setOpen(open);
-    if (visible)
-        panel.draw(editor, frame);
-    ImGui::End();
-}
 }
 
 EditorShell::EditorShell()
@@ -350,22 +211,17 @@ EditorShell::EditorShell()
     // The console sees every message from here on, and the log still writes to stderr.
     m_logSink = log::addSink([this](log::Level level, std::string_view message) { m_context.console().push(level, message); });
 
-    m_panels.push_back(makeScenePanel(m_actions));
-    m_panels.push_back(makeInspectorPanel());
-    m_panels.push_back(makeContentPanel());
-    m_panels.push_back(makeConsolePanel());
-    m_panels.push_back(makeRendererPanel());
-    m_panels.push_back(makeStatisticsPanel());
-    m_panels.push_back(makeProfilerPanel());
-    m_panels.push_back(makeAllEntitiesPanel());
-    m_preferencesWindow = makePreferencesPanel();
-    m_shortcutsWindow = makeShortcutsPanel(m_actions);
-    m_aboutWindow = makeAboutPanel();
-    for (const auto& panel : m_panels)
-    {
-        if (panel->isOpen())
-            m_defaultOpen.push_back(panel.get());
-    }
+    m_workspace.add(makeScenePanel(m_actions));
+    m_workspace.add(makeInspectorPanel());
+    m_workspace.add(makeContentPanel());
+    m_workspace.add(makeConsolePanel());
+    m_workspace.add(makeRendererPanel());
+    m_workspace.add(makeStatisticsPanel());
+    m_workspace.add(makeProfilerPanel());
+    m_workspace.add(makeAllEntitiesPanel());
+    m_workspace.add(makePreferencesPanel()); // The dialogs: Edit > Preferences... and the Help menu open them
+    m_workspace.add(makeShortcutsPanel(m_actions));
+    m_workspace.add(makeAboutPanel());
     buildActions();
     m_viewport.setReleaseHint(std::format("{} releases the input", m_actions.shortcut("play.release")));
 }
@@ -385,22 +241,14 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     // A drag in a window's body is the viewport's (orbit, gizmo), not a window move
     ImGui::GetIO().ConfigWindowsMoveFromTitleBarOnly = true;
     if (options->allPanels)
-    {
-        for (const auto& panel : m_panels)
-        {
-            panel->setOpen(panel->placement() != Placement::Float); // Not All Entities: it floats over the viewport
-            if (panel->placement() == Placement::Drawer)
-                pin(panel->name()); // The drawer shows only one
-        }
-        m_focusPinned = "Content"; // Its tab shows
-    }
+        m_workspace.openAll();
     m_context.setWorld(engine.world()); // Now, so the first frame keeps a selection made here
     m_document.opened(m_startupScene ? std::optional{ m_startupScene->value } : std::nullopt);
     if (!options->select.empty())
         selectByName(options->select);
     m_playAfterFirstFrame = options->play;
     if (options->fullViewport)
-        toggleFullViewport();
+        m_workspace.toggleFullViewport();
     m_foldOnFirstFrame = options->fold;
     if (options->checkStats)
         m_statisticsCheck = std::make_unique<StatisticsCheck>();
@@ -415,7 +263,7 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
         else
             log::warn("The recent scenes are reset: {}", describe(loaded.error()));
     }
-    addSettingsHandler(); // Before the layout file is read, at the first frame
+    m_workspace.addSettingsHandler(); // Before the layout file is read, at the first frame
     ImGui::GetIO().IniFilename = m_layoutFile.empty() ? nullptr : m_layoutFile.c_str();
 
     // Likewise the preferences: a headless run neither reads nor changes them.
@@ -450,37 +298,7 @@ void EditorShell::onShutdown()
         ImGui::SaveIniSettingsToDisk(m_layoutFile.c_str());
         ImGui::GetIO().IniFilename = nullptr;
     }
-    ImGui::RemoveSettingsHandler("Aegis"); // It points at this shell
-}
-
-void EditorShell::addSettingsHandler()
-{
-    // Sections of its own in the layout file: "[Aegis][Drawers]" with the line Drawers::settingsLine writes, and
-    // "[Aegis][Rail]" with SideRail::settingsLine's
-    ImGuiSettingsHandler handler;
-    handler.TypeName = "Aegis";
-    handler.TypeHash = ImHashStr("Aegis");
-    handler.UserData = this;
-    handler.ReadOpenFn = [](ImGuiContext*, ImGuiSettingsHandler* self, const char* name) -> void* {
-        auto* shell = static_cast<EditorShell*>(self->UserData);
-        const std::string_view section{ name };
-        if (section == "Drawers")
-            return &shell->m_drawers;
-        return section == "Rail" ? &shell->m_rail : nullptr;
-    };
-    handler.ReadLineFn = [](ImGuiContext*, ImGuiSettingsHandler* self, void* entry, const char* line) {
-        auto* shell = static_cast<EditorShell*>(self->UserData);
-        if (entry == &shell->m_drawers)
-            shell->m_drawers.readSettingsLine(line);
-        else if (entry == &shell->m_rail)
-            shell->m_rail.readSettingsLine(line);
-    };
-    handler.WriteAllFn = [](ImGuiContext*, ImGuiSettingsHandler* self, ImGuiTextBuffer* buffer) {
-        const auto* shell = static_cast<const EditorShell*>(self->UserData);
-        buffer->appendf("[Aegis][Drawers]\n%s\n\n", shell->m_drawers.settingsLine().c_str());
-        buffer->appendf("[Aegis][Rail]\n%s\n\n", shell->m_rail.settingsLine().c_str());
-    };
-    ImGui::AddSettingsHandler(&handler);
+    m_workspace.removeSettingsHandler();
 }
 
 auto EditorShell::renderViews() const -> std::vector<RenderView>
@@ -537,47 +355,16 @@ void EditorShell::drawUi(FrameContext& frame)
     beginMainWindow();
     // --editor-fold: on the first frame, once ImGui read the layout file, which keeps the folded state too
     if (std::exchange(m_foldOnFirstFrame, false))
-    {
-        m_rail.setFolded(true);
-        m_rail.show("Inspector");
-        m_focusFlyout = true;
-    }
-    drawDragTooltip(frame); // First, so a drop target's own tooltip replaces it
+        m_workspace.foldInto("Inspector");
+    m_workspace.drawDragTooltip(frame); // First, so a drop target's own tooltip replaces it
     m_actions.handleShortcuts(frame, m_viewport.givesInputToGame());
     if (m_context.renameRequested())
-    {
-        openPanel("Inspector"); // The name field is there
-        if (m_fullViewport.active())
-        {
-            m_fullViewport.leave();
-            syncFullViewport();
-        }
-        if (inFoldedColumn("Inspector") && m_rail.show("Inspector"))
-            m_focusFlyout = true;
-    }
-    // In full viewport the menu bar, the status bar and the floating windows are not drawn. The dockspace and the
-    // docked panels still are, below the viewport's window: a docked window that isn't submitted leaves its node, and
-    // a node that loses its last window is deleted, so the layout would not come back.
-    const bool full = m_fullViewport.active();
+        m_workspace.reveal("Inspector"); // The name field is there
+    // In full viewport the menu bar, the status bar and the floating windows are not drawn
+    const bool full = m_workspace.fullViewport();
     if (!full)
         drawMenuBar(frame);
-    drawDockspace();
-    for (const auto& panel : m_panels)
-    {
-        if (!panel->isOpen() || (full && (panel->placement() == Placement::Float || floats(panel->title()))))
-            continue;
-        if (panel->placement() == Placement::Column)
-            drawColumnPanel(*panel, frame);
-        else if (panel->placement() != Placement::Drawer)
-            drawWindowPanel(*panel, m_context, frame);
-        else if (m_drawers.isPinned(panel->name()))
-            drawPinned(*panel, frame);
-    }
-    for (auto* window : { m_preferencesWindow.get(), m_shortcutsWindow.get(), m_aboutWindow.get() })
-    {
-        if (window->isOpen() && !full)
-            drawWindowPanel(*window, m_context, frame);
-    }
+    m_workspace.drawLayout(frame);
     std::function<void()> bar;
     if (m_document.recovery())
         bar = [this] { drawRecoveryBar(); };
@@ -585,15 +372,12 @@ void EditorShell::drawUi(FrameContext& frame)
     if (full)
         topBar = [this, &frame] { drawFullViewportBar(frame); };
     m_viewport.draw(m_context, frame, bar, topBar);
-    const bool drawerWasShown = m_drawers.shown().has_value();
-    drawDrawer(frame); // Over the viewport, whose image it is placed by
-    drawFlyout(frame, drawerWasShown);
-    leaveFullViewportOnEscape(drawerWasShown);
+    m_workspace.drawOverlays(frame);
     if (const auto scene = m_context.takeSceneRequest())
         m_document.request({ .kind = SceneAction::Kind::Open, .scene = *scene });
-    if (!m_fullViewport.active())
+    if (!m_workspace.fullViewport())
     {
-        drawRail();
+        m_workspace.drawRail();
         drawStatusBar(frame);
         drawStyleEditor();
     }
@@ -940,8 +724,7 @@ void EditorShell::startPlay(FrameContext& frame)
     m_playWorld = &play;
     m_play.play();
     m_viewport.setGameView(true);
-    m_fullViewport.play(m_context.preferences().fullViewportOnPlay);
-    syncFullViewport();
+    m_workspace.play(m_context.preferences().fullViewportOnPlay);
 }
 
 void EditorShell::stopPlay(FrameContext& frame)
@@ -954,8 +737,7 @@ void EditorShell::stopPlay(FrameContext& frame)
     m_play.stop();
     m_viewport.setGameView(false);
     frame.engine.restoreCursor(); // The game may have hidden it
-    m_fullViewport.stop();
-    syncFullViewport();
+    m_workspace.stop();
 }
 
 void EditorShell::selectByName(std::string_view name)
@@ -1053,14 +835,14 @@ void EditorShell::restoreAutosave(const std::filesystem::path& file, FrameContex
 void EditorShell::drawStatusBar(FrameContext& frame)
 {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    const float height = statusBarHeight();
+    const float height = theme::statusBarHeight();
     ImGui::SetNextWindowPos(ImVec2{ viewport->Pos.x, viewport->Pos.y + viewport->Size.y - height });
     ImGui::SetNextWindowSize(ImVec2{ viewport->Size.x, height });
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar;
     // A frame's row centered in the bar: the inset above and below it
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f * theme::scale(), (height - ImGui::GetFrameHeight()) * 0.5f });
     ImGui::PushStyleColor(ImGuiCol_WindowBg, theme::bgDeep);
-    const bool visible = ImGui::Begin("##StatusBar", nullptr, flags);
+    const bool visible = ImGui::Begin(statusBarWindow, nullptr, flags);
     ImGui::PopStyleColor();
     ImGui::PopStyleVar();
     if (visible)
@@ -1142,8 +924,8 @@ void EditorShell::drawDrawerButtons()
     const ImU32 text = ImGui::GetColorU32(ImGuiCol_Text);
     const float near = std::round(ImGui::GetStyle().ItemInnerSpacing.x * 0.5f);
     const std::array content{ LabelPart{ theme::icons::assets, text, 0.0f }, LabelPart{ "Content", text, near } };
-    if (labelButton("Content", content, m_drawers.isShown("Content")))
-        toggleDrawer("Content");
+    if (labelButton("Content", content, m_workspace.drawers().isShown("Content")))
+        m_workspace.toggleDrawer("Content");
     ImGui::SetItemTooltip("%s", m_actions.tooltip("view.content").c_str());
     ImGui::SameLine();
     drawConsoleButton();
@@ -1161,9 +943,7 @@ auto EditorShell::keyHints() const -> std::vector<KeyHint>
             return { { "Click", "give the game the input" }, { m_actions.shortcut("play.release"), "take it back" } };
         return { { "Q", "select" }, { "W", "move" }, { "E", "rotate" }, { "R", "scale" }, { m_actions.shortcut("edit.focus"), "focus" }, { "RMB", "fly" }, { "Alt+LMB", "orbit" }, { "MMB", "pan" } };
     }
-    const ImGuiWindow* hovered = ImGui::GetCurrentContext()->HoveredWindow;
-    const ImGuiWindow* root = hovered ? hovered->RootWindow : nullptr;
-    if (root && (root->ID == ImHashStr(windowName("Hierarchy").c_str()) || root->Name == flyoutWindow("Hierarchy")))
+    if (m_workspace.hovers("Scene"))
         return { { m_actions.shortcut("edit.rename"), "rename" }, { "Drag", "reparent" }, { m_actions.shortcut("edit.duplicate"), "duplicate" }, { m_actions.shortcut("edit.delete"), "delete" } };
     return {};
 }
@@ -1224,8 +1004,8 @@ void EditorShell::drawConsoleButton()
     };
     count(counts.warnings, theme::icons::warning, theme::warning);
     count(counts.errors, theme::icons::error, theme::error);
-    if (labelButton("Console", parts, m_drawers.isShown("Console")))
-        toggleDrawer("Console");
+    if (labelButton("Console", parts, m_workspace.drawers().isShown("Console")))
+        m_workspace.toggleDrawer("Console");
 
     const auto problem = m_context.console().lastProblem();
     const auto tooltip = problem ? std::format("{}\n{}: {}", m_actions.tooltip("view.console"), log::levelName(problem->level), problem->message) : m_actions.tooltip("view.console");
@@ -1257,7 +1037,7 @@ void EditorShell::buildActions()
         .run = [this](FrameContext& frame) { redoEdit(m_context, frame); } });
     m_actions.add({ .id = "edit.duplicate", .label = "Duplicate", .chord = chord(Key::D), .enabled = hasSelection, .run = [this](FrameContext& frame) { duplicateSelected(m_context, frame); } });
     m_actions.add({ .id = "edit.delete", .label = "Delete", .chord = chord(Key::Delete, false), .enabled = hasSelection, .run = [this](FrameContext& frame) { destroySelected(m_context, frame); } });
-    m_actions.add({ .id = "edit.preferences", .label = "Preferences...", .run = [this](FrameContext&) { m_preferencesWindow->setOpen(true); } });
+    m_actions.add({ .id = "edit.preferences", .label = "Preferences...", .run = [this](FrameContext&) { m_workspace.open("Preferences"); } });
     m_actions.add({ .id = "edit.rename",
         .label = "Rename",
         .chord = chord(Key::F2, false),
@@ -1265,13 +1045,13 @@ void EditorShell::buildActions()
         .run = [this](FrameContext&) { m_context.requestRename(); } });
     m_actions.add({ .id = "edit.focus", .label = "Focus", .chord = chord(Key::F, false), .enabled = hasSelection, .run = [this](FrameContext&) { m_context.requestFocus(); } });
 
-    m_actions.add({ .id = "view.content", .label = "Content", .chord = chord(Key::Space), .run = [this](FrameContext&) { toggleDrawer("Content"); } });
-    m_actions.add({ .id = "view.console", .label = "Console", .chord = chord(Key::Space, true, true), .run = [this](FrameContext&) { toggleDrawer("Console"); } });
-    m_actions.add({ .id = "view.foldColumn", .label = "Fold Side Column", .chord = chord(Key::B), .run = [this](FrameContext&) { toggleFold(); } });
-    m_actions.add({ .id = "view.fullViewport", .label = "Full Viewport", .chord = chord(Key::F11, false), .run = [this](FrameContext&) { toggleFullViewport(); } });
+    m_actions.add({ .id = "view.content", .label = "Content", .chord = chord(Key::Space), .run = [this](FrameContext&) { m_workspace.toggleDrawer("Content"); } });
+    m_actions.add({ .id = "view.console", .label = "Console", .chord = chord(Key::Space, true, true), .run = [this](FrameContext&) { m_workspace.toggleDrawer("Console"); } });
+    m_actions.add({ .id = "view.foldColumn", .label = "Fold Side Column", .chord = chord(Key::B), .run = [this](FrameContext&) { m_workspace.toggleFold(); } });
+    m_actions.add({ .id = "view.fullViewport", .label = "Full Viewport", .chord = chord(Key::F11, false), .run = [this](FrameContext&) { m_workspace.toggleFullViewport(); } });
 
-    m_actions.add({ .id = "help.shortcuts", .label = "Keyboard Shortcuts", .run = [this](FrameContext&) { m_shortcutsWindow->setOpen(true); } });
-    m_actions.add({ .id = "help.about", .label = "About", .run = [this](FrameContext&) { m_aboutWindow->setOpen(true); } });
+    m_actions.add({ .id = "help.shortcuts", .label = "Keyboard Shortcuts", .run = [this](FrameContext&) { m_workspace.open("Keyboard Shortcuts"); } });
+    m_actions.add({ .id = "help.about", .label = "About", .run = [this](FrameContext&) { m_workspace.open("About"); } });
 
     m_actions.add({ .id = "play.toggle", .label = "Play", .chord = chord(Key::P), .run = [this](FrameContext& frame) { m_play.active() ? stopPlay(frame) : startPlay(frame); } });
     m_actions.add({ .id = "play.pause",
@@ -1304,182 +1084,6 @@ void EditorShell::updateStyle()
     theme::applyStyle(contentScale, uiScale);
 }
 
-void EditorShell::drawDockspace()
-{
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    const float menuBar = menuBarHeight();
-    const float statusBar = statusBarHeight();
-    const ImGuiID id = ImGui::GetID("EditorDockSpace");
-    m_dockspace = id;
-    // Folded, the rail takes the right edge, and the dockspace is wider than the rest by the column's width: the column
-    // lies off screen at its width, its panels docked in it (a docked window that isn't submitted leaves its node), and
-    // ImGui gives the width it gained to the central node, the viewport's. Unfolded, the layout is as it was.
-    float width = viewport->Size.x;
-    if (m_rail.folded())
-    {
-        width -= std::round(railWidth * theme::scale());
-        if (const ImGuiDockNode* column = columnNode(id))
-            width += column->Size.x;
-    }
-    const ImVec2 size{ std::max(width, 1.0f), std::max(viewport->Size.y - menuBar - statusBar, 1.0f) };
-    ImGui::SetCursorPos(ImVec2{ 0.0f, menuBar });
-    if (std::exchange(m_resetLayout, false) || !ImGui::DockBuilderGetNode(id))
-        buildDefaultLayout(id, size);
-    dockPinned(); // Before the dockspace lays out its nodes, so a pinned panel shows docked at once
-    // The panels' tabs have their own close buttons, and the View menu lists them: no window menu or close-all per node
-    ImGui::DockSpace(id, size, ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton);
-}
-
-auto EditorShell::findPanel(std::string_view name) const -> Panel*
-{
-    const auto it = std::ranges::find(m_panels, name, [](const auto& panel) { return panel->name(); });
-    return it == m_panels.end() ? nullptr : it->get();
-}
-
-void EditorShell::openPanel(std::string_view name)
-{
-    if (auto* panel = findPanel(name))
-        panel->setOpen(true);
-}
-
-void EditorShell::toggleFullViewport()
-{
-    m_fullViewport.toggle();
-    syncFullViewport();
-}
-
-void EditorShell::syncFullViewport()
-{
-    const bool full = m_fullViewport.active();
-    if (full == m_viewport.fullWindow())
-        return;
-    if (full)
-    {
-        m_drawers.close(); // Esc would have to close it before it leaves full viewport
-        m_rail.close();    // Likewise; the rail is hidden
-    }
-    m_viewport.setFullWindow(full);
-}
-
-void EditorShell::toggleFold()
-{
-    m_rail.toggleFolded();
-    ImGui::MarkIniSettingsDirty();
-}
-
-auto EditorShell::inFoldedColumn(std::string_view title) const -> bool
-{
-    ImGuiDockNode* column = m_rail.folded() ? columnNode(m_dockspace) : nullptr;
-    const ImGuiID id = column ? dockIdOf(title) : 0;
-    ImGuiDockNode* node = id != 0 ? ImGui::DockBuilderGetNode(id) : nullptr;
-    return node && ImGui::DockNodeIsInHierarchyOf(node, column);
-}
-
-auto EditorShell::findColumnPanel(std::string_view title) const -> Panel*
-{
-    const auto it = std::ranges::find_if(m_panels, [title](const auto& panel) { return panel->placement() == Placement::Column && panel->title() == title; });
-    return it == m_panels.end() ? nullptr : it->get();
-}
-
-void EditorShell::toggleFlyout(std::string_view title)
-{
-    auto* panel = findColumnPanel(title);
-    if (!panel)
-        return;
-    panel->setOpen(true);
-    if (!inFoldedColumn(title))
-    {
-        ImGui::SetWindowFocus(windowName(title).c_str()); // Also selects its tab
-        return;
-    }
-    if (m_rail.toggle(title) && m_rail.isShown(title))
-        m_focusFlyout = true;
-}
-
-void EditorShell::drawRail()
-{
-    if (!m_rail.folded())
-        return;
-    // Between the menu bar and the status bar, over the column's edge, which lies below it off screen
-    const ImGuiViewport* display = ImGui::GetMainViewport();
-    const float menuBar = menuBarHeight();
-    const float width = std::round(railWidth * theme::scale());
-    ImGui::SetNextWindowPos(ImVec2{ display->Pos.x + display->Size.x - width, display->Pos.y + menuBar });
-    ImGui::SetNextWindowSize(ImVec2{ width, std::max(display->Size.y - menuBar - statusBarHeight(), 1.0f) });
-    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove |
-                                   ImGuiWindowFlags_NoScrollWithMouse;
-    const float padding = std::max(std::floor((width - ImGui::GetFrameHeight()) * 0.5f), 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ padding, padding });
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, theme::bgDeep);
-    const bool visible = ImGui::Begin("##Rail", nullptr, flags);
-    ImGui::PopStyleColor();
-    ImGui::PopStyleVar();
-    if (visible)
-    {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
-        for (const auto& button : railButtons)
-        {
-            const std::string title{ button.title };
-            if (theme::iconButton(button.icon, title.c_str(), m_rail.isShown(title)))
-                toggleFlyout(title);
-            ImGui::SetItemTooltip("%s", title.c_str());
-        }
-        ImGui::PopStyleColor();
-    }
-    ImGui::End();
-}
-
-void EditorShell::drawFlyout(FrameContext& frame, bool drawerWasShown)
-{
-    if (const auto shown = m_rail.flyout())
-    {
-        const std::string title{ *shown };
-        const Panel* panel = findColumnPanel(title);
-        // Esc closes the drawer first; losing the focus doesn't close it (popups and drags take it)
-        const bool escape = !drawerWasShown && ImGui::IsKeyPressed(ImGuiKey_Escape, false) && !ImGui::GetIO().WantTextInput && !ImGui::GetDragDropPayload() &&
-                            !m_viewport.givesInputToGame() && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
-        // The Hierarchy is for picking: a left click into the viewport closes it once the viewport picked (flying and
-        // panning don't). The Inspector stays and follows the selection.
-        const bool click = title == "Hierarchy" && m_viewport.hovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
-        if (!panel || !panel->isOpen() || !inFoldedColumn(title) || m_fullViewport.active() || escape || click)
-            m_rail.close();
-    }
-    const auto shown = m_rail.flyout();
-    const auto image = m_viewport.imageRect();
-    if (!shown || !image)
-    {
-        m_focusFlyout = false;
-        return;
-    }
-    const std::string title{ *shown };
-    Panel* panel = findColumnPanel(title);
-
-    // Over the right edge of the image, as tall, and as wide as the column
-    const ImGuiDockNode* column = columnNode(m_dockspace);
-    const float width = std::min(column ? column->Size.x : std::round(columnWidth * theme::scale()), image->width);
-    ImGui::SetNextWindowPos(ImVec2{ image->x + image->width - width, image->y });
-    ImGui::SetNextWindowSize(ImVec2{ width, image->height });
-    if (std::exchange(m_focusFlyout, false))
-        ImGui::SetNextWindowFocus();
-    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings |
-                                   ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize;
-    if (ImGui::Begin(flyoutWindow(title).c_str(), nullptr, flags))
-        panel->draw(m_context, frame);
-    ImGui::End();
-}
-
-void EditorShell::leaveFullViewportOnEscape(bool drawerWasShown)
-{
-    // The same Esc as the drawer's: the first one closes the drawer, a popup takes its own
-    if (!m_fullViewport.active() || drawerWasShown || !ImGui::IsKeyPressed(ImGuiKey_Escape, false))
-        return;
-    if (ImGui::GetIO().WantTextInput || ImGui::GetDragDropPayload() || m_viewport.givesInputToGame() || m_viewport.cameraDragged() || ImGuizmo::IsUsing() ||
-        ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
-        return;
-    m_fullViewport.leave();
-    syncFullViewport();
-}
-
 void EditorShell::drawFullViewportBar(FrameContext& frame)
 {
     drawPlayButtons(frame);
@@ -1494,262 +1098,6 @@ void EditorShell::drawFullViewportBar(FrameContext& frame)
     ImGui::TextDisabled("%s", shortcut.c_str());
     if (leave)
         runAction("view.fullViewport", frame);
-}
-
-void EditorShell::showDrawer(std::string_view name)
-{
-    openPanel(name);
-    if (m_drawers.show(name))
-        m_focusDrawer = true;
-    else
-        m_focusPinned = name; // Its tab shows
-}
-
-void EditorShell::toggleDrawer(std::string_view name)
-{
-    openPanel(name);
-    if (!m_drawers.toggle(name))
-        m_focusPinned = name; // Pinned: its tab shows
-    else if (m_drawers.isShown(name))
-        m_focusDrawer = true;
-}
-
-void EditorShell::pin(std::string_view name)
-{
-    m_drawers.pin(name);
-    if (std::ranges::find(m_dockRequests, name) == m_dockRequests.end())
-        m_dockRequests.emplace_back(name);
-    m_focusPinned = name;
-    ImGui::MarkIniSettingsDirty();
-}
-
-void EditorShell::unpin(std::string_view name)
-{
-    m_drawers.unpin(name);
-    m_focusDrawer = true;
-    ImGui::MarkIniSettingsDirty();
-}
-
-auto EditorShell::pinNode(std::string_view name) -> std::uint32_t
-{
-    // A leaf of the layout's tree that is not the viewport's; one that lost its windows stays, hidden, until reused
-    const auto usable = [this](ImGuiID id) {
-        ImGuiDockNode* node = id != 0 ? ImGui::DockBuilderGetNode(id) : nullptr;
-        return node && node->IsLeafNode() && !node->IsCentralNode() && ImGui::DockNodeGetRootNode(node)->ID == m_dockspace;
-    };
-    if (const ImGuiID own = dockIdOf(name); usable(own))
-        return own;
-    for (const auto& other : m_drawers.pinned())
-    {
-        if (const ImGuiID id = dockIdOf(other); other != name && usable(id))
-            return id;
-    }
-    if (usable(m_pinNode))
-        return m_pinNode;
-    ImGuiDockNode* central = ImGui::DockBuilderGetCentralNode(m_dockspace);
-    if (!central)
-        return 0;
-    ImGuiID rest = 0;
-    return ImGui::DockBuilderSplitNode(central->ID, ImGuiDir_Down, pinnedShare, nullptr, &rest); // The viewport stays central
-}
-
-void EditorShell::dockPinned()
-{
-    if (m_dockRequests.empty())
-        return;
-    for (const auto& name : std::exchange(m_dockRequests, {}))
-    {
-        if (!m_drawers.isPinned(name))
-            continue;
-        if (const ImGuiID node = pinNode(name); node != 0)
-        {
-            ImGui::DockBuilderDockWindow(windowName(name).c_str(), node);
-            m_pinNode = node;
-        }
-    }
-    ImGui::DockBuilderFinish(m_dockspace);
-}
-
-void EditorShell::drawPinned(Panel& panel, FrameContext& frame)
-{
-    const std::string name{ panel.name() };
-    if (m_focusPinned == name)
-    {
-        ImGui::SetNextWindowFocus(); // Also selects its tab
-        m_focusPinned.clear();
-    }
-    bool open = true;
-    const bool visible = ImGui::Begin(panel.label().c_str(), panel.menu() == Menu::Debug ? &open : nullptr); // Content and the console stay open
-    if (!open)
-        panel.setOpen(false);
-    // Appearing undocked (pinned in the layout file without a node, or dragged out to float before): docked below the
-    // viewport before the next frame's dockspace. Only as it appears: a drag to another node undocks it meanwhile.
-    if (ImGui::IsWindowAppearing() && !ImGui::IsWindowDocked() && std::ranges::find(m_dockRequests, name) == m_dockRequests.end())
-        m_dockRequests.push_back(name);
-    if (visible)
-    {
-        const float button = ImGui::GetFrameHeight();
-        const ImVec2 start = ImGui::GetCursorScreenPos();
-        const float right = start.x + ImGui::GetContentRegionAvail().x;
-        panel.setTrailingWidth(button + ImGui::GetStyle().ItemSpacing.x);
-        panel.draw(m_context, frame);
-        panel.setTrailingWidth(0.0f);
-        // Over the right end of the panel's first row, which leaves it free
-        ImGui::SetCursorScreenPos(ImVec2{ right - button, start.y });
-        if (theme::iconButton(theme::icons::pin, "##unpin", true))
-            unpin(name);
-        ImGui::SetItemTooltip("Unpin: back to the drawer");
-    }
-    ImGui::End();
-}
-
-void EditorShell::drawColumnPanel(Panel& panel, FrameContext& frame)
-{
-    const std::string title{ panel.title() };
-    // Folded: submitted empty, off screen, so it keeps its dock node; the flyout draws its contents
-    const bool folded = inFoldedColumn(title);
-    if (ImGui::Begin(panel.label().c_str()) && !folded)
-        panel.draw(m_context, frame);
-    ImGui::End();
-}
-
-void EditorShell::drawDrawer(FrameContext& frame)
-{
-    const ImGuiIO& io = ImGui::GetIO();
-    // A drag that began in the drawer closes it once it leaves it. ImGui keeps the payload while the button is held,
-    // though its source is no longer drawn, so the drop still lands in the viewport or on an inspector slot.
-    const ImGuiPayload* payload = ImGui::GetDragDropPayload();
-    if (!payload)
-        m_dragFromDrawer = m_dragHidDrawer = false;
-    else if (!m_dragHidDrawer && contains(m_drawerRect, io.MouseClickedPos[ImGuiMouseButton_Left]))
-        m_dragFromDrawer = true;
-    if (m_dragFromDrawer && m_drawers.shown() && !contains(m_drawerRect, io.MousePos))
-    {
-        m_drawers.close();
-        m_dragFromDrawer = false;
-        m_dragHidDrawer = true;
-    }
-
-    // Esc and a click outside it close it: anywhere but the drawer, its popups (a menu, the type filter) and the status
-    // bar, whose buttons switch it. Losing the focus alone doesn't: drag and drop takes it.
-    if (m_drawers.shown())
-    {
-        const bool escape = ImGui::IsKeyPressed(ImGuiKey_Escape, false) && !io.WantTextInput && !payload && !m_viewport.givesInputToGame() &&
-                            !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
-        const ImGuiWindow* owner = ownerWindow(ImGui::GetCurrentContext()->HoveredWindow);
-        const bool inside = owner && (owner->ID == ImHashStr("##Drawer") || owner->ID == ImHashStr("##StatusBar"));
-        const bool click = !inside && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsMouseClicked(ImGuiMouseButton_Middle));
-        if (escape || click)
-            m_drawers.close();
-    }
-
-    const auto shown = m_drawers.shown();
-    const Panel* panel = shown ? findPanel(*shown) : nullptr;
-    if (shown && (!panel || !panel->isOpen()))
-        m_drawers.close();
-    const auto viewport = m_viewport.imageRect();
-    if (!m_drawers.shown() || !viewport)
-    {
-        m_drawerRect.reset();
-        m_focusDrawer = false;
-        return;
-    }
-
-    // Over the bottom of the image and as wide: the render extent stays, and the right column stays usable
-    const float height = std::clamp(std::round(viewport->height * m_context.preferences().drawerHeight), std::min(4.0f * ImGui::GetFrameHeight(), viewport->height), viewport->height);
-    const Viewport::Rect rect{ .x = viewport->x, .y = viewport->y + viewport->height - height, .width = viewport->width, .height = height };
-    m_drawerRect = rect;
-    ImGui::SetNextWindowPos(ImVec2{ rect.x, rect.y });
-    ImGui::SetNextWindowSize(ImVec2{ rect.width, rect.height });
-    if (std::exchange(m_focusDrawer, false))
-        ImGui::SetNextWindowFocus();
-    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings |
-                                   ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
-    if (ImGui::Begin("##Drawer", nullptr, flags))
-    {
-        drawDrawerResize(*viewport, rect.y);
-
-        // The shown panel with no header: the status bar's lit button names it. Its pin button sits over the right end of
-        // its first row, which the panel leaves free (Panel::trailingWidth), as a pinned panel's unpin button does.
-        bool pinShown = false;
-        const auto now = m_drawers.shown();
-        if (auto* contents = now ? findPanel(*now) : nullptr; contents && contents->isOpen())
-        {
-            const std::string id{ *now };
-            ImGui::PushID(id.c_str());
-            if (ImGui::BeginChild("##contents"))
-            {
-                // In the child, which takes the hover from the drawer's window beneath it
-                const float button = ImGui::GetFrameHeight();
-                const ImVec2 start = ImGui::GetCursorScreenPos();
-                const float right = start.x + ImGui::GetContentRegionAvail().x;
-                contents->setTrailingWidth(button + ImGui::GetStyle().ItemSpacing.x);
-                contents->draw(m_context, frame);
-                contents->setTrailingWidth(0.0f);
-                ImGui::SetCursorScreenPos(ImVec2{ right - button, start.y });
-                pinShown = theme::iconButton(theme::icons::pin, "##pin");
-                ImGui::SetItemTooltip("Pin: dock it below the viewport");
-            }
-            ImGui::EndChild();
-            ImGui::PopID();
-        }
-        if (pinShown && now)
-            pin(std::string{ *now }); // A copy: pinning closes the drawer, and with it the name it shows
-    }
-    ImGui::End();
-}
-
-void EditorShell::drawDrawerResize(const Viewport::Rect& viewport, float top)
-{
-    // A strip along the top edge, inside the window's padding, where ImGui would clip it
-    const float grip = 4.0f * theme::scale();
-    const ImVec2 cursor = ImGui::GetCursorScreenPos();
-    const ImVec2 position = ImGui::GetWindowPos();
-    const float width = ImGui::GetWindowWidth();
-    ImGui::PushClipRect(position, ImVec2{ position.x + width, position.y + grip }, false);
-    ImGui::SetCursorScreenPos(ImVec2{ position.x, top });
-    ImGui::InvisibleButton("##resize", ImVec2{ width, grip });
-    // The edge is the border's line, the accent's while it can be dragged
-    const bool active = ImGui::IsItemActive();
-    const bool hovered = ImGui::IsItemHovered();
-    if (active || hovered)
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-    const ImVec4 color = active ? theme::accentActive : (hovered ? theme::accent : theme::border);
-    ImGui::GetWindowDrawList()->AddLine(ImVec2{ position.x, top + 1.0f }, ImVec2{ position.x + width, top + 1.0f }, theme::packed(color), 2.0f * theme::scale());
-    if (active)
-    {
-        const float share = (viewport.y + viewport.height - ImGui::GetIO().MousePos.y) / viewport.height;
-        m_context.preferences().drawerHeight = std::clamp(share, minDrawerHeight, maxDrawerHeight);
-    }
-    ImGui::PopClipRect();
-    ImGui::SetCursorScreenPos(cursor);
-}
-
-void EditorShell::drawDragTooltip(FrameContext& frame)
-{
-    // The asset's source went with the drawer, and its tooltip with it
-    const ImGuiPayload* payload = ImGui::GetDragDropPayload();
-    if (!m_dragHidDrawer || !payload || !payload->IsDataType(assetPayloadType) || payload->DataSize != static_cast<int>(sizeof(AssetPayload)))
-        return;
-    AssetPayload asset;
-    std::memcpy(&asset, payload->Data, sizeof(asset));
-    const auto* entry = frame.assets.database().find(assets::AssetId{ asset.id });
-    if (!entry)
-        return;
-    const auto name = entry->key.empty() ? std::filesystem::path{ entry->path }.filename().string() : entry->key;
-    ImGui::SetTooltip("%s", std::format("{} ({})", name, asset.assetType()).c_str());
-}
-
-void EditorShell::resetLayout()
-{
-    m_resetLayout = true;
-    for (auto* panel : m_defaultOpen)
-        panel->setOpen(true);
-    m_drawers.reset();
-    m_rail.setFolded(false);
-    m_dockRequests.clear();
-    m_pinNode = 0;
-    ImGui::MarkIniSettingsDirty();
 }
 
 void EditorShell::drawStyleEditor()
@@ -1808,7 +1156,7 @@ void EditorShell::drawMenuBar(FrameContext& frame)
 
     if (ImGui::BeginMenu("View"))
     {
-        for (const auto& panel : m_panels)
+        for (const auto& panel : m_workspace.panels())
         {
             if (panel->menu() != Menu::View)
                 continue;
@@ -1817,24 +1165,24 @@ void EditorShell::drawMenuBar(FrameContext& frame)
             {
                 // Opens the drawer (its button and chord also close it)
                 const auto chord = m_actions.shortcut(name == "Content" ? "view.content" : "view.console");
-                if (ImGui::MenuItem(name.c_str(), chord.c_str(), m_drawers.isShown(name) || m_drawers.isPinned(name)))
-                    showDrawer(name);
+                if (ImGui::MenuItem(name.c_str(), chord.c_str(), m_workspace.drawers().isShown(name) || m_workspace.drawers().isPinned(name)))
+                    m_workspace.showDrawer(name);
                 continue;
             }
             if (ImGui::MenuItem(name.c_str(), nullptr, panel->isOpen()))
                 panel->setOpen(!panel->isOpen());
         }
         ImGui::Separator();
-        m_actions.menuItem("view.foldColumn", frame, {}, m_rail.folded());
-        m_actions.menuItem("view.fullViewport", frame, {}, m_fullViewport.active());
+        m_actions.menuItem("view.foldColumn", frame, {}, m_workspace.folded());
+        m_actions.menuItem("view.fullViewport", frame, {}, m_workspace.fullViewport());
         if (ImGui::MenuItem("Reset Layout"))
-            resetLayout();
+            m_workspace.resetLayout();
         ImGui::EndMenu();
     }
 
     if (ImGui::BeginMenu("Debug"))
     {
-        for (const auto& panel : m_panels)
+        for (const auto& panel : m_workspace.panels())
         {
             if (panel->menu() != Menu::Debug)
                 continue;
@@ -1844,7 +1192,7 @@ void EditorShell::drawMenuBar(FrameContext& frame)
             if (panel->placement() == Placement::Drawer)
             {
                 if (ImGui::MenuItem(name.c_str()))
-                    showDrawer(name);
+                    m_workspace.showDrawer(name);
             }
             else if (ImGui::MenuItem(name.c_str(), nullptr, panel->isOpen()))
                 panel->setOpen(!panel->isOpen());
@@ -1879,7 +1227,7 @@ void EditorShell::drawSceneName(FrameContext& frame)
     const auto name = sceneName();
     const auto& style = ImGui::GetStyle();
     const float right = ImGui::GetWindowWidth() - style.WindowPadding.x;
-    const char* fold = m_rail.folded() ? theme::icons::unfoldColumn : theme::icons::foldColumn;
+    const char* fold = m_workspace.folded() ? theme::icons::unfoldColumn : theme::icons::foldColumn;
     const float buttons = ImGui::CalcTextSize(fold).x + ImGui::CalcTextSize(theme::icons::fullViewport).x + 4.0f * style.FramePadding.x + style.ItemSpacing.x;
     // The buttons at the right end, and the name left of them when there is room for both; the name goes first
     const float nameX = right - ImGui::CalcTextSize(name.c_str()).x;
@@ -1891,7 +1239,7 @@ void EditorShell::drawSceneName(FrameContext& frame)
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
     if (barButton(fold))
         runAction("view.foldColumn", frame);
-    const auto foldTooltip = m_rail.folded() ? std::format("Unfold Side Column ({})", m_actions.shortcut("view.foldColumn")) : m_actions.tooltip("view.foldColumn");
+    const auto foldTooltip = m_workspace.folded() ? std::format("Unfold Side Column ({})", m_actions.shortcut("view.foldColumn")) : m_actions.tooltip("view.foldColumn");
     ImGui::SetItemTooltip("%s", foldTooltip.c_str());
     if (barButton(theme::icons::fullViewport))
         runAction("view.fullViewport", frame);

@@ -166,3 +166,21 @@ void applyStyle(float contentScale, float uiScale)
     ImGui::GetStyle() = style;
 }
 }
+
+namespace aegis::editor::theme
+{
+auto menuBarPaddingY() -> float
+{
+    return ImGui::GetStyle().FramePadding.y + std::round(2.0f * scale());
+}
+
+auto menuBarHeight() -> float
+{
+    return ImGui::GetFontSize() + 2.0f * menuBarPaddingY();
+}
+
+auto statusBarHeight() -> float
+{
+    return ImGui::GetFrameHeight() + 2.0f * std::round(3.0f * scale());
+}
+}

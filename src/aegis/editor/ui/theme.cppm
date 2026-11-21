@@ -115,4 +115,10 @@ void loadFonts(const std::filesystem::path& folder);
 /// @brief Rebuilds ImGui's style from the tokens: the colors, and the metrics times 'contentScale' (the monitor's)
 ///        times 'uiScale' (the user's). The fonts scale with the same two factors.
 void applyStyle(float contentScale, float uiScale);
+
+/// @brief The menu bar's vertical frame padding: taller than a frame's, so its buttons have room above and below them.
+[[nodiscard]] auto menuBarPaddingY() -> float;
+[[nodiscard]] auto menuBarHeight() -> float;
+/// @brief The status bar's height: a frame's and an inset above and below, around its buttons.
+[[nodiscard]] auto statusBarHeight() -> float;
 }
