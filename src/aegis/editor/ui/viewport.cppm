@@ -95,7 +95,7 @@ private:
     // Whether a gizmo was drawn: the selection can be moved.
     auto drawGizmo(EditorContext& editor, FrameContext& frame, const Rect& rect) -> bool;
     // A gizmo drag starts with the active entity's world matrix 'start': it keeps the selected roots' as they are now.
-    void beginGizmoDrag(EditorContext& editor, const reflect::TypeInfo& transformType, const glm::mat4& start);
+    void beginGizmoDrag(EditorContext& editor, FrameContext& frame, const glm::mat4& start);
     void drawToolbar(EditorContext& editor, const Rect& rect);
     // The top right cluster: the camera speed and the stats toggle, the navigation gizmo below them, and the stats box
     // below that while it is on.
@@ -149,13 +149,12 @@ private:
     {
         StableId id;
         glm::mat4 start{ 1.0f }; // Its world matrix when the drag began
-        FieldValues oldValues;   // Its Transform then
     };
     struct GizmoDrag
     {
         glm::mat4 start{ 1.0f }; // The active entity's world matrix when it began
         std::vector<GizmoRoot> roots;
-        std::string verb; // Of its undo entry: Move, Rotate or Scale
+        TransformDrag transforms; // Writes the roots' Transforms and records them as one undo entry
     };
     std::optional<GizmoDrag> m_gizmoDrag; // Recorded when the gizmo is released
     std::optional<Rect> m_imageRect;      // As of the last draw
