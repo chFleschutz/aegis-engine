@@ -322,7 +322,8 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
     });
     cmd.setViewport(pool.extent(m_depth));
     cmd.setScissor(pool.extent(m_depth));
-    // Without a camera (a shadow view without a directional light) the targets stay cleared.
+    // Without a camera (a shadow view without a directional light, or past its cascade count) the targets stay
+    // cleared.
     if (!m_scene.current().camera(m_view))
     {
         cmd.endRendering();

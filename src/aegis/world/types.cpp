@@ -88,7 +88,9 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
                 .field("color", &DirectionalLight::color, { .widget = FieldWidget::Color })
                 .field("intensity", &DirectionalLight::intensity, { .min = 0.0, .step = 0.1 })
                 .field("shadowDistance", &DirectionalLight::shadowDistance, { .min = 1.0, .step = 1.0, .tooltip = "Distance in meters from the camera that the shadow covers" })
-                .field("shadowBias", &DirectionalLight::shadowBias, { .min = 0.0, .step = 0.1, .tooltip = "Shadow-map texels a surface moves along its normal so it doesn't shadow itself" });
+                .field("shadowBias", &DirectionalLight::shadowBias, { .min = 0.0, .step = 0.1, .tooltip = "Shadow-map texels a surface moves along its normal so it doesn't shadow itself" })
+                .field("shadowCascades", &DirectionalLight::shadowCascades, { .widget = FieldWidget::Slider, .min = 1.0, .max = 4.0, .tooltip = "Shadow maps the shadow distance is split into, each sharper nearer the camera" })
+                .field("shadowSplitLambda", &DirectionalLight::shadowSplitLambda, { .widget = FieldWidget::Slider, .min = 0.0, .max = 1.0, .tooltip = "How the cascades split the shadow distance: 0 into equal parts, 1 each the same factor longer than the one before" });
         }
         check(builder);
     }

@@ -19,6 +19,20 @@ struct PushConstants
 
 [[vk::push_constant]] ConstantBuffer<PushConstants> push;
 
+// The ShadowCascades view: each cascade in its own color (red, green, blue, yellow; grey past the last), blended as
+// the shadow blends them, and darker where the directional light is shadowed.
+func shadowCascadesView(float3 position, float3 normal) -> float3
+{
+    static const float3 colors[lighting::MAX_SHADOW_CASCADES + 1] = {
+        float3(1.0, 0.25, 0.25), float3(0.25, 1.0, 0.25), float3(0.25, 0.25, 1.0), float3(1.0, 1.0, 0.25), float3(0.5)
+    };
+    let selection = lighting::shadowCascade(push.uniforms, position);
+    let count = push.uniforms->shadow.cascadeCount;
+    let next = selection.cascade + 1 < count ? selection.cascade + 1 : lighting::MAX_SHADOW_CASCADES;
+    float3 tint = selection.cascade < count ? lerp(colors[selection.cascade], colors[next], selection.blend) : colors[lighting::MAX_SHADOW_CASCADES];
+    return tint * (0.25 + 0.75 * lighting::directionalShadow(push.uniforms, position, normalize(normal)));
+}
+
 [shader("compute")]
 [numthreads(16, 16, 1)]
 func main(uint3 dispatchThreadID: SV_DispatchThreadID)
@@ -50,6 +64,7 @@ func main(uint3 dispatchThreadID: SV_DispatchThreadID)
     case 3: color = float3(point.roughness); break;
     case 4: color = float3(point.metallic); break;
     case 5: color = point.emissive; break;
+    case 6: color = shadowCascadesView(point.position, point.normal); break;
     default: break;
     }
     sceneColorMap[pixel] = float4(color, 1.0);

@@ -10,7 +10,8 @@ auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void
         if (views[i].kind != ViewKind::Main || views[i].shadow)
             continue;
         views[i].shadow = static_cast<std::uint32_t>(views.size());
-        views.push_back({ .name = shadowViewName(views[i].name), .extent = shadowMapExtent, .kind = ViewKind::Shadow });
+        for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
+            views.push_back({ .name = shadowViewName(views[i].name, cascade), .extent = shadowMapExtent, .kind = ViewKind::Shadow });
     }
 }
 
@@ -47,9 +48,13 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
         graph.add<GeometryPass>(scene, Technique::GBuffer, desc.view).addRenderSystem<StaticMeshRenderSystem>();
     }
 
-    std::optional<LightingPass::ShadowMap> shadow;
+    std::optional<LightingPass::ShadowMaps> shadow;
     if (view.shadow)
-        shadow = { .view = *view.shadow, .map = scopedName(desc.views[*view.shadow].name, names::depth) };
+    {
+        shadow = LightingPass::ShadowMaps{ .view = *view.shadow };
+        for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
+            shadow->maps[cascade] = scopedName(desc.views[*view.shadow + cascade].name, names::depth);
+    }
     graph.add<LightingPass>(scene, desc.view, std::move(shadow));
     graph.add<SkyBoxPass>(scene, desc.view);
     graph.add<TransparentPass>(scene).addRenderSystem<PointLightRenderSystem>();

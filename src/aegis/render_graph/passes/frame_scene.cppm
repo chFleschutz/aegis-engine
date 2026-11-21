@@ -47,8 +47,9 @@ struct FrameScene
         /// @brief The extent its textures have; none: the output's (the window, or the offscreen target).
         std::optional<rhi::Extent2D> extent;
         ViewKind kind{ ViewKind::Main };
-        /// @brief A main view's: the index in 'views' of the shadow view of the directional light that its lighting
-        ///        samples (addShadowViews); none: it is lit unshadowed.
+        /// @brief A main view's: the index in 'views' of the first of the directional light's shadow views (its
+        ///        cascades, maxShadowCascades of them one after another) that its lighting samples (addShadowViews);
+        ///        none: it is lit unshadowed.
         std::optional<std::uint32_t> shadow;
     };
 
@@ -63,8 +64,10 @@ struct FrameScene
         glm::vec3 color{ 1.0f };
         float intensity{ 1.0f };
         glm::vec3 direction{ 0.0f, 0.0f, 1.0f }; // World space, normalized: towards the light
-        float shadowDistance{ 50.0f };           // Meters from the camera its shadow map covers (fitDirectionalShadow)
+        float shadowDistance{ 50.0f };           // Meters from the camera its shadow covers (shadowCascadeSplits)
         float shadowBias{ 1.0f };                // Shadow-map texels a shaded point moves along its normal
+        std::uint32_t shadowCascades{ 4 };       // Shadow maps the distance is split into, 1 to maxShadowCascades
+        float shadowSplitLambda{ 0.75f };        // 1: logarithmic splits, 0: uniform (shadowCascadeSplits)
     };
 
     struct PointLight
