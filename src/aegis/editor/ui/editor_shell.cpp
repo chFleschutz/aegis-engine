@@ -67,92 +67,6 @@ void drawBarLine(ImDrawList* drawList, float x, float top)
     drawList->AddRectFilled(ImVec2{ x, lineTop }, ImVec2{ x + width, lineTop + height }, theme::packed(theme::bgFrameActive));
 }
 
-// A button in the menu bar, the status bar or a top bar: shorter than a frame by an inset above and below, its label
-// padded within. It aligns to the bar's text, which a bar puts its padding down (AlignTextToFramePadding), so it sits
-// centered in the bar.
-auto barButton(const char* label) -> bool
-{
-    const ImGuiStyle& style = ImGui::GetStyle();
-    const float inset = std::round(2.0f * theme::scale());
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ style.FramePadding.x, std::max(style.FramePadding.y - inset, 0.0f) });
-    const bool pressed = ImGui::ButtonEx(label, ImVec2{ 0.0f, 0.0f }, ImGuiButtonFlags_AlignTextBaseLine);
-    ImGui::PopStyleVar();
-    return pressed;
-}
-
-// A part of a bar button's label: text (or an icon) in its own color, 'gap' after the part before it.
-struct LabelPart
-{
-    std::string text;
-    ImU32 color;
-    float gap;
-};
-
-// A bar button (barButton's metrics) whose label is 'parts', each in its color; 'lit' fills it with the accent, as a
-// drawer button while its panel shows. 'id' is unique among the window's items.
-auto labelButton(const char* id, std::span<const LabelPart> parts, bool lit) -> bool
-{
-    float width = 0.0f;
-    for (const auto& part : parts)
-        width += part.gap + ImGui::CalcTextSize(part.text.c_str()).x;
-    const ImGuiStyle& style = ImGui::GetStyle();
-    const ImVec2 padding{ style.FramePadding.x, std::max(style.FramePadding.y - std::round(2.0f * theme::scale()), 0.0f) };
-    if (lit)
-    {
-        ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
-    }
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, padding);
-    const std::string label = std::format("##{}", id);
-    const bool pressed = ImGui::ButtonEx(label.c_str(), ImVec2{ width + 2.0f * padding.x, ImGui::GetFontSize() + 2.0f * padding.y }, ImGuiButtonFlags_AlignTextBaseLine);
-    ImGui::PopStyleVar();
-    if (lit)
-        ImGui::PopStyleColor(3);
-    ImVec2 position{ ImGui::GetItemRectMin().x + padding.x, ImGui::GetItemRectMin().y + padding.y };
-    for (const auto& part : parts)
-    {
-        position.x += part.gap;
-        ImGui::GetWindowDrawList()->AddText(position, part.color, part.text.c_str());
-        position.x += ImGui::CalcTextSize(part.text.c_str()).x;
-    }
-    return pressed;
-}
-
-// Text whose digits all take the widest digit's width, each centered in it: the UI font's figures are proportional, so
-// a number that changes every frame would change the text's width and move what is laid out around it.
-class TabularText
-{
-public:
-    TabularText()
-    {
-        for (char digit = '0'; digit <= '9'; ++digit)
-            m_digit = std::max(m_digit, ImGui::CalcTextSize(&digit, &digit + 1).x);
-    }
-
-    [[nodiscard]] auto width(std::string_view text) const -> float
-    {
-        float width = 0.0f;
-        for (const char& c : text)
-            width += std::isdigit(static_cast<unsigned char>(c)) ? m_digit : ImGui::CalcTextSize(&c, &c + 1).x;
-        return width;
-    }
-
-    void draw(ImDrawList* drawList, ImVec2 position, ImU32 color, std::string_view text) const
-    {
-        for (const char& c : text)
-        {
-            const float advance = ImGui::CalcTextSize(&c, &c + 1).x;
-            const bool digit = std::isdigit(static_cast<unsigned char>(c));
-            drawList->AddText(ImVec2{ std::round(position.x + (digit ? (m_digit - advance) * 0.5f : 0.0f)), position.y }, color, &c, &c + 1);
-            position.x += digit ? m_digit : advance;
-        }
-    }
-
-private:
-    float m_digit{ 0.0f };
-};
-
 // A timing of the status bar: a muted label, the number in tabular digits and its muted unit, in a slot as wide as
 // 'widest' (a sample of the widest usual number) takes; a wider number widens it.
 struct TimingSlot
@@ -927,9 +841,9 @@ auto EditorShell::drawTimings(FrameContext& frame, float right) -> float
         const float numberWidth = tabular.width(slot->number);
         const float slotWidth = labelWidth + std::max(numberWidth, tabular.width(slot->widest)) + unitWidth;
         x -= slotWidth;
-        tabular.draw(drawList, ImVec2{ x + slotWidth - unitWidth - numberWidth - labelWidth, top }, muted, slot->label);
-        tabular.draw(drawList, ImVec2{ x + slotWidth - unitWidth - numberWidth, top }, value, slot->number);
-        tabular.draw(drawList, ImVec2{ x + slotWidth - unitWidth, top }, muted, slot->unit);
+        tabular.draw(x + slotWidth - unitWidth - numberWidth - labelWidth, top, muted, slot->label);
+        tabular.draw(x + slotWidth - unitWidth - numberWidth, top, value, slot->number);
+        tabular.draw(x + slotWidth - unitWidth, top, muted, slot->unit);
     }
     if (ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(ImVec2{ x, top }, ImVec2{ right, top + fontSize }))
         ImGui::SetTooltip("Frame %.2f ms (%.0f fps)\nCPU: the frame less the time it waited for the GPU and the display\nGPU: the render graph's passes", frameMs, fps);

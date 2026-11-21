@@ -1,6 +1,7 @@
 module;
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_stdlib.h>
 
 #include "aegis/editor/ui/theme.h"
@@ -14,6 +15,71 @@ import :widgets;
 
 namespace aegis::editor
 {
+auto barButton(const char* label) -> bool
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float inset = std::round(2.0f * theme::scale());
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ style.FramePadding.x, std::max(style.FramePadding.y - inset, 0.0f) });
+    const bool pressed = ImGui::ButtonEx(label, ImVec2{ 0.0f, 0.0f }, ImGuiButtonFlags_AlignTextBaseLine);
+    ImGui::PopStyleVar();
+    return pressed;
+}
+
+auto labelButton(const char* id, std::span<const LabelPart> parts, bool lit) -> bool
+{
+    float width = 0.0f;
+    for (const auto& part : parts)
+        width += part.gap + ImGui::CalcTextSize(part.text.c_str()).x;
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const ImVec2 padding{ style.FramePadding.x, std::max(style.FramePadding.y - std::round(2.0f * theme::scale()), 0.0f) };
+    if (lit)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
+    }
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, padding);
+    const std::string label = std::format("##{}", id);
+    const bool pressed = ImGui::ButtonEx(label.c_str(), ImVec2{ width + 2.0f * padding.x, ImGui::GetFontSize() + 2.0f * padding.y }, ImGuiButtonFlags_AlignTextBaseLine);
+    ImGui::PopStyleVar();
+    if (lit)
+        ImGui::PopStyleColor(3);
+    ImVec2 position{ ImGui::GetItemRectMin().x + padding.x, ImGui::GetItemRectMin().y + padding.y };
+    for (const auto& part : parts)
+    {
+        position.x += part.gap;
+        ImGui::GetWindowDrawList()->AddText(position, part.color, part.text.c_str());
+        position.x += ImGui::CalcTextSize(part.text.c_str()).x;
+    }
+    return pressed;
+}
+
+TabularText::TabularText()
+{
+    for (char digit = '0'; digit <= '9'; ++digit)
+        m_digit = std::max(m_digit, ImGui::CalcTextSize(&digit, &digit + 1).x);
+}
+
+auto TabularText::width(std::string_view text) const -> float
+{
+    float width = 0.0f;
+    for (const char& c : text)
+        width += std::isdigit(static_cast<unsigned char>(c)) ? m_digit : ImGui::CalcTextSize(&c, &c + 1).x;
+    return width;
+}
+
+void TabularText::draw(float x, float y, std::uint32_t color, std::string_view text) const
+{
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    for (const char& c : text)
+    {
+        const float advance = ImGui::CalcTextSize(&c, &c + 1).x;
+        const bool digit = std::isdigit(static_cast<unsigned char>(c));
+        drawList->AddText(ImVec2{ std::round(x + (digit ? (m_digit - advance) * 0.5f : 0.0f)), y }, color, &c, &c + 1);
+        x += digit ? m_digit : advance;
+    }
+}
+
 auto searchField(const char* id, const char* hint, std::string& text, int flags) -> bool
 {
     // The text starts right of the icon: ImGui pads both ends alike, so the padding makes room for it at each
