@@ -33,6 +33,8 @@ struct Options
     bool mirror{ false };      // With --scene: mirror the helmet (a scale of -1 on x), which must not turn it inside out
     bool unlit{ false };       // With --scene: an unlit cube next to a PBR one, whose colour the last frame must show
                                // unlit (see SceneShell::addUnlitCubes)
+    bool blend{ false };       // With --scene: a half-transparent cube in front of the helmet, drawn by the forward pass
+                               // alone (see SceneShell::addBlendedCube)
     std::string screenshot;    // Headless: save the last frame here as PNG
     std::string compare;       // Headless: fail unless the last frame matches this reference PNG (see compareToReference())
     int tolerance{ 0 };        // With --compare: the largest per-channel difference (0-255) a pixel may have

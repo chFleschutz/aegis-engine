@@ -77,6 +77,27 @@ auto hasGeometryPipeline(const render_graph::FrameGraph& frameGraph, const asset
     return false;
 }
 
+// Whether the forward pass of 'frameGraph' holds the forward pipeline of 'variant' (counter-clockwise front faces):
+// ForwardPass's StaticMeshRenderSystem, on both geometry paths.
+auto hasForwardPipeline(const render_graph::FrameGraph& frameGraph, const assets::MaterialVariant& variant) -> bool
+{
+    using render_graph::GeometryPath;
+    using render_graph::Technique;
+    for (const auto* pass : frameGraph.passes())
+    {
+        const auto* forward = dynamic_cast<const render_graph::ForwardPass*>(pass);
+        if (!forward)
+            continue;
+        for (const auto& system : forward->renderSystems())
+        {
+            const auto* meshes = dynamic_cast<const render_graph::StaticMeshRenderSystem*>(system.get());
+            if (meshes && meshes->technique() == Technique::Forward)
+                return meshes->pipelines().contains({ .technique = Technique::Forward, .variant = variant, .path = GeometryPath::CpuDriven });
+        }
+    }
+    return false;
+}
+
 // 'root' and its descendants.
 auto subtree(world::Registry& registry, world::Entity root) -> std::vector<world::Entity>
 {
@@ -151,6 +172,16 @@ public:
         {
             if (auto added = addUnlitCubes(frame); !added)
                 m_result.errors.push_back(std::format("Adding the unlit cubes failed: {}", added.error()));
+        }
+        if (m_options.blend && m_frame == 1)
+        {
+            if (auto added = addBlendedCube(frame); !added)
+                m_result.errors.push_back(std::format("Adding the blended cube failed: {}", added.error()));
+        }
+        if (m_options.blend && m_options.frames != 0 && m_frame + 1 == m_options.frames)
+        {
+            if (auto verified = verifyBlended(frame); !verified)
+                m_result.errors.push_back(std::format("Blended material check failed: {}", verified.error()));
         }
         if (m_options.views && m_frame == 1)
         {
@@ -371,6 +402,67 @@ private:
             return alone(mainView, ViewsShown::Side);
         else if (m_frame == togetherFrame + 4)
             return alone(sideView, ViewsShown::Both);
+        return {};
+    }
+
+    // --blend, in the second frame (the camera has its global transform): a cube of a half-transparent, blended PBR
+    // material between the camera and the helmet, covering part of it, so the last frame shows the helmet through it.
+    auto addBlendedCube(FrameContext& frame) -> std::expected<void, std::string>
+    {
+        auto& registry = frame.world.registry();
+        std::optional<GlobalTransform> camera;
+        for (auto&& [entity, cameraComponent, transform] : registry.view<Camera, GlobalTransform>().each())
+            camera = transform;
+        if (!camera)
+            return std::unexpected{ "the scene has no camera" };
+
+        const auto material = frame.assets.createMaterial();
+        const std::array<std::pair<std::string_view, assets::MaterialValue>, 3> parameters{ {
+            { "albedo", glm::vec3{ 1.0f, 0.25f, 0.1f } },
+            { "roughness", 0.6f },
+            { "alpha", 0.5f },
+        } };
+        for (const auto& [name, value] : parameters)
+        {
+            if (auto set = material->setParameter(std::string{ name }, value); !set)
+                return std::unexpected{ assets::describe(set.error()) };
+        }
+        material->setAlphaMode(assets::AlphaMode::Blend);
+
+        auto cube = frame.assets.instantiateScene(frame.world, frame.types, assets::engine::cube, {});
+        if (!cube)
+            return std::unexpected{ cube.error() };
+        auto& transform = registry.get<Transform>(*cube);
+        transform.location = camera->location + camera->forward() * 1.5f + camera->right() * 0.3f;
+        // Turned so that three faces, each lit differently, face the camera.
+        transform.rotation = glm::quat{ glm::vec3{ glm::radians(30.0f), 0.0f, glm::radians(40.0f) } };
+        transform.scale = glm::vec3{ 0.25f };
+        for (const auto entity : subtree(registry, *cube))
+        {
+            if (registry.has<MeshRenderer>(entity))
+                registry.get<MeshRenderer>(entity).material = material;
+            registry.markStaticDirty(entity);
+        }
+        m_blended = material.shared();
+        return {};
+    }
+
+    // --blend, in the last frame: the forward pass holds the pipeline of the blended cube's variant, and the G-buffer pass
+    // (whose batches the shadow views' depth passes draw too) does not.
+    auto verifyBlended(const FrameContext& frame) const -> std::expected<void, std::string>
+    {
+        if (!m_blended)
+            return std::unexpected{ "no blended cube was added" };
+        const auto variant = m_blended->variant();
+        if (variant.alphaMode != assets::AlphaMode::Blend)
+            return std::unexpected{ "the cube's material does not blend" };
+        if (!frame.instances(frame.world).batchId(variant))
+            return std::unexpected{ "no draw batch holds the blended cube" };
+        if (!hasForwardPipeline(frame.frameGraph, variant))
+            return std::unexpected{ "the forward pass has no pipeline for the blended cube" };
+        if (hasGeometryPipeline(frame.frameGraph, variant))
+            return std::unexpected{ "the G-buffer pass has a pipeline for the blended cube" };
+        std::println("Blended material verified: drawn by the forward pass, not into the G-buffer");
         return {};
     }
 
@@ -653,6 +745,7 @@ private:
     std::map<std::string, std::vector<std::byte>, std::less<>> m_together; // --views: each view's image, rendered with the other
     std::uint32_t m_staticDrawn{ 0 };                                      // --mutate-scene: drawable static entities before the last change
     std::vector<std::shared_ptr<assets::Material>> m_culled;               // --mutate-scene: the materials set to cull nothing
+    std::shared_ptr<assets::Material> m_blended;                           // --blend: the blended cube's material
     world::World* m_second{ nullptr };                                     // --worlds: the second world, from the same scene file
 };
 

@@ -88,6 +88,10 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
     aegis_add_device_test(aegis-test-scene-unlit ARGS --headless --scene --unlit --no-overlay --frames 30)
     aegis_add_device_test(aegis-test-scene-gpu-driven-unlit ARGS --headless --gpu-driven --unlit --no-overlay --frames 30 LABELS mesh-shaders)
 
+    # A half-transparent cube in front of the helmet: the forward pass draws it, the G-buffer does not, on both paths.
+    aegis_add_device_test(aegis-test-scene-blend ARGS --headless --scene --blend --frames 120)
+    aegis_add_device_test(aegis-test-scene-gpu-driven-blend ARGS --headless --gpu-driven --blend --frames 120 LABELS mesh-shaders)
+
     # The scene through a second camera into a view of its own size, resized apart from the target.
     aegis_add_device_test(aegis-test-scene-view ARGS --headless --scene --view --frames 120)
     aegis_add_device_test(aegis-test-scene-gpu-driven-view ARGS --headless --gpu-driven --view --frames 120 LABELS mesh-shaders)
@@ -118,6 +122,13 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
         ARGS --headless --gpu-driven --mirror --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-mirrored-gpu-driven.png --tolerance 0
         LABELS golden mesh-shaders)
     # Rendered with the main camera's PostProcess after the graph was rebuilt: not the plain scene's image.
+    aegis_add_device_test(aegis-test-golden-scene-blend
+        ARGS --headless --scene --blend --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-blend.png --tolerance 0
+        LABELS golden)
+    aegis_add_device_test(aegis-test-golden-scene-blend-gpu-driven
+        ARGS --headless --gpu-driven --blend --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-blend-gpu-driven.png --tolerance 0
+        LABELS golden mesh-shaders)
+
     aegis_add_device_test(aegis-test-golden-scene-post-process
         ARGS --headless --scene --post-process --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-post-process.png --tolerance 0
         LABELS golden)
