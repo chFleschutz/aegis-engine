@@ -29,7 +29,8 @@ export namespace aegis::editor
 ///        `<project>/.aegis/editor/imgui.ini` (none, like the autosaves, when headless or without a project). Log messages fill the
 ///        console next to stderr, and the user's preferences are read at startup and saved when they change
 ///        (`<config>/Aegis/editor.json`, none when headless). `--editor-panels all` opens every panel at startup but the floating ones,
-///        `--editor-select <name>` selects the first entity of that name, `--editor-play` enters play after the first frame
+///        `--editor-select <name>` selects the first entity of that name, `--editor-play` clicks Play after the first frame,
+///        `--editor-stop <n>` clicks Stop once play has run n frames (and logs an error if it never stopped)
 ///        and `--editor-fold` starts with the right column folded and the Inspector in the flyout.
 ///        The panels start docked in the layout of docs/editor.md (View > Reset Layout restores it), in the look of
 ///        `ui/theme.h` scaled by the monitor's content scale and the UI-scale preference; the menus and shortcuts
@@ -114,9 +115,11 @@ private:
     /// @brief The fold and full viewport buttons and the scene's name left of them at the right of the menu bar, each when
     ///        it fits.
     void drawSceneName(FrameContext& frame);
-    /// @brief Runs the action 'id' if it can run now.
+    /// @brief Runs the action 'id' if it can run now; a deferred one once the panels have drawn (ActionRegistry::run).
     void runAction(std::string_view id, FrameContext& frame);
+    /// @brief Creates the play world. Not while the panels draw: play.toggle is deferred.
     void startPlay(FrameContext& frame);
+    /// @brief Destroys the play world. Not while the panels draw: play.toggle is deferred.
     void stopPlay(FrameContext& frame);
     /// @brief Selects the first entity created with that Name, or warns that there is none (--editor-select).
     void selectByName(std::string_view name);
@@ -180,6 +183,11 @@ private:
     PlaySession m_play;
     world::World* m_playWorld{ nullptr };               // While a play session runs; the engine owns it
     bool m_playAfterFirstFrame{ false };                // --editor-play
+    std::optional<int> m_stopAfter;                     // --editor-stop
+    int m_playedFrames{ 0 };                            // Of the play session, for --editor-stop
+    int m_stops{ 0 };                                   // Play sessions stopped, for --editor-stop
+    bool m_clickPlay{ false };                          // drawPlayButtons clicks Play or Stop at its next draw
+    bool m_drawing{ false };                            // While drawUi draws the panels: no world may be swapped
     bool m_foldOnFirstFrame{ false };                   // --editor-fold
     std::unique_ptr<StatisticsCheck> m_statisticsCheck; // --editor-check-stats
     RollingAverage<20> m_gpuMs;                         // The frame graph's GPU time, which varies from frame to frame
