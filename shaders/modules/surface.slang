@@ -22,7 +22,7 @@ public struct SurfaceInput
     public float2 uv;
     public float3 worldPosition;
     public float3 worldNormal; // The interpolated normal, as the vertices gave it
-    public bool isFrontFace;   // False on a back face, which toGBuffer shades with its normal flipped
+    public bool isFrontFace;   // False on a back face, which worldNormal flips the normal of
 }
 
 /// The SurfaceInput of a fragment. A back face, which only a material that culls nothing (rhi::CullMode::None) draws, is
@@ -84,14 +84,22 @@ public func evaluateSurface<S : ISurface>(MaterialAddress material, SurfaceInput
     return S.evaluate((S.Params*)material.address, input);
 }
 
-/// The G-buffer texels of a surface point that surface shader S evaluated: its tangent-space normal in world space,
-/// and S's shading model in ARM w.
-public func toGBuffer<S : ISurface>(SurfaceInput input, SurfaceOutput surface) -> common::GBuffer
+/// The world-space normal of a surface point: the surface's tangent-space normal (or the vertex normal, if it gives
+/// none), flipped on a back face (see toSurfaceInput).
+public func worldNormal(SurfaceInput input, SurfaceOutput surface) -> float3
 {
     let tbn = TBN::calcMatrix(input.worldPosition, input.worldNormal, input.uv);
     float3 N = normalize(length(surface.normal) < 0.1 ? input.worldNormal : mul(surface.normal, tbn));
     if (!input.isFrontFace)
         N = -N;
+    return N;
+}
+
+/// The G-buffer texels of a surface point that surface shader S evaluated: its normal in world space (worldNormal),
+/// and S's shading model in ARM w.
+public func toGBuffer<S : ISurface>(SurfaceInput input, SurfaceOutput surface) -> common::GBuffer
+{
+    let N = worldNormal(input, surface);
 
     common::GBuffer output;
     output.position = float4(input.worldPosition, 1.0);

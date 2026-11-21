@@ -167,6 +167,19 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(sizeof(StaticMeshConstants) == 112);
     }
 
+    TEST_CASE("ForwardConstants matches cpu-driven/forward.slang")
+    {
+        CHECK(offsetof(ForwardConstants, model) == 0);
+        CHECK(offsetof(ForwardConstants, normalRow0) == 48);
+        CHECK(offsetof(ForwardConstants, normalRow1) == 60);
+        CHECK(offsetof(ForwardConstants, normalRow2) == 72);
+        CHECK(offsetof(ForwardConstants, camera) == 88);
+        CHECK(offsetof(ForwardConstants, mesh) == 96);
+        CHECK(offsetof(ForwardConstants, material) == 104);
+        CHECK(offsetof(ForwardConstants, lighting) == 112);
+        CHECK(sizeof(ForwardConstants) == 120);
+    }
+
     TEST_CASE("LightingConstants matches lighting.slang")
     {
         CHECK(offsetof(LightingConstants, lighting) == 0);

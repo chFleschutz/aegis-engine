@@ -299,26 +299,38 @@
     use    Main/SceneColor ColorAttachment
     barrier Main/Depth: DepthAttachment -> DepthRead
     barrier Main/SceneColor: StorageWrite -> ColorAttachment
-42. Main/Transparent
+42. Main/Forward
+    use    Main/Depth DepthRead
+    use    Main/CameraData ShaderRead
+    use    Main/LightingUniforms ShaderRead
+    use    Lights ShaderRead
+    use    MainShadow0/Depth SampledFragment
+    use    MainShadow1/Depth SampledFragment
+    use    MainShadow2/Depth SampledFragment
+    use    MainShadow3/Depth SampledFragment
+    use    SpotShadowAtlas SampledFragment
+    use    Main/SceneColor ColorAttachment
+    barrier Main/SceneColor: ColorAttachment -> ColorAttachment
+43. Main/Transparent
     use    Main/Depth DepthRead
     use    Main/CameraData ShaderRead
     use    Main/SceneColor ColorAttachment
     barrier Main/SceneColor: ColorAttachment -> ColorAttachment
-43. Main/Bloom
+44. Main/Bloom
     use    Main/SceneColor StorageRead
     create Main/Bloom StorageWrite
     barrier Main/SceneColor: ColorAttachment -> StorageRead
     barrier Main/Bloom: undefined -> StorageWrite
-44. Main/Post Processing
+45. Main/Post Processing
     use    Main/SceneColor StorageRead
     use    Main/Bloom StorageRead
     create Main/Final StorageWrite
     barrier Main/Bloom: StorageWrite -> StorageRead
     barrier Main/Final: undefined -> StorageWrite
-45. UI
+46. UI
     use    Main/Final ColorAttachment
     barrier Main/Final: StorageWrite -> ColorAttachment
-46. Present
+47. Present
     use    Main/Final TransferSrc
     barrier Main/Final: ColorAttachment -> TransferSrc
 resources

@@ -9,11 +9,13 @@ import aegis.rhi;
 
 export namespace aegis::render_graph
 {
-/// @brief How a pass draws a material: into the G-buffer, or its depth only (a shadow view); forward later.
+/// @brief How a pass draws a material: into the G-buffer, its depth only (a shadow view), or lit and blended
+///        into the scene color (the forward technique, which draws the blended materials the G-buffer can't hold).
 enum class Technique
 {
     GBuffer,
     Depth,
+    Forward,
 };
 
 /// @brief Which shaders a geometry pass draws with: vertex shaders, one draw per instance (CPU-driven), or task and
@@ -48,41 +50,48 @@ struct PipelineKey
     };
 };
 
-/// @brief The fixed-function state of a pipeline that its key decides: rhi::Pipeline::GraphicsDesc's cull mode and
-///        front face, and the blend of every color attachment.
+/// @brief The fixed-function state of a pipeline that its key decides: rhi::Pipeline::GraphicsDesc's cull mode, front
+///        face and depth writes, and the blend of every color attachment.
 struct PipelineState
 {
     rhi::CullMode cullMode{ rhi::CullMode::Back };
     rhi::FrontFace frontFace{ rhi::FrontFace::CounterClockwise };
     rhi::BlendMode blend{ rhi::BlendMode::None };
+    bool depthWrite{ true };
 
     auto operator==(const PipelineState&) const -> bool = default;
 };
 
 /// @brief The state a pipeline of 'key' is created with. The G-buffer holds surfaces, never a blend of them, and the
-///        depth technique has no color to blend, so neither blends whatever the variant's alpha mode.
+///        depth technique has no color to blend, so neither blends whatever the variant's alpha mode. The forward
+///        technique blends with straight alpha and tests depth without writing it, so what it draws hides nothing
+///        drawn after it.
 [[nodiscard]] constexpr auto pipelineState(const PipelineKey& key) noexcept -> PipelineState
 {
-    rhi::BlendMode blend{ rhi::BlendMode::None };
+    PipelineState state{ .cullMode = key.variant.cullMode, .frontFace = key.frontFace };
     switch (key.technique)
     {
     case Technique::GBuffer:
     case Technique::Depth:
-        blend = rhi::BlendMode::None;
+        break;
+    case Technique::Forward:
+        state.blend = rhi::BlendMode::Alpha;
+        state.depthWrite = false;
         break;
     }
-    return { .cullMode = key.variant.cullMode, .frontFace = key.frontFace, .blend = blend };
+    return state;
 }
 
 /// @brief The fragment entry point a pipeline of 'technique' for 'variant' draws with, in its technique file: the
-///        G-buffer's "fragmentMain"; for depth, "depthFragmentMain" in the masked build, which alpha-tests, and none
-///        (a pipeline without a fragment stage) otherwise.
+///        G-buffer's and the forward technique's "fragmentMain"; for depth, "depthFragmentMain" in the masked build,
+///        which alpha-tests, and none (a pipeline without a fragment stage) otherwise.
 [[nodiscard]] constexpr auto fragmentEntry(Technique technique, const assets::MaterialVariant& variant) noexcept
     -> std::optional<std::string_view>
 {
     switch (technique)
     {
     case Technique::GBuffer:
+    case Technique::Forward:
         return "fragmentMain";
     case Technique::Depth:
         if (variant.alphaMode == assets::AlphaMode::Mask)
@@ -111,6 +120,21 @@ struct PipelineState
 {
     return batch.instanceCount > 0 && batch.variant.materialTemplate->type() == type &&
            batch.variant.alphaMode != assets::AlphaMode::Blend;
+}
+
+/// @brief Whether the forward technique draws 'batch': it has instances and blends, whatever its template's
+///        MaterialType. Blended batches cast no shadows: the depth technique draws the G-buffer's batches only.
+[[nodiscard]] inline auto drawsForward(const DrawBatch& batch) -> bool
+{
+    return batch.instanceCount > 0 && batch.variant.alphaMode == assets::AlphaMode::Blend;
+}
+
+/// @brief Whether a pass of 'technique' draws 'batch': drawsForward for the forward technique, drawsInGBuffer (with
+///        'type') for the others.
+[[nodiscard]] inline auto drawsBatch(Technique technique, const DrawBatch& batch,
+    assets::MaterialType type = assets::MaterialType::Opaque) -> bool
+{
+    return technique == Technique::Forward ? drawsForward(batch) : drawsInGBuffer(batch, type);
 }
 
 /// @brief A pass's pipelines by PipelineKey. Each is created the first time its key is prepared, before recording

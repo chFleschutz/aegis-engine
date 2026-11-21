@@ -180,6 +180,19 @@ struct StaticMeshConstants
     rhi::DeviceAddress material;
 };
 
+/// @brief cpu-driven/forward.slang: StaticMeshConstants and the view's lighting block.
+struct ForwardConstants
+{
+    glm::mat3x4 model; // Top three rows
+    glm::vec3 normalRow0;
+    glm::vec3 normalRow1;
+    glm::vec3 normalRow2;
+    rhi::DeviceAddress camera;
+    rhi::DeviceAddress mesh;
+    rhi::DeviceAddress material;
+    rhi::DeviceAddress lighting; // LightingUniforms
+};
+
 /// @brief lighting.slang
 struct LightingConstants
 {

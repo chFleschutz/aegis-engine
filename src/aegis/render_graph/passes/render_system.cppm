@@ -12,7 +12,8 @@ struct RenderContext
     const rhi::CommandBuffer& cmd;
     const FrameScene& frameScene;
     std::uint32_t frameIndex;
-    rhi::DeviceAddress camera; // This frame's CameraData
+    rhi::DeviceAddress camera;        // This frame's CameraData
+    rhi::DeviceAddress lighting{ 0 }; // This frame's LightingUniforms, in a pass that lights what it draws (ForwardPass)
 };
 
 /// @brief The attachments a pass renders into, which a render system's pipelines must match.

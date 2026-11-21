@@ -21,6 +21,7 @@ target_sources(aegis-render-passes
     FILE_SET CXX_MODULES FILES
     render_passes.cppm
     default_graph.cppm
+    forward_pass.cppm
     frame_scene.cppm
     geometry_pass.cppm
     gpu_driven.cppm
@@ -40,6 +41,7 @@ target_sources(aegis-render-passes
     ui_pass.cppm
     PRIVATE
     default_graph.cpp
+    forward_pass.cpp
     geometry_pass.cpp
     gpu_driven.cpp
     ibl.cpp

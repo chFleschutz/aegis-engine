@@ -5,6 +5,7 @@ set(SHADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 # Techniques draw a material through its template's surface shader: each is built once per surface shader
 # (surfaces/*.slang, see modules/surface.slang), into <technique>.<surface>.spv.
 set(SLANG_TECHNIQUES
+    ${SHADERS_DIR}/cpu-driven/forward.slang
     ${SHADERS_DIR}/cpu-driven/geometry.slang
     ${SHADERS_DIR}/gpu-driven/geometry.slang
 )

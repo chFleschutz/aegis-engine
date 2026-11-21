@@ -9,6 +9,7 @@ export module aegis.render_passes;
 import std;
 export import aegis.render_graph;
 export import :default_graph;
+export import :forward_pass;
 export import :frame_scene;
 export import :geometry_pass;
 export import :gpu_driven;
