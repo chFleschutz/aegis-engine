@@ -3,8 +3,7 @@
 import std;
 import aegis.reflect;
 import aegis.world;
-import aegis.scripting.script;
-import aegis.scripting.script_system;
+import aegis.scripting;
 
 namespace
 {

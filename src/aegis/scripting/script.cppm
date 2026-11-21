@@ -1,4 +1,4 @@
-export module aegis.scripting.script;
+export module aegis.scripting:script;
 
 import std;
 import aegis.platform;

@@ -7,7 +7,7 @@ import std;
 import aegis.assets;
 import aegis.core;
 import aegis.reflect;
-import aegis.scripting.script;
+import aegis.scripting;
 import aegis.world;
 
 namespace aegis::serialize

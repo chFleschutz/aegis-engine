@@ -98,30 +98,18 @@ there. Loaded assets are shared, so code that changes one object's material copi
 (`assets.copyMaterial(ref)`). Before changing asset loading, read `docs/asset-system.md` ("Working with
 it today").
 
-## Two code styles (most important)
-**Match the conventions of the code you are editing.**
+## Code style (most important)
+**Match the conventions of the code you are editing.** The engine follows the rules below, except
+the **legacy** rest, which keeps older conventions until it is rewritten: the files directly in
+`src/aegis/` (`engine`, `asset_library`, `render_bridge`, `launch/`, ...), `math/` and `examples/`.
+There, misuse is an `assert`, some errors are still `std::string`, and `math` is one `.cppm` with no
+partitions.
 
-| | New style (see the list below) | Legacy — everything else |
-|---|---|---|
-| Vulkan | vulkan-hpp `vk::raii`, `import vulkan` | none — go through `aegis::rhi` and friends |
-| Errors | `std::expected<T, Error>` + `makeError`, never throw | `assert` |
-| Modules | `.cppm` interface + `.cpp` impl, `import :partition;` | `.cppm` only, dotted submodules (`aegis.scripting.script`); `math` is one module |
+- *Errors:* `std::expected<T, Error>` built with `makeError`, never thrown.
+- *Modules:* one module per folder, a `.cppm` interface and `.cpp` implementation units, split into
+  partitions (`import :partition;`); importers write one import, never a dotted submodule.
 
-New-style folders under `src/aegis/`, one per line so moving a folder doesn't conflict with another PR
-(everything else, `examples/` included, is legacy):
-- `assets/`
-- `core/`
-- `editor/`
-- `paths/`
-- `platform/`
-- `reflect/`
-- `render_graph/`
-- `renderer/`
-- `rhi/`
-- `serialize/`
-- `test/`
-
-Both styles: lowercase `snake_case` namespaces (`aegis::rhi`, `aegis::world`) and module names
+Everywhere: lowercase `snake_case` namespaces (`aegis::rhi`, `aegis::world`) and module names
 (`aegis.rhi`, `aegis.world`), 4-space indent with un-indented namespace bodies, `m_`-prefixed
 camelCase members, Allman braces, `snake_case` filenames. New RHI also
 uses trailing return types, `[[nodiscard]]`, `Desc` nested config structs, and packed generational
@@ -136,15 +124,15 @@ A resource *owns* its descriptors (`ImageView::sampledDescriptor()`, `Sampler::d
 call a slot index or a vector index a handle. The rule covers GPU resources; CPU assets are shared
 through `shared_ptr`.
 
-**Vulkan stays inside rhi:** use `import vulkan`, never `#include <vulkan/vulkan.h>`, and only inside
-the new RHI modules. rhi classes expose native `vk::` handles for interop (`Device::device()`,
-`Buffer::vk()`, ...); the vulkan module is linked PRIVATE, so code outside rhi cannot name `vk::`
-types, except `render_graph/passes/ui_pass.cpp`, which imports it for the ImGui backend.
+**Vulkan stays inside rhi:** use `import vulkan` and `vk::raii`, never `#include <vulkan/vulkan.h>`,
+and only inside the new RHI modules; everything else goes through `aegis::rhi`. rhi classes expose
+native `vk::` handles for interop (`Device::device()`, `Buffer::vk()`, ...); the vulkan module is
+linked PRIVATE, so code outside rhi cannot name `vk::` types, except `render_graph/passes/ui_pass.cpp`, which imports it for the ImGui backend.
 
 **Known deviations (current state):** the `Error` types differ per module (rhi struct `{code}`,
-`renderer` enum, `render_graph` `{message, rhi?}`, `assets` struct) and `platform::Window` asserts
-instead of returning one; components, `Profiler` and `Engine` sit directly in `aegis`;
-`Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
+`renderer` enum, `render_graph` `{message, rhi?}`, `assets` struct); `platform::Window` asserts
+instead of returning one, and `world` and `scripting` assert on misuse that could be recoverable;
+components, `Profiler` and `Engine` sit directly in `aegis`; `Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
 
 **Foundation (`aegis.core`, `src/aegis/core/`):** logging, flag enums, alignment, `match` and the
 profiler; any module may import it.

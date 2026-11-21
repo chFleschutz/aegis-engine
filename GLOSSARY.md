@@ -7,11 +7,11 @@ A cross-platform C++23 Vulkan render engine that hosts games. This glossary says
 ### Code
 
 **New style**:
-The conventions of the code rewritten onto the RHI. AGENTS.md lists them and the folders they cover.
+The conventions of the code rewritten onto the RHI, now everywhere but the legacy rest. AGENTS.md lists them and names that rest.
 _Avoid_: modern code, new code
 
 **Legacy**:
-The older conventions of the code around it, from before that rewrite.
+The older conventions, from before that rewrite, kept by the code it hasn't reached yet.
 _Avoid_: old style, old code
 
 ### GPU resources

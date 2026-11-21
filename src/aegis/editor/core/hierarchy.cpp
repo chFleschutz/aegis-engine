@@ -1,7 +1,7 @@
 module aegis.editor.core;
 import std;
 import aegis.core;
-import aegis.scripting.script;
+import aegis.scripting;
 import aegis.serialize;
 import aegis.world;
 

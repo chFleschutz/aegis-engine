@@ -5,9 +5,7 @@ import aegis.math;
 import aegis.platform;
 import aegis.reflect;
 import aegis.world;
-import aegis.scripting.script;
-import aegis.scripting.script_system;
-import aegis.scripting.movement.kinematic_movement_controller;
+import aegis.scripting;
 
 namespace
 {

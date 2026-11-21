@@ -1,11 +1,11 @@
-export module aegis.scripting.movement.kinematic_movement_controller;
+export module aegis.scripting:kinematic_movement_controller;
 
 import std;
-import aegis.reflect;
-import aegis.scripting.script;
 import aegis.math;
 import aegis.platform;
+import aegis.reflect;
 import aegis.world;
+import :script;
 
 export namespace aegis::scripting
 {
