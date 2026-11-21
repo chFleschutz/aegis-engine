@@ -1,6 +1,7 @@
 # Foundation plan: milestones
 
-The work from [report.md](audit/report.md) §7. The work items are GitHub issues, grouped into milestones
+The work started from the October audit's report (§7), now out of the tree:
+`git show 144e655c:docs/audit/report.md`. The work items are GitHub issues, grouped into milestones
 (`M1`–`M14`, then "Backlog"; the numbers are IDs in creation order, not the working order), with
 their dependencies as "Blocked by" relations; labels give the kind,
 size, area and the `needs-gpu` / `needs-design` flags (AGENTS.md "Planned work"). This file keeps
@@ -8,8 +9,8 @@ what the issues don't: each milestone's goal and working
 order. Status lives only in the issues: an assigned issue is being worked on.
 
 - **Closes** in an issue lists the canonical finding IDs, with merged duplicates in parentheses. The
-  evidence (file:line, failure scenario, fix sketch) is in `findings-*.md`; verdicts and corrections
-  are in `verify-*.md`, which win where the two disagree.
+  evidence (file:line, failure scenario, fix sketch) is in the audit's `findings-*.md`; verdicts and
+  corrections are in its `verify-*.md`, which win where the two disagree.
 - **Done when** is the acceptance check. "Test n" refers to the first test batch in report §4.3.
   A test marked *fails today* is written first, as the bug report.
 - **Size:** S = under 5 files or about a day, M = one module or a few days, L = crosses modules or
@@ -38,7 +39,7 @@ parallel lanes: tests and math, render, content. Its one leftover, the front-fac
 instances ([`0006-preserve-mirrored-transforms.md`](adr/0006-preserve-mirrored-transforms.md)), is under Polish.
 
 **[M2. Mechanical cleanup](https://github.com/chFleschutz/aegis-engine/milestone/2?closed=1)** (done) deleted dead code and renamed, each in its own
-blame-ignored PR, following the dead-code verdicts in `verify-conventions.md` §3.
+blame-ignored PR, following the dead-code verdicts in the audit's `verify-conventions.md` §3.
 
 **[M3. Foundation policy](https://github.com/chFleschutz/aegis-engine/milestone/3?closed=1)** (done) set the shared rules the later milestones build on:
 `aegis.base` ([`0003-drop-aegis-log.md`](adr/0003-drop-aegis-log.md), [`0004-foundation-module-name.md`](adr/0004-foundation-module-name.md)), the error shape of [`0001-one-error-type-per-module.md`](adr/0001-one-error-type-per-module.md) in every new-style module, the shader build helper with
@@ -68,8 +69,8 @@ Do it before the first terrain, vegetation or shadow pass. The `FrameScene` ([#1
 and runs in parallel with M6; the `InstanceStore` ([#86](https://github.com/chFleschutz/aegis-engine/issues/86)) follows it, then [#87](https://github.com/chFleschutz/aegis-engine/issues/87) (mechanical). The
 mirrored-instance fix ([#171](https://github.com/chFleschutz/aegis-engine/issues/171)) has landed.
 
-**[M9. Game launcher and editor split](https://github.com/chFleschutz/aegis-engine/milestone/10)** ([`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md)) makes the engine host the game
-([`docs/editor-runtime-split.md`](editor-runtime-split.md)). The launcher follows scene files,
+**[M9. Game launcher and editor split](https://github.com/chFleschutz/aegis-engine/milestone/10)** ([`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md)) makes the engine host the game.
+The launcher follows scene files,
 in two steps: the engine stops linking the editor ([#182](https://github.com/chFleschutz/aegis-engine/issues/182)), then the launcher itself ([#132](https://github.com/chFleschutz/aegis-engine/issues/132)). The
 examples become one game ([#167](https://github.com/chFleschutz/aegis-engine/issues/167)) after it and scene instances, one example per commit.
 The editor becomes a library ([#83](https://github.com/chFleschutz/aegis-engine/issues/83)); building the editor itself is M10. `aegis-test`: the per-check split ([#170](https://github.com/chFleschutz/aegis-engine/issues/170)) can start any time;

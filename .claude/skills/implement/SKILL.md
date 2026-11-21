@@ -38,9 +38,9 @@ the comment and stop.
   agents skip assigned issues.
 
 ## 2. Check the issue against the code
-- Read the ADRs it cites (`docs/adr/`) and the findings it lists
-  (`docs/audit/findings-*.md`, corrected by `verify-*.md`), then re-check them against the current
-  code. If the issue is wrong or already done, stop and say so.
+- Read the ADRs it cites (`docs/adr/`) and the findings it lists (the October audit, out of the
+  tree: `git show 144e655c:docs/audit/findings-<group>.md`, corrected by `verify-<group>.md`), then
+  re-check them against the current code. If the issue is wrong or already done, stop and say so.
 - Stop and ask when the scope is ambiguous, the change would cross the issue's **Out of scope**,
   or it would break a public API.
 - **The issue's scope wins over the plan doc it cites.** When a doc's step (`docs/editor.md`'s E1,

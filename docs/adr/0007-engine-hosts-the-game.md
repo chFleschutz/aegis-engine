@@ -1,7 +1,7 @@
 # Game-usage model: the engine hosts the game
 
-Formerly D7. Decided 2026-10-19, see
-[`docs/editor-runtime-split.md`](../editor-runtime-split.md).
+Formerly D7. Decided 2026-10-19; the design document behind it, since removed, is
+`git show 144e655c:docs/editor-runtime-split.md`.
 
 - **Executables:** Aegis owns `main()`. `aegis_add_game` builds one engine-owned launcher into
   `<Game>` (runtime) and `<Game>-Editor`, and only the editor executable links `aegis-editor`.
