@@ -77,8 +77,8 @@ auto hasGeometryPipeline(const render_graph::FrameGraph& frameGraph, const asset
     return false;
 }
 
-// Whether the forward pass of 'frameGraph' holds the forward pipeline of 'variant' (counter-clockwise front faces):
-// ForwardPass's StaticMeshRenderSystem, on both geometry paths.
+// Whether the forward pass of 'frameGraph' holds the forward pipelines of 'variant', for both front faces (mirrored
+// instances draw with the clockwise one): ForwardPass's StaticMeshRenderSystem, on both geometry paths.
 auto hasForwardPipeline(const render_graph::FrameGraph& frameGraph, const assets::MaterialVariant& variant) -> bool
 {
     using render_graph::GeometryPath;
@@ -91,8 +91,11 @@ auto hasForwardPipeline(const render_graph::FrameGraph& frameGraph, const assets
         for (const auto& system : forward->renderSystems())
         {
             const auto* meshes = dynamic_cast<const render_graph::StaticMeshRenderSystem*>(system.get());
-            if (meshes && meshes->technique() == Technique::Forward)
-                return meshes->pipelines().contains({ .technique = Technique::Forward, .variant = variant, .path = GeometryPath::CpuDriven });
+            if (!meshes || meshes->technique() != Technique::Forward)
+                continue;
+            return std::ranges::all_of(std::array{ rhi::FrontFace::CounterClockwise, rhi::FrontFace::Clockwise }, [&](rhi::FrontFace frontFace) {
+                return meshes->pipelines().contains({ .technique = Technique::Forward, .variant = variant, .path = GeometryPath::CpuDriven, .frontFace = frontFace });
+            });
         }
     }
     return false;
