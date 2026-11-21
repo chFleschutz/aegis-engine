@@ -178,8 +178,8 @@ public:
         }
         if (m_options.blend && m_frame == 1)
         {
-            if (auto added = addBlendedCube(frame); !added)
-                m_result.errors.push_back(std::format("Adding the blended cube failed: {}", added.error()));
+            if (auto added = addBlendedCubes(frame); !added)
+                m_result.errors.push_back(std::format("Adding the blended cubes failed: {}", added.error()));
         }
         if (m_options.blend && m_options.frames != 0 && m_frame + 1 == m_options.frames)
         {
@@ -408,9 +408,11 @@ private:
         return {};
     }
 
-    // --blend, in the second frame (the camera has its global transform): a cube of a half-transparent, blended PBR
-    // material between the camera and the helmet, covering part of it, so the last frame shows the helmet through it.
-    auto addBlendedCube(FrameContext& frame) -> std::expected<void, std::string>
+    // --blend, in the second frame (the camera has its global transform): two cubes of half-transparent, blended PBR
+    // materials between the camera and the helmet, an orange one and a blue one, added in that order. The blue one sits
+    // behind the orange one (--blend-swap: in front of it), covering part of it, so the last frame shows the far cube
+    // through the near one and the helmet through both, composed correctly only if the far cube draws first.
+    auto addBlendedCubes(FrameContext& frame) -> std::expected<void, std::string>
     {
         auto& registry = frame.world.registry();
         std::optional<GlobalTransform> camera;
@@ -419,34 +421,44 @@ private:
         if (!camera)
             return std::unexpected{ "the scene has no camera" };
 
-        const auto material = frame.assets.createMaterial();
-        const std::array<std::pair<std::string_view, assets::MaterialValue>, 3> parameters{ {
-            { "albedo", glm::vec3{ 1.0f, 0.25f, 0.1f } },
-            { "roughness", 0.6f },
-            { "alpha", 0.5f },
+        const glm::vec3 nearer = camera->location + camera->forward() * 1.1f + camera->right() * 0.12f;
+        const glm::vec3 farther = camera->location + camera->forward() * 1.5f + camera->right() * 0.38f + camera->up() * 0.16f;
+        const std::array<std::pair<glm::vec3, glm::vec3>, 2> cubes{ {
+            { glm::vec3{ 1.0f, 0.25f, 0.1f }, m_options.blendSwap ? farther : nearer },
+            { glm::vec3{ 0.1f, 0.35f, 1.0f }, m_options.blendSwap ? nearer : farther },
         } };
-        for (const auto& [name, value] : parameters)
+        for (const auto& [albedo, location] : cubes)
         {
-            if (auto set = material->setParameter(std::string{ name }, value); !set)
-                return std::unexpected{ assets::describe(set.error()) };
-        }
-        material->setAlphaMode(assets::AlphaMode::Blend);
+            const auto material = frame.assets.createMaterial();
+            const std::array<std::pair<std::string_view, assets::MaterialValue>, 3> parameters{ {
+                { "albedo", albedo },
+                { "roughness", 0.6f },
+                { "alpha", 0.5f },
+            } };
+            for (const auto& [name, value] : parameters)
+            {
+                if (auto set = material->setParameter(std::string{ name }, value); !set)
+                    return std::unexpected{ assets::describe(set.error()) };
+            }
+            material->setAlphaMode(assets::AlphaMode::Blend);
 
-        auto cube = frame.assets.instantiateScene(frame.world, frame.types, assets::engine::cube, {});
-        if (!cube)
-            return std::unexpected{ cube.error() };
-        auto& transform = registry.get<Transform>(*cube);
-        transform.location = camera->location + camera->forward() * 1.5f + camera->right() * 0.3f;
-        // Turned so that three faces, each lit differently, face the camera.
-        transform.rotation = glm::quat{ glm::vec3{ glm::radians(30.0f), 0.0f, glm::radians(40.0f) } };
-        transform.scale = glm::vec3{ 0.25f };
-        for (const auto entity : subtree(registry, *cube))
-        {
-            if (registry.has<MeshRenderer>(entity))
-                registry.get<MeshRenderer>(entity).material = material;
-            registry.markStaticDirty(entity);
+            auto cube = frame.assets.instantiateScene(frame.world, frame.types, assets::engine::cube, {});
+            if (!cube)
+                return std::unexpected{ cube.error() };
+            auto& transform = registry.get<Transform>(*cube);
+            transform.location = location;
+            // Turned so that three faces, each lit differently, face the camera.
+            transform.rotation = glm::quat{ glm::vec3{ glm::radians(30.0f), 0.0f, glm::radians(40.0f) } };
+            transform.scale = glm::vec3{ 0.25f };
+            for (const auto entity : subtree(registry, *cube))
+            {
+                if (registry.has<MeshRenderer>(entity))
+                    registry.get<MeshRenderer>(entity).material = material;
+                registry.markStaticDirty(entity);
+            }
+            if (!m_blended)
+                m_blended = material.shared();
         }
-        m_blended = material.shared();
         return {};
     }
 
@@ -748,7 +760,7 @@ private:
     std::map<std::string, std::vector<std::byte>, std::less<>> m_together; // --views: each view's image, rendered with the other
     std::uint32_t m_staticDrawn{ 0 };                                      // --mutate-scene: drawable static entities before the last change
     std::vector<std::shared_ptr<assets::Material>> m_culled;               // --mutate-scene: the materials set to cull nothing
-    std::shared_ptr<assets::Material> m_blended;                           // --blend: the blended cube's material
+    std::shared_ptr<assets::Material> m_blended;                           // --blend: the first blended cube's material
     world::World* m_second{ nullptr };                                     // --worlds: the second world, from the same scene file
 };
 

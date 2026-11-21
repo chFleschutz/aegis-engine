@@ -57,6 +57,12 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
             options.scene = true;
             options.blend = true;
         }
+        else if (arg == "--blend-swap")
+        {
+            options.scene = true;
+            options.blend = true;
+            options.blendSwap = true;
+        }
         else if (arg == "--worlds")
         {
             options.scene = true;
@@ -114,7 +120,7 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
     if (options.views && options.unlit)
         return std::unexpected{ "--views adds an unlit cube of its own, so it can't run with --unlit" };
     if (options.sceneFile != testSceneFile && (options.mirror || options.mutateScene || options.worlds || options.unlit || options.blend || options.view || options.views))
-        return std::unexpected{ "--mirror, --mutate-scene, --worlds, --unlit, --blend, --view and --views are written for the test scene, so they can't run with --scene-file" };
+        return std::unexpected{ "--mirror, --mutate-scene, --worlds, --unlit, --blend, --blend-swap, --view and --views are written for the test scene, so they can't run with --scene-file" };
     if (options.scene && options.noSamples)
         return std::unexpected{ "--scene loads the sample project, so it can't run with --no-samples" };
 
@@ -130,7 +136,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::test::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--mirror] [--unlit] [--blend] [--view] [--views] [--worlds] [--post-process] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--mirror] [--unlit] [--blend] [--blend-swap] [--view] [--views] [--worlds] [--post-process] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 
