@@ -18,20 +18,11 @@ class PreferencesPanel final : public Panel
 {
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "Preferences"; }
+    [[nodiscard]] auto placement() const -> Placement override { return Placement::Dialog; }
+    [[nodiscard]] auto menu() const -> Menu override { return Menu::None; }
 
     void draw(EditorContext& editor, FrameContext&) override
     {
-        bool open = true;
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2{ 0.5f, 0.5f });
-        const bool visible = ImGui::Begin("Preferences", &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings);
-        setOpen(open);
-        if (!visible)
-        {
-            ImGui::End();
-            return;
-        }
-
         auto& preferences = editor.preferences();
         ImGui::DragFloat("Camera speed", &preferences.cameraSpeed, 0.1f, minCameraSpeed, maxCameraSpeed, "%.2f units/s");
         ImGui::DragFloat("Snap move", &preferences.snapTranslate, 0.01f, 0.001f, 1000.0f, "%.3f units");
@@ -43,7 +34,6 @@ public:
         ImGui::Checkbox("Full viewport on play", &preferences.fullViewportOnPlay);
         ImGui::SetItemTooltip("Play gives the viewport the whole window, and Stop gives the panels back");
         // The recent projects stay stored, but nothing opens them yet (a welcome screen or project switcher will)
-        ImGui::End();
     }
 
 private:

@@ -320,6 +320,29 @@ auto dockIdOf(std::string_view title) -> ImGuiID
     const ImGuiWindowSettings* settings = ImGui::FindWindowSettingsByID(ImHashStr(name.c_str()));
     return settings ? settings->DockId : 0;
 }
+
+// A docked, floating or dialog panel's window with its contents; its close button closes the panel. A dialog is centered
+// as it appears and sized to its contents (or as wide as it asks), with its title and no saved layout.
+void drawWindowPanel(Panel& panel, EditorContext& editor, FrameContext& frame)
+{
+    bool open = true;
+    bool visible = false;
+    if (panel.placement() == Placement::Dialog)
+    {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2{ 0.5f, 0.5f });
+        if (const float width = panel.dialogWidth() * theme::scale(); width > 0.0f)
+            ImGui::SetNextWindowSizeConstraints(ImVec2{ width, 0.0f }, ImVec2{ width, FLT_MAX });
+        const std::string title{ panel.title() };
+        visible = ImGui::Begin(title.c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings);
+    }
+    else
+        visible = ImGui::Begin(panel.label().c_str(), &open);
+    panel.setOpen(open);
+    if (visible)
+        panel.draw(editor, frame);
+    ImGui::End();
+}
 }
 
 EditorShell::EditorShell()
@@ -365,8 +388,8 @@ auto EditorShell::onStartup(Engine& engine) -> std::expected<void, EngineError>
     {
         for (const auto& panel : m_panels)
         {
-            panel->setOpen(panel->docked()); // Not All Entities: it floats over the viewport
-            if (panel->drawer())
+            panel->setOpen(panel->placement() != Placement::Float); // Not All Entities: it floats over the viewport
+            if (panel->placement() == Placement::Drawer)
                 pin(panel->name()); // The drawer shows only one
         }
         m_focusPinned = "Content"; // Its tab shows
@@ -541,19 +564,19 @@ void EditorShell::drawUi(FrameContext& frame)
     drawDockspace();
     for (const auto& panel : m_panels)
     {
-        if (!panel->isOpen() || (full && (!panel->docked() || floats(panel->title()))))
+        if (!panel->isOpen() || (full && (panel->placement() == Placement::Float || floats(panel->title()))))
             continue;
-        if (panel->column())
+        if (panel->placement() == Placement::Column)
             drawColumnPanel(*panel, frame);
-        else if (!panel->drawer())
-            panel->draw(m_context, frame);
+        else if (panel->placement() != Placement::Drawer)
+            drawWindowPanel(*panel, m_context, frame);
         else if (m_drawers.isPinned(panel->name()))
             drawPinned(*panel, frame);
     }
     for (auto* window : { m_preferencesWindow.get(), m_shortcutsWindow.get(), m_aboutWindow.get() })
     {
         if (window->isOpen() && !full)
-            window->draw(m_context, frame);
+            drawWindowPanel(*window, m_context, frame);
     }
     std::function<void()> bar;
     if (m_document.recovery())
@@ -1354,7 +1377,7 @@ auto EditorShell::inFoldedColumn(std::string_view title) const -> bool
 
 auto EditorShell::findColumnPanel(std::string_view title) const -> Panel*
 {
-    const auto it = std::ranges::find_if(m_panels, [title](const auto& panel) { return panel->column() && panel->title() == title; });
+    const auto it = std::ranges::find_if(m_panels, [title](const auto& panel) { return panel->placement() == Placement::Column && panel->title() == title; });
     return it == m_panels.end() ? nullptr : it->get();
 }
 
@@ -1556,7 +1579,7 @@ void EditorShell::drawPinned(Panel& panel, FrameContext& frame)
         m_focusPinned.clear();
     }
     bool open = true;
-    const bool visible = ImGui::Begin(panel.label().c_str(), panel.debug() ? &open : nullptr); // Content and the console stay open
+    const bool visible = ImGui::Begin(panel.label().c_str(), panel.menu() == Menu::Debug ? &open : nullptr); // Content and the console stay open
     if (!open)
         panel.setOpen(false);
     // Appearing undocked (pinned in the layout file without a node, or dragged out to float before): docked below the
@@ -1787,10 +1810,10 @@ void EditorShell::drawMenuBar(FrameContext& frame)
     {
         for (const auto& panel : m_panels)
         {
-            if (panel->debug())
+            if (panel->menu() != Menu::View)
                 continue;
             const std::string name{ panel->name() };
-            if (panel->drawer())
+            if (panel->placement() == Placement::Drawer)
             {
                 // Opens the drawer (its button and chord also close it)
                 const auto chord = m_actions.shortcut(name == "Content" ? "view.content" : "view.console");
@@ -1813,12 +1836,12 @@ void EditorShell::drawMenuBar(FrameContext& frame)
     {
         for (const auto& panel : m_panels)
         {
-            if (!panel->debug())
+            if (panel->menu() != Menu::Debug)
                 continue;
             // A drawer panel shows in the drawer (it closes as the drawer does), or comes to the front pinned (its tab
             // closes it); another is checked while open and toggles
             const std::string name{ panel->name() };
-            if (panel->drawer())
+            if (panel->placement() == Placement::Drawer)
             {
                 if (ImGui::MenuItem(name.c_str()))
                     showDrawer(name);

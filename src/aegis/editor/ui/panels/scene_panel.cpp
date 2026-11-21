@@ -138,7 +138,7 @@ public:
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Scene"; }
     [[nodiscard]] auto icon() const -> const char* override { return theme::icons::hierarchy; }
-    [[nodiscard]] auto column() const -> bool override { return true; }
+    [[nodiscard]] auto placement() const -> Placement override { return Placement::Column; }
     [[nodiscard]] auto title() const -> std::string_view override { return "Hierarchy"; }
 
     void draw(EditorContext& editor, FrameContext& frame) override { drawHierarchy(editor, frame); }

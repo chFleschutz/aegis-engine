@@ -19,8 +19,8 @@ class ProfilerPanel final : public Panel
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "Profiler"; }
     [[nodiscard]] auto icon() const -> const char* override { return theme::icons::profiler; }
-    [[nodiscard]] auto debug() const -> bool override { return true; }
-    [[nodiscard]] auto drawer() const -> bool override { return true; }
+    [[nodiscard]] auto placement() const -> Placement override { return Placement::Drawer; }
+    [[nodiscard]] auto menu() const -> Menu override { return Menu::Debug; }
 
     void draw(EditorContext&, FrameContext& frame) override
     {

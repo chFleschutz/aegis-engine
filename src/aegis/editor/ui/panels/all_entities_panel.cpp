@@ -18,20 +18,11 @@ class AllEntitiesPanel final : public Panel
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "All Entities"; }
     [[nodiscard]] auto icon() const -> const char* override { return theme::icons::allEntities; }
-    [[nodiscard]] auto debug() const -> bool override { return true; }
-    [[nodiscard]] auto docked() const -> bool override { return false; } // It floats when opened
+    [[nodiscard]] auto placement() const -> Placement override { return Placement::Float; }
+    [[nodiscard]] auto menu() const -> Menu override { return Menu::Debug; }
 
     void draw(EditorContext& editor, FrameContext&) override
     {
-        bool open = true;
-        const bool visible = ImGui::Begin(label().c_str(), &open);
-        setOpen(open);
-        if (!visible)
-        {
-            ImGui::End();
-            return;
-        }
-
         auto& registry = editor.world()->registry();
         const auto view = registry.view<StableId>();
         ImGuiListClipper clipper; // Only the entities in view are drawn: the view is indexed, not walked
@@ -48,7 +39,6 @@ public:
                 ImGui::PopID();
             }
         }
-        ImGui::End();
     }
 };
 }

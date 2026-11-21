@@ -729,7 +729,7 @@ public:
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Inspector"; }
     [[nodiscard]] auto icon() const -> const char* override { return theme::icons::inspector; }
-    [[nodiscard]] auto column() const -> bool override { return true; }
+    [[nodiscard]] auto placement() const -> Placement override { return Placement::Column; }
 
     void draw(EditorContext& editor, FrameContext& frame) override
     {

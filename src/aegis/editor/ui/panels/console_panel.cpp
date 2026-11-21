@@ -68,7 +68,7 @@ public:
 
     [[nodiscard]] auto name() const -> std::string_view override { return "Console"; }
     [[nodiscard]] auto icon() const -> const char* override { return theme::icons::console; }
-    [[nodiscard]] auto drawer() const -> bool override { return true; }
+    [[nodiscard]] auto placement() const -> Placement override { return Placement::Drawer; }
 
     void draw(EditorContext& editor, FrameContext&) override
     {
