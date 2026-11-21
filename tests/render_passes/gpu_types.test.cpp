@@ -80,7 +80,10 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(LightingUniforms, shadowCascadeCount) == 432);
         CHECK(offsetof(LightingUniforms, spotShadowAtlas) == 436);
         CHECK(offsetof(LightingUniforms, spotShadows) == 444);
-        CHECK(sizeof(LightingUniforms) == 448);
+        CHECK(offsetof(LightingUniforms, irradiance) == 448); // lighting::Environment
+        CHECK(offsetof(LightingUniforms, prefiltered) == 456);
+        CHECK(offsetof(LightingUniforms, brdfLut) == 464);
+        CHECK(sizeof(LightingUniforms) == 472);
     }
 
     TEST_CASE("ShadowCascadeData matches lighting::ShadowCascade")
@@ -169,10 +172,7 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(LightingConstants, lighting) == 0);
         CHECK(offsetof(LightingConstants, sceneColor) == 8);
         CHECK(offsetof(LightingConstants, gBuffer) == 12); // Position, normal, albedo, ARM, emissive
-        CHECK(offsetof(LightingConstants, irradiance) == 32);
-        CHECK(offsetof(LightingConstants, prefiltered) == 40);
-        CHECK(offsetof(LightingConstants, brdfLut) == 48);
-        CHECK(sizeof(LightingConstants) == 56);
+        CHECK(sizeof(LightingConstants) == 32);
     }
 
     TEST_CASE("SkyBoxConstants matches sky_box.slang")

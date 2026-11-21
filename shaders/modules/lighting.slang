@@ -72,6 +72,14 @@ namespace lighting
         public float blend;
     }
 
+    /// The maps render_graph::Ibl bakes from the sky, which the ambient light reflects.
+    public struct Environment
+    {
+        public bindless::TextureDescriptor irradiance;  // Cube
+        public bindless::TextureDescriptor prefiltered; // Cube
+        public bindless::TextureDescriptor brdfLut;
+    }
+
     /// render_graph::LightingUniforms: a view's lights, one block per view and frame in flight.
     public struct Lighting
     {
@@ -86,19 +94,12 @@ namespace lighting
         public DirectionalShadow shadow;
         public bindless::TextureDescriptor spotShadowAtlas; // With a comparison sampler
         public uint spotShadows;                            // 0: the spot lights are unshadowed
+        public Environment environment;
 
         public property Light* lights
         {
             get { return (Light*)lightAddress; }
         }
-    }
-
-    /// The maps render_graph::Ibl bakes from the sky, which the ambient light reflects.
-    public struct Environment
-    {
-        public bindless::TextureDescriptor irradiance;  // Cube
-        public bindless::TextureDescriptor prefiltered; // Cube
-        public bindless::TextureDescriptor brdfLut;
     }
 
     /// A surface point to shade, in world space.
@@ -124,9 +125,10 @@ namespace lighting
         return lerp(1.0, materialOcclusion, lighting->ambientOcclusionFactor);
     }
 
-    func ambientLight(Lighting* lighting, Environment environment, float3 N, float3 V, float3 albedo, float ao,
+    func ambientLight(Lighting* lighting, float3 N, float3 V, float3 albedo, float ao,
                       float roughness, float metallic, float3 F0) -> float3
     {
+        let environment = lighting->environment;
         float3 R = reflect(-V, N);
         float NdotV = max(dot(N, V), 0.0);
 
@@ -290,7 +292,7 @@ namespace lighting
 
     /// The color 'point' leaves towards the view's camera: its emissive plus every light it reflects. An unlit point's
     /// color is its emissive, as it is.
-    public func shade(Lighting* lighting, Environment environment, SurfacePoint point) -> float3
+    public func shade(Lighting* lighting, SurfacePoint point) -> float3
     {
         if (point.shadingModel == ShadingModel::Unlit)
             return max(point.emissive, 0.0);
@@ -303,7 +305,7 @@ namespace lighting
         float3 F0 = lerp(float3(PBR::F_DIELECTRIC), point.albedo, point.metallic);
 
         float3 Lo = point.emissive * EMISSIVE_INTENSITY;
-        Lo += ambientLight(lighting, environment, N, V, point.albedo, ao, point.roughness, point.metallic, F0);
+        Lo += ambientLight(lighting, N, V, point.albedo, ao, point.roughness, point.metallic, F0);
         Lo += directionalLight(lighting, point.position, N, V, point.albedo, point.roughness, point.metallic, F0);
         Lo += punctualLights(lighting, point.position, N, V, point.albedo, point.roughness, point.metallic, F0);
         return max(Lo, 0.0);

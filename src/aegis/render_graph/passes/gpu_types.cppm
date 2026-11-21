@@ -131,6 +131,10 @@ struct LightingUniforms
     std::uint32_t shadowCascadeCount{ 0 };    // 0: the directional light is unshadowed
     rhi::TextureDescriptor spotShadowAtlas{}; // "SpotShadowAtlas", with a comparison sampler
     std::uint32_t spotShadows{ 0 };           // 0: the spot lights are unshadowed, whatever their records say
+    // lighting::Environment: the maps the ambient light reflects
+    rhi::TextureDescriptor irradiance{};  // Cube, the scene environment's
+    rhi::TextureDescriptor prefiltered{}; // Cube, the scene environment's
+    rhi::TextureDescriptor brdfLut{};     // The lighting pass's
 };
 
 // Push constants --------------------------------------------------------------------------------------
@@ -182,9 +186,6 @@ struct LightingConstants
     rhi::DeviceAddress lighting; // LightingUniforms
     rhi::StorageImageDescriptor sceneColor;
     std::array<rhi::StorageImageDescriptor, 5> gBuffer; // Position, Normal, Albedo, ARM, Emissive
-    rhi::TextureDescriptor irradiance;
-    rhi::TextureDescriptor prefiltered;
-    rhi::TextureDescriptor brdfLut;
 };
 
 /// @brief sky_box.slang

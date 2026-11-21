@@ -77,7 +77,7 @@ Working examples: `computeMain` in `src/aegis/test/shader.slang`, and `shaders/i
 
 `modules/lighting.slang` holds the shading by a view's lights: `lighting::shade` lights a `SurfacePoint` with the
 ambient light (the sky's `Environment` maps), the directional light and the point and spot lights of a
-`lighting::Lighting` block (`render_graph::LightingUniforms`). The lighting pass (`lighting.slang`) shades G-buffer
+`lighting::Lighting` block, which holds all of them (`render_graph::LightingUniforms`). The lighting pass (`lighting.slang`) shades G-buffer
 pixels with it; any other pass that lights surfaces calls it too rather than copying it, so all passes shade alike.
 
 ## Techniques and surface shaders

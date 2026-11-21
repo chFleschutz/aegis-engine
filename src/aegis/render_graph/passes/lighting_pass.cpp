@@ -150,7 +150,7 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
             shadow->spotAtlas = rhi::TextureDescriptor{ *m_device->get(pool.texture(m_spotShadowAtlas).view).sampledDescriptor(), sampler };
     }
     const auto uniforms = detail::packLighting(scene, m_view, pool.bufferAddress(m_lights, frameInfo.frameIndex),
-        lightCapacity, m_ambientOcclusionFactor, m_viewMode, shadow);
+        lightCapacity, m_ambientOcclusionFactor, m_viewMode, shadow, m_brdfLut->descriptor());
     pool.write(m_uniforms, frameInfo.frameIndex, std::as_bytes(std::span{ &uniforms, 1 }));
 
     const LightingConstants constants{
@@ -163,9 +163,6 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
             pool.storageDescriptor(m_gBuffer[3]),
             pool.storageDescriptor(m_gBuffer[4]),
         },
-        .irradiance = *environment.irradiance,
-        .prefiltered = *environment.prefiltered,
-        .brdfLut = m_brdfLut->descriptor(),
     };
 
     const auto& cmd = frameInfo.cmd;
@@ -247,7 +244,8 @@ auto packLights(const FrameScene& scene) -> std::vector<LightData>
 }
 
 auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddress lights, std::uint32_t lightCapacity,
-    float ambientOcclusionFactor, LightingViewMode viewMode, std::optional<ShadowMapInput> shadow) -> LightingUniforms
+    float ambientOcclusionFactor, LightingViewMode viewMode, std::optional<ShadowMapInput> shadow,
+    rhi::TextureDescriptor brdfLut) -> LightingUniforms
 {
     const auto pointCount = std::min(static_cast<std::uint32_t>(scene.pointLights.size()), lightCapacity);
     const auto spotCount = std::min(static_cast<std::uint32_t>(scene.spotLights.size()), lightCapacity - pointCount);
@@ -257,6 +255,9 @@ auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddres
         .spotLightCount = spotCount,
         .ambientOcclusionFactor = ambientOcclusionFactor,
         .viewMode = viewMode,
+        .irradiance = scene.environment.irradiance.value_or(rhi::TextureDescriptor{}),
+        .prefiltered = scene.environment.prefiltered.value_or(rhi::TextureDescriptor{}),
+        .brdfLut = brdfLut,
     };
     if (const auto camera = scene.camera(view))
         uniforms.cameraPosition = glm::vec4{ camera->position, 1.0f };

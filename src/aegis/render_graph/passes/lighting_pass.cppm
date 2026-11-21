@@ -117,8 +117,9 @@ struct ShadowMapInput
 ///        are left out, spot lights first. The directional light is shadowed by the cascades of 'shadow' when there
 ///        is one and the view has a camera: the light's cascade count of them (shadowCascadeSplits), as far as their
 ///        views have cameras (orthographic ones, fitDirectionalShadow's). The spot lights are shadowed through
-///        shadow->spotAtlas when there is one (their records carry their tiles).
+///        shadow->spotAtlas when there is one (their records carry their tiles). The ambient light reflects the scene
+///        environment's maps, with 'brdfLut' (Ibl::brdfLut, the lighting pass's).
 [[nodiscard]] auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddress lights,
     std::uint32_t lightCapacity, float ambientOcclusionFactor, LightingViewMode viewMode,
-    std::optional<ShadowMapInput> shadow = std::nullopt) -> LightingUniforms;
+    std::optional<ShadowMapInput> shadow = std::nullopt, rhi::TextureDescriptor brdfLut = {}) -> LightingUniforms;
 }
