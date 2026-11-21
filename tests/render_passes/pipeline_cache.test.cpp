@@ -11,11 +11,13 @@ using aegis::assets::AlphaMode;
 using aegis::assets::MaterialTemplate;
 using aegis::assets::MaterialVariant;
 using aegis::render_graph::ErrorCode;
+using aegis::render_graph::fragmentEntry;
 using aegis::render_graph::GeometryPath;
 using aegis::render_graph::PipelineCache;
 using aegis::render_graph::PipelineKey;
 using aegis::render_graph::PipelineState;
 using aegis::render_graph::pipelineState;
+using aegis::render_graph::Technique;
 using aegis::render_graph::techniqueShader;
 using aegis::rhi::BlendMode;
 using aegis::rhi::CullMode;
@@ -81,6 +83,36 @@ TEST_SUITE("render_passes::pipelineState")
         key.variant.alphaMode = AlphaMode::Blend;
         CHECK(pipelineState(key).blend == BlendMode::None);
     }
+
+    TEST_CASE("the depth technique blends nothing and keeps the variant's cull mode")
+    {
+        auto key = makeKey();
+        key.technique = Technique::Depth;
+        key.variant.alphaMode = AlphaMode::Blend;
+        key.variant.cullMode = CullMode::None;
+        CHECK(pipelineState(key) == PipelineState{ .cullMode = CullMode::None, .frontFace = FrontFace::CounterClockwise, .blend = BlendMode::None });
+    }
+}
+
+TEST_SUITE("render_passes::fragmentEntry")
+{
+    TEST_CASE("the G-buffer draws with fragmentMain, masked or not")
+    {
+        auto variant = makeKey().variant;
+        CHECK(fragmentEntry(Technique::GBuffer, variant) == "fragmentMain");
+        variant.alphaMode = AlphaMode::Mask;
+        CHECK(fragmentEntry(Technique::GBuffer, variant) == "fragmentMain");
+    }
+
+    TEST_CASE("depth has a fragment stage only to alpha-test a masked variant")
+    {
+        auto variant = makeKey().variant;
+        CHECK_FALSE(fragmentEntry(Technique::Depth, variant).has_value());
+        variant.alphaMode = AlphaMode::Blend;
+        CHECK_FALSE(fragmentEntry(Technique::Depth, variant).has_value());
+        variant.alphaMode = AlphaMode::Mask;
+        CHECK(fragmentEntry(Technique::Depth, variant) == "depthFragmentMain");
+    }
 }
 
 TEST_SUITE("render_passes::PipelineKey")
@@ -94,11 +126,14 @@ TEST_SUITE("render_passes::PipelineKey")
         gpuDriven.path = GeometryPath::GpuDriven;
         auto twoSided = key;
         twoSided.variant.cullMode = CullMode::None;
+        auto depth = key;
+        depth.technique = Technique::Depth;
         const auto otherTemplate = makeKey();
 
         CHECK(key != mirrored);
         CHECK(key != gpuDriven);
         CHECK(key != twoSided);
+        CHECK(key != depth);
         CHECK(key != otherTemplate);
         auto copy = key;
         CHECK(copy == key);

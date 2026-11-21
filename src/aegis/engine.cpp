@@ -358,11 +358,16 @@ auto buildFrameGraph(render_graph::GraphBuilder& graph, const render_graph::Defa
     {
         graph.beginScope(desc.views[view].name, desc.views[view].extent);
         viewDesc.view = view;
-        if (game)
-            game(graph, viewDesc);
+        if (desc.views[view].kind == render_graph::ViewKind::Shadow)
+            render_graph::addShadowPasses(graph, viewDesc);
         else
-            render_graph::addScenePasses(graph, viewDesc);
-        shell.buildGraph(graph, viewDesc);
+        {
+            if (game)
+                game(graph, viewDesc);
+            else
+                render_graph::addScenePasses(graph, viewDesc);
+            shell.buildGraph(graph, viewDesc);
+        }
         graph.endScope();
     }
     render_graph::addOutputPasses(graph, viewDesc);
@@ -660,6 +665,8 @@ auto Engine::createFrameGraph(std::vector<ViewTarget> views) -> std::expected<vo
             desc.views.push_back({ .name = view.name, .extent = view.extent });
         desc.shownViews = DefaultPassesDesc::ShownViews{ .targetFormat = m_renderer->targetFormat() };
     }
+    // Each main view samples a shadow view of the directional light; frameScene adds the same views to the scene.
+    render_graph::addShadowViews(desc.views);
     buildFrameGraph(*m_frameGraph, desc, m_graphBuild, *m_shell);
     if (auto compiled = m_frameGraph->compile(); !compiled)
         return std::unexpected{ makeError(EngineErrorCode::FrameGraphFailed, std::format("Failed to compile the frame graph: {}", describe(compiled.error()))) };
@@ -810,7 +817,10 @@ auto Engine::frameScene(world::World& shown, const render_graph::InstanceStore& 
 {
     auto scene = aegis::extractFrameScene(shown, instances);
     if (m_views.empty())
-        return scene; // The main camera's view, onto the target
+    {
+        render_graph::addShadowViews(scene); // As createFrameGraph's
+        return scene;                        // The main camera's view, onto the target
+    }
     // The views the graph renders, in its order; a shell view asked for this frame gives its camera.
     const auto mainCamera = scene.camera(0);
     scene.views.clear();
@@ -825,6 +835,7 @@ auto Engine::frameScene(world::World& shown, const render_graph::InstanceStore& 
             .extent = target.extent,
         });
     }
+    render_graph::addShadowViews(scene); // As createFrameGraph's
     return scene;
 }
 

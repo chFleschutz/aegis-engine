@@ -16,10 +16,10 @@ namespace
 constexpr std::uint32_t initialCapacity = InstanceUpdatePass::initialStaticCapacity + InstanceUpdatePass::initialDynamicCapacity;
 constexpr std::size_t indirectCommandSize{ 3 * sizeof(std::uint32_t) }; // VkDrawMeshTasksIndirectCommandEXT
 
-auto gpuKey(const assets::MaterialVariant& variant) -> PipelineKey
+auto gpuKey(Technique technique, const assets::MaterialVariant& variant) -> PipelineKey
 {
     // Mirrored instances keep the counter-clockwise front face: the mesh shader flips their winding.
-    return { .technique = Technique::GBuffer, .variant = variant, .path = GeometryPath::GpuDriven };
+    return { .technique = technique, .variant = variant, .path = GeometryPath::GpuDriven };
 }
 
 auto makeInstance(const Instance& instance, std::uint32_t frameIndex) -> InstanceData
@@ -166,9 +166,11 @@ auto ClearDrawCountsPass::execute(ResourcePool& pool, const FrameInfo& frameInfo
 
 // Culling --------------------------------------------------------------------------------------------
 
-CullingPass::CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances) :
+CullingPass::CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances,
+    std::uint32_t view) :
     m_scene{ scene },
     m_instances{ instances },
+    m_view{ view },
     m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) },
     m_staticInstances{ declarations.addReference(names::staticInstances, Usage::ShaderRead) },
     m_dynamicInstances{ declarations.addReference(names::dynamicInstances, Usage::ShaderRead) },
@@ -210,7 +212,7 @@ auto CullingPass::prepare(ResourcePool& pool) -> std::expected<void, Error>
 auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
     const auto instanceCount = m_instances.staticCount() + m_instances.dynamicCount();
-    if (instanceCount == 0)
+    if (instanceCount == 0 || !m_scene.current().camera(m_view))
         return;
 
     const auto frame = frameInfo.frameIndex;
@@ -233,10 +235,12 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
 // GPU-driven geometry --------------------------------------------------------------------------------
 
 GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene,
-    const InstanceUpdatePass& instances) :
+    const InstanceUpdatePass& instances, Technique technique, std::uint32_t view) :
     m_scene{ scene },
     m_instances{ instances },
-    m_gBuffer{ GeometryPass::declareGBuffer(declarations) },
+    m_technique{ technique },
+    m_view{ view },
+    m_gBuffer{ technique == Technique::GBuffer ? std::ranges::to<std::vector>(GeometryPass::declareGBuffer(declarations)) : std::vector<ResourceId>{} },
     m_depth{ GeometryPass::declareDepth(declarations) },
     m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) },
     m_staticInstances{ declarations.addReference(names::staticInstances, Usage::ShaderRead) },
@@ -250,7 +254,7 @@ GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations,
 
 auto GpuDrivenGeometryPass::name() const -> std::string_view
 {
-    return "GPU Driven Geometry";
+    return m_technique == Technique::Depth ? "GPU Driven Depth" : "GPU Driven Geometry";
 }
 
 auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
@@ -259,8 +263,9 @@ auto GpuDrivenGeometryPass::createResources(ResourcePool& pool) -> std::expected
         return makeError(ErrorCode::Unsupported, "The GPU-driven path needs mesh shaders, which this device lacks");
 
     m_device = &pool.device();
-    for (std::size_t i = 0; i < m_colorAttachments.size(); ++i)
-        m_colorAttachments[i] = { .format = pool.format(m_gBuffer[i]) };
+    m_colorAttachments.clear();
+    for (const auto texture : m_gBuffer)
+        m_colorAttachments.push_back({ .format = pool.format(texture) });
     m_depthAttachment = pool.format(m_depth);
     return {};
 }
@@ -271,7 +276,7 @@ auto GpuDrivenGeometryPass::prepare(ResourcePool& /*pool*/) -> std::expected<voi
     {
         if (!drawsInGBuffer(batch))
             continue;
-        if (auto prepared = m_pipelines.prepare(gpuKey(batch.variant)); !prepared)
+        if (auto prepared = m_pipelines.prepare(gpuKey(m_technique, batch.variant)); !prepared)
             return prepared;
     }
     return {};
@@ -286,15 +291,16 @@ auto GpuDrivenGeometryPass::createPipeline(const PipelineKey& key) const -> std:
 
     // The task shader is a separate module: sharing one, the mesh stage would also declare the
     // task stage's DrawIndex, which a mesh shader with a task stage must not.
-    const auto geometry = techniqueShader("gpu-driven/geometry", key.variant);
-    const std::array stages{
+    const auto geometry = techniqueShader(shaderFile, key.variant);
+    std::vector stages{
         ShaderEntry{ rhi::ShaderStage::Task, "gpu-driven/task.slang.spv", "taskMain" },
         ShaderEntry{ rhi::ShaderStage::Mesh, geometry, "meshMain" },
-        ShaderEntry{ rhi::ShaderStage::Fragment, geometry, "fragmentMain" },
     };
+    if (const auto fragment = fragmentEntry(key.technique, key.variant))
+        stages.push_back(ShaderEntry{ rhi::ShaderStage::Fragment, geometry, *fragment });
     return createGraphicsPipeline(*m_device,
         rhi::Pipeline::GraphicsDesc{
-            .name = "GpuDrivenGeometry",
+            .name = key.technique == Technique::Depth ? "GpuDrivenDepth" : "GpuDrivenGeometry",
             .colorAttachments = attachments,
             .depthAttachment = m_depthAttachment,
             .cullMode = state.cullMode,
@@ -305,9 +311,9 @@ auto GpuDrivenGeometryPass::createPipeline(const PipelineKey& key) const -> std:
 
 auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    std::array<rhi::Attachment, GeometryPass::gBufferFormats.size()> colorAttachments;
-    for (std::size_t i = 0; i < m_gBuffer.size(); ++i)
-        colorAttachments[i] = rhi::Attachment::color(pool.texture(m_gBuffer[i]).view, rhi::ClearColor{});
+    std::vector<rhi::Attachment> colorAttachments;
+    for (const auto texture : m_gBuffer)
+        colorAttachments.push_back(rhi::Attachment::color(pool.texture(texture).view, rhi::ClearColor{}));
 
     const auto& cmd = frameInfo.cmd;
     cmd.beginRendering({
@@ -316,6 +322,12 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
     });
     cmd.setViewport(pool.extent(m_depth));
     cmd.setScissor(pool.extent(m_depth));
+    // Without a camera (a shadow view without a directional light) the targets stay cleared.
+    if (!m_scene.current().camera(m_view))
+    {
+        cmd.endRendering();
+        return;
+    }
 
     const auto frame = frameInfo.frameIndex;
     const auto& commands = pool.buffer(m_commands);
@@ -330,7 +342,7 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
         // not prepared has no pipeline and is skipped.
         if (!drawsInGBuffer(batch))
             continue;
-        const auto* pipeline = m_pipelines.find(gpuKey(batch.variant));
+        const auto* pipeline = m_pipelines.find(gpuKey(m_technique, batch.variant));
         if (!pipeline)
             continue;
         if (pipeline != bound)

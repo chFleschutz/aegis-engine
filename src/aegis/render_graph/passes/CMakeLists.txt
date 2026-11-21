@@ -35,6 +35,7 @@ target_sources(aegis-render-passes
     scene_update_pass.cppm
     screen_passes.cppm
     shader.cppm
+    shadows.cppm
     static_mesh_render_system.cppm
     ui_pass.cppm
     PRIVATE
@@ -48,6 +49,7 @@ target_sources(aegis-render-passes
     scene_update_pass.cpp
     screen_passes.cpp
     shader.cpp
+    shadows.cpp
     static_mesh_render_system.cpp
     ui_pass.cpp
 )

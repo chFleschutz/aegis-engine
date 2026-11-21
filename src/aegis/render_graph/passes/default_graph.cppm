@@ -4,6 +4,7 @@ import :frame_scene;
 import :gpu_driven;
 import :lighting_pass;
 import :names;
+import :shadows;
 import aegis.render_graph;
 import aegis.rhi;
 
@@ -18,6 +19,10 @@ struct DefaultPassesDesc
         std::string name;
         /// @brief The extent its textures follow (the scope's); none: the output's.
         std::optional<rhi::Extent2D> extent;
+        /// @brief Which passes render it (addScenePasses): the lit scene, or a light's depth.
+        ViewKind kind{ ViewKind::Main };
+        /// @brief A main view's: the index in 'views' of the shadow view its lighting samples (addShadowViews).
+        std::optional<std::uint32_t> shadow;
     };
 
     /// @brief The views render into targets of their own, which the UI shows: the frame's target shows only the UI,
@@ -37,7 +42,8 @@ struct DefaultPassesDesc
     bool ui{ false };
     /// @brief Needed with ui to compile the graph (ImGui's backend takes the instance); declaring it needs none.
     const rhi::Context* context{ nullptr };
-    /// @brief The views, in the order of FrameScene::views; at least one.
+    /// @brief The views, in the order of FrameScene::views; at least one main view. Without shadow views (see
+    ///        addShadowViews) the main views are lit unshadowed.
     std::vector<View> views{ View{ .name = std::string{ names::mainView } } };
     /// @brief The index in 'views' (and FrameScene::views) of the view whose scene passes are being declared; set
     ///        before each view's passes (addDefaultPasses, the engine).
@@ -60,18 +66,27 @@ struct SharedPasses
     const LightUpdatePass* lights{ nullptr };       // For DefaultPassesDesc::lights
 };
 
+/// @brief Appends a shadow view (ViewKind::Shadow, shadowViewName, shadowMapExtent) for each main view of 'views' that
+///        has none, and points the main view at it, as addShadowViews(FrameScene&) does for the frame scene's views.
+auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void;
+
 /// @brief Adds the passes all views share, outside any scope: the LightUpdatePass writing the frame's lights and,
 ///        with gpuDriven, the InstanceUpdatePass writing its instances and draw batches.
 auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> SharedPasses;
 
-/// @brief Adds the passes that render the view desc.view into "Final": scene update, light update (without
-///        desc.lights), CPU- or GPU-driven geometry, lighting, sky box, transparent (point lights), bloom and
-///        post-processing. Call it inside the view's scope (GraphBuilder::beginScope). Passes added after these
-///        and before addOutputPasses draw onto "Final" before the frame shows it (a game's or the editor's
-///        overlays).
+/// @brief Adds the passes that render the view desc.view: for a main view, into "Final": scene update, light update
+///        (without desc.lights), CPU- or GPU-driven geometry, lighting (sampling its shadow view's "Depth"), sky box,
+///        transparent (point lights), bloom and post-processing; for a shadow view, addShadowPasses. Call it inside the
+///        view's scope (GraphBuilder::beginScope). Passes added after a main view's and before addOutputPasses draw
+///        onto "Final" before the frame shows it (a game's or the editor's overlays).
 auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 
-/// @brief Adds the passes that show the views' "Final", outside any scope: UI (if requested) and present (not with
+/// @brief Adds the passes that render the shadow view desc.view's "Depth" (its shadow map): scene update, then the
+///        CPU-driven geometry pass or culling and the GPU-driven geometry pass, with Technique::Depth. Call it inside
+///        the view's scope.
+auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
+
+/// @brief Adds the passes that show the main views' "Final", outside any scope: UI (if requested) and present (not with
 ///        shownViews).
 auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 

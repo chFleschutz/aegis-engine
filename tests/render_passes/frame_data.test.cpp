@@ -3,6 +3,7 @@
 import std;
 import aegis.math;
 import aegis.render_passes;
+import aegis.rhi;
 
 namespace
 {
@@ -100,6 +101,51 @@ TEST_SUITE("render_graph::detail::packLighting")
         CHECK(equal(packLighting(scene, 1, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 4.0f, 5.0f, 6.0f, 1.0f }));
         CHECK(equal(packLighting(scene, 2, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 0.0f }));
         CHECK(equal(packLighting(scene, 3, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 0.0f }));
+    }
+
+    TEST_CASE("shadows the directional light by the shadow view's map")
+    {
+        const InstanceStore instances;
+        FrameScene scene{
+            .instances = instances,
+            .views = { { .name = "Main", .camera = FrameScene::Camera{ .position = { 0.0f, 0.0f, 2.0f } } } },
+            .directionalLight = FrameScene::DirectionalLight{ .direction = { 0.0f, 0.0f, 1.0f }, .shadowBias = 1.5f },
+        };
+        aegis::render_graph::addShadowViews(scene);
+        REQUIRE(scene.views[1].camera.has_value());
+        const auto& shadowCamera = *scene.views[1].camera;
+        const aegis::rhi::TextureDescriptor map{ { 7 }, { 3 } };
+
+        const auto uniforms = packLighting(scene, 0, 0, 16, 1.0f, LightingViewMode::SceneColor,
+            aegis::render_graph::detail::ShadowMapInput{ .view = 1, .map = map });
+        CHECK(uniforms.shadowed == 1);
+        CHECK(equal(uniforms.shadowViewProjection, glm::rowMajor4(shadowCamera.projection * shadowCamera.view)));
+        CHECK(uniforms.shadowMap.image.index == 7);
+        CHECK(uniforms.shadowMap.sampler.index == 3);
+        CHECK(uniforms.shadowBias == 1.5f);
+        // The orthographic projection is 2 / projection[0][0] meters across the map's texels.
+        CHECK(uniforms.shadowTexelSize == doctest::Approx(2.0f / (shadowCamera.projection[0][0] * 2048.0f)));
+    }
+
+    TEST_CASE("leaves the directional light unshadowed without a shadow map, a light or a shadow camera")
+    {
+        const InstanceStore instances;
+        FrameScene scene{
+            .instances = instances,
+            .views = { { .name = "Main", .camera = FrameScene::Camera{} } },
+            .directionalLight = FrameScene::DirectionalLight{},
+        };
+        aegis::render_graph::addShadowViews(scene);
+        const aegis::render_graph::detail::ShadowMapInput shadow{ .view = 1 };
+        CHECK(packLighting(scene, 0, 0, 16, 1.0f, LightingViewMode::SceneColor).shadowed == 0);
+
+        auto unlit = scene;
+        unlit.directionalLight.reset();
+        CHECK(packLighting(unlit, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, shadow).shadowed == 0);
+
+        auto noCamera = scene;
+        noCamera.views[1].camera.reset();
+        CHECK(packLighting(noCamera, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, shadow).shadowed == 0);
     }
 
     TEST_CASE("points at the light buffer and counts the lights that fit, point lights first")

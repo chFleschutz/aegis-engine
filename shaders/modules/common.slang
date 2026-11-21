@@ -19,6 +19,18 @@ namespace common
         public float4x4 viewProjection;
         public Frustum frustum;
         public float3 position;
+
+        /// An orthographic projection (a directional light's shadow view) has (0, 0, 0, 1) as its last row.
+        public property bool isOrthographic
+        {
+            get { return projection[3][3] == 1.0; }
+        }
+
+        /// The direction the camera looks along in world space: its view's -Z.
+        public property float3 forward
+        {
+            get { return -view[2].xyz; }
+        }
     }
 
     /// assets::Vertex

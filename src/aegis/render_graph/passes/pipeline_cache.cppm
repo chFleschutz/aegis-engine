@@ -9,10 +9,11 @@ import aegis.rhi;
 
 export namespace aegis::render_graph
 {
-/// @brief How a pass draws a material: into the G-buffer today; depth-only and forward later.
+/// @brief How a pass draws a material: into the G-buffer, or its depth only (a shadow view); forward later.
 enum class Technique
 {
     GBuffer,
+    Depth,
 };
 
 /// @brief Which shaders a geometry pass draws with: vertex shaders, one draw per instance (CPU-driven), or task and
@@ -58,18 +59,37 @@ struct PipelineState
     auto operator==(const PipelineState&) const -> bool = default;
 };
 
-/// @brief The state a pipeline of 'key' is created with. The G-buffer holds surfaces, never a blend of them, so its
-///        technique blends nothing whatever the variant's alpha mode.
+/// @brief The state a pipeline of 'key' is created with. The G-buffer holds surfaces, never a blend of them, and the
+///        depth technique has no color to blend, so neither blends whatever the variant's alpha mode.
 [[nodiscard]] constexpr auto pipelineState(const PipelineKey& key) noexcept -> PipelineState
 {
     rhi::BlendMode blend{ rhi::BlendMode::None };
     switch (key.technique)
     {
     case Technique::GBuffer:
+    case Technique::Depth:
         blend = rhi::BlendMode::None;
         break;
     }
     return { .cullMode = key.variant.cullMode, .frontFace = key.frontFace, .blend = blend };
+}
+
+/// @brief The fragment entry point a pipeline of 'technique' for 'variant' draws with, in its technique file: the
+///        G-buffer's "fragmentMain"; for depth, "depthFragmentMain" in the masked build, which alpha-tests, and none
+///        (a pipeline without a fragment stage) otherwise.
+[[nodiscard]] constexpr auto fragmentEntry(Technique technique, const assets::MaterialVariant& variant) noexcept
+    -> std::optional<std::string_view>
+{
+    switch (technique)
+    {
+    case Technique::GBuffer:
+        return "fragmentMain";
+    case Technique::Depth:
+        if (variant.alphaMode == assets::AlphaMode::Mask)
+            return "depthFragmentMain";
+        return std::nullopt;
+    }
+    return std::nullopt;
 }
 
 /// @brief The SPIR-V file of 'technique' (its path in the shader folder, without .slang) built for 'variant'
@@ -84,7 +104,8 @@ struct PipelineState
 }
 
 /// @brief Whether the G-buffer technique draws 'batch': it has instances, its template has MaterialType 'type',
-///        and it does not blend (blending needs the forward technique).
+///        and it does not blend (blending needs the forward technique). The depth technique draws the same batches:
+///        what the G-buffer holds casts shadows.
 [[nodiscard]] inline auto drawsInGBuffer(const DrawBatch& batch, assets::MaterialType type = assets::MaterialType::Opaque)
     -> bool
 {

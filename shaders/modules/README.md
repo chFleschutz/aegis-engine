@@ -17,7 +17,8 @@ modules in this folder through `import modules.*`.
 `CommandBuffer::bindPipeline` binds set 0 automatically. `modules/bindless.slang` declares the
 arrays (aliased per resource type, e.g. `Texture2D` and `TextureCube` over binding 0) and typed
 accessors: `bindless::texture2D(SampledImageDescriptor)`, `bindless::storage2DArray(StorageImageDescriptor)`,
-`bindless::sampler(SamplerDescriptor)`. Images and samplers are separate; `bindless::TextureDescriptor`
+`bindless::sampler(SamplerDescriptor)` (`bindless::comparisonSampler` for one created with
+`rhi::Sampler::Desc::compare`, such as the shadow map's). Images and samplers are separate; `bindless::TextureDescriptor`
 pairs them, which is how an `assets::Texture` reaches a shader (8 bytes: image index, sampler index).
 Storage images are declared without a format, so one binding serves every format.
 

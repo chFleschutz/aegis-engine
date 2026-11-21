@@ -2,6 +2,18 @@ module aegis.render_passes;
 
 namespace aegis::render_graph
 {
+auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void
+{
+    const auto mainViews = static_cast<std::uint32_t>(views.size());
+    for (std::uint32_t i = 0; i < mainViews; ++i)
+    {
+        if (views[i].kind != ViewKind::Main || views[i].shadow)
+            continue;
+        views[i].shadow = static_cast<std::uint32_t>(views.size());
+        views.push_back({ .name = shadowViewName(views[i].name), .extent = shadowMapExtent, .kind = ViewKind::Shadow });
+    }
+}
+
 auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> SharedPasses
 {
     SharedPasses shared{ .lights = &graph.add<LightUpdatePass>(desc.scene) };
@@ -12,6 +24,13 @@ auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> Shar
 
 auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 {
+    const auto& view = desc.views[desc.view];
+    if (view.kind == ViewKind::Shadow)
+    {
+        addShadowPasses(graph, desc);
+        return;
+    }
+
     const auto& scene = desc.scene;
     graph.add<SceneUpdatePass>(scene, desc.view);
     if (!desc.lights)
@@ -20,26 +39,49 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
     {
         const auto& instances = desc.instances ? *desc.instances : graph.add<InstanceUpdatePass>(scene);
         graph.add<ClearDrawCountsPass>();
-        graph.add<CullingPass>(scene, instances);
-        graph.add<GpuDrivenGeometryPass>(scene, instances);
+        graph.add<CullingPass>(scene, instances, desc.view);
+        graph.add<GpuDrivenGeometryPass>(scene, instances, Technique::GBuffer, desc.view);
     }
     else
     {
-        graph.add<GeometryPass>(scene).addRenderSystem<StaticMeshRenderSystem>();
+        graph.add<GeometryPass>(scene, Technique::GBuffer, desc.view).addRenderSystem<StaticMeshRenderSystem>();
     }
 
-    graph.add<LightingPass>(scene, desc.view);
+    std::optional<LightingPass::ShadowMap> shadow;
+    if (view.shadow)
+        shadow = { .view = *view.shadow, .map = scopedName(desc.views[*view.shadow].name, names::depth) };
+    graph.add<LightingPass>(scene, desc.view, std::move(shadow));
     graph.add<SkyBoxPass>(scene, desc.view);
     graph.add<TransparentPass>(scene).addRenderSystem<PointLightRenderSystem>();
     graph.add<BloomPass>(scene);
     graph.add<PostProcessingPass>(scene);
 }
 
+auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
+{
+    const auto& scene = desc.scene;
+    graph.add<SceneUpdatePass>(scene, desc.view);
+    if (desc.gpuDriven)
+    {
+        const auto& instances = desc.instances ? *desc.instances : graph.add<InstanceUpdatePass>(scene);
+        graph.add<ClearDrawCountsPass>();
+        graph.add<CullingPass>(scene, instances, desc.view);
+        graph.add<GpuDrivenGeometryPass>(scene, instances, Technique::Depth, desc.view);
+    }
+    else
+    {
+        graph.add<GeometryPass>(scene, Technique::Depth, desc.view).addRenderSystem<StaticMeshRenderSystem>(Technique::Depth);
+    }
+}
+
 auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 {
     std::vector<std::string> finals;
     for (const auto& view : desc.views)
-        finals.push_back(scopedName(view.name, names::finalImage));
+    {
+        if (view.kind == ViewKind::Main)
+            finals.push_back(scopedName(view.name, names::finalImage));
+    }
 
     if (desc.shownViews)
     {

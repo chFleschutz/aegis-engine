@@ -94,11 +94,14 @@ private:
 
 /// @brief Frustum-culls every instance on the GPU, appending the visible ones per draw batch to
 ///        "VisibleInstances" with their "IndirectDrawCommands", and counting them. Both buffers hold
-///        one entry per instance of the frame's InstanceStore, and grow with it.
+///        one entry per instance of the frame's InstanceStore, and grow with it. Without a camera for its view it
+///        culls nothing, and the geometry pass draws nothing.
 class CullingPass : public RenderPass
 {
 public:
-    CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances);
+    /// @param view The index of the view in FrameScene::views it culls for (whose "CameraData" it reads).
+    CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances,
+        std::uint32_t view = 0);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -109,6 +112,7 @@ public:
 private:
     const FrameSceneSource& m_scene;
     const InstanceUpdatePass& m_instances;
+    std::uint32_t m_view;
     ResourceId m_cameraData;
     ResourceId m_staticInstances;
     ResourceId m_dynamicInstances;
@@ -121,13 +125,19 @@ private:
     std::optional<rhi::Pipeline> m_pipeline;
 };
 
-/// @brief The GPU-driven G-buffer pass (mesh shaders): one indirect-count draw per opaque draw batch, with that
-///        batch's pipeline for the G-buffer technique, fills the same G-buffer GeometryPass does, from the instances
-///        StaticMeshRenderSystem draws on the CPU path. Needs rhi::Device::Capabilities::meshShaders.
+/// @brief The GPU-driven geometry pass (mesh shaders): one indirect-count draw per opaque draw batch, with that
+///        batch's pipeline for its technique, fills the same G-buffer GeometryPass does, or only "Depth" with
+///        Technique::Depth (a shadow view's), from the instances StaticMeshRenderSystem draws on the CPU path. Without
+///        a camera for its view it clears its targets and draws nothing. Needs rhi::Device::Capabilities::meshShaders.
 class GpuDrivenGeometryPass : public RenderPass
 {
 public:
-    GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances);
+    /// @brief The shader file both techniques' mesh and fragment stages are in (techniqueShader).
+    static constexpr std::string_view shaderFile{ "gpu-driven/geometry" };
+
+    /// @param view The index of the view in FrameScene::views it draws (whose "CameraData" it reads).
+    GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances,
+        Technique technique = Technique::GBuffer, std::uint32_t view = 0);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -135,6 +145,7 @@ public:
     [[nodiscard]] auto prepare(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
+    [[nodiscard]] auto technique() const noexcept -> Technique { return m_technique; }
     [[nodiscard]] auto pipelines() const noexcept -> const PipelineCache<>& { return m_pipelines; }
 
 private:
@@ -142,7 +153,9 @@ private:
 
     const FrameSceneSource& m_scene;
     const InstanceUpdatePass& m_instances;
-    std::array<ResourceId, 5> m_gBuffer;
+    Technique m_technique;
+    std::uint32_t m_view;
+    std::vector<ResourceId> m_gBuffer; // Empty with Technique::Depth
     ResourceId m_depth;
     ResourceId m_cameraData;
     ResourceId m_staticInstances;
@@ -151,7 +164,7 @@ private:
     ResourceId m_commands;
     ResourceId m_counts;
     rhi::Device* m_device{ nullptr };
-    std::array<rhi::Pipeline::ColorAttachment, 5> m_colorAttachments{};
+    std::vector<rhi::Pipeline::ColorAttachment> m_colorAttachments;
     rhi::Format m_depthAttachment{ rhi::Format::Unknown };
     PipelineCache<> m_pipelines;
 };

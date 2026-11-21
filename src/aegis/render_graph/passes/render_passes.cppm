@@ -23,5 +23,6 @@ export import :render_system;
 export import :scene_update_pass;
 export import :screen_passes;
 export import :shader;
+export import :shadows;
 export import :static_mesh_render_system;
 export import :ui_pass;

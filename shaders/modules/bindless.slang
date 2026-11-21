@@ -13,7 +13,9 @@ module bindless;
 [allow("parameterBindingsOverlap")] [vk::binding(1, 0)] RWTexture2D<float4> g_storage2D[];
 [allow("parameterBindingsOverlap")] [vk::binding(1, 0)] RWTexture2DArray<float4> g_storage2DArray[];
 
-[vk::binding(2, 0)] SamplerState g_samplers[];
+[allow("parameterBindingsOverlap")] [vk::binding(2, 0)] SamplerState g_samplers[];
+// A sampler created with rhi::Sampler::Desc::compare, read through the same binding.
+[allow("parameterBindingsOverlap")] [vk::binding(2, 0)] SamplerComparisonState g_comparisonSamplers[];
 
 namespace bindless
 {
@@ -60,6 +62,12 @@ namespace bindless
     public func sampler(SamplerDescriptor descriptor) -> SamplerState
     {
         return g_samplers[NonUniformResourceIndex(descriptor.index)];
+    }
+
+    /// The sampler 'descriptor' as a comparison sampler: only for one created with rhi::Sampler::Desc::compare.
+    public func comparisonSampler(SamplerDescriptor descriptor) -> SamplerComparisonState
+    {
+        return g_comparisonSamplers[NonUniformResourceIndex(descriptor.index)];
     }
 
     /// An image plus the sampler to read it with: how assets::Texture reaches shaders, and the 8

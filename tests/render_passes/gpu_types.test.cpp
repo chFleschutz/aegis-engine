@@ -73,7 +73,12 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(LightingUniforms, spotLightCount) == 76);
         CHECK(offsetof(LightingUniforms, ambientOcclusionFactor) == 80);
         CHECK(offsetof(LightingUniforms, viewMode) == 84);
-        CHECK(sizeof(LightingUniforms) == 88);
+        CHECK(offsetof(LightingUniforms, shadowViewProjection) == 88);
+        CHECK(offsetof(LightingUniforms, shadowMap) == 152);
+        CHECK(offsetof(LightingUniforms, shadowTexelSize) == 160);
+        CHECK(offsetof(LightingUniforms, shadowBias) == 164);
+        CHECK(offsetof(LightingUniforms, shadowed) == 168);
+        CHECK(sizeof(LightingUniforms) == 176); // Padded to the alignment of lights, which the shader never reads
     }
 
     TEST_CASE("LightData matches lighting::Light")
