@@ -326,4 +326,65 @@ auto pasteFields(const EditWorld& world, UndoStack& history, world::Entity entit
         return std::unexpected{ pasted.error() };
     return changeFields(world, history, entity, type, scriptIndex, std::move(*pasted));
 }
+
+auto editField(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type, std::optional<std::size_t> scriptIndex, std::string_view field, const reflect::Value& value, bool continuous)
+    -> std::expected<void, Error>
+{
+    if (auto editable = checkEditable(world.registry, entity); !editable)
+        return editable;
+    const void* object = findObject(world, entity, type, scriptIndex);
+    if (!object)
+        return makeError(ErrorCode::MissingComponent, std::format("the entity has no '{}'", type.name));
+    const auto* info = type.findField(field);
+    if (!info)
+        return makeError(ErrorCode::UnknownField, std::format("'{}' has no field '{}'", type.name, field));
+    return perform(world, history,
+        FieldEdit{ .entity = world.registry.get<StableId>(entity), .type = type.name, .field = info->name, .scriptIndex = scriptIndex, .oldValue = info->getter(object), .newValue = value },
+        continuous);
+}
+
+TransformDrag::TransformDrag(const EditWorld& world, std::span<const world::Entity> entities, std::string verb) :
+    m_verb{ std::move(verb) }
+{
+    const auto* type = world.types.find<Transform>();
+    if (!type)
+        return;
+    for (const auto entity : entities)
+    {
+        if (world.registry.valid(entity) && world.registry.has<Transform>(entity))
+            m_starts.push_back({ .entity = world.registry.get<StableId>(entity), .values = fieldValues(*type, &world.registry.get<Transform>(entity)) });
+    }
+}
+
+auto TransformDrag::update(const EditWorld& world, world::Entity entity, const Transform& transform) -> std::expected<void, Error>
+{
+    auto& registry = world.registry;
+    if (!registry.valid(entity) || !registry.has<Transform>(entity))
+        return makeError(ErrorCode::MissingComponent, "the entity is gone or has no Transform");
+    if (!std::ranges::contains(m_starts, registry.get<StableId>(entity), &Start::entity))
+        return makeError(ErrorCode::MissingEntity, "the entity is not part of the drag");
+    const auto* type = world.types.find<Transform>();
+    if (!type)
+        return makeError(ErrorCode::UnknownType, "Transform is not registered");
+    if (auto written = writeComponent(*type, registry, entity, &registry.get<Transform>(entity), fieldValues(*type, &transform), world.prepare); !written)
+        return makeError(written.error(), "cannot write the Transform");
+    return {};
+}
+
+void TransformDrag::end(const EditWorld& world, UndoStack& history) const
+{
+    const auto* type = world.types.find<Transform>();
+    if (!type)
+        return;
+    std::optional<UndoGroup> group;
+    if (m_starts.size() > 1)
+        group.emplace(history, std::format("{} {} entities", m_verb, m_starts.size()));
+    for (const auto& start : m_starts)
+    {
+        const auto entity = world.registry.find(start.entity);
+        if (!entity || !world.registry.has<Transform>(entity))
+            continue;
+        history.record(ComponentEdit{ .entity = start.entity, .type = type->name, .oldValues = start.values, .newValues = fieldValues(*type, &world.registry.get<Transform>(entity)) });
+    }
+}
 }

@@ -71,6 +71,43 @@ auto resetFields(const EditWorld& world, UndoStack& history, world::Entity entit
 auto pasteFields(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type,
     std::optional<std::size_t> scriptIndex, std::string_view text) -> std::expected<void, Error>;
 
+/// @brief Sets 'field' of the entity's component 'type' (or, with 'scriptIndex', its script of that number and type)
+///        to 'value', running world.prepare and the change hook (setField). With 'continuous' (the widget is still
+///        being dragged or typed in) the next edit of the same field extends this entry, until UndoStack::seal.
+/// @return An error (nothing changed) for a missing component, an unknown field or a value the setter rejects
+auto editField(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type,
+    std::optional<std::size_t> scriptIndex, std::string_view field, const reflect::Value& value, bool continuous = false)
+    -> std::expected<void, Error>;
+
+/// @brief A drag of several entities' local Transforms (the gizmo moving the selected roots), recorded as one undo
+///        entry when it ends. Unlike the other commands it accepts entities of a scene instance, as the gizmo always has.
+class TransformDrag
+{
+public:
+    /// @brief Begins a drag of 'entities', keeping their Transforms; those without one are left out. 'verb' (Move,
+    ///        Rotate, Scale) titles the entry of several entities: "Move 3 entities".
+    TransformDrag(const EditWorld& world, std::span<const world::Entity> entities, std::string verb);
+
+    /// @brief Writes 'transform' to the local Transform of 'entity', one of the drag's, through its change hook (a
+    ///        static entity only moves when told to). Records nothing.
+    /// @return An error (nothing written) for an entity not in the drag or without a Transform, or a failed write
+    auto update(const EditWorld& world, world::Entity entity, const Transform& transform) -> std::expected<void, Error>;
+
+    /// @brief Records the drag as one undo entry: each entity's Transform from before it began to now. Entities that
+    ///        are gone are skipped; a drag that ends where it began records nothing.
+    void end(const EditWorld& world, UndoStack& history) const;
+
+private:
+    struct Start
+    {
+        StableId entity;
+        FieldValues values; ///< Its Transform when the drag began
+    };
+
+    std::vector<Start> m_starts;
+    std::string m_verb;
+};
+
 /// @brief Attaches a new script of type 'type' to 'entity', after its other scripts.
 auto attachScript(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type)
     -> std::expected<void, Error>;

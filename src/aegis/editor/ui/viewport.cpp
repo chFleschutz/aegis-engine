@@ -422,18 +422,15 @@ auto Viewport::drawGizmo(EditorContext& editor, FrameContext& frame, const Rect&
     const glm::mat4 before = matrix;
     const bool changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), operation, mode, glm::value_ptr(matrix), nullptr,
         snapping() ? snapValues.data() : nullptr);
-    const auto* transformType = frame.types.find<Transform>();
-    if (!transformType)
-        return true;
     if ((changed || ImGuizmo::IsUsing()) && !m_gizmoDrag)
-        beginGizmoDrag(editor, *transformType, before);
+        beginGizmoDrag(editor, frame, before);
     if (!changed || !m_gizmoDrag)
         return true;
 
     // The change of the active entity's world matrix since the drag began, applied to every root's
     const glm::mat4 delta = matrix * glm::inverse(m_gizmoDrag->start);
     const auto active = registry.get<StableId>(selected);
-    const auto prepare = editWorld(editor, frame).prepare;
+    const auto edits = editWorld(editor, frame);
     for (const auto& root : m_gizmoDrag->roots)
     {
         const auto entity = registry.find(root.id);
@@ -444,30 +441,26 @@ auto Viewport::drawGizmo(EditorContext& editor, FrameContext& frame, const Rect&
         if (parent && registry.has<GlobalTransform>(parent))
             parentGlobal = registry.get<GlobalTransform>(parent);
         const Transform moved = world::detail::toLocal(parentGlobal, root.id == active ? matrix : delta * root.start);
-        // Through the change hook: a static entity only moves when told to
-        auto& transform = registry.get<Transform>(entity);
-        if (auto written = writeComponent(*transformType, registry, entity, &transform, fieldValues(*transformType, &moved), prepare); !written)
-            log::warn("Cannot move the entity: {}", reflect::describe(written.error()));
+        if (auto written = m_gizmoDrag->transforms.update(edits, entity, moved); !written)
+            log::warn("Cannot move the entity: {}", describe(written.error()));
     }
     return true;
 }
 
-void Viewport::beginGizmoDrag(EditorContext& editor, const reflect::TypeInfo& transformType, const glm::mat4& start)
+void Viewport::beginGizmoDrag(EditorContext& editor, FrameContext& frame, const glm::mat4& start)
 {
     auto& registry = editor.world()->registry();
-    GizmoDrag drag{ .start = start };
-    drag.verb = m_gizmoMode == GizmoMode::Rotate ? "Rotate" : (m_gizmoMode == GizmoMode::Scale ? "Scale" : "Move");
+    const auto* verb = m_gizmoMode == GizmoMode::Rotate ? "Rotate" : (m_gizmoMode == GizmoMode::Scale ? "Scale" : "Move");
+    std::vector<world::Entity> entities;
+    std::vector<GizmoRoot> roots;
     for (const auto root : selectedRoots(registry, editor.selection()))
     {
         if (!registry.has<Transform, GlobalTransform>(root))
             continue;
-        drag.roots.push_back({
-            .id = registry.get<StableId>(root),
-            .start = registry.get<GlobalTransform>(root).matrix(),
-            .oldValues = fieldValues(transformType, &registry.get<Transform>(root)),
-        });
+        entities.push_back(root);
+        roots.push_back({ .id = registry.get<StableId>(root), .start = registry.get<GlobalTransform>(root).matrix() });
     }
-    m_gizmoDrag = std::move(drag);
+    m_gizmoDrag.emplace(start, std::move(roots), TransformDrag{ editWorld(editor, frame), entities, verb });
 }
 
 void Viewport::endGizmoDrag(EditorContext& editor, FrameContext& frame)
@@ -476,29 +469,8 @@ void Viewport::endGizmoDrag(EditorContext& editor, FrameContext& frame)
         return;
     auto drag = std::move(*m_gizmoDrag);
     m_gizmoDrag.reset();
-    auto* world = editor.world();
-    const auto* transformType = frame.types.find<Transform>();
-    if (!world || !transformType)
-        return;
-
-    // One undo entry for the drag: each root's Transform from before it to now
-    auto& registry = world->registry();
-    auto& history = editor.undoStack();
-    std::optional<UndoGroup> group;
-    if (drag.roots.size() > 1)
-        group.emplace(history, std::format("{} {} entities", drag.verb, drag.roots.size()));
-    for (auto& root : drag.roots)
-    {
-        const auto entity = registry.find(root.id);
-        if (!entity || !registry.has<Transform>(entity))
-            continue;
-        history.record(ComponentEdit{
-            .entity = root.id,
-            .type = transformType->name,
-            .oldValues = std::move(root.oldValues),
-            .newValues = fieldValues(*transformType, &registry.get<Transform>(entity)),
-        });
-    }
+    if (editor.world())
+        drag.transforms.end(editWorld(editor, frame), editor.undoStack());
 }
 
 void Viewport::drawToolbar(EditorContext& editor, const Rect& rect)

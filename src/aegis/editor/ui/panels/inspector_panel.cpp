@@ -550,7 +550,6 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
     ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, labelWidth);
     ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-    const auto resolve = [&frame](const reflect::TypeInfo& resolved, void* component) { frame.assets.resolve(resolved, component, frame.types); };
     for (const auto& row : rows)
     {
         ImGui::PushID(row.field->name.c_str());
@@ -571,16 +570,12 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
         ImGui::EndDisabled();
         if (edited)
         {
-            const auto prepare = row.widget == PropertyWidget::AssetSlot ? PrepareField{ resolve } : PrepareField{};
-            if (auto written = setField(type, *row.field, editor.world()->registry(), entity, object, *edited, prepare); !written)
-            {
-                log::warn("Cannot set {}.{}: {}", type.name, row.field->name, reflect::describe(written.error()));
-            }
-            else
-            {
-                const auto id = editor.world()->registry().get<StableId>(entity);
-                editor.undoStack().record(FieldEdit{ .entity = id, .type = type.name, .field = row.field->name, .scriptIndex = scriptIndex, .oldValue = current, .newValue = *edited }, active);
-            }
+            // Only an asset slot loads what it names
+            auto edits = editWorld(editor, frame);
+            if (row.widget != PropertyWidget::AssetSlot)
+                edits.prepare = {};
+            if (auto written = editField(edits, editor.undoStack(), entity, type, scriptIndex, row.field->name, *edited, active); !written)
+                log::warn("Cannot set {}.{}: {}", type.name, row.field->name, describe(written.error()));
         }
         if (deactivated)
             editor.undoStack().seal();

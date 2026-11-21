@@ -26,6 +26,7 @@ using aegis::editor::createEntity;
 using aegis::editor::destroyEntity;
 using aegis::editor::detachScript;
 using aegis::editor::duplicateEntity;
+using aegis::editor::editField;
 using aegis::editor::EditSide;
 using aegis::editor::EditWorld;
 using aegis::editor::instantiateEntity;
@@ -34,6 +35,7 @@ using aegis::editor::pasteFields;
 using aegis::editor::removeComponent;
 using aegis::editor::renameEntity;
 using aegis::editor::resetFields;
+using aegis::editor::TransformDrag;
 using aegis::editor::UndoStack;
 using aegis::reflect::TypeRegistry;
 using aegis::world::Entity;
@@ -797,6 +799,146 @@ TEST_SUITE("editor::pasteFields")
 
         CHECK_FALSE(pasteFields(f.edits(), f.history, entity, *f.types.find("Health"), std::nullopt, *text).has_value());
         CHECK(registry.get<Health>(entity).value == 1.0f);
+        CHECK_FALSE(f.history.canUndo());
+    }
+}
+
+TEST_SUITE("editor::editField")
+{
+    TEST_CASE("a field set while its widget stays active is one entry that undo and redo replay")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto entity = registry.create("Lamp");
+        registry.add<Health>(entity).value = 10.0f;
+        const auto& health = *f.types.find("Health");
+
+        REQUIRE(editField(f.edits(), f.history, entity, health, std::nullopt, "value", aegis::reflect::Value{ 11.0f }, true).has_value());
+        REQUIRE(editField(f.edits(), f.history, entity, health, std::nullopt, "value", aegis::reflect::Value{ 12.0f }, true).has_value());
+        REQUIRE(editField(f.edits(), f.history, entity, health, std::nullopt, "value", aegis::reflect::Value{ 13.0f }, true).has_value());
+        f.history.seal(); // The widget is released
+        CHECK(registry.get<Health>(entity).value == 13.0f);
+
+        CHECK(f.undo());
+        CHECK(registry.get<Health>(entity).value == 10.0f);
+        CHECK_FALSE(f.history.canUndo());
+        CHECK(f.redo());
+        CHECK(registry.get<Health>(entity).value == 13.0f);
+    }
+
+    TEST_CASE("an edit after the widget was released is an entry of its own")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto entity = registry.create("Lamp");
+        registry.add<Health>(entity).value = 10.0f;
+        const auto& health = *f.types.find("Health");
+
+        REQUIRE(editField(f.edits(), f.history, entity, health, std::nullopt, "value", aegis::reflect::Value{ 11.0f }, true).has_value());
+        f.history.seal();
+        REQUIRE(editField(f.edits(), f.history, entity, health, std::nullopt, "value", aegis::reflect::Value{ 12.0f }).has_value());
+
+        CHECK(f.undo());
+        CHECK(registry.get<Health>(entity).value == 11.0f);
+        CHECK(f.undo());
+        CHECK(registry.get<Health>(entity).value == 10.0f);
+    }
+
+    TEST_CASE("sets a field of a script by its index")
+    {
+        Fixture f;
+        const auto entity = f.registry().create("Guard");
+        REQUIRE(attachScript(f.edits(), f.history, entity, *f.types.find("Wander")).has_value());
+        REQUIRE(attachScript(f.edits(), f.history, entity, *f.types.find("Wander")).has_value());
+        const auto& entries = f.registry().get<aegis::scripting::Scripts>(entity).entries;
+
+        REQUIRE(editField(f.edits(), f.history, entity, *f.types.find("Wander"), 1, "radius", aegis::reflect::Value{ 8.0f }).has_value());
+        CHECK(static_cast<Wander*>(entries[0].script.get())->radius == 5.0f);
+        CHECK(static_cast<Wander*>(entries[1].script.get())->radius == 8.0f);
+        CHECK(f.undo());
+        CHECK(static_cast<Wander*>(entries[1].script.get())->radius == 5.0f);
+    }
+
+    TEST_CASE("refuses an unknown field, a missing component and an entity of a scene instance")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto entity = registry.create("Lamp");
+        const auto& health = *f.types.find("Health");
+        CHECK_FALSE(editField(f.edits(), f.history, entity, health, std::nullopt, "value", aegis::reflect::Value{ 1.0f }).has_value());
+        registry.add<Health>(entity).value = 10.0f;
+        CHECK_FALSE(editField(f.edits(), f.history, entity, health, std::nullopt, "armor", aegis::reflect::Value{ 1.0f }).has_value());
+        registry.add<aegis::serialize::InstanceMember>(entity);
+        CHECK_FALSE(editField(f.edits(), f.history, entity, health, std::nullopt, "value", aegis::reflect::Value{ 1.0f }).has_value());
+        CHECK(registry.get<Health>(entity).value == 10.0f);
+        CHECK_FALSE(f.history.canUndo());
+    }
+}
+
+TEST_SUITE("editor::TransformDrag")
+{
+    auto movedTo(const glm::vec3& location) -> Transform
+    {
+        Transform transform;
+        transform.location = location;
+        return transform;
+    }
+
+    TEST_CASE("a drag of several steps and entities is one undo entry")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto a = registry.create("A");
+        const auto b = registry.create("B");
+        registry.get<Transform>(b).location = glm::vec3{ 5.0f, 0.0f, 0.0f };
+        const std::array entities{ a, b };
+
+        TransformDrag drag{ f.edits(), entities, "Move" };
+        for (float step = 1.0f; step <= 3.0f; step += 1.0f)
+        {
+            REQUIRE(drag.update(f.edits(), a, movedTo(glm::vec3{ 0.0f, step, 0.0f })).has_value());
+            REQUIRE(drag.update(f.edits(), b, movedTo(glm::vec3{ 5.0f, step, 0.0f })).has_value());
+        }
+        CHECK_FALSE(f.history.canUndo()); // Nothing is recorded before the drag ends
+        drag.end(f.edits(), f.history);
+        CHECK(f.history.nextUndoTitle() == "Move 2 entities");
+
+        CHECK(f.undo());
+        CHECK(near(registry.get<Transform>(a).location, glm::vec3{ 0.0f }));
+        CHECK(near(registry.get<Transform>(b).location, glm::vec3{ 5.0f, 0.0f, 0.0f }));
+        CHECK_FALSE(f.history.canUndo());
+        CHECK(f.redo());
+        CHECK(near(registry.get<Transform>(a).location, glm::vec3{ 0.0f, 3.0f, 0.0f }));
+        CHECK(near(registry.get<Transform>(b).location, glm::vec3{ 5.0f, 3.0f, 0.0f }));
+    }
+
+    TEST_CASE("a drag that ends where it started records nothing")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto a = registry.create("A");
+        const auto b = registry.create("B");
+        const std::array entities{ a, b };
+
+        TransformDrag drag{ f.edits(), entities, "Move" };
+        REQUIRE(drag.update(f.edits(), a, movedTo(glm::vec3{ 1.0f, 0.0f, 0.0f })).has_value());
+        REQUIRE(drag.update(f.edits(), a, movedTo(glm::vec3{ 0.0f })).has_value());
+        drag.end(f.edits(), f.history);
+        CHECK_FALSE(f.history.canUndo());
+    }
+
+    TEST_CASE("refuses an entity that is not part of the drag")
+    {
+        Fixture f;
+        auto& registry = f.registry();
+        const auto a = registry.create("A");
+        const auto other = registry.create("Other");
+        const std::array entities{ a };
+
+        TransformDrag drag{ f.edits(), entities, "Move" };
+        CHECK_FALSE(drag.update(f.edits(), other, movedTo(glm::vec3{ 1.0f })).has_value());
+        CHECK(near(registry.get<Transform>(other).location, glm::vec3{ 0.0f }));
+        drag.end(f.edits(), f.history);
         CHECK_FALSE(f.history.canUndo());
     }
 }
