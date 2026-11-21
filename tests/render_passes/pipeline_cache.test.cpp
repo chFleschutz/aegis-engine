@@ -9,7 +9,12 @@ namespace
 {
 using aegis::assets::AlphaMode;
 using aegis::assets::MaterialTemplate;
+using aegis::assets::MaterialType;
 using aegis::assets::MaterialVariant;
+using aegis::render_graph::DrawBatch;
+using aegis::render_graph::drawsBatch;
+using aegis::render_graph::drawsForward;
+using aegis::render_graph::drawsInGBuffer;
 using aegis::render_graph::ErrorCode;
 using aegis::render_graph::fragmentEntry;
 using aegis::render_graph::GeometryPath;
@@ -92,6 +97,24 @@ TEST_SUITE("render_passes::pipelineState")
         key.variant.cullMode = CullMode::None;
         CHECK(pipelineState(key) == PipelineState{ .cullMode = CullMode::None, .frontFace = FrontFace::CounterClockwise, .blend = BlendMode::None });
     }
+
+    TEST_CASE("the forward technique blends with alpha, writes no depth and keeps the variant's cull mode and front face")
+    {
+        auto key = makeKey();
+        key.technique = Technique::Forward;
+        key.variant.alphaMode = AlphaMode::Blend;
+        key.variant.cullMode = CullMode::None;
+        key.frontFace = FrontFace::Clockwise;
+        CHECK(pipelineState(key) == PipelineState{ .cullMode = CullMode::None, .frontFace = FrontFace::Clockwise, .blend = BlendMode::Alpha, .depthWrite = false });
+    }
+
+    TEST_CASE("the G-buffer and depth techniques write depth")
+    {
+        auto key = makeKey();
+        CHECK(pipelineState(key).depthWrite);
+        key.technique = Technique::Depth;
+        CHECK(pipelineState(key).depthWrite);
+    }
 }
 
 TEST_SUITE("render_passes::fragmentEntry")
@@ -112,6 +135,43 @@ TEST_SUITE("render_passes::fragmentEntry")
         CHECK_FALSE(fragmentEntry(Technique::Depth, variant).has_value());
         variant.alphaMode = AlphaMode::Mask;
         CHECK(fragmentEntry(Technique::Depth, variant) == "depthFragmentMain");
+    }
+
+    TEST_CASE("the forward technique draws with fragmentMain")
+    {
+        auto variant = makeKey().variant;
+        variant.alphaMode = AlphaMode::Blend;
+        CHECK(fragmentEntry(Technique::Forward, variant) == "fragmentMain");
+    }
+}
+
+TEST_SUITE("render_passes::drawsBatch")
+{
+    auto makeBatch(AlphaMode alphaMode, std::uint32_t instanceCount = 1) -> DrawBatch
+    {
+        return { .id = 0, .firstInstance = 0, .instanceCount = instanceCount, .variant = { .materialTemplate = std::make_shared<const MaterialTemplate>(), .alphaMode = alphaMode } };
+    }
+
+    TEST_CASE("the forward technique draws the blended batches, the G-buffer and depth the others")
+    {
+        for (const auto mode : { AlphaMode::Opaque, AlphaMode::Mask })
+        {
+            CHECK(drawsInGBuffer(makeBatch(mode)));
+            CHECK_FALSE(drawsForward(makeBatch(mode)));
+            CHECK(drawsBatch(Technique::Depth, makeBatch(mode)));
+            CHECK_FALSE(drawsBatch(Technique::Forward, makeBatch(mode)));
+        }
+        CHECK_FALSE(drawsInGBuffer(makeBatch(AlphaMode::Blend)));
+        CHECK(drawsForward(makeBatch(AlphaMode::Blend)));
+        CHECK(drawsBatch(Technique::Forward, makeBatch(AlphaMode::Blend)));
+        CHECK_FALSE(drawsBatch(Technique::GBuffer, makeBatch(AlphaMode::Blend)));
+        CHECK_FALSE(drawsBatch(Technique::Depth, makeBatch(AlphaMode::Blend)));
+    }
+
+    TEST_CASE("the forward technique draws a blended batch whatever its material type, but none without instances")
+    {
+        CHECK(drawsBatch(Technique::Forward, makeBatch(AlphaMode::Blend), MaterialType::Transparent));
+        CHECK_FALSE(drawsForward(makeBatch(AlphaMode::Blend, 0)));
     }
 }
 

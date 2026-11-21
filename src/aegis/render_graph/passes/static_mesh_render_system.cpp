@@ -41,7 +41,7 @@ auto StaticMeshRenderSystem::prepare(const FrameScene& frameScene) -> std::expec
 {
     for (const auto& batch : frameScene.instances.batches())
     {
-        if (!drawsInGBuffer(batch, m_type))
+        if (!drawsBatch(m_technique, batch, m_type))
             continue;
         for (const bool mirrored : { false, true })
         {
@@ -63,7 +63,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
     batchPipelines.reserve(instances.batches().size());
     for (const auto& batch : instances.batches())
     {
-        if (!drawsInGBuffer(batch, m_type))
+        if (!drawsBatch(m_technique, batch, m_type))
             batchPipelines.push_back({ nullptr, nullptr });
         else
             batchPipelines.push_back({ m_pipelines.find(cpuKey(m_technique, batch.variant, false)), m_pipelines.find(cpuKey(m_technique, batch.variant, true)) });
@@ -85,7 +85,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
             cmd.bindPipeline(*pipeline);
             bound = pipeline;
         }
-        cmd.pushConstants(StaticMeshConstants{
+        const StaticMeshConstants constants{
             .model = gpuTransform.model,
             .normalRow0 = gpuTransform.normalRow0,
             .normalRow1 = gpuTransform.normalRow1,
@@ -93,7 +93,24 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
             .camera = context.camera,
             .mesh = instance.mesh->meshDataAddress(),
             .material = instance.material->parameterAddress(context.frameIndex),
-        });
+        };
+        if (m_technique == Technique::Forward)
+        {
+            cmd.pushConstants(ForwardConstants{
+                .model = constants.model,
+                .normalRow0 = constants.normalRow0,
+                .normalRow1 = constants.normalRow1,
+                .normalRow2 = constants.normalRow2,
+                .camera = constants.camera,
+                .mesh = constants.mesh,
+                .material = constants.material,
+                .lighting = context.lighting,
+            });
+        }
+        else
+        {
+            cmd.pushConstants(constants);
+        }
 
         cmd.bindIndexBuffer(m_device->get(instance.mesh->indexBuffer()));
         cmd.drawIndexed(instance.mesh->indexCount());
@@ -111,18 +128,23 @@ auto StaticMeshRenderSystem::createPipeline(const PipelineKey& key) const -> std
     for (auto& attachment : attachments)
         attachment.blend = state.blend;
 
-    const auto shader = techniqueShader(shaderFile, key.variant);
+    const auto shader = techniqueShader(key.technique == Technique::Forward ? forwardShaderFile : shaderFile, key.variant);
     std::vector stages{ ShaderEntry{ rhi::ShaderStage::Vertex, shader, "vertexMain" } };
     if (const auto fragment = fragmentEntry(key.technique, key.variant))
         stages.push_back(ShaderEntry{ rhi::ShaderStage::Fragment, shader, *fragment });
 
     const bool mirrored = key.frontFace == rhi::FrontFace::Clockwise;
-    const bool depth = key.technique == Technique::Depth;
+    std::string_view name{ mirrored ? "StaticMeshesMirrored" : "StaticMeshes" };
+    if (key.technique == Technique::Depth)
+        name = mirrored ? "StaticMeshDepthMirrored" : "StaticMeshDepth";
+    else if (key.technique == Technique::Forward)
+        name = mirrored ? "StaticMeshForwardMirrored" : "StaticMeshForward";
     return createGraphicsPipeline(*m_device,
         rhi::Pipeline::GraphicsDesc{
-            .name = depth ? (mirrored ? "StaticMeshDepthMirrored" : "StaticMeshDepth") : (mirrored ? "StaticMeshesMirrored" : "StaticMeshes"),
+            .name = name,
             .colorAttachments = attachments,
             .depthAttachment = m_depthAttachment,
+            .depth = { .test = true, .write = state.depthWrite },
             .cullMode = state.cullMode,
             .frontFace = state.frontFace,
         },

@@ -14,7 +14,6 @@ struct PushConstants
     bindless::StorageImageDescriptor albedo;
     bindless::StorageImageDescriptor arm;
     bindless::StorageImageDescriptor emissive;
-    lighting::Environment environment;
 }
 
 [[vk::push_constant]] ConstantBuffer<PushConstants> push;
@@ -56,7 +55,7 @@ func main(uint3 dispatchThreadID: SV_DispatchThreadID)
     point.emissive = bindless::storage2D(push.emissive)[pixel].xyz;
     point.shadingModel = arm.w > 0.5 ? ShadingModel::Unlit : ShadingModel::Lit; // ARM's w (modules/surface.slang)
 
-    float3 color = lighting::shade(push.uniforms, push.environment, point);
+    float3 color = lighting::shade(push.uniforms, point);
     switch (push.uniforms->viewMode)
     {
     case 1: color = point.albedo; break;

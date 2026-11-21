@@ -109,7 +109,7 @@ that each of M12's features stays one PR. It runs in parallel with M10.
 - alpha-mask and double-sided materials ([#135](https://github.com/chFleschutz/aegis-engine/issues/135), [`0005-alpha-mask-in-material-system.md`](adr/0005-alpha-mask-in-material-system.md), after #251);
 - shadows, cascaded for the directional light first, then spot and point lights (after #251 and
   #254; issue to be filed);
-- blended materials in a forward pass (issue to be filed), then back-to-front sorting ([#9](https://github.com/chFleschutz/aegis-engine/issues/9));
+- blended materials in a forward pass ([#382](https://github.com/chFleschutz/aegis-engine/issues/382)), then back-to-front sorting ([#9](https://github.com/chFleschutz/aegis-engine/issues/9));
 - vertex tangents ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) at any point; they change the vertex layout and the reference images;
 - anti-aliasing and auto exposure, after #253 (issues to be filed);
 - last, clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22), `needs-design`, after #255), once scenes have hundreds of

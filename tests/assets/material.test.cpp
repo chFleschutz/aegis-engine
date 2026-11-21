@@ -162,9 +162,9 @@ TEST_SUITE("assets::modelMaterialModes")
         CHECK(modelMaterialModes(material) == ModelMaterialModes{ .alphaMode = AlphaMode::Mask, .cullMode = CullMode::None });
     }
 
-    TEST_CASE("a blended material draws opaque until a technique blends")
+    TEST_CASE("a blended material blends")
     {
         const ModelMaterial material{ .alphaMode = AlphaMode::Blend };
-        CHECK(modelMaterialModes(material) == ModelMaterialModes{ .alphaMode = AlphaMode::Opaque, .cullMode = CullMode::Back, .blendDowngraded = true });
+        CHECK(modelMaterialModes(material) == ModelMaterialModes{ .alphaMode = AlphaMode::Blend, .cullMode = CullMode::Back });
     }
 }

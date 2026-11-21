@@ -10,15 +10,19 @@ import aegis.math;
 
 export namespace aegis::render_graph
 {
-/// @brief Draws every instance of the frame's InstanceStore whose draw batch has one MaterialType,
-///        one indexed draw each (the CPU-driven path), with its batch's pipeline for its technique (mirrored
-///        instances with the clockwise one), built from cpu-driven/geometry.slang for the batch template's surface
-///        shader: into the G-buffer, or depth only for a shadow view.
+/// @brief Draws every instance of the frame's InstanceStore whose draw batch its technique draws (drawsBatch: for the
+///        G-buffer and depth, the unblended batches of one MaterialType; forward, the blended ones), one indexed draw
+///        each (the CPU-driven path), with its batch's pipeline for its technique (mirrored instances with the
+///        clockwise one), built for the batch template's surface shader: from cpu-driven/geometry.slang into the
+///        G-buffer, or depth only for a shadow view; from cpu-driven/forward.slang lit and blended into the scene
+///        color, with the lighting block of its pass (RenderContext::lighting).
 class StaticMeshRenderSystem : public RenderSystem
 {
 public:
-    /// @brief The shader file both techniques draw with (techniqueShader).
+    /// @brief The shader file the G-buffer and depth techniques draw with (techniqueShader).
     static constexpr std::string_view shaderFile{ "cpu-driven/geometry" };
+    /// @brief The shader file the forward technique draws with.
+    static constexpr std::string_view forwardShaderFile{ "cpu-driven/forward" };
 
     explicit StaticMeshRenderSystem(Technique technique = Technique::GBuffer,
         assets::MaterialType type = assets::MaterialType::Opaque);
@@ -29,6 +33,7 @@ public:
     [[nodiscard]] auto prepare(const FrameScene& frameScene) -> std::expected<void, Error> override;
     auto render(const RenderContext& context) -> void override;
 
+    [[nodiscard]] auto technique() const noexcept -> Technique { return m_technique; }
     [[nodiscard]] auto pipelines() const noexcept -> const PipelineCache<>& { return m_pipelines; }
 
 private:

@@ -199,6 +199,21 @@ TEST_SUITE("render_graph::detail::packLighting")
         CHECK(uniforms.spotShadowAtlas.sampler.index == 3);
     }
 
+    TEST_CASE("packs the scene environment's maps and the BRDF lookup table")
+    {
+        const InstanceStore instances;
+        FrameScene scene{ .instances = instances };
+        scene.environment.irradiance = aegis::rhi::TextureDescriptor{ { 4 }, { 1 } };
+        scene.environment.prefiltered = aegis::rhi::TextureDescriptor{ { 5 }, { 2 } };
+        const auto uniforms = packLighting(scene, 0, 0, 16, 1.0f, LightingViewMode::SceneColor, std::nullopt, { { 6 }, { 3 } });
+        CHECK(uniforms.irradiance.image.index == 4);
+        CHECK(uniforms.irradiance.sampler.index == 1);
+        CHECK(uniforms.prefiltered.image.index == 5);
+        CHECK(uniforms.prefiltered.sampler.index == 2);
+        CHECK(uniforms.brdfLut.image.index == 6);
+        CHECK(uniforms.brdfLut.sampler.index == 3);
+    }
+
     TEST_CASE("points at the light buffer and counts the lights that fit, point lights first")
     {
         const InstanceStore instances;

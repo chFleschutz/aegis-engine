@@ -80,7 +80,10 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(LightingUniforms, shadowCascadeCount) == 432);
         CHECK(offsetof(LightingUniforms, spotShadowAtlas) == 436);
         CHECK(offsetof(LightingUniforms, spotShadows) == 444);
-        CHECK(sizeof(LightingUniforms) == 448);
+        CHECK(offsetof(LightingUniforms, irradiance) == 448); // lighting::Environment
+        CHECK(offsetof(LightingUniforms, prefiltered) == 456);
+        CHECK(offsetof(LightingUniforms, brdfLut) == 464);
+        CHECK(sizeof(LightingUniforms) == 472);
     }
 
     TEST_CASE("ShadowCascadeData matches lighting::ShadowCascade")
@@ -164,15 +167,25 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(sizeof(StaticMeshConstants) == 112);
     }
 
+    TEST_CASE("ForwardConstants matches cpu-driven/forward.slang")
+    {
+        CHECK(offsetof(ForwardConstants, model) == 0);
+        CHECK(offsetof(ForwardConstants, normalRow0) == 48);
+        CHECK(offsetof(ForwardConstants, normalRow1) == 60);
+        CHECK(offsetof(ForwardConstants, normalRow2) == 72);
+        CHECK(offsetof(ForwardConstants, camera) == 88);
+        CHECK(offsetof(ForwardConstants, mesh) == 96);
+        CHECK(offsetof(ForwardConstants, material) == 104);
+        CHECK(offsetof(ForwardConstants, lighting) == 112);
+        CHECK(sizeof(ForwardConstants) == 120);
+    }
+
     TEST_CASE("LightingConstants matches lighting.slang")
     {
         CHECK(offsetof(LightingConstants, lighting) == 0);
         CHECK(offsetof(LightingConstants, sceneColor) == 8);
         CHECK(offsetof(LightingConstants, gBuffer) == 12); // Position, normal, albedo, ARM, emissive
-        CHECK(offsetof(LightingConstants, irradiance) == 32);
-        CHECK(offsetof(LightingConstants, prefiltered) == 40);
-        CHECK(offsetof(LightingConstants, brdfLut) == 48);
-        CHECK(sizeof(LightingConstants) == 56);
+        CHECK(sizeof(LightingConstants) == 32);
     }
 
     TEST_CASE("SkyBoxConstants matches sky_box.slang")
