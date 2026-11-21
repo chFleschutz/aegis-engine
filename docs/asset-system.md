@@ -403,7 +403,7 @@ implemented synchronously first; the slot lets hot reload swap contents.
 
 ### Working with it today
 
-- **Where things live:** `aegis::AssetLibrary` (`src/aegis/asset_library.*`, target
+- **Where things live:** `aegis::AssetLibrary` (`src/aegis/app/asset_library.*`, target
   `aegis-asset-library`) loads assets by `AssetId` and caches them by ID; components store
   `AssetRef<T>` (`MeshRenderer`, `Sky`). It scans two roots through `assets::AssetDatabase`: the project
   content (`paths::projectContent`, the samples for now, the only project folder scanned; dot-files and
