@@ -115,24 +115,24 @@ target_sources(aegis-editor
     ui/workspace.cppm
     PRIVATE
     ui/actions.cpp
+    ui/create_menu.cpp
+    ui/edits.cpp
     ui/editor_shell.cpp
+    ui/hint.cpp
     ui/options.cpp
     ui/panels/about_panel.cpp
     ui/panels/all_entities_panel.cpp
     ui/panels/content_panel.cpp
     ui/panels/console_panel.cpp
     ui/panels/preferences_panel.cpp
-    ui/panels/hint.cpp
-    ui/panels/history.cpp
     ui/panels/inspector_panel.cpp
-    ui/panels/menus.cpp
     ui/panels/profiler_panel.cpp
     ui/panels/renderer_panel.cpp
     ui/panels/scene_panel.cpp
     ui/panels/shortcuts_panel.cpp
     ui/panels/statistics_panel.cpp
-    ui/panels/widgets.cpp
     ui/theme.cpp
     ui/viewport.cpp
+    ui/widgets.cpp
     ui/workspace.cpp
 )
