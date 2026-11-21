@@ -234,6 +234,18 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
         // A slice is narrower than the whole distance, so its map is sharper.
         CHECK(shadow.projection[0][0] > whole(sun, view).projection[0][0]);
     }
+
+    TEST_CASE("a cascade's shadow moves in whole texels of its own map")
+    {
+        const auto shadow = fitDirectionalShadow(sun, camera({ 0.37f, 1.91f, 1.5f }, { 0.0f, 1.0f, 0.0f }), 8.0f, 20.0f);
+        const float texel = 2.0f / (shadow.projection[0][0] * static_cast<float>(shadowMapExtent.x));
+        for (const float offset : { shadow.view[3][0], shadow.view[3][1] })
+        {
+            const float texels = offset / texel;
+            CAPTURE(texels);
+            CHECK(near(texels, std::round(texels), 1e-2f));
+        }
+    }
 }
 
 TEST_SUITE("render_passes::shadowCascadeSplits")
@@ -346,6 +358,36 @@ TEST_SUITE("render_passes::addShadowViews")
             const float near = cascade == 0 ? 0.0f : splits[cascade - 1];
             REQUIRE(scene.views[6 + cascade].camera.has_value());
             CHECK(equal(scene.views[6 + cascade].camera->view, fitDirectionalShadow(sun, play, near, splits[cascade]).view));
+        }
+    }
+
+    TEST_CASE("each cascade's map covers the band where the one before blends into it")
+    {
+        // The lighting blends the far shadowCascadeBlend of each cascade's slice into the next cascade, so the next map
+        // must reach back over that band: a point there outside it would read as lit.
+        const InstanceStore instances;
+        const auto view = camera({ 3.0f, -2.0f, 1.5f }, { 0.3f, 1.0f, -0.2f });
+        FrameScene scene{ .instances = instances, .views = { { .name = "Main", .camera = view } }, .directionalLight = sun };
+        addShadowViews(scene);
+        const auto splits = shadowCascadeSplits(sun, view.projection);
+        REQUIRE(splits.size() == maxShadowCascades);
+        for (std::uint32_t cascade = 1; cascade < maxShadowCascades; ++cascade)
+        {
+            const float near = cascade == 1 ? 0.1f : splits[cascade - 2];
+            const float far = splits[cascade - 1];
+            const float band = (far - near) * shadowCascadeBlend;
+            REQUIRE(scene.views[1 + cascade].camera.has_value());
+            for (const auto& corner : sliceCorners(view, far - band, far))
+            {
+                const auto ndc = project(*scene.views[1 + cascade].camera, corner);
+                CAPTURE(cascade);
+                CAPTURE(ndc.x);
+                CAPTURE(ndc.y);
+                CHECK(std::abs(ndc.x) <= 1.0f);
+                CHECK(std::abs(ndc.y) <= 1.0f);
+                CHECK(ndc.z >= 0.0f);
+                CHECK(ndc.z <= 1.0f);
+            }
         }
     }
 
