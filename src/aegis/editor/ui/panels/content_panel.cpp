@@ -243,9 +243,11 @@ class ContentPanel final : public Panel
 public:
     ContentPanel() { setOpen(true); }
 
-    [[nodiscard]] auto name() const -> std::string_view override { return "Content"; }
+    [[nodiscard]] auto name() const -> std::string_view override { return panels::content; }
     [[nodiscard]] auto icon() const -> const char* override { return theme::icons::assets; }
     [[nodiscard]] auto placement() const -> Placement override { return Placement::Drawer; }
+    [[nodiscard]] auto toggleAction() const -> std::string_view override { return "view.content"; }
+    [[nodiscard]] auto statusButton() const -> bool override { return true; }
 
     void draw(EditorContext& editor, FrameContext& frame) override
     {

@@ -9,8 +9,20 @@ import :panel;
 
 namespace aegis::editor
 {
-// The built-in panels, in their menus' order; each is defined in its own .cpp (ui/panels/). The floating windows are
-// not listed in a menu: Edit > Preferences... and the Help menu open them.
+// The built-in panels' names (Panel::name), for the few places that address one of them.
+namespace panels
+{
+inline constexpr std::string_view scene = "Scene"; // Its window is titled "Hierarchy"
+inline constexpr std::string_view inspector = "Inspector";
+inline constexpr std::string_view content = "Content";
+inline constexpr std::string_view console = "Console";
+inline constexpr std::string_view preferences = "Preferences";
+inline constexpr std::string_view shortcuts = "Keyboard Shortcuts";
+inline constexpr std::string_view about = "About";
+}
+
+// The built-in panels, in their menus' order; each is defined in its own .cpp (ui/panels/). The dialogs are not
+// listed in a menu: Edit > Preferences... and the Help menu open them.
 // The hierarchy; its menus show the actions' labels and shortcuts, so 'actions' must outlive it.
 [[nodiscard]] auto makeScenePanel(const ActionRegistry& actions) -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeAllEntitiesPanel() -> std::unique_ptr<Panel>;

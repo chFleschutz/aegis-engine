@@ -727,7 +727,7 @@ class InspectorPanel final : public Panel
 public:
     InspectorPanel() { setOpen(true); }
 
-    [[nodiscard]] auto name() const -> std::string_view override { return "Inspector"; }
+    [[nodiscard]] auto name() const -> std::string_view override { return panels::inspector; }
     [[nodiscard]] auto icon() const -> const char* override { return theme::icons::inspector; }
     [[nodiscard]] auto placement() const -> Placement override { return Placement::Column; }
 

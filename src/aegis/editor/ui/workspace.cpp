@@ -11,6 +11,7 @@ module;
 module aegis.editor;
 import std;
 import aegis.assets;
+import :panels;
 import :theme;
 
 namespace aegis::editor
@@ -453,7 +454,7 @@ void Workspace::drawFlyout(FrameContext& frame, bool drawerWasShown)
                             !m_viewport.givesInputToGame() && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
         // The Hierarchy is for picking: a left click into the viewport closes it once the viewport picked (flying and
         // panning don't). The Inspector stays and follows the selection.
-        const bool click = title == "Hierarchy" && m_viewport.hovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+        const bool click = panel && panel->name() == panels::scene && m_viewport.hovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
         if (!panel || !panel->isOpen() || !inFoldedColumn(title) || m_fullViewport.active() || escape || click)
             m_rail.close();
     }

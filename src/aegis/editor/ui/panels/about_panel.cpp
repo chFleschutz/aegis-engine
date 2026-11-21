@@ -40,7 +40,7 @@ auto readText(const std::filesystem::path& file) -> std::string
 class AboutPanel final : public Panel
 {
 public:
-    [[nodiscard]] auto name() const -> std::string_view override { return "About"; }
+    [[nodiscard]] auto name() const -> std::string_view override { return panels::about; }
     [[nodiscard]] auto placement() const -> Placement override { return Placement::Dialog; }
     [[nodiscard]] auto menu() const -> Menu override { return Menu::None; }
     [[nodiscard]] auto dialogWidth() const -> float override { return 520.0f; } // The licenses wrap at it

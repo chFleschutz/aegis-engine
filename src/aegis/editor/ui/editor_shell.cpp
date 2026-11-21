@@ -355,11 +355,11 @@ void EditorShell::drawUi(FrameContext& frame)
     beginMainWindow();
     // --editor-fold: on the first frame, once ImGui read the layout file, which keeps the folded state too
     if (std::exchange(m_foldOnFirstFrame, false))
-        m_workspace.foldInto("Inspector");
+        m_workspace.foldInto(panels::inspector);
     m_workspace.drawDragTooltip(frame); // First, so a drop target's own tooltip replaces it
     m_actions.handleShortcuts(frame, m_viewport.givesInputToGame());
     if (m_context.renameRequested())
-        m_workspace.reveal("Inspector"); // The name field is there
+        m_workspace.reveal(panels::inspector); // The name field is there
     // In full viewport the menu bar, the status bar and the floating windows are not drawn
     const bool full = m_workspace.fullViewport();
     if (!full)
@@ -848,7 +848,7 @@ void EditorShell::drawStatusBar(FrameContext& frame)
     if (visible)
     {
         ImGui::AlignTextToFramePadding(); // Its text and buttons centered in the bar, as in the menu bar
-        drawDrawerButtons();
+        drawPanelButtons();
         // A slim line apart from the selection
         const float gap = ImGui::GetStyle().ItemSpacing.x;
         ImGui::SameLine(0.0f, gap);
@@ -918,17 +918,36 @@ auto EditorShell::drawTimings(FrameContext& frame, float right) -> float
     return x;
 }
 
-void EditorShell::drawDrawerButtons()
+void EditorShell::drawPanelButtons()
 {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
     const ImU32 text = ImGui::GetColorU32(ImGuiCol_Text);
-    const float near = std::round(ImGui::GetStyle().ItemInnerSpacing.x * 0.5f);
-    const std::array content{ LabelPart{ theme::icons::assets, text, 0.0f }, LabelPart{ "Content", text, near } };
-    if (labelButton("Content", content, m_workspace.drawers().isShown("Content")))
-        m_workspace.toggleDrawer("Content");
-    ImGui::SetItemTooltip("%s", m_actions.tooltip("view.content").c_str());
-    ImGui::SameLine();
-    drawConsoleButton();
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float near = std::round(style.ItemInnerSpacing.x * 0.5f);
+    const float apart = style.ItemSpacing.x;
+    bool first = true;
+    for (const auto& panel : m_workspace.panels())
+    {
+        if (!panel->statusButton())
+            continue;
+        if (!std::exchange(first, false))
+            ImGui::SameLine();
+        // The icon and the name, then each count after its icon in its level's color
+        const std::string name{ panel->name() };
+        std::vector<LabelPart> parts{ { panel->icon(), text, 0.0f }, { name, text, near } };
+        for (const auto& badge : panel->statusBadges(m_context))
+        {
+            const ImU32 color = theme::packed(badge.level == log::Level::Warn ? theme::warning : theme::error);
+            parts.push_back({ badge.icon, color, apart });
+            parts.push_back({ std::to_string(badge.count), color, near });
+        }
+        if (labelButton(name.c_str(), parts, m_workspace.drawers().isShown(name)))
+            m_workspace.toggleDrawer(name);
+        const auto action = m_actions.tooltip(panel->toggleAction());
+        const auto more = panel->statusTooltip(m_context);
+        const auto tooltip = more.empty() ? action : std::format("{}\n{}", action, more);
+        ImGui::SetItemTooltip("%s", tooltip.c_str());
+    }
     ImGui::PopStyleColor();
 }
 
@@ -943,7 +962,7 @@ auto EditorShell::keyHints() const -> std::vector<KeyHint>
             return { { "Click", "give the game the input" }, { m_actions.shortcut("play.release"), "take it back" } };
         return { { "Q", "select" }, { "W", "move" }, { "E", "rotate" }, { "R", "scale" }, { m_actions.shortcut("edit.focus"), "focus" }, { "RMB", "fly" }, { "Alt+LMB", "orbit" }, { "MMB", "pan" } };
     }
-    if (m_workspace.hovers("Scene"))
+    if (m_workspace.hovers(panels::scene))
         return { { m_actions.shortcut("edit.rename"), "rename" }, { "Drag", "reparent" }, { m_actions.shortcut("edit.duplicate"), "duplicate" }, { m_actions.shortcut("edit.delete"), "delete" } };
     return {};
 }
@@ -987,31 +1006,6 @@ auto EditorShell::selectionLabel() const -> std::string
     return label;
 }
 
-void EditorShell::drawConsoleButton()
-{
-    // The icon and the name, then the warning and the error count after their icons while there are any
-    const auto counts = m_context.console().counts();
-    const ImU32 text = ImGui::GetColorU32(ImGuiCol_Text);
-    const ImGuiStyle& style = ImGui::GetStyle();
-    const float near = std::round(style.ItemInnerSpacing.x * 0.5f);
-    const float apart = style.ItemSpacing.x;
-    std::vector<LabelPart> parts{ { theme::icons::console, text, 0.0f }, { "Console", text, near } };
-    const auto count = [&](std::size_t value, const char* icon, const ImVec4& color) {
-        if (value == 0)
-            return;
-        parts.push_back({ icon, theme::packed(color), apart });
-        parts.push_back({ std::to_string(value), theme::packed(color), near });
-    };
-    count(counts.warnings, theme::icons::warning, theme::warning);
-    count(counts.errors, theme::icons::error, theme::error);
-    if (labelButton("Console", parts, m_workspace.drawers().isShown("Console")))
-        m_workspace.toggleDrawer("Console");
-
-    const auto problem = m_context.console().lastProblem();
-    const auto tooltip = problem ? std::format("{}\n{}: {}", m_actions.tooltip("view.console"), log::levelName(problem->level), problem->message) : m_actions.tooltip("view.console");
-    ImGui::SetItemTooltip("%s", tooltip.c_str());
-}
-
 void EditorShell::buildActions()
 {
     const auto chord = [](Key key, bool ctrl = true, bool shift = false, bool alt = false) { return Chord{ .key = key, .ctrl = ctrl, .shift = shift, .alt = alt }; };
@@ -1037,7 +1031,7 @@ void EditorShell::buildActions()
         .run = [this](FrameContext& frame) { redoEdit(m_context, frame); } });
     m_actions.add({ .id = "edit.duplicate", .label = "Duplicate", .chord = chord(Key::D), .enabled = hasSelection, .run = [this](FrameContext& frame) { duplicateSelected(m_context, frame); } });
     m_actions.add({ .id = "edit.delete", .label = "Delete", .chord = chord(Key::Delete, false), .enabled = hasSelection, .run = [this](FrameContext& frame) { destroySelected(m_context, frame); } });
-    m_actions.add({ .id = "edit.preferences", .label = "Preferences...", .run = [this](FrameContext&) { m_workspace.open("Preferences"); } });
+    m_actions.add({ .id = "edit.preferences", .label = "Preferences...", .run = [this](FrameContext&) { m_workspace.open(panels::preferences); } });
     m_actions.add({ .id = "edit.rename",
         .label = "Rename",
         .chord = chord(Key::F2, false),
@@ -1045,13 +1039,24 @@ void EditorShell::buildActions()
         .run = [this](FrameContext&) { m_context.requestRename(); } });
     m_actions.add({ .id = "edit.focus", .label = "Focus", .chord = chord(Key::F, false), .enabled = hasSelection, .run = [this](FrameContext&) { m_context.requestFocus(); } });
 
-    m_actions.add({ .id = "view.content", .label = "Content", .chord = chord(Key::Space), .run = [this](FrameContext&) { m_workspace.toggleDrawer("Content"); } });
-    m_actions.add({ .id = "view.console", .label = "Console", .chord = chord(Key::Space, true, true), .run = [this](FrameContext&) { m_workspace.toggleDrawer("Console"); } });
+    // The drawer panels' toggle actions, each named after its panel
+    const std::array<std::pair<std::string_view, Chord>, 2> drawerChords{ { { "view.content", chord(Key::Space) }, { "view.console", chord(Key::Space, true, true) } } };
+    for (const auto& panel : m_workspace.panels())
+    {
+        const auto id = panel->toggleAction();
+        if (id.empty())
+            continue;
+        const auto bound = std::ranges::find(drawerChords, id, &std::pair<std::string_view, Chord>::first);
+        m_actions.add({ .id = std::string{ id },
+            .label = std::string{ panel->name() },
+            .chord = bound != drawerChords.end() ? std::optional{ bound->second } : std::nullopt,
+            .run = [this, name = std::string{ panel->name() }](FrameContext&) { m_workspace.toggleDrawer(name); } });
+    }
     m_actions.add({ .id = "view.foldColumn", .label = "Fold Side Column", .chord = chord(Key::B), .run = [this](FrameContext&) { m_workspace.toggleFold(); } });
     m_actions.add({ .id = "view.fullViewport", .label = "Full Viewport", .chord = chord(Key::F11, false), .run = [this](FrameContext&) { m_workspace.toggleFullViewport(); } });
 
-    m_actions.add({ .id = "help.shortcuts", .label = "Keyboard Shortcuts", .run = [this](FrameContext&) { m_workspace.open("Keyboard Shortcuts"); } });
-    m_actions.add({ .id = "help.about", .label = "About", .run = [this](FrameContext&) { m_workspace.open("About"); } });
+    m_actions.add({ .id = "help.shortcuts", .label = "Keyboard Shortcuts", .run = [this](FrameContext&) { m_workspace.open(panels::shortcuts); } });
+    m_actions.add({ .id = "help.about", .label = "About", .run = [this](FrameContext&) { m_workspace.open(panels::about); } });
 
     m_actions.add({ .id = "play.toggle", .label = "Play", .chord = chord(Key::P), .run = [this](FrameContext& frame) { m_play.active() ? stopPlay(frame) : startPlay(frame); } });
     m_actions.add({ .id = "play.pause",
@@ -1164,7 +1169,7 @@ void EditorShell::drawMenuBar(FrameContext& frame)
             if (panel->placement() == Placement::Drawer)
             {
                 // Opens the drawer (its button and chord also close it)
-                const auto chord = m_actions.shortcut(name == "Content" ? "view.content" : "view.console");
+                const auto chord = m_actions.shortcut(panel->toggleAction());
                 if (ImGui::MenuItem(name.c_str(), chord.c_str(), m_workspace.drawers().isShown(name) || m_workspace.drawers().isPinned(name)))
                     m_workspace.showDrawer(name);
                 continue;

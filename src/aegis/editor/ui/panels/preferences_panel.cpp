@@ -17,7 +17,7 @@ namespace
 class PreferencesPanel final : public Panel
 {
 public:
-    [[nodiscard]] auto name() const -> std::string_view override { return "Preferences"; }
+    [[nodiscard]] auto name() const -> std::string_view override { return panels::preferences; }
     [[nodiscard]] auto placement() const -> Placement override { return Placement::Dialog; }
     [[nodiscard]] auto menu() const -> Menu override { return Menu::None; }
 

@@ -42,7 +42,7 @@ public:
     {
     }
 
-    [[nodiscard]] auto name() const -> std::string_view override { return "Keyboard Shortcuts"; }
+    [[nodiscard]] auto name() const -> std::string_view override { return panels::shortcuts; }
     [[nodiscard]] auto placement() const -> Placement override { return Placement::Dialog; }
     [[nodiscard]] auto menu() const -> Menu override { return Menu::None; }
 

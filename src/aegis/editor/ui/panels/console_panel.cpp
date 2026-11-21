@@ -66,9 +66,30 @@ class ConsolePanel final : public Panel
 public:
     ConsolePanel() { setOpen(true); }
 
-    [[nodiscard]] auto name() const -> std::string_view override { return "Console"; }
+    [[nodiscard]] auto name() const -> std::string_view override { return panels::console; }
     [[nodiscard]] auto icon() const -> const char* override { return theme::icons::console; }
     [[nodiscard]] auto placement() const -> Placement override { return Placement::Drawer; }
+    [[nodiscard]] auto toggleAction() const -> std::string_view override { return "view.console"; }
+    [[nodiscard]] auto statusButton() const -> bool override { return true; }
+
+    // The warning and the error count while there are any
+    [[nodiscard]] auto statusBadges(const EditorContext& editor) const -> std::vector<StatusBadge> override
+    {
+        const auto counts = editor.console().counts();
+        std::vector<StatusBadge> badges;
+        if (counts.warnings > 0)
+            badges.push_back({ .icon = theme::icons::warning, .count = counts.warnings, .level = log::Level::Warn });
+        if (counts.errors > 0)
+            badges.push_back({ .icon = theme::icons::error, .count = counts.errors, .level = log::Level::Error });
+        return badges;
+    }
+
+    // The last problem
+    [[nodiscard]] auto statusTooltip(const EditorContext& editor) const -> std::string override
+    {
+        const auto problem = editor.console().lastProblem();
+        return problem ? std::format("{}: {}", log::levelName(problem->level), problem->message) : std::string{};
+    }
 
     void draw(EditorContext& editor, FrameContext&) override
     {

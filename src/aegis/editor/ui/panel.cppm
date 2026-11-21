@@ -1,5 +1,6 @@
 export module aegis.editor:panel;
 import std;
+import aegis.core;
 import aegis.editor.core;
 import aegis.engine;
 
@@ -39,6 +40,15 @@ enum class Menu
     Debug, // For the editor's developers
 };
 
+/// @brief A count on a panel's status-bar button (the console's warnings): its icon (one of theme::icons) and the
+///        number, both in the color of 'level' (the warning's or the error's).
+struct StatusBadge
+{
+    const char* icon;
+    std::size_t count;
+    log::Level level;
+};
+
 /// @brief One window of the editor: listed in its menu and drawn while open.
 class Panel
 {
@@ -65,6 +75,16 @@ public:
     [[nodiscard]] virtual auto icon() const -> const char* { return nullptr; }
     /// @brief Its window's label: the icon and the title in capitals, identified by windowName(title()).
     [[nodiscard]] auto label() const -> std::string { return windowLabel(icon(), title()); }
+    /// @brief For a drawer panel: the id of the action that opens and closes it in the drawer, whose chord its menu item
+    ///        shows; none (empty) by default.
+    [[nodiscard]] virtual auto toggleAction() const -> std::string_view { return {}; }
+    /// @brief For a drawer panel: whether the status bar has a button for it, its icon and name, lit while the drawer
+    ///        shows it; the button's tooltip is its toggle action's.
+    [[nodiscard]] virtual auto statusButton() const -> bool { return false; }
+    /// @brief The counts its status-bar button shows after its name, each only while it isn't 0; none by default.
+    [[nodiscard]] virtual auto statusBadges(const EditorContext& /*editor*/) const -> std::vector<StatusBadge> { return {}; }
+    /// @brief A line its status-bar button's tooltip adds below the action's; none (empty) by default.
+    [[nodiscard]] virtual auto statusTooltip(const EditorContext& /*editor*/) const -> std::string { return {}; }
     /// @brief Draws the panel's contents at the frame's safe point, inside the window the editor began for it. Panels
     ///        share state only through 'editor'.
     virtual void draw(EditorContext& editor, FrameContext& frame) = 0;
