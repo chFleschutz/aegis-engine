@@ -81,6 +81,15 @@
             }
         },
         {
+            "name": "linux-clang-dev",
+            "inherits": "linux-clang",
+            "displayName": "Linux Clang Dev (Debug with -O1)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "AEGIS_OPTIMIZE_DEBUG": "ON"
+            }
+        },
+        {
             "name": "linux-clang-release",
             "inherits": "linux-clang",
             "displayName": "Linux Clang Release",
@@ -94,6 +103,15 @@
             "displayName": "Windows Clang Debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "windows-clang-dev",
+            "inherits": "windows-clang",
+            "displayName": "Windows Clang Dev (Debug with -O1)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "AEGIS_OPTIMIZE_DEBUG": "ON"
             }
         },
         {
@@ -128,6 +146,11 @@
             "configurePreset": "linux-clang-debug"
         },
         {
+            "name": "linux-clang-dev",
+            "displayName": "Linux Clang Dev",
+            "configurePreset": "linux-clang-dev"
+        },
+        {
             "name": "linux-clang-release",
             "displayName": "Linux Clang Release",
             "configurePreset": "linux-clang-release"
@@ -136,6 +159,11 @@
             "name": "windows-clang-debug",
             "displayName": "Windows Clang Debug",
             "configurePreset": "windows-clang-debug"
+        },
+        {
+            "name": "windows-clang-dev",
+            "displayName": "Windows Clang Dev",
+            "configurePreset": "windows-clang-dev"
         },
         {
             "name": "windows-clang-release",
@@ -171,6 +199,12 @@
             "configurePreset": "linux-clang-debug"
         },
         {
+            "name": "linux-clang-dev",
+            "inherits": "base",
+            "displayName": "Linux Clang Dev",
+            "configurePreset": "linux-clang-dev"
+        },
+        {
             "name": "linux-clang-release",
             "inherits": "base",
             "displayName": "Linux Clang Release",
@@ -181,6 +215,12 @@
             "inherits": "base",
             "displayName": "Windows Clang Debug",
             "configurePreset": "windows-clang-debug"
+        },
+        {
+            "name": "windows-clang-dev",
+            "inherits": "base",
+            "displayName": "Windows Clang Dev",
+            "configurePreset": "windows-clang-dev"
         },
         {
             "name": "windows-clang-release",

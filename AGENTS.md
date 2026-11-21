@@ -19,6 +19,9 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
     cmake --preset windows-clang-debug
     cmake --build --preset windows-clang-debug
 
+- **Day-to-day runs: `windows-clang-dev` / `linux-clang-dev`**, Debug with `-O1` added
+  (`AEGIS_OPTIMIZE_DEBUG`): asserts and validation stay on, and a headless `aegis-test` Sponza run
+  takes about half as long. Keep `-debug` for stepping through code in a debugger.
 - The MSVC presets **don't build yet** (internal compiler errors in `render_graph`).
 - Clone with `--recurse-submodules`. The sample project (the examples' scenes and the assets the
   device tests load) is the opt-in submodule `samples/`: `git submodule update --init --checkout
