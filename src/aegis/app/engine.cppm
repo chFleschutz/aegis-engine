@@ -125,6 +125,7 @@ enum class EngineErrorCode
     TypesFailed,
     FrameGraphFailed,
     SceneFailed,
+    ProjectFailed,
 };
 
 struct EngineError
@@ -448,6 +449,8 @@ private:
     auto createWindow() -> std::expected<void, EngineError>;
     auto createRenderer() -> std::expected<void, EngineError>;
     auto createAssets() -> std::expected<void, EngineError>;
+    /// @brief Reads the project file and hands its input map to the input (or the headless state).
+    auto loadProjectFile() -> std::expected<void, EngineError>;
     /// @brief Replaces the frame graph with one rendering the main camera onto the renderer's target, or, with
     ///        'views', each of them into a target of its own. Frames in flight must have finished.
     auto createFrameGraph(std::vector<ViewTarget> views = {}) -> std::expected<void, EngineError>;
@@ -487,8 +490,9 @@ private:
     std::unique_ptr<aegis::platform::Window> m_window; // null when headless
     // Before ImGui's GLFW backend installs its callbacks, which chain to the window's. Null when headless.
     std::unique_ptr<aegis::platform::Input> m_input;
-    Presentation m_presentation;         // The ImGui context: outlives the frame graph's UI pass and the shell
-    std::uint32_t m_lastFrameIndex{ 0 }; // The frame slot the last frame drew into
+    aegis::platform::InputState m_headlessInput; // What scripts read when headless: the input map, and no input
+    Presentation m_presentation;                 // The ImGui context: outlives the frame graph's UI pass and the shell
+    std::uint32_t m_lastFrameIndex{ 0 };         // The frame slot the last frame drew into
     std::unique_ptr<aegis::rhi::Context> m_context;
     std::unique_ptr<aegis::rhi::Device> m_device;
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
