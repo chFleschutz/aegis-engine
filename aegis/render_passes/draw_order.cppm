@@ -16,11 +16,11 @@ struct DepthSortedDraw
 
 /// @brief How far in front of the camera of 'view' (a right-handed view matrix, looking along -z) the world-space
 ///        'point' lies, in meters along its view direction; negative behind it.
-[[nodiscard]] auto viewDepth(const glm::mat4& view, const glm::vec3& point) -> float;
+[[nodiscard]] auto viewDepth(const math::Float4x4& view, const math::Float3& point) -> float;
 
 /// @brief The world-space centre of a mesh's bounding sphere centred at 'localCenter', drawn with 'model' (the top
 ///        three rows of its model matrix, Instance::model).
-[[nodiscard]] auto worldCenter(const glm::mat3x4& model, const glm::vec3& localCenter) -> glm::vec3;
+[[nodiscard]] auto worldCenter(const math::Float3x4& model, const math::Float3& localCenter) -> math::Float3;
 
 /// @brief Sorts 'draws' back to front: the deepest first. Draws of equal depth keep their order.
 auto sortBackToFront(std::span<DepthSortedDraw> draws) -> void;

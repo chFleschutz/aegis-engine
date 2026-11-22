@@ -5,6 +5,8 @@ import aegis.assets;
 import aegis.math;
 import aegis.rhi;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::assets::AlphaMode;
@@ -30,11 +32,11 @@ TEST_SUITE("assets::MaterialTemplate")
     TEST_CASE("packs parameters with scalar alignment, like the C++ structs shaders mirror")
     {
         MaterialTemplate pbr;
-        CHECK(pbr.addParameter("metallic", 0.0f).has_value());             // 0
-        CHECK(pbr.addParameter("albedo", glm::vec3{ 1.0f }).has_value());  // 4: a vec3 aligns like a float
-        CHECK(pbr.addParameter("roughness", 1.0f).has_value());            // 16
-        CHECK(pbr.addParameter("uvScale", glm::vec2{ 1.0f }).has_value()); // 20
-        CHECK(pbr.addParameter("layer", std::uint32_t{ 0 }).has_value());  // 28
+        CHECK(pbr.addParameter("metallic", 0.0f).has_value());                // 0
+        CHECK(pbr.addParameter("albedo", math::Float3{ 1.0f }).has_value());  // 4: a vec3 aligns like a float
+        CHECK(pbr.addParameter("roughness", 1.0f).has_value());               // 16
+        CHECK(pbr.addParameter("uvScale", math::Float2{ 1.0f }).has_value()); // 20
+        CHECK(pbr.addParameter("layer", std::uint32_t{ 0 }).has_value());     // 28
 
         CHECK(pbr.parameter("metallic")->offset == 0);
         CHECK(pbr.parameter("albedo")->offset == 4);
@@ -54,15 +56,15 @@ TEST_SUITE("assets::MaterialTemplate")
     TEST_CASE("rejects a value whose type differs from the parameter's default")
     {
         MaterialTemplate pbr;
-        REQUIRE(pbr.addParameter("albedo", glm::vec3{ 1.0f }).has_value());
+        REQUIRE(pbr.addParameter("albedo", math::Float3{ 1.0f }).has_value());
         REQUIRE(pbr.addParameter("roughness", 1.0f).has_value());
 
-        CHECK(pbr.check("albedo", glm::vec3{ 0.5f }).has_value());
+        CHECK(pbr.check("albedo", math::Float3{ 0.5f }).has_value());
         CHECK(pbr.check("roughness", 0.5f).has_value());
 
         // A vec4 would write 16 bytes into a 12-byte slot; an int literal selects std::int32_t and
         // would write integer bits where the shader reads a float.
-        const auto vec4 = pbr.check("albedo", glm::vec4{ 1.0f });
+        const auto vec4 = pbr.check("albedo", math::Float4{ 1.0f });
         REQUIRE(!vec4.has_value());
         CHECK(vec4.error().code == ErrorCode::InvalidArgument);
         const auto intLiteral = pbr.check("roughness", 1);
@@ -73,9 +75,9 @@ TEST_SUITE("assets::MaterialTemplate")
     TEST_CASE("rejects a name it has no parameter for")
     {
         MaterialTemplate pbr;
-        REQUIRE(pbr.addParameter("albedo", glm::vec3{ 1.0f }).has_value());
+        REQUIRE(pbr.addParameter("albedo", math::Float3{ 1.0f }).has_value());
 
-        const auto typo = pbr.check("albedoo", glm::vec3{ 1.0f });
+        const auto typo = pbr.check("albedoo", math::Float3{ 1.0f });
         REQUIRE(!typo.has_value());
         CHECK(typo.error().code == ErrorCode::InvalidArgument);
     }
@@ -85,7 +87,7 @@ TEST_SUITE("assets::MaterialTemplate")
         MaterialTemplate pbr;
         REQUIRE(pbr.addParameter("metallic", 0.0f).has_value());
 
-        const auto duplicate = pbr.addParameter("metallic", glm::vec4{ 1.0f });
+        const auto duplicate = pbr.addParameter("metallic", math::Float4{ 1.0f });
         REQUIRE(!duplicate.has_value());
         CHECK(duplicate.error().code == ErrorCode::InvalidArgument);
         CHECK(pbr.parameterSize() == 4);
@@ -111,10 +113,10 @@ TEST_SUITE("assets::detail::scalar")
     TEST_CASE("values take their C++ size and align to 4 bytes")
     {
         CHECK(scalarSize(MaterialValue{ 1.0f }) == 4);
-        CHECK(scalarSize(MaterialValue{ glm::vec2{} }) == 8);
-        CHECK(scalarSize(MaterialValue{ glm::vec3{} }) == 12);
-        CHECK(scalarSize(MaterialValue{ glm::vec4{} }) == 16);
-        CHECK(scalarAlignment(MaterialValue{ glm::vec3{} }) == 4);
+        CHECK(scalarSize(MaterialValue{ math::Float2{} }) == 8);
+        CHECK(scalarSize(MaterialValue{ math::Float3{} }) == 12);
+        CHECK(scalarSize(MaterialValue{ math::Float4{} }) == 16);
+        CHECK(scalarAlignment(MaterialValue{ math::Float3{} }) == 4);
         CHECK(scalarAlignment(MaterialValue{ std::int32_t{ 1 } }) == 4);
     }
 
@@ -134,7 +136,7 @@ TEST_SUITE("assets::detail::writeParameters")
     {
         MaterialTemplate pbr;
         CHECK(pbr.addParameter("metallic", 0.25f).has_value());
-        CHECK(pbr.addParameter("albedo", glm::vec3{ 1.0f, 2.0f, 3.0f }).has_value());
+        CHECK(pbr.addParameter("albedo", math::Float3{ 1.0f, 2.0f, 3.0f }).has_value());
 
         std::array<std::byte, 64> block{};
         writeParameters(pbr, {}, block);

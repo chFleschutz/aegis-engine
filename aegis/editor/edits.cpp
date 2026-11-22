@@ -105,7 +105,7 @@ auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool
     return destroyed;
 }
 
-auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t asset, world::Entity parent, std::optional<glm::vec3> location) -> bool
+auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t asset, world::Entity parent, std::optional<math::Float3> location) -> bool
 {
     auto& registry = editor.world()->registry();
     const auto edits = editWorld(editor, frame);

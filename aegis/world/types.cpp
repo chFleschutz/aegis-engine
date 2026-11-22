@@ -47,7 +47,7 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
         if (builder)
         {
             builder->category("Camera")
-                .field("fov", &Camera::fov, { .widget = FieldWidget::Angle, .min = glm::radians(1.0), .max = glm::radians(179.0), .tooltip = "Vertical field of view" })
+                .field("fov", &Camera::fov, { .widget = FieldWidget::Angle, .min = math::radians(1.0), .max = math::radians(179.0), .tooltip = "Vertical field of view" })
                 .field("near", &Camera::near, { .min = 0.001, .step = 0.01, .tooltip = "Distance to the near clipping plane" })
                 .field("far", &Camera::far, { .min = 0.001, .step = 1.0, .tooltip = "Distance to the far clipping plane" });
         }
@@ -115,8 +115,8 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
                 .field("color", &SpotLight::color, { .widget = FieldWidget::Color })
                 .field("intensity", &SpotLight::intensity, { .min = 0.0, .step = 1.0 })
                 .field("range", &SpotLight::range, { .min = 0.01, .step = 0.1, .tooltip = "Distance in meters where the light fades to zero" })
-                .field("innerConeAngle", &SpotLight::innerConeAngle, { .widget = FieldWidget::Angle, .min = 0.0, .max = glm::radians(90.0), .tooltip = "Angle from the axis where the light starts to fade" })
-                .field("outerConeAngle", &SpotLight::outerConeAngle, { .widget = FieldWidget::Angle, .min = 0.0, .max = glm::radians(90.0), .tooltip = "Angle from the axis where the light reaches zero" })
+                .field("innerConeAngle", &SpotLight::innerConeAngle, { .widget = FieldWidget::Angle, .min = 0.0, .max = math::radians(90.0), .tooltip = "Angle from the axis where the light starts to fade" })
+                .field("outerConeAngle", &SpotLight::outerConeAngle, { .widget = FieldWidget::Angle, .min = 0.0, .max = math::radians(90.0), .tooltip = "Angle from the axis where the light reaches zero" })
                 .field("castsShadows", &SpotLight::castsShadows, { .tooltip = "Casts shadows if it is among the spot lights closest to the camera that do (at most 4)" })
                 .field("shadowBias", &SpotLight::shadowBias, { .min = 0.0, .step = 0.1, .tooltip = "Shadow-map texels a surface moves along its normal so it doesn't shadow itself" });
         }

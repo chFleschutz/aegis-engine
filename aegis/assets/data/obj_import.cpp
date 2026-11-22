@@ -30,9 +30,9 @@ auto importObj(std::istream& stream, std::string_view name) -> std::expected<Mod
             input.positions.emplace_back(attrib.vertices[3 * vertex + 0], attrib.vertices[3 * vertex + 1],
                 attrib.vertices[3 * vertex + 2]);
             input.colors.emplace_back(3 * vertex + 2 < attrib.colors.size()
-                                          ? glm::vec3{ attrib.colors[3 * vertex + 0], attrib.colors[3 * vertex + 1],
+                                          ? math::Float3{ attrib.colors[3 * vertex + 0], attrib.colors[3 * vertex + 1],
                                                 attrib.colors[3 * vertex + 2] }
-                                          : glm::vec3{ 1.0f });
+                                          : math::Float3{ 1.0f });
 
             if (index.normal_index < 0)
             {
@@ -48,8 +48,8 @@ auto importObj(std::istream& stream, std::string_view name) -> std::expected<Mod
 
             // OBJ's v runs up from the image's bottom row; the engine's (like glTF's) runs down from the top.
             const auto uv = index.texcoord_index;
-            input.uvs.emplace_back(uv < 0 ? glm::vec2{ 0.0f }
-                                          : glm::vec2{ attrib.texcoords[2 * static_cast<std::size_t>(uv) + 0],
+            input.uvs.emplace_back(uv < 0 ? math::Float2{ 0.0f }
+                                          : math::Float2{ attrib.texcoords[2 * static_cast<std::size_t>(uv) + 0],
                                                 1.0f - attrib.texcoords[2 * static_cast<std::size_t>(uv) + 1] });
         }
     }

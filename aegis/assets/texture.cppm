@@ -82,11 +82,11 @@ public:
         rhi::Format format, std::string_view name) -> std::expected<std::shared_ptr<Texture>, Error>;
 
     /// @brief A 1x1 texture of 'color' (RGBA32_SFLOAT).
-    [[nodiscard]] static auto solidColor(rhi::Device& device, glm::vec4 color, std::string_view name = {})
+    [[nodiscard]] static auto solidColor(rhi::Device& device, math::Float4 color, std::string_view name = {})
         -> std::expected<std::shared_ptr<Texture>, Error>;
 
     /// @brief A 1x1 cube map with every face 'color' (RGBA32_SFLOAT).
-    [[nodiscard]] static auto solidColorCube(rhi::Device& device, glm::vec4 color, std::string_view name = {})
+    [[nodiscard]] static auto solidColorCube(rhi::Device& device, math::Float4 color, std::string_view name = {})
         -> std::expected<std::shared_ptr<Texture>, Error>;
 
     Texture(const Texture&) = delete;

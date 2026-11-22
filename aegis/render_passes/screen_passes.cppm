@@ -68,5 +68,5 @@ export namespace aegis::render_graph::detail
 {
 /// @brief The sky box's view-projection (row-major): the camera's rotation only, as the sky is infinitely
 ///        far away.
-[[nodiscard]] auto makeSkyBoxViewProjection(const FrameScene::Camera& camera) -> glm::mat4;
+[[nodiscard]] auto makeSkyBoxViewProjection(const FrameScene::Camera& camera) -> math::Float4x4;
 }

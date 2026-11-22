@@ -49,7 +49,7 @@ inline constexpr float maxSpotShadowFov{ 160.0f * std::numbers::pi_v<float> / 18
 ///        (as far as its far plane), a mix of logarithmic and uniform splits by light.shadowSplitLambda (1: logarithmic,
 ///        each cascade the same factor longer than the one before; 0: uniform, all equally long). The last one is the
 ///        shadow distance.
-[[nodiscard]] auto shadowCascadeSplits(const FrameScene::DirectionalLight& light, const glm::mat4& projection)
+[[nodiscard]] auto shadowCascadeSplits(const FrameScene::DirectionalLight& light, const math::Float4x4& projection)
     -> std::vector<float>;
 
 /// @brief The camera of a directional light's shadow view for the slice of 'camera' between 'near' and 'far' meters
@@ -63,7 +63,7 @@ inline constexpr float maxSpotShadowFov{ 160.0f * std::numbers::pi_v<float> / 18
 
 /// @brief The indices in scene.spotLights of the spot lights that cast shadows this frame: those with castsShadows, the
 ///        closest to 'from' first (ties in the scene's order), at most 'budget' of them.
-[[nodiscard]] auto selectShadowedSpotLights(const FrameScene& scene, const glm::vec3& from,
+[[nodiscard]] auto selectShadowedSpotLights(const FrameScene& scene, const math::Float3& from,
     std::uint32_t budget = maxShadowedSpotLights) -> std::vector<std::uint32_t>;
 
 /// @brief The camera of a spot light's shadow view, for a square tile: a perspective projection from the light along

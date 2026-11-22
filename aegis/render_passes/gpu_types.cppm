@@ -72,20 +72,20 @@ AEGIS_FLAGS(GeometryFlags)
 ///        row-major.
 struct CameraData
 {
-    glm::mat4 view{ 0.0f };
-    glm::mat4 projection{ 0.0f };
-    glm::mat4 viewProjection{ 0.0f };
+    math::Float4x4 view = math::Float4x4::zero();
+    math::Float4x4 projection = math::Float4x4::zero();
+    math::Float4x4 viewProjection = math::Float4x4::zero();
     Frustum frustum;
-    glm::vec3 position;
+    math::Float3 position;
 };
 
 /// @brief indirectDraw::Instance: one drawable instance as the GPU-driven shaders read it.
 struct InstanceData
 {
-    glm::mat3x4 model{ 0.0f }; // Top three rows of the model matrix
-    glm::vec3 normalRow0;
-    glm::vec3 normalRow1;
-    glm::vec3 normalRow2;
+    math::Float3x4 model = math::Float3x4::zero(); // Top three rows of the model matrix
+    math::Float3 normalRow0;
+    math::Float3 normalRow1;
+    math::Float3 normalRow2;
     rhi::DeviceAddress mesh;     // assets::MeshGpuData
     rhi::DeviceAddress material; // assets::Material parameter block (MaterialAddress in the shaders)
     std::uint32_t drawBatch;
@@ -106,42 +106,42 @@ struct DrawBatchData
 ///        frame carries its matrix and its tile of "SpotShadowAtlas".
 struct LightData
 {
-    glm::vec3 position;
+    math::Float3 position;
     float range; // Meters; the light fades to zero there (detail::distanceAttenuation)
-    glm::vec3 color;
+    math::Float3 color;
     float intensity;
-    glm::vec3 direction;                    // World space, normalized: where a spot light's cone points; zero for a point light
-    float coneScale;                        // The cone's falloff (detail::coneAttenuation): 1 / (cos inner - cos outer)
-    float coneOffset;                       // -cos outer * coneScale
-    float shadowBias{ 0.0f };               // Texels of its tile a shaded point moves along its normal
-    float shadowTexelSize{ 0.0f };          // Meters a texel of its tile spans per meter along its axis
-    glm::vec4 shadowRegion{ 0.0f };         // Its tile of "SpotShadowAtlas" in uv: offset xy, size zw; zero: unshadowed
-    glm::mat4 shadowViewProjection{ 1.0f }; // Row-major: its spot shadow view's
+    math::Float3 direction;                                           // World space, normalized: where a spot light's cone points; zero for a point light
+    float coneScale;                                                  // The cone's falloff (detail::coneAttenuation): 1 / (cos inner - cos outer)
+    float coneOffset;                                                 // -cos outer * coneScale
+    float shadowBias{ 0.0f };                                         // Texels of its tile a shaded point moves along its normal
+    float shadowTexelSize{ 0.0f };                                    // Meters a texel of its tile spans per meter along its axis
+    math::Float4 shadowRegion{ 0.0f };                                // Its tile of "SpotShadowAtlas" in uv: offset xy, size zw; zero: unshadowed
+    math::Float4x4 shadowViewProjection = math::Float4x4::identity(); // Row-major: its spot shadow view's
 };
 
 /// @brief lighting::ShadowCascade (modules/lighting.slang): one cascade of the directional light's shadow, the
 ///        "Depth" of one of a main view's shadow views.
 struct ShadowCascadeData
 {
-    glm::mat4 viewProjection{ 1.0f }; // Row-major: the shadow view's
-    rhi::TextureDescriptor map{};     // Its "Depth", with a comparison sampler
-    float texelSize{ 0.0f };          // Meters a shadow-map texel spans
-    float splitFar{ 0.0f };           // Meters along the main view's camera axis where the cascade ends
+    math::Float4x4 viewProjection = math::Float4x4::identity(); // Row-major: the shadow view's
+    rhi::TextureDescriptor map{};                               // Its "Depth", with a comparison sampler
+    float texelSize{ 0.0f };                                    // Meters a shadow-map texel spans
+    float splitFar{ 0.0f };                                     // Meters along the main view's camera axis where the cascade ends
 };
 
 /// @brief lighting::Lighting (modules/lighting.slang), one per view and frame in flight.
 struct LightingUniforms
 {
-    glm::vec4 cameraPosition{ 0.0f };
-    glm::vec4 ambientColor{ 0.0f }; // rgb, intensity
-    glm::vec4 directionalDirection{ 0.0f, 0.0f, 1.0f, 0.0f };
-    glm::vec4 directionalColor{ 0.0f }; // rgb, intensity
-    rhi::DeviceAddress lights{ 0 };     // LightData[pointLightCount + spotLightCount]
+    math::Float4 cameraPosition{ 0.0f };
+    math::Float4 ambientColor{ 0.0f }; // rgb, intensity
+    math::Float4 directionalDirection{ 0.0f, 0.0f, 1.0f, 0.0f };
+    math::Float4 directionalColor{ 0.0f }; // rgb, intensity
+    rhi::DeviceAddress lights{ 0 };        // LightData[pointLightCount + spotLightCount]
     std::uint32_t pointLightCount{ 0 };
     std::uint32_t spotLightCount{ 0 }; // After the point lights
     float ambientOcclusionFactor{ 1.0f };
     LightingViewMode viewMode{ LightingViewMode::SceneColor };
-    glm::vec4 cameraForward{ 0.0f, 0.0f, -1.0f, 0.0f }; // World space: the axis the cascades split along
+    math::Float4 cameraForward{ 0.0f, 0.0f, -1.0f, 0.0f }; // World space: the axis the cascades split along
     std::array<ShadowCascadeData, maxShadowCascades> shadowCascades{};
     float shadowBias{ 0.0f };                 // Texels of its cascade a shaded point moves along its normal
     float shadowCascadeBlend{ 0.0f };         // The fraction of each cascade blended into the next (shadowCascadeBlend)
@@ -189,10 +189,10 @@ struct GpuDrivenGeometryConstants
 /// @brief cpu_driven/geometry.slang
 struct StaticMeshConstants
 {
-    glm::mat3x4 model{ 0.0f }; // Top three rows
-    glm::vec3 normalRow0;
-    glm::vec3 normalRow1;
-    glm::vec3 normalRow2;
+    math::Float3x4 model = math::Float3x4::zero(); // Top three rows
+    math::Float3 normalRow0;
+    math::Float3 normalRow1;
+    math::Float3 normalRow2;
     rhi::DeviceAddress camera;
     rhi::DeviceAddress mesh;
     rhi::DeviceAddress material;
@@ -201,10 +201,10 @@ struct StaticMeshConstants
 /// @brief cpu_driven/forward.slang: StaticMeshConstants and the view's lighting block.
 struct ForwardConstants
 {
-    glm::mat3x4 model{ 0.0f }; // Top three rows
-    glm::vec3 normalRow0;
-    glm::vec3 normalRow1;
-    glm::vec3 normalRow2;
+    math::Float3x4 model = math::Float3x4::zero(); // Top three rows
+    math::Float3 normalRow0;
+    math::Float3 normalRow1;
+    math::Float3 normalRow2;
     rhi::DeviceAddress camera;
     rhi::DeviceAddress mesh;
     rhi::DeviceAddress material;
@@ -222,7 +222,7 @@ struct LightingConstants
 /// @brief sky_box.slang
 struct SkyBoxConstants
 {
-    glm::mat4 viewProjection{ 0.0f };
+    math::Float4x4 viewProjection = math::Float4x4::zero();
     rhi::TextureDescriptor skybox;
 };
 
@@ -241,8 +241,8 @@ struct PostProcessConstants
 /// @brief point_light.slang
 struct PointLightConstants
 {
-    glm::vec4 worldPosition;
-    glm::vec4 color;
+    math::Float4 worldPosition;
+    math::Float4 color;
     float radius;
     rhi::DeviceAddress camera;
 };
@@ -310,31 +310,31 @@ export namespace aegis::render_graph::detail
 ///        path has no flags in its constants and picks a pipeline with the other front face instead.
 struct GpuTransform
 {
-    glm::mat3x4 model{ 0.0f }; // Row r of the model matrix is math::row(model, r), translation in .w
-    glm::vec3 normalRow0;
-    glm::vec3 normalRow1;
-    glm::vec3 normalRow2;
+    math::Float3x4 model = math::Float3x4::zero(); // Row r of the model matrix is model.row(r), translation in .w
+    math::Float3 normalRow0;
+    math::Float3 normalRow1;
+    math::Float3 normalRow2;
     InstanceFlags flags{ InstanceFlags::None };
 };
 
 /// @brief The GpuTransform of a model matrix given by its top three rows (toModelRows). The normal matrix is
 ///        the inverse transpose of the upper 3x3; its rows are the columns of the inverse. A negative
 ///        determinant (a mirror, e.g. a scale of -1 on one axis) sets InstanceFlags::Mirrored.
-[[nodiscard]] inline auto toGpuTransform(const glm::mat3x4& rows) -> GpuTransform
+[[nodiscard]] inline auto toGpuTransform(const math::Float3x4& rows) -> GpuTransform
 {
-    const auto linear = math::fromRows(glm::vec3{ math::row(rows, 0) }, glm::vec3{ math::row(rows, 1) }, glm::vec3{ math::row(rows, 2) });
-    const auto normalMatrix = glm::inverse(linear);
+    const math::Float3x3 linear{ rows };
+    const auto normalMatrix = math::inverse(linear);
     return {
         .model = rows,
-        .normalRow0 = math::column(normalMatrix, 0),
-        .normalRow1 = math::column(normalMatrix, 1),
-        .normalRow2 = math::column(normalMatrix, 2),
-        .flags = glm::determinant(linear) < 0.0f ? InstanceFlags::Mirrored : InstanceFlags::None,
+        .normalRow0 = normalMatrix.column(0),
+        .normalRow1 = normalMatrix.column(1),
+        .normalRow2 = normalMatrix.column(2),
+        .flags = math::determinant(linear) < 0.0f ? InstanceFlags::Mirrored : InstanceFlags::None,
     };
 }
 
 /// @brief The row-major form of 'model' for shaders (see the overload taking its rows).
-[[nodiscard]] inline auto toGpuTransform(const glm::mat4& model) -> GpuTransform
+[[nodiscard]] inline auto toGpuTransform(const math::Float4x4& model) -> GpuTransform
 {
     return toGpuTransform(toModelRows(model));
 }
@@ -356,9 +356,9 @@ inline constexpr float lightEpsilon{ 1e-6f };
 
 /// @brief The falloff of a light's cone for the direction 'toSurface' (normalized, from the light to the surface): 1
 ///        inside the inner cone, 0 outside the outer one, smooth between. Always 1 for a point light.
-[[nodiscard]] inline auto coneAttenuation(const LightData& light, const glm::vec3& toSurface) -> float
+[[nodiscard]] inline auto coneAttenuation(const LightData& light, const math::Float3& toSurface) -> float
 {
-    const float factor = std::clamp(glm::dot(light.direction, toSurface) * light.coneScale + light.coneOffset, 0.0f, 1.0f);
+    const float factor = std::clamp(math::dot(light.direction, toSurface) * light.coneScale + light.coneOffset, 0.0f, 1.0f);
     return factor * factor;
 }
 }

@@ -93,8 +93,8 @@ TEST_SUITE("scripting::KinematicMovementController")
         camera.frame(0.5f, { FlyCamera::key(platform::Key::W, platform::KeyAction::Press) });
 
         const auto moved = camera.transform().location;
-        CHECK(glm::length(moved) == doctest::Approx(KinematicMovementController::DEFAULT_MOVE_SPEED * 0.5f));
-        CHECK(glm::dot(glm::normalize(moved), forward) == doctest::Approx(1.0f));
+        CHECK(math::length(moved) == doctest::Approx(KinematicMovementController::DEFAULT_MOVE_SPEED * 0.5f));
+        CHECK(math::dot(math::normalize(moved), forward) == doctest::Approx(1.0f));
     }
 
     TEST_CASE("does not move while the keyboard is captured")
@@ -103,6 +103,6 @@ TEST_SUITE("scripting::KinematicMovementController")
         camera.input.setCaptured(true, false);
         camera.frame(0.5f, { FlyCamera::key(platform::Key::W, platform::KeyAction::Press) });
 
-        CHECK(glm::length(camera.transform().location) == 0.0f);
+        CHECK(math::length(camera.transform().location) == 0.0f);
     }
 }

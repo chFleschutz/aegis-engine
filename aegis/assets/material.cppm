@@ -13,7 +13,7 @@ enum class MaterialType
     Transparent,
 };
 
-using MaterialValue = std::variant<std::int32_t, std::uint32_t, float, glm::vec2, glm::vec3, glm::vec4,
+using MaterialValue = std::variant<std::int32_t, std::uint32_t, float, math::Float2, math::Float3, math::Float4,
     std::shared_ptr<Texture>>;
 
 /// @brief A material parameter's type, in MaterialValue's alternative order.
@@ -50,7 +50,7 @@ struct DefaultTextures
 };
 
 /// @brief A parameter's default as a template file gives it: MaterialValue with a DefaultTexture for a texture.
-using ParameterDefault = std::variant<std::int32_t, std::uint32_t, float, glm::vec2, glm::vec3, glm::vec4, DefaultTexture>;
+using ParameterDefault = std::variant<std::int32_t, std::uint32_t, float, math::Float2, math::Float3, math::Float4, DefaultTexture>;
 
 struct TemplateParameter
 {

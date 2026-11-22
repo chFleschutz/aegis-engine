@@ -186,7 +186,7 @@ auto canInstantiate(const AssetPayload& payload) -> bool
     return payload.id != 0 && payload.assetType() == serialize::Scene::assetType;
 }
 
-auto dropPoint(const Ray& ray, float maxDistance, float fallbackDistance) -> glm::vec3
+auto dropPoint(const Ray& ray, float maxDistance, float fallbackDistance) -> math::Float3
 {
     // Z-up: the ground is z = 0; a ray parallel to it, or away from it, never meets it
     if (ray.direction.z != 0.0f)

@@ -8,6 +8,8 @@ import aegis.render_passes;
 import aegis.rhi;
 import aegis.math;
 
+namespace math = aegis::math;
+
 // The expected numbers are the byte layout of the Slang twin of each struct (scalar layout: every member
 // aligned to its component type, a float3 takes 12 bytes, a pointer or DeviceAddress 8 aligned to 8). They
 // are written out by hand, so a reordered or retyped member on either side fails here instead of rendering
@@ -17,13 +19,12 @@ namespace
 {
 using namespace aegis::render_graph;
 
-// glm's operator== is not part of aegis.math's exports.
-auto equal(const glm::vec3& v, float x, float y, float z) -> bool
+auto equal(const math::Float3& v, float x, float y, float z) -> bool
 {
     return v.x == x && v.y == y && v.z == z;
 }
 
-auto equal(const glm::vec4& v, float x, float y, float z, float w) -> bool
+auto equal(const math::Float4& v, float x, float y, float z, float w) -> bool
 {
     return v.x == x && v.y == y && v.z == z && v.w == w;
 }
@@ -301,11 +302,11 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
 
     TEST_CASE("an identity matrix gives identity rows")
     {
-        const auto transform = toGpuTransform(glm::mat4{ 1.0f });
+        const auto transform = toGpuTransform(math::Float4x4::identity());
         for (int row = 0; row < 3; ++row)
         {
             for (int column = 0; column < 4; ++column)
-                CHECK(aegis::math::element(transform.model, row, column) == (row == column ? 1.0f : 0.0f));
+                CHECK(transform.model[row, column] == (row == column ? 1.0f : 0.0f));
         }
         CHECK(equal(transform.normalRow0, 1.0f, 0.0f, 0.0f));
         CHECK(equal(transform.normalRow1, 0.0f, 1.0f, 0.0f));
@@ -315,16 +316,16 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
     TEST_CASE("the model rows hold the translation in w, and the normal rows are the inverse transpose")
     {
         // Scale (2, 4, 8) after translation (10, 20, 30).
-        const auto model = aegis::math::fromRows(
-            glm::vec4{ 2.0f, 0.0f, 0.0f, 10.0f },
-            glm::vec4{ 0.0f, 4.0f, 0.0f, 20.0f },
-            glm::vec4{ 0.0f, 0.0f, 8.0f, 30.0f },
-            glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f });
+        const auto model = math::Float4x4::fromRows(
+            math::Float4{ 2.0f, 0.0f, 0.0f, 10.0f },
+            math::Float4{ 0.0f, 4.0f, 0.0f, 20.0f },
+            math::Float4{ 0.0f, 0.0f, 8.0f, 30.0f },
+            math::Float4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
         const auto transform = toGpuTransform(model);
-        CHECK(equal(aegis::math::row(transform.model, 0), 2.0f, 0.0f, 0.0f, 10.0f));
-        CHECK(equal(aegis::math::row(transform.model, 1), 0.0f, 4.0f, 0.0f, 20.0f));
-        CHECK(equal(aegis::math::row(transform.model, 2), 0.0f, 0.0f, 8.0f, 30.0f));
+        CHECK(equal(transform.model.row(0), 2.0f, 0.0f, 0.0f, 10.0f));
+        CHECK(equal(transform.model.row(1), 0.0f, 4.0f, 0.0f, 20.0f));
+        CHECK(equal(transform.model.row(2), 0.0f, 0.0f, 8.0f, 30.0f));
         CHECK(equal(transform.normalRow0, 0.5f, 0.0f, 0.0f));
         CHECK(equal(transform.normalRow1, 0.0f, 0.25f, 0.0f));
         CHECK(equal(transform.normalRow2, 0.0f, 0.0f, 0.125f));
@@ -334,10 +335,10 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
     {
         // x' = x + 2y (a shear along x). The inverse is x = x' - 2y', so the inverse's column 1 is
         // (-2, 1, 0); as a row of the inverse transpose it is row 1.
-        glm::mat4 model{ 1.0f };
-        aegis::math::element(model, 0, 1) = 2.0f;
+        math::Float4x4 model = math::Float4x4::identity();
+        model[0, 1] = 2.0f;
         const auto transform = toGpuTransform(model);
-        CHECK(equal(aegis::math::row(transform.model, 0), 1.0f, 2.0f, 0.0f, 0.0f));
+        CHECK(equal(transform.model.row(0), 1.0f, 2.0f, 0.0f, 0.0f));
         CHECK(equal(transform.normalRow0, 1.0f, 0.0f, 0.0f));
         CHECK(equal(transform.normalRow1, -2.0f, 1.0f, 0.0f));
         CHECK(equal(transform.normalRow2, 0.0f, 0.0f, 1.0f));
@@ -346,33 +347,33 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
     TEST_CASE("a plain transform is not flagged as mirrored")
     {
         // Rotated, scaled and moved, but with a positive determinant.
-        const auto model = aegis::math::fromColumns(
-            glm::vec4{ 0.0f, 2.0f, 0.0f, 0.0f },
-            glm::vec4{ -3.0f, 0.0f, 0.0f, 0.0f },
-            glm::vec4{ 0.0f, 0.0f, 1.0f, 0.0f },
-            glm::vec4{ 5.0f, 6.0f, 7.0f, 1.0f });
-        CHECK(toGpuTransform(glm::mat4{ 1.0f }).flags == InstanceFlags::None);
+        const auto model = math::Float4x4::fromColumns(
+            math::Float4{ 0.0f, 2.0f, 0.0f, 0.0f },
+            math::Float4{ -3.0f, 0.0f, 0.0f, 0.0f },
+            math::Float4{ 0.0f, 0.0f, 1.0f, 0.0f },
+            math::Float4{ 5.0f, 6.0f, 7.0f, 1.0f });
+        CHECK(toGpuTransform(math::Float4x4::identity()).flags == InstanceFlags::None);
         CHECK(toGpuTransform(model).flags == InstanceFlags::None);
     }
 
     TEST_CASE("a negative scale on one or three axes is flagged as mirrored")
     {
-        glm::mat4 oneAxis{ 1.0f };
-        aegis::math::element(oneAxis, 0, 0) = -1.0f;
-        const auto threeAxes = aegis::math::fromRows(
-            glm::vec4{ -2.0f, 0.0f, 0.0f, 1.0f },
-            glm::vec4{ 0.0f, -1.0f, 0.0f, 2.0f },
-            glm::vec4{ 0.0f, 0.0f, -0.5f, 3.0f },
-            glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f });
+        math::Float4x4 oneAxis = math::Float4x4::identity();
+        oneAxis[0, 0] = -1.0f;
+        const auto threeAxes = math::Float4x4::fromRows(
+            math::Float4{ -2.0f, 0.0f, 0.0f, 1.0f },
+            math::Float4{ 0.0f, -1.0f, 0.0f, 2.0f },
+            math::Float4{ 0.0f, 0.0f, -0.5f, 3.0f },
+            math::Float4{ 0.0f, 0.0f, 0.0f, 1.0f });
         CHECK(toGpuTransform(oneAxis).flags == InstanceFlags::Mirrored);
         CHECK(toGpuTransform(threeAxes).flags == InstanceFlags::Mirrored);
     }
 
     TEST_CASE("a negative scale on two axes is a rotation, not a mirror")
     {
-        glm::mat4 model{ 1.0f };
-        aegis::math::element(model, 0, 0) = -1.0f;
-        aegis::math::element(model, 1, 1) = -1.0f;
+        math::Float4x4 model = math::Float4x4::identity();
+        model[0, 0] = -1.0f;
+        model[1, 1] = -1.0f;
         CHECK(toGpuTransform(model).flags == InstanceFlags::None);
     }
 }

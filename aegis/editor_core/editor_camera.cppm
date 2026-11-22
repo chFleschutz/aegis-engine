@@ -10,11 +10,11 @@ export namespace aegis::editor
 struct CameraInput
 {
     /// @brief Cursor movement in pixels, x to the right and y down.
-    glm::vec2 cursorDelta{ 0.0f };
+    math::Float2 cursorDelta{ 0.0f };
     /// @brief Wheel steps, positive away from the user.
     float wheel{ 0.0f };
     /// @brief Fly direction in camera space, each axis -1 to 1: x right (D/A), y forward (W/S), z up (E/Q).
-    glm::vec3 move{ 0.0f };
+    math::Float3 move{ 0.0f };
     /// @brief RMB held: look around and move.
     bool fly{ false };
     /// @brief Alt + LMB: turn around the pivot.
@@ -26,8 +26,8 @@ struct CameraInput
 /// @brief A rectangle in a view's ndc (-1 to 1, y up).
 struct NdcRect
 {
-    glm::vec2 min{ 0.0f };
-    glm::vec2 max{ 0.0f };
+    math::Float2 min{ 0.0f };
+    math::Float2 max{ 0.0f };
 };
 
 /// @brief The editor's camera. It belongs to the editor, never to a world, so it can't end up in a scene file
@@ -44,47 +44,47 @@ public:
     EditorCamera();
 
     /// @brief Moves the camera to 'position', looking along 'forward', with the pivot 'distance' ahead.
-    void lookAlong(const glm::vec3& position, const glm::vec3& forward, float distance = 10.0f);
+    void lookAlong(const math::Float3& position, const math::Float3& forward, float distance = 10.0f);
     /// @brief Moves the camera back along its view direction until the sphere fills about the view.
-    void focus(const glm::vec3& center, float radius);
+    void focus(const math::Float3& center, float radius);
     /// @brief Turns the camera around its pivot to look along 'forward'; the pivot and the distance stay. Straight up
     ///        or down keeps the yaw (and stops short of vertical, as the pitch always does).
-    void orbitToward(const glm::vec3& forward);
+    void orbitToward(const math::Float3& forward);
     /// @brief Applies a frame of input. Flying moves 'speed()' units per second, faster with the wheel.
     void update(const CameraInput& input, float deltaSeconds);
 
-    [[nodiscard]] auto position() const -> glm::vec3 { return m_position; }
-    [[nodiscard]] auto pivot() const -> glm::vec3 { return m_position + forward() * m_distance; }
+    [[nodiscard]] auto position() const -> math::Float3 { return m_position; }
+    [[nodiscard]] auto pivot() const -> math::Float3 { return m_position + forward() * m_distance; }
     [[nodiscard]] auto distance() const -> float { return m_distance; }
     [[nodiscard]] auto yaw() const -> float { return m_yaw; }
     [[nodiscard]] auto pitch() const -> float { return m_pitch; }
-    [[nodiscard]] auto forward() const -> glm::vec3;
-    [[nodiscard]] auto right() const -> glm::vec3;
-    [[nodiscard]] auto up() const -> glm::vec3;
+    [[nodiscard]] auto forward() const -> math::Float3;
+    [[nodiscard]] auto right() const -> math::Float3;
+    [[nodiscard]] auto up() const -> math::Float3;
 
     /// @brief Units per second while flying; the wheel scales it while flying.
     [[nodiscard]] auto speed() const -> float { return m_speed; }
     void setSpeed(float speed) { m_speed = speed; }
 
     /// @brief Vertical field of view in radians.
-    float fov{ glm::radians(60.0f) };
+    float fov{ math::radians(60.0f) };
     float near{ 0.1f };
     float far{ 1000.0f };
 
     /// @brief The world-to-view matrix (right handed, looking along -Z in view space).
-    [[nodiscard]] auto view() const -> glm::mat4;
+    [[nodiscard]] auto view() const -> math::Float4x4;
     /// @brief The perspective projection with depth range [0, 1] and Vulkan's flipped y, as the renderer uses.
-    [[nodiscard]] auto projection(float aspect) const -> glm::mat4;
+    [[nodiscard]] auto projection(float aspect) const -> math::Float4x4;
     /// @brief The ray through 'ndc' (-1 to 1, y up) of a view with 'aspect' (width / height).
-    [[nodiscard]] auto ray(const glm::vec2& ndc, float aspect) const -> Ray;
+    [[nodiscard]] auto ray(const math::Float2& ndc, float aspect) const -> Ray;
     /// @brief Where 'point' lands in the view, in ndc (y up); none behind the camera.
-    [[nodiscard]] auto project(const glm::vec3& point, float aspect) const -> std::optional<glm::vec2>;
+    [[nodiscard]] auto project(const math::Float3& point, float aspect) const -> std::optional<math::Float2>;
     /// @brief The rectangle 'sphere' covers in the view, in ndc (y up), exact under the perspective; none unless the
     ///        whole sphere is beyond the near plane.
     [[nodiscard]] auto projectSphere(const Sphere& sphere, float aspect) const -> std::optional<NdcRect>;
 
 private:
-    glm::vec3 m_position{ 0.0f };
+    math::Float3 m_position{ 0.0f };
     float m_yaw{ 0.0f };
     float m_pitch{ 0.0f };
     float m_distance{ 10.0f };
@@ -95,12 +95,12 @@ private:
 struct NavigationAxis
 {
     /// @brief The axis end in world space: a unit vector along X, Y or Z.
-    glm::vec3 direction{ 0.0f };
+    math::Float3 direction{ 0.0f };
     /// @brief 0, 1 or 2 for X, Y or Z.
     int axis{ 0 };
     bool positive{ true };
     /// @brief Where the end is drawn, from the gizmo's center, in gizmo radii: x right and y down, length 1 at most.
-    glm::vec2 offset{ 0.0f };
+    math::Float2 offset{ 0.0f };
     /// @brief How far the end points toward the viewer, -1 to 1.
     float depth{ 0.0f };
 };
@@ -111,5 +111,5 @@ struct NavigationAxis
 
 /// @brief The end of 'axes' (as navigationAxes orders them) whose disc of 'discRadius' holds 'cursor', both in gizmo radii
 ///        from its center: the nearest to the viewer where discs overlap; none off every disc.
-[[nodiscard]] auto pickNavigationAxis(std::span<const NavigationAxis> axes, const glm::vec2& cursor, float discRadius) -> std::optional<NavigationAxis>;
+[[nodiscard]] auto pickNavigationAxis(std::span<const NavigationAxis> axes, const math::Float2& cursor, float discRadius) -> std::optional<NavigationAxis>;
 }

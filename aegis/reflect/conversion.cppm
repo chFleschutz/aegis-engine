@@ -30,8 +30,8 @@ struct EnumNames;
 //
 // fromValue is the checked direction: it returns TypeMismatch for a Value of the wrong kind and
 // OutOfRange for one that does not fit (an int64 that overflows an int16, a non-enumerator).
-// Supported out of the box: bool, every integer type, float, double, std::string, glm::vec2/3/4,
-// glm::quat and enums with EnumNames. A game adds a type (say an AssetId) by specializing this trait,
+// Supported out of the box: bool, every integer type, float, double, std::string, math::Float2/3/4,
+// math::Quat and enums with EnumNames. A game adds a type (say an AssetId) by specializing this trait,
 // reusing one of the existing kinds. The primary template is undefined, so an unsupported member type
 // is a compile error at the `.field(...)` call.
 template<class T>
@@ -127,35 +127,35 @@ struct FieldConversion<std::string>
 };
 
 template<>
-struct FieldConversion<glm::vec2>
+struct FieldConversion<math::Float2>
 {
     static constexpr FieldKind kind = FieldKind::Vec2;
-    static auto toValue(const glm::vec2& v) -> Value { return v; }
-    static auto fromValue(const Value& v) -> std::expected<glm::vec2, Error> { return detail::exactly<glm::vec2>(v, kind); }
+    static auto toValue(const math::Float2& v) -> Value { return v; }
+    static auto fromValue(const Value& v) -> std::expected<math::Float2, Error> { return detail::exactly<math::Float2>(v, kind); }
 };
 
 template<>
-struct FieldConversion<glm::vec3>
+struct FieldConversion<math::Float3>
 {
     static constexpr FieldKind kind = FieldKind::Vec3;
-    static auto toValue(const glm::vec3& v) -> Value { return v; }
-    static auto fromValue(const Value& v) -> std::expected<glm::vec3, Error> { return detail::exactly<glm::vec3>(v, kind); }
+    static auto toValue(const math::Float3& v) -> Value { return v; }
+    static auto fromValue(const Value& v) -> std::expected<math::Float3, Error> { return detail::exactly<math::Float3>(v, kind); }
 };
 
 template<>
-struct FieldConversion<glm::vec4>
+struct FieldConversion<math::Float4>
 {
     static constexpr FieldKind kind = FieldKind::Vec4;
-    static auto toValue(const glm::vec4& v) -> Value { return v; }
-    static auto fromValue(const Value& v) -> std::expected<glm::vec4, Error> { return detail::exactly<glm::vec4>(v, kind); }
+    static auto toValue(const math::Float4& v) -> Value { return v; }
+    static auto fromValue(const Value& v) -> std::expected<math::Float4, Error> { return detail::exactly<math::Float4>(v, kind); }
 };
 
 template<>
-struct FieldConversion<glm::quat>
+struct FieldConversion<math::Quat>
 {
     static constexpr FieldKind kind = FieldKind::Quat;
-    static auto toValue(const glm::quat& v) -> Value { return v; }
-    static auto fromValue(const Value& v) -> std::expected<glm::quat, Error> { return detail::exactly<glm::quat>(v, kind); }
+    static auto toValue(const math::Quat& v) -> Value { return v; }
+    static auto fromValue(const Value& v) -> std::expected<math::Quat, Error> { return detail::exactly<math::Quat>(v, kind); }
 };
 
 // An enum travels as the int64 of its value; EnumNames lists the valid ones.

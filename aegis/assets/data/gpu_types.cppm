@@ -20,16 +20,16 @@ inline constexpr std::uint32_t meshletMaxPrimitives{ 126 };
 ///        input).
 struct Vertex
 {
-    glm::vec3 position;
-    glm::vec3 normal;
-    glm::vec2 uv;
-    glm::vec3 color;
+    math::Float3 position;
+    math::Float3 normal;
+    math::Float2 uv;
+    math::Float3 color;
 };
 
 /// @brief common::BoundingSphere
 struct BoundingSphere
 {
-    glm::vec3 center{ 0.0f };
+    math::Float3 center{ 0.0f };
     float radius{ 0.0f };
 };
 

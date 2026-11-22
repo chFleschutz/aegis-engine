@@ -895,7 +895,7 @@ auto Engine::readBack(const renderer::Texture& image, rhi::Extent2D extent, bool
         std::memcpy(halves.data(), pixels.data(), byteSize);
         pixels.resize(halves.size());
         std::ranges::transform(halves, pixels.begin(), [](std::uint16_t half) {
-            return static_cast<std::byte>(std::lround(std::clamp(glm::unpackHalf1x16(half), 0.0f, 1.0f) * 255.0f));
+            return static_cast<std::byte>(std::lround(std::clamp(math::halfToFloat(half), 0.0f, 1.0f) * 255.0f));
         });
     }
     return pixels;

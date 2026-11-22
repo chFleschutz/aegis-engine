@@ -4,6 +4,8 @@ import std;
 import aegis.math;
 import aegis.reflect;
 
+namespace math = aegis::math;
+
 namespace
 {
 using namespace aegis::reflect;
@@ -85,13 +87,13 @@ TEST_SUITE("reflect::toNode")
         CHECK(std::get<float>(roundTrip(FieldKind::Float, 0.1f).second) == 0.1f);
         CHECK(std::get<double>(roundTrip(FieldKind::Double, 0.1).second) == 0.1);
         CHECK(std::get<std::string>(roundTrip(FieldKind::String, std::string{ "a \"quoted\" text" }).second) == "a \"quoted\" text");
-        const auto v2 = std::get<glm::vec2>(roundTrip(FieldKind::Vec2, glm::vec2{ 1.0f, 2.5f }).second);
+        const auto v2 = std::get<math::Float2>(roundTrip(FieldKind::Vec2, math::Float2{ 1.0f, 2.5f }).second);
         CHECK((v2.x == 1.0f && v2.y == 2.5f));
-        const auto v3 = std::get<glm::vec3>(roundTrip(FieldKind::Vec3, glm::vec3{ 1.0f, 2.0f, 3.0f }).second);
+        const auto v3 = std::get<math::Float3>(roundTrip(FieldKind::Vec3, math::Float3{ 1.0f, 2.0f, 3.0f }).second);
         CHECK((v3.x == 1.0f && v3.y == 2.0f && v3.z == 3.0f));
-        const auto v4 = std::get<glm::vec4>(roundTrip(FieldKind::Vec4, glm::vec4{ 1.0f, 2.0f, 3.0f, 4.0f }).second);
+        const auto v4 = std::get<math::Float4>(roundTrip(FieldKind::Vec4, math::Float4{ 1.0f, 2.0f, 3.0f, 4.0f }).second);
         CHECK((v4.x == 1.0f && v4.y == 2.0f && v4.z == 3.0f && v4.w == 4.0f));
-        const auto q = std::get<glm::quat>(roundTrip(FieldKind::Quat, aegis::math::quatFromXyzw(0.1f, 0.2f, 0.3f, 0.4f)).second);
+        const auto q = std::get<math::Quat>(roundTrip(FieldKind::Quat, aegis::math::Quat::fromXyzw(0.1f, 0.2f, 0.3f, 0.4f)).second);
         CHECK((q.x == 0.1f && q.y == 0.2f && q.z == 0.3f && q.w == 0.4f));
         CHECK(std::get<std::int64_t>(roundTrip(FieldKind::Enum, std::int64_t{ 3 }).second) == 3);
         CHECK(std::get<std::uint64_t>(roundTrip(FieldKind::AssetRef, std::uint64_t{ 0xa3f09c2e4b1d7788 }).second) == 0xa3f09c2e4b1d7788);
@@ -102,12 +104,12 @@ TEST_SUITE("reflect::toNode")
         auto [node, value] = roundTrip(FieldKind::Float, 0.1f);
         CHECK(node.kind == Node::Kind::Number);
         CHECK(node.text == "0.1");
-        CHECK(roundTrip(FieldKind::Vec3, glm::vec3{ 0.1f, -2.0f, 1e-7f }).first.items[2].text == "1e-07");
+        CHECK(roundTrip(FieldKind::Vec3, math::Float3{ 0.1f, -2.0f, 1e-7f }).first.items[2].text == "1e-07");
     }
 
     TEST_CASE("writes a quaternion as x y z w")
     {
-        auto node = toNode(FieldKind::Quat, aegis::math::quatFromXyzw(1.0f, 2.0f, 3.0f, 4.0f));
+        auto node = toNode(FieldKind::Quat, aegis::math::Quat::fromXyzw(1.0f, 2.0f, 3.0f, 4.0f));
         REQUIRE(node.has_value());
         REQUIRE(node->items.size() == 4);
         CHECK(node->items[0].text == "1");
@@ -133,7 +135,7 @@ TEST_SUITE("reflect::toNode")
     TEST_CASE("rejects numbers JSON cannot hold")
     {
         CHECK(toNode(FieldKind::Float, std::numeric_limits<float>::infinity()).error().code == ErrorCode::OutOfRange);
-        CHECK(toNode(FieldKind::Vec2, glm::vec2{ 0.0f, std::numeric_limits<float>::quiet_NaN() }).error().code == ErrorCode::OutOfRange);
+        CHECK(toNode(FieldKind::Vec2, math::Float2{ 0.0f, std::numeric_limits<float>::quiet_NaN() }).error().code == ErrorCode::OutOfRange);
     }
 }
 

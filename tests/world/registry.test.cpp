@@ -3,6 +3,8 @@
 import std;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::Children;
@@ -485,7 +487,7 @@ TEST_SUITE("world::Registry::hierarchyVersion")
         REQUIRE(registry.setParent(child, parent).has_value());
         const auto before = registry.hierarchyVersion();
 
-        registry.get<aegis::Transform>(child).location = glm::vec3{ 1.0f, 2.0f, 3.0f };
+        registry.get<aegis::Transform>(child).location = math::Float3{ 1.0f, 2.0f, 3.0f };
         registry.markStaticDirty(child);
         CHECK(registry.setParent(parent, child).error() == HierarchyError::Cycle);
         CHECK(registry.setParent(child, parent).has_value()); // Its parent already

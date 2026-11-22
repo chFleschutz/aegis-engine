@@ -25,27 +25,27 @@ struct StableId
 /// @brief Stores the local transformation of the entity
 struct Transform
 {
-    glm::vec3 location{ 0.0f, 0.0f, 0.0f };
-    glm::quat rotation{ 1.0f, 0.0f, 0.0f, 0.0f };
-    glm::vec3 scale{ 1.0f, 1.0f, 1.0f };
+    math::Float3 location{ 0.0f, 0.0f, 0.0f };
+    math::Quat rotation = math::Quat::identity();
+    math::Float3 scale{ 1.0f, 1.0f, 1.0f };
 
-    auto forward() const -> glm::vec3 { return math::forward(rotation); }
-    auto right() const -> glm::vec3 { return math::right(rotation); }
-    auto up() const -> glm::vec3 { return math::up(rotation); }
-    auto matrix() const -> glm::mat4 { return math::transformMatrix(location, rotation, scale); }
+    auto forward() const -> math::Float3 { return math::forward(rotation); }
+    auto right() const -> math::Float3 { return math::right(rotation); }
+    auto up() const -> math::Float3 { return math::up(rotation); }
+    auto matrix() const -> math::Float4x4 { return math::transformMatrix(location, rotation, scale); }
 };
 
 /// @brief Transformation of the entity in world space (including parent transforms)
 struct GlobalTransform
 {
-    glm::vec3 location{ 0.0f, 0.0f, 0.0f };
-    glm::quat rotation{ 1.0f, 0.0f, 0.0f, 0.0f };
-    glm::vec3 scale{ 1.0f, 1.0f, 1.0f };
+    math::Float3 location{ 0.0f, 0.0f, 0.0f };
+    math::Quat rotation = math::Quat::identity();
+    math::Float3 scale{ 1.0f, 1.0f, 1.0f };
 
-    auto forward() const -> glm::vec3 { return math::forward(rotation); }
-    auto right() const -> glm::vec3 { return math::right(rotation); }
-    auto up() const -> glm::vec3 { return math::up(rotation); }
-    auto matrix() const -> glm::mat4 { return math::transformMatrix(location, rotation, scale); }
+    auto forward() const -> math::Float3 { return math::forward(rotation); }
+    auto right() const -> math::Float3 { return math::right(rotation); }
+    auto up() const -> math::Float3 { return math::up(rotation); }
+    auto matrix() const -> math::Float4x4 { return math::transformMatrix(location, rotation, scale); }
 };
 
 /// @brief Stores the parent entity
@@ -96,7 +96,7 @@ struct StaticDirtyTag
 
 struct AmbientLight
 {
-    glm::vec3 color = { 1.0f, 1.0f, 1.0f };
+    math::Float3 color = { 1.0f, 1.0f, 1.0f };
     float intensity = 0.1f;
 };
 
@@ -104,7 +104,7 @@ struct AmbientLight
 ///        along -forward. Shadowed near the camera
 struct DirectionalLight
 {
-    glm::vec3 color = { 1.0f, 1.0f, 1.0f };
+    math::Float3 color = { 1.0f, 1.0f, 1.0f };
     float intensity = 1.0f;
     float shadowDistance = 50.0f;     // Meters from the camera that its shadow covers
     float shadowBias = 1.0f;          // Shadow-map texels a shaded point moves along its normal against self-shadowing
@@ -115,7 +115,7 @@ struct DirectionalLight
 /// @brief Light shining from the entity's location in all directions
 struct PointLight
 {
-    glm::vec3 color = { 1.0f, 1.0f, 1.0f };
+    math::Float3 color = { 1.0f, 1.0f, 1.0f };
     float intensity = 100.0f;
     float range = 20.0f; // Meters; the light fades to zero there
 };
@@ -123,13 +123,13 @@ struct PointLight
 /// @brief Light shining from the entity's location in a cone along its transform's forward
 struct SpotLight
 {
-    glm::vec3 color = { 1.0f, 1.0f, 1.0f };
+    math::Float3 color = { 1.0f, 1.0f, 1.0f };
     float intensity = 100.0f;
-    float range = 20.0f;                        // Meters; the light fades to zero there
-    float innerConeAngle = 0.0f;                // Radians from the axis where the light starts to fade
-    float outerConeAngle = glm::radians(45.0f); // Radians from the axis where it reaches zero
-    bool castsShadows = false;                  // Whether it competes for one of the frame's shadowed spot lights
-    float shadowBias = 1.0f;                    // Shadow-map texels a shaded point moves along its normal against self-shadowing
+    float range = 20.0f;                         // Meters; the light fades to zero there
+    float innerConeAngle = 0.0f;                 // Radians from the axis where the light starts to fade
+    float outerConeAngle = math::radians(45.0f); // Radians from the axis where it reaches zero
+    bool castsShadows = false;                   // Whether it competes for one of the frame's shadowed spot lights
+    float shadowBias = 1.0f;                     // Shadow-map texels a shaded point moves along its normal against self-shadowing
 };
 
 /// @brief Tags the camera the scene is viewed through (the first entity with it and a Camera wins)
@@ -142,7 +142,7 @@ struct MainCamera
 /// @note Its run-time data is the entity's CameraMatrices
 struct Camera
 {
-    float fov = glm::radians(60.0f);
+    float fov = math::radians(60.0f);
     float near = 0.1f;
     float far = 1000.0f;
 };
@@ -154,9 +154,9 @@ struct CameraMatrices
     float aspect = 1.0f; // Of what the camera renders into, written by whoever renders it (the engine for the main camera)
 
     // Written by the CameraSystem from the entity's GlobalTransform, the Camera and the aspect
-    glm::mat4 view = glm::mat4{ 1.0f };
-    glm::mat4 inverseView = glm::mat4{ 1.0f };
-    glm::mat4 projection = glm::mat4{ 1.0f };
+    math::Float4x4 view = math::Float4x4::identity();
+    math::Float4x4 inverseView = math::Float4x4::identity();
+    math::Float4x4 projection = math::Float4x4::identity();
 };
 
 /// @brief How PostProcess maps the frame's HDR colors to the screen

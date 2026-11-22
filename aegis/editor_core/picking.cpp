@@ -4,17 +4,17 @@ import aegis.math;
 
 namespace aegis::editor
 {
-auto transformSphere(const Sphere& local, const glm::mat4& transform) -> Sphere
+auto transformSphere(const Sphere& local, const math::Float4x4& transform) -> Sphere
 {
-    const float scale = std::max({ glm::length(glm::vec3{ math::column(transform, 0) }), glm::length(glm::vec3{ math::column(transform, 1) }),
-        glm::length(glm::vec3{ math::column(transform, 2) }) });
-    return { .center = glm::vec3{ transform * glm::vec4{ local.center, 1.0f } }, .radius = local.radius * scale };
+    const float scale = std::max({ math::length(math::Float3{ transform.column(0) }), math::length(math::Float3{ transform.column(1) }),
+        math::length(math::Float3{ transform.column(2) }) });
+    return { .center = math::Float3{ transform * math::Float4{ local.center, 1.0f } }, .radius = local.radius * scale };
 }
 
 auto enclose(const Sphere& a, const Sphere& b) -> Sphere
 {
-    const glm::vec3 offset = b.center - a.center;
-    const float distance = glm::length(offset);
+    const math::Float3 offset = b.center - a.center;
+    const float distance = math::length(offset);
     if (distance + b.radius <= a.radius)
         return a;
     if (distance + a.radius <= b.radius)
@@ -27,9 +27,9 @@ auto enclose(const Sphere& a, const Sphere& b) -> Sphere
 auto intersect(const Ray& ray, const Sphere& sphere) -> std::optional<float>
 {
     // |origin + t * direction - center|^2 = radius^2, with a unit direction
-    const glm::vec3 offset = ray.origin - sphere.center;
-    const float b = glm::dot(offset, ray.direction);
-    const float c = glm::dot(offset, offset) - sphere.radius * sphere.radius;
+    const math::Float3 offset = ray.origin - sphere.center;
+    const float b = math::dot(offset, ray.direction);
+    const float c = math::dot(offset, offset) - sphere.radius * sphere.radius;
     if (c <= 0.0f)
         return 0.0f; // Inside
     if (b > 0.0f)
@@ -56,13 +56,13 @@ auto pickNearest(const Ray& ray, std::span<const PickTarget> targets) -> std::op
     return nearest;
 }
 
-auto pickIcon(const glm::vec2& cursor, std::span<const PickIcon> icons) -> std::optional<StableId>
+auto pickIcon(const math::Float2& cursor, std::span<const PickIcon> icons) -> std::optional<StableId>
 {
     std::optional<StableId> nearest;
     float nearestDistance = std::numeric_limits<float>::max();
     for (const auto& icon : icons)
     {
-        const float distance = glm::length(icon.position - cursor);
+        const float distance = math::length(icon.position - cursor);
         if (distance <= icon.radius && distance <= nearestDistance)
         {
             nearestDistance = distance;

@@ -8,6 +8,8 @@ import aegis.scripting;
 import aegis.serialize;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::assets::AssetId;
@@ -97,7 +99,7 @@ auto buildWorld(Registry& registry, const TypeRegistry& types) -> void
     const Entity root = registry.createWithId(rootId, "Root");
     const Entity floor = registry.createWithId(floorId, "Floor");
     const Entity lamp = registry.createWithId(lampId, "Lamp", { 0.0f, 0.0f, 1.5f });
-    registry.add<aegis::PointLight>(lamp, glm::vec3{ 1.0f, 0.5f, 0.25f }, 200.0f);
+    registry.add<aegis::PointLight>(lamp, math::Float3{ 1.0f, 0.5f, 0.25f }, 200.0f);
     const Entity bulb = registry.createWithId(bulbId, "Bulb");
     registry.add<aegis::DynamicTag>(bulb);
     const Entity crate = registry.createWithId(crateId, "Crate");

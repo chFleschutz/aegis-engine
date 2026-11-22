@@ -7,6 +7,8 @@ import aegis.render_bridge;
 import aegis.serialize;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::Worlds;
@@ -104,7 +106,7 @@ TEST_SUITE("render_bridge::Worlds")
         aegis::reflect::TypeRegistry types;
         REQUIRE(aegis::world::registerComponents(types).has_value());
         Registry source;
-        const auto box = source.create("Box", glm::vec3{ 1.0f, 2.0f, 3.0f });
+        const auto box = source.create("Box", math::Float3{ 1.0f, 2.0f, 3.0f });
         const auto id = source.get<aegis::StableId>(box);
         const auto scene = aegis::serialize::saveScene(source, types, 0x00000000000000aa);
         REQUIRE(scene.has_value());

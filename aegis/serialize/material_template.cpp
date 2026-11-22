@@ -82,11 +82,11 @@ auto parseDefault(const Node& node, ParameterType type, std::string_view name) -
         return static_cast<float>(*value);
     }
     case ParameterType::Vec2:
-        return parseVector<2>(node, name).transform([](const auto& v) -> assets::ParameterDefault { return glm::vec2{ v[0], v[1] }; });
+        return parseVector<2>(node, name).transform([](const auto& v) -> assets::ParameterDefault { return math::Float2{ v[0], v[1] }; });
     case ParameterType::Vec3:
-        return parseVector<3>(node, name).transform([](const auto& v) -> assets::ParameterDefault { return glm::vec3{ v[0], v[1], v[2] }; });
+        return parseVector<3>(node, name).transform([](const auto& v) -> assets::ParameterDefault { return math::Float3{ v[0], v[1], v[2] }; });
     case ParameterType::Vec4:
-        return parseVector<4>(node, name).transform([](const auto& v) -> assets::ParameterDefault { return glm::vec4{ v[0], v[1], v[2], v[3] }; });
+        return parseVector<4>(node, name).transform([](const auto& v) -> assets::ParameterDefault { return math::Float4{ v[0], v[1], v[2], v[3] }; });
     case ParameterType::Texture:
         if (node.kind == Node::Kind::String)
         {

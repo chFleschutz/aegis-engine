@@ -32,9 +32,9 @@ auto makeCameraData(const FrameScene::Camera& camera) -> CameraData
 {
     const auto viewProjection = camera.projection * camera.view;
     return {
-        .view = glm::rowMajor4(camera.view),
-        .projection = glm::rowMajor4(camera.projection),
-        .viewProjection = glm::rowMajor4(viewProjection),
+        .view = camera.view,
+        .projection = camera.projection,
+        .viewProjection = viewProjection,
         .frustum = Frustum::extractFrom(viewProjection),
         .position = camera.position,
     };

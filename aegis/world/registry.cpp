@@ -35,8 +35,8 @@ Registry::Registry()
     invalidateHierarchy();
 }
 
-auto Registry::createWithId(std::uint64_t id, const std::string& name, const glm::vec3& location, const glm::quat& rotation,
-    const glm::vec3& scale) -> Entity
+auto Registry::createWithId(std::uint64_t id, const std::string& name, const math::Float3& location, const math::Quat& rotation,
+    const math::Float3& scale) -> Entity
 {
     if (id == 0 || m_ids.contains(id))
         return Entity{};

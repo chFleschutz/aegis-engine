@@ -7,6 +7,8 @@ import aegis.math;
 import aegis.reflect;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::editor::componentFromText;
@@ -44,10 +46,10 @@ struct Everything
     float speed{ 0.0f };
     double weight{ 0.0 };
     std::string label;
-    glm::vec2 size{};
-    glm::vec3 offset{};
-    glm::vec4 tint{};
-    glm::quat turn{ 1.0f, 0.0f, 0.0f, 0.0f };
+    math::Float2 size{};
+    math::Float3 offset{};
+    math::Float4 tint{};
+    math::Quat turn = math::Quat::identity();
     Mode mode{ Mode::Off };
     int serial{ 0 };
 };
@@ -97,7 +99,7 @@ auto filled() -> Everything
         .size = { 1.5f, -2.0f },
         .offset = { 1.0f, 2.0f, 3.0f },
         .tint = { 0.25f, 0.5f, 0.75f, 1.0f },
-        .turn = aegis::math::quatFromXyzw(0.5f, 0.5f, 0.5f, 0.5f),
+        .turn = aegis::math::Quat::fromXyzw(0.5f, 0.5f, 0.5f, 0.5f),
         .mode = Mode::On,
         .serial = 7,
     };

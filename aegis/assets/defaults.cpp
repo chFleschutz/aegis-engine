@@ -14,15 +14,15 @@ auto DefaultAssets::create(rhi::Device& device, std::uint32_t framesInFlight, co
     {
         std::shared_ptr<Texture>& slot;
         std::string_view name;
-        glm::vec4 color;
+        math::Float4 color;
         bool cube;
     };
     const std::array solidColors{
-        SolidColor{ defaults.black, "DefaultBlack", glm::vec4{ 0.0f }, false },
-        SolidColor{ defaults.white, "DefaultWhite", glm::vec4{ 1.0f }, false },
-        SolidColor{ defaults.normal, "DefaultNormal", glm::vec4{ 0.5f, 0.5f, 1.0f, 0.0f }, false },
-        SolidColor{ defaults.blackCube, "DefaultBlackCube", glm::vec4{ 0.0f }, true },
-        SolidColor{ defaults.whiteCube, "DefaultWhiteCube", glm::vec4{ 1.0f }, true },
+        SolidColor{ defaults.black, "DefaultBlack", math::Float4{ 0.0f }, false },
+        SolidColor{ defaults.white, "DefaultWhite", math::Float4{ 1.0f }, false },
+        SolidColor{ defaults.normal, "DefaultNormal", math::Float4{ 0.5f, 0.5f, 1.0f, 0.0f }, false },
+        SolidColor{ defaults.blackCube, "DefaultBlackCube", math::Float4{ 0.0f }, true },
+        SolidColor{ defaults.whiteCube, "DefaultWhiteCube", math::Float4{ 1.0f }, true },
     };
     for (const auto& [slot, name, color, cube] : solidColors)
     {
@@ -61,7 +61,7 @@ auto DefaultAssets::createPbrMaterial(rhi::Device& device, std::uint32_t framesI
     auto material = Material::create(device, pbrTemplate, framesInFlight);
     if (!material)
         return std::unexpected{ material.error() };
-    if (auto set = (*material)->setParameter(pbr::albedo, glm::vec3{ 0.8f, 0.8f, 0.9f }); !set)
+    if (auto set = (*material)->setParameter(pbr::albedo, math::Float3{ 0.8f, 0.8f, 0.9f }); !set)
         return std::unexpected{ set.error() };
     return material;
 }

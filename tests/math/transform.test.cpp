@@ -63,24 +63,6 @@ TEST_SUITE("math::transform")
         CHECK(math::up(identity) == math::world::up<T>);
     }
 
-    TEST_CASE("the world axes and directions match the glm helpers")
-    {
-        CHECK(math::world::right<float> == Float3{ math::world::RIGHT.x, math::world::RIGHT.y, math::world::RIGHT.z });
-        CHECK(math::world::forward<float> == Float3{ math::world::FORWARD.x, math::world::FORWARD.y, math::world::FORWARD.z });
-        CHECK(math::world::up<float> == Float3{ math::world::UP.x, math::world::UP.y, math::world::UP.z });
-
-        std::mt19937 rng{ 445 };
-        for (int sample = 0; sample < 20; ++sample)
-        {
-            CAPTURE(sample);
-            const Quat q = randomRotation<float>(rng);
-            const auto g = oracle::toGlmQuat(q);
-            oracle::checkVec(math::forward(q), math::forward(g), 1e-5);
-            oracle::checkVec(math::right(q), math::right(g), 1e-5);
-            oracle::checkVec(math::up(q), math::up(g), 1e-5);
-        }
-    }
-
     TEST_CASE_TEMPLATE("transformMatrix matches glm's translate * rotate * scale", T, float, double)
     {
         using V3 = math::Vector<T, 3>;
@@ -97,31 +79,6 @@ TEST_SUITE("math::transform")
             const G4 expected = glm::translate(G4{ T{ 1 } }, oracle::toGlmVec(location)) * glm::mat4_cast(oracle::toGlmQuat(rotation)) *
                                 glm::scale(G4{ T{ 1 } }, oracle::toGlmVec(scale));
             oracle::checkMat(math::transformMatrix(location, rotation, scale), expected, tolerance);
-        }
-    }
-
-    TEST_CASE("transformMatrix and decomposeTRS match the glm helpers")
-    {
-        std::mt19937 rng{ 445 };
-        for (int sample = 0; sample < 50; ++sample)
-        {
-            CAPTURE(sample);
-            const Float3 location = oracle::randomVector<Float3>(rng);
-            const Quat rotation = randomRotation<float>(rng);
-            const Float3 scale = randomScale<float>(rng);
-            const auto m = math::transformMatrix(location, rotation, scale);
-            const glm::mat4 g = math::transformMatrix(oracle::toGlmVec(location), oracle::toGlmQuat(rotation), oracle::toGlmVec(scale));
-            oracle::checkMat(m, g, 1e-5);
-
-            const auto [t, q, s] = math::decomposeTRS(m);
-            glm::vec3 gt;
-            glm::vec3 gs;
-            glm::quat gq{ 1.0f, 0.0f, 0.0f, 0.0f };
-            math::decomposeTRS(g, gt, gq, gs);
-            oracle::checkVec(t, gt, 1e-5);
-            oracle::checkVec(s, gs, 1e-4);
-            // q and -q are the same rotation: compare the matrices.
-            oracle::checkMat(math::rotationMatrix(q), glm::mat3_cast(gq), 1e-4);
         }
     }
 }
@@ -196,14 +153,6 @@ TEST_SUITE("math::viewMatrix")
             oracle::checkMat(math::viewMatrix(location, forward), g, tolerance);
             oracle::checkMat(math::inverseViewMatrix(location, forward), glm::inverse(g), tolerance);
         }
-    }
-
-    TEST_CASE("matches the glm helpers")
-    {
-        const Float3 location{ 3.0f, -4.0f, 2.5f };
-        const Float3 forward{ 0.3f, 1.0f, -0.2f };
-        oracle::checkMat(math::viewMatrix(location, forward), math::viewMatrix(oracle::toGlmVec(location), oracle::toGlmVec(forward)), 1e-5);
-        oracle::checkMat(math::inverseViewMatrix(location, forward), math::inverseViewMatrix(oracle::toGlmVec(location), oracle::toGlmVec(forward)), 1e-5);
     }
 
     TEST_CASE_TEMPLATE("the inverse view times the view is the identity", T, float, double)

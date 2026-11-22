@@ -7,6 +7,8 @@ import aegis.reflect;
 import aegis.serialize;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::assets::AssetId;
@@ -80,16 +82,11 @@ auto instantiated(Registry& registry, const TypeRegistry& types, const Scene& sc
     REQUIRE(aegis::serialize::instantiate(registry, types, scene).has_value());
 }
 
-// Exactly equal vectors or quaternions, of any glm precision (the file's numbers read back exactly)
-template<class A, class B>
-auto same(const A& a, const B& b) -> bool
+// Exactly equal vectors or quaternions (the file's numbers read back exactly)
+template<class T>
+auto same(const T& a, const T& b) -> bool
 {
-    for (int i = 0; i < A::length(); ++i)
-    {
-        if (a[i] != b[i])
-            return false;
-    }
-    return true;
+    return a == b;
 }
 
 auto entity(Registry& registry, std::uint64_t id) -> Entity
@@ -114,7 +111,7 @@ TEST_SUITE("serialize::modelScene")
     {
         TypeRegistry types;
         registerTypes(types);
-        const glm::quat upAxis = glm::angleAxis(glm::radians(90.0f), glm::vec3{ 1.0f, 0.0f, 0.0f });
+        const math::Quat upAxis = math::Quat::fromAxisAngle(math::Float3{ 1.0f, 0.0f, 0.0f }, math::radians(90.0f));
         Model model{ .name = "Helmet", .rootRotation = upAxis };
         model.nodes = {
             ModelNode{ .name = "Body", .translation = { 1.0f, 2.0f, 3.0f }, .scale = { 2.0f, 2.0f, 2.0f } },
@@ -138,8 +135,8 @@ TEST_SUITE("serialize::modelScene")
 
         const Entity body = entity(registry, ids.at("Entity/Body"));
         CHECK(registry.get<aegis::Name>(body).name == "Body");
-        CHECK(same(registry.get<aegis::Transform>(body).location, glm::vec3{ 1.0f, 2.0f, 3.0f }));
-        CHECK(same(registry.get<aegis::Transform>(body).scale, glm::vec3{ 2.0f, 2.0f, 2.0f }));
+        CHECK(same(registry.get<aegis::Transform>(body).location, math::Float3{ 1.0f, 2.0f, 3.0f }));
+        CHECK(same(registry.get<aegis::Transform>(body).scale, math::Float3{ 2.0f, 2.0f, 2.0f }));
         CHECK(childIds(registry, body) == std::vector{ ids.at("Entity/Visor") });
         CHECK(same(registry.get<aegis::Transform>(entity(registry, ids.at("Entity/Visor"))).rotation, upAxis));
         CHECK_FALSE(registry.has<aegis::MeshRenderer>(body));

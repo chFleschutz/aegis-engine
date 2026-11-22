@@ -5,44 +5,46 @@ import aegis.math;
 import aegis.render_passes;
 import aegis.rhi;
 
+namespace math = aegis::math;
+
 namespace
 {
 using namespace aegis::render_graph;
 
-auto camera(const glm::vec3& position, const glm::vec3& forward) -> FrameScene::Camera
+auto camera(const math::Float3& position, const math::Float3& forward) -> FrameScene::Camera
 {
     return {
         .view = aegis::math::viewMatrix(position, forward),
-        .projection = aegis::math::perspective(glm::radians(60.0f), 4.0f / 3.0f, 0.1f, 1000.0f), // As aegis::CameraSystem builds it
+        .projection = aegis::math::perspective(math::radians(60.0f), 4.0f / 3.0f, 0.1f, 1000.0f), // As aegis::CameraSystem builds it
         .position = position,
     };
 }
 
 // The world-space corners of the camera's frustum between its near plane and 'distance' meters along its axis.
-auto sliceCorners(const FrameScene::Camera& camera, float distance) -> std::vector<glm::vec3>
+auto sliceCorners(const FrameScene::Camera& camera, float distance) -> std::vector<math::Float3>
 {
-    const auto toWorld = glm::inverse(camera.view);
-    const float tanHalfFov = 1.0f / -aegis::math::element(camera.projection, 1, 1);
-    const float aspect = -aegis::math::element(camera.projection, 1, 1) / aegis::math::element(camera.projection, 0, 0);
-    std::vector<glm::vec3> corners;
+    const auto toWorld = math::inverse(camera.view);
+    const float tanHalfFov = 1.0f / -camera.projection[1, 1];
+    const float aspect = -camera.projection[1, 1] / camera.projection[0, 0];
+    std::vector<math::Float3> corners;
     for (const float depth : { 0.1f, distance })
     {
         for (const float x : { -1.0f, 1.0f })
         {
             for (const float y : { -1.0f, 1.0f })
             {
-                const glm::vec4 point{ x * depth * tanHalfFov * aspect, y * depth * tanHalfFov, -depth, 1.0f };
-                corners.push_back(glm::vec3{ toWorld * point });
+                const math::Float4 point{ x * depth * tanHalfFov * aspect, y * depth * tanHalfFov, -depth, 1.0f };
+                corners.push_back(math::Float3{ toWorld * point });
             }
         }
     }
     return corners;
 }
 
-auto project(const FrameScene::Camera& camera, const glm::vec3& point) -> glm::vec3
+auto project(const FrameScene::Camera& camera, const math::Float3& point) -> math::Float3
 {
-    const auto clip = camera.projection * camera.view * glm::vec4{ point, 1.0f };
-    return glm::vec3{ clip } / clip.w;
+    const auto clip = camera.projection * camera.view * math::Float4{ point, 1.0f };
+    return math::Float3{ clip } / clip.w;
 }
 
 auto near(float a, float b, float epsilon = 1e-4f) -> bool
@@ -50,34 +52,33 @@ auto near(float a, float b, float epsilon = 1e-4f) -> bool
     return std::abs(a - b) <= epsilon;
 }
 
-// glm's operator== is not part of aegis.math's exports.
-auto equal(const glm::mat4& a, const glm::mat4& b) -> bool
+auto equal(const math::Float4x4& a, const math::Float4x4& b) -> bool
 {
     for (int row = 0; row < 4; ++row)
     {
         for (int column = 0; column < 4; ++column)
         {
-            if (aegis::math::element(a, row, column) != aegis::math::element(b, row, column))
+            if (a[row, column] != b[row, column])
                 return false;
         }
     }
     return true;
 }
 
-auto finite(const glm::mat4& matrix) -> bool
+auto finite(const math::Float4x4& matrix) -> bool
 {
     for (int row = 0; row < 4; ++row)
     {
         for (int column = 0; column < 4; ++column)
         {
-            if (!std::isfinite(aegis::math::element(matrix, row, column)))
+            if (!std::isfinite(matrix[row, column]))
                 return false;
         }
     }
     return true;
 }
 
-const FrameScene::DirectionalLight sun{ .direction = glm::normalize(glm::vec3{ -0.35f, 0.35f, 0.87f }) };
+const FrameScene::DirectionalLight sun{ .direction = math::normalize(math::Float3{ -0.35f, 0.35f, 0.87f }) };
 
 // The shadow of the camera's whole slice, from its near plane to the light's shadow distance: a single cascade's.
 auto whole(const FrameScene::DirectionalLight& light, const FrameScene::Camera& camera) -> FrameScene::Camera
@@ -86,7 +87,7 @@ auto whole(const FrameScene::DirectionalLight& light, const FrameScene::Camera& 
 }
 
 // The world-space corners of the camera's frustum between 'near' and 'far' meters along its axis.
-auto sliceCorners(const FrameScene::Camera& camera, float near, float far) -> std::vector<glm::vec3>
+auto sliceCorners(const FrameScene::Camera& camera, float near, float far) -> std::vector<math::Float3>
 {
     auto corners = sliceCorners(camera, far);
     const auto nearCorners = sliceCorners(camera, near);
@@ -129,28 +130,28 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
     TEST_CASE("the shadow looks along the light with an orthographic projection")
     {
         const auto shadow = whole(sun, camera({ 0.0f, 0.0f, 1.5f }, { 0.0f, 1.0f, 0.0f }));
-        CHECK(aegis::math::element(shadow.projection, 3, 3) == 1.0f); // Orthographic: what the task shader's cone culling checks
+        CHECK(shadow.projection[3, 3] == 1.0f); // Orthographic: what the task shader's cone culling checks
         // The view's -Z is the direction the light shines in.
-        const auto forward = -glm::vec3{ aegis::math::row(shadow.view, 2) };
-        CHECK(near(glm::dot(forward, -sun.direction), 1.0f));
+        const auto forward = -math::Float3{ shadow.view.row(2) };
+        CHECK(near(math::dot(forward, -sun.direction), 1.0f));
         // Its position is in front of every point it covers, towards the light.
         CHECK(project(shadow, shadow.position).z == doctest::Approx(0.0f).epsilon(1e-4));
     }
 
     TEST_CASE("turning the camera keeps the shadow's size")
     {
-        const glm::vec3 position{ 1.0f, 2.0f, 1.5f };
+        const math::Float3 position{ 1.0f, 2.0f, 1.5f };
         const auto ahead = whole(sun, camera(position, { 0.0f, 1.0f, 0.0f }));
         const auto turned = whole(sun, camera(position, { 0.7f, -0.4f, 0.1f }));
-        CHECK(aegis::math::element(ahead.projection, 0, 0) == doctest::Approx(aegis::math::element(turned.projection, 0, 0)).epsilon(1e-5));
-        CHECK(aegis::math::element(ahead.projection, 2, 2) == doctest::Approx(aegis::math::element(turned.projection, 2, 2)).epsilon(1e-5));
+        CHECK(ahead.projection[0, 0] == doctest::Approx(turned.projection[0, 0]).epsilon(1e-5));
+        CHECK(ahead.projection[2, 2] == doctest::Approx(turned.projection[2, 2]).epsilon(1e-5));
     }
 
     TEST_CASE("the shadow moves in whole texels of its map")
     {
         const auto shadow = whole(sun, camera({ 0.37f, 1.91f, 1.5f }, { 0.0f, 1.0f, 0.0f }));
-        const float texel = 2.0f / (aegis::math::element(shadow.projection, 0, 0) * static_cast<float>(shadowMapExtent.x));
-        for (const float offset : { aegis::math::element(shadow.view, 0, 3), aegis::math::element(shadow.view, 1, 3) })
+        const float texel = 2.0f / (shadow.projection[0, 0] * static_cast<float>(shadowMapExtent.x));
+        for (const float offset : { shadow.view[0, 3], shadow.view[1, 3] })
         {
             const float texels = offset / texel;
             CAPTURE(texels);
@@ -166,17 +167,17 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
             const float offset = static_cast<float>(step) * 0.0137f;
             const auto view = camera({ offset, 2.0f * offset, 1.5f }, { 0.0f, 1.0f, 0.0f });
             const auto corners = sliceCorners(view, sun.shadowDistance);
-            glm::vec3 center{ 0.0f };
+            math::Float3 center{ 0.0f };
             for (const auto& corner : corners)
                 center = center + corner;
             center = center / static_cast<float>(corners.size());
             float radius{ 0.0f };
             for (const auto& corner : corners)
-                radius = std::max(radius, glm::length(corner - center));
+                radius = std::max(radius, math::length(corner - center));
 
             const auto shadow = whole(sun, view);
-            const glm::vec3 side{ aegis::math::row(shadow.view, 0) };
-            const glm::vec3 up{ aegis::math::row(shadow.view, 1) };
+            const math::Float3 side{ shadow.view.row(0) };
+            const math::Float3 up{ shadow.view.row(1) };
             for (const auto& edge : { side, -side, up, -up })
             {
                 const auto ndc = project(shadow, center + edge * radius);
@@ -201,7 +202,7 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
         auto far = sun;
         far.shadowDistance = 200.0f;
         // A smaller scale is a wider projection.
-        CHECK(aegis::math::element(whole(far, view).projection, 0, 0) < aegis::math::element(whole(sun, view).projection, 0, 0));
+        CHECK(whole(far, view).projection[0, 0] < whole(sun, view).projection[0, 0]);
     }
 
     TEST_CASE("a cascade's shadow covers its slice of the frustum")
@@ -219,14 +220,14 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
             CHECK(ndc.z <= 1.0f);
         }
         // A slice is narrower than the whole distance, so its map is sharper.
-        CHECK(aegis::math::element(shadow.projection, 0, 0) > aegis::math::element(whole(sun, view).projection, 0, 0));
+        CHECK(shadow.projection[0, 0] > whole(sun, view).projection[0, 0]);
     }
 
     TEST_CASE("a cascade's shadow moves in whole texels of its own map")
     {
         const auto shadow = fitDirectionalShadow(sun, camera({ 0.37f, 1.91f, 1.5f }, { 0.0f, 1.0f, 0.0f }), 8.0f, 20.0f);
-        const float texel = 2.0f / (aegis::math::element(shadow.projection, 0, 0) * static_cast<float>(shadowMapExtent.x));
-        for (const float offset : { aegis::math::element(shadow.view, 0, 3), aegis::math::element(shadow.view, 1, 3) })
+        const float texel = 2.0f / (shadow.projection[0, 0] * static_cast<float>(shadowMapExtent.x));
+        for (const float offset : { shadow.view[0, 3], shadow.view[1, 3] })
         {
             const float texels = offset / texel;
             CAPTURE(texels);
@@ -237,7 +238,7 @@ TEST_SUITE("render_passes::fitDirectionalShadow")
 
 TEST_SUITE("render_passes::shadowCascadeSplits")
 {
-    const auto projection = aegis::math::perspective(glm::radians(60.0f), 4.0f / 3.0f, 0.1f, 1000.0f);
+    const auto projection = aegis::math::perspective(math::radians(60.0f), 4.0f / 3.0f, 0.1f, 1000.0f);
 
     TEST_CASE("the cascades grow from the near plane to the shadow distance")
     {
@@ -523,17 +524,17 @@ TEST_SUITE("render_passes::selectShadowedSpotLights")
             { .position = { -2.0f, 0.0f, 0.0f }, .castsShadows = true },
             { .position = { 0.0f, 0.0f, 4.0f }, .castsShadows = true },
         };
-        CHECK(selectShadowedSpotLights(scene, glm::vec3{ 0.0f }) == std::vector<std::uint32_t>{ 1, 3, 0, 4 });
-        CHECK(selectShadowedSpotLights(scene, glm::vec3{ 0.0f }, 2) == std::vector<std::uint32_t>{ 1, 3 });
-        CHECK(selectShadowedSpotLights(scene, glm::vec3{ 0.0f, 0.0f, 4.0f }, 1) == std::vector<std::uint32_t>{ 4 });
-        CHECK(selectShadowedSpotLights(scene, glm::vec3{ 0.0f }, 0).empty());
+        CHECK(selectShadowedSpotLights(scene, math::Float3{ 0.0f }) == std::vector<std::uint32_t>{ 1, 3, 0, 4 });
+        CHECK(selectShadowedSpotLights(scene, math::Float3{ 0.0f }, 2) == std::vector<std::uint32_t>{ 1, 3 });
+        CHECK(selectShadowedSpotLights(scene, math::Float3{ 0.0f, 0.0f, 4.0f }, 1) == std::vector<std::uint32_t>{ 4 });
+        CHECK(selectShadowedSpotLights(scene, math::Float3{ 0.0f }, 0).empty());
     }
 
     TEST_CASE("selects nothing without casting lights")
     {
         const InstanceStore instances;
         FrameScene scene{ .instances = instances, .spotLights = { { .castsShadows = false } } };
-        CHECK(selectShadowedSpotLights(scene, glm::vec3{ 0.0f }).empty());
+        CHECK(selectShadowedSpotLights(scene, math::Float3{ 0.0f }).empty());
     }
 }
 
@@ -561,9 +562,9 @@ TEST_SUITE("render_passes::fitSpotShadow")
     {
         const FrameScene::SpotLight light{
             .position = { 1.0f, 2.0f, 3.0f },
-            .direction = glm::normalize(glm::vec3{ 1.0f, 1.0f, -0.5f }),
+            .direction = math::normalize(math::Float3{ 1.0f, 1.0f, -0.5f }),
             .range = 10.0f,
-            .outerConeAngle = glm::radians(30.0f),
+            .outerConeAngle = math::radians(30.0f),
         };
         const auto shadow = fitSpotShadow(light);
         CHECK(shadow.position.x == light.position.x);
@@ -579,8 +580,8 @@ TEST_SUITE("render_passes::fitSpotShadow")
         CHECK(project(shadow, light.position + light.direction * 0.01f).z < 0.0f); // Before the near plane
 
         // On the outer cone: the edge of the tile, whichever way round the axis.
-        const auto side = glm::normalize(glm::cross(light.direction, glm::vec3{ 0.0f, 0.0f, 1.0f }));
-        const auto up = glm::cross(side, light.direction);
+        const auto side = math::normalize(math::cross(light.direction, math::Float3{ 0.0f, 0.0f, 1.0f }));
+        const auto up = math::cross(side, light.direction);
         for (const auto& across : { side, up })
         {
             const auto edge = project(shadow, light.position + (light.direction * std::cos(light.outerConeAngle) + across * std::sin(light.outerConeAngle)) * 5.0f);
@@ -596,7 +597,7 @@ TEST_SUITE("render_passes::fitSpotShadow")
             const auto shadow = fitSpotShadow({ .position = { 0.0f, 0.0f, 5.0f }, .direction = { 0.0f, 0.0f, z } });
             CHECK(finite(shadow.view));
             CHECK(finite(shadow.projection));
-            const auto below = project(shadow, glm::vec3{ 0.0f, 0.0f, 5.0f + 3.0f * z });
+            const auto below = project(shadow, math::Float3{ 0.0f, 0.0f, 5.0f + 3.0f * z });
             CHECK(near(below.x, 0.0f));
             CHECK(near(below.y, 0.0f));
         }
@@ -604,10 +605,10 @@ TEST_SUITE("render_passes::fitSpotShadow")
 
     TEST_CASE("a cone wider than the widest view is shadowed within it")
     {
-        const FrameScene::SpotLight light{ .direction = { 0.0f, 1.0f, 0.0f }, .range = 10.0f, .outerConeAngle = glm::radians(89.0f) };
+        const FrameScene::SpotLight light{ .direction = { 0.0f, 1.0f, 0.0f }, .range = 10.0f, .outerConeAngle = math::radians(89.0f) };
         const auto shadow = fitSpotShadow(light);
-        CHECK(near(1.0f / aegis::math::element(shadow.projection, 0, 0), std::tan(maxSpotShadowFov / 2.0f)));
-        CHECK(near(-1.0f / aegis::math::element(shadow.projection, 1, 1), std::tan(maxSpotShadowFov / 2.0f)));
+        CHECK(near(1.0f / shadow.projection[0, 0], std::tan(maxSpotShadowFov / 2.0f)));
+        CHECK(near(-1.0f / shadow.projection[1, 1], std::tan(maxSpotShadowFov / 2.0f)));
     }
 
     TEST_CASE("the near plane is a thousandth of the range, at least 5 cm")
@@ -617,7 +618,7 @@ TEST_SUITE("render_passes::fitSpotShadow")
         {
             CAPTURE(range);
             const FrameScene::SpotLight light{ .direction = { 0.0f, 1.0f, 0.0f }, .range = range };
-            CHECK(near(project(fitSpotShadow(light), glm::vec3{ 0.0f, nearPlane, 0.0f }).z, 0.0f));
+            CHECK(near(project(fitSpotShadow(light), math::Float3{ 0.0f, nearPlane, 0.0f }).z, 0.0f));
         }
     }
 }

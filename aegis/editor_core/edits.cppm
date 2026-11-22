@@ -132,7 +132,7 @@ struct EditWorld
 /// @brief The values of every registered field of 'object', an instance of 'type'.
 [[nodiscard]] auto fieldValues(const reflect::TypeInfo& type, const void* object) -> FieldValues;
 
-/// @brief Whether two values are the same; glm vectors compare per component.
+/// @brief Whether two values are the same.
 [[nodiscard]] auto sameValue(const reflect::Value& a, const reflect::Value& b) -> bool;
 [[nodiscard]] auto sameValues(const FieldValues& a, const FieldValues& b) -> bool;
 

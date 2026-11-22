@@ -95,16 +95,16 @@ private:
     // Whether a gizmo was drawn: the selection can be moved.
     auto drawGizmo(EditorContext& editor, FrameContext& frame, const Rect& rect) -> bool;
     // A gizmo drag starts with the active entity's world matrix 'start': it keeps the selected roots' as they are now.
-    void beginGizmoDrag(EditorContext& editor, FrameContext& frame, const glm::mat4& start);
+    void beginGizmoDrag(EditorContext& editor, FrameContext& frame, const math::Float4x4& start);
     void drawToolbar(EditorContext& editor, const Rect& rect);
     // The top right cluster: the camera speed and the stats toggle, the navigation gizmo below them, and the stats box
     // below that while it is on.
     void drawOverlayCluster(EditorContext& editor, const FrameContext& frame, const Rect& rect);
     // The world axes in the camera's orientation, in a circle of 'size' whose top right corner is at 'corner'; a click
     // on an axis end views the pivot from that side.
-    void drawNavigationGizmo(const glm::vec2& corner, float size);
+    void drawNavigationGizmo(const math::Float2& corner, float size);
     // The Statistics panel's summary in a box at least 'minWidth' wide whose top right corner is at 'corner'.
-    void drawStatsOverlay(const EditorContext& editor, const FrameContext& frame, const glm::vec2& corner, float minWidth) const;
+    void drawStatsOverlay(const EditorContext& editor, const FrameContext& frame, const math::Float2& corner, float minWidth) const;
     // A row across the panel at the cursor, on its own background, holding what 'bar' draws; the cursor ends below it.
     static void drawBar(const std::function<void()>& bar);
     // Begins the window over the whole display that holds the image in full viewport; whether it is visible.
@@ -117,7 +117,7 @@ private:
     // Whether a left click now would pick: the cursor is on the image, not on this frame's gizmo or the toolbar, and Alt (orbit) is up.
     [[nodiscard]] auto canPick(bool gizmo) const -> bool;
     // The entity a click at 'cursor' picks: an icon there, else the nearest mesh along the ray.
-    [[nodiscard]] auto pickAt(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, const glm::vec2& cursor) const -> std::optional<StableId>;
+    [[nodiscard]] auto pickAt(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, const math::Float2& cursor) const -> std::optional<StableId>;
     void pick(EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo);
     // Picks again what is under the cursor when it moved with no button held.
     void updateHover(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, bool gizmo);
@@ -148,11 +148,11 @@ private:
     struct GizmoRoot
     {
         StableId id;
-        glm::mat4 start{ 1.0f }; // Its world matrix when the drag began
+        math::Float4x4 start = math::Float4x4::identity(); // Its world matrix when the drag began
     };
     struct GizmoDrag
     {
-        glm::mat4 start{ 1.0f }; // The active entity's world matrix when it began
+        math::Float4x4 start = math::Float4x4::identity(); // The active entity's world matrix when it began
         std::vector<GizmoRoot> roots;
         TransformDrag transforms; // Writes the roots' Transforms and records them as one undo entry
     };

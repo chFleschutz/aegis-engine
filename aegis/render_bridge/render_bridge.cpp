@@ -241,7 +241,7 @@ auto extractFrameScene(world::World& world, const render_graph::InstanceStore& i
         scene.directionalLight = FrameScene::DirectionalLight{
             .color = light.color,
             .intensity = light.intensity,
-            .direction = glm::normalize(registry.get<GlobalTransform>(directional).forward()),
+            .direction = math::normalize(registry.get<GlobalTransform>(directional).forward()),
             .shadowDistance = light.shadowDistance,
             .shadowBias = light.shadowBias,
             .shadowCascades = light.shadowCascades,
@@ -262,7 +262,7 @@ auto extractFrameScene(world::World& world, const render_graph::InstanceStore& i
     {
         scene.spotLights.push_back({
             .position = transform.location,
-            .direction = glm::normalize(transform.forward()),
+            .direction = math::normalize(transform.forward()),
             .color = light.color,
             .intensity = light.intensity,
             .range = light.range,

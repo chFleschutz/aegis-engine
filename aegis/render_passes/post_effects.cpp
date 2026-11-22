@@ -215,7 +215,7 @@ auto TransparentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
         .frameScene = scene,
         .frameIndex = frameInfo.frameIndex,
         .camera = pool.bufferAddress(m_cameraData, frameInfo.frameIndex),
-        .view = camera ? camera->view : glm::mat4{ 1.0f },
+        .view = camera ? camera->view : math::Float4x4::identity(),
     };
     for (const auto& system : m_renderSystems)
         system->render(context);
@@ -270,8 +270,8 @@ auto makePointLightConstants(const FrameScene::PointLight& light, rhi::DeviceAdd
 {
     constexpr float pointLightScale{ 0.002f };
     return {
-        .worldPosition = glm::vec4{ light.position, 1.0f },
-        .color = glm::vec4{ light.color, 1.0f },
+        .worldPosition = math::Float4{ light.position, 1.0f },
+        .color = math::Float4{ light.color, 1.0f },
         .radius = light.intensity * light.scale * pointLightScale,
         .camera = camera,
     };

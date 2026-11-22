@@ -5,6 +5,8 @@ import aegis.assets;
 import aegis.math;
 import aegis.serialize;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::assets::DefaultTexture;
@@ -119,11 +121,11 @@ TEST_SUITE("serialize::parseTemplate")
         CHECK(std::get<std::int32_t>(parameters[0].defaultValue) == -2);
         CHECK(std::get<std::uint32_t>(parameters[1].defaultValue) == 7u);
         CHECK(std::get<float>(parameters[2].defaultValue) == 0.5f);
-        const auto& offset = std::get<glm::vec2>(parameters[3].defaultValue);
+        const auto& offset = std::get<math::Float2>(parameters[3].defaultValue);
         CHECK((std::array{ offset.x, offset.y } == std::array{ 1.0f, 2.0f }));
-        const auto& color = std::get<glm::vec3>(parameters[4].defaultValue);
+        const auto& color = std::get<math::Float3>(parameters[4].defaultValue);
         CHECK((std::array{ color.x, color.y, color.z } == std::array{ 0.25f, 0.5f, 1.0f }));
-        const auto& tint = std::get<glm::vec4>(parameters[5].defaultValue);
+        const auto& tint = std::get<math::Float4>(parameters[5].defaultValue);
         CHECK((std::array{ tint.x, tint.y, tint.z, tint.w } == std::array{ 1.0f, 2.0f, 3.0f, 4.0f }));
         CHECK(std::get<DefaultTexture>(parameters[6].defaultValue) == DefaultTexture::White);
         CHECK(std::get<DefaultTexture>(parameters[7].defaultValue) == DefaultTexture::Black);

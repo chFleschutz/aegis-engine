@@ -147,5 +147,5 @@ struct AssetPayload
 
 /// @brief Where an instance dropped into the viewport goes: where 'ray' meets the ground plane z = 0 in front of it
 ///        within 'maxDistance', else 'fallbackDistance' along it.
-[[nodiscard]] auto dropPoint(const Ray& ray, float maxDistance, float fallbackDistance) -> glm::vec3;
+[[nodiscard]] auto dropPoint(const Ray& ray, float maxDistance, float fallbackDistance) -> math::Float3;
 }

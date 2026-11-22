@@ -2,7 +2,6 @@
 aegis_add_test(
     math
     SOURCES
-        math.test.cpp
         layout.test.cpp
         matrix.test.cpp
         quaternion.test.cpp
