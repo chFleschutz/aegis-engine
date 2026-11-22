@@ -65,7 +65,7 @@ replaced the hand-written type lists and `ComponentTraits` with the type registr
 ### Module layout
 
 ```
-src/aegis/editor/
+aegis/editor/
 ├─ core/                          aegis-editor-core, module aegis.editor.core (no ImGui)
 │  ├─ context          EditorContext: project, edit/play worlds, selection, undo stack, play state
 │  ├─ selection        set of StableIds + the active one; drops entities that no longer exist
@@ -108,7 +108,7 @@ The engine has one extension point (R4, [#83]). A **shell** decides, each frame,
 the game: its UI, which worlds update and render, and who receives input. The launcher picks it: the
 runtime flavor keeps `GameShell` (the engine's default), the editor flavor installs `editor::EditorShell`
 with `Engine::setShell` before `run()`. `Shell`, `GameShell` and `FrameContext` live in `aegis.engine`,
-next to `Engine` (`src/aegis/app/engine.cppm`).
+next to `Engine` (`aegis/app/engine.cppm`).
 
 ```cpp
 class Shell

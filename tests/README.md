@@ -2,7 +2,7 @@
 
 Unit tests for **pure, GPU-independent logic** in any module (`rhi`, `assets`, `render_graph`, `render_passes`, `math`, `platform`,
 `world`). Scope is intentionally narrow: logic that survives the migration. Device-level integration
-stays in the harness (`../src/aegis/test/`), which CTest also runs headless as three
+stays in the harness (`../aegis/test/`), which CTest also runs headless as three
 `device`-labelled tests (triangle, CPU- and GPU-driven scene).
 
 ## Quick start
@@ -34,18 +34,18 @@ Unit tests are not sufficient when a change touches live device code:
 
 ```
 cmake --build --preset windows-clang-debug --target aegis-test
-build\windows-clang-debug\src\aegis\test\aegis-test.exe --headless       # offscreen, 600 frames
-build\windows-clang-debug\src\aegis\test\aegis-test.exe --frames 600     # windowed, exits by itself
-build\windows-clang-debug\src\aegis\test\aegis-test.exe --headless --gpu-driven --screenshot frame.png
+build\windows-clang-debug\aegis\test\aegis-test.exe --headless       # offscreen, 600 frames
+build\windows-clang-debug\aegis\test\aegis-test.exe --frames 600     # windowed, exits by itself
+build\windows-clang-debug\aegis\test\aegis-test.exe --headless --gpu-driven --screenshot frame.png
 ```
 
-`../src/aegis/test/` (`aegis-test`) is the only `main()` that checks a real `rhi::Device` for failures —
+`../aegis/test/` (`aegis-test`) is the only `main()` that checks a real `rhi::Device` for failures —
 the `examples/` targets run the same stack, but open a window and nothing fails them on an RHI
 regression. Debug builds enable core and synchronization validation; the harness exits non-zero on
 a failed check or any validation error. CTest runs the headless form (label `device`); the windowed
 form is the only check of surface, swapchain and present, so run it when those change. The commands
 above use Windows paths and the `windows-clang-debug` preset; on Linux use `linux-clang-debug` and
-`build/linux-clang-debug/src/aegis/test/aegis-test`. The windowed run also checks `platform::Input`
+`build/linux-clang-debug/aegis/test/aegis-test`. The windowed run also checks `platform::Input`
 with synthetic key and mouse messages, on Windows only (other platforms skip that check).
 
 ### Reference images
@@ -87,8 +87,8 @@ return, so test the behavior *around* them, not the abort.
 
 ## Layout and naming
 
-Tests live at root `tests/`, mirroring **module** names — not source paths, so the planned
-flattening of `src/aegis/` never moves them.
+Tests live at root `tests/`, mirroring **module** names — not source paths, so moving a module's
+folder under `aegis/` never moves them.
 
 ```
 tests/
@@ -236,7 +236,7 @@ if a single module's test link becomes slow.
 **Why a shared `aegis-test-main`.** The doctest implementation compiles once into a static lib that
 every test executable links, instead of being recompiled into each one.
 
-**Why `CMAKE_CXX_SCAN_FOR_MODULES` is set here.** `tests/` sits outside the `src/aegis/` scope that
+**Why `CMAKE_CXX_SCAN_FOR_MODULES` is set here.** `tests/` sits outside the `aegis/` scope that
 enables module scanning, so `CMakeLists.txt` in this directory turns it on explicitly.
 
 Tests are gated behind `AEGIS_BUILD_TESTS` (defaults to on for a top-level build) in the root

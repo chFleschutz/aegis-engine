@@ -5,7 +5,7 @@ and the plan that follows from it. Each point of the principles is checked again
 applies to this engine, and either closed, planned as an item, or deferred with the trigger that brings it back. Plan
 items are numbered **UX-n** for issues to cite. The earlier review (UI-01 to UI-33) is fully merged ([#272] to [#283]).
 
-**How it was reviewed:** by reading `src/aegis/editor/`, the runtime it calls (`engine.cpp`, `reflect`, the asset
+**How it was reviewed:** by reading `aegis/editor/`, the runtime it calls (`engine.cpp`, `reflect`, the asset
 library) and the sample scenes. Contrast ratios are WCAG 2 ratios computed from the tokens in `ui/theme.h` and the
 style in `ui/theme.cpp`. Nothing was run, so the costs named under UX-5 are to be measured, not quoted.
 

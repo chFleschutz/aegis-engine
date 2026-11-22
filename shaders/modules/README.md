@@ -48,9 +48,9 @@ member there (not re-checked with 1.4.363).
 On the C++ side, mirror the struct with `rhi::DeviceAddress` for pointers and the typed
 `rhi::*Descriptor` structs for descriptor indices, and record it with `cmd.pushConstants(value)`. The
 struct must fit in 128 bytes, which the typed `pushConstants` checks at compile time. The render graph's
-mirrors live in `src/aegis/render_graph/gpu_types.cppm`, named after their Slang twins, with their
+mirrors live in `aegis/render_graph/gpu_types.cppm`, named after their Slang twins, with their
 `sizeof`/`offsetof` pinned in `tests/render_graph/gpu_types.test.cpp`; asset mirrors (`Vertex`,
-`Meshlet`) are in `src/aegis/assets/data/gpu_types.cppm`. A material's parameter block has no C++ mirror: its
+`Meshlet`) are in `aegis/assets/data/gpu_types.cppm`. A material's parameter block has no C++ mirror: its
 material template lists the parameters, and the template loader checks them against the surface shader's
 reflected block (see `modules/surface.slang`).
 
@@ -70,7 +70,7 @@ component type (a `float3` takes 12 bytes, aligned to 4). So a C++ struct of `gl
 and material parameter blocks rely on it. Matrices are row-major (`-matrix-layout-row-major`); upload
 `glm::rowMajor4(m)`.
 
-Working examples: `computeMain` in `src/aegis/test/shader.slang`, and `shaders/ibl/*.slang`
+Working examples: `computeMain` in `aegis/test/shader.slang`, and `shaders/ibl/*.slang`
 (driven by `render_graph::Ibl`).
 
 ## Lighting

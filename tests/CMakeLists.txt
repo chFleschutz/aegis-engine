@@ -1,4 +1,4 @@
-# Module scanning is enabled here because tests live outside the src/aegis/ scope that sets it.
+# Module scanning is enabled here because tests live outside the aegis/ scope that sets it.
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
@@ -42,7 +42,7 @@ add_subdirectory(world)
 # exits non-zero on any failed check or validation error. aegis-test returns 77 when the device lacks a
 # feature the run needs, which CTest reports as skipped. Extra LABELS name that feature (`mesh-shaders`).
 # The `gpu` resource lock keeps device runs from overlapping when ctest runs tests in parallel.
-set(AEGIS_TEST_SKIP_RETURN_CODE 77) # Keep in step with src/aegis/test/test.cppm
+set(AEGIS_TEST_SKIP_RETURN_CODE 77) # Keep in step with aegis/test/test.cppm
 function(aegis_add_device_test name)
     cmake_parse_arguments(T "" "" "ARGS;LABELS" ${ARGN})
     add_test(NAME ${name} COMMAND aegis-test ${T_ARGS})

@@ -38,7 +38,7 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
   A change to the samples is a PR in aegis-samples (branch from its `origin/main`); the engine PR
   bumps the `samples` pointer to that commit and says to merge the samples PR first.
 - Vendored files (`external/ktx`, the editor's Lucide icon font and its generated
-  `src/aegis/editor/ui/lucide.cppm`) change only through their `tools/update-*` script, committed on
+  `aegis/editor/ui/lucide.cppm`) change only through their `tools/update-*` script, committed on
   its own.
 
 > **Vulkan SDK 1.4.363.0 is pinned** (CI uses the same): the RHI imports the SDK's Vulkan-Hpp module
@@ -99,7 +99,7 @@ Shaders compile with `slangc` from the pinned SDK on every build of `aegis-engin
 checked with `spirv-val`; invalid SPIR-V fails the build. Shader conventions: `shaders/modules/README.md`.
 
 ### Assets and paths
-`aegis.paths` (`src/aegis/paths/`) is the one reader of the shader, content, project and cache
+`aegis.paths` (`aegis/paths/`) is the one reader of the shader, content, project and cache
 folders; code names assets through `AssetLibrary` by path inside it (`assets.id("models/basic/cube.obj")`)
 and never adds another `-D` path. A new source file in the samples gets a `.meta` sidecar: commit it
 there. Loaded assets are shared, so code that changes one object's material copies it first
@@ -108,7 +108,7 @@ it today").
 
 ## Code style (most important)
 **Match the conventions of the code you are editing.** The engine follows the rules below, except
-the **legacy** rest, which keeps older conventions until it is rewritten: `src/aegis/launch/`, `math/`
+the **legacy** rest, which keeps older conventions until it is rewritten: `aegis/launch/`, `math/`
 and `examples/`. There, misuse is an `assert` and `math` is one `.cppm` with no partitions.
 
 - *Errors:* `std::expected<T, Error>` built with `makeError`, never thrown.
@@ -141,7 +141,7 @@ instead of returning one, and `world` and `scripting` assert on misuse that coul
 components, `Profiler` and `Engine` sit directly in `aegis`; `app/` (the engine, `AssetLibrary`, the render
 bridge, scene defaults) holds several modules in one folder, and some of its errors are still `std::string`; `Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
 
-**Foundation (`aegis.core`, `src/aegis/core/`):** logging, flag enums, alignment, `match` and the
+**Foundation (`aegis.core`, `aegis/core/`):** logging, flag enums, alignment, `match` and the
 profiler; any module may import it.
 - *Logging:* `aegis::log::{info,warn,error,fatal}` take a `std::format_string` and work with no
   setup; `log::setSink` redirects them (tests capture output with it). Library code logs only
@@ -188,7 +188,7 @@ Keep messages short: one imperative subject line (e.g. `Add rhi sampler`), no bo
 is non-obvious. **No `Co-Authored-By` or other agent/tool attribution trailers**, in commits or PR
 descriptions.
 
-**Code changes go through a PR** (anything under `src/`, `shaders/`, `tests/`, `examples/`, `tools/`,
+**Code changes go through a PR** (anything under `aegis/`, `shaders/`, `tests/`, `examples/`, `tools/`,
 CMake or CI). Docs-only changes may be committed to `main` directly. `/implement <issue>` takes an
 issue to an open PR.
 
@@ -248,7 +248,7 @@ umbrella, partition cycles).
 showing green.
 
 ## Verifying device code
-Green unit tests are *not* sufficient when device code changed. `src/aegis/test/` (`aegis-test`) is
+Green unit tests are *not* sufficient when device code changed. `aegis/test/` (`aegis-test`) is
 the only `main()` that checks a real `rhi::Device` for failures; `examples/` run the same stack but
 nothing fails them on a regression. Debug builds enable core **and synchronization** validation, and
 `aegis-test` exits non-zero on any failed check or validation error of severity *error* (messages go

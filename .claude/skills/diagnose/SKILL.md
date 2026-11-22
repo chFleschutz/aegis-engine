@@ -7,7 +7,7 @@ description: Diagnosis loop for hard bugs and performance regressions. Use when 
 
 A discipline for hard bugs. Skip phases only when explicitly justified. `<preset>` is
 `windows-clang-debug` on Windows and `linux-clang-debug` on Linux; `aegis-test` is
-`build/<preset>/src/aegis/test/aegis-test`.
+`build/<preset>/aegis/test/aegis-test`.
 
 ## Hazard: a repro that hangs the GPU
 

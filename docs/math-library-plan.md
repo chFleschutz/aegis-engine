@@ -19,7 +19,7 @@ implementation style and the PR sequence. Survey numbers are from `claude/math-l
 
 ## What the survey adds to the spec
 
-- **glm enters the engine through one door.** Only `src/aegis/math/math.cppm` includes glm, and only
+- **glm enters the engine through one door.** Only `aegis/math/math.cppm` includes glm, and only
   `aegis-math` links `glm::glm`. The 91 files that write `glm::vec3` get the names from its exported
   `namespace glm { using … }` block. So the swap needs no glue between subsystems: once `aegis.math`
   exports the new names, the rest is a rename, and nothing outside `aegis-math` links glm afterwards
@@ -111,7 +111,7 @@ the integer-only operations (`%`, bitwise, shifts) once a first integer user nee
 
 ## Architecture
 
-Module `aegis.math`, namespace `aegis::math`, folder `src/aegis/math/`, new-style (moves from the
+Module `aegis.math`, namespace `aegis::math`, folder `aegis/math/`, new-style (moves from the
 legacy list in `AGENTS.md`). `import std;`, plus `<cassert>` for `assert` in the partitions that check indices: no glm, no other macros.
 `aegis-math` links nothing.
 
