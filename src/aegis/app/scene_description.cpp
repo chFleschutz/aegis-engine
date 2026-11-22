@@ -14,7 +14,7 @@ auto instantiate(SceneContext& context, assets::AssetId scene, world::Entity par
     auto holder = context.assets.instantiateScene(context.scene, context.types, scene, parent);
     if (!holder)
     {
-        log::fatal("{}", holder.error());
+        log::fatal("{}", describe(holder.error()));
         std::exit(EXIT_FAILURE);
     }
     return *holder;

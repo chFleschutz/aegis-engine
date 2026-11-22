@@ -282,7 +282,7 @@ auto Engine::loadScene(assets::AssetId scene) -> std::expected<void, EngineError
 {
     newScene();
     if (auto created = m_assets->instantiateScene(world(), m_types, scene); !created)
-        return std::unexpected{ makeError(EngineErrorCode::SceneFailed, std::move(created.error())) };
+        return std::unexpected{ makeError(EngineErrorCode::SceneFailed, describe(created.error())) };
     return {};
 }
 
@@ -637,7 +637,7 @@ auto Engine::createAssets() -> std::expected<void, EngineError>
 {
     auto assets = AssetLibrary::create(*m_device, FRAMES_IN_FLIGHT, assetSources(m_desc));
     if (!assets)
-        return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, assets.error()) };
+        return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, describe(assets.error())) };
     m_assets.emplace(std::move(*assets));
     return {};
 }

@@ -338,7 +338,7 @@ private:
         if (theme::iconButton(theme::icons::rescan, "rescan"))
         {
             if (auto scanned = frame.assets.rescan(); !scanned)
-                log::warn("{}", scanned.error());
+                log::warn("{}", describe(scanned.error()));
             rebuild(frame.assets.database());
         }
         ImGui::SetItemTooltip("Rescan: scan the asset folders again for added, changed and removed files");

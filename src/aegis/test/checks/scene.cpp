@@ -336,7 +336,7 @@ private:
             return std::unexpected{ assets::describe(set.error()) };
         auto cube = frame.assets.instantiateScene(frame.world, frame.types, assets::engine::cube, {});
         if (!cube)
-            return std::unexpected{ cube.error() };
+            return std::unexpected{ describe(cube.error()) };
         auto& transform = registry.get<Transform>(*cube);
         transform.location = camera.location + camera.forward() * 0.5f;
         transform.rotation = camera.rotation;
@@ -441,7 +441,7 @@ private:
 
             auto cube = frame.assets.instantiateScene(frame.world, frame.types, assets::engine::cube, {});
             if (!cube)
-                return std::unexpected{ cube.error() };
+                return std::unexpected{ describe(cube.error()) };
             auto& transform = registry.get<Transform>(*cube);
             transform.location = location;
             // Turned so that three faces, each lit differently, face the camera.
@@ -499,7 +499,7 @@ private:
         {
             auto cube = frame.assets.instantiateScene(frame.world, frame.types, assets::engine::cube, {});
             if (!cube)
-                return std::unexpected{ cube.error() };
+                return std::unexpected{ describe(cube.error()) };
             auto& transform = registry.get<Transform>(*cube);
             transform.location = camera->location + camera->forward() * 1.5f + camera->right() * (0.6f * side);
             transform.rotation = camera->rotation;
@@ -572,7 +572,10 @@ private:
         const auto id = m_engine->assets().find(path);
         if (!id)
             return std::unexpected{ std::format("'{}' is not in the sample project", path) };
-        return m_engine->assets().instantiateScene(world, m_engine->types(), *id, {});
+        auto holder = m_engine->assets().instantiateScene(world, m_engine->types(), *id, {});
+        if (!holder)
+            return std::unexpected{ describe(holder.error()) };
+        return *holder;
     }
 
     // The UI pass's input: one window, so a screenshot shows ImGui drawn over the scene.
@@ -755,7 +758,7 @@ private:
             if (auto created = m_engine->assets().instantiateScene(second, m_engine->types(), *scene); !created)
             {
                 frame.engine.destroyWorld(second);
-                return std::unexpected{ std::format("Loading the second world: {}", created.error()) };
+                return std::unexpected{ std::format("Loading the second world: {}", describe(created.error())) };
             }
             // The scene's entities keep their IDs in every world it is instantiated into.
             auto& registry = second.registry();

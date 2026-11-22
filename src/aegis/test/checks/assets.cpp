@@ -21,7 +21,7 @@ auto Harness::verifyAssets() -> std::expected<void, std::string>
     constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
     auto templates = loadEngineTemplates(paths::content(), paths::shaders());
     if (!templates)
-        return std::unexpected{ std::format("Material templates: {}", templates.error()) };
+        return std::unexpected{ std::format("Material templates: {}", describe(templates.error())) };
     auto defaults = assets::DefaultAssets::create(*m_device, framesInFlight, *templates);
     if (!defaults)
         return std::unexpected{ std::format("Default assets: {}", assets::describe(defaults.error())) };
@@ -76,7 +76,7 @@ auto Harness::verifyAssets() -> std::expected<void, std::string>
     // The models as scene instances, loaded by an asset library (with its own default assets).
     auto library = AssetLibrary::create(*m_device, framesInFlight);
     if (!library)
-        return std::unexpected{ std::format("Asset library: {}", library.error()) };
+        return std::unexpected{ std::format("Asset library: {}", describe(library.error())) };
     reflect::TypeRegistry types;
     if (auto registered = world::registerComponents(types); !registered)
         return std::unexpected{ std::format("Component types: {}", reflect::describe(registered.error())) };
@@ -87,7 +87,7 @@ auto Harness::verifyAssets() -> std::expected<void, std::string>
         if (!id)
             return std::unexpected{ std::format("'{}' is not in the sample project", model) };
         if (auto holder = library->instantiateScene(models, types, *id, {}); !holder)
-            return std::unexpected{ std::format("Instantiating {}: {}", model, holder.error()) };
+            return std::unexpected{ std::format("Instantiating {}: {}", model, describe(holder.error())) };
     }
     const assets::Loader::Desc loaderDesc{
         .device = *m_device,
@@ -156,7 +156,7 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
     constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
     auto library = AssetLibrary::create(*m_device, framesInFlight);
     if (!library)
-        return std::unexpected{ std::format("Asset library: {}", library.error()) };
+        return std::unexpected{ std::format("Asset library: {}", describe(library.error())) };
     const auto fail = [](std::string message) -> std::expected<void, std::string> { return std::unexpected{ std::move(message) }; };
 
     const auto helmetFile = library->find("models/damaged_helmet/DamagedHelmet.gltf");
@@ -275,7 +275,7 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
             return fail(std::format("'{}' has no ID in the database", path));
         aegis::world::World modelWorld;
         if (auto created = library->instantiateScene(modelWorld, types, *id); !created)
-            return fail(std::format("Instantiating the scene of '{}': {}", path, created.error()));
+            return fail(std::format("Instantiating the scene of '{}': {}", path, describe(created.error())));
         std::set<std::uint64_t> entityIds;
         for (const auto handle : modelWorld.registry().view<aegis::StableId>())
             entityIds.insert(modelWorld.registry().get<aegis::StableId>(aegis::world::Entity{ handle }).value);
