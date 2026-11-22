@@ -114,6 +114,38 @@ enum class MouseButton : int
     Button8 = GLFW_MOUSE_BUTTON_8,
 };
 
+/// @brief A button of a gamepad, in GLFW's standard (SDL controller database) layout.
+enum class GamepadButton : int
+{
+    A           = GLFW_GAMEPAD_BUTTON_A,
+    B           = GLFW_GAMEPAD_BUTTON_B,
+    X           = GLFW_GAMEPAD_BUTTON_X,
+    Y           = GLFW_GAMEPAD_BUTTON_Y,
+    LeftBumper  = GLFW_GAMEPAD_BUTTON_LEFT_BUMPER,
+    RightBumper = GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER,
+    Back        = GLFW_GAMEPAD_BUTTON_BACK,
+    Start       = GLFW_GAMEPAD_BUTTON_START,
+    Guide       = GLFW_GAMEPAD_BUTTON_GUIDE,
+    LeftThumb   = GLFW_GAMEPAD_BUTTON_LEFT_THUMB,
+    RightThumb  = GLFW_GAMEPAD_BUTTON_RIGHT_THUMB,
+    DpadUp      = GLFW_GAMEPAD_BUTTON_DPAD_UP,
+    DpadRight   = GLFW_GAMEPAD_BUTTON_DPAD_RIGHT,
+    DpadDown    = GLFW_GAMEPAD_BUTTON_DPAD_DOWN,
+    DpadLeft    = GLFW_GAMEPAD_BUTTON_DPAD_LEFT,
+};
+
+/// @brief An axis of a gamepad. Sticks go from -1 to 1 (y down is positive, as GLFW reports it); triggers from 0
+///        (released) to 1, as InputState reports them (GLFW's -1 to 1 is remapped).
+enum class GamepadAxis : int
+{
+    LeftX        = GLFW_GAMEPAD_AXIS_LEFT_X,
+    LeftY        = GLFW_GAMEPAD_AXIS_LEFT_Y,
+    RightX       = GLFW_GAMEPAD_AXIS_RIGHT_X,
+    RightY       = GLFW_GAMEPAD_AXIS_RIGHT_Y,
+    LeftTrigger  = GLFW_GAMEPAD_AXIS_LEFT_TRIGGER,
+    RightTrigger = GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER,
+};
+
 enum class KeyAction : int
 {
     Release = GLFW_RELEASE,

@@ -35,6 +35,29 @@ auto Input::update() -> void
     m_state.beginFrame();
     for (const auto& event : m_window.takeEvents())
         m_state.apply(event);
+    m_state.apply(pollGamepad());
+}
+
+auto Input::pollGamepad() -> GamepadEvent
+{
+    // The first connected gamepad; a joystick without a gamepad mapping does not count.
+    for (int joystick = GLFW_JOYSTICK_1; joystick <= GLFW_JOYSTICK_LAST; ++joystick)
+    {
+        GLFWgamepadstate state{};
+        if (!glfwJoystickIsGamepad(joystick) || !glfwGetGamepadState(joystick, &state))
+            continue;
+
+        GamepadEvent event{ .connected = true };
+        for (std::size_t i = 0; i < event.buttons.size(); ++i)
+            event.buttons[i] = state.buttons[i] == GLFW_PRESS;
+        for (std::size_t i = 0; i < event.axes.size(); ++i)
+            event.axes[i] = state.axes[i];
+        // GLFW's triggers rest at -1; InputState's at 0
+        for (const auto trigger : { GLFW_GAMEPAD_AXIS_LEFT_TRIGGER, GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER })
+            event.axes[trigger] = (state.axes[trigger] + 1.0f) * 0.5f;
+        return event;
+    }
+    return {};
 }
 
 auto Input::setCursorMode(CursorMode mode) -> void
