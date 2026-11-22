@@ -343,15 +343,7 @@ private:
             registry.markStaticDirty(entity);
         }
 
-        const auto mainCamera = frame.world.mainCamera();
-        if (!mainCamera)
-            return std::unexpected{ "the scene has no main camera" };
-        const PostProcess settings{ .toneMapping = ToneMapping::Reinhard, .exposure = 1.0f, .gamma = 2.2f, .bloomIntensity = 0.0f };
-        if (registry.has<PostProcess>(mainCamera))
-            registry.get<PostProcess>(mainCamera) = settings;
-        else
-            registry.add<PostProcess>(mainCamera, settings);
-        return {};
+        return showUnlitColor(frame.world);
     }
 
     // --views, at the safe point. Frame 40 reads both views rendered together in the frame before (the world stood
@@ -515,9 +507,17 @@ private:
             }
         }
 
-        const auto mainCamera = frame.world.mainCamera();
+        return showUnlitColor(frame.world);
+    }
+
+    // --unlit, --views: the main camera's PostProcess turns bloom off and tone maps with Reinhard at exposure 1, so an
+    // unlit colour reaches the last frame as unlitPixels expects.
+    static auto showUnlitColor(world::World& world) -> std::expected<void, std::string>
+    {
+        const auto mainCamera = world.mainCamera();
         if (!mainCamera)
             return std::unexpected{ "the scene has no main camera" };
+        auto& registry = world.registry();
         const PostProcess settings{ .toneMapping = ToneMapping::Reinhard, .exposure = 1.0f, .gamma = 2.2f, .bloomIntensity = 0.0f };
         if (registry.has<PostProcess>(mainCamera))
             registry.get<PostProcess>(mainCamera) = settings;
