@@ -5,7 +5,10 @@ set(FASTGLTF_COMPILE_AS_CPP20 ON)
 add_subdirectory(fastgltf)
 # Development (cmake/AegisBuildTypes.cmake) turns simdjson's development checks into `__assume`s with
 # side effects, which Clang warns about and fastgltf builds with its own -Werror.
-target_compile_options(fastgltf PRIVATE $<$<AND:$<CONFIG:Development>,$<CXX_COMPILER_ID:Clang>>:-Wno-assume>)
+target_compile_options(
+    fastgltf
+    PRIVATE $<$<AND:$<CONFIG:Development>,$<CXX_COMPILER_ID:Clang>>:-Wno-assume>
+)
 
 set(GLFW_BUILD_DOCS OFF)
 add_subdirectory(glfw)
@@ -23,9 +26,15 @@ add_subdirectory(imguizmo)
 # instead of through its CMakeLists.txt, which needs the whole repository. glue/ktx_stubs.c stands in for the zlib and
 # KTX1 code it leaves out; version.h is what upstream's build generates. Its zstd supercompression is zstd's own.
 file(STRINGS ktx/IMPORTED_VERSION KTX_IMPORTED_VERSION LIMIT_COUNT 1)
-file(CONFIGURE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ktx-generated/version.h
-    CONTENT "#define LIBKTX_VERSION ${KTX_IMPORTED_VERSION}\n#define LIBKTX_DEFAULT_VERSION v4.0.__default__\n")
-add_library(ktx STATIC
+file(
+    CONFIGURE
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ktx-generated/version.h
+    CONTENT
+        "#define LIBKTX_VERSION ${KTX_IMPORTED_VERSION}\n#define LIBKTX_DEFAULT_VERSION v4.0.__default__\n"
+)
+add_library(
+    ktx
+    STATIC
     glue/ktx_stubs.c
     ktx/lib/checkheader.c
     ktx/lib/filestream.c
@@ -46,14 +55,17 @@ add_library(ktx STATIC
     ktx/external/dfdutils/vk2dfd.c
 )
 target_include_directories(ktx SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ktx/include)
-target_include_directories(ktx PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR}/ktx-generated
-    ktx/lib
-    ktx/other_include
-    ktx/external
-    ktx/utils
+target_include_directories(
+    ktx
+    PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/ktx-generated
+        ktx/lib
+        ktx/other_include
+        ktx/external
+        ktx/utils
 )
-target_compile_definitions(ktx
+target_compile_definitions(
+    ktx
     PUBLIC KHRONOS_STATIC
     PRIVATE LIBKTX KTX_FEATURE_KTX2 KTX_FEATURE_WRITE KTX_OMIT_VULKAN=1
 )

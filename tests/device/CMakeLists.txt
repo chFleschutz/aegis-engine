@@ -1,24 +1,24 @@
 add_executable(aegis-test)
 
-target_sources(aegis-test
+target_sources(
+    aegis-test
+    PRIVATE FILE_SET CXX_MODULES FILES test.cppm
     PRIVATE
-    FILE_SET CXX_MODULES FILES
-    test.cppm
-    PRIVATE
-    main.cpp
-    harness.cpp
-    checks/assets.cpp
-    checks/graph.cpp
-    checks/ibl.cpp
-    checks/input.cpp
-    checks/offscreen.cpp
-    checks/rhi.cpp
-    checks/scene.cpp
-    checks/uploads.cpp
-    checks/window.cpp
+        main.cpp
+        harness.cpp
+        checks/assets.cpp
+        checks/graph.cpp
+        checks/ibl.cpp
+        checks/input.cpp
+        checks/offscreen.cpp
+        checks/rhi.cpp
+        checks/scene.cpp
+        checks/uploads.cpp
+        checks/window.cpp
 )
 
-target_link_libraries(aegis-test
+target_link_libraries(
+    aegis-test
     PRIVATE
         aegis-asset-library
         aegis-assets
@@ -39,17 +39,18 @@ target_link_libraries(aegis-test
 )
 
 # accumulate.slang reaches storage images through the engine's bindless module.
-aegis_add_shaders(test-shaders
-    SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/shader.slang
-        ${CMAKE_CURRENT_SOURCE_DIR}/accumulate.slang
+aegis_add_shaders(
+    test-shaders
+    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/shader.slang ${CMAKE_CURRENT_SOURCE_DIR}/accumulate.slang
     MODULES ${CMAKE_SOURCE_DIR}/shaders/modules/bindless.slang
     INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/shaders
 )
 set(SHADER_SPIRV "${CMAKE_CURRENT_BINARY_DIR}/shader.slang.spv")
 add_dependencies(aegis-test test-shaders)
 # The test's own fixture shaders, built next to it (not engine shaders, see aegis.paths).
-target_compile_definitions(aegis-test PRIVATE
-    AEGIS_TEST_SHADER_PATH="${SHADER_SPIRV}"
-    AEGIS_TEST_ACCUMULATE_SHADER_PATH="${CMAKE_CURRENT_BINARY_DIR}/accumulate.slang.spv"
+target_compile_definitions(
+    aegis-test
+    PRIVATE
+        AEGIS_TEST_SHADER_PATH="${SHADER_SPIRV}"
+        AEGIS_TEST_ACCUMULATE_SHADER_PATH="${CMAKE_CURRENT_BINARY_DIR}/accumulate.slang.spv"
 )

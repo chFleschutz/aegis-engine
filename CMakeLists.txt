@@ -11,7 +11,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # imports it, warnings-as-errors included. Clang warns on the std module sources themselves (they
 # name a module `std` and include headers in its purview), so silence just those two.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Wno-reserved-module-identifier;-Wno-include-angled-in-module-purview>")
+    add_compile_options(
+        "$<$<COMPILE_LANGUAGE:CXX>:-Wno-reserved-module-identifier;-Wno-include-angled-in-module-purview>"
+    )
 endif()
 
 option(BUILD_EXAMPLES "Build example projects" ON)
@@ -27,8 +29,14 @@ endif()
 # or <sdk>/x86_64/include on Linux). Found here, before any subdirectory: both shaders/ and aegis-test
 # (tests/device) compile with it.
 cmake_path(GET Vulkan_INCLUDE_DIR PARENT_PATH AEGIS_VULKAN_SDK_DIR)
-find_program(SLANGC_EXE slangc
-    HINTS "${AEGIS_VULKAN_SDK_DIR}/Bin" "${AEGIS_VULKAN_SDK_DIR}/bin" "$ENV{VULKAN_SDK}/bin" "$ENV{VULKAN_SDK}/Bin"
+find_program(
+    SLANGC_EXE
+    slangc
+    HINTS
+        "${AEGIS_VULKAN_SDK_DIR}/Bin"
+        "${AEGIS_VULKAN_SDK_DIR}/bin"
+        "$ENV{VULKAN_SDK}/bin"
+        "$ENV{VULKAN_SDK}/Bin"
     REQUIRED
 )
 include(cmake/AegisShaders.cmake)
@@ -44,7 +52,10 @@ if(PROJECT_IS_TOP_LEVEL AND EXISTS "${PROJECT_SOURCE_DIR}/games/examples/project
 else()
     set(AEGIS_SAMPLES OFF)
     if(PROJECT_IS_TOP_LEVEL)
-        message(STATUS "Samples not checked out, so the Examples game and the device tests that load them are skipped. Opt in with: git submodule update --init --checkout games/examples/project")
+        message(
+            STATUS
+            "Samples not checked out, so the Examples game and the device tests that load them are skipped. Opt in with: git submodule update --init --checkout games/examples/project"
+        )
     endif()
 endif()
 

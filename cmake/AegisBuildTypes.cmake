@@ -17,7 +17,10 @@ else()
     endif()
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${AEGIS_BUILD_TYPES})
     if(NOT CMAKE_BUILD_TYPE IN_LIST AEGIS_BUILD_TYPES)
-        message(FATAL_ERROR "CMAKE_BUILD_TYPE is '${CMAKE_BUILD_TYPE}'; use one of: ${AEGIS_BUILD_TYPES}")
+        message(
+            FATAL_ERROR
+            "CMAKE_BUILD_TYPE is '${CMAKE_BUILD_TYPE}'; use one of: ${AEGIS_BUILD_TYPES}"
+        )
     endif()
 endif()
 

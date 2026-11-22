@@ -1,4 +1,5 @@
-aegis_add_test(platform
+aegis_add_test(
+    platform
     SOURCES
         error.test.cpp
         glfw_state.test.cpp
