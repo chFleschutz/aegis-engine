@@ -23,6 +23,7 @@ endfunction()
 add_subdirectory(asset_library)
 add_subdirectory(assets)
 add_subdirectory(core)
+add_subdirectory(device) # aegis-test, the harness that checks a real device
 add_subdirectory(editor)
 add_subdirectory(engine)
 add_subdirectory(math)
@@ -42,7 +43,7 @@ add_subdirectory(world)
 # exits non-zero on any failed check or validation error. aegis-test returns 77 when the device lacks a
 # feature the run needs, which CTest reports as skipped. Extra LABELS name that feature (`mesh-shaders`).
 # The `gpu` resource lock keeps device runs from overlapping when ctest runs tests in parallel.
-set(AEGIS_TEST_SKIP_RETURN_CODE 77) # Keep in step with aegis/test/test.cppm
+set(AEGIS_TEST_SKIP_RETURN_CODE 77) # Keep in step with tests/device/test.cppm
 function(aegis_add_device_test name)
     cmake_parse_arguments(T "" "" "ARGS;LABELS" ${ARGN})
     add_test(NAME ${name} COMMAND aegis-test ${T_ARGS})
@@ -66,13 +67,13 @@ if(TARGET compile_shaders)
     # The harness headless for a fixed number of frames.
     aegis_add_device_test(aegis-test-headless ARGS --headless --frames 600 ${samples_args})
 
-    # Reference images: the last frame against tests/golden, generated on the dev GPU (see tests/README.md). Local
+    # Reference images: the last frame against tests/device/golden, generated on the dev GPU (see tests/README.md). Local
     # only: the lavapipe CI job runs the other device tests but excludes these with -LE golden, since software
     # rendering differs from the dev GPU (the triangle by 1 per channel, the scenes by up to 176 on ~80k pixels:
     # beyond any tolerance that would still catch a regression). The stats window is left out, its timings
     # change every run.
     aegis_add_device_test(aegis-test-golden-triangle
-        ARGS --headless --frames 120 --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/triangle.png --tolerance 0 ${samples_args}
+        ARGS --headless --frames 120 --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/triangle.png --tolerance 0 ${samples_args}
         LABELS golden)
 endif()
 
@@ -115,51 +116,51 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
 
     # The scene's reference images (see above).
     aegis_add_device_test(aegis-test-golden-scene
-        ARGS --headless --scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene.png --tolerance 0
+        ARGS --headless --scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene.png --tolerance 0
         LABELS golden)
     aegis_add_device_test(aegis-test-golden-scene-gpu-driven
-        ARGS --headless --gpu-driven --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-gpu-driven.png --tolerance 0
+        ARGS --headless --gpu-driven --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-gpu-driven.png --tolerance 0
         LABELS golden mesh-shaders)
     # The helmet mirrored (a scale of -1 on x): it must look like the plain one, not inside out (#171).
     aegis_add_device_test(aegis-test-golden-scene-mirrored
-        ARGS --headless --scene --mirror --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-mirrored.png --tolerance 0
+        ARGS --headless --scene --mirror --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-mirrored.png --tolerance 0
         LABELS golden)
     aegis_add_device_test(aegis-test-golden-scene-mirrored-gpu-driven
-        ARGS --headless --gpu-driven --mirror --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-mirrored-gpu-driven.png --tolerance 0
+        ARGS --headless --gpu-driven --mirror --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-mirrored-gpu-driven.png --tolerance 0
         LABELS golden mesh-shaders)
     # The two overlapping half-transparent cubes in front of the helmet, lit by the forward pass and composed back to
     # front: with --blend-swap they trade places, so a fixed draw order composes one of the two images wrongly.
     aegis_add_device_test(aegis-test-golden-scene-blend
-        ARGS --headless --scene --blend --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-blend.png --tolerance 0
+        ARGS --headless --scene --blend --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend.png --tolerance 0
         LABELS golden)
     aegis_add_device_test(aegis-test-golden-scene-blend-gpu-driven
-        ARGS --headless --gpu-driven --blend --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-blend-gpu-driven.png --tolerance 0
+        ARGS --headless --gpu-driven --blend --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend-gpu-driven.png --tolerance 0
         LABELS golden mesh-shaders)
     aegis_add_device_test(aegis-test-golden-scene-blend-swap
-        ARGS --headless --scene --blend-swap --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-blend-swap.png --tolerance 0
+        ARGS --headless --scene --blend-swap --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend-swap.png --tolerance 0
         LABELS golden)
     aegis_add_device_test(aegis-test-golden-scene-blend-swap-gpu-driven
-        ARGS --headless --gpu-driven --blend-swap --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-blend-swap-gpu-driven.png --tolerance 0
+        ARGS --headless --gpu-driven --blend-swap --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend-swap-gpu-driven.png --tolerance 0
         LABELS golden mesh-shaders)
     # Rendered with the main camera's PostProcess after the graph was rebuilt: not the plain scene's image.
     aegis_add_device_test(aegis-test-golden-scene-post-process
-        ARGS --headless --scene --post-process --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-post-process.png --tolerance 0
+        ARGS --headless --scene --post-process --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-post-process.png --tolerance 0
         LABELS golden)
     # Back on the main world after the second one rendered, the last frame is the plain scene's.
     aegis_add_device_test(aegis-test-golden-scene-worlds
-        ARGS --headless --scene --worlds --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene.png --tolerance 0
+        ARGS --headless --scene --worlds --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene.png --tolerance 0
         LABELS golden)
     aegis_add_device_test(aegis-test-golden-scene-worlds-gpu-driven
-        ARGS --headless --gpu-driven --worlds --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/scene-gpu-driven.png --tolerance 0
+        ARGS --headless --gpu-driven --worlds --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-gpu-driven.png --tolerance 0
         LABELS golden mesh-shaders)
     # The same scene without a reference, so CI's lavapipe job builds the masked pipelines under validation.
     aegis_add_device_test(aegis-test-scene-sponza ARGS --headless --scene-file scenes/sponza.scene --frames 10 --no-overlay)
     aegis_add_device_test(aegis-test-scene-sponza-gpu-driven ARGS --headless --gpu-driven --scene-file scenes/sponza.scene --frames 10 --no-overlay LABELS mesh-shaders)
     # Sponza's masked, double-sided materials (foliage, #135): cut out by their alpha, both sides drawn.
     aegis_add_device_test(aegis-test-golden-sponza
-        ARGS --headless --scene-file scenes/sponza.scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/sponza.png --tolerance 0
+        ARGS --headless --scene-file scenes/sponza.scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/sponza.png --tolerance 0
         LABELS golden)
     aegis_add_device_test(aegis-test-golden-sponza-gpu-driven
-        ARGS --headless --gpu-driven --scene-file scenes/sponza.scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/golden/sponza-gpu-driven.png --tolerance 0
+        ARGS --headless --gpu-driven --scene-file scenes/sponza.scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/sponza-gpu-driven.png --tolerance 0
         LABELS golden mesh-shaders)
 endif()

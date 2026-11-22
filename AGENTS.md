@@ -251,7 +251,7 @@ umbrella, partition cycles).
 showing green.
 
 ## Verifying device code
-Green unit tests are *not* sufficient when device code changed. `aegis/test/` (`aegis-test`) is
+Green unit tests are *not* sufficient when device code changed. `tests/device/` (`aegis-test`) is
 the only `main()` that checks a real `rhi::Device` for failures; `games/` run the same stack but
 nothing fails them on a regression. Debug builds enable core **and synchronization** validation, and
 `aegis-test` exits non-zero on any failed check or validation error of severity *error* (messages go

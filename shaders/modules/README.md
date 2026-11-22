@@ -70,7 +70,7 @@ component type (a `float3` takes 12 bytes, aligned to 4). So a C++ struct of `gl
 and material parameter blocks rely on it. Matrices are row-major (`-matrix-layout-row-major`); upload
 `glm::rowMajor4(m)`.
 
-Working examples: `computeMain` in `aegis/test/shader.slang`, and `shaders/ibl/*.slang`
+Working examples: `computeMain` in `tests/device/shader.slang`, and `shaders/ibl/*.slang`
 (driven by `render_graph::Ibl`).
 
 ## Lighting

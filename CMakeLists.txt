@@ -25,7 +25,7 @@ endif()
 
 # Slang shader compiler, from the same Vulkan SDK as the headers (Vulkan_INCLUDE_DIR is <sdk>/Include,
 # or <sdk>/x86_64/include on Linux). Found here, before any subdirectory: both shaders/ and aegis-test
-# (aegis/test) compile with it.
+# (tests/device) compile with it.
 cmake_path(GET Vulkan_INCLUDE_DIR PARENT_PATH AEGIS_VULKAN_SDK_DIR)
 find_program(SLANGC_EXE slangc
     HINTS "${AEGIS_VULKAN_SDK_DIR}/Bin" "${AEGIS_VULKAN_SDK_DIR}/bin" "$ENV{VULKAN_SDK}/bin" "$ENV{VULKAN_SDK}/Bin"

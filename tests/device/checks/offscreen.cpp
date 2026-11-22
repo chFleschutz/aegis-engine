@@ -13,7 +13,7 @@ import aegis.rhi;
 
 namespace aegis::test
 {
-// --compare: the last frame against a reference PNG from the dev GPU (tests/golden, see tests/README.md). Passes
+// --compare: the last frame against a reference PNG from the dev GPU (tests/device/golden, see tests/README.md). Passes
 // when no channel of any pixel is off by more than --tolerance; otherwise writes a diff image (the differing
 // pixels amplified, the rest dimmed) next to --screenshot, or into the working directory, and fails.
 auto compareToReference(const Options& options, std::span<const std::byte> pixels, rhi::Extent2D extent) -> std::expected<void, std::string>
