@@ -53,7 +53,7 @@ with synthetic key and mouse messages, on Windows only (other platforms skip tha
 `aegis-test --headless --compare <png> [--tolerance <0-255>]` compares the last frame with a reference
 and exits non-zero on a mismatch, writing `<name>.diff.png` (differing pixels in red) next to
 `--screenshot`, or into the working directory. The references in `tests/golden/` (triangle, `--scene`,
-`--gpu-driven`, both scene paths with `--mirror` and with `--blend`, `--post-process`, and Sponza on both paths with `--scene-file`) come from the dev GPU and run locally as `golden`-labelled device tests
+`--gpu-driven`, both scene paths with `--mirror`, `--blend` and `--blend-swap`, `--post-process`, and Sponza on both paths with `--scene-file`) come from the dev GPU and run locally as `golden`-labelled device tests
 (`ctest --preset windows-clang-debug -L golden`); CI's lavapipe job runs the other device tests but
 excludes these (`-LE golden`): software rendering differs from the dev GPU's. Other
 GPUs or drivers may differ slightly, so raise `--tolerance` there rather than committing new images.

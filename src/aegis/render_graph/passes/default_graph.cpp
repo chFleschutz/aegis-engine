@@ -91,7 +91,7 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
     graph.add<SkyBoxPass>(scene, desc.view);
     // Blended draws take the CPU-driven draw on both geometry paths.
     graph.add<ForwardPass>(scene, desc.view, shadow).addRenderSystem<StaticMeshRenderSystem>(Technique::Forward);
-    graph.add<TransparentPass>(scene).addRenderSystem<PointLightRenderSystem>();
+    graph.add<TransparentPass>(scene, desc.view).addRenderSystem<PointLightRenderSystem>();
     graph.add<BloomPass>(scene);
     graph.add<PostProcessingPass>(scene);
 }

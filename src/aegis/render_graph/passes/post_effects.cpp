@@ -161,8 +161,9 @@ auto BloomPass::drawUI() -> void
 
 // Transparent ----------------------------------------------------------------------------------------
 
-TransparentPass::TransparentPass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+TransparentPass::TransparentPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view) :
     m_scene{ scene },
+    m_view{ view },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::ColorAttachment) },
     m_depth{ declarations.addReference(names::depth, Usage::DepthRead) },
     m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) }
@@ -206,11 +207,14 @@ auto TransparentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
     cmd.setViewport(pool.extent(m_depth));
     cmd.setScissor(pool.extent(m_depth));
 
+    const auto& scene = m_scene.current();
+    const auto camera = scene.camera(m_view);
     const RenderContext context{
         .cmd = cmd,
-        .frameScene = m_scene.current(),
+        .frameScene = scene,
         .frameIndex = frameInfo.frameIndex,
         .camera = pool.bufferAddress(m_cameraData, frameInfo.frameIndex),
+        .view = camera ? camera->view : glm::mat4{ 1.0f },
     };
     for (const auto& system : m_renderSystems)
         system->render(context);
@@ -243,10 +247,17 @@ auto PointLightRenderSystem::createResources(rhi::Device& device, const RenderTa
 
 auto PointLightRenderSystem::render(const RenderContext& context) -> void
 {
+    // The billboards blend, so the farthest draws first.
+    const auto& lights = context.frameScene.pointLights;
+    m_order.clear();
+    for (std::uint32_t i = 0; i < lights.size(); ++i)
+        m_order.push_back({ .depth = detail::viewDepth(context.view, lights[i].position), .index = i });
+    detail::sortBackToFront(m_order);
+
     context.cmd.bindPipeline(*m_pipeline);
-    for (const auto& light : context.frameScene.pointLights)
+    for (const auto& draw : m_order)
     {
-        context.cmd.pushConstants(detail::makePointLightConstants(light, context.camera));
+        context.cmd.pushConstants(detail::makePointLightConstants(lights[draw.index], context.camera));
         context.cmd.draw(6);
     }
 }
