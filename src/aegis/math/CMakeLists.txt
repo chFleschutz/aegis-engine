@@ -15,5 +15,6 @@ PUBLIC
 		matrix.cppm
 		quaternion.cppm
 		scalar.cppm
+		transform.cppm
 		vector.cppm
 )

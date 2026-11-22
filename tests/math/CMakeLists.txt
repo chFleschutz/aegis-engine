@@ -6,5 +6,6 @@ aegis_add_test(math
         matrix.test.cpp
         quaternion.test.cpp
         scalar.test.cpp
+        transform.test.cpp
         vector.test.cpp
     LIBS aegis-math glm::glm)

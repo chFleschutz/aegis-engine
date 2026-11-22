@@ -22,6 +22,7 @@ export import :scalar;
 export import :vector;
 export import :matrix;
 export import :quaternion;
+export import :transform;
 export import :aliases;
 
 export namespace glm
