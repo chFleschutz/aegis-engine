@@ -81,6 +81,14 @@
             }
         },
         {
+            "name": "linux-clang-dev",
+            "inherits": "linux-clang",
+            "displayName": "Linux Clang Development",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Development"
+            }
+        },
+        {
             "name": "linux-clang-release",
             "inherits": "linux-clang",
             "displayName": "Linux Clang Release",
@@ -97,6 +105,14 @@
             }
         },
         {
+            "name": "windows-clang-dev",
+            "inherits": "windows-clang",
+            "displayName": "Windows Clang Development",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Development"
+            }
+        },
+        {
             "name": "windows-clang-release",
             "inherits": "windows-clang",
             "displayName": "Windows Clang Release",
@@ -110,6 +126,14 @@
             "displayName": "Windows MSVC Debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "windows-msvc-dev",
+            "inherits": "windows-msvc",
+            "displayName": "Windows MSVC Development",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Development"
             }
         },
         {
@@ -128,6 +152,11 @@
             "configurePreset": "linux-clang-debug"
         },
         {
+            "name": "linux-clang-dev",
+            "displayName": "Linux Clang Development",
+            "configurePreset": "linux-clang-dev"
+        },
+        {
             "name": "linux-clang-release",
             "displayName": "Linux Clang Release",
             "configurePreset": "linux-clang-release"
@@ -138,6 +167,11 @@
             "configurePreset": "windows-clang-debug"
         },
         {
+            "name": "windows-clang-dev",
+            "displayName": "Windows Clang Development",
+            "configurePreset": "windows-clang-dev"
+        },
+        {
             "name": "windows-clang-release",
             "displayName": "Windows Clang Release",
             "configurePreset": "windows-clang-release"
@@ -146,6 +180,11 @@
             "name": "windows-msvc-debug",
             "displayName": "Windows MSVC Debug",
             "configurePreset": "windows-msvc-debug"
+        },
+        {
+            "name": "windows-msvc-dev",
+            "displayName": "Windows MSVC Development",
+            "configurePreset": "windows-msvc-dev"
         },
         {
             "name": "windows-msvc-release",
@@ -171,6 +210,12 @@
             "configurePreset": "linux-clang-debug"
         },
         {
+            "name": "linux-clang-dev",
+            "inherits": "base",
+            "displayName": "Linux Clang Development",
+            "configurePreset": "linux-clang-dev"
+        },
+        {
             "name": "linux-clang-release",
             "inherits": "base",
             "displayName": "Linux Clang Release",
@@ -183,6 +228,12 @@
             "configurePreset": "windows-clang-debug"
         },
         {
+            "name": "windows-clang-dev",
+            "inherits": "base",
+            "displayName": "Windows Clang Development",
+            "configurePreset": "windows-clang-dev"
+        },
+        {
             "name": "windows-clang-release",
             "inherits": "base",
             "displayName": "Windows Clang Release",
@@ -193,6 +244,12 @@
             "inherits": "base",
             "displayName": "Windows MSVC Debug",
             "configurePreset": "windows-msvc-debug"
+        },
+        {
+            "name": "windows-msvc-dev",
+            "inherits": "base",
+            "displayName": "Windows MSVC Development",
+            "configurePreset": "windows-msvc-dev"
         },
         {
             "name": "windows-msvc-release",

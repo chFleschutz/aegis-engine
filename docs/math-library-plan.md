@@ -74,7 +74,7 @@ Each operation is written **once**, for every scalar type and size. What keeps t
   types and shapes keep the generic path.
 
 **Debug speed** is not a design driver. Generic templates are slow at `-O0`, like most of the engine;
-a **dev preset** (Debug with `-O1`, so asserts and validation stay on, see PR 0) is the answer for
+a **dev preset** (the `Development` build type: Debug with optimisation, so asserts and validation stay on, see PR 0) is the answer for
 day-to-day runs, and plain `-debug` stays for stepping through code.
 
 ### Concepts
@@ -469,12 +469,9 @@ rewrite by hand, which the full `ctest`, the golden images and the screenshots c
 
 Each PR follows AGENTS (worktree, `ctest -LE device` per commit, full `ctest` before pushing).
 
-0. **`build/dev-presets`: Debug with optimisation.** `windows-clang-dev` and `linux-clang-dev`
-   presets: `CMAKE_BUILD_TYPE=Debug` (so `NDEBUG` stays undefined: asserts and validation on) plus
-   `-O1` added after CMake's Debug flags (check in the compile commands that it wins over `-O0`, and
-   that the Windows Debug runtime defines survive; do not overwrite `CMAKE_CXX_FLAGS_DEBUG`). AGENTS
-   "Build & run" names the preset for day-to-day runs and keeps `-debug` for stepping. Independent of
-   the math work; can land first or in parallel.
+0. **`build/dev-presets`: Debug with optimisation**
+   ([#443](https://github.com/chFleschutz/aegis-engine/issues/443)): the `Development` build type
+   (`cmake/AegisBuildTypes.cmake`) and its `*-dev` presets. Independent of the math work.
 1. **`feat/math-library`: the library beside glm.** New partitions in `aegis.math` exporting the
    templates, concepts and aliases, while the `namespace glm` wrapper and the glm-typed helpers stay
    (overloads by type, no clash: the new names are PascalCase). Tests, layout asserts, benchmark with
