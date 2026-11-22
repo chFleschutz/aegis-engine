@@ -58,6 +58,10 @@ _Avoid_: external resource
 Said of a persistent texture or history pair that holds nothing of the previous frame yet: in the first frame, after a resize recreated it and after a graph rebuild.
 _Avoid_: invalidated, reset
 
+**Pass settings**:
+A pass's runtime tunables (the lighting view mode, the bloom filter scales): a `Settings` struct registered with the type registry in the Settings category, which the pass reads every frame and tools set by field name. Not scene data: post-processing lives on the camera's `PostProcess` component.
+_Avoid_: pass options, debug UI
+
 ### Rendering
 
 **Frame scene**:

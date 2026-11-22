@@ -391,8 +391,6 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   there is no `--project`.
 - Command palette (Ctrl+Shift+P) over the action registry; user-defined shortcuts.
 - Camera bookmarks; the editor camera remembered per scene.
-- Render-pass debug options (lighting view mode, bloom filter scales) through the type registry instead of
-  `RenderPass::drawUI()`; post-processing settings are already scene data (the `PostProcess` component, #256).
 - UI automation tests with Dear ImGui Test Engine (check its license first; it is not MIT).
 
 ### Avoid
@@ -406,7 +404,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - **Writing to the world from inside the render graph** or during rendering, and `World::defer` as the
   editor's write path.
 - **The editor touching Vulkan,** the ImGui Vulkan backend or render-graph internals, and new
-  `drawUI()` hooks in passes.
+  ImGui calls in passes: a pass's tunables are a `Settings` struct registered with the type registry
+  (`RenderPass::settings()`), which the Renderer panel draws with the inspector's property grid.
 - **Whole-world snapshots per edit** for undo. Field edits store two values; structural edits store
   only the affected subtree.
 - **ImGui multi-viewport** (panels as OS windows): it multiplies the swapchain and backend work and is

@@ -1,8 +1,6 @@
 module;
 #include <cassert>
 
-#include <imgui.h>
-
 module aegis.render_passes;
 import std;
 import aegis.assets;
@@ -150,7 +148,7 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
             shadow->spotAtlas = rhi::TextureDescriptor{ *m_device->get(pool.texture(m_spotShadowAtlas).view).sampledDescriptor(), sampler };
     }
     const auto uniforms = detail::packLighting(scene, m_view, pool.bufferAddress(m_lights, frameInfo.frameIndex),
-        lightCapacity, m_ambientOcclusionFactor, m_viewMode, shadow, m_brdfLut->descriptor());
+        lightCapacity, m_settings.ambientOcclusionFactor, m_settings.viewMode, shadow, m_brdfLut->descriptor());
     pool.write(m_uniforms, frameInfo.frameIndex, std::as_bytes(std::span{ &uniforms, 1 }));
 
     const LightingConstants constants{
@@ -172,14 +170,11 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     cmd.dispatch(groupCount(extent.x, computeGroupSize), groupCount(extent.y, computeGroupSize));
 }
 
-auto LightingPass::drawUI() -> void
+auto LightingPass::settings() -> std::optional<PassSettings>
 {
-    ImGui::DragFloat("AO Factor", &m_ambientOcclusionFactor, 0.01f, 0.0f, 1.0f);
-    static constexpr std::array viewModeNames{ "Scene Color", "Albedo", "Ambient Occlusion", "Roughness", "Metallic",
-        "Emissive", "Shadow Cascades" };
-    int mode = static_cast<int>(m_viewMode);
-    if (ImGui::Combo("View Mode", &mode, viewModeNames.data(), static_cast<int>(viewModeNames.size())))
-        m_viewMode = static_cast<LightingViewMode>(mode);
+    const auto* type = passSettingsTypes().find<Settings>();
+    assert(type && "LightingPass::Settings is registered in passSettingsTypes");
+    return PassSettings{ .type = *type, .object = &m_settings };
 }
 
 namespace detail

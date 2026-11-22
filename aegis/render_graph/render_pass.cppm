@@ -4,6 +4,7 @@ import :declarations;
 import :error;
 import :resource;
 import :resource_pool;
+import aegis.reflect;
 import aegis.rhi;
 
 export namespace aegis::render_graph
@@ -19,6 +20,14 @@ struct FrameInfo
     /// @brief The renderer's target for this frame (swapchain image or offscreen target), in
     ///        ResourceState::ColorAttachment; a pass using it must leave it in that state.
     rhi::ImageViewHandle target;
+};
+
+/// @brief A pass's runtime tunables: 'object', the pass's instance of 'type' (registered with aegis.reflect in the
+///        Settings category), which the pass reads every frame. Tools edit it through the type's fields.
+struct PassSettings
+{
+    const reflect::TypeInfo& type;
+    void* object;
 };
 
 /// @brief One node of the frame graph. The constructor declares resources on the ResourceDeclarations.
@@ -58,7 +67,7 @@ public:
     ///        could was done in prepare.
     virtual auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void = 0;
 
-    /// @brief Settings for the editor's renderer panel (ImGui).
-    virtual auto drawUI() -> void {}
+    /// @brief The pass's runtime tunables, or none for a pass without any. The editor's renderer panel shows them.
+    [[nodiscard]] virtual auto settings() -> std::optional<PassSettings> { return std::nullopt; }
 };
 }

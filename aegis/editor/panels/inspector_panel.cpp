@@ -266,11 +266,12 @@ auto drawCombo(const PropertyRow& row, const reflect::Value& value) -> std::opti
     const auto& entries = row.field->enumEntries;
     const auto selected = std::ranges::find(entries, current, &reflect::EnumEntry::value);
     std::optional<reflect::Value> edited;
-    if (ImGui::BeginCombo("##value", selected != entries.end() ? selected->name.c_str() : "?"))
+    const std::string shown = selected != entries.end() ? fieldLabel(selected->name) : "?";
+    if (ImGui::BeginCombo("##value", shown.c_str()))
     {
         for (const auto& entry : entries)
         {
-            if (ImGui::Selectable(entry.name.c_str(), entry.value == current))
+            if (ImGui::Selectable(fieldLabel(entry.name).c_str(), entry.value == current))
                 edited = reflect::Value{ entry.value };
         }
         ImGui::EndCombo();
