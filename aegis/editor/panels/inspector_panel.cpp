@@ -540,6 +540,22 @@ constexpr float labelMaxShare{ 0.4f };
 // Each edit is recorded in the undo stack; a widget still being dragged or typed in extends one entry.
 void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool readOnly, EditorContext& editor, FrameContext& frame)
 {
+    const auto edit = [&](const PropertyRow& row, const reflect::Value& value, bool active) {
+        // Only an asset slot loads what it names
+        auto edits = editWorld(editor, frame);
+        if (row.widget != PropertyWidget::AssetSlot)
+            edits.prepare = {};
+        if (auto written = editField(edits, editor.undoStack(), entity, type, scriptIndex, row.field->name, value, active); !written)
+            log::warn("Cannot set {}.{}: {}", type.name, row.field->name, describe(written.error()));
+    };
+    drawPropertyGrid(type, object, readOnly, frame.assets.database(), edit, [&] { editor.undoStack().seal(); });
+}
+}
+
+void drawPropertyGrid(const reflect::TypeInfo& type, const void* object, bool readOnly, const assets::AssetDatabase& database,
+    const std::function<void(const PropertyRow& row, const reflect::Value& value, bool active)>& edit,
+    const std::function<void()>& released)
+{
     const auto rows = propertyRows(type);
     // The values take most of the width (three axes share a row): the labels get what their widest needs, at least
     // labelMinShare of the width so the sections line up, and at most labelMaxShare
@@ -567,26 +583,21 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
         ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::BeginDisabled(readOnly || row.readOnly);
         const auto current = row.field->getter(object);
-        const auto edited = drawValue(type, row, current, frame.assets.database(), !readOnly && !row.readOnly);
+        const auto edited = drawValue(type, row, current, database, !readOnly && !row.readOnly);
         const bool active = ImGui::IsItemActive();
         const bool deactivated = ImGui::IsItemDeactivated();
         ImGui::EndDisabled();
         if (edited)
-        {
-            // Only an asset slot loads what it names
-            auto edits = editWorld(editor, frame);
-            if (row.widget != PropertyWidget::AssetSlot)
-                edits.prepare = {};
-            if (auto written = editField(edits, editor.undoStack(), entity, type, scriptIndex, row.field->name, *edited, active); !written)
-                log::warn("Cannot set {}.{}: {}", type.name, row.field->name, describe(written.error()));
-        }
-        if (deactivated)
-            editor.undoStack().seal();
+            edit(row, *edited, active);
+        if (deactivated && released)
+            released();
         ImGui::PopID();
     }
     ImGui::EndTable();
 }
 
+namespace
+{
 // The Add menu's items: 'types' (sorted by category) as selectable rows, under a heading per category when
 // 'categories'. 'highlighted' (the first match) is drawn selected. The type clicked this frame, if any.
 auto drawTypeGroups(std::span<const reflect::TypeInfo* const> types, const reflect::TypeInfo* highlighted, bool categories) -> const reflect::TypeInfo*
