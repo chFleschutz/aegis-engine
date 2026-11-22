@@ -4,11 +4,14 @@ module;
 
 module aegis.editor;
 import std;
+import aegis.core;
+import aegis.reflect;
 import aegis.render_graph;
 import aegis.renderer;
 import aegis.rhi;
 import :panels;
 import :theme;
+import :widgets;
 
 namespace aegis::editor
 {
@@ -35,6 +38,16 @@ public:
     [[nodiscard]] auto placement() const -> Placement override { return Placement::Drawer; }
     [[nodiscard]] auto menu() const -> Menu override { return Menu::Debug; }
 
+    // A pass's settings, set straight on the pass: runtime tunables, not scene data, so no undo entry.
+    static void drawSettings(const render_graph::PassSettings& settings, FrameContext& frame)
+    {
+        const auto edit = [&](const PropertyRow& row, const reflect::Value& value, bool) {
+            if (auto written = row.field->setter(settings.object, value); !written)
+                log::warn("Cannot set {}.{}: {}", settings.type.name, row.field->name, describe(written.error()));
+        };
+        drawPropertyGrid(settings.type, settings.object, false, frame.assets.database(), edit);
+    }
+
     void draw(EditorContext&, FrameContext& frame) override
     {
         auto& frameGraph = frame.frameGraph;
@@ -56,7 +69,8 @@ public:
             const std::string passName{ description.name };
             if (ImGui::CollapsingHeader(passName.c_str(), ImGuiTreeNodeFlags_None))
             {
-                description.pass->drawUI();
+                if (const auto settings = description.pass->settings())
+                    drawSettings(*settings, frame);
                 for (const auto& [label, handles] : { std::pair{ "Reads", &description.reads }, std::pair{ "Writes", &description.writes } })
                 {
                     if (handles->empty() || !ImGui::TreeNode(label))

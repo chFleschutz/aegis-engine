@@ -1,5 +1,6 @@
 module aegis.editor:widgets;
 import std;
+import aegis.assets;
 import aegis.editor.core;
 import aegis.engine;
 import aegis.reflect;
@@ -25,6 +26,14 @@ auto searchField(const char* id, const char* hint, std::string& text, int flags 
 
 /// @brief The icon of the component or script 'type' (the inspector's sections, the Add menu).
 [[nodiscard]] auto componentIcon(const reflect::TypeInfo& type) -> const char*;
+
+/// @brief The registered fields of 'object' (an instance of 'type') as a two-column property grid, one row per field
+///        (propertyRows): the inspector's sections and the renderer panel's pass settings. 'edit' gets each field edited
+///        this frame, its new value and whether its widget is still active (being dragged or typed in); 'released', if
+///        set, is called when a widget is let go. 'readOnly' disables every row; 'database' names the assets of asset slots.
+void drawPropertyGrid(const reflect::TypeInfo& type, const void* object, bool readOnly, const assets::AssetDatabase& database,
+    const std::function<void(const PropertyRow& row, const reflect::Value& value, bool active)>& edit,
+    const std::function<void()>& released = {});
 
 /// @brief The icon of an asset of 'kind' (the asset list, the inspector's asset slots), and its color as an ImU32.
 [[nodiscard]] auto assetIcon(AssetKind kind) -> const char*;

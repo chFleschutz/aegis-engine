@@ -1,5 +1,5 @@
 module;
-#include <imgui.h>
+#include <cassert>
 
 module aegis.render_passes;
 import std;
@@ -153,10 +153,11 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
         rhi::ResourceState::ComputeStorage);
 }
 
-auto BloomPass::drawUI() -> void
+auto BloomPass::settings() -> std::optional<PassSettings>
 {
-    ImGui::SliderFloat("Downsample Scale", &m_settings.downsampleScale, 0.0f, 2.0f);
-    ImGui::SliderFloat("Upsample Scale", &m_settings.upsampleScale, 0.0f, 2.0f);
+    const auto* type = passSettingsTypes().find<Settings>();
+    assert(type && "BloomPass::Settings is registered in passSettingsTypes");
+    return PassSettings{ .type = *type, .object = &m_settings };
 }
 
 // Transparent ----------------------------------------------------------------------------------------

@@ -1,0 +1,27 @@
+export module aegis.render_passes:pass_settings;
+import std;
+import aegis.reflect;
+import :gpu_types;
+
+// The save-file names of the lighting pass's view modes
+export template<>
+struct aegis::reflect::EnumNames<aegis::render_graph::LightingViewMode>
+{
+    using Mode = aegis::render_graph::LightingViewMode;
+    static constexpr auto values = std::to_array<std::pair<std::string_view, Mode>>({
+        { "SceneColor", Mode::SceneColor },
+        { "Albedo", Mode::Albedo },
+        { "AmbientOcclusion", Mode::AmbientOcclusion },
+        { "Roughness", Mode::Roughness },
+        { "Metallic", Mode::Metallic },
+        { "Emissive", Mode::Emissive },
+        { "ShadowCascades", Mode::ShadowCascades },
+    });
+};
+
+export namespace aegis::render_graph
+{
+/// @brief The Settings types of the engine's passes (LightingPass::Settings, BloomPass::Settings), registered in the
+///        reflect::TypeCategory::Settings category: what RenderPass::settings names. Built on first use.
+[[nodiscard]] auto passSettingsTypes() -> const reflect::TypeRegistry&;
+}

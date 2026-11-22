@@ -4,7 +4,7 @@ add_library(aegis-render-graph STATIC)
 
 target_link_libraries(
     aegis-render-graph
-    PUBLIC aegis-math aegis-renderer aegis-rhi
+    PUBLIC aegis-math aegis-reflect aegis-renderer aegis-rhi
     PRIVATE aegis-core
 )
 

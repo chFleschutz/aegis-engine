@@ -19,6 +19,7 @@ export import :ibl;
 export import :instance_store;
 export import :lighting_pass;
 export import :names;
+export import :pass_settings;
 export import :pipeline_cache;
 export import :post_effects;
 export import :render_system;

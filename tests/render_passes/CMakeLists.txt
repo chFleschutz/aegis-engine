@@ -8,6 +8,7 @@ aegis_add_test(
         gpu_driven.test.cpp
         gpu_types.test.cpp
         instance_store.test.cpp
+        pass_settings.test.cpp
         pipeline_cache.test.cpp
         shadows.test.cpp
     LIBS aegis-render-passes

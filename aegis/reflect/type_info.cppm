@@ -58,6 +58,7 @@ enum class TypeCategory
 {
     Component, // Data attached to an entity
     Script,    // Behavior attached to an entity, with its persistent state in fields
+    Settings,  // Runtime tunables of a system, not attached to an entity (a render pass's Settings)
 };
 
 // Upgrades a type's saved fields (an object node, as read from a file) by one version, from n to n + 1.

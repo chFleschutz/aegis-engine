@@ -137,6 +137,21 @@ TEST_SUITE("reflect::TypeRegistry")
         CHECK(types.find("Rotator")->category == TypeCategory::Script);
     }
 
+    TEST_CASE("registers settings in their own category")
+    {
+        TypeRegistry types;
+        auto settings = types.settings<Rotator>("RotatorSettings");
+        REQUIRE(settings.has_value());
+        settings->field("speed", &Rotator::speed);
+
+        const TypeInfo* info = types.find<Rotator>();
+        REQUIRE(info != nullptr);
+        CHECK(info->category == TypeCategory::Settings);
+        Rotator rotator;
+        REQUIRE(info->setText(&rotator, "speed", "2.5").has_value());
+        CHECK(rotator.speed == doctest::Approx(2.5f));
+    }
+
     TEST_CASE("rejects a duplicate type name")
     {
         TypeRegistry types;

@@ -4,8 +4,15 @@ add_library(aegis-render-passes STATIC)
 
 target_link_libraries(
     aegis-render-passes
-    PUBLIC aegis-assets aegis-core aegis-math aegis-render-graph aegis-renderer aegis-rhi
-    PRIVATE aegis-paths imgui
+    PUBLIC
+        aegis-assets
+        aegis-core
+        aegis-math
+        aegis-reflect
+        aegis-render-graph
+        aegis-renderer
+        aegis-rhi
+    PRIVATE aegis-paths
 )
 
 target_sources(
@@ -25,6 +32,7 @@ target_sources(
                 instance_store.cppm
                 lighting_pass.cppm
                 names.cppm
+                pass_settings.cppm
                 pipeline_cache.cppm
                 post_effects.cppm
                 render_system.cppm
@@ -43,6 +51,7 @@ target_sources(
         ibl.cpp
         instance_store.cpp
         lighting_pass.cpp
+        pass_settings.cpp
         post_effects.cpp
         scene_update_pass.cpp
         screen_passes.cpp

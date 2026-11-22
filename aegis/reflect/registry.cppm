@@ -9,7 +9,7 @@ export namespace aegis::reflect
 {
 class TypeRegistry;
 
-// Adds fields to a type that was just registered. Returned by TypeRegistry::component / script;
+// Adds fields to a type that was just registered. Returned by TypeRegistry::component / script / settings;
 // every call returns the builder, so fields chain. An error (a duplicate name) does not stop the
 // chain: the first one is kept and reported by status(), and the offending call changes nothing.
 template<class T>
@@ -178,8 +178,8 @@ private:
     std::expected<void, Error> m_status;
 };
 
-// The set of registered components and scripts, found by name or by C++ type. Names are unique
-// across both categories, and a C++ type registers once. Registration is expected at startup (the
+// The set of registered components, scripts and settings, found by name or by C++ type. Names are unique
+// across all categories, and a C++ type registers once. Registration is expected at startup (the
 // registry is not synchronized); after that it is read-only. TypeInfo pointers stay valid until the
 // registry is destroyed.
 class TypeRegistry
@@ -197,6 +197,13 @@ public:
     [[nodiscard]] auto script(std::string_view name) -> std::expected<TypeBuilder<T>, Error>
     {
         return add<T>(name, TypeCategory::Script);
+    }
+
+    // Registers `T` as settings named `name`: a system's runtime tunables, not attached to an entity.
+    template<class T>
+    [[nodiscard]] auto settings(std::string_view name) -> std::expected<TypeBuilder<T>, Error>
+    {
+        return add<T>(name, TypeCategory::Settings);
     }
 
     [[nodiscard]] auto find(std::string_view name) const -> const TypeInfo*

@@ -38,6 +38,14 @@ private:
 class LightingPass : public RenderPass
 {
 public:
+    /// @brief Tuning knobs and debug views, not scene data: registered with aegis.reflect (passSettingsTypes), so the
+    ///        editor's renderer panel shows them.
+    struct Settings
+    {
+        float ambientOcclusionFactor{ 1.0f };
+        LightingViewMode viewMode{ LightingViewMode::SceneColor };
+    };
+
     /// @brief The shadow views whose "Depth" shadow the directional light, one per cascade, and the atlas of the spot
     ///        lights' shadow views, each sampled with 3x3 PCF.
     struct ShadowMaps
@@ -65,7 +73,9 @@ public:
     /// @brief Warns once when the frame's scene has no environment to light with: execute then records nothing.
     [[nodiscard]] auto prepare(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
-    auto drawUI() -> void override;
+    [[nodiscard]] auto settings() -> std::optional<PassSettings> override;
+
+    [[nodiscard]] auto lightingSettings() noexcept -> Settings& { return m_settings; }
 
 private:
     const FrameSceneSource& m_scene;
@@ -81,8 +91,7 @@ private:
     std::optional<rhi::SamplerHandle> m_shadowSampler;
     std::optional<rhi::Pipeline> m_pipeline;
     std::shared_ptr<assets::Texture> m_brdfLut; // One per pass, not per environment
-    LightingViewMode m_viewMode{ LightingViewMode::SceneColor };
-    float m_ambientOcclusionFactor{ 1.0f };
+    Settings m_settings;
 };
 }
 

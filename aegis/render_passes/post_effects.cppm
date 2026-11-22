@@ -17,7 +17,8 @@ class BloomPass : public RenderPass
 public:
     static constexpr std::uint32_t mipLevels{ 6 };
 
-    /// @brief Tuning knobs of the blur, not scene data: drawUI shows them and a new graph starts from these.
+    /// @brief Tuning knobs of the blur, not scene data: registered with aegis.reflect (passSettingsTypes), so the
+    ///        editor's renderer panel shows them, and a new graph starts from these.
     struct Settings
     {
         float downsampleScale{ 1.0f };
@@ -31,9 +32,9 @@ public:
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
     [[nodiscard]] auto resized(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
-    auto drawUI() -> void override;
+    [[nodiscard]] auto settings() -> std::optional<PassSettings> override;
 
-    [[nodiscard]] auto settings() noexcept -> Settings& { return m_settings; }
+    [[nodiscard]] auto bloomSettings() noexcept -> Settings& { return m_settings; }
 
 private:
     [[nodiscard]] auto createMipViews(ResourcePool& pool) -> std::expected<void, Error>;
