@@ -346,7 +346,8 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
         // not prepared has no pipeline and is skipped.
         if (!drawsInGBuffer(batch))
             continue;
-        const auto* pipeline = m_pipelines.find(gpuKey(m_technique, batch.variant));
+        const auto key = gpuKey(m_technique, batch.variant);
+        const auto* pipeline = m_pipelines.find(key);
         if (!pipeline)
             continue;
         if (pipeline != bound)
@@ -363,6 +364,7 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
             .batchSize = batch.instanceCount,
             .staticCount = m_instances.staticCount(),
             .dynamicCount = m_instances.dynamicCount(),
+            .flags = geometryFlags(pipelineState(key)),
         });
         cmd.drawMeshTasksIndirectCount(commands, indirectCommandSize * batch.firstInstance, counts,
             sizeof(std::uint32_t) * batch.id, batch.instanceCount);

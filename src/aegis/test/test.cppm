@@ -36,6 +36,8 @@ struct Options
     bool blend{ false };       // With --scene: two overlapping half-transparent cubes in front of the helmet, drawn by the
                                // forward pass alone, back to front (see SceneShell::addBlendedCubes)
     bool blendSwap{ false };   // With --blend: the two cubes swap places, so the one added first is the farther
+    bool doubleSided{ false }; // With --scene: an unlit, double-sided plane with its back to the main camera, whose colour
+                               // the last frame must show (see SceneShell::addBackFacingPlane)
     std::string screenshot;    // Headless: save the last frame here as PNG
     std::string compare;       // Headless: fail unless the last frame matches this reference PNG (see compareToReference())
     int tolerance{ 0 };        // With --compare: the largest per-channel difference (0-255) a pixel may have

@@ -176,6 +176,11 @@ public:
             if (auto added = addUnlitCubes(frame); !added)
                 m_result.errors.push_back(std::format("Adding the unlit cubes failed: {}", added.error()));
         }
+        if (m_options.doubleSided && m_frame == 1)
+        {
+            if (auto added = addBackFacingPlane(frame); !added)
+                m_result.errors.push_back(std::format("Adding the double-sided plane failed: {}", added.error()));
+        }
         if (m_options.blend && m_frame == 1)
         {
             if (auto added = addBlendedCubes(frame); !added)
@@ -510,8 +515,43 @@ private:
         return showUnlitColor(frame.world);
     }
 
-    // --unlit, --views: the main camera's PostProcess turns bloom off and tone maps with Reinhard at exposure 1, so an
-    // unlit colour reaches the last frame as unlitPixels expects.
+    // --double-sided, in the second frame (the camera has its global transform): a plane of an unlit, double-sided
+    // material in front of the main camera, with its back to it. Its meshlets all face away from the camera, so the
+    // GPU-driven path's normal cone test would drop them; drawn, the plane's colour reaches the last frame as
+    // verifyBackFaces expects.
+    auto addBackFacingPlane(FrameContext& frame) -> std::expected<void, std::string>
+    {
+        auto& registry = frame.world.registry();
+        const auto mainCamera = frame.world.mainCamera();
+        if (!mainCamera)
+            return std::unexpected{ "the scene has no main camera" };
+        const auto camera = registry.get<GlobalTransform>(mainCamera);
+
+        auto material = frame.assets.createMaterial(frame.assets.defaults().unlitTemplate);
+        if (auto set = material->setParameter("color", unlitColor); !set)
+            return std::unexpected{ assets::describe(set.error()) };
+        material->setCullMode(rhi::CullMode::None);
+
+        // plane.obj is 10 units square in its xy plane, its front facing +z.
+        auto plane = instantiateModel(frame.world, "models/basic/plane.obj");
+        if (!plane)
+            return std::unexpected{ plane.error() };
+        auto& transform = registry.get<Transform>(*plane);
+        transform.location = camera.location + camera.forward() * 1.5f;
+        // Turns the plane's front (+z) to the camera's forward (+y), away from the camera.
+        transform.rotation = camera.rotation * glm::angleAxis(glm::radians(-90.0f), glm::vec3{ 1.0f, 0.0f, 0.0f });
+        transform.scale = glm::vec3{ 0.05f };
+        for (const auto entity : subtree(registry, *plane))
+        {
+            if (registry.has<MeshRenderer>(entity))
+                registry.get<MeshRenderer>(entity).material = material;
+            registry.markStaticDirty(entity);
+        }
+        return showUnlitColor(frame.world);
+    }
+
+    // --unlit, --views, --double-sided: the main camera's PostProcess turns bloom off and tone maps with Reinhard at
+    // exposure 1, so an unlit colour reaches the last frame as unlitPixels expects.
     static auto showUnlitColor(world::World& world) -> std::expected<void, std::string>
     {
         const auto mainCamera = world.mainCamera();
@@ -785,6 +825,18 @@ auto verifyUnlit(std::span<const std::byte> pixels) -> std::expected<void, std::
     return {};
 }
 
+// --double-sided: the plane, seen from behind, shows its colour as --unlit's cube does (see verifyUnlit) over a good
+// part of the frame: its back faces were drawn, on the GPU-driven path too.
+auto verifyBackFaces(std::span<const std::byte> pixels) -> std::expected<void, std::string>
+{
+    const auto count = unlitPixels(pixels);
+    constexpr std::size_t minimum{ 10000 };
+    if (count < minimum)
+        return std::unexpected{ std::format("{} pixels show the double-sided plane's back, fewer than {}", count, minimum) };
+    std::println("Double-sided material verified: {} pixels show the plane's back", count);
+    return {};
+}
+
 // Headless: the last frame, as the engine saved it, is drawn (not one flat color), has the size it should have and,
 // with --compare, matches the reference.
 auto verifyFrame(const Options& options, const std::filesystem::path& file, rhi::Extent2D extent) -> std::expected<void, std::string>
@@ -811,6 +863,12 @@ auto verifyFrame(const Options& options, const std::filesystem::path& file, rhi:
     {
         if (auto unlit = verifyUnlit(pixels); !unlit)
             return unlit;
+    }
+
+    if (options.doubleSided)
+    {
+        if (auto backFaces = verifyBackFaces(pixels); !backFaces)
+            return backFaces;
     }
 
     const auto texel = [&](std::uint32_t x, std::uint32_t y) {
