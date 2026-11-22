@@ -6,7 +6,8 @@ namespace aegis::editor
 {
 auto transformSphere(const Sphere& local, const glm::mat4& transform) -> Sphere
 {
-    const float scale = std::max({ glm::length(glm::vec3{ transform[0] }), glm::length(glm::vec3{ transform[1] }), glm::length(glm::vec3{ transform[2] }) });
+    const float scale = std::max({ glm::length(glm::vec3{ math::column(transform, 0) }), glm::length(glm::vec3{ math::column(transform, 1) }),
+        glm::length(glm::vec3{ math::column(transform, 2) }) });
     return { .center = glm::vec3{ transform * glm::vec4{ local.center, 1.0f } }, .radius = local.radius * scale };
 }
 

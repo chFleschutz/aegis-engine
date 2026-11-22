@@ -12,7 +12,7 @@ auto viewDepth(const glm::mat4& view, const glm::vec3& point) -> float
 auto worldCenter(const glm::mat3x4& model, const glm::vec3& localCenter) -> glm::vec3
 {
     const glm::vec4 local{ localCenter, 1.0f };
-    return { glm::dot(model[0], local), glm::dot(model[1], local), glm::dot(model[2], local) };
+    return { glm::dot(math::row(model, 0), local), glm::dot(math::row(model, 1), local), glm::dot(math::row(model, 2), local) };
 }
 
 auto sortBackToFront(std::span<DepthSortedDraw> draws) -> void

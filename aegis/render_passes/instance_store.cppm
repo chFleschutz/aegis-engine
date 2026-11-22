@@ -14,13 +14,13 @@ export namespace aegis::render_graph::detail
 }
 
 /// @brief Whether two model matrices (Instance::model) are equal, element by element.
-[[nodiscard]] constexpr auto sameModel(const glm::mat3x4& a, const glm::mat3x4& b) noexcept -> bool
+[[nodiscard]] inline auto sameModel(const glm::mat3x4& a, const glm::mat3x4& b) noexcept -> bool
 {
-    for (int column = 0; column < 3; ++column)
+    for (int row = 0; row < 3; ++row)
     {
-        for (int row = 0; row < 4; ++row)
+        for (int column = 0; column < 4; ++column)
         {
-            if (a[column][row] != b[column][row])
+            if (math::element(a, row, column) != math::element(b, row, column))
                 return false;
         }
     }
@@ -82,7 +82,7 @@ struct DirtyRange
 struct Instance
 {
     /// @brief The top three rows of the model matrix, as shaders read it (detail::toModelRows).
-    glm::mat3x4 model{ 1.0f };
+    glm::mat3x4 model = detail::toModelRows(glm::mat4{ 1.0f });
     std::shared_ptr<const assets::StaticMesh> mesh;
     std::shared_ptr<assets::Material> material;
     /// @brief The id of the instance's draw batch, whose variant is the material's. Set by the store; add

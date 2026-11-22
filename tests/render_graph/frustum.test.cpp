@@ -29,7 +29,7 @@ TEST_SUITE("render_graph::Frustum")
 
     TEST_CASE("plane normals are unit length")
     {
-        const auto scaled = Frustum::extractFrom(glm::mat4{ 4.0f });
+        const auto scaled = Frustum::extractFrom(glm::mat4{ 1.0f } * 4.0f);
         for (const auto& plane : scaled.planes)
             CHECK(glm::length(glm::vec3{ plane }) == doctest::Approx(1.0f));
     }

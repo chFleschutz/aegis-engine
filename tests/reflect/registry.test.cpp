@@ -297,7 +297,7 @@ TEST_SUITE("reflect::TypeInfo")
         object.v2 = { 1.0f, 2.0f };
         object.v3 = { 1.0f, 2.0f, 3.0f };
         object.v4 = { 1.0f, 2.0f, 3.0f, 4.0f };
-        object.rotation = glm::quat{ 0.5f, 0.5f, 0.5f, 0.5f };
+        object.rotation = aegis::math::quatFromXyzw(0.5f, 0.5f, 0.5f, 0.5f);
         object.mode = Mode::On;
         object.plain = High;
 
@@ -343,7 +343,7 @@ TEST_SUITE("reflect::TypeInfo")
         set("v2", glm::vec2{ 1.0f, 2.0f });
         set("v3", glm::vec3{ 1.0f, 2.0f, 3.0f });
         set("v4", glm::vec4{ 1.0f, 2.0f, 3.0f, 4.0f });
-        set("rotation", glm::quat{ 0.5f, 0.5f, 0.5f, 0.5f });
+        set("rotation", aegis::math::quatFromXyzw(0.5f, 0.5f, 0.5f, 0.5f));
         set("mode", std::int64_t{ 3 });
         set("plain", std::int64_t{ -1 });
 

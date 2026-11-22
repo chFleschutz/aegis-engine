@@ -31,11 +31,10 @@ TEST_SUITE("render_graph::draw_order")
     TEST_CASE("worldCenter moves the bounding sphere's centre by the model matrix")
     {
         // Scaled by 2 and moved by (10, 20, 30): rows of the model matrix with the translation in .w.
-        const glm::mat3x4 model{
+        const auto model = aegis::math::fromRows(
             glm::vec4{ 2.0f, 0.0f, 0.0f, 10.0f },
             glm::vec4{ 0.0f, 2.0f, 0.0f, 20.0f },
-            glm::vec4{ 0.0f, 0.0f, 2.0f, 30.0f },
-        };
+            glm::vec4{ 0.0f, 0.0f, 2.0f, 30.0f });
         const auto center = detail::worldCenter(model, glm::vec3{ 1.0f, -1.0f, 0.5f });
         CHECK(center.x == doctest::Approx(12.0f));
         CHECK(center.y == doctest::Approx(18.0f));

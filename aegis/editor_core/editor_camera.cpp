@@ -108,15 +108,8 @@ auto EditorCamera::view() const -> glm::mat4
 
 auto EditorCamera::projection(float aspect) const -> glm::mat4
 {
-    // As CameraSystem builds it: right handed, depth [0, 1], y negated for Vulkan
-    const float tanHalfFov = std::tan(fov / 2.0f);
-    glm::mat4 perspective{ 0.0f };
-    perspective[0][0] = 1.0f / (aspect * tanHalfFov);
-    perspective[1][1] = -1.0f / tanHalfFov;
-    perspective[2][2] = far / (near - far);
-    perspective[2][3] = -1.0f;
-    perspective[3][2] = -(far * near) / (far - near);
-    return perspective;
+    // As CameraSystem builds it
+    return math::perspective(fov, aspect, near, far);
 }
 
 auto EditorCamera::ray(const glm::vec2& ndc, float aspect) const -> Ray

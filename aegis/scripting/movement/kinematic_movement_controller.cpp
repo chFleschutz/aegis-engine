@@ -59,7 +59,7 @@ void KinematicMovementController::applyRotation(ScriptContext& context, float de
         rotation.x = glm::clamp(rotation.x + rotate.x, -1.5f, 1.5f);
         rotation.z = glm::mod(rotation.z + rotate.z, glm::two_pi<float>());
         rotation.y = 0.0f; // Lock rotation around y-axis
-        transform.rotation = glm::quat(rotation);
+        transform.rotation = math::quatFromEuler(rotation);
     }
 }
 

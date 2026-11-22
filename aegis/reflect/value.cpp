@@ -174,7 +174,7 @@ auto fromText(FieldKind kind, std::string_view text, std::span<const EnumEntry> 
     {
         auto c = parseComponents<4>(text);
         // glm::quat's constructor takes (w, x, y, z); the text is "x y z w".
-        return c ? std::expected<Value, Error>{ glm::quat{ (*c)[3], (*c)[0], (*c)[1], (*c)[2] } } : std::unexpected{ c.error() };
+        return c ? std::expected<Value, Error>{ math::quatFromXyzw((*c)[0], (*c)[1], (*c)[2], (*c)[3]) } : std::unexpected{ c.error() };
     }
     case FieldKind::AssetRef:
     {

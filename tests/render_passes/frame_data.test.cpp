@@ -21,22 +21,17 @@ auto equal(const glm::vec4& a, const glm::vec4& b) -> bool
     return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
 }
 
-// A camera as aegis::CameraSystem builds it: right-handed, depth 0 to 1, y flipped.
-auto perspective(float fov, float aspect, float near, float far) -> glm::mat4
-{
-    const float tanHalfFov = std::tan(fov / 2.0f);
-    glm::mat4 projection{ 0.0f };
-    projection[0][0] = 1.0f / (aspect * tanHalfFov);
-    projection[1][1] = -1.0f / tanHalfFov;
-    projection[2][2] = far / (near - far);
-    projection[2][3] = -1.0f;
-    projection[3][2] = -(far * near) / (far - near);
-    return projection;
-}
-
 auto equal(const glm::mat4& a, const glm::mat4& b) -> bool
 {
-    return equal(a[0], b[0]) && equal(a[1], b[1]) && equal(a[2], b[2]) && equal(a[3], b[3]);
+    for (int row = 0; row < 4; ++row)
+    {
+        for (int column = 0; column < 4; ++column)
+        {
+            if (aegis::math::element(a, row, column) != aegis::math::element(b, row, column))
+                return false;
+        }
+    }
+    return true;
 }
 }
 
@@ -47,9 +42,13 @@ TEST_SUITE("render_graph::detail::makeCameraData")
     TEST_CASE("packs the matrices row-major and takes the camera position")
     {
         FrameScene::Camera camera{ .position = { 5.0f, 6.0f, 7.0f } };
-        camera.view[3] = glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f }; // glm is column-major: the translation is column 3
-        camera.projection[0][0] = 2.0f;
-        camera.projection[1][1] = 3.0f;
+        camera.view = aegis::math::fromRows(
+            glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f },
+            glm::vec4{ 0.0f, 1.0f, 0.0f, 2.0f },
+            glm::vec4{ 0.0f, 0.0f, 1.0f, 3.0f },
+            glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f });
+        aegis::math::element(camera.projection, 0, 0) = 2.0f;
+        aegis::math::element(camera.projection, 1, 1) = 3.0f;
 
         const auto data = makeCameraData(camera);
         CHECK(equal(data.position, glm::vec3{ 5.0f, 6.0f, 7.0f }));
@@ -121,7 +120,7 @@ TEST_SUITE("render_graph::detail::packLighting")
         const InstanceStore instances;
         const FrameScene::Camera camera{
             .view = aegis::math::viewMatrix({ 0.0f, 0.0f, 2.0f }, { 0.0f, 1.0f, 0.0f }),
-            .projection = perspective(glm::radians(60.0f), 1.0f, 0.1f, 1000.0f),
+            .projection = aegis::math::perspective(glm::radians(60.0f), 1.0f, 0.1f, 1000.0f), // As aegis::CameraSystem builds it
             .position = { 0.0f, 0.0f, 2.0f },
         };
         FrameScene scene{
@@ -150,8 +149,8 @@ TEST_SUITE("render_graph::detail::packLighting")
             CHECK(data.map.image.index == 7 + cascade);
             CHECK(data.map.sampler.index == 3);
             CHECK(data.splitFar == splits[cascade]);
-            // The orthographic projection is 2 / projection[0][0] meters across the map's texels.
-            CHECK(data.texelSize == doctest::Approx(2.0f / (shadowCamera.projection[0][0] * 2048.0f)));
+            // The orthographic projection is 2 / projection[0, 0] meters across the map's texels.
+            CHECK(data.texelSize == doctest::Approx(2.0f / (aegis::math::element(shadowCamera.projection, 0, 0) * 2048.0f)));
         }
         // Each cascade is wider than the one before, so its texels are larger.
         CHECK(uniforms.shadowCascades[1].texelSize > uniforms.shadowCascades[0].texelSize);
@@ -415,11 +414,12 @@ TEST_SUITE("render_graph::detail::makeSkyBoxViewProjection")
     {
         FrameScene::Camera camera;
         // A quarter turn about +Y (columns: the rotated axes).
-        camera.view[0] = glm::vec4{ 0.0f, 0.0f, -1.0f, 0.0f };
-        camera.view[2] = glm::vec4{ 1.0f, 0.0f, 0.0f, 0.0f };
-        const auto rotationOnly = camera.view;
-        camera.view[3] = glm::vec4{ 10.0f, 20.0f, 30.0f, 1.0f };
-        camera.projection[0][0] = 2.0f;
+        const glm::vec4 x{ 0.0f, 0.0f, -1.0f, 0.0f };
+        const glm::vec4 y{ 0.0f, 1.0f, 0.0f, 0.0f };
+        const glm::vec4 z{ 1.0f, 0.0f, 0.0f, 0.0f };
+        const auto rotationOnly = aegis::math::fromColumns(x, y, z, glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f });
+        camera.view = aegis::math::fromColumns(x, y, z, glm::vec4{ 10.0f, 20.0f, 30.0f, 1.0f });
+        aegis::math::element(camera.projection, 0, 0) = 2.0f;
 
         CHECK(equal(makeSkyBoxViewProjection(camera), glm::rowMajor4(camera.projection * rotationOnly)));
     }
