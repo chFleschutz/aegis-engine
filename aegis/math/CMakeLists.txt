@@ -1,7 +1,5 @@
 add_library(aegis-math STATIC)
 
-target_link_libraries(aegis-math PRIVATE glm::glm)
-
 target_sources(
     aegis-math
     PUBLIC

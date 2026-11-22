@@ -110,8 +110,8 @@ it today").
 
 ## Code style (most important)
 **Match the conventions of the code you are editing.** The engine follows the rules below, except
-the **legacy** rest, which keeps older conventions until it is rewritten: `aegis/launch/`, `math/`
-and `games/`. There, misuse is an `assert` and `math` is one `.cppm` with no partitions.
+the **legacy** rest, which keeps older conventions until it is rewritten: `aegis/launch/` and
+`games/`. There, misuse is an `assert`.
 
 - *Errors:* `std::expected<T, Error>` built with `makeError`, never thrown.
 - *Modules:* one module per folder, a `.cppm` interface and `.cpp` implementation units, split into
@@ -136,6 +136,19 @@ through `shared_ptr`.
 and only inside the new RHI modules; everything else goes through `aegis::rhi`. rhi classes expose
 native `vk::` handles for interop (`Device::device()`, `Buffer::vk()`, ...); the vulkan module is
 linked PRIVATE, so code outside rhi cannot name `vk::` types. ImGui's Vulkan backend sits behind `rhi::ImGuiBackend`.
+
+**Math is `aegis.math`** ([`docs/adr/0013-own-generic-row-major-math-library.md`](docs/adr/0013-own-generic-row-major-math-library.md)):
+write `math::Float3`, `math::Float4x4`, `math::Quat`, always qualified. glm is only the oracle of
+`aegis-tests-math` and `aegis-bench-math`; no engine, game or other test target includes or links it.
+- *Row-major storage, column vectors:* `M * v` transforms `v`, and `projection * view * model`
+  composes right to left. Matrices go to the GPU as they are (the shaders are row-major too).
+- *Elements are `m[row, column]`;* there is no single-index `[]`. Whole rows and columns are
+  `m.row(r)` and `m.column(c)`.
+- *Named default state:* matrices and quaternions have no default constructor, so name the state
+  (`Float4x4::identity()`, `zero()`, `fromRows(...)`, `Quat::identity()`, `Quat::fromXyzw(...)`).
+  Vectors default to zero.
+- *`*` vs `mul`:* `*` on matrices is the linear-algebra product. In Slang `*` is per element and the
+  product is `mul`, so C++ mirrored from a shader writes `math::mul(a, b)`, which means the same as `a * b`.
 
 **Known deviations (current state):** the `Error` types differ per module (rhi struct `{code}`,
 `renderer` enum, `render_graph` `{message, rhi?}`, `assets` struct); `platform::Window` asserts

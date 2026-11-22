@@ -78,8 +78,15 @@ Gotchas from past sessions, to read when a build, tool or test behaves unexpecte
   no surface or swapchain functions, so `UiPass` gives those a non-null stub that aborts.
 - **Keep the task shader in its own Slang file.** If the mesh and task stages share one module, the
   mesh stage also declares the task stage's `DrawIndex`, and validation rejects it.
-- **GPU matrices are row-major:** upload `glm::rowMajor4(m)`. Every shader uses scalar layout, so C++
-  structs match the Slang ones member for member (`shaders/modules/README.md`).
+- **Upload matrices as they are.** `aegis.math` and every shader store matrices row-major, so a
+  `math::Float4x4` goes into a GPU struct unchanged (`math::Float3x4{ model }` keeps the top three
+  rows); a transpose on the way up is a bug. Every shader uses scalar layout, so C++ structs match
+  the Slang ones member for member (`shaders/modules/README.md`).
+- **glm habits don't compile on `aegis.math`, on purpose.** `m[c][r]` is `m[r, c]` (row first),
+  `mat4{ 1.0f }` is `Float4x4::identity()`, `quat{ w, x, y, z }` is `Quat::fromXyzw(x, y, z, w)`, and
+  `v * M` doesn't exist. Column-major interop converts at the boundary: ImGuizmo gets
+  `std::bit_cast<std::array<float, 16>>(math::transpose(m))` and the result comes back the same way
+  (`aegis/editor/viewport.cpp`).
 
 ## Verifying
 
