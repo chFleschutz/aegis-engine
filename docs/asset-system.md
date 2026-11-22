@@ -80,6 +80,8 @@ my_game/
   without a search, a folder can't hold two, and renaming a game doesn't rename the file. It holds
   the committed settings in sections; `config/` takes sections over only when they outgrow one file
   (per-platform overrides, files tools rewrite often), a versioned migration like any format change.
+  Today it holds only the `input` section, the input map (`ProjectFile`, `src/aegis/app/project_file.cppm`),
+  and has no version yet; a project without one has the defaults.
 - **`CMakeLists.txt` is at the root,** where presets, `cmake -S .` and IDEs look. The engine does
   the work through `aegis_add_game`, so the file stays a few lines:
 
@@ -124,14 +126,13 @@ The examples, `aegis-test`'s scene checks and the device tests share one sample 
 repository should stay small, and is checked out as the submodule `samples/`. It replaces
 `aegis-assets`, whose name also clashes with the `aegis-assets` library target (#180).
 
-- **A project like any other.** It follows "Project layout": `project.aegis` once project files
-  exist (#132), today's asset folders under `content/`, sorted by kind (`models/` with one folder
-  per model, its files as exported; `materials/`, `environments/`), scene files under
-  `content/scenes/` (today's `Scenes/`, which holds the examples; stress scenes in `stress/`,
-  `aegis-test`'s in `tests/`), and the template's `.gitignore`. Folders the samples create are
-  snake_case. The models' README screenshots move out of `content/` to a root `screenshots/`. One
-  project for all examples, not one each: Sponza, the helmets and the sky are shared, and the
-  examples become scenes in it.
+- **A project like any other.** It follows "Project layout": `project.aegis` once it needs settings,
+  today's asset folders under `content/`, sorted by kind (`models/` with one folder per model, its
+  files as exported; `materials/`, `environments/`), scene files under `content/scenes/` (today's
+  `Scenes/`, which holds the examples; stress scenes in `stress/`, `aegis-test`'s in `tests/`), and
+  the template's `.gitignore`. Folders the samples create are snake_case. The models' README
+  screenshots move out of `content/` to a root `screenshots/`. One project for all examples, not one
+  each: Sponza, the helmets and the sky are shared, and the examples become scenes in it.
 - **Later, with its code:** the Examples game's `src/` and root `CMakeLists.txt` move into the
   sample repository (#167 or later), and the engine `add_subdirectory`s it when it is checked out;
   its `CMakeLists.txt` skips adding the engine when `Aegis::Engine` exists. The samples then test
