@@ -10,6 +10,7 @@ using namespace aegis::render_graph;
 namespace reflect = aegis::reflect;
 
 const FrameSceneSource scene; // Never bound: the passes are only constructed
+PipelineLibrary pipelines;    // Never asked for a pipeline: no pass creates its resources
 }
 
 TEST_SUITE("render_graph::passSettingsTypes")
@@ -29,7 +30,7 @@ TEST_SUITE("render_graph::passSettingsTypes")
     TEST_CASE("sets the lighting pass's settings by name, without the editor")
     {
         GraphBuilder builder;
-        auto& pass = builder.add<LightingPass>(scene);
+        auto& pass = builder.add<LightingPass>(scene, pipelines);
         const auto settings = pass.settings();
         REQUIRE(settings.has_value());
 
@@ -43,7 +44,7 @@ TEST_SUITE("render_graph::passSettingsTypes")
     TEST_CASE("sets the bloom pass's settings by name, without the editor")
     {
         GraphBuilder builder;
-        auto& pass = builder.add<BloomPass>(scene);
+        auto& pass = builder.add<BloomPass>(scene, pipelines);
         const auto settings = pass.settings();
         REQUIRE(settings.has_value());
 
@@ -55,6 +56,6 @@ TEST_SUITE("render_graph::passSettingsTypes")
     TEST_CASE("a pass without tunables has no settings")
     {
         GraphBuilder builder;
-        CHECK_FALSE(builder.add<TransparentPass>(scene).settings().has_value());
+        CHECK_FALSE(builder.add<TransparentPass>(scene, pipelines).settings().has_value());
     }
 }

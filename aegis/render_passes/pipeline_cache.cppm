@@ -137,10 +137,11 @@ struct PipelineState
     return technique == Technique::Forward ? drawsForward(batch) : drawsInGBuffer(batch, type);
 }
 
-/// @brief A pass's pipelines by PipelineKey. Each is created the first time its key is prepared, before recording
-///        (RenderPass::prepare), and kept until the cache goes with its pass, when the graph goes. A template over
-///        what it holds so tests can cache plain values.
-template<typename T = rhi::Pipeline>
+/// @brief A pass's pipelines by PipelineKey: a view on its PipelineLibrary, which owns them and outlives the pass. Each
+///        key is looked up (and its pipeline created, if no pass created it before) the first time it is prepared,
+///        before recording (RenderPass::prepare); the cache then finds it without a library lookup until it goes with
+///        its pass, when the graph goes. A template over what it holds so tests can cache plain values.
+template<typename T = const rhi::Pipeline*>
 class PipelineCache
 {
 public:

@@ -3,6 +3,7 @@ import std;
 import :draw_order;
 import :frame_scene;
 import :pipeline_cache;
+import :pipeline_library;
 import :render_system;
 import aegis.render_graph;
 import aegis.assets;
@@ -29,9 +30,10 @@ public:
     explicit StaticMeshRenderSystem(Technique technique = Technique::GBuffer,
         assets::MaterialType type = assets::MaterialType::Opaque);
 
-    [[nodiscard]] auto createResources(rhi::Device& device, const RenderTargets& targets)
+    [[nodiscard]] auto createResources(PipelineLibrary& pipelines, rhi::Device& device, const RenderTargets& targets)
         -> std::expected<void, Error> override;
-    /// @brief Creates the pipelines of the frame's draw batches it draws, both front faces of each.
+    /// @brief Takes the pipelines of the frame's draw batches it draws, both front faces of each, from the
+    ///        PipelineLibrary of createResources.
     [[nodiscard]] auto prepare(const FrameScene& frameScene) -> std::expected<void, Error> override;
     auto render(const RenderContext& context) -> void override;
 
@@ -39,10 +41,11 @@ public:
     [[nodiscard]] auto pipelines() const noexcept -> const PipelineCache<>& { return m_pipelines; }
 
 private:
-    [[nodiscard]] auto createPipeline(const PipelineKey& key) const -> std::expected<rhi::Pipeline, Error>;
+    [[nodiscard]] auto findPipeline(const PipelineKey& key) const -> std::expected<const rhi::Pipeline*, Error>;
 
     Technique m_technique;
     assets::MaterialType m_type;
+    PipelineLibrary* m_pipelineLibrary{ nullptr };
     rhi::Device* m_device{ nullptr };
     std::vector<rhi::Pipeline::ColorAttachment> m_colorAttachments;
     rhi::Format m_depthAttachment{ rhi::Format::Unknown };

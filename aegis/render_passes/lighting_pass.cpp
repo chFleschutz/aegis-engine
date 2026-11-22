@@ -42,9 +42,10 @@ auto LightUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
 
 // Lighting -------------------------------------------------------------------------------------------
 
-LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view,
-    std::optional<ShadowMaps> shadow) :
+LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+    std::uint32_t view, std::optional<ShadowMaps> shadow) :
     m_scene{ scene },
+    m_pipelines{ pipelines },
     m_view{ view },
     m_gBuffer{
         declarations.addReference(names::position, Usage::StorageRead),
@@ -80,15 +81,12 @@ auto LightingPass::name() const -> std::string_view
 
 auto LightingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    auto pipeline = createComputePipeline(pool.device(), "Lighting", "lighting.slang.spv");
+    auto pipeline = m_pipelines.compute(pool.device(), "Lighting", "lighting.slang.spv");
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
-    m_pipeline = std::move(*pipeline);
+    m_pipeline = *pipeline;
 
-    auto ibl = Ibl::create(pool.device());
-    if (!ibl)
-        return std::unexpected{ ibl.error() };
-    auto brdfLut = ibl->brdfLut();
+    auto brdfLut = m_pipelines.brdfLut(pool.device());
     if (!brdfLut)
         return std::unexpected{ brdfLut.error() };
     m_brdfLut = std::move(*brdfLut);

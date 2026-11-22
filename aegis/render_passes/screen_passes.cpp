@@ -8,8 +8,10 @@ namespace aegis::render_graph
 {
 // Sky box -------------------------------------------------------------------------------------------
 
-SkyBoxPass::SkyBoxPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view) :
+SkyBoxPass::SkyBoxPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+    std::uint32_t view) :
     m_scene{ scene },
+    m_pipelines{ pipelines },
     m_view{ view },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::ColorAttachment) },
     m_depth{ declarations.addReference(names::depth, Usage::DepthRead) }
@@ -24,7 +26,7 @@ auto SkyBoxPass::name() const -> std::string_view
 auto SkyBoxPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
     const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = pool.format(m_sceneColor) } };
-    auto pipeline = createGraphicsPipeline(pool.device(), "sky_box.slang.spv",
+    auto pipeline = m_pipelines.graphics(pool.device(), "sky_box.slang.spv",
         rhi::Pipeline::GraphicsDesc{
             .name = "SkyBox",
             .colorAttachments = colorAttachments,
@@ -34,7 +36,7 @@ auto SkyBoxPass::createResources(ResourcePool& pool) -> std::expected<void, Erro
         });
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
-    m_pipeline = std::move(*pipeline);
+    m_pipeline = *pipeline;
     return {};
 }
 
@@ -64,8 +66,10 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 
 // Post-processing -----------------------------------------------------------------------------------
 
-PostProcessingPass::PostProcessingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, bool bloom) :
+PostProcessingPass::PostProcessingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene,
+    PipelineLibrary& pipelines, bool bloom) :
     m_scene{ scene },
+    m_pipelines{ pipelines },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
     m_bloom{ bloom ? std::optional{ declarations.addReference(names::bloom, Usage::StorageRead) } : std::nullopt },
     // 16-bit: the image may stay linear until the blit onto an sRGB target encodes it (see execute). As a
@@ -81,10 +85,10 @@ auto PostProcessingPass::name() const -> std::string_view
 
 auto PostProcessingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    auto pipeline = createComputePipeline(pool.device(), "PostProcessing", "post_process.slang.spv");
+    auto pipeline = m_pipelines.compute(pool.device(), "PostProcessing", "post_process.slang.spv");
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
-    m_pipeline = std::move(*pipeline);
+    m_pipeline = *pipeline;
     return {};
 }
 

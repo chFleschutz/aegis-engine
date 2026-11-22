@@ -4,6 +4,7 @@ import :frame_scene;
 import :gpu_driven;
 import :lighting_pass;
 import :names;
+import :pipeline_library;
 import :shadows;
 import aegis.render_graph;
 import aegis.rhi;
@@ -40,6 +41,9 @@ struct DefaultPassesDesc
     /// @brief Where the scene passes read the frame scene; it must outlive the graph. The engine's is bound to
     ///        each frame's scene; a game's passes that read the scene take it from here too.
     const FrameSceneSource& scene;
+    /// @brief Where the passes take their pipelines and the BRDF lookup table from; it must outlive the graph. The
+    ///        engine's outlives all its graphs, so every view and every rebuilt graph shares one set of pipelines.
+    PipelineLibrary& pipelines;
     /// @brief The mesh-shader geometry path; needs rhi::Device::Capabilities::meshShaders.
     bool gpuDriven;
     /// @brief Draws ImGui over the frame: the draw data of the frame the caller ended (see UiPass).

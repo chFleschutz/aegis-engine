@@ -10,8 +10,9 @@ namespace aegis::render_graph
 {
 // Bloom ----------------------------------------------------------------------------------------------
 
-BloomPass::BloomPass(ResourceDeclarations& declarations, const FrameSceneSource& scene) :
+BloomPass::BloomPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines) :
     m_scene{ scene },
+    m_pipelines{ pipelines },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
     m_bloom{ declarations.addTexture(names::bloom, Usage::StorageWrite,
         { .format = rhi::Format::RGBA16_SFLOAT, .mipLevels = mipLevels, .usage = rhi::ImageUsage::Sampled }) }
@@ -40,10 +41,10 @@ auto BloomPass::createResources(ResourcePool& pool) -> std::expected<void, Error
              std::tuple{ &m_upsample, "BloomUpsample", "bloom/upsample.slang.spv" },
          })
     {
-        auto created = createComputePipeline(*m_device, name, path);
-        if (!created)
-            return std::unexpected{ created.error() };
-        pipeline->emplace(std::move(*created));
+        auto found = m_pipelines.compute(*m_device, name, path);
+        if (!found)
+            return std::unexpected{ found.error() };
+        *pipeline = *found;
     }
 
     auto sampler = m_device->createSampler({
@@ -162,8 +163,10 @@ auto BloomPass::settings() -> std::optional<PassSettings>
 
 // Transparent ----------------------------------------------------------------------------------------
 
-TransparentPass::TransparentPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view) :
+TransparentPass::TransparentPass(ResourceDeclarations& declarations, const FrameSceneSource& scene,
+    PipelineLibrary& pipelines, std::uint32_t view) :
     m_scene{ scene },
+    m_pipelines{ pipelines },
     m_view{ view },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::ColorAttachment) },
     m_depth{ declarations.addReference(names::depth, Usage::DepthRead) },
@@ -181,7 +184,7 @@ auto TransparentPass::createResources(ResourcePool& pool) -> std::expected<void,
     const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = pool.format(m_sceneColor) } };
     for (const auto& system : m_renderSystems)
     {
-        if (auto created = system->createResources(pool.device(), { colorAttachments, pool.format(m_depth) }); !created)
+        if (auto created = system->createResources(m_pipelines, pool.device(), { colorAttachments, pool.format(m_depth) }); !created)
             return created;
     }
     return {};
@@ -225,14 +228,14 @@ auto TransparentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
 
 // Point lights ---------------------------------------------------------------------------------------
 
-auto PointLightRenderSystem::createResources(rhi::Device& device, const RenderTargets& targets)
+auto PointLightRenderSystem::createResources(PipelineLibrary& pipelines, rhi::Device& device, const RenderTargets& targets)
     -> std::expected<void, Error>
 {
     std::vector<rhi::Pipeline::ColorAttachment> blended(targets.colorAttachments.begin(), targets.colorAttachments.end());
     for (auto& attachment : blended)
         attachment.blend = rhi::BlendMode::Alpha;
 
-    auto pipeline = createGraphicsPipeline(device, "point_light.slang.spv",
+    auto pipeline = pipelines.graphics(device, "point_light.slang.spv",
         rhi::Pipeline::GraphicsDesc{
             .name = "PointLights",
             .colorAttachments = blended,
@@ -242,7 +245,7 @@ auto PointLightRenderSystem::createResources(rhi::Device& device, const RenderTa
         });
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
-    m_pipeline = std::move(*pipeline);
+    m_pipeline = *pipeline;
     return {};
 }
 

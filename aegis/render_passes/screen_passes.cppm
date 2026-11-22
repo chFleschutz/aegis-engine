@@ -3,6 +3,7 @@ import std;
 import :frame_scene;
 import :gpu_types;
 import :names;
+import :pipeline_library;
 import aegis.render_graph;
 import aegis.math;
 import aegis.rhi;
@@ -14,7 +15,8 @@ class SkyBoxPass : public RenderPass
 {
 public:
     /// @param view The index of the view in FrameScene::views whose camera it draws the sky for.
-    SkyBoxPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view = 0);
+    SkyBoxPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+        std::uint32_t view = 0);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -22,10 +24,11 @@ public:
 
 private:
     const FrameSceneSource& m_scene;
+    PipelineLibrary& m_pipelines;
     std::uint32_t m_view;
     ResourceId m_sceneColor;
     ResourceId m_depth;
-    std::optional<rhi::Pipeline> m_pipeline;
+    const rhi::Pipeline* m_pipeline{ nullptr };
 };
 
 /// @brief Tone maps "SceneColor" (plus "Bloom", if enabled) into "Final" (RGBA16F), gamma encoded
@@ -35,7 +38,8 @@ class PostProcessingPass : public RenderPass
 {
 public:
     /// @param bloom Read "Bloom" (a BloomPass must be in the graph); otherwise bloom is off.
-    PostProcessingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, bool bloom = true);
+    PostProcessingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+        bool bloom = true);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -43,10 +47,11 @@ public:
 
 private:
     const FrameSceneSource& m_scene;
+    PipelineLibrary& m_pipelines;
     ResourceId m_sceneColor;
     std::optional<ResourceId> m_bloom;
     ResourceId m_final;
-    std::optional<rhi::Pipeline> m_pipeline;
+    const rhi::Pipeline* m_pipeline{ nullptr };
 };
 
 /// @brief Copies a finished image (by default "Final") onto the frame's target: the swapchain image

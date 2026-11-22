@@ -2,6 +2,7 @@ export module aegis.render_passes:lighting_pass;
 import std;
 import :frame_scene;
 import :gpu_types;
+import :pipeline_library;
 import :shadows;
 import aegis.render_graph;
 import aegis.assets;
@@ -33,8 +34,8 @@ private:
 };
 
 /// @brief Deferred PBR lighting: G-buffer + the frame's lights ("Lights", LightUpdatePass) and environment, the
-///        directional light's shadow maps (its cascades), the spot lights' shadow atlas and the BRDF lookup table, which
-///        it owns -> "SceneColor" (RGBA16F).
+///        directional light's shadow maps (its cascades), the spot lights' shadow atlas and the BRDF lookup table (its
+///        PipelineLibrary's) -> "SceneColor" (RGBA16F).
 class LightingPass : public RenderPass
 {
 public:
@@ -59,8 +60,8 @@ public:
 
     /// @param view The index of the view in FrameScene::views it lights (its camera position).
     /// @param shadow None: the directional light is unshadowed.
-    LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view = 0,
-        std::optional<ShadowMaps> shadow = std::nullopt);
+    LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+        std::uint32_t view = 0, std::optional<ShadowMaps> shadow = std::nullopt);
     LightingPass(const LightingPass&) = delete;
     LightingPass(LightingPass&&) = delete;
     ~LightingPass() override;
@@ -79,6 +80,7 @@ public:
 
 private:
     const FrameSceneSource& m_scene;
+    PipelineLibrary& m_pipelines;
     std::uint32_t m_view;
     std::array<ResourceId, 5> m_gBuffer; // Position, Normal, Albedo, ARM, Emissive
     ResourceId m_sceneColor;
@@ -89,8 +91,8 @@ private:
     ResourceId m_spotShadowAtlas;                             // Invalid without spot shadow views
     rhi::Device* m_device{ nullptr };
     std::optional<rhi::SamplerHandle> m_shadowSampler;
-    std::optional<rhi::Pipeline> m_pipeline;
-    std::shared_ptr<assets::Texture> m_brdfLut; // One per pass, not per environment
+    const rhi::Pipeline* m_pipeline{ nullptr };
+    std::shared_ptr<assets::Texture> m_brdfLut; // The library's, not per environment
     Settings m_settings;
 };
 }

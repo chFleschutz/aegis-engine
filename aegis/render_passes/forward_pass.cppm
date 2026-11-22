@@ -2,6 +2,7 @@ export module aegis.render_passes:forward_pass;
 import std;
 import :frame_scene;
 import :lighting_pass;
+import :pipeline_library;
 import :render_system;
 import aegis.render_graph;
 import aegis.rhi;
@@ -16,10 +17,11 @@ export namespace aegis::render_graph
 class ForwardPass : public RenderPass
 {
 public:
+    /// @param pipelines Where its render systems take their pipelines from.
     /// @param view The index of the view in FrameScene::views it draws (its camera).
     /// @param shadow The shadow maps the view's LightingPass samples; none: it has none.
-    ForwardPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view = 0,
-        const std::optional<LightingPass::ShadowMaps>& shadow = std::nullopt);
+    ForwardPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+        std::uint32_t view = 0, const std::optional<LightingPass::ShadowMaps>& shadow = std::nullopt);
 
     template<typename T, typename... Args>
         requires std::derived_from<T, RenderSystem> && std::constructible_from<T, Args...>
@@ -40,6 +42,7 @@ public:
 
 private:
     const FrameSceneSource& m_scene;
+    PipelineLibrary& m_pipelines;
     std::uint32_t m_view;
     ResourceId m_sceneColor;
     ResourceId m_depth;

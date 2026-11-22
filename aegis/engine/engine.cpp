@@ -665,6 +665,7 @@ auto Engine::createFrameGraph(std::vector<ViewTarget> views) -> std::expected<vo
     m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, m_renderer->extent());
     DefaultPassesDesc desc{
         .scene = m_frameScene,
+        .pipelines = *m_pipelines,
         .gpuDriven = useGpuDrivenRendering(),
         .ui = true, // The shell's UI, empty for a game; headless too, for screenshots of it
         .uiBackend = m_presentation.backend(),
