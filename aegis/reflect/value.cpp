@@ -99,19 +99,19 @@ auto toText(FieldKind kind, const Value& value, std::span<const EnumEntry> enumE
             return *v;
         return mismatch(kind);
     case FieldKind::Vec2:
-        if (auto* v = std::get_if<glm::vec2>(&value))
+        if (auto* v = std::get_if<math::Float2>(&value))
             return joinComponents(std::to_array({ v->x, v->y }));
         return mismatch(kind);
     case FieldKind::Vec3:
-        if (auto* v = std::get_if<glm::vec3>(&value))
+        if (auto* v = std::get_if<math::Float3>(&value))
             return joinComponents(std::to_array({ v->x, v->y, v->z }));
         return mismatch(kind);
     case FieldKind::Vec4:
-        if (auto* v = std::get_if<glm::vec4>(&value))
+        if (auto* v = std::get_if<math::Float4>(&value))
             return joinComponents(std::to_array({ v->x, v->y, v->z, v->w }));
         return mismatch(kind);
     case FieldKind::Quat:
-        if (auto* v = std::get_if<glm::quat>(&value))
+        if (auto* v = std::get_if<math::Quat>(&value))
             return joinComponents(std::to_array({ v->x, v->y, v->z, v->w }));
         return mismatch(kind);
     case FieldKind::AssetRef:
@@ -158,23 +158,23 @@ auto fromText(FieldKind kind, std::string_view text, std::span<const EnumEntry> 
     case FieldKind::Vec2:
     {
         auto c = parseComponents<2>(text);
-        return c ? std::expected<Value, Error>{ glm::vec2{ (*c)[0], (*c)[1] } } : std::unexpected{ c.error() };
+        return c ? std::expected<Value, Error>{ math::Float2{ (*c)[0], (*c)[1] } } : std::unexpected{ c.error() };
     }
     case FieldKind::Vec3:
     {
         auto c = parseComponents<3>(text);
-        return c ? std::expected<Value, Error>{ glm::vec3{ (*c)[0], (*c)[1], (*c)[2] } } : std::unexpected{ c.error() };
+        return c ? std::expected<Value, Error>{ math::Float3{ (*c)[0], (*c)[1], (*c)[2] } } : std::unexpected{ c.error() };
     }
     case FieldKind::Vec4:
     {
         auto c = parseComponents<4>(text);
-        return c ? std::expected<Value, Error>{ glm::vec4{ (*c)[0], (*c)[1], (*c)[2], (*c)[3] } } : std::unexpected{ c.error() };
+        return c ? std::expected<Value, Error>{ math::Float4{ (*c)[0], (*c)[1], (*c)[2], (*c)[3] } } : std::unexpected{ c.error() };
     }
     case FieldKind::Quat:
     {
         auto c = parseComponents<4>(text);
-        // glm::quat's constructor takes (w, x, y, z); the text is "x y z w".
-        return c ? std::expected<Value, Error>{ math::quatFromXyzw((*c)[0], (*c)[1], (*c)[2], (*c)[3]) } : std::unexpected{ c.error() };
+        // math::Quat's constructor takes (w, x, y, z); the text is "x y z w".
+        return c ? std::expected<Value, Error>{ math::Quat::fromXyzw((*c)[0], (*c)[1], (*c)[2], (*c)[3]) } : std::unexpected{ c.error() };
     }
     case FieldKind::AssetRef:
     {

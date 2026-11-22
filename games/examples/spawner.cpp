@@ -28,11 +28,11 @@ class Spawner : public aegis::scripting::Script
 {
 public:
     std::uint32_t count{ 100 };
-    glm::vec3 extent{ 10.0f }; // Half the size of the box, around the spawner
-    glm::vec2 scale{ 1.0f };   // Range of the clones' uniform scale
-    glm::vec3 tilt{ 0.0f };    // Rotation every clone starts with, Euler angles in degrees
-    bool tumble{ false };      // Random rotation about every axis, else only about the up axis
-    glm::vec2 spin{ 0.0f };    // Range of the clones' spin about the up axis in degrees per second; 0 keeps them static
+    math::Float3 extent{ 10.0f }; // Half the size of the box, around the spawner
+    math::Float2 scale{ 1.0f };   // Range of the clones' uniform scale
+    math::Float3 tilt{ 0.0f };    // Rotation every clone starts with, Euler angles in degrees
+    bool tumble{ false };         // Random rotation about every axis, else only about the up axis
+    math::Float2 spin{ 0.0f };    // Range of the clones' spin about the up axis in degrees per second; 0 keeps them static
     std::uint32_t seed{ 1 };
 
     void onCreate(aegis::scripting::ScriptContext& context) override
@@ -59,11 +59,11 @@ public:
         const bool spinning = spin.y > 0.0f;
         for (std::uint32_t i = 0; i < count; ++i)
         {
-            const glm::vec3 location{ uniform(-extent.x, extent.x), uniform(-extent.y, extent.y), uniform(-extent.z, extent.z) };
-            const glm::vec3 angles = tumble ? glm::vec3{ uniform(0.0f, 360.0f), uniform(0.0f, 360.0f), uniform(0.0f, 360.0f) }
-                                            : glm::vec3{ 0.0f, 0.0f, uniform(0.0f, 360.0f) };
-            const auto rotation = aegis::math::quatFromEuler(glm::radians(tilt + angles));
-            const glm::vec3 size{ uniform(scale.x, scale.y) };
+            const math::Float3 location{ uniform(-extent.x, extent.x), uniform(-extent.y, extent.y), uniform(-extent.z, extent.z) };
+            const math::Float3 angles = tumble ? math::Float3{ uniform(0.0f, 360.0f), uniform(0.0f, 360.0f), uniform(0.0f, 360.0f) }
+                                               : math::Float3{ 0.0f, 0.0f, uniform(0.0f, 360.0f) };
+            const auto rotation = aegis::math::Quat::fromEuler(math::radians(tilt + angles));
+            const math::Float3 size{ uniform(scale.x, scale.y) };
 
             // Copied, not referenced: adding to the registry may move the template's renderer
             const auto renderer = registry.get<aegis::MeshRenderer>(templates[i % templates.size()]);
@@ -72,7 +72,7 @@ public:
             if (spinning)
             {
                 registry.add<aegis::DynamicTag>(clone); // Moves every frame
-                m_spinning.push_back({ clone, glm::radians(uniform(spin.x, spin.y)) });
+                m_spinning.push_back({ clone, math::radians(uniform(spin.x, spin.y)) });
             }
         }
     }
@@ -83,7 +83,7 @@ public:
         for (const auto& [entity, speed] : m_spinning)
         {
             auto& transform = registry.get<aegis::Transform>(entity);
-            transform.rotation *= glm::angleAxis(speed * deltaSeconds, aegis::math::world::UP);
+            transform.rotation *= math::Quat::fromAxisAngle(aegis::math::world::up<float>, speed * deltaSeconds);
         }
     }
 

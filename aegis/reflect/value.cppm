@@ -44,7 +44,7 @@ enum class FieldKind
 
 // A field's value, type-erased. Int and Enum fields both use the int64_t alternative, UInt and AssetRef
 // fields the uint64_t one.
-using Value = std::variant<bool, std::int64_t, std::uint64_t, float, double, std::string, glm::vec2, glm::vec3, glm::vec4, glm::quat>;
+using Value = std::variant<bool, std::int64_t, std::uint64_t, float, double, std::string, math::Float2, math::Float3, math::Float4, math::Quat>;
 
 // One named enumerator of an enum field.
 struct EnumEntry

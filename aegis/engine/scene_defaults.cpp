@@ -17,7 +17,7 @@ auto addDefaultCamera(SceneContext& context) -> world::Entity
     registry.add<DynamicTag>(camera);
     registry.get<Transform>(camera) = Transform{
         .location = { 0.0f, -15.0f, 10.0f },
-        .rotation = math::quatFromEuler(glm::radians(glm::vec3{ -30.0f, 0.0f, 0.0f }))
+        .rotation = math::Quat::fromEuler(math::radians(math::Float3{ -30.0f, 0.0f, 0.0f }))
     };
     context.scene.setMainCamera(camera);
 
@@ -35,7 +35,7 @@ auto addDefaultLights(SceneContext& context) -> DefaultLights
 
     auto directional = registry.create("Directional Light");
     registry.add<DirectionalLight>(directional);
-    registry.get<Transform>(directional).rotation = math::quatFromEuler(glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }));
+    registry.get<Transform>(directional).rotation = math::Quat::fromEuler(math::radians(math::Float3{ 60.0f, 0.0f, 45.0f }));
 
     return { ambient, directional };
 }

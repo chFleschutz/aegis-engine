@@ -108,12 +108,12 @@ auto parse(const std::string& text, const TypeRegistry& types) -> std::expected<
 auto buildWorld(Registry& registry, const TypeRegistry& types) -> void
 {
     auto lamp = registry.createWithId(0x1c5e09b7f3a8d264, "Lamp", { 0.0f, 0.0f, 1.5f });
-    registry.add<aegis::PointLight>(lamp, glm::vec3{ 1.0f, 0.5f, 0.25f }, 200.0f);
+    registry.add<aegis::PointLight>(lamp, math::Float3{ 1.0f, 0.5f, 0.25f }, 200.0f);
     auto bulb = registry.createWithId(0x7a21e4c90d3b5f86, "Spinning Bulb", { 0.0f, 0.0f, 0.25f });
     registry.add<aegis::DynamicTag>(bulb);
     auto crate = registry.createWithId(0x3b0f5e2a9c1d4e77, "Crate", { 2.0f, -1.0f, 0.0f });
     registry.add<Health>(crate, 75.0f, Armor::Heavy);
-    registry.get<aegis::Transform>(crate).scale = glm::vec3{ 0.5f };
+    registry.get<aegis::Transform>(crate).scale = math::Float3{ 0.5f };
     REQUIRE(registry.addChild(lamp, bulb));
     REQUIRE(registry.addChild(lamp, crate));
 

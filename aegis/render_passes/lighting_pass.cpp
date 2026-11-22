@@ -191,7 +191,7 @@ auto packLight(const FrameScene::PointLight& light) -> LightData
         .range = light.range,
         .color = light.color,
         .intensity = light.intensity,
-        .direction = glm::vec3{ 0.0f },
+        .direction = math::Float3{ 0.0f },
         .coneScale = 0.0f,
         .coneOffset = 1.0f,
     };
@@ -216,13 +216,13 @@ auto packLight(const FrameScene::SpotLight& light) -> LightData
 
 auto packSpotShadow(LightData& data, const FrameScene::SpotLight& light, const FrameScene::Camera& camera, rhi::Rect2D tile) -> void
 {
-    const auto atlas = glm::vec2{ static_cast<float>(spotShadowAtlasExtent.x), static_cast<float>(spotShadowAtlasExtent.y) };
+    const auto atlas = math::Float2{ static_cast<float>(spotShadowAtlasExtent.x), static_cast<float>(spotShadowAtlasExtent.y) };
     data.shadowViewProjection = glm::rowMajor4(camera.projection * camera.view);
-    data.shadowRegion = glm::vec4{ static_cast<float>(tile.x) / atlas.x, static_cast<float>(tile.y) / atlas.y,
+    data.shadowRegion = math::Float4{ static_cast<float>(tile.x) / atlas.x, static_cast<float>(tile.y) / atlas.y,
         static_cast<float>(tile.extent.x) / atlas.x, static_cast<float>(tile.extent.y) / atlas.y };
     data.shadowBias = light.shadowBias;
     // The perspective projection spans 2 / projection[0, 0] meters across the tile one meter along the light's axis.
-    data.shadowTexelSize = 2.0f / (std::abs(math::element(camera.projection, 0, 0)) * static_cast<float>(std::max(tile.extent.x, 1u)));
+    data.shadowTexelSize = 2.0f / (std::abs(camera.projection[0, 0]) * static_cast<float>(std::max(tile.extent.x, 1u)));
 }
 
 auto packLights(const FrameScene& scene) -> std::vector<LightData>
@@ -260,18 +260,18 @@ auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddres
         .brdfLut = brdfLut,
     };
     if (const auto camera = scene.camera(view))
-        uniforms.cameraPosition = glm::vec4{ camera->position, 1.0f };
+        uniforms.cameraPosition = math::Float4{ camera->position, 1.0f };
     if (const auto& light = scene.ambientLight)
-        uniforms.ambientColor = glm::vec4{ light->color, light->intensity };
+        uniforms.ambientColor = math::Float4{ light->color, light->intensity };
     if (const auto& light = scene.directionalLight)
     {
-        uniforms.directionalColor = glm::vec4{ light->color, light->intensity };
-        uniforms.directionalDirection = glm::vec4{ light->direction, 0.0f };
+        uniforms.directionalColor = math::Float4{ light->color, light->intensity };
+        uniforms.directionalDirection = math::Float4{ light->direction, 0.0f };
         const auto camera = scene.camera(view);
         if (shadow && camera)
         {
             // The cascades split the main view's camera axis; the shadow views hold their fitted cameras.
-            uniforms.cameraForward = glm::vec4{ -glm::vec3{ math::row(camera->view, 2) }, 0.0f };
+            uniforms.cameraForward = math::Float4{ -math::Float3{ camera->view.row(2) }, 0.0f };
             uniforms.shadowBias = light->shadowBias;
             uniforms.shadowCascadeBlend = shadowCascadeBlend;
             const auto splits = shadowCascadeSplits(*light, camera->projection);
@@ -285,7 +285,7 @@ auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddres
                 uniforms.shadowCascades[cascade] = {
                     .viewProjection = glm::rowMajor4(shadowCamera->projection * shadowCamera->view),
                     .map = shadow->maps[cascade],
-                    .texelSize = 2.0f / (std::abs(math::element(shadowCamera->projection, 0, 0)) * static_cast<float>(std::max(extent.x, 1u))),
+                    .texelSize = 2.0f / (std::abs(shadowCamera->projection[0, 0]) * static_cast<float>(std::max(extent.x, 1u))),
                     .splitFar = splits[cascade],
                 };
                 uniforms.shadowCascadeCount = cascade + 1;

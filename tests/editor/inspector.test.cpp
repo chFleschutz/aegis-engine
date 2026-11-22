@@ -352,7 +352,7 @@ TEST_SUITE("editor::setField")
         const auto& type = *types.find<aegis::Transform>();
 
         auto& transform = registry.get<aegis::Transform>(entity);
-        REQUIRE(setField(type, *type.findField("location"), registry, entity, &transform, aegis::reflect::Value{ glm::vec3{ 1.0f, 2.0f, 3.0f } }).has_value());
+        REQUIRE(setField(type, *type.findField("location"), registry, entity, &transform, aegis::reflect::Value{ math::Float3{ 1.0f, 2.0f, 3.0f } }).has_value());
         CHECK(transform.location.x == 1.0f);
         CHECK(transform.location.z == 3.0f);
         CHECK(registry.has<aegis::StaticDirtyTag>(entity));
@@ -374,7 +374,7 @@ TEST_SUITE("editor::setField")
             CHECK(object == &transform);
             dirtyWhenPrepared = registry.has<aegis::StaticDirtyTag>(entity);
         };
-        REQUIRE(setField(type, *type.findField("scale"), registry, entity, &transform, aegis::reflect::Value{ glm::vec3{ 2.0f } }, prepare).has_value());
+        REQUIRE(setField(type, *type.findField("scale"), registry, entity, &transform, aegis::reflect::Value{ math::Float3{ 2.0f } }, prepare).has_value());
         CHECK_FALSE(dirtyWhenPrepared);
         CHECK(registry.has<aegis::StaticDirtyTag>(entity));
     }
@@ -424,8 +424,8 @@ TEST_SUITE("editor::writeComponent")
 
         bool dirtyWhenPrepared = true;
         const auto prepare = [&](const TypeInfo&, void*) { dirtyWhenPrepared = registry.has<aegis::StaticDirtyTag>(entity); };
-        const aegis::editor::FieldValues values{ { .field = "location", .value = aegis::reflect::Value{ glm::vec3{ 1.0f, 2.0f, 3.0f } } },
-            { .field = "scale", .value = aegis::reflect::Value{ glm::vec3{ 2.0f } } } };
+        const aegis::editor::FieldValues values{ { .field = "location", .value = aegis::reflect::Value{ math::Float3{ 1.0f, 2.0f, 3.0f } } },
+            { .field = "scale", .value = aegis::reflect::Value{ math::Float3{ 2.0f } } } };
         REQUIRE(writeComponent(type, registry, entity, &transform, values, prepare).has_value());
         CHECK(transform.location.y == 2.0f);
         CHECK(transform.scale.x == 2.0f);
@@ -444,7 +444,7 @@ TEST_SUITE("editor::writeComponent")
         const auto& type = *types.find<aegis::Transform>();
         auto& transform = registry.get<aegis::Transform>(entity);
 
-        const aegis::editor::FieldValues values{ { .field = "location", .value = aegis::reflect::Value{ glm::vec3{ 1.0f } } } };
+        const aegis::editor::FieldValues values{ { .field = "location", .value = aegis::reflect::Value{ math::Float3{ 1.0f } } } };
         REQUIRE(writeComponent(type, registry, entity, &transform, values).has_value());
         CHECK(transform.location.x == 1.0f);
         CHECK_FALSE(registry.has<aegis::StaticDirtyTag>(entity));

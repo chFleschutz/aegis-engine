@@ -10,7 +10,7 @@ TEST_SUITE("render_graph::Frustum")
     using aegis::render_graph::Frustum;
 
     // With an identity view-projection the frustum is clip space: x, y in [-1, 1], z in [0, 1].
-    const auto clipSpace = Frustum::extractFrom(glm::mat4::identity());
+    const auto clipSpace = Frustum::extractFrom(math::Float4x4::identity());
 
     TEST_CASE("a sphere inside is visible")
     {
@@ -31,8 +31,8 @@ TEST_SUITE("render_graph::Frustum")
 
     TEST_CASE("plane normals are unit length")
     {
-        const auto scaled = Frustum::extractFrom(glm::mat4::identity() * 4.0f);
+        const auto scaled = Frustum::extractFrom(math::Float4x4::identity() * 4.0f);
         for (const auto& plane : scaled.planes)
-            CHECK(glm::length(glm::vec3{ plane }) == doctest::Approx(1.0f));
+            CHECK(math::length(math::Float3{ plane }) == doctest::Approx(1.0f));
     }
 }

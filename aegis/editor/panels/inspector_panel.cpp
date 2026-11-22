@@ -31,7 +31,7 @@ namespace
 struct RotationDrag
 {
     ImGuiID id{ 0 };
-    glm::vec3 euler{ 0.0f };
+    math::Float3 euler{ 0.0f };
 };
 
 // The value held as T, or 'fallback' for a value of another kind (a getter always returns its field's kind). A type
@@ -164,18 +164,18 @@ auto dragAxes(const PropertyRow& row, float* values, int count, Defaults&& defau
 }
 
 // The vector field 'row' in a default-constructed instance of its type, padded with zeros to four components.
-auto fieldDefaults(const reflect::TypeInfo& type, const PropertyRow& row) -> glm::vec4
+auto fieldDefaults(const reflect::TypeInfo& type, const PropertyRow& row) -> math::Float4
 {
-    glm::vec4 defaults{ 0.0f };
+    math::Float4 defaults{ 0.0f };
     const auto instance = type.create();
     if (!instance)
         return defaults;
     const auto value = row.field->getter(instance->get());
-    if (const auto* v2 = std::get_if<glm::vec2>(&value))
-        defaults = glm::vec4{ *v2, 0.0f, 0.0f };
-    else if (const auto* v3 = std::get_if<glm::vec3>(&value))
-        defaults = glm::vec4{ *v3, 0.0f };
-    else if (const auto* v4 = std::get_if<glm::vec4>(&value))
+    if (const auto* v2 = std::get_if<math::Float2>(&value))
+        defaults = math::Float4{ *v2, 0.0f, 0.0f };
+    else if (const auto* v3 = std::get_if<math::Float3>(&value))
+        defaults = math::Float4{ *v3, 0.0f };
+    else if (const auto* v4 = std::get_if<math::Float4>(&value))
         defaults = *v4;
     return defaults;
 }
@@ -184,7 +184,7 @@ template<class T>
 auto dragValue(const reflect::TypeInfo& type, const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>
 {
     T edited = as<T>(value);
-    if constexpr (std::same_as<T, glm::vec2> || std::same_as<T, glm::vec3> || std::same_as<T, glm::vec4>)
+    if constexpr (std::same_as<T, math::Float2> || std::same_as<T, math::Float3> || std::same_as<T, math::Float4>)
     {
         if (dragAxes(row, &edited.x, row.components, [&] { return fieldDefaults(type, row); }))
             return reflect::Value{ edited };
@@ -204,9 +204,9 @@ auto drawNumber(const reflect::TypeInfo& type, const PropertyRow& row, const ref
     case reflect::FieldKind::UInt: return dragValue<std::uint64_t>(type, row, value);
     case reflect::FieldKind::Float: return dragValue<float>(type, row, value);
     case reflect::FieldKind::Double: return dragValue<double>(type, row, value);
-    case reflect::FieldKind::Vec2: return dragValue<glm::vec2>(type, row, value);
-    case reflect::FieldKind::Vec3: return dragValue<glm::vec3>(type, row, value);
-    case reflect::FieldKind::Vec4: return dragValue<glm::vec4>(type, row, value);
+    case reflect::FieldKind::Vec2: return dragValue<math::Float2>(type, row, value);
+    case reflect::FieldKind::Vec3: return dragValue<math::Float3>(type, row, value);
+    case reflect::FieldKind::Vec4: return dragValue<math::Float4>(type, row, value);
     default: return std::nullopt;
     }
 }
@@ -216,10 +216,10 @@ auto drawAngle(const PropertyRow& row, const reflect::Value& value) -> std::opti
 {
     const bool isDouble = row.field->kind == reflect::FieldKind::Double;
     const double radians = isDouble ? as<double>(value) : static_cast<double>(as<float>(value));
-    float degrees = static_cast<float>(glm::degrees(radians));
+    float degrees = static_cast<float>(math::degrees(radians));
     if (!dragValues(row, &degrees, 1))
         return std::nullopt;
-    const double edited = glm::radians(static_cast<double>(degrees));
+    const double edited = math::radians(static_cast<double>(degrees));
     return isDouble ? reflect::Value{ edited } : reflect::Value{ static_cast<float>(edited) };
 }
 
@@ -228,36 +228,36 @@ auto drawAngle(const PropertyRow& row, const reflect::Value& value) -> std::opti
 auto drawColor(const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>
 {
     const bool isVec4 = row.field->kind == reflect::FieldKind::Vec4;
-    const glm::vec4 stored = isVec4 ? as<glm::vec4>(value) : glm::vec4{ as<glm::vec3>(value), 1.0f };
+    const math::Float4 stored = isVec4 ? as<math::Float4>(value) : math::Float4{ as<math::Float3>(value), 1.0f };
     // A color above 1, or a field allowed above 1, is HDR: no clamping, and shown as floats since hex cannot
     const bool hdr = (row.max && *row.max > 1.0) || std::max({ stored.x, stored.y, stored.z }) > 1.0f;
     const ImGuiColorEditFlags flags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoTooltip | (hdr ? ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_DisplayRGB : ImGuiColorEditFlags_DisplayHex);
 
-    const glm::vec3 shown = linearToSrgb(glm::vec3{ stored });
-    glm::vec4 edited{ shown, stored.w };
+    const math::Float3 shown = linearToSrgb(math::Float3{ stored });
+    math::Float4 edited{ shown, stored.w };
     const bool changed = isVec4 ? ImGui::ColorEdit4("##value", &edited.x, flags) : ImGui::ColorEdit3("##value", &edited.x, flags);
     ImGui::SetItemTooltip("Stored linear");
     if (!changed)
         return std::nullopt;
 
-    const glm::vec3 linear = linearAfterEdit(glm::vec3{ stored }, shown, glm::vec3{ edited });
-    return isVec4 ? reflect::Value{ glm::vec4{ linear, edited.w } } : reflect::Value{ linear };
+    const math::Float3 linear = linearAfterEdit(math::Float3{ stored }, shown, math::Float3{ edited });
+    return isVec4 ? reflect::Value{ math::Float4{ linear, edited.w } } : reflect::Value{ linear };
 }
 
 auto drawRotation(const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>
 {
     static RotationDrag s_drag;
     const ImGuiID id = ImGui::GetID("##value");
-    glm::vec3 euler = s_drag.id == id ? s_drag.euler : glm::degrees(glm::eulerAngles(as<glm::quat>(value, glm::quat::identity())));
+    math::Float3 euler = s_drag.id == id ? s_drag.euler : math::degrees(math::eulerAngles(as<math::Quat>(value, math::Quat::identity())));
     // The conversion leaves noise around zero, which would show as -0.00: a zero is a zero
     for (int i = 0; i < 3; ++i)
         euler[i] = std::abs(euler[i]) < rotationNoise ? 0.0f : euler[i];
-    const bool changed = dragAxes(row, &euler.x, 3, [] { return glm::vec4{ 0.0f }; });
+    const bool changed = dragAxes(row, &euler.x, 3, [] { return math::Float4{ 0.0f }; });
     if (ImGui::IsItemActive())
         s_drag = { .id = id, .euler = euler };
     else if (s_drag.id == id)
         s_drag = {};
-    return changed ? std::optional{ reflect::Value{ math::quatFromEuler(glm::radians(euler)) } } : std::nullopt;
+    return changed ? std::optional{ reflect::Value{ math::Quat::fromEuler(math::radians(euler)) } } : std::nullopt;
 }
 
 auto drawCombo(const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>

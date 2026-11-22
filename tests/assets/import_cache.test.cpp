@@ -226,7 +226,7 @@ TEST_SUITE("assets::ImportCache")
         const auto& a = first.model;
         const auto& b = second.model;
         CHECK(b.name == a.name);
-        CHECK(std::memcmp(&b.rootRotation, &a.rootRotation, sizeof(glm::quat)) == 0);
+        CHECK(std::memcmp(&b.rootRotation, &a.rootRotation, sizeof(math::Quat)) == 0);
         CHECK(b.dependencies == std::vector<std::string>{ "tri.bin" });
         REQUIRE(b.meshes.size() == 1);
         CHECK(b.meshes[0].name == "tri");

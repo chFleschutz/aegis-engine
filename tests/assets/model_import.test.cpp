@@ -146,7 +146,7 @@ public:
     std::vector<std::string> warnings;
 };
 
-auto same(glm::vec3 a, glm::vec3 b) -> bool
+auto same(math::Float3 a, math::Float3 b) -> bool
 {
     return a.x == b.x && a.y == b.y && a.z == b.z;
 }
@@ -171,7 +171,7 @@ auto signedAreas(const assets::MeshData& mesh) -> std::vector<float>
         const auto a = mesh.vertices[mesh.indices[i + 0]].position;
         const auto b = mesh.vertices[mesh.indices[i + 1]].position;
         const auto c = mesh.vertices[mesh.indices[i + 2]].position;
-        areas.push_back(0.5f * glm::cross(b - a, c - a).z);
+        areas.push_back(0.5f * math::cross(b - a, c - a).z);
     }
     return areas;
 }
@@ -246,11 +246,11 @@ TEST_SUITE("assets::importGltf")
         const auto model = assets::importGltf(bytes);
         REQUIRE(model.has_value());
         REQUIRE(model->nodes.size() == 3);
-        CHECK(same(model->nodes[0].translation, glm::vec3{ 1, 2, 3 }));
-        CHECK(same(model->nodes[0].scale, glm::vec3{ 2, 3, 4 }));
+        CHECK(same(model->nodes[0].translation, math::Float3{ 1, 2, 3 }));
+        CHECK(same(model->nodes[0].scale, math::Float3{ 2, 3, 4 }));
         CHECK(model->nodes[0].rotation.z == doctest::Approx(0.70710678f));
         CHECK(model->nodes[0].rotation.w == doctest::Approx(0.70710678f));
-        CHECK(same(model->nodes[1].translation, glm::vec3{ 5, 6, 7 }));
+        CHECK(same(model->nodes[1].translation, math::Float3{ 5, 6, 7 }));
         CHECK(model->nodes[1].scale.x == doctest::Approx(2.0f));
         CHECK(model->nodes[2].name == "Node_2");
     }
@@ -259,7 +259,7 @@ TEST_SUITE("assets::importGltf")
     {
         const auto model = assets::importGltf(document(R"json("nodes": [ { } ], "scenes": [ { "nodes": [0] } ])json"));
         REQUIRE(model.has_value());
-        const auto up = model->rootRotation * glm::vec3{ 0, 1, 0 };
+        const auto up = model->rootRotation * math::Float3{ 0, 1, 0 };
         CHECK(up.z == doctest::Approx(1.0f));
         CHECK(up.y == doctest::Approx(0.0f).epsilon(1e-6));
     }
@@ -279,7 +279,7 @@ TEST_SUITE("assets::importGltf")
         CHECK(mesh.indices.size() == 6);
         for (const auto& vertex : mesh.vertices)
         {
-            CHECK(same(vertex.normal, glm::vec3{ 0, 0, 1 }));
+            CHECK(same(vertex.normal, math::Float3{ 0, 0, 1 }));
             // The quad's uv v runs opposite to y: (0, 1) at the origin.
             CHECK(vertex.uv.y == doctest::Approx(1.0f - vertex.position.y));
             CHECK(vertex.uv.x == doctest::Approx(vertex.position.x));
@@ -299,7 +299,7 @@ TEST_SUITE("assets::importGltf")
             CHECK(vertex.color.y == doctest::Approx(0.5f));
             CHECK(vertex.color.z == doctest::Approx(0.75f));
         }
-        const auto it = std::ranges::find_if(mesh.vertices, [](const assets::Vertex& v) { return same(v.position, glm::vec3{ 1, 1, 0 }); });
+        const auto it = std::ranges::find_if(mesh.vertices, [](const assets::Vertex& v) { return same(v.position, math::Float3{ 1, 1, 0 }); });
         REQUIRE(it != mesh.vertices.end());
         CHECK(it->color.x == doctest::Approx(0.75f));
     }
@@ -602,7 +602,7 @@ TEST_SUITE("assets::importObj")
         CHECK(mesh.vertices.size() == 3);
         CHECK(mesh.indices.size() == 3);
         for (const auto& vertex : mesh.vertices)
-            CHECK(same(vertex.normal, glm::vec3{ 0, 0, 1 }));
+            CHECK(same(vertex.normal, math::Float3{ 0, 0, 1 }));
     }
 
     TEST_CASE("flips v to a top-left origin")

@@ -21,7 +21,7 @@ public:
     void onUpdate(aegis::scripting::ScriptContext& context, float deltaSeconds) override
     {
         auto& transform = context.get<aegis::Transform>();
-        transform.rotation *= glm::angleAxis(speed * deltaSeconds, aegis::math::world::UP);
+        transform.rotation *= math::Quat::fromAxisAngle(aegis::math::world::up<float>, speed * deltaSeconds);
     }
 };
 
@@ -35,7 +35,7 @@ public:
     void onUpdate(aegis::scripting::ScriptContext& context, float deltaSeconds) override
     {
         m_time += deltaSeconds * speed;
-        const glm::vec3 color{
+        const math::Float3 color{
             (std::sin(m_time + 0.0f) + 1.0f) / 2.0f,
             (std::sin(m_time + 2.0f) + 1.0f) / 2.0f,
             (std::sin(m_time + 4.0f) + 1.0f) / 2.0f

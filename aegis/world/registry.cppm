@@ -46,16 +46,16 @@ public:
 
     /// @brief Creates an entity with a StableId (random, unique in this registry), a Name and a Transform
     /// @note world::Entity can be passed by value
-    auto create(const std::string& name = std::string{}, const glm::vec3& location = glm::vec3{ 0.0f },
-        const glm::quat& rotation = glm::quat::identity(), const glm::vec3& scale = glm::vec3{ 1.0f }) -> Entity
+    auto create(const std::string& name = std::string{}, const math::Float3& location = math::Float3{ 0.0f },
+        const math::Quat& rotation = math::Quat::identity(), const math::Float3& scale = math::Float3{ 1.0f }) -> Entity
     {
         return createWithId(randomId(), name, location, rotation, scale);
     }
 
     /// @brief Like create, with a given StableId (a loader restoring a saved entity)
     /// @return The new entity, or a null Entity (and nothing created) if the id is zero or already in use
-    auto createWithId(std::uint64_t id, const std::string& name = std::string{}, const glm::vec3& location = glm::vec3{ 0.0f },
-        const glm::quat& rotation = glm::quat::identity(), const glm::vec3& scale = glm::vec3{ 1.0f }) -> Entity;
+    auto createWithId(std::uint64_t id, const std::string& name = std::string{}, const math::Float3& location = math::Float3{ 0.0f },
+        const math::Quat& rotation = math::Quat::identity(), const math::Float3& scale = math::Float3{ 1.0f }) -> Entity;
 
     /// @brief Destroys the entity (its StableId is gone with it and is not reused)
     /// @note The listeners added with addDestroyListener run first, while the entity still has all its components

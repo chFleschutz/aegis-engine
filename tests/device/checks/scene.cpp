@@ -123,7 +123,7 @@ void destroySubtree(world::Registry& registry, world::Entity root)
 
 // --unlit: the unlit cube's colour. Pure channels survive tone mapping and gamma exactly where they are 0, so any
 // light on the cube shows as red (verifyUnlit).
-constexpr glm::vec3 unlitColor{ 0.0f, 1.0f, 1.0f };
+constexpr math::Float3 unlitColor{ 0.0f, 1.0f, 1.0f };
 
 // --post-process: settings far enough from the defaults that a frame rendered with the defaults fails the reference.
 constexpr PostProcess postProcessSettings{
@@ -293,7 +293,7 @@ private:
         if (m_options.view || m_options.views)
         {
             // Ahead and to the right of the main camera, turned towards the helmet; CameraSystem keeps its matrices.
-            m_viewCamera = registry.create("View Camera", glm::vec3{ 2.2f, -2.2f, 0.3f }, math::quatFromEuler(glm::radians(glm::vec3{ 0.0f, 0.0f, 45.0f })));
+            m_viewCamera = registry.create("View Camera", math::Float3{ 2.2f, -2.2f, 0.3f }, math::Quat::fromEuler(math::radians(math::Float3{ 0.0f, 0.0f, 45.0f })));
             registry.add<Camera>(m_viewCamera);
             registry.markStaticDirty(m_viewCamera); // Once the world has begun, a new static entity needs it for its global transform
         }
@@ -343,7 +343,7 @@ private:
         auto& transform = registry.get<Transform>(*cube);
         transform.location = camera.location + camera.forward() * 0.5f;
         transform.rotation = camera.rotation;
-        transform.scale = glm::vec3{ 0.1f };
+        transform.scale = math::Float3{ 0.1f };
         for (const auto entity : subtree(registry, *cube))
         {
             if (registry.has<MeshRenderer>(entity))
@@ -421,11 +421,11 @@ private:
         if (!camera)
             return std::unexpected{ "the scene has no camera" };
 
-        const glm::vec3 nearer = camera->location + camera->forward() * 1.1f + camera->right() * 0.12f;
-        const glm::vec3 farther = camera->location + camera->forward() * 1.5f + camera->right() * 0.38f + camera->up() * 0.16f;
-        const std::array<std::pair<glm::vec3, glm::vec3>, 2> cubes{ {
-            { glm::vec3{ 1.0f, 0.25f, 0.1f }, m_options.blendSwap ? farther : nearer },
-            { glm::vec3{ 0.1f, 0.35f, 1.0f }, m_options.blendSwap ? nearer : farther },
+        const math::Float3 nearer = camera->location + camera->forward() * 1.1f + camera->right() * 0.12f;
+        const math::Float3 farther = camera->location + camera->forward() * 1.5f + camera->right() * 0.38f + camera->up() * 0.16f;
+        const std::array<std::pair<math::Float3, math::Float3>, 2> cubes{ {
+            { math::Float3{ 1.0f, 0.25f, 0.1f }, m_options.blendSwap ? farther : nearer },
+            { math::Float3{ 0.1f, 0.35f, 1.0f }, m_options.blendSwap ? nearer : farther },
         } };
         for (const auto& [albedo, location] : cubes)
         {
@@ -451,8 +451,8 @@ private:
             auto& transform = registry.get<Transform>(*cube);
             transform.location = location;
             // Turned so that three faces, each lit differently, face the camera.
-            transform.rotation = math::quatFromEuler(glm::vec3{ glm::radians(30.0f), 0.0f, glm::radians(40.0f) });
-            transform.scale = glm::vec3{ 0.25f };
+            transform.rotation = math::Quat::fromEuler(math::Float3{ math::radians(30.0f), 0.0f, math::radians(40.0f) });
+            transform.scale = math::Float3{ 0.25f };
             for (const auto entity : subtree(registry, *cube))
             {
                 if (registry.has<MeshRenderer>(entity))
@@ -515,7 +515,7 @@ private:
             auto& transform = registry.get<Transform>(*cube);
             transform.location = camera->location + camera->forward() * 1.5f + camera->right() * (0.6f * side);
             transform.rotation = camera->rotation;
-            transform.scale = glm::vec3{ 0.2f };
+            transform.scale = math::Float3{ 0.2f };
             for (const auto entity : subtree(registry, *cube))
             {
                 if (registry.has<MeshRenderer>(entity))
@@ -554,8 +554,8 @@ private:
         auto& transform = registry.get<Transform>(*plane);
         transform.location = camera.location + camera.forward() * 1.5f;
         // Turns the plane's front (+z) to the camera's forward (+y), away from the camera.
-        transform.rotation = camera.rotation * glm::angleAxis(glm::radians(-90.0f), glm::vec3{ 1.0f, 0.0f, 0.0f });
-        transform.scale = glm::vec3{ 0.05f };
+        transform.rotation = camera.rotation * math::Quat::fromAxisAngle(math::Float3{ 1.0f, 0.0f, 0.0f }, math::radians(-90.0f));
+        transform.scale = math::Float3{ 0.05f };
         for (const auto entity : subtree(registry, *plane))
         {
             if (registry.has<MeshRenderer>(entity))
@@ -668,7 +668,7 @@ private:
             if (!model)
                 return std::unexpected{ std::format("Loading the second model: {}", model.error()) };
             m_addedModel = *model;
-            registry.get<Transform>(m_addedModel).location = glm::vec3{ 0.9f, 0.0f, 0.0f };
+            registry.get<Transform>(m_addedModel).location = math::Float3{ 0.9f, 0.0f, 0.0f };
             registry.markStaticDirty(m_addedModel);
         }
         else if (m_frame == loadFrame + 1)
@@ -688,7 +688,7 @@ private:
             std::uint32_t edited{ 0 };
             for (auto&& [entity, renderer] : registry.view<MeshRenderer>().each())
             {
-                if (renderer.material && renderer.material->setParameter("albedo", glm::vec3{ 1.0f, 0.1f, 0.1f }))
+                if (renderer.material && renderer.material->setParameter("albedo", math::Float3{ 1.0f, 0.1f, 0.1f }))
                     ++edited;
             }
             if (edited == 0)
@@ -710,7 +710,7 @@ private:
                 return std::unexpected{ "no material to set to cull nothing" };
             // A new instance of a material whose variant changed is added in the new batch at once; the static
             // instances of that material must follow it there.
-            const auto copy = registry.create("Culled Copy", glm::vec3{ 0.9f, 0.0f, 0.0f });
+            const auto copy = registry.create("Culled Copy", math::Float3{ 0.9f, 0.0f, 0.0f });
             registry.add<MeshRenderer>(copy, *part);
             registry.add<DynamicTag>(copy);
         }

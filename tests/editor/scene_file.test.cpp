@@ -92,7 +92,7 @@ TEST_SUITE("editor::writeSceneFile")
         TypeRegistry types;
         REQUIRE(aegis::world::registerComponents(types).has_value());
         World edited;
-        const auto parent = edited.registry().create("Room", glm::vec3{ 1.0f, 0.0f, 2.0f });
+        const auto parent = edited.registry().create("Room", math::Float3{ 1.0f, 0.0f, 2.0f });
         REQUIRE(edited.registry().setParent(edited.registry().create("Chair"), parent).has_value());
 
         TempFile file;

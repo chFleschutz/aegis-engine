@@ -52,10 +52,10 @@ struct ModelImage
 struct ModelMaterial
 {
     std::string name;
-    glm::vec4 baseColor{ 1.0f }; // Linear RGBA factor
+    math::Float4 baseColor{ 1.0f }; // Linear RGBA factor
     float metallic{ 1.0f };
     float roughness{ 1.0f };
-    glm::vec3 emissive{ 0.0f };
+    math::Float3 emissive{ 0.0f };
     std::optional<std::uint32_t> baseColorImage;
     std::optional<std::uint32_t> metalRoughnessImage;
     std::optional<std::uint32_t> normalImage;
@@ -83,9 +83,9 @@ struct ModelMesh
 struct ModelNode
 {
     std::string name;
-    glm::vec3 translation{ 0.0f };
-    glm::quat rotation = glm::quat::identity();
-    glm::vec3 scale{ 1.0f };
+    math::Float3 translation{ 0.0f };
+    math::Quat rotation = math::Quat::identity();
+    math::Float3 scale{ 1.0f };
     std::optional<std::uint32_t> mesh;   // Index into ModelData::meshes
     std::optional<std::uint32_t> parent; // Index into ModelData::nodes; none for a root. Always lower than this node's own index.
 };
@@ -97,7 +97,7 @@ struct ModelData
     std::string name; // The scene's name, or the file's stem
     /// @brief Rotation of the model's root: the file's up axis to the engine's (glTF is Y-up, the engine
     ///        Z-up). Identity if the file already is.
-    glm::quat rootRotation = glm::quat::identity();
+    math::Quat rootRotation = math::Quat::identity();
     /// @brief A mesh that belongs to the root itself, for formats without a hierarchy (OBJ).
     std::optional<std::uint32_t> rootMesh;
     std::vector<ModelMesh> meshes;

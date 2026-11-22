@@ -136,9 +136,9 @@ auto PresentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
 
 namespace aegis::render_graph::detail
 {
-auto makeSkyBoxViewProjection(const FrameScene::Camera& camera) -> glm::mat4
+auto makeSkyBoxViewProjection(const FrameScene::Camera& camera) -> math::Float4x4
 {
-    const auto viewRotation = glm::mat4{ glm::mat3{ camera.view } };
+    const auto viewRotation = math::Float4x4{ math::Float3x3{ camera.view } };
     return glm::rowMajor4(camera.projection * viewRotation);
 }
 }

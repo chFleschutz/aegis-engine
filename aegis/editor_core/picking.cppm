@@ -8,14 +8,14 @@ export namespace aegis::editor
 /// @brief A half line from 'origin' along the unit vector 'direction'.
 struct Ray
 {
-    glm::vec3 origin{ 0.0f };
-    glm::vec3 direction{ 0.0f, 1.0f, 0.0f };
+    math::Float3 origin{ 0.0f };
+    math::Float3 direction{ 0.0f, 1.0f, 0.0f };
 };
 
 /// @brief A sphere in world space; what a click picks an entity by.
 struct Sphere
 {
-    glm::vec3 center{ 0.0f };
+    math::Float3 center{ 0.0f };
     float radius{ 0.0f };
 };
 
@@ -30,13 +30,13 @@ struct PickTarget
 struct PickIcon
 {
     StableId id;
-    glm::vec2 position{ 0.0f };
+    math::Float2 position{ 0.0f };
     float radius{ 0.0f };
 };
 
 /// @brief 'local' (in a mesh's space) moved into world space by 'transform': the radius grows with the largest
 ///        axis scale, so the sphere still holds the mesh.
-[[nodiscard]] auto transformSphere(const Sphere& local, const glm::mat4& transform) -> Sphere;
+[[nodiscard]] auto transformSphere(const Sphere& local, const math::Float4x4& transform) -> Sphere;
 
 /// @brief The smallest sphere that holds both 'a' and 'b'.
 [[nodiscard]] auto enclose(const Sphere& a, const Sphere& b) -> Sphere;
@@ -48,5 +48,5 @@ struct PickIcon
 [[nodiscard]] auto pickNearest(const Ray& ray, std::span<const PickTarget> targets) -> std::optional<StableId>;
 
 /// @brief The icon closest to 'cursor' among those it is within the radius of, or none.
-[[nodiscard]] auto pickIcon(const glm::vec2& cursor, std::span<const PickIcon> icons) -> std::optional<StableId>;
+[[nodiscard]] auto pickIcon(const math::Float2& cursor, std::span<const PickIcon> icons) -> std::optional<StableId>;
 }

@@ -104,7 +104,7 @@ void drawCornerBrackets(ImDrawList* drawList, ImRect box, float alpha, float wid
 }
 
 // The cursor in the view's ndc (y up).
-auto toNdc(const ImVec2& cursor, float x, float y, float width, float height) -> glm::vec2
+auto toNdc(const ImVec2& cursor, float x, float y, float width, float height) -> math::Float2
 {
     return { (cursor.x - x) / width * 2.0f - 1.0f, 1.0f - (cursor.y - y) / height * 2.0f };
 }
@@ -397,12 +397,12 @@ auto Viewport::drawGizmo(EditorContext& editor, FrameContext& frame, const Rect&
     ImGuizmo::SetRect(rect.x, rect.y, rect.width, rect.height);
     ImGuizmo::Enable(!cameraDragged());
 
-    const glm::mat4 view = m_camera.view();
-    glm::mat4 projection = m_camera.projection(aspect());
-    math::element(projection, 1, 1) *= -1.0f; // ImGuizmo expects y up
+    const math::Float4x4 view = m_camera.view();
+    math::Float4x4 projection = m_camera.projection(aspect());
+    projection[1, 1] *= -1.0f; // ImGuizmo expects y up
 
     // The gizmo works in world space; the result is converted back to the local transforms
-    glm::mat4 matrix = registry.get<GlobalTransform>(selected).matrix();
+    math::Float4x4 matrix = registry.get<GlobalTransform>(selected).matrix();
 
     auto operation = ImGuizmo::OPERATION::TRANSLATE;
     const auto& preferences = editor.preferences();
@@ -426,17 +426,17 @@ auto Viewport::drawGizmo(EditorContext& editor, FrameContext& frame, const Rect&
     const auto gizmoView = std::bit_cast<Floats>(math::transpose(view));
     const auto gizmoProjection = std::bit_cast<Floats>(math::transpose(projection));
     auto gizmoMatrix = std::bit_cast<Floats>(math::transpose(matrix));
-    const glm::mat4 before = matrix;
+    const math::Float4x4 before = matrix;
     const bool changed = ImGuizmo::Manipulate(gizmoView.data(), gizmoProjection.data(), operation, mode, gizmoMatrix.data(), nullptr,
         snapping() ? snapValues.data() : nullptr);
-    matrix = math::transpose(std::bit_cast<glm::mat4>(gizmoMatrix));
+    matrix = math::transpose(std::bit_cast<math::Float4x4>(gizmoMatrix));
     if ((changed || ImGuizmo::IsUsing()) && !m_gizmoDrag)
         beginGizmoDrag(editor, frame, before);
     if (!changed || !m_gizmoDrag)
         return true;
 
     // The change of the active entity's world matrix since the drag began, applied to every root's
-    const glm::mat4 delta = matrix * glm::inverse(m_gizmoDrag->start);
+    const math::Float4x4 delta = matrix * math::inverse(m_gizmoDrag->start);
     const auto active = registry.get<StableId>(selected);
     const auto edits = editWorld(editor, frame);
     for (const auto& root : m_gizmoDrag->roots)
@@ -455,7 +455,7 @@ auto Viewport::drawGizmo(EditorContext& editor, FrameContext& frame, const Rect&
     return true;
 }
 
-void Viewport::beginGizmoDrag(EditorContext& editor, FrameContext& frame, const glm::mat4& start)
+void Viewport::beginGizmoDrag(EditorContext& editor, FrameContext& frame, const math::Float4x4& start)
 {
     auto& registry = editor.world()->registry();
     const auto* verb = m_gizmoMode == GizmoMode::Rotate ? "Rotate" : (m_gizmoMode == GizmoMode::Scale ? "Scale" : "Move");
@@ -565,7 +565,7 @@ void Viewport::drawOverlayCluster(EditorContext& editor, const FrameContext& fra
         drawStatsOverlay(editor, frame, { right, gizmoTop + gizmoSize + style.ItemSpacing.y }, speedWidth + style.ItemSpacing.x + frameHeight);
 }
 
-void Viewport::drawNavigationGizmo(const glm::vec2& corner, float size)
+void Viewport::drawNavigationGizmo(const math::Float2& corner, float size)
 {
     const float frameHeight = ImGui::GetFrameHeight();
     const float radius = navigationRadius * frameHeight;
@@ -579,7 +579,7 @@ void Viewport::drawNavigationGizmo(const glm::vec2& corner, float size)
 
     const auto axes = navigationAxes(m_camera);
     const ImVec2 cursor = ImGui::GetIO().MousePos;
-    const auto underCursor = hovered ? pickNavigationAxis(axes, glm::vec2{ cursor.x - center.x, cursor.y - center.y } / radius, disc / radius) : std::nullopt;
+    const auto underCursor = hovered ? pickNavigationAxis(axes, math::Float2{ cursor.x - center.x, cursor.y - center.y } / radius, disc / radius) : std::nullopt;
     const auto isUnderCursor = [&](const NavigationAxis& axis) {
         return underCursor && underCursor->axis == axis.axis && underCursor->positive == axis.positive;
     };
@@ -626,7 +626,7 @@ void Viewport::drawNavigationGizmo(const glm::vec2& corner, float size)
     }
 }
 
-void Viewport::drawStatsOverlay(const EditorContext& editor, const FrameContext& frame, const glm::vec2& corner, float minWidth) const
+void Viewport::drawStatsOverlay(const EditorContext& editor, const FrameContext& frame, const math::Float2& corner, float minWidth) const
 {
     // On the icons' backdrop
     const ImGuiStyle& style = ImGui::GetStyle();
@@ -716,12 +716,12 @@ auto Viewport::drawIcons(const EditorContext& editor, const Rect& rect) -> std::
         const world::Entity entity{ handle };
         if (!registry.has<GlobalTransform, StableId>(entity))
             return;
-        const glm::vec3 location = registry.get<GlobalTransform>(entity).location;
+        const math::Float3 location = registry.get<GlobalTransform>(entity).location;
         const auto ndc = m_camera.project(location, aspect());
         if (!ndc || std::abs(ndc->x) > 1.0f || std::abs(ndc->y) > 1.0f)
             return;
-        const glm::vec2 center{ rect.x + (ndc->x + 1.0f) * 0.5f * rect.width, rect.y + (1.0f - ndc->y) * 0.5f * rect.height };
-        const float fade = std::clamp((glm::length(location - m_camera.position()) - iconFadeStart) / (iconFadeEnd - iconFadeStart), 0.0f, 1.0f);
+        const math::Float2 center{ rect.x + (ndc->x + 1.0f) * 0.5f * rect.width, rect.y + (1.0f - ndc->y) * 0.5f * rect.height };
+        const float fade = std::clamp((math::length(location - m_camera.position()) - iconFadeStart) / (iconFadeEnd - iconFadeStart), 0.0f, 1.0f);
         const float scale = std::lerp(1.0f, iconMinScale, fade);
         const bool selected = editor.isSelected(entity);
         tint.w *= selected ? 1.0f : std::lerp(1.0f, iconMinAlpha, fade); // The selection never fades
@@ -733,8 +733,8 @@ auto Viewport::drawIcons(const EditorContext& editor, const Rect& rect) -> std::
             .selected = selected,
         });
     };
-    const auto lightTint = [](const glm::vec3& color) {
-        const glm::vec3 tint = iconTint(color);
+    const auto lightTint = [](const math::Float3& color) {
+        const math::Float3 tint = iconTint(color);
         return ImVec4{ tint.x, tint.y, tint.z, 1.0f };
     };
     for (const auto entity : registry.view<PointLight>())
@@ -785,7 +785,7 @@ auto Viewport::canPick(bool gizmo) const -> bool
     return m_hovered && !ImGui::GetIO().KeyAlt && !(gizmo && ImGuizmo::IsOver()) && !ImGui::IsAnyItemHovered();
 }
 
-auto Viewport::pickAt(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, const glm::vec2& cursor) const -> std::optional<StableId>
+auto Viewport::pickAt(const EditorContext& editor, const Rect& rect, std::span<const PickIcon> icons, const math::Float2& cursor) const -> std::optional<StableId>
 {
     auto* world = editor.world();
     if (!world)

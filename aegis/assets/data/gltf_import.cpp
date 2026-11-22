@@ -131,7 +131,7 @@ public:
         const auto& sceneName = m_gltf.scenes[sceneIndex].name;
         m_model.name = sceneName.empty() ? m_name : std::string{ sceneName };
         // glTF is Y-up; the engine is Z-up.
-        m_model.rootRotation = math::quatFromEuler(glm::radians(glm::vec3{ 90.0f, 0.0f, 0.0f }));
+        m_model.rootRotation = math::Quat::fromEuler(math::radians(math::Float3{ 90.0f, 0.0f, 0.0f }));
 
         for (const auto& [i, parent] : *walk)
         {
@@ -142,7 +142,7 @@ public:
             ModelNode out{
                 .name = node.name.empty() ? std::format("Node_{}", i) : std::string{ node.name },
                 .translation = { trs.translation.x(), trs.translation.y(), trs.translation.z() },
-                .rotation = math::quatFromXyzw(trs.rotation.x(), trs.rotation.y(), trs.rotation.z(), trs.rotation.w()),
+                .rotation = math::Quat::fromXyzw(trs.rotation.x(), trs.rotation.y(), trs.rotation.z(), trs.rotation.w()),
                 .scale = { trs.scale.x(), trs.scale.y(), trs.scale.z() },
             };
             if (parent != noParent)
@@ -205,7 +205,7 @@ private:
         if (position == primitive.attributes.end())
             return makeError(ErrorCode::InvalidData, std::format("glTF primitive '{}' lacks POSITION", name));
 
-        const auto toVec3 = [](fastgltf::math::fvec3 v) { return glm::vec3{ v.x(), v.y(), v.z() }; };
+        const auto toVec3 = [](fastgltf::math::fvec3 v) { return math::Float3{ v.x(), v.y(), v.z() }; };
         if (auto read = readAccessor<fastgltf::math::fvec3>(position->accessorIndex, name, "POSITION", input.positions, toVec3); !read)
             return std::unexpected{ read.error() };
 
@@ -218,7 +218,7 @@ private:
 
         if (const auto* uv = primitive.findAttribute("TEXCOORD_0"); uv != primitive.attributes.end())
         {
-            const auto toVec2 = [](fastgltf::math::fvec2 v) { return glm::vec2{ v.x(), v.y() }; };
+            const auto toVec2 = [](fastgltf::math::fvec2 v) { return math::Float2{ v.x(), v.y() }; };
             if (auto read = readAccessor<fastgltf::math::fvec2>(uv->accessorIndex, name, "TEXCOORD_0", input.uvs, toVec2); !read)
                 return std::unexpected{ read.error() };
         }
@@ -230,7 +230,7 @@ private:
                 return makeError(ErrorCode::InvalidData, std::format("glTF primitive '{}': COLOR_0 refers to a missing accessor", name));
             auto read = m_gltf.accessors[color->accessorIndex].type == fastgltf::AccessorType::Vec4
                             ? readAccessor<fastgltf::math::fvec4>(color->accessorIndex, name, "COLOR_0", input.colors,
-                                  [](fastgltf::math::fvec4 v) { return glm::vec3{ v.x(), v.y(), v.z() }; })
+                                  [](fastgltf::math::fvec4 v) { return math::Float3{ v.x(), v.y(), v.z() }; })
                             : readAccessor<fastgltf::math::fvec3>(color->accessorIndex, name, "COLOR_0", input.colors, toVec3);
             if (!read)
                 return std::unexpected{ read.error() };
@@ -426,10 +426,10 @@ private:
         const auto& pbr = material.pbrData;
         ModelMaterial result{
             .name = std::string{ material.name },
-            .baseColor = glm::vec4{ pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2], pbr.baseColorFactor[3] },
+            .baseColor = math::Float4{ pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2], pbr.baseColorFactor[3] },
             .metallic = static_cast<float>(pbr.metallicFactor),
             .roughness = static_cast<float>(pbr.roughnessFactor),
-            .emissive = glm::vec3{ material.emissiveFactor[0], material.emissiveFactor[1], material.emissiveFactor[2] },
+            .emissive = math::Float3{ material.emissiveFactor[0], material.emissiveFactor[1], material.emissiveFactor[2] },
             .alphaMode = toAlphaMode(material.alphaMode),
             .alphaCutoff = static_cast<float>(material.alphaCutoff),
             .doubleSided = material.doubleSided,

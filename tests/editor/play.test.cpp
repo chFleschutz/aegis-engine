@@ -44,7 +44,7 @@ struct Fixture
         patrol->field("speed", &Patrol::speed);
 
         auto& registry = edit.registry();
-        const auto parent = registry.create("Guard", glm::vec3{ 1.0f, 2.0f, 3.0f });
+        const auto parent = registry.create("Guard", math::Float3{ 1.0f, 2.0f, 3.0f });
         registry.add<Health>(parent).value = 42.0f;
         auto script = aegis::scripting::attachScript(registry, types, parent, "Patrol");
         REQUIRE(script.has_value());
@@ -86,7 +86,7 @@ TEST_SUITE("editor::copyWorld")
             REQUIRE(copyWorld(f.edit.registry(), play.registry(), f.types).has_value());
             auto& registry = play.registry();
             for (auto&& [entity, transform] : registry.view<Transform>().each())
-                transform.location += glm::vec3{ 5.0f };
+                transform.location += math::Float3{ 5.0f };
             for (auto&& [entity, health] : registry.view<Health>().each())
                 health.value = 0.0f;
             registry.create("Spawned");

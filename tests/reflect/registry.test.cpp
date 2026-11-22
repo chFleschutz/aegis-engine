@@ -35,10 +35,10 @@ struct Everything
     float real{ 0.0f };
     double precise{ 0.0 };
     std::string text;
-    glm::vec2 v2{ 0.0f };
-    glm::vec3 v3{ 0.0f };
-    glm::vec4 v4{ 0.0f };
-    glm::quat rotation = glm::quat::identity();
+    math::Float2 v2{ 0.0f };
+    math::Float3 v3{ 0.0f };
+    math::Float4 v4{ 0.0f };
+    math::Quat rotation = math::Quat::identity();
     Mode mode{ Mode::Off };
     Plain plain{ Low };
 };
@@ -299,7 +299,7 @@ TEST_SUITE("reflect::TypeInfo")
         object.v2 = { 1.0f, 2.0f };
         object.v3 = { 1.0f, 2.0f, 3.0f };
         object.v4 = { 1.0f, 2.0f, 3.0f, 4.0f };
-        object.rotation = aegis::math::quatFromXyzw(0.5f, 0.5f, 0.5f, 0.5f);
+        object.rotation = aegis::math::Quat::fromXyzw(0.5f, 0.5f, 0.5f, 0.5f);
         object.mode = Mode::On;
         object.plain = High;
 
@@ -316,10 +316,10 @@ TEST_SUITE("reflect::TypeInfo")
         CHECK(std::get<float>(*get("real")) == 1.5f);
         CHECK(std::get<double>(*get("precise")) == 0.1);
         CHECK(std::get<std::string>(*get("text")) == "hello world");
-        CHECK(std::get<glm::vec2>(*get("v2")).y == 2.0f);
-        CHECK(std::get<glm::vec3>(*get("v3")).z == 3.0f);
-        CHECK(std::get<glm::vec4>(*get("v4")).w == 4.0f);
-        CHECK(std::get<glm::quat>(*get("rotation")).w == 0.5f);
+        CHECK(std::get<math::Float2>(*get("v2")).y == 2.0f);
+        CHECK(std::get<math::Float3>(*get("v3")).z == 3.0f);
+        CHECK(std::get<math::Float4>(*get("v4")).w == 4.0f);
+        CHECK(std::get<math::Quat>(*get("rotation")).w == 0.5f);
         CHECK(std::get<std::int64_t>(*get("mode")) == 3);
         CHECK(std::get<std::int64_t>(*get("plain")) == 7);
     }
@@ -342,10 +342,10 @@ TEST_SUITE("reflect::TypeInfo")
         set("real", 1.5f);
         set("precise", 0.1);
         set("text", std::string{ "hello world" });
-        set("v2", glm::vec2{ 1.0f, 2.0f });
-        set("v3", glm::vec3{ 1.0f, 2.0f, 3.0f });
-        set("v4", glm::vec4{ 1.0f, 2.0f, 3.0f, 4.0f });
-        set("rotation", aegis::math::quatFromXyzw(0.5f, 0.5f, 0.5f, 0.5f));
+        set("v2", math::Float2{ 1.0f, 2.0f });
+        set("v3", math::Float3{ 1.0f, 2.0f, 3.0f });
+        set("v4", math::Float4{ 1.0f, 2.0f, 3.0f, 4.0f });
+        set("rotation", aegis::math::Quat::fromXyzw(0.5f, 0.5f, 0.5f, 0.5f));
         set("mode", std::int64_t{ 3 });
         set("plain", std::int64_t{ -1 });
 
@@ -392,7 +392,7 @@ TEST_SUITE("reflect::TypeInfo")
         CHECK(result.error().code == ErrorCode::TypeMismatch);
         CHECK(object.real == 2.0f);
         CHECK(info->set(&object, "flag", std::int64_t{ 1 }).error().code == ErrorCode::TypeMismatch);
-        CHECK(info->set(&object, "v3", glm::vec2{ 1.0f }).error().code == ErrorCode::TypeMismatch);
+        CHECK(info->set(&object, "v3", math::Float2{ 1.0f }).error().code == ErrorCode::TypeMismatch);
     }
 
     TEST_CASE("rejects an integer that does not fit the field")

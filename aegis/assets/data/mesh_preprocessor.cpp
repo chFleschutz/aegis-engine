@@ -16,8 +16,8 @@ auto interleave(const MeshPreprocessor::Input& input) -> std::vector<Vertex>
     {
         vertices[i].position = input.positions[i];
         vertices[i].normal = input.normals[i];
-        vertices[i].uv = i < input.uvs.size() ? input.uvs[i] : glm::vec2{ 0.0f };
-        vertices[i].color = i < input.colors.size() ? input.colors[i] : glm::vec3{ 1.0f };
+        vertices[i].uv = i < input.uvs.size() ? input.uvs[i] : math::Float2{ 0.0f };
+        vertices[i].color = i < input.colors.size() ? input.colors[i] : math::Float3{ 1.0f };
     }
     return vertices;
 }
@@ -112,10 +112,10 @@ auto generateFlatNormals(MeshPreprocessor::Input& input) -> void
     for (std::size_t corner = 0; corner < cornerCount; corner += 3)
     {
         const auto& a = expanded.positions[corner];
-        const auto cross = glm::cross(expanded.positions[corner + 1] - a, expanded.positions[corner + 2] - a);
-        const auto length = glm::length(cross);
+        const auto cross = math::cross(expanded.positions[corner + 1] - a, expanded.positions[corner + 2] - a);
+        const auto length = math::length(cross);
         // Adding 0 turns -0 into +0, so equal normals are bitwise equal and the vertices merge.
-        const auto normal = (length > 1e-20f ? cross / length : glm::vec3{ 0.0f, 0.0f, 1.0f }) + glm::vec3{ 0.0f };
+        const auto normal = (length > 1e-20f ? cross / length : math::Float3{ 0.0f, 0.0f, 1.0f }) + math::Float3{ 0.0f };
         expanded.normals.insert(expanded.normals.end(), 3, normal);
     }
 
@@ -207,7 +207,7 @@ auto MeshPreprocessor::process(Input input) -> std::expected<MeshData, Error>
             vertices.size(), sizeof(Vertex));
 
         meshlets.emplace_back(Meshlet{
-            .bounds = { glm::vec3{ cone.center[0], cone.center[1], cone.center[2] }, cone.radius },
+            .bounds = { math::Float3{ cone.center[0], cone.center[1], cone.center[2] }, cone.radius },
             .coneAxis = { cone.cone_axis_s8[0], cone.cone_axis_s8[1], cone.cone_axis_s8[2] },
             .coneCutoff = cone.cone_cutoff_s8,
             .vertexOffset = meshlet.vertex_offset,

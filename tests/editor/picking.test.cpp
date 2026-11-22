@@ -128,7 +128,7 @@ TEST_SUITE("editor::transformSphere")
 {
     TEST_CASE("moves the center and scales the radius by the largest axis")
     {
-        const glm::mat4 transform = aegis::math::transformMatrix(glm::vec3{ 1.0f, 2.0f, 3.0f }, glm::quat::identity(), glm::vec3{ 1.0f, 3.0f, 2.0f });
+        const math::Float4x4 transform = aegis::math::transformMatrix(math::Float3{ 1.0f, 2.0f, 3.0f }, math::Quat::identity(), math::Float3{ 1.0f, 3.0f, 2.0f });
         const Sphere sphere = transformSphere(Sphere{ .center = { 1.0f, 1.0f, 0.0f }, .radius = 2.0f }, transform);
         CHECK(sphere.center.x == doctest::Approx(2.0f));
         CHECK(sphere.center.y == doctest::Approx(5.0f));
@@ -138,8 +138,8 @@ TEST_SUITE("editor::transformSphere")
 
     TEST_CASE("keeps the radius under a rotation")
     {
-        const glm::quat rotation = glm::angleAxis(glm::radians(90.0f), glm::vec3{ 0.0f, 0.0f, 1.0f });
-        const glm::mat4 transform = aegis::math::transformMatrix(glm::vec3{ 0.0f }, rotation, glm::vec3{ 1.0f });
+        const math::Quat rotation = math::Quat::fromAxisAngle(math::Float3{ 0.0f, 0.0f, 1.0f }, math::radians(90.0f));
+        const math::Float4x4 transform = aegis::math::transformMatrix(math::Float3{ 0.0f }, rotation, math::Float3{ 1.0f });
         const Sphere sphere = transformSphere(Sphere{ .center = { 1.0f, 0.0f, 0.0f }, .radius = 1.5f }, transform);
         CHECK(sphere.center.y == doctest::Approx(1.0f));
         CHECK(sphere.radius == doctest::Approx(1.5f));

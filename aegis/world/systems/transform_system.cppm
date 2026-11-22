@@ -12,7 +12,7 @@ export namespace aegis::world::detail
 [[nodiscard]] auto compose(const GlobalTransform& parentGlobal, const Transform& local) -> GlobalTransform;
 
 /// @brief Converts a world matrix into the local transform of an entity below the given parent (inverse of compose)
-[[nodiscard]] auto toLocal(const GlobalTransform& parentGlobal, const glm::mat4& world) -> Transform;
+[[nodiscard]] auto toLocal(const GlobalTransform& parentGlobal, const math::Float4x4& world) -> Transform;
 }
 
 export namespace aegis::world

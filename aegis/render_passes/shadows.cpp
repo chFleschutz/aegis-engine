@@ -8,18 +8,18 @@ namespace aegis::render_graph
 namespace
 {
 // The view-space point of the camera's frustum at the NDC position (x, y, depth).
-auto unproject(const glm::mat4& inverseProjection, float x, float y, float depth) -> glm::vec3
+auto unproject(const math::Float4x4& inverseProjection, float x, float y, float depth) -> math::Float3
 {
-    const auto point = inverseProjection * glm::vec4{ x, y, depth, 1.0f };
-    return glm::vec3{ point } / point.w;
+    const auto point = inverseProjection * math::Float4{ x, y, depth, 1.0f };
+    return math::Float3{ point } / point.w;
 }
 
 // The view-space corners of the camera's frustum between 'near' and 'far' meters along its axis (clamped to its near
 // and far planes): the near corners, then the far ones.
-auto frustumSlice(const glm::mat4& projection, float near, float far) -> std::array<glm::vec3, 8>
+auto frustumSlice(const math::Float4x4& projection, float near, float far) -> std::array<math::Float3, 8>
 {
-    const auto inverseProjection = glm::inverse(projection);
-    std::array<glm::vec3, 8> corners;
+    const auto inverseProjection = math::inverse(projection);
+    std::array<math::Float3, 8> corners;
     std::size_t i = 0;
     for (const auto [x, y] : { std::pair{ -1.0f, -1.0f }, { 1.0f, -1.0f }, { -1.0f, 1.0f }, { 1.0f, 1.0f } })
     {
@@ -58,9 +58,9 @@ auto shadowViewName(std::string_view view, std::uint32_t cascade) -> std::string
     return std::format("{}Shadow{}", view, cascade);
 }
 
-auto shadowCascadeSplits(const FrameScene::DirectionalLight& light, const glm::mat4& projection) -> std::vector<float>
+auto shadowCascadeSplits(const FrameScene::DirectionalLight& light, const math::Float4x4& projection) -> std::vector<float>
 {
-    const auto inverseProjection = glm::inverse(projection);
+    const auto inverseProjection = math::inverse(projection);
     const float nearPlane = std::max(-unproject(inverseProjection, 0.0f, 0.0f, 0.0f).z, 1e-4f);
     const float farPlane = -unproject(inverseProjection, 0.0f, 0.0f, 1.0f).z;
     const float far = std::max(std::min(light.shadowDistance, farPlane), nearPlane * 1.001f);
@@ -84,22 +84,22 @@ auto fitDirectionalShadow(const FrameScene::DirectionalLight& light, const Frame
 {
     // The bounding sphere of the slice in view space, where it depends on the projection alone.
     const auto corners = frustumSlice(camera.projection, near, far);
-    glm::vec3 center{ 0.0f };
+    math::Float3 center{ 0.0f };
     for (const auto& corner : corners)
         center = center + corner;
     center = center / static_cast<float>(corners.size());
     float radius{ 0.0f };
     for (const auto& corner : corners)
-        radius = std::max(radius, glm::length(corner - center));
+        radius = std::max(radius, math::length(corner - center));
     radius = std::max(radius, 0.01f);
-    const auto worldCenter = glm::vec3{ glm::inverse(camera.view) * glm::vec4{ center, 1.0f } };
+    const auto worldCenter = math::Float3{ math::inverse(camera.view) * math::Float4{ center, 1.0f } };
 
     // The light's axes: it looks along -direction; up is the world's up unless the light shines (nearly) along it.
-    const auto toLight = glm::normalize(light.direction);
+    const auto toLight = math::normalize(light.direction);
     const auto forward = -toLight;
-    const auto worldUp = std::abs(forward.z) > 0.99f ? math::world::FORWARD : math::world::UP;
-    const auto side = glm::normalize(glm::cross(forward, worldUp));
-    const auto up = glm::cross(side, forward);
+    const auto worldUp = std::abs(forward.z) > 0.99f ? math::world::forward<float> : math::world::up<float>;
+    const auto side = math::normalize(math::cross(forward, worldUp));
+    const auto up = math::cross(side, forward);
 
     // The sphere's center in the light's axes, snapped down to whole texels across the map. Snapping moves the map up to
     // a texel from the center, so it reaches a texel further than the sphere: halfWidth = radius + texel, with
@@ -108,15 +108,15 @@ auto fitDirectionalShadow(const FrameScene::DirectionalLight& light, const Frame
     const float halfWidth = radius * texels / (texels - 2.0f);
     const float texel = 2.0f * halfWidth / texels;
     const auto snap = [&](float value) { return std::floor(value / texel) * texel; };
-    const float x = snap(glm::dot(side, worldCenter));
-    const float y = snap(glm::dot(up, worldCenter));
-    const float eye = glm::dot(toLight, worldCenter) + radius + shadowCasterReach;
+    const float x = snap(math::dot(side, worldCenter));
+    const float y = snap(math::dot(up, worldCenter));
+    const float eye = math::dot(toLight, worldCenter) + radius + shadowCasterReach;
 
     const auto view = math::fromRows(
-        glm::vec4{ side, -x },
-        glm::vec4{ up, -y },
-        glm::vec4{ toLight, -eye },
-        glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f });
+        math::Float4{ side, -x },
+        math::Float4{ up, -y },
+        math::Float4{ toLight, -eye },
+        math::Float4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
     // Right-handed, depth 0 at the eye to 1 past the sphere, y flipped for Vulkan as the cameras' projections are.
     const float depth = 2.0f * radius + shadowCasterReach;
@@ -129,7 +129,7 @@ auto fitDirectionalShadow(const FrameScene::DirectionalLight& light, const Frame
     };
 }
 
-auto selectShadowedSpotLights(const FrameScene& scene, const glm::vec3& from, std::uint32_t budget) -> std::vector<std::uint32_t>
+auto selectShadowedSpotLights(const FrameScene& scene, const math::Float3& from, std::uint32_t budget) -> std::vector<std::uint32_t>
 {
     std::vector<std::uint32_t> casting;
     for (std::uint32_t i = 0; i < scene.spotLights.size(); ++i)
@@ -139,7 +139,7 @@ auto selectShadowedSpotLights(const FrameScene& scene, const glm::vec3& from, st
     }
     const auto distance = [&](std::uint32_t i) {
         const auto offset = scene.spotLights[i].position - from;
-        return glm::dot(offset, offset);
+        return math::dot(offset, offset);
     };
     std::ranges::stable_sort(casting, std::less{}, distance);
     if (casting.size() > budget)
@@ -150,16 +150,16 @@ auto selectShadowedSpotLights(const FrameScene& scene, const glm::vec3& from, st
 auto fitSpotShadow(const FrameScene::SpotLight& light) -> FrameScene::Camera
 {
     // The light's axes: it looks along its direction; up is the world's up unless it shines (nearly) along it.
-    const auto forward = glm::normalize(light.direction);
-    const auto worldUp = std::abs(glm::dot(forward, math::world::UP)) > 0.99f ? math::world::FORWARD : math::world::UP;
-    const auto side = glm::normalize(glm::cross(forward, worldUp));
-    const auto up = glm::cross(side, forward);
+    const auto forward = math::normalize(light.direction);
+    const auto worldUp = std::abs(math::dot(forward, math::world::up<float>)) > 0.99f ? math::world::forward<float> : math::world::up<float>;
+    const auto side = math::normalize(math::cross(forward, worldUp));
+    const auto up = math::cross(side, forward);
 
     const auto view = math::fromRows(
-        glm::vec4{ side, -glm::dot(side, light.position) },
-        glm::vec4{ up, -glm::dot(up, light.position) },
-        glm::vec4{ -forward, glm::dot(forward, light.position) },
-        glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f });
+        math::Float4{ side, -math::dot(side, light.position) },
+        math::Float4{ up, -math::dot(up, light.position) },
+        math::Float4{ -forward, math::dot(forward, light.position) },
+        math::Float4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
     // Right-handed, depth 0 at the near plane to 1 at the range, y flipped for Vulkan as the cameras' projections are.
     const float fov = std::clamp(2.0f * light.outerConeAngle, 0.01f, maxSpotShadowFov);

@@ -26,7 +26,7 @@ auto makeVariant() -> MaterialVariant
 auto at(float x = 0.0f) -> Instance
 {
     Instance instance;
-    aegis::math::element(instance.model, 0, 3) = x; // Row 0 of the model matrix holds the x translation in .w
+    instance.model[0, 3] = x; // Row 0 of the model matrix holds the x translation in .w
     return instance;
 }
 
@@ -126,9 +126,9 @@ TEST_SUITE("render_graph::InstanceStore")
         store.remove(a);
         CHECK(!store.contains(a));
         REQUIRE(store.staticInstanceCount() == 2);
-        CHECK(aegis::math::element(store.staticInstances()[0].model, 0, 3) == 3.0f);
-        CHECK(aegis::math::element(store.get(b).model, 0, 3) == 2.0f);
-        CHECK(aegis::math::element(store.get(c).model, 0, 3) == 3.0f);
+        CHECK(store.staticInstances()[0].model[0, 3] == 3.0f);
+        CHECK(store.get(b).model[0, 3] == 2.0f);
+        CHECK(store.get(c).model[0, 3] == 3.0f);
         CHECK(store.staticDirty() == DirtyRange{ 0, 1 });
     }
 
@@ -203,7 +203,7 @@ TEST_SUITE("render_graph::InstanceStore")
 
         REQUIRE(store.update(id, at(5.0f), material));
         CHECK(store.staticDirty() == DirtyRange{ 1, 2 });
-        CHECK(aegis::math::element(store.get(id).model, 0, 3) == 5.0f);
+        CHECK(store.get(id).model[0, 3] == 5.0f);
     }
 
     TEST_CASE("an update to another template moves the instance to that batch")
@@ -282,7 +282,7 @@ TEST_SUITE("render_graph::InstanceStore")
         CHECK(store.isDynamic(id));
         CHECK(store.staticInstanceCount() == 1);
         CHECK(store.dynamicInstanceCount() == 1);
-        CHECK(aegis::math::element(store.get(id).model, 0, 3) == 4.0f);
+        CHECK(store.get(id).model[0, 3] == 4.0f);
         CHECK(store.staticDirty() == DirtyRange{ 0, 1 });
         CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
 

@@ -41,8 +41,8 @@ struct ModelGpuMaterial
 struct Model
 {
     std::string name;
-    glm::quat rootRotation = glm::quat::identity(); // See ModelData::rootRotation
-    std::optional<std::uint32_t> rootMesh;          // Index into meshes; belongs to the root itself
+    math::Quat rootRotation = math::Quat::identity(); // See ModelData::rootRotation
+    std::optional<std::uint32_t> rootMesh;            // Index into meshes; belongs to the root itself
     std::vector<ModelGpuMesh> meshes;
     /// @brief The parts the asset library gives IDs: the file's embedded textures, in ModelData::images order (external
     ///        images are assets of their own), and its materials, indexed like ModelData::materials.

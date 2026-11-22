@@ -211,7 +211,7 @@ auto Texture::loadFromMemory(rhi::Device& device, std::span<const std::byte> enc
     return create(device, *texture, name);
 }
 
-auto Texture::solidColor(rhi::Device& device, glm::vec4 color, std::string_view name)
+auto Texture::solidColor(rhi::Device& device, math::Float4 color, std::string_view name)
     -> std::expected<std::shared_ptr<Texture>, Error>
 {
     return create(device,
@@ -224,7 +224,7 @@ auto Texture::solidColor(rhi::Device& device, glm::vec4 color, std::string_view 
         std::as_bytes(std::span{ &color, 1 }));
 }
 
-auto Texture::solidColorCube(rhi::Device& device, glm::vec4 color, std::string_view name)
+auto Texture::solidColorCube(rhi::Device& device, math::Float4 color, std::string_view name)
     -> std::expected<std::shared_ptr<Texture>, Error>
 {
     const std::array faces{ color, color, color, color, color, color };

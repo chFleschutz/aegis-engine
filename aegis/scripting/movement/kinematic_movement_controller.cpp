@@ -20,7 +20,7 @@ void KinematicMovementController::onDestroy(ScriptContext& context)
         context.setCursorMode(aegis::platform::CursorMode::Normal);
 }
 
-auto KinematicMovementController::cursorDelta(const platform::InputState& input) -> glm::vec2
+auto KinematicMovementController::cursorDelta(const platform::InputState& input) -> math::Float2
 {
     const auto [x, y] = input.cursorDelta();
     return { static_cast<float>(x), static_cast<float>(y) };
@@ -32,7 +32,7 @@ void KinematicMovementController::applyRotation(ScriptContext& context, float de
     const auto& input = context.input();
 
     // Key input rotation (a rate: scaled by the frame time)
-    glm::vec3 rotate{ 0.0f };
+    math::Float3 rotate{ 0.0f };
     if (input.keyDown(m_keys.lookRight))
         rotate.z -= lookSpeed;
     if (input.keyDown(m_keys.lookLeft))
@@ -53,13 +53,13 @@ void KinematicMovementController::applyRotation(ScriptContext& context, float de
         rotate.z -= delta.x * mouseSensitivity;
     }
 
-    if (glm::length(rotate) > std::numeric_limits<float>::epsilon())
+    if (math::length(rotate) > std::numeric_limits<float>::epsilon())
     {
-        glm::vec3 rotation = glm::eulerAngles(transform.rotation);
-        rotation.x = glm::clamp(rotation.x + rotate.x, -1.5f, 1.5f);
-        rotation.z = glm::mod(rotation.z + rotate.z, math::twoPi<float>);
+        math::Float3 rotation = math::eulerAngles(transform.rotation);
+        rotation.x = math::clamp(rotation.x + rotate.x, -1.5f, 1.5f);
+        rotation.z = math::mod(rotation.z + rotate.z, math::twoPi<float>);
         rotation.y = 0.0f; // Lock rotation around y-axis
-        transform.rotation = math::quatFromEuler(rotation);
+        transform.rotation = math::Quat::fromEuler(rotation);
     }
 }
 
@@ -69,7 +69,7 @@ void KinematicMovementController::applyMovement(ScriptContext& context, float de
     const auto& input = context.input();
     auto forwardDir = transform.forward();
     auto rightDir = transform.right();
-    auto upDir = math::world::UP;
+    auto upDir = math::world::up<float>;
 
     // Speed modifiers
     if (input.keyDown(m_keys.increaseSpeed))
@@ -87,7 +87,7 @@ void KinematicMovementController::applyMovement(ScriptContext& context, float de
         currentSpeed *= 0.5f;
 
     // Key input movement
-    glm::vec3 moveDir{ 0.0f };
+    math::Float3 moveDir{ 0.0f };
     if (input.keyDown(m_keys.moveForward))
         moveDir += forwardDir;
     if (input.keyDown(m_keys.moveBackward))
@@ -101,9 +101,9 @@ void KinematicMovementController::applyMovement(ScriptContext& context, float de
     if (input.keyDown(m_keys.moveDown))
         moveDir -= upDir;
 
-    if (glm::length(moveDir) > std::numeric_limits<float>::epsilon())
+    if (math::length(moveDir) > std::numeric_limits<float>::epsilon())
     {
-        transform.location += currentSpeed * glm::normalize(moveDir) * deltaSeconds;
+        transform.location += currentSpeed * math::normalize(moveDir) * deltaSeconds;
     }
 
     // Mouse pan input movement
@@ -113,7 +113,7 @@ void KinematicMovementController::applyMovement(ScriptContext& context, float de
     {
         // A displacement like the mouse look: independent of the frame time
         const auto delta = cursorDelta(input);
-        glm::vec3 panDir{ 0.0f };
+        math::Float3 panDir{ 0.0f };
         panDir -= rightDir * delta.x;
         panDir += upDir * delta.y;
 

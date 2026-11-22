@@ -39,7 +39,7 @@ void StatisticsCheck::onFrame(const EditorContext& editor, FrameContext& frame)
         }
         const auto renderer = registry.get<MeshRenderer>(*source);
         const auto location = registry.get<GlobalTransform>(*source).location;
-        const auto copy = registry.create("Statistics Check", location, glm::quat::identity(), glm::vec3{ 0.0f });
+        const auto copy = registry.create("Statistics Check", location, math::Quat::identity(), math::Float3{ 0.0f });
         registry.add<MeshRenderer>(copy, renderer);
         m_step = Step::Verify;
         m_waitFrames = 2;

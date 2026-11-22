@@ -45,10 +45,10 @@ struct Everything
     float speed{ 0.0f };
     double weight{ 0.0 };
     std::string label;
-    glm::vec2 size{};
-    glm::vec3 offset{};
-    glm::vec4 tint{};
-    glm::quat turn = glm::quat::identity();
+    math::Float2 size{};
+    math::Float3 offset{};
+    math::Float4 tint{};
+    math::Quat turn = math::Quat::identity();
     Mode mode{ Mode::Off };
 };
 
@@ -140,7 +140,7 @@ TEST_SUITE("editor::propertyRow")
     {
         struct Light
         {
-            glm::vec3 color{ 1.0f };
+            math::Float3 color{ 1.0f };
             float strength{ 1.0f };
             float range{ 10.0f };
             int samples{ 4 };
@@ -197,9 +197,9 @@ TEST_SUITE("editor::propertyRow")
     {
         struct Mover
         {
-            glm::vec3 offset{};
+            math::Float3 offset{};
             float cone{ 0.5f };
-            glm::quat turn = glm::quat::identity();
+            math::Quat turn = math::Quat::identity();
             float factor{ 1.0f };
         };
         TypeRegistry types;

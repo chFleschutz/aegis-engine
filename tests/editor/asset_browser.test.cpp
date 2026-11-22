@@ -259,7 +259,7 @@ TEST_SUITE("editor::dropPoint")
 {
     TEST_CASE("is where the ray meets the ground")
     {
-        const Ray down{ .origin = { 1.0f, 2.0f, 10.0f }, .direction = glm::normalize(glm::vec3{ 0.0f, 1.0f, -1.0f }) };
+        const Ray down{ .origin = { 1.0f, 2.0f, 10.0f }, .direction = math::normalize(math::Float3{ 0.0f, 1.0f, -1.0f }) };
         const auto point = dropPoint(down, 100.0f, 5.0f);
         CHECK(point.x == doctest::Approx(1.0f));
         CHECK(point.y == doctest::Approx(12.0f));

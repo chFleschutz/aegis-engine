@@ -17,7 +17,7 @@ struct RenderContext
     rhi::DeviceAddress lighting{ 0 }; // This frame's LightingUniforms, in a pass that lights what it draws (ForwardPass)
     /// @brief The view matrix of the pass's camera (FrameScene::Camera::view), which blended draws sort by
     ///        (detail::sortBackToFront); identity without a camera.
-    glm::mat4 view = glm::mat4::identity();
+    math::Float4x4 view = math::Float4x4::identity();
 };
 
 /// @brief The attachments a pass renders into, which a render system's pipelines must match.

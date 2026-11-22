@@ -15,7 +15,7 @@ using aegis::assets::MeshPreprocessor;
 auto quad() -> MeshPreprocessor::Input
 {
     MeshPreprocessor::Input input;
-    const std::vector<glm::vec3> corners{
+    const std::vector<math::Float3> corners{
         { 0, 0, 0 },
         { 1, 0, 0 },
         { 1, 1, 0 },
@@ -24,7 +24,7 @@ auto quad() -> MeshPreprocessor::Input
         { 0, 1, 0 },
     };
     input.positions = corners;
-    input.normals.assign(corners.size(), glm::vec3{ 0, 0, 1 });
+    input.normals.assign(corners.size(), math::Float3{ 0, 0, 1 });
     return input;
 }
 
@@ -38,7 +38,7 @@ auto signedAreas(const aegis::assets::MeshData& mesh) -> std::vector<float>
         const auto a = mesh.vertices[mesh.indices[i + 0]].position;
         const auto b = mesh.vertices[mesh.indices[i + 1]].position;
         const auto c = mesh.vertices[mesh.indices[i + 2]].position;
-        areas.push_back(0.5f * glm::cross(b - a, c - a).z);
+        areas.push_back(0.5f * math::cross(b - a, c - a).z);
     }
     return areas;
 }
@@ -74,7 +74,7 @@ TEST_SUITE("assets::MeshPreprocessor")
         auto mesh = MeshPreprocessor::process(quad());
         REQUIRE(mesh.has_value());
         for (const auto& vertex : mesh->vertices)
-            CHECK(glm::length(vertex.position - mesh->bounds.center) <= mesh->bounds.radius + 1e-4f);
+            CHECK(math::length(vertex.position - mesh->bounds.center) <= mesh->bounds.radius + 1e-4f);
     }
 
     TEST_CASE("missing uvs and colors get defaults")
@@ -94,7 +94,7 @@ TEST_SUITE("assets::MeshPreprocessor")
     {
         MeshPreprocessor::Input input;
         input.positions = { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 0, 1, 0 } };
-        input.normals.assign(4, glm::vec3{ 0, 0, 1 });
+        input.normals.assign(4, math::Float3{ 0, 0, 1 });
         input.indices = { 0, 1, 2, 0, 2, 3 };
 
         auto mesh = MeshPreprocessor::process(input);
@@ -109,7 +109,7 @@ TEST_SUITE("assets::MeshPreprocessor")
         // indices would give 2 triangles of opposite winding.
         MeshPreprocessor::Input input;
         input.positions = { { 0, 0, 0 }, { 0, 1, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 2, 0, 0 }, { 2, 1, 0 } };
-        input.normals.assign(6, glm::vec3{ 0, 0, -1 });
+        input.normals.assign(6, math::Float3{ 0, 0, -1 });
         input.topology = MeshPreprocessor::Topology::TriangleStrip;
 
         SUBCASE("unindexed") {}
@@ -130,7 +130,7 @@ TEST_SUITE("assets::MeshPreprocessor")
     {
         MeshPreprocessor::Input input;
         input.positions = { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 0, 1, 0 }, { -1, 1, 0 } };
-        input.normals.assign(5, glm::vec3{ 0, 0, 1 });
+        input.normals.assign(5, math::Float3{ 0, 0, 1 });
         input.indices = { 0, 1, 2, 3, 4 };
         input.topology = MeshPreprocessor::Topology::TriangleFan;
 
@@ -158,7 +158,7 @@ TEST_SUITE("assets::MeshPreprocessor")
             const auto& a = mesh->vertices[mesh->indices[i + 0]];
             const auto& b = mesh->vertices[mesh->indices[i + 1]];
             const auto& c = mesh->vertices[mesh->indices[i + 2]];
-            const auto expected = glm::normalize(glm::cross(b.position - a.position, c.position - a.position));
+            const auto expected = math::normalize(math::cross(b.position - a.position, c.position - a.position));
             for (const auto* vertex : { &a, &b, &c })
             {
                 CHECK(vertex->normal.x == doctest::Approx(expected.x));
@@ -176,7 +176,7 @@ TEST_SUITE("assets::MeshPreprocessor")
         auto mesh = MeshPreprocessor::process(input);
         REQUIRE(mesh.has_value());
         for (const auto& vertex : mesh->vertices)
-            CHECK(glm::length(vertex.normal) == doctest::Approx(1.0f));
+            CHECK(math::length(vertex.normal) == doctest::Approx(1.0f));
     }
 
     TEST_CASE("rejects meshlet limits the mesh shader cannot hold")

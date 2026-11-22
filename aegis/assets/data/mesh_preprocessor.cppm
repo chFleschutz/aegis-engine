@@ -22,11 +22,11 @@ public:
 
     struct Input
     {
-        std::vector<glm::vec3> positions;   // Required
-        std::vector<glm::vec3> normals;     // Optional, one per position; missing normals are generated flat (per triangle)
-        std::vector<glm::vec2> uvs;         // Optional; missing entries become (0, 0)
-        std::vector<glm::vec3> colors;      // Optional; missing entries become white
-        std::vector<std::uint32_t> indices; // Optional; empty means the vertices in order
+        std::vector<math::Float3> positions; // Required
+        std::vector<math::Float3> normals;   // Optional, one per position; missing normals are generated flat (per triangle)
+        std::vector<math::Float2> uvs;       // Optional; missing entries become (0, 0)
+        std::vector<math::Float3> colors;    // Optional; missing entries become white
+        std::vector<std::uint32_t> indices;  // Optional; empty means the vertices in order
         Topology topology{ Topology::TriangleList };
 
         float overdrawThreshold{ 1.05f };

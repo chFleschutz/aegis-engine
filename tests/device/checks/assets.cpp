@@ -250,17 +250,17 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
     if (!copy || copy.get() == shared.get() || copy.id() == shared.id() ||
         copy->materialTemplate() != shared->materialTemplate())
         return fail("copyMaterial must give a new material of the same template under a new ID");
-    const auto albedoOf = [](const assets::Material& material) -> std::optional<glm::vec3> {
-        const auto* value = material.parameter<glm::vec3>(assets::pbr::albedo);
+    const auto albedoOf = [](const assets::Material& material) -> std::optional<math::Float3> {
+        const auto* value = material.parameter<math::Float3>(assets::pbr::albedo);
         return value ? std::optional{ *value } : std::nullopt;
     };
-    const auto same = [](const std::optional<glm::vec3>& a, const std::optional<glm::vec3>& b) {
+    const auto same = [](const std::optional<math::Float3>& a, const std::optional<math::Float3>& b) {
         return a && b && a->x == b->x && a->y == b->y && a->z == b->z;
     };
     const auto original = albedoOf(*shared);
     if (!same(albedoOf(*copy), original))
         return fail("A material copy must start with the original's parameters");
-    if (auto set = copy->setParameter(assets::pbr::albedo, glm::vec3{ 0.25f, 0.5f, 0.75f }); !set)
+    if (auto set = copy->setParameter(assets::pbr::albedo, math::Float3{ 0.25f, 0.5f, 0.75f }); !set)
         return fail(std::format("Recoloring a material copy: {}", assets::describe(set.error())));
     if (!same(albedoOf(*shared), original) || same(albedoOf(*copy), original))
         return fail("Changing a material copy must change it and not the shared material");

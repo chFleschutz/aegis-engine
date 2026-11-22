@@ -33,9 +33,9 @@ struct FrameScene
     /// @brief A camera with this frame's matrices.
     struct Camera
     {
-        glm::mat4 view = glm::mat4::identity();
-        glm::mat4 projection = glm::mat4::identity();
-        glm::vec3 position{ 0.0f };
+        math::Float4x4 view = math::Float4x4::identity();
+        math::Float4x4 projection = math::Float4x4::identity();
+        math::Float3 position{ 0.0f };
     };
 
     /// @brief One rendering of the world in the frame: its scene passes run in a frame graph scope of its name, with
@@ -59,25 +59,25 @@ struct FrameScene
 
     struct AmbientLight
     {
-        glm::vec3 color{ 1.0f };
+        math::Float3 color{ 1.0f };
         float intensity{ 1.0f };
     };
 
     struct DirectionalLight
     {
-        glm::vec3 color{ 1.0f };
+        math::Float3 color{ 1.0f };
         float intensity{ 1.0f };
-        glm::vec3 direction{ 0.0f, 0.0f, 1.0f }; // World space, normalized: towards the light
-        float shadowDistance{ 50.0f };           // Meters from the camera its shadow covers (shadowCascadeSplits)
-        float shadowBias{ 1.0f };                // Shadow-map texels a shaded point moves along its normal
-        std::uint32_t shadowCascades{ 4 };       // Shadow maps the distance is split into, 1 to maxShadowCascades
-        float shadowSplitLambda{ 0.75f };        // 1: logarithmic splits, 0: uniform (shadowCascadeSplits)
+        math::Float3 direction{ 0.0f, 0.0f, 1.0f }; // World space, normalized: towards the light
+        float shadowDistance{ 50.0f };              // Meters from the camera its shadow covers (shadowCascadeSplits)
+        float shadowBias{ 1.0f };                   // Shadow-map texels a shaded point moves along its normal
+        std::uint32_t shadowCascades{ 4 };          // Shadow maps the distance is split into, 1 to maxShadowCascades
+        float shadowSplitLambda{ 0.75f };           // 1: logarithmic splits, 0: uniform (shadowCascadeSplits)
     };
 
     struct PointLight
     {
-        glm::vec3 position{ 0.0f };
-        glm::vec3 color{ 1.0f };
+        math::Float3 position{ 0.0f };
+        math::Float3 color{ 1.0f };
         float intensity{ 1.0f };
         float range{ 20.0f }; // Meters; the light fades to zero there
         float scale{ 1.0f };  // The transform's x scale, which sizes the light's billboard
@@ -85,15 +85,15 @@ struct FrameScene
 
     struct SpotLight
     {
-        glm::vec3 position{ 0.0f };
-        glm::vec3 direction{ 0.0f, 0.0f, 1.0f }; // World space, normalized: where the cone points
-        glm::vec3 color{ 1.0f };
+        math::Float3 position{ 0.0f };
+        math::Float3 direction{ 0.0f, 0.0f, 1.0f }; // World space, normalized: where the cone points
+        math::Float3 color{ 1.0f };
         float intensity{ 1.0f };
-        float range{ 20.0f };                        // Meters; the light fades to zero there
-        float innerConeAngle{ 0.0f };                // Radians from the axis where the light starts to fade
-        float outerConeAngle{ glm::radians(45.0f) }; // Radians from the axis where it reaches zero
-        bool castsShadows{ false };                  // Whether it competes for a spot shadow view (selectShadowedSpotLights)
-        float shadowBias{ 1.0f };                    // Shadow-map texels a shaded point moves along its normal
+        float range{ 20.0f };                         // Meters; the light fades to zero there
+        float innerConeAngle{ 0.0f };                 // Radians from the axis where the light starts to fade
+        float outerConeAngle{ math::radians(45.0f) }; // Radians from the axis where it reaches zero
+        bool castsShadows{ false };                   // Whether it competes for a spot shadow view (selectShadowedSpotLights)
+        float shadowBias{ 1.0f };                     // Shadow-map texels a shaded point moves along its normal
         /// @brief The index in 'views' of the spot shadow view it casts its shadow through (addShadowViews); none: it
         ///        is unshadowed this frame.
         std::optional<std::uint32_t> shadowView;

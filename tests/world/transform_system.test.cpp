@@ -17,14 +17,14 @@ using aegis::world::TransformSystem;
 using doctest::Approx;
 
 // Approx has a default scale of 1, so components near zero get an absolute margin too.
-auto near(const glm::vec3& a, const glm::vec3& b) -> bool
+auto near(const math::Float3& a, const math::Float3& b) -> bool
 {
     return a.x == Approx(b.x).epsilon(1e-4) && a.y == Approx(b.y).epsilon(1e-4) && a.z == Approx(b.z).epsilon(1e-4);
 }
 
-auto quarterTurnZ() -> glm::quat
+auto quarterTurnZ() -> math::Quat
 {
-    return glm::angleAxis(std::numbers::pi_v<float> / 2.0f, glm::vec3{ 0.0f, 0.0f, 1.0f });
+    return math::Quat::fromAxisAngle(math::Float3{ 0.0f, 0.0f, 1.0f }, std::numbers::pi_v<float> / 2.0f);
 }
 }
 
@@ -33,7 +33,7 @@ TEST_SUITE("world::TransformSystem")
     TEST_CASE("applies the parent's rotation and scale to a child's location")
     {
         Registry registry;
-        const auto parent = registry.create("parent", { 0.0f, 0.0f, 0.0f }, quarterTurnZ(), glm::vec3{ 2.0f });
+        const auto parent = registry.create("parent", { 0.0f, 0.0f, 0.0f }, quarterTurnZ(), math::Float3{ 2.0f });
         const auto child = registry.create("child", { 1.0f, 0.0f, 0.0f });
         REQUIRE(registry.setParent(child, parent));
 
@@ -42,8 +42,8 @@ TEST_SUITE("world::TransformSystem")
 
         const auto& global = registry.get<GlobalTransform>(child);
         CHECK(near(global.location, { 0.0f, 2.0f, 0.0f }));
-        CHECK(near(global.scale, glm::vec3{ 2.0f }));
-        CHECK(near(global.rotation * glm::vec3{ 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }));
+        CHECK(near(global.scale, math::Float3{ 2.0f }));
+        CHECK(near(global.rotation * math::Float3{ 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }));
     }
 
     TEST_CASE("adds the parent's location and composes a chain of three")
@@ -132,17 +132,17 @@ TEST_SUITE("world::detail::toLocal")
 {
     TEST_CASE("is the inverse of compose")
     {
-        const GlobalTransform parent{ { 1.0f, -2.0f, 3.0f }, quarterTurnZ(), glm::vec3{ 2.0f } };
-        const Transform local{ { 0.5f, 1.5f, -1.0f }, glm::angleAxis(0.7f, glm::normalize(glm::vec3{ 1.0f, 1.0f, 0.0f })),
-            glm::vec3{ 0.5f, 0.5f, 0.5f } };
+        const GlobalTransform parent{ { 1.0f, -2.0f, 3.0f }, quarterTurnZ(), math::Float3{ 2.0f } };
+        const Transform local{ { 0.5f, 1.5f, -1.0f }, math::Quat::fromAxisAngle(math::normalize(math::Float3{ 1.0f, 1.0f, 0.0f }), 0.7f),
+            math::Float3{ 0.5f, 0.5f, 0.5f } };
 
         const auto global = aegis::world::detail::compose(parent, local);
         const auto back = aegis::world::detail::toLocal(parent, global.matrix());
 
         CHECK(near(back.location, local.location));
         CHECK(near(back.scale, local.scale));
-        CHECK(near(back.rotation * glm::vec3{ 0.0f, 0.0f, 1.0f }, local.rotation * glm::vec3{ 0.0f, 0.0f, 1.0f }));
-        CHECK(near(back.rotation * glm::vec3{ 1.0f, 0.0f, 0.0f }, local.rotation * glm::vec3{ 1.0f, 0.0f, 0.0f }));
+        CHECK(near(back.rotation * math::Float3{ 0.0f, 0.0f, 1.0f }, local.rotation * math::Float3{ 0.0f, 0.0f, 1.0f }));
+        CHECK(near(back.rotation * math::Float3{ 1.0f, 0.0f, 0.0f }, local.rotation * math::Float3{ 1.0f, 0.0f, 0.0f }));
     }
 
     TEST_CASE("returns the world matrix unchanged below an identity parent")

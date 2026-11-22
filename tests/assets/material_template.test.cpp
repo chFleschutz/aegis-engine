@@ -31,7 +31,7 @@ auto unlitDesc() -> MaterialTemplateDesc
     return {
         .surface = "unlit",
         .parameters = {
-            { .name = "color", .defaultValue = glm::vec3{ 1.0f } },
+            { .name = "color", .defaultValue = math::Float3{ 1.0f } },
             { .name = "colorMap", .defaultValue = DefaultTexture::White },
         },
     };

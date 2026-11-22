@@ -54,7 +54,7 @@ public:
     void onDestroy(ScriptContext& context) override;
 
 private:
-    [[nodiscard]] static auto cursorDelta(const platform::InputState& input) -> glm::vec2;
+    [[nodiscard]] static auto cursorDelta(const platform::InputState& input) -> math::Float2;
 
     void applyRotation(ScriptContext& context, float deltaSeconds);
 

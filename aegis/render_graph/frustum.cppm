@@ -8,18 +8,18 @@ export namespace aegis::render_graph
 ///        inside and the normal (A, B, C) unit length. Laid out as shaders read it.
 struct Frustum
 {
-    using Plane = glm::vec4;
+    using Plane = math::Float4;
 
     std::array<Plane, 6> planes;
 
     /// @brief Extracts the planes of a view-projection matrix (Gribb/Hartmann), for Vulkan's [0, 1]
     ///        depth range.
-    [[nodiscard]] static auto extractFrom(const glm::mat4& viewProjection) -> Frustum
+    [[nodiscard]] static auto extractFrom(const math::Float4x4& viewProjection) -> Frustum
     {
-        const auto row0 = math::row(viewProjection, 0);
-        const auto row1 = math::row(viewProjection, 1);
-        const auto row2 = math::row(viewProjection, 2);
-        const auto row3 = math::row(viewProjection, 3);
+        const auto row0 = viewProjection.row(0);
+        const auto row1 = viewProjection.row(1);
+        const auto row2 = viewProjection.row(2);
+        const auto row3 = viewProjection.row(3);
 
         Frustum frustum{ {
             row3 + row0,
@@ -31,16 +31,16 @@ struct Frustum
         } };
 
         for (auto& plane : frustum.planes)
-            plane /= glm::length(glm::vec3{ plane });
+            plane /= math::length(math::Float3{ plane });
         return frustum;
     }
 
     /// @brief Whether a sphere is at least partly inside.
-    [[nodiscard]] auto intersects(const glm::vec3& center, float radius) const -> bool
+    [[nodiscard]] auto intersects(const math::Float3& center, float radius) const -> bool
     {
         for (const auto& plane : planes)
         {
-            if (glm::dot(glm::vec3{ plane }, center) + plane.w < -radius)
+            if (math::dot(math::Float3{ plane }, center) + plane.w < -radius)
                 return false;
         }
         return true;

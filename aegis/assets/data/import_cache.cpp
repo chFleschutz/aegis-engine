@@ -376,14 +376,14 @@ auto dumpTextureBlob(std::string& out, std::string_view name, const std::filesys
     return {};
 }
 
-auto toEntry(const glm::quat& q) -> std::array<float, 4>
+auto toEntry(const math::Quat& q) -> std::array<float, 4>
 {
     return { q.x, q.y, q.z, q.w };
 }
 
-auto toQuat(const std::array<float, 4>& a) -> glm::quat
+auto toQuat(const std::array<float, 4>& a) -> math::Quat
 {
-    return math::quatFromXyzw(a[0], a[1], a[2], a[3]);
+    return math::Quat::fromXyzw(a[0], a[1], a[2], a[3]);
 }
 
 auto readEntry(const std::filesystem::path& directory) -> std::expected<ModelEntry, Error>

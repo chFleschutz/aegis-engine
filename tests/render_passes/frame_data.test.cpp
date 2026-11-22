@@ -13,23 +13,23 @@ using aegis::render_graph::FrameScene;
 using aegis::render_graph::InstanceStore;
 
 // glm's operator== is not part of aegis.math's exports.
-auto equal(const glm::vec3& a, const glm::vec3& b) -> bool
+auto equal(const math::Float3& a, const math::Float3& b) -> bool
 {
     return a.x == b.x && a.y == b.y && a.z == b.z;
 }
 
-auto equal(const glm::vec4& a, const glm::vec4& b) -> bool
+auto equal(const math::Float4& a, const math::Float4& b) -> bool
 {
     return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
 }
 
-auto equal(const glm::mat4& a, const glm::mat4& b) -> bool
+auto equal(const math::Float4x4& a, const math::Float4x4& b) -> bool
 {
     for (int row = 0; row < 4; ++row)
     {
         for (int column = 0; column < 4; ++column)
         {
-            if (aegis::math::element(a, row, column) != aegis::math::element(b, row, column))
+            if (a[row, column] != b[row, column])
                 return false;
         }
     }
@@ -45,22 +45,22 @@ TEST_SUITE("render_graph::detail::makeCameraData")
     {
         FrameScene::Camera camera{ .position = { 5.0f, 6.0f, 7.0f } };
         camera.view = aegis::math::fromRows(
-            glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f },
-            glm::vec4{ 0.0f, 1.0f, 0.0f, 2.0f },
-            glm::vec4{ 0.0f, 0.0f, 1.0f, 3.0f },
-            glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f });
-        aegis::math::element(camera.projection, 0, 0) = 2.0f;
-        aegis::math::element(camera.projection, 1, 1) = 3.0f;
+            math::Float4{ 1.0f, 0.0f, 0.0f, 1.0f },
+            math::Float4{ 0.0f, 1.0f, 0.0f, 2.0f },
+            math::Float4{ 0.0f, 0.0f, 1.0f, 3.0f },
+            math::Float4{ 0.0f, 0.0f, 0.0f, 1.0f });
+        camera.projection[0, 0] = 2.0f;
+        camera.projection[1, 1] = 3.0f;
 
         const auto data = makeCameraData(camera);
-        CHECK(equal(data.position, glm::vec3{ 5.0f, 6.0f, 7.0f }));
+        CHECK(equal(data.position, math::Float3{ 5.0f, 6.0f, 7.0f }));
         CHECK(equal(data.view, glm::rowMajor4(camera.view)));
         CHECK(equal(data.projection, glm::rowMajor4(camera.projection)));
         CHECK(equal(data.viewProjection, glm::rowMajor4(camera.projection * camera.view)));
         // Row-major: the translation sits in the last column of each row, i.e. in the w of the first three vectors.
-        CHECK(aegis::math::element(data.view, 0, 3) == 1.0f);
-        CHECK(aegis::math::element(data.view, 1, 3) == 2.0f);
-        CHECK(aegis::math::element(data.view, 2, 3) == 3.0f);
+        CHECK(data.view[0, 3] == 1.0f);
+        CHECK(data.view[1, 3] == 2.0f);
+        CHECK(data.view[2, 3] == 3.0f);
     }
 }
 
@@ -76,10 +76,10 @@ TEST_SUITE("render_graph::detail::packLighting")
         CHECK(uniforms.viewMode == LightingViewMode::Albedo);
         CHECK(uniforms.pointLightCount == 0);
         CHECK(uniforms.spotLightCount == 0);
-        CHECK(equal(uniforms.cameraPosition, glm::vec4{ 0.0f }));
-        CHECK(equal(uniforms.ambientColor, glm::vec4{ 0.0f }));
-        CHECK(equal(uniforms.directionalColor, glm::vec4{ 0.0f }));
-        CHECK(equal(uniforms.directionalDirection, glm::vec4{ 0.0f, 0.0f, 1.0f, 0.0f }));
+        CHECK(equal(uniforms.cameraPosition, math::Float4{ 0.0f }));
+        CHECK(equal(uniforms.ambientColor, math::Float4{ 0.0f }));
+        CHECK(equal(uniforms.directionalColor, math::Float4{ 0.0f }));
+        CHECK(equal(uniforms.directionalDirection, math::Float4{ 0.0f, 0.0f, 1.0f, 0.0f }));
     }
 
     TEST_CASE("packs camera, ambient and directional light")
@@ -94,10 +94,10 @@ TEST_SUITE("render_graph::detail::packLighting")
         };
 
         const auto uniforms = packLighting(scene, 0, 0, 16, 1.0f, LightingViewMode::SceneColor);
-        CHECK(equal(uniforms.cameraPosition, glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f }));
-        CHECK(equal(uniforms.ambientColor, glm::vec4{ 0.1f, 0.2f, 0.3f, 0.5f }));
-        CHECK(equal(uniforms.directionalColor, glm::vec4{ 1.0f, 0.5f, 0.25f, 2.0f }));
-        CHECK(equal(uniforms.directionalDirection, glm::vec4{ 0.0f, -1.0f, 0.0f, 0.0f }));
+        CHECK(equal(uniforms.cameraPosition, math::Float4{ 1.0f, 2.0f, 3.0f, 1.0f }));
+        CHECK(equal(uniforms.ambientColor, math::Float4{ 0.1f, 0.2f, 0.3f, 0.5f }));
+        CHECK(equal(uniforms.directionalColor, math::Float4{ 1.0f, 0.5f, 0.25f, 2.0f }));
+        CHECK(equal(uniforms.directionalDirection, math::Float4{ 0.0f, -1.0f, 0.0f, 0.0f }));
     }
 
     TEST_CASE("takes the camera of the view it lights")
@@ -112,17 +112,17 @@ TEST_SUITE("render_graph::detail::packLighting")
             },
         };
 
-        CHECK(equal(packLighting(scene, 1, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 4.0f, 5.0f, 6.0f, 1.0f }));
-        CHECK(equal(packLighting(scene, 2, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 0.0f }));
-        CHECK(equal(packLighting(scene, 3, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, glm::vec4{ 0.0f }));
+        CHECK(equal(packLighting(scene, 1, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, math::Float4{ 4.0f, 5.0f, 6.0f, 1.0f }));
+        CHECK(equal(packLighting(scene, 2, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, math::Float4{ 0.0f }));
+        CHECK(equal(packLighting(scene, 3, 0, 16, 1.0f, LightingViewMode::SceneColor).cameraPosition, math::Float4{ 0.0f }));
     }
 
     TEST_CASE("shadows the directional light by its cascades' maps")
     {
         const InstanceStore instances;
         const FrameScene::Camera camera{
-            .view = aegis::math::viewMatrix(glm::vec3{ 0.0f, 0.0f, 2.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }),
-            .projection = aegis::math::perspective(glm::radians(60.0f), 1.0f, 0.1f, 1000.0f), // As aegis::CameraSystem builds it
+            .view = aegis::math::viewMatrix(math::Float3{ 0.0f, 0.0f, 2.0f }, math::Float3{ 0.0f, 1.0f, 0.0f }),
+            .projection = aegis::math::perspective(math::radians(60.0f), 1.0f, 0.1f, 1000.0f), // As aegis::CameraSystem builds it
             .position = { 0.0f, 0.0f, 2.0f },
         };
         FrameScene scene{
@@ -140,7 +140,7 @@ TEST_SUITE("render_graph::detail::packLighting")
         CHECK(uniforms.shadowBias == 1.5f);
         CHECK(uniforms.shadowCascadeBlend == aegis::render_graph::shadowCascadeBlend);
         // The axis the cascades split: the camera's forward.
-        CHECK(equal(uniforms.cameraForward, glm::vec4{ 0.0f, 1.0f, 0.0f, 0.0f }));
+        CHECK(equal(uniforms.cameraForward, math::Float4{ 0.0f, 1.0f, 0.0f, 0.0f }));
         const auto splits = aegis::render_graph::shadowCascadeSplits(*scene.directionalLight, camera.projection);
         for (std::uint32_t cascade = 0; cascade < 3; ++cascade)
         {
@@ -152,7 +152,7 @@ TEST_SUITE("render_graph::detail::packLighting")
             CHECK(data.map.sampler.index == 3);
             CHECK(data.splitFar == splits[cascade]);
             // The orthographic projection is 2 / projection[0, 0] meters across the map's texels.
-            CHECK(data.texelSize == doctest::Approx(2.0f / (aegis::math::element(shadowCamera.projection, 0, 0) * 2048.0f)));
+            CHECK(data.texelSize == doctest::Approx(2.0f / (shadowCamera.projection[0, 0] * 2048.0f)));
         }
         // Each cascade is wider than the one before, so its texels are larger.
         CHECK(uniforms.shadowCascades[1].texelSize > uniforms.shadowCascades[0].texelSize);
@@ -275,13 +275,13 @@ TEST_SUITE("render_graph::detail::packLights")
         };
 
         const auto data = packLight(light);
-        CHECK(equal(data.position, glm::vec3{ 1.0f, 2.0f, 3.0f }));
-        CHECK(equal(data.color, glm::vec3{ 0.5f, 0.25f, 1.0f }));
+        CHECK(equal(data.position, math::Float3{ 1.0f, 2.0f, 3.0f }));
+        CHECK(equal(data.color, math::Float3{ 0.5f, 0.25f, 1.0f }));
         CHECK(data.intensity == 7.0f);
         CHECK(data.range == 12.0f);
         CHECK(data.coneScale == 0.0f);
         CHECK(data.coneOffset == 1.0f);
-        for (const auto toSurface : { glm::vec3{ 1.0f, 0.0f, 0.0f }, glm::vec3{ 0.0f, -1.0f, 0.0f }, glm::vec3{ 0.0f, 0.0f, 1.0f } })
+        for (const auto toSurface : { math::Float3{ 1.0f, 0.0f, 0.0f }, math::Float3{ 0.0f, -1.0f, 0.0f }, math::Float3{ 0.0f, 0.0f, 1.0f } })
             CHECK(coneAttenuation(data, toSurface) == 1.0f);
     }
 
@@ -293,7 +293,7 @@ TEST_SUITE("render_graph::detail::packLights")
             .views = { { .name = "Main", .camera = FrameScene::Camera{} } },
         };
         scene.spotLights = {
-            { .position = { 0.0f, 0.0f, 3.0f }, .direction = { 0.0f, 0.0f, -1.0f }, .outerConeAngle = glm::radians(45.0f), .castsShadows = true, .shadowBias = 2.0f },
+            { .position = { 0.0f, 0.0f, 3.0f }, .direction = { 0.0f, 0.0f, -1.0f }, .outerConeAngle = math::radians(45.0f), .castsShadows = true, .shadowBias = 2.0f },
             { .position = { 0.0f, 0.0f, 1.0f }, .direction = { 0.0f, 0.0f, -1.0f }, .castsShadows = true },
             { .position = { 0.0f, 0.0f, 2.0f }, .castsShadows = false },
         };
@@ -307,11 +307,11 @@ TEST_SUITE("render_graph::detail::packLights")
         const auto& data = lights[1];
         const auto& camera = *scene.views[*scene.spotLights[0].shadowView].camera;
         CHECK(equal(data.shadowViewProjection, glm::rowMajor4(camera.projection * camera.view)));
-        CHECK(equal(data.shadowRegion, glm::vec4{ 0.5f, 0.0f, 0.5f, 0.5f }));
+        CHECK(equal(data.shadowRegion, math::Float4{ 0.5f, 0.0f, 0.5f, 0.5f }));
         CHECK(data.shadowBias == 2.0f);
         // A 90 degree cone spans 2 m across the tile's 1024 texels one meter from the light.
         CHECK(data.shadowTexelSize == doctest::Approx(2.0f / 1024.0f));
-        CHECK(equal(lights[2].shadowRegion, glm::vec4{ 0.0f, 0.0f, 0.5f, 0.5f }));
+        CHECK(equal(lights[2].shadowRegion, math::Float4{ 0.0f, 0.0f, 0.5f, 0.5f }));
 
         // The point light and the light that casts no shadow have no tile.
         CHECK(lights[0].shadowRegion.z == 0.0f);
@@ -329,17 +329,17 @@ TEST_SUITE("render_graph::detail::packLights")
             .position = { 0.0f, 5.0f, 0.0f },
             .direction = { 0.0f, -1.0f, 0.0f },
             .range = 10.0f,
-            .innerConeAngle = glm::radians(20.0f),
-            .outerConeAngle = glm::radians(40.0f),
+            .innerConeAngle = math::radians(20.0f),
+            .outerConeAngle = math::radians(40.0f),
         };
         const auto data = packLight(light);
-        CHECK(equal(data.direction, glm::vec3{ 0.0f, -1.0f, 0.0f }));
+        CHECK(equal(data.direction, math::Float3{ 0.0f, -1.0f, 0.0f }));
         CHECK(data.range == 10.0f);
 
         // A direction at 'degrees' from the cone's axis.
         const auto at = [](float degrees) {
-            const float angle = glm::radians(degrees);
-            return glm::vec3{ std::sin(angle), -std::cos(angle), 0.0f };
+            const float angle = math::radians(degrees);
+            return math::Float3{ std::sin(angle), -std::cos(angle), 0.0f };
         };
         CHECK(coneAttenuation(data, at(0.0f)) == doctest::Approx(1.0f));
         CHECK(coneAttenuation(data, at(19.0f)) == doctest::Approx(1.0f));
@@ -355,13 +355,13 @@ TEST_SUITE("render_graph::detail::packLights")
     {
         const FrameScene::SpotLight light{
             .direction = { 0.0f, 0.0f, 1.0f },
-            .innerConeAngle = glm::radians(30.0f),
-            .outerConeAngle = glm::radians(10.0f),
+            .innerConeAngle = math::radians(30.0f),
+            .outerConeAngle = math::radians(10.0f),
         };
         const auto data = packLight(light);
         CHECK(std::isfinite(data.coneScale));
         CHECK(coneAttenuation(data, { 0.0f, 0.0f, 1.0f }) == doctest::Approx(1.0f));
-        const float angle = glm::radians(20.0f);
+        const float angle = math::radians(20.0f);
         CHECK(coneAttenuation(data, { std::sin(angle), 0.0f, std::cos(angle) }) == 0.0f);
     }
 }
@@ -416,12 +416,12 @@ TEST_SUITE("render_graph::detail::makeSkyBoxViewProjection")
     {
         FrameScene::Camera camera;
         // A quarter turn about +Y (columns: the rotated axes).
-        const glm::vec4 x{ 0.0f, 0.0f, -1.0f, 0.0f };
-        const glm::vec4 y{ 0.0f, 1.0f, 0.0f, 0.0f };
-        const glm::vec4 z{ 1.0f, 0.0f, 0.0f, 0.0f };
-        const auto rotationOnly = aegis::math::fromColumns(x, y, z, glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f });
-        camera.view = aegis::math::fromColumns(x, y, z, glm::vec4{ 10.0f, 20.0f, 30.0f, 1.0f });
-        aegis::math::element(camera.projection, 0, 0) = 2.0f;
+        const math::Float4 x{ 0.0f, 0.0f, -1.0f, 0.0f };
+        const math::Float4 y{ 0.0f, 1.0f, 0.0f, 0.0f };
+        const math::Float4 z{ 1.0f, 0.0f, 0.0f, 0.0f };
+        const auto rotationOnly = aegis::math::fromColumns(x, y, z, math::Float4{ 0.0f, 0.0f, 0.0f, 1.0f });
+        camera.view = aegis::math::fromColumns(x, y, z, math::Float4{ 10.0f, 20.0f, 30.0f, 1.0f });
+        camera.projection[0, 0] = 2.0f;
 
         CHECK(equal(makeSkyBoxViewProjection(camera), glm::rowMajor4(camera.projection * rotationOnly)));
     }
@@ -438,8 +438,8 @@ TEST_SUITE("render_graph::detail::makePointLightConstants")
         };
 
         const auto constants = makePointLightConstants(light, 42);
-        CHECK(equal(constants.worldPosition, glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f }));
-        CHECK(equal(constants.color, glm::vec4{ 0.5f, 0.25f, 1.0f, 1.0f }));
+        CHECK(equal(constants.worldPosition, math::Float4{ 1.0f, 2.0f, 3.0f, 1.0f }));
+        CHECK(equal(constants.color, math::Float4{ 0.5f, 0.25f, 1.0f, 1.0f }));
         CHECK(constants.radius == doctest::Approx(0.4f));
         CHECK(constants.camera == 42);
     }

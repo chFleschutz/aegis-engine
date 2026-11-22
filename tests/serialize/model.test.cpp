@@ -111,7 +111,7 @@ TEST_SUITE("serialize::modelScene")
     {
         TypeRegistry types;
         registerTypes(types);
-        const glm::quat upAxis = glm::angleAxis(glm::radians(90.0f), glm::vec3{ 1.0f, 0.0f, 0.0f });
+        const math::Quat upAxis = math::Quat::fromAxisAngle(math::Float3{ 1.0f, 0.0f, 0.0f }, math::radians(90.0f));
         Model model{ .name = "Helmet", .rootRotation = upAxis };
         model.nodes = {
             ModelNode{ .name = "Body", .translation = { 1.0f, 2.0f, 3.0f }, .scale = { 2.0f, 2.0f, 2.0f } },
@@ -135,8 +135,8 @@ TEST_SUITE("serialize::modelScene")
 
         const Entity body = entity(registry, ids.at("Entity/Body"));
         CHECK(registry.get<aegis::Name>(body).name == "Body");
-        CHECK(same(registry.get<aegis::Transform>(body).location, glm::vec3{ 1.0f, 2.0f, 3.0f }));
-        CHECK(same(registry.get<aegis::Transform>(body).scale, glm::vec3{ 2.0f, 2.0f, 2.0f }));
+        CHECK(same(registry.get<aegis::Transform>(body).location, math::Float3{ 1.0f, 2.0f, 3.0f }));
+        CHECK(same(registry.get<aegis::Transform>(body).scale, math::Float3{ 2.0f, 2.0f, 2.0f }));
         CHECK(childIds(registry, body) == std::vector{ ids.at("Entity/Visor") });
         CHECK(same(registry.get<aegis::Transform>(entity(registry, ids.at("Entity/Visor"))).rotation, upAxis));
         CHECK_FALSE(registry.has<aegis::MeshRenderer>(body));

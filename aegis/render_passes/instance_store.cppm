@@ -8,19 +8,19 @@ export namespace aegis::render_graph::detail
 {
 /// @brief The top three rows of 'model', each with its translation in .w: how shaders, and InstanceStore,
 ///        hold a model matrix.
-[[nodiscard]] inline auto toModelRows(const glm::mat4& model) -> glm::mat3x4
+[[nodiscard]] inline auto toModelRows(const math::Float4x4& model) -> math::Float3x4
 {
-    return glm::mat3x4{ glm::rowMajor4(model) };
+    return math::Float3x4{ glm::rowMajor4(model) };
 }
 
 /// @brief Whether two model matrices (Instance::model) are equal, element by element.
-[[nodiscard]] constexpr auto sameModel(const glm::mat3x4& a, const glm::mat3x4& b) noexcept -> bool
+[[nodiscard]] constexpr auto sameModel(const math::Float3x4& a, const math::Float3x4& b) noexcept -> bool
 {
     for (int row = 0; row < 3; ++row)
     {
         for (int column = 0; column < 4; ++column)
         {
-            if (math::element(a, row, column) != math::element(b, row, column))
+            if (a[row, column] != b[row, column])
                 return false;
         }
     }
@@ -82,7 +82,7 @@ struct DirtyRange
 struct Instance
 {
     /// @brief The top three rows of the model matrix, as shaders read it (detail::toModelRows).
-    glm::mat3x4 model = detail::toModelRows(glm::mat4::identity());
+    math::Float3x4 model = detail::toModelRows(math::Float4x4::identity());
     std::shared_ptr<const assets::StaticMesh> mesh;
     std::shared_ptr<assets::Material> material;
     /// @brief The id of the instance's draw batch, whose variant is the material's. Set by the store; add

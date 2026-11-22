@@ -120,9 +120,9 @@ struct Fixture
     UndoStack history;
 };
 
-auto near(const glm::vec3& a, const glm::vec3& b) -> bool
+auto near(const math::Float3& a, const math::Float3& b) -> bool
 {
-    return glm::length(a - b) < 1e-4f;
+    return math::length(a - b) < 1e-4f;
 }
 }
 
@@ -307,7 +307,7 @@ TEST_SUITE("editor::destroyEntity")
         auto& registry = f.registry();
         const auto holder = registry.create("Holder");
         const auto before = registry.create("Before");
-        const auto lamp = registry.create("Lamp", glm::vec3{ 1.0f, 2.0f, 3.0f });
+        const auto lamp = registry.create("Lamp", math::Float3{ 1.0f, 2.0f, 3.0f });
         const auto after = registry.create("After");
         for (const auto child : { before, lamp, after })
             REQUIRE(registry.addChild(holder, child).has_value());
@@ -334,7 +334,7 @@ TEST_SUITE("editor::destroyEntity")
         REQUIRE(restored);
         CHECK(f.childIds(holder) == siblings); // Back between its siblings
         CHECK(f.childIds(restored) == std::vector{ bulbId, glassId });
-        CHECK(near(registry.get<Transform>(restored).location, glm::vec3{ 1.0f, 2.0f, 3.0f }));
+        CHECK(near(registry.get<Transform>(restored).location, math::Float3{ 1.0f, 2.0f, 3.0f }));
         CHECK(registry.get<Health>(f.find(bulbId)).value == 7.0f);
         CHECK(f.scriptNames(restored) == std::vector<std::string>{ "Patrol" });
 
@@ -525,24 +525,24 @@ TEST_SUITE("editor::moveEntity")
     {
         Fixture f;
         auto& registry = f.registry();
-        const auto oldParent = registry.create("Old", glm::vec3{ 10.0f, 0.0f, 0.0f });
+        const auto oldParent = registry.create("Old", math::Float3{ 10.0f, 0.0f, 0.0f });
         const auto first = registry.create("First");
-        const auto entity = registry.create("Moved", glm::vec3{ 1.0f, 0.0f, 0.0f });
+        const auto entity = registry.create("Moved", math::Float3{ 1.0f, 0.0f, 0.0f });
         const auto last = registry.create("Last");
         for (const auto child : { first, entity, last })
             REQUIRE(registry.addChild(oldParent, child).has_value());
-        const auto newParent = registry.create("New", glm::vec3{ 0.0f, 5.0f, 0.0f }, glm::quat::identity(), glm::vec3{ 2.0f });
+        const auto newParent = registry.create("New", math::Float3{ 0.0f, 5.0f, 0.0f }, math::Quat::identity(), math::Float3{ 2.0f });
         const auto worldBefore = aegis::editor::worldTransform(registry, entity).location;
 
         REQUIRE(moveEntity(f.edits(), f.history, entity, newParent, 0).has_value());
         CHECK(f.parentOf(entity) == newParent);
         CHECK(near(aegis::editor::worldTransform(registry, entity).location, worldBefore));
-        CHECK(near(registry.get<Transform>(entity).location, glm::vec3{ 5.5f, -2.5f, 0.0f }));
+        CHECK(near(registry.get<Transform>(entity).location, math::Float3{ 5.5f, -2.5f, 0.0f }));
 
         CHECK(f.undo());
         CHECK(f.parentOf(entity) == oldParent);
         CHECK(f.childIds(oldParent) == std::vector{ f.idOf(first), f.idOf(entity), f.idOf(last) });
-        CHECK(near(registry.get<Transform>(entity).location, glm::vec3{ 1.0f, 0.0f, 0.0f }));
+        CHECK(near(registry.get<Transform>(entity).location, math::Float3{ 1.0f, 0.0f, 0.0f }));
 
         CHECK(f.redo());
         CHECK(f.parentOf(entity) == newParent);
@@ -553,8 +553,8 @@ TEST_SUITE("editor::moveEntity")
     {
         Fixture f;
         auto& registry = f.registry();
-        const auto parent = registry.create("Parent", glm::vec3{ 3.0f, 0.0f, 0.0f });
-        const auto a = registry.create("A", glm::vec3{ 1.0f, 0.0f, 0.0f });
+        const auto parent = registry.create("Parent", math::Float3{ 3.0f, 0.0f, 0.0f });
+        const auto a = registry.create("A", math::Float3{ 1.0f, 0.0f, 0.0f });
         const auto b = registry.create("B");
         const auto c = registry.create("C");
         for (const auto child : { a, b, c })
@@ -562,7 +562,7 @@ TEST_SUITE("editor::moveEntity")
 
         REQUIRE(moveEntity(f.edits(), f.history, a, parent, 2).has_value());
         CHECK(f.childIds(parent) == std::vector{ f.idOf(b), f.idOf(c), f.idOf(a) });
-        CHECK(near(registry.get<Transform>(a).location, glm::vec3{ 1.0f, 0.0f, 0.0f }));
+        CHECK(near(registry.get<Transform>(a).location, math::Float3{ 1.0f, 0.0f, 0.0f }));
         CHECK(f.undo());
         CHECK(f.childIds(parent) == std::vector{ f.idOf(a), f.idOf(b), f.idOf(c) });
     }
@@ -591,16 +591,16 @@ TEST_SUITE("editor::moveEntity")
     {
         Fixture f;
         auto& registry = f.registry();
-        const auto parent = registry.create("Parent", glm::vec3{ 3.0f, 0.0f, 0.0f });
-        const auto child = registry.create("Child", glm::vec3{ 1.0f, 0.0f, 0.0f });
+        const auto parent = registry.create("Parent", math::Float3{ 3.0f, 0.0f, 0.0f });
+        const auto child = registry.create("Child", math::Float3{ 1.0f, 0.0f, 0.0f });
         REQUIRE(registry.addChild(parent, child).has_value());
 
         REQUIRE(moveEntity(f.edits(), f.history, child, Entity{}, 0).has_value());
         CHECK_FALSE(f.parentOf(child));
-        CHECK(near(registry.get<Transform>(child).location, glm::vec3{ 4.0f, 0.0f, 0.0f }));
+        CHECK(near(registry.get<Transform>(child).location, math::Float3{ 4.0f, 0.0f, 0.0f }));
         CHECK(f.undo());
         CHECK(f.parentOf(child) == parent);
-        CHECK(near(registry.get<Transform>(child).location, glm::vec3{ 1.0f, 0.0f, 0.0f }));
+        CHECK(near(registry.get<Transform>(child).location, math::Float3{ 1.0f, 0.0f, 0.0f }));
     }
 
     TEST_CASE("refuses to move an entity below itself")
@@ -667,17 +667,17 @@ TEST_SUITE("editor::resetFields")
         Fixture f;
         auto& registry = f.registry();
         const auto entity = registry.create("Lamp");
-        registry.get<Transform>(entity).location = glm::vec3{ 1.0f, 2.0f, 3.0f };
-        registry.get<Transform>(entity).scale = glm::vec3{ 4.0f };
+        registry.get<Transform>(entity).location = math::Float3{ 1.0f, 2.0f, 3.0f };
+        registry.get<Transform>(entity).scale = math::Float3{ 4.0f };
         const auto* transform = f.types.find("Transform");
         REQUIRE(transform);
 
         REQUIRE(resetFields(f.edits(), f.history, entity, *transform).has_value());
-        CHECK(near(registry.get<Transform>(entity).location, glm::vec3{ 0.0f }));
-        CHECK(near(registry.get<Transform>(entity).scale, glm::vec3{ 1.0f }));
+        CHECK(near(registry.get<Transform>(entity).location, math::Float3{ 0.0f }));
+        CHECK(near(registry.get<Transform>(entity).scale, math::Float3{ 1.0f }));
         CHECK(f.undo());
-        CHECK(near(registry.get<Transform>(entity).location, glm::vec3{ 1.0f, 2.0f, 3.0f }));
-        CHECK(near(registry.get<Transform>(entity).scale, glm::vec3{ 4.0f }));
+        CHECK(near(registry.get<Transform>(entity).location, math::Float3{ 1.0f, 2.0f, 3.0f }));
+        CHECK(near(registry.get<Transform>(entity).scale, math::Float3{ 4.0f }));
         CHECK_FALSE(f.history.canUndo());
     }
 
@@ -734,24 +734,24 @@ TEST_SUITE("editor::pasteFields")
         auto& registry = f.registry();
         const auto from = registry.create("Helmet 1");
         const auto to = registry.create("Helmet 2");
-        registry.get<Transform>(from).location = glm::vec3{ 1.0f, 2.0f, 3.0f };
-        registry.get<Transform>(from).scale = glm::vec3{ 2.0f };
-        registry.get<Transform>(to).location = glm::vec3{ 9.0f };
+        registry.get<Transform>(from).location = math::Float3{ 1.0f, 2.0f, 3.0f };
+        registry.get<Transform>(from).scale = math::Float3{ 2.0f };
+        registry.get<Transform>(to).location = math::Float3{ 9.0f };
         const auto* transform = f.types.find("Transform");
         REQUIRE(transform);
 
         const auto text = componentToText(*transform, &registry.get<Transform>(from));
         REQUIRE(text.has_value());
         REQUIRE(pasteFields(f.edits(), f.history, to, *transform, std::nullopt, *text).has_value());
-        CHECK(near(registry.get<Transform>(to).location, glm::vec3{ 1.0f, 2.0f, 3.0f }));
-        CHECK(near(registry.get<Transform>(to).scale, glm::vec3{ 2.0f }));
+        CHECK(near(registry.get<Transform>(to).location, math::Float3{ 1.0f, 2.0f, 3.0f }));
+        CHECK(near(registry.get<Transform>(to).scale, math::Float3{ 2.0f }));
 
         CHECK(f.undo());
-        CHECK(near(registry.get<Transform>(to).location, glm::vec3{ 9.0f }));
-        CHECK(near(registry.get<Transform>(to).scale, glm::vec3{ 1.0f }));
+        CHECK(near(registry.get<Transform>(to).location, math::Float3{ 9.0f }));
+        CHECK(near(registry.get<Transform>(to).scale, math::Float3{ 1.0f }));
         CHECK_FALSE(f.history.canUndo());
         CHECK(f.redo());
-        CHECK(near(registry.get<Transform>(to).location, glm::vec3{ 1.0f, 2.0f, 3.0f }));
+        CHECK(near(registry.get<Transform>(to).location, math::Float3{ 1.0f, 2.0f, 3.0f }));
     }
 
     TEST_CASE("pastes a script onto another script of its type")
@@ -879,7 +879,7 @@ TEST_SUITE("editor::editField")
 
 TEST_SUITE("editor::TransformDrag")
 {
-    auto movedTo(const glm::vec3& location) -> Transform
+    auto movedTo(const math::Float3& location) -> Transform
     {
         Transform transform;
         transform.location = location;
@@ -892,26 +892,26 @@ TEST_SUITE("editor::TransformDrag")
         auto& registry = f.registry();
         const auto a = registry.create("A");
         const auto b = registry.create("B");
-        registry.get<Transform>(b).location = glm::vec3{ 5.0f, 0.0f, 0.0f };
+        registry.get<Transform>(b).location = math::Float3{ 5.0f, 0.0f, 0.0f };
         const std::array entities{ a, b };
 
         TransformDrag drag{ f.edits(), entities, "Move" };
         for (float step = 1.0f; step <= 3.0f; step += 1.0f)
         {
-            REQUIRE(drag.update(f.edits(), a, movedTo(glm::vec3{ 0.0f, step, 0.0f })).has_value());
-            REQUIRE(drag.update(f.edits(), b, movedTo(glm::vec3{ 5.0f, step, 0.0f })).has_value());
+            REQUIRE(drag.update(f.edits(), a, movedTo(math::Float3{ 0.0f, step, 0.0f })).has_value());
+            REQUIRE(drag.update(f.edits(), b, movedTo(math::Float3{ 5.0f, step, 0.0f })).has_value());
         }
         CHECK_FALSE(f.history.canUndo()); // Nothing is recorded before the drag ends
         drag.end(f.edits(), f.history);
         CHECK(f.history.nextUndoTitle() == "Move 2 entities");
 
         CHECK(f.undo());
-        CHECK(near(registry.get<Transform>(a).location, glm::vec3{ 0.0f }));
-        CHECK(near(registry.get<Transform>(b).location, glm::vec3{ 5.0f, 0.0f, 0.0f }));
+        CHECK(near(registry.get<Transform>(a).location, math::Float3{ 0.0f }));
+        CHECK(near(registry.get<Transform>(b).location, math::Float3{ 5.0f, 0.0f, 0.0f }));
         CHECK_FALSE(f.history.canUndo());
         CHECK(f.redo());
-        CHECK(near(registry.get<Transform>(a).location, glm::vec3{ 0.0f, 3.0f, 0.0f }));
-        CHECK(near(registry.get<Transform>(b).location, glm::vec3{ 5.0f, 3.0f, 0.0f }));
+        CHECK(near(registry.get<Transform>(a).location, math::Float3{ 0.0f, 3.0f, 0.0f }));
+        CHECK(near(registry.get<Transform>(b).location, math::Float3{ 5.0f, 3.0f, 0.0f }));
     }
 
     TEST_CASE("a drag that ends where it started records nothing")
@@ -923,8 +923,8 @@ TEST_SUITE("editor::TransformDrag")
         const std::array entities{ a, b };
 
         TransformDrag drag{ f.edits(), entities, "Move" };
-        REQUIRE(drag.update(f.edits(), a, movedTo(glm::vec3{ 1.0f, 0.0f, 0.0f })).has_value());
-        REQUIRE(drag.update(f.edits(), a, movedTo(glm::vec3{ 0.0f })).has_value());
+        REQUIRE(drag.update(f.edits(), a, movedTo(math::Float3{ 1.0f, 0.0f, 0.0f })).has_value());
+        REQUIRE(drag.update(f.edits(), a, movedTo(math::Float3{ 0.0f })).has_value());
         drag.end(f.edits(), f.history);
         CHECK_FALSE(f.history.canUndo());
     }
@@ -938,8 +938,8 @@ TEST_SUITE("editor::TransformDrag")
         const std::array entities{ a };
 
         TransformDrag drag{ f.edits(), entities, "Move" };
-        CHECK_FALSE(drag.update(f.edits(), other, movedTo(glm::vec3{ 1.0f })).has_value());
-        CHECK(near(registry.get<Transform>(other).location, glm::vec3{ 0.0f }));
+        CHECK_FALSE(drag.update(f.edits(), other, movedTo(math::Float3{ 1.0f })).has_value());
+        CHECK(near(registry.get<Transform>(other).location, math::Float3{ 0.0f }));
         drag.end(f.edits(), f.history);
         CHECK_FALSE(f.history.canUndo());
     }

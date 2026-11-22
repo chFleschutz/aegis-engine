@@ -10,9 +10,9 @@ auto compose(const GlobalTransform& parentGlobal, const Transform& local) -> Glo
     return { location, rotation, scale };
 }
 
-auto toLocal(const GlobalTransform& parentGlobal, const glm::mat4& world) -> Transform
+auto toLocal(const GlobalTransform& parentGlobal, const math::Float4x4& world) -> Transform
 {
-    const auto [location, rotation, scale] = math::decomposeTRS(glm::inverse(parentGlobal.matrix()) * world);
+    const auto [location, rotation, scale] = math::decomposeTRS(math::inverse(parentGlobal.matrix()) * world);
     return { location, rotation, scale };
 }
 }
