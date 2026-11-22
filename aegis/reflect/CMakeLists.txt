@@ -3,7 +3,8 @@ add_library(aegis-reflect STATIC)
 
 target_link_libraries(aegis-reflect
     PUBLIC
-        aegis-math # The vec/quat field types
+        # The vec/quat field types
+        aegis-math
 )
 
 target_sources(aegis-reflect

@@ -5,7 +5,8 @@ target_link_libraries(aegis-assets
         aegis-core
         aegis-rhi
         aegis-math
-        aegis-reflect # AssetRef is a reflected field kind
+        # AssetRef is a reflected field kind
+        aegis-reflect
     PRIVATE
         fastgltf
         glaze::glaze

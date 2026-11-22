@@ -10,7 +10,8 @@ PUBLIC
 PRIVATE
 	aegis-core
 	aegis-paths
-	aegis-render-passes # Bakes environments with Ibl
+	# Bakes environments with Ibl
+	aegis-render-passes
 )
 target_sources(aegis-asset-library
 PUBLIC

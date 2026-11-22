@@ -4,7 +4,8 @@ add_library(aegis-editor STATIC)
 target_link_libraries(aegis-editor
     PUBLIC
         aegis-editor-core
-        aegis-engine # The shell it implements
+        # The shell it implements
+        aegis-engine
     PRIVATE
         aegis-asset-library # The inspector's asset slots
         aegis-assets
