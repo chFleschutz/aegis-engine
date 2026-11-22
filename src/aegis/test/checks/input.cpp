@@ -43,6 +43,16 @@ auto Harness::verifyInput() -> std::expected<void, std::string>
     m_input->bind(platform::Key::K, [presses] { ++*presses; }, platform::KeyAction::Press,
         platform::Modifiers::Control); // Must not fire: Control is not held
 
+    // Input actions and axes read through the map, from the same events
+    platform::InputMap map;
+    map.addAction("Use", { platform::Key::K, platform::MouseButton::Right });
+    map.addAxis("Turn", { platform::AxisPair{ platform::Key::J, platform::Key::K } });
+    m_input->setMap(std::move(map));
+    const auto actionIs = [this](bool down, bool pressed, bool released) {
+        const auto action = m_input->state().action("Use");
+        return action.down() == down && action.pressed() == pressed && action.released() == released;
+    };
+
     // Each step is one frame: window events in, then the snapshot built from them.
     const auto frame = [this] {
         m_window->update();
@@ -53,14 +63,18 @@ auto Harness::verifyInput() -> std::expected<void, std::string>
     postKey(WM_KEYDOWN, 'K');
     const bool keyDown = frame()->keyDown(platform::Key::K) && m_input->state().keyPressed(platform::Key::K);
     const auto pressesAfterDown = *presses;
+    const bool actionDown = actionIs(true, true, false) && m_input->state().axis("Turn") == 1.0f;
 
     const bool keyHeld = frame()->keyDown(platform::Key::K) && !m_input->state().keyPressed(platform::Key::K);
+    const bool actionHeld = actionIs(true, false, false);
 
     postKey(WM_KEYUP, 'K');
     const bool keyUp = !frame()->keyDown(platform::Key::K) && m_input->state().keyReleased(platform::Key::K);
+    const bool actionUp = actionIs(false, false, true) && m_input->state().axis("Turn") == 0.0f;
 
     PostMessageW(hwnd, WM_RBUTTONDOWN, MK_RBUTTON, 0);
     const bool buttonDown = frame()->mouseDown(platform::MouseButton::Right);
+    const bool actionByButton = actionIs(true, true, false);
 
     PostMessageW(hwnd, WM_RBUTTONUP, 0, 0);
     const bool buttonUp = !frame()->mouseDown(platform::MouseButton::Right);
@@ -98,8 +112,11 @@ auto Harness::verifyInput() -> std::expected<void, std::string>
         return std::unexpected{ std::format("Input: scroll wrong (seen {}, cleared next frame {})", scrolled, scrollCleared) };
     if (!captured)
         return std::unexpected{ "Input: a captured state still reports input" };
+    if (!actionDown || !actionHeld || !actionUp || !actionByButton)
+        return std::unexpected{ std::format("Input: input action or axis wrong (down {}, held {}, released {}, by mouse button {})",
+            actionDown, actionHeld, actionUp, actionByButton) };
 
-    std::println("Input verified: InputState snapshot (keys, mouse button, cursor delta, scroll, capture) and key binding (press only, exact modifiers)");
+    std::println("Input verified: InputState snapshot (keys, mouse button, cursor delta, scroll, capture), input action and axis, and key binding (press only, exact modifiers)");
     return {};
 #endif
 }
