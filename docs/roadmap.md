@@ -116,7 +116,7 @@ that each of M12's features stays one PR. It runs in parallel with M10.
   lights.
 
 **[M14. Vertical slice and shipping](https://github.com/chFleschutz/aegis-engine/milestone/16)** builds a small game in the sample project on M12 and
-[M21 Gameplay foundation](https://github.com/chFleschutz/aegis-engine/milestone/22) (issue to be filed), and with it what a shipped game needs. The game is the first pass/fail
+[M21 Gameplay foundation](https://github.com/chFleschutz/aegis-engine/milestone/22), and with it what a shipped game needs. The game is the first pass/fail
 target beyond the render tests: what it lacks becomes issues here.
 - background work: a job system ([#259](https://github.com/chFleschutz/aegis-engine/issues/259)), then background asset loading ([#260](https://github.com/chFleschutz/aegis-engine/issues/260), `needs-design`,
   after [#154](https://github.com/chFleschutz/aegis-engine/issues/154));
@@ -127,11 +127,11 @@ target beyond the render tests: what it lacks becomes issues here.
 
 **Lanes.** Milestones run in two lanes, each with its own Active and Planning milestone; the lanes'
 areas and rules are in the [`plan-milestone` skill](../.claude/skills/plan-milestone/SKILL.md#milestone-rules).
-- **render** (`render_graph`, `render_passes`, `renderer`, `rhi`): [M17 Shadows and materials](https://github.com/chFleschutz/aegis-engine/milestone/18)
-  (Active), [M19 Frame-graph rebuilds](https://github.com/chFleschutz/aegis-engine/milestone/20) (Planning), then the rest of Render features above:
+- **render** (`render_graph`, `render_passes`, `renderer`, `rhi`): [M19 Frame-graph rebuilds](https://github.com/chFleschutz/aegis-engine/milestone/20)
+  (Active; its Planning slot is free), then the rest of Render features above:
   anti-aliasing, auto exposure, vertex tangents ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) and clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22)).
-- **content** (`assets`, `world`, `app`, `editor`, `platform`, `math`, `physics`, `audio`): [M20 Math library](https://github.com/chFleschutz/aegis-engine/milestone/21)
-  (Active), [M21 Gameplay foundation](https://github.com/chFleschutz/aegis-engine/milestone/22) (Planning). Save games
+- **content** (`assets`, `world`, `app`, `editor`, `platform`, `math`, `physics`, `audio`): [M21 Gameplay foundation](https://github.com/chFleschutz/aegis-engine/milestone/22)
+  (Active); its Planning slot is free. Save games
   ([#168](https://github.com/chFleschutz/aegis-engine/issues/168)) can follow M21 at any point.
 - The vertical slice needs both lanes' targets; plan it once they are done.
 
