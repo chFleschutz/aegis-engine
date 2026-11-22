@@ -201,6 +201,11 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
     if (library->loadTexture(paintingId).get() != library->loadTexture(paintingId).get() || !library->loadTexture(paintingId))
         return fail("Loading one texture ID twice must return the same texture");
 
+    // An unknown path is an error the caller can act on, not the end of the process.
+    const auto unknown = library->id("models/no/such/file.gltf");
+    if (unknown || unknown.error().code != AssetLibraryErrorCode::NotFound || !unknown.error().message.contains("models/no/such/file.gltf"))
+        return fail("id() of an unknown path must return NotFound naming the path");
+
     // Engine content is found like any other asset, in the read-only root.
     for (const auto id : { assets::engine::white, assets::engine::black, assets::engine::normal, assets::engine::checker })
     {

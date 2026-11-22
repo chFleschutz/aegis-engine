@@ -20,6 +20,7 @@ function(aegis_add_test module)
     doctest_discover_tests(aegis-tests-${module} PROPERTIES LABELS ${module} TIMEOUT ${AEGIS_UNIT_TEST_TIMEOUT})
 endfunction()
 
+add_subdirectory(asset_library)
 add_subdirectory(assets)
 add_subdirectory(core)
 add_subdirectory(editor)
