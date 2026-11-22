@@ -73,6 +73,12 @@ auto readAxisBinding(const Node& node, std::string_view axis) -> Result<platform
     auto positiveSource = readSource(*positive, what);
     if (!positiveSource)
         return std::unexpected{ std::move(positiveSource.error()) };
+    // A stick pushed the other way never counts as down, so a gamepad axis in a pair could stay silent
+    for (const auto& [side, source] : { std::pair{ negative, *negativeSource }, std::pair{ positive, *positiveSource } })
+    {
+        if (std::holds_alternative<platform::GamepadAxis>(source))
+            return makeError(ErrorCode::InvalidData, std::format("{}: the gamepad axis '{}' goes in 'axis', not in a pair", what, side->text), side->line);
+    }
     return platform::AxisPair{ *negativeSource, *positiveSource };
 }
 

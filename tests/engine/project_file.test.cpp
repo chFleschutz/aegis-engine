@@ -126,6 +126,7 @@ TEST_SUITE("engine::parseProjectFile")
         CHECK(parseError(R"({ "input": { "axes": { "X": [ { "negative": "A" } ] } } })").message.contains("needs"));
         CHECK(parseError(R"({ "input": { "axes": { "X": [ { "axis": "GamepadLeftX", "negative": "A" } ] } } })").message.contains("not both"));
         CHECK(parseError(R"({ "input": { "axes": { "X": [ "GamepadLeftX" ] } } })").message.contains("an object"));
+        CHECK(parseError(R"({ "input": { "axes": { "X": [ { "negative": "GamepadLeftX", "positive": "D" } ] } } })").message.contains("not in a pair"));
     }
 
     TEST_CASE("rejects values of the wrong kind")

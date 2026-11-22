@@ -18,7 +18,8 @@ inline constexpr std::string_view PROJECT_FILE_NAME{ "project.aegis" };
 ///     "axes": { "MoveX": [ { "negative": "A", "positive": "D" }, { "axis": "GamepadLeftX" } ] },
 ///     "deadZone": 0.15 } }
 /// @endcode
-/// Inputs are named as platform::parseInputSource reads them; an action or axis name is taken once.
+/// Inputs are named as platform::parseInputSource reads them; an action or axis name is taken once. A pair's
+/// 'negative' and 'positive' are keys, mouse buttons or gamepad buttons; a gamepad axis is bound with 'axis'.
 struct ProjectFile
 {
     platform::InputMap input;
