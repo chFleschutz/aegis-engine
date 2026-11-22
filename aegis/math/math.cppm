@@ -69,6 +69,149 @@ using glm::operator*;
 using glm::operator/;
 }
 
+// Bridges to the generic types, still on glm (docs/plans/math-library-plan.md, "Migration hazards"). Each one is
+// written as the new library spells it, so the glm forms whose meaning changes with row-major storage (m[i], m[c][r],
+// column lists, quaternions built w first) have no call site left when the backend moves. A glm::mat3x4 holds a model
+// matrix's top three rows (toModelRows), so its bridges read it as math::Float3x4 does: 3 rows of 4.
+export namespace aegis::math
+{
+/// @brief The matrix whose rows are the arguments
+[[nodiscard]] inline auto fromRows(const glm::vec4& r0, const glm::vec4& r1, const glm::vec4& r2, const glm::vec4& r3) -> glm::mat4
+{
+    return glm::transpose(glm::mat4{ r0, r1, r2, r3 });
+}
+
+/// @brief The matrix whose rows are the arguments
+[[nodiscard]] inline auto fromRows(const glm::vec3& r0, const glm::vec3& r1, const glm::vec3& r2) -> glm::mat3
+{
+    return glm::transpose(glm::mat3{ r0, r1, r2 });
+}
+
+/// @brief The 3x4 matrix whose rows are the arguments
+[[nodiscard]] inline auto fromRows(const glm::vec4& r0, const glm::vec4& r1, const glm::vec4& r2) -> glm::mat3x4
+{
+    return glm::mat3x4{ r0, r1, r2 };
+}
+
+/// @brief The matrix whose columns are the arguments
+[[nodiscard]] inline auto fromColumns(const glm::vec4& c0, const glm::vec4& c1, const glm::vec4& c2, const glm::vec4& c3) -> glm::mat4
+{
+    return glm::mat4{ c0, c1, c2, c3 };
+}
+
+/// @brief The matrix whose columns are the arguments
+[[nodiscard]] inline auto fromColumns(const glm::vec3& c0, const glm::vec3& c1, const glm::vec3& c2) -> glm::mat3
+{
+    return glm::mat3{ c0, c1, c2 };
+}
+
+/// @brief Row `i` of `m`
+[[nodiscard]] inline auto row(const glm::mat4& m, int i) -> glm::vec4
+{
+    return glm::row(m, i);
+}
+
+/// @brief Row `i` of `m`
+[[nodiscard]] inline auto row(const glm::mat3& m, int i) -> glm::vec3
+{
+    return glm::row(m, i);
+}
+
+/// @brief Row `i` of the 3x4 matrix `m`
+[[nodiscard]] inline auto row(const glm::mat3x4& m, int i) -> glm::vec4
+{
+    return m[i];
+}
+
+/// @brief Column `i` of `m`
+[[nodiscard]] inline auto column(const glm::mat4& m, int i) -> glm::vec4
+{
+    return m[i];
+}
+
+/// @brief Column `i` of `m`
+[[nodiscard]] inline auto column(const glm::mat3& m, int i) -> glm::vec3
+{
+    return m[i];
+}
+
+/// @brief The element in row `r`, column `c` of `m`: `m[r, c]` in the new library
+[[nodiscard]] inline auto element(glm::mat4& m, int r, int c) -> float&
+{
+    return m[c][r];
+}
+
+/// @brief The element in row `r`, column `c` of `m`: `m[r, c]` in the new library
+[[nodiscard]] inline auto element(const glm::mat4& m, int r, int c) -> float
+{
+    return m[c][r];
+}
+
+/// @brief The element in row `r`, column `c` of `m`: `m[r, c]` in the new library
+[[nodiscard]] inline auto element(glm::mat3& m, int r, int c) -> float&
+{
+    return m[c][r];
+}
+
+/// @brief The element in row `r`, column `c` of `m`: `m[r, c]` in the new library
+[[nodiscard]] inline auto element(const glm::mat3& m, int r, int c) -> float
+{
+    return m[c][r];
+}
+
+/// @brief The element in row `r`, column `c` of the 3x4 matrix `m`: `m[r, c]` in the new library
+[[nodiscard]] inline auto element(glm::mat3x4& m, int r, int c) -> float&
+{
+    return m[r][c];
+}
+
+/// @brief The element in row `r`, column `c` of the 3x4 matrix `m`: `m[r, c]` in the new library
+[[nodiscard]] inline auto element(const glm::mat3x4& m, int r, int c) -> float
+{
+    return m[r][c];
+}
+
+/// @brief perspective<T> on glm: a right handed perspective projection into Vulkan clip space, depth 0 at `near` to 1
+/// at `far`, y down. `fovY` is in radians, `aspect` is width over height.
+[[nodiscard]] inline auto perspective(float fovY, float aspect, float near, float far) -> glm::mat4
+{
+    const float tanHalfFovY = std::tan(fovY / 2.0f);
+    glm::mat4 projection{ 0.0f };
+    element(projection, 0, 0) = 1.0f / (aspect * tanHalfFovY);
+    element(projection, 1, 1) = -1.0f / tanHalfFovY;
+    element(projection, 2, 2) = far / (near - far);
+    element(projection, 2, 3) = -(far * near) / (far - near);
+    element(projection, 3, 2) = -1.0f;
+    return projection;
+}
+
+/// @brief orthographic<T> on glm: a right handed orthographic projection of a box centred on the view axis into
+/// Vulkan clip space, x in [-halfWidth, halfWidth], y in [-halfHeight, halfHeight] flipped to y down, depth 0 at
+/// `near` to 1 at `far`
+[[nodiscard]] inline auto orthographic(float halfWidth, float halfHeight, float near, float far) -> glm::mat4
+{
+    glm::mat4 projection{ 1.0f };
+    element(projection, 0, 0) = 1.0f / halfWidth;
+    element(projection, 1, 1) = -1.0f / halfHeight;
+    element(projection, 2, 2) = -1.0f / (far - near);
+    element(projection, 2, 3) = -near / (far - near);
+    return projection;
+}
+
+/// @brief The rotation of Euler angles in radians, in glm's convention: Quat::fromEuler in the new library
+[[nodiscard]] inline auto quatFromEuler(const glm::vec3& radians) -> glm::quat
+{
+    return glm::quat{ radians };
+}
+
+/// @brief The quaternion with these components, named in memory and scene-file order: Quat::fromXyzw in the new
+/// library (glm's constructor takes w first)
+[[nodiscard]] inline auto quatFromXyzw(float x, float y, float z, float w) -> glm::quat
+{
+    return glm::quat{ w, x, y, z };
+}
+}
+
 export namespace aegis::math
 {
 namespace world

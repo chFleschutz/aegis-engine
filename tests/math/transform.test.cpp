@@ -232,7 +232,7 @@ TEST_SUITE("math::projection")
             const T aspect = T{ 0.25 } + math::abs(oracle::randomScalar<T>(rng)) / T{ 2 };
             const T near = T{ 0.01 } + math::abs(oracle::randomScalar<T>(rng));
             const T far = near + T{ 1 } + math::abs(oracle::randomScalar<T>(rng)) * T{ 100 };
-            oracle::checkMat(math::perspective(fovY, aspect, near, far), flipY(glm::perspectiveRH_ZO(fovY, aspect, near, far)), tolerance);
+            oracle::checkMat(math::perspective<T>(fovY, aspect, near, far), flipY(glm::perspectiveRH_ZO(fovY, aspect, near, far)), tolerance);
         }
     }
 
@@ -247,7 +247,7 @@ TEST_SUITE("math::projection")
             const T halfHeight = T{ 0.1 } + math::abs(oracle::randomScalar<T>(rng));
             const T near = oracle::randomScalar<T>(rng);
             const T far = near + T{ 1 } + math::abs(oracle::randomScalar<T>(rng)) * T{ 10 };
-            oracle::checkMat(math::orthographic(halfWidth, halfHeight, near, far),
+            oracle::checkMat(math::orthographic<T>(halfWidth, halfHeight, near, far),
                 flipY(glm::orthoRH_ZO(-halfWidth, halfWidth, -halfHeight, halfHeight, near, far)), tolerance);
         }
     }
@@ -256,7 +256,7 @@ TEST_SUITE("math::projection")
     {
         const float near = 0.1f;
         const float far = 100.0f;
-        const auto projection = math::perspective(math::radians(60.0f), 16.0f / 9.0f, near, far);
+        const auto projection = math::perspective<float>(math::radians(60.0f), 16.0f / 9.0f, near, far);
         const auto ndc = [&](Float3 view) {
             const auto clip = projection * math::Float4{ view, 1.0f };
             return Float3{ clip } / clip.w;
@@ -275,6 +275,6 @@ TEST_SUITE("math::projection")
         expected[1, 1] = -1.0f / halfWidth;
         expected[2, 2] = -1.0f / depth;
         expected[2, 3] = 0.0f;
-        CHECK(math::orthographic(halfWidth, halfWidth, 0.0f, depth) == expected);
+        CHECK(math::orthographic<float>(halfWidth, halfWidth, 0.0f, depth) == expected);
     }
 }
