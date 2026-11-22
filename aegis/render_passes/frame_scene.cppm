@@ -33,8 +33,8 @@ struct FrameScene
     /// @brief A camera with this frame's matrices.
     struct Camera
     {
-        glm::mat4 view{ 1.0f };
-        glm::mat4 projection{ 1.0f };
+        glm::mat4 view = glm::mat4::identity();
+        glm::mat4 projection = glm::mat4::identity();
         glm::vec3 position{ 0.0f };
     };
 

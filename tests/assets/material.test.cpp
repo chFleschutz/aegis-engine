@@ -5,6 +5,8 @@ import aegis.assets;
 import aegis.math;
 import aegis.rhi;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::assets::AlphaMode;

@@ -7,6 +7,8 @@ import aegis.math;
 import aegis.reflect;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::editor::componentFromText;
@@ -47,7 +49,7 @@ struct Everything
     glm::vec2 size{};
     glm::vec3 offset{};
     glm::vec4 tint{};
-    glm::quat turn{ 1.0f, 0.0f, 0.0f, 0.0f };
+    glm::quat turn = glm::quat::identity();
     Mode mode{ Mode::Off };
     int serial{ 0 };
 };

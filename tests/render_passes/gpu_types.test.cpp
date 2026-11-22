@@ -8,6 +8,8 @@ import aegis.render_passes;
 import aegis.rhi;
 import aegis.math;
 
+namespace math = aegis::math;
+
 // The expected numbers are the byte layout of the Slang twin of each struct (scalar layout: every member
 // aligned to its component type, a float3 takes 12 bytes, a pointer or DeviceAddress 8 aligned to 8). They
 // are written out by hand, so a reordered or retyped member on either side fails here instead of rendering
@@ -301,7 +303,7 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
 
     TEST_CASE("an identity matrix gives identity rows")
     {
-        const auto transform = toGpuTransform(glm::mat4{ 1.0f });
+        const auto transform = toGpuTransform(glm::mat4::identity());
         for (int row = 0; row < 3; ++row)
         {
             for (int column = 0; column < 4; ++column)
@@ -334,7 +336,7 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
     {
         // x' = x + 2y (a shear along x). The inverse is x = x' - 2y', so the inverse's column 1 is
         // (-2, 1, 0); as a row of the inverse transpose it is row 1.
-        glm::mat4 model{ 1.0f };
+        glm::mat4 model = glm::mat4::identity();
         aegis::math::element(model, 0, 1) = 2.0f;
         const auto transform = toGpuTransform(model);
         CHECK(equal(aegis::math::row(transform.model, 0), 1.0f, 2.0f, 0.0f, 0.0f));
@@ -351,13 +353,13 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
             glm::vec4{ -3.0f, 0.0f, 0.0f, 0.0f },
             glm::vec4{ 0.0f, 0.0f, 1.0f, 0.0f },
             glm::vec4{ 5.0f, 6.0f, 7.0f, 1.0f });
-        CHECK(toGpuTransform(glm::mat4{ 1.0f }).flags == InstanceFlags::None);
+        CHECK(toGpuTransform(glm::mat4::identity()).flags == InstanceFlags::None);
         CHECK(toGpuTransform(model).flags == InstanceFlags::None);
     }
 
     TEST_CASE("a negative scale on one or three axes is flagged as mirrored")
     {
-        glm::mat4 oneAxis{ 1.0f };
+        glm::mat4 oneAxis = glm::mat4::identity();
         aegis::math::element(oneAxis, 0, 0) = -1.0f;
         const auto threeAxes = aegis::math::fromRows(
             glm::vec4{ -2.0f, 0.0f, 0.0f, 1.0f },
@@ -370,7 +372,7 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
 
     TEST_CASE("a negative scale on two axes is a rotation, not a mirror")
     {
-        glm::mat4 model{ 1.0f };
+        glm::mat4 model = glm::mat4::identity();
         aegis::math::element(model, 0, 0) = -1.0f;
         aegis::math::element(model, 1, 1) = -1.0f;
         CHECK(toGpuTransform(model).flags == InstanceFlags::None);

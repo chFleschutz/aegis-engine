@@ -214,7 +214,7 @@ auto TransparentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
         .frameScene = scene,
         .frameIndex = frameInfo.frameIndex,
         .camera = pool.bufferAddress(m_cameraData, frameInfo.frameIndex),
-        .view = camera ? camera->view : glm::mat4{ 1.0f },
+        .view = camera ? camera->view : glm::mat4::identity(),
     };
     for (const auto& system : m_renderSystems)
         system->render(context);

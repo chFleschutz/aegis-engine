@@ -28,7 +28,7 @@ TEST_SUITE("math::layout")
         auto m = Float4x4::identity();
         m.setColumn(3, Float4{ 1.0f, 2.0f, 3.0f, 1.0f });
         m[0, 1] = 0.5f;
-        const glm::mat4 rowMajor = glm::transpose(oracle::toGlmMat(m));
+        const glm::mat<4, 4, float> rowMajor = glm::transpose(oracle::toGlmMat(m));
         CHECK(std::bit_cast<std::array<float, 16>>(m) == std::bit_cast<std::array<float, 16>>(rowMajor));
     }
 

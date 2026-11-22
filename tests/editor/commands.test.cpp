@@ -9,6 +9,8 @@ import aegis.scripting;
 import aegis.serialize;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::Children;
@@ -529,7 +531,7 @@ TEST_SUITE("editor::moveEntity")
         const auto last = registry.create("Last");
         for (const auto child : { first, entity, last })
             REQUIRE(registry.addChild(oldParent, child).has_value());
-        const auto newParent = registry.create("New", glm::vec3{ 0.0f, 5.0f, 0.0f }, glm::quat{ 1.0f, 0.0f, 0.0f, 0.0f }, glm::vec3{ 2.0f });
+        const auto newParent = registry.create("New", glm::vec3{ 0.0f, 5.0f, 0.0f }, glm::quat::identity(), glm::vec3{ 2.0f });
         const auto worldBefore = aegis::editor::worldTransform(registry, entity).location;
 
         REQUIRE(moveEntity(f.edits(), f.history, entity, newParent, 0).has_value());

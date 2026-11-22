@@ -5,6 +5,8 @@ import aegis.math;
 import aegis.render_passes;
 import aegis.rhi;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::render_graph::FrameScene;
@@ -56,9 +58,9 @@ TEST_SUITE("render_graph::detail::makeCameraData")
         CHECK(equal(data.projection, glm::rowMajor4(camera.projection)));
         CHECK(equal(data.viewProjection, glm::rowMajor4(camera.projection * camera.view)));
         // Row-major: the translation sits in the last column of each row, i.e. in the w of the first three vectors.
-        CHECK(data.view[0].w == 1.0f);
-        CHECK(data.view[1].w == 2.0f);
-        CHECK(data.view[2].w == 3.0f);
+        CHECK(aegis::math::element(data.view, 0, 3) == 1.0f);
+        CHECK(aegis::math::element(data.view, 1, 3) == 2.0f);
+        CHECK(aegis::math::element(data.view, 2, 3) == 3.0f);
     }
 }
 
@@ -119,7 +121,7 @@ TEST_SUITE("render_graph::detail::packLighting")
     {
         const InstanceStore instances;
         const FrameScene::Camera camera{
-            .view = aegis::math::viewMatrix({ 0.0f, 0.0f, 2.0f }, { 0.0f, 1.0f, 0.0f }),
+            .view = aegis::math::viewMatrix(glm::vec3{ 0.0f, 0.0f, 2.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f }),
             .projection = aegis::math::perspective(glm::radians(60.0f), 1.0f, 0.1f, 1000.0f), // As aegis::CameraSystem builds it
             .position = { 0.0f, 0.0f, 2.0f },
         };

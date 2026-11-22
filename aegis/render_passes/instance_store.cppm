@@ -82,7 +82,7 @@ struct DirtyRange
 struct Instance
 {
     /// @brief The top three rows of the model matrix, as shaders read it (detail::toModelRows).
-    glm::mat3x4 model = detail::toModelRows(glm::mat4{ 1.0f });
+    glm::mat3x4 model = detail::toModelRows(glm::mat4::identity());
     std::shared_ptr<const assets::StaticMesh> mesh;
     std::shared_ptr<assets::Material> material;
     /// @brief The id of the instance's draw batch, whose variant is the material's. Set by the store; add

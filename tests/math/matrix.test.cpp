@@ -256,7 +256,7 @@ TEST_SUITE("math::Matrix")
         const Float4 c1{ 5.0f, 6.0f, 7.0f, 8.0f };
         const Float4 c2{ 9.0f, 10.0f, 11.0f, 12.0f };
         const Float4 c3{ 13.0f, 14.0f, 15.0f, 16.0f };
-        const glm::mat4 expected{ oracle::toGlmVec(c0), oracle::toGlmVec(c1), oracle::toGlmVec(c2), oracle::toGlmVec(c3) };
+        const glm::mat<4, 4, float> expected{ oracle::toGlmVec(c0), oracle::toGlmVec(c1), oracle::toGlmVec(c2), oracle::toGlmVec(c3) };
         oracle::checkMat(Float4x4::fromColumns(c0, c1, c2, c3), expected, 1e-12);
     }
 }

@@ -6,6 +6,8 @@ import aegis.render_bridge;
 import aegis.render_passes;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::render_graph::InstanceStore;
@@ -23,7 +25,7 @@ auto equal(const glm::vec4& a, const glm::vec4& b) -> bool
 
 auto equal(const glm::mat4& a, const glm::mat4& b) -> bool
 {
-    return equal(a[0], b[0]) && equal(a[1], b[1]) && equal(a[2], b[2]) && equal(a[3], b[3]);
+    return a == b;
 }
 }
 

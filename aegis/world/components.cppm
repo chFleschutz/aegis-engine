@@ -26,7 +26,7 @@ struct StableId
 struct Transform
 {
     glm::vec3 location{ 0.0f, 0.0f, 0.0f };
-    glm::quat rotation{ 1.0f, 0.0f, 0.0f, 0.0f };
+    glm::quat rotation = glm::quat::identity();
     glm::vec3 scale{ 1.0f, 1.0f, 1.0f };
 
     auto forward() const -> glm::vec3 { return math::forward(rotation); }
@@ -39,7 +39,7 @@ struct Transform
 struct GlobalTransform
 {
     glm::vec3 location{ 0.0f, 0.0f, 0.0f };
-    glm::quat rotation{ 1.0f, 0.0f, 0.0f, 0.0f };
+    glm::quat rotation = glm::quat::identity();
     glm::vec3 scale{ 1.0f, 1.0f, 1.0f };
 
     auto forward() const -> glm::vec3 { return math::forward(rotation); }
@@ -154,9 +154,9 @@ struct CameraMatrices
     float aspect = 1.0f; // Of what the camera renders into, written by whoever renders it (the engine for the main camera)
 
     // Written by the CameraSystem from the entity's GlobalTransform, the Camera and the aspect
-    glm::mat4 view = glm::mat4{ 1.0f };
-    glm::mat4 inverseView = glm::mat4{ 1.0f };
-    glm::mat4 projection = glm::mat4{ 1.0f };
+    glm::mat4 view = glm::mat4::identity();
+    glm::mat4 inverseView = glm::mat4::identity();
+    glm::mat4 projection = glm::mat4::identity();
 };
 
 /// @brief How PostProcess maps the frame's HDR colors to the screen

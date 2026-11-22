@@ -4,6 +4,8 @@ import std;
 import aegis.math;
 import aegis.reflect;
 
+namespace math = aegis::math;
+
 namespace
 {
 using namespace aegis::reflect;

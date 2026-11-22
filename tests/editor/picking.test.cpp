@@ -5,6 +5,8 @@ import aegis.editor.core;
 import aegis.math;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::StableId;
@@ -126,7 +128,7 @@ TEST_SUITE("editor::transformSphere")
 {
     TEST_CASE("moves the center and scales the radius by the largest axis")
     {
-        const glm::mat4 transform = aegis::math::transformMatrix(glm::vec3{ 1.0f, 2.0f, 3.0f }, glm::quat{ 1.0f, 0.0f, 0.0f, 0.0f }, glm::vec3{ 1.0f, 3.0f, 2.0f });
+        const glm::mat4 transform = aegis::math::transformMatrix(glm::vec3{ 1.0f, 2.0f, 3.0f }, glm::quat::identity(), glm::vec3{ 1.0f, 3.0f, 2.0f });
         const Sphere sphere = transformSphere(Sphere{ .center = { 1.0f, 1.0f, 0.0f }, .radius = 2.0f }, transform);
         CHECK(sphere.center.x == doctest::Approx(2.0f));
         CHECK(sphere.center.y == doctest::Approx(5.0f));

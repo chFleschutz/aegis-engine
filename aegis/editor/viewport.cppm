@@ -148,11 +148,11 @@ private:
     struct GizmoRoot
     {
         StableId id;
-        glm::mat4 start{ 1.0f }; // Its world matrix when the drag began
+        glm::mat4 start = glm::mat4::identity(); // Its world matrix when the drag began
     };
     struct GizmoDrag
     {
-        glm::mat4 start{ 1.0f }; // The active entity's world matrix when it began
+        glm::mat4 start = glm::mat4::identity(); // The active entity's world matrix when it began
         std::vector<GizmoRoot> roots;
         TransformDrag transforms; // Writes the roots' Transforms and records them as one undo entry
     };

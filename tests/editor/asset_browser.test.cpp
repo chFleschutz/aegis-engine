@@ -4,6 +4,8 @@ import std;
 import aegis.editor.core;
 import aegis.math;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::editor::acceptsAsset;

@@ -121,6 +121,13 @@ template<std::floating_point T>
         a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z);
 }
 
+/// @brief `a = a * b`: the rotation `b` followed by `a`
+template<std::floating_point T>
+constexpr auto operator*=(Quaternion<T>& a, Quaternion<T> b) noexcept -> Quaternion<T>&
+{
+    return a = a * b;
+}
+
 /// @brief Rotates `v` by `q`
 template<std::floating_point T>
 [[nodiscard]] constexpr auto operator*(Quaternion<T> q, Vector<T, 3> v) noexcept -> Vector<T, 3>

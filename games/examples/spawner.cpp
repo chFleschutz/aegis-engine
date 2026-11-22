@@ -1,6 +1,8 @@
 import std;
 import aegis.game;
 
+namespace math = aegis::math;
+
 namespace
 {
 /// @brief The first entity with a MeshRenderer in the subtree of 'entity' (depth first), or a null entity

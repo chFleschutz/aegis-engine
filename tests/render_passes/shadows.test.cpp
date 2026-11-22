@@ -5,6 +5,8 @@ import aegis.math;
 import aegis.render_passes;
 import aegis.rhi;
 
+namespace math = aegis::math;
+
 namespace
 {
 using namespace aegis::render_graph;

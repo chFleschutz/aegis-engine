@@ -7,6 +7,8 @@ import aegis.reflect;
 import aegis.serialize;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::assets::AssetId;
@@ -80,16 +82,11 @@ auto instantiated(Registry& registry, const TypeRegistry& types, const Scene& sc
     REQUIRE(aegis::serialize::instantiate(registry, types, scene).has_value());
 }
 
-// Exactly equal vectors or quaternions, of any glm precision (the file's numbers read back exactly)
-template<class A, class B>
-auto same(const A& a, const B& b) -> bool
+// Exactly equal vectors or quaternions (the file's numbers read back exactly)
+template<class T>
+auto same(const T& a, const T& b) -> bool
 {
-    for (int i = 0; i < A::length(); ++i)
-    {
-        if (a[i] != b[i])
-            return false;
-    }
-    return true;
+    return a == b;
 }
 
 auto entity(Registry& registry, std::uint64_t id) -> Entity

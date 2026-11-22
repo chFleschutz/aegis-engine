@@ -107,7 +107,7 @@ private:
             };
             std::vector<Override> overrides{
                 { pbr::albedo, glm::vec3{ data.baseColor } },
-                { pbr::alpha, data.baseColor.a },
+                { pbr::alpha, data.baseColor.w },
                 { pbr::alphaCutoff, data.alphaCutoff },
                 { pbr::metallic, data.metallic },
                 { pbr::roughness, data.roughness },

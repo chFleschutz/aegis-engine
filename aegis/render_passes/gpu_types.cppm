@@ -72,9 +72,9 @@ AEGIS_FLAGS(GeometryFlags)
 ///        row-major.
 struct CameraData
 {
-    glm::mat4 view{ 0.0f };
-    glm::mat4 projection{ 0.0f };
-    glm::mat4 viewProjection{ 0.0f };
+    glm::mat4 view = glm::mat4::zero();
+    glm::mat4 projection = glm::mat4::zero();
+    glm::mat4 viewProjection = glm::mat4::zero();
     Frustum frustum;
     glm::vec3 position;
 };
@@ -82,7 +82,7 @@ struct CameraData
 /// @brief indirectDraw::Instance: one drawable instance as the GPU-driven shaders read it.
 struct InstanceData
 {
-    glm::mat3x4 model{ 0.0f }; // Top three rows of the model matrix
+    glm::mat3x4 model = glm::mat3x4::zero(); // Top three rows of the model matrix
     glm::vec3 normalRow0;
     glm::vec3 normalRow1;
     glm::vec3 normalRow2;
@@ -110,23 +110,23 @@ struct LightData
     float range; // Meters; the light fades to zero there (detail::distanceAttenuation)
     glm::vec3 color;
     float intensity;
-    glm::vec3 direction;                    // World space, normalized: where a spot light's cone points; zero for a point light
-    float coneScale;                        // The cone's falloff (detail::coneAttenuation): 1 / (cos inner - cos outer)
-    float coneOffset;                       // -cos outer * coneScale
-    float shadowBias{ 0.0f };               // Texels of its tile a shaded point moves along its normal
-    float shadowTexelSize{ 0.0f };          // Meters a texel of its tile spans per meter along its axis
-    glm::vec4 shadowRegion{ 0.0f };         // Its tile of "SpotShadowAtlas" in uv: offset xy, size zw; zero: unshadowed
-    glm::mat4 shadowViewProjection{ 1.0f }; // Row-major: its spot shadow view's
+    glm::vec3 direction;                                    // World space, normalized: where a spot light's cone points; zero for a point light
+    float coneScale;                                        // The cone's falloff (detail::coneAttenuation): 1 / (cos inner - cos outer)
+    float coneOffset;                                       // -cos outer * coneScale
+    float shadowBias{ 0.0f };                               // Texels of its tile a shaded point moves along its normal
+    float shadowTexelSize{ 0.0f };                          // Meters a texel of its tile spans per meter along its axis
+    glm::vec4 shadowRegion{ 0.0f };                         // Its tile of "SpotShadowAtlas" in uv: offset xy, size zw; zero: unshadowed
+    glm::mat4 shadowViewProjection = glm::mat4::identity(); // Row-major: its spot shadow view's
 };
 
 /// @brief lighting::ShadowCascade (modules/lighting.slang): one cascade of the directional light's shadow, the
 ///        "Depth" of one of a main view's shadow views.
 struct ShadowCascadeData
 {
-    glm::mat4 viewProjection{ 1.0f }; // Row-major: the shadow view's
-    rhi::TextureDescriptor map{};     // Its "Depth", with a comparison sampler
-    float texelSize{ 0.0f };          // Meters a shadow-map texel spans
-    float splitFar{ 0.0f };           // Meters along the main view's camera axis where the cascade ends
+    glm::mat4 viewProjection = glm::mat4::identity(); // Row-major: the shadow view's
+    rhi::TextureDescriptor map{};                     // Its "Depth", with a comparison sampler
+    float texelSize{ 0.0f };                          // Meters a shadow-map texel spans
+    float splitFar{ 0.0f };                           // Meters along the main view's camera axis where the cascade ends
 };
 
 /// @brief lighting::Lighting (modules/lighting.slang), one per view and frame in flight.
@@ -189,7 +189,7 @@ struct GpuDrivenGeometryConstants
 /// @brief cpu_driven/geometry.slang
 struct StaticMeshConstants
 {
-    glm::mat3x4 model{ 0.0f }; // Top three rows
+    glm::mat3x4 model = glm::mat3x4::zero(); // Top three rows
     glm::vec3 normalRow0;
     glm::vec3 normalRow1;
     glm::vec3 normalRow2;
@@ -201,7 +201,7 @@ struct StaticMeshConstants
 /// @brief cpu_driven/forward.slang: StaticMeshConstants and the view's lighting block.
 struct ForwardConstants
 {
-    glm::mat3x4 model{ 0.0f }; // Top three rows
+    glm::mat3x4 model = glm::mat3x4::zero(); // Top three rows
     glm::vec3 normalRow0;
     glm::vec3 normalRow1;
     glm::vec3 normalRow2;
@@ -222,7 +222,7 @@ struct LightingConstants
 /// @brief sky_box.slang
 struct SkyBoxConstants
 {
-    glm::mat4 viewProjection{ 0.0f };
+    glm::mat4 viewProjection = glm::mat4::zero();
     rhi::TextureDescriptor skybox;
 };
 
@@ -310,7 +310,7 @@ export namespace aegis::render_graph::detail
 ///        path has no flags in its constants and picks a pipeline with the other front face instead.
 struct GpuTransform
 {
-    glm::mat3x4 model{ 0.0f }; // Row r of the model matrix is math::row(model, r), translation in .w
+    glm::mat3x4 model = glm::mat3x4::zero(); // Row r of the model matrix is math::row(model, r), translation in .w
     glm::vec3 normalRow0;
     glm::vec3 normalRow1;
     glm::vec3 normalRow2;

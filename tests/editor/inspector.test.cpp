@@ -6,6 +6,8 @@ import aegis.math;
 import aegis.reflect;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::editor::addableComponents;

@@ -3,6 +3,8 @@
 import std;
 import aegis.game;
 
+namespace math = aegis::math;
+
 namespace examples
 {
 auto registerSpawner(aegis::reflect::TypeRegistry& types) -> std::expected<void, aegis::reflect::Error>; // spawner.cpp

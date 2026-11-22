@@ -4,6 +4,8 @@ import std;
 import aegis.math;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::DynamicTag;

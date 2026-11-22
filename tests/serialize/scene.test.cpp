@@ -7,6 +7,8 @@ import aegis.scripting;
 import aegis.serialize;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::reflect::Node;

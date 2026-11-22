@@ -4,6 +4,8 @@ import std;
 import aegis.math;
 import aegis.reflect;
 
+namespace math = aegis::math;
+
 namespace
 {
 using namespace aegis::reflect;
@@ -36,7 +38,7 @@ struct Everything
     glm::vec2 v2{ 0.0f };
     glm::vec3 v3{ 0.0f };
     glm::vec4 v4{ 0.0f };
-    glm::quat rotation{ 1.0f, 0.0f, 0.0f, 0.0f };
+    glm::quat rotation = glm::quat::identity();
     Mode mode{ Mode::Off };
     Plain plain{ Low };
 };

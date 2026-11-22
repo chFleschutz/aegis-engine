@@ -1,23 +1,7 @@
-module;
-
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
-#include <glm/gtc/matrix_access.hpp>
-#include <glm/gtc/packing.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/euler_angles.hpp>
-#include <glm/gtx/matrix_major_storage.hpp>
-#include <glm/gtx/vector_angle.hpp>
-
 export module aegis.math;
 import std;
 
-// The generic types (docs/plans/math-library-plan.md). They stand beside the glm wrapper below until the engine moves
-// to them; the names don't clash (PascalCase types, overloads by type).
+// The math library (docs/plans/math-library-plan.md, docs/adr/0013-own-generic-row-major-math-library.md)
 export import :scalar;
 export import :vector;
 export import :matrix;
@@ -25,296 +9,111 @@ export import :quaternion;
 export import :transform;
 export import :aliases;
 
+// Temporary shims for the swap from glm (docs/plans/math-library-plan.md, "PR sequence" step 3): the glm names the
+// engine still spells, re-pointed at the new types, until tools/migrate-math.sh renames them
 export namespace glm
 {
-using glm::vec2;
-using glm::vec3;
-using glm::vec4;
+using vec2 = aegis::math::Float2;
+using vec3 = aegis::math::Float3;
+using vec4 = aegis::math::Float4;
 
-using glm::quat;
+using quat = aegis::math::Quat;
 
-using glm::mat2;
-using glm::mat2x2;
-using glm::mat2x3;
-using glm::mat2x4;
-using glm::mat3;
-using glm::mat3x2;
-using glm::mat3x3;
-using glm::mat3x4;
-using glm::mat4;
-using glm::mat4x4;
+using mat3 = aegis::math::Float3x3;
+using mat3x4 = aegis::math::Float3x4;
+using mat4 = aegis::math::Float4x4;
 
-using glm::angleAxis;
-using glm::clamp;
-using glm::cross;
-using glm::degrees;
-using glm::determinant;
-using glm::dot;
-using glm::eulerAngles;
-using glm::inverse;
-using glm::length;
-using glm::make_vec3;
-using glm::mod;
-using glm::normalize;
-using glm::radians;
-using glm::row;
-using glm::rowMajor4;
-using glm::two_pi;
-using glm::unpackHalf1x16;
-using glm::value_ptr;
+using aegis::math::clamp;
+using aegis::math::cross;
+using aegis::math::degrees;
+using aegis::math::determinant;
+using aegis::math::dot;
+using aegis::math::eulerAngles;
+using aegis::math::inverse;
+using aegis::math::length;
+using aegis::math::mod;
+using aegis::math::normalize;
+using aegis::math::radians;
 
-using glm::operator+;
-using glm::operator-;
-using glm::operator*;
-using glm::operator/;
+/// @brief The rotation by `angle` radians around `axis`: Quat::fromAxisAngle with the arguments swapped
+[[nodiscard]] inline auto angleAxis(float angle, const vec3& axis) -> quat
+{
+    return quat::fromAxisAngle(axis, angle);
 }
 
-// Bridges to the generic types, still on glm (docs/plans/math-library-plan.md, "Migration hazards"). Each one is
-// written as the new library spells it, so the glm forms whose meaning changes with row-major storage (m[i], m[c][r],
-// column lists, quaternions built w first) have no call site left when the backend moves. A glm::mat3x4 holds a model
-// matrix's top three rows (toModelRows), so its bridges read it as math::Float3x4 does: 3 rows of 4.
+/// @brief Matrices are row-major now, so the conversion is the identity
+[[nodiscard]] constexpr auto rowMajor4(const mat4& m) noexcept -> mat4
+{
+    return m;
+}
+}
+
+// Bridges, re-pointed at the new types; tools/migrate-math.sh renames their call sites to the library's spelling
 export namespace aegis::math
 {
-/// @brief The matrix whose rows are the arguments
-[[nodiscard]] inline auto fromRows(const glm::vec4& r0, const glm::vec4& r1, const glm::vec4& r2, const glm::vec4& r3) -> glm::mat4
+[[nodiscard]] constexpr auto fromRows(Float4 r0, Float4 r1, Float4 r2, Float4 r3) noexcept -> Float4x4
 {
-    return glm::transpose(glm::mat4{ r0, r1, r2, r3 });
+    return Float4x4::fromRows(r0, r1, r2, r3);
 }
 
-/// @brief The matrix whose rows are the arguments
-[[nodiscard]] inline auto fromRows(const glm::vec3& r0, const glm::vec3& r1, const glm::vec3& r2) -> glm::mat3
+[[nodiscard]] constexpr auto fromRows(Float3 r0, Float3 r1, Float3 r2) noexcept -> Float3x3
 {
-    return glm::transpose(glm::mat3{ r0, r1, r2 });
+    return Float3x3::fromRows(r0, r1, r2);
 }
 
-/// @brief The 3x4 matrix whose rows are the arguments
-[[nodiscard]] inline auto fromRows(const glm::vec4& r0, const glm::vec4& r1, const glm::vec4& r2) -> glm::mat3x4
+[[nodiscard]] constexpr auto fromRows(Float4 r0, Float4 r1, Float4 r2) noexcept -> Float3x4
 {
-    return glm::mat3x4{ r0, r1, r2 };
+    return Float3x4::fromRows(r0, r1, r2);
 }
 
-/// @brief The matrix whose columns are the arguments
-[[nodiscard]] inline auto fromColumns(const glm::vec4& c0, const glm::vec4& c1, const glm::vec4& c2, const glm::vec4& c3) -> glm::mat4
+[[nodiscard]] constexpr auto fromColumns(Float4 c0, Float4 c1, Float4 c2, Float4 c3) noexcept -> Float4x4
 {
-    return glm::mat4{ c0, c1, c2, c3 };
+    return Float4x4::fromColumns(c0, c1, c2, c3);
 }
 
-/// @brief The matrix whose columns are the arguments
-[[nodiscard]] inline auto fromColumns(const glm::vec3& c0, const glm::vec3& c1, const glm::vec3& c2) -> glm::mat3
+[[nodiscard]] constexpr auto fromColumns(Float3 c0, Float3 c1, Float3 c2) noexcept -> Float3x3
 {
-    return glm::mat3{ c0, c1, c2 };
+    return Float3x3::fromColumns(c0, c1, c2);
 }
 
-/// @brief Row `i` of `m`
-[[nodiscard]] inline auto row(const glm::mat4& m, int i) -> glm::vec4
+template<Scalar T, std::size_t R, std::size_t C>
+[[nodiscard]] constexpr auto row(const Matrix<T, R, C>& m, std::size_t i) noexcept -> Vector<T, C>
 {
-    return glm::row(m, i);
+    return m.row(i);
 }
 
-/// @brief Row `i` of `m`
-[[nodiscard]] inline auto row(const glm::mat3& m, int i) -> glm::vec3
+template<Scalar T, std::size_t R, std::size_t C>
+[[nodiscard]] constexpr auto column(const Matrix<T, R, C>& m, std::size_t i) noexcept -> Vector<T, R>
 {
-    return glm::row(m, i);
+    return m.column(i);
 }
 
-/// @brief Row `i` of the 3x4 matrix `m`
-[[nodiscard]] inline auto row(const glm::mat3x4& m, int i) -> glm::vec4
+template<Scalar T, std::size_t R, std::size_t C>
+[[nodiscard]] constexpr auto element(Matrix<T, R, C>& m, std::size_t r, std::size_t c) noexcept -> T&
 {
-    return m[i];
+    return m[r, c];
 }
 
-/// @brief Column `i` of `m`
-[[nodiscard]] inline auto column(const glm::mat4& m, int i) -> glm::vec4
+template<Scalar T, std::size_t R, std::size_t C>
+[[nodiscard]] constexpr auto element(const Matrix<T, R, C>& m, std::size_t r, std::size_t c) noexcept -> T
 {
-    return m[i];
+    return m[r, c];
 }
 
-/// @brief Column `i` of `m`
-[[nodiscard]] inline auto column(const glm::mat3& m, int i) -> glm::vec3
+[[nodiscard]] inline auto quatFromEuler(Float3 radians) noexcept -> Quat
 {
-    return m[i];
+    return Quat::fromEuler(radians);
 }
 
-/// @brief The element in row `r`, column `c` of `m`: `m[r, c]` in the new library
-[[nodiscard]] inline auto element(glm::mat4& m, int r, int c) -> float&
+[[nodiscard]] constexpr auto quatFromXyzw(float x, float y, float z, float w) noexcept -> Quat
 {
-    return m[c][r];
+    return Quat::fromXyzw(x, y, z, w);
 }
 
-/// @brief The element in row `r`, column `c` of `m`: `m[r, c]` in the new library
-[[nodiscard]] inline auto element(const glm::mat4& m, int r, int c) -> float
-{
-    return m[c][r];
-}
-
-/// @brief The element in row `r`, column `c` of `m`: `m[r, c]` in the new library
-[[nodiscard]] inline auto element(glm::mat3& m, int r, int c) -> float&
-{
-    return m[c][r];
-}
-
-/// @brief The element in row `r`, column `c` of `m`: `m[r, c]` in the new library
-[[nodiscard]] inline auto element(const glm::mat3& m, int r, int c) -> float
-{
-    return m[c][r];
-}
-
-/// @brief The element in row `r`, column `c` of the 3x4 matrix `m`: `m[r, c]` in the new library
-[[nodiscard]] constexpr auto element(glm::mat3x4& m, int r, int c) -> float&
-{
-    return m[r][c];
-}
-
-/// @brief The element in row `r`, column `c` of the 3x4 matrix `m`: `m[r, c]` in the new library
-[[nodiscard]] constexpr auto element(const glm::mat3x4& m, int r, int c) -> float
-{
-    return m[r][c];
-}
-
-/// @brief perspective<T> on glm: a right handed perspective projection into Vulkan clip space, depth 0 at `near` to 1
-/// at `far`, y down. `fovY` is in radians, `aspect` is width over height.
-[[nodiscard]] inline auto perspective(float fovY, float aspect, float near, float far) -> glm::mat4
-{
-    const float tanHalfFovY = std::tan(fovY / 2.0f);
-    glm::mat4 projection{ 0.0f };
-    element(projection, 0, 0) = 1.0f / (aspect * tanHalfFovY);
-    element(projection, 1, 1) = -1.0f / tanHalfFovY;
-    element(projection, 2, 2) = far / (near - far);
-    element(projection, 2, 3) = -(far * near) / (far - near);
-    element(projection, 3, 2) = -1.0f;
-    return projection;
-}
-
-/// @brief orthographic<T> on glm: a right handed orthographic projection of a box centred on the view axis into
-/// Vulkan clip space, x in [-halfWidth, halfWidth], y in [-halfHeight, halfHeight] flipped to y down, depth 0 at
-/// `near` to 1 at `far`
-[[nodiscard]] inline auto orthographic(float halfWidth, float halfHeight, float near, float far) -> glm::mat4
-{
-    glm::mat4 projection{ 1.0f };
-    element(projection, 0, 0) = 1.0f / halfWidth;
-    element(projection, 1, 1) = -1.0f / halfHeight;
-    element(projection, 2, 2) = -1.0f / (far - near);
-    element(projection, 2, 3) = (0.0f - near) / (far - near); // +0 at near = 0, as orthographic<T>
-    return projection;
-}
-
-/// @brief The rotation of Euler angles in radians, in glm's convention: Quat::fromEuler in the new library
-[[nodiscard]] inline auto quatFromEuler(const glm::vec3& radians) -> glm::quat
-{
-    return glm::quat{ radians };
-}
-
-/// @brief The quaternion with these components, named in memory and scene-file order: Quat::fromXyzw in the new
-/// library (glm's constructor takes w first)
-[[nodiscard]] inline auto quatFromXyzw(float x, float y, float z, float w) -> glm::quat
-{
-    return glm::quat{ w, x, y, z };
-}
-}
-
-export namespace aegis::math
-{
 namespace world
 {
-constexpr glm::vec3 RIGHT = { 1.0f, 0.0f, 0.0f };
-constexpr glm::vec3 FORWARD = { 0.0f, 1.0f, 0.0f };
-constexpr glm::vec3 UP = { 0.0f, 0.0f, 1.0f };
-}
-
-/// @brief Returns the forward direction of a rotation
-auto forward(const glm::quat& rotation) -> glm::vec3
-{
-    return rotation * world::FORWARD;
-}
-
-/// @brief Returns the right direction of a rotation
-auto right(const glm::quat& rotation) -> glm::vec3
-{
-    return rotation * world::RIGHT;
-}
-
-/// @brief Returns the up direction of a rotation
-auto up(const glm::quat& rotation) -> glm::vec3
-{
-    return rotation * world::UP;
-}
-
-/// @brief Composes a transformation matrix from location, rotation and scale
-auto transformMatrix(const glm::vec3& location, const glm::quat& rotation, const glm::vec3& scale) -> glm::mat4
-{
-    glm::mat3 rotMat = glm::mat3_cast(rotation);
-    rotMat[0] *= scale.x;
-    rotMat[1] *= scale.y;
-    rotMat[2] *= scale.z;
-
-    return glm::mat4{
-        glm::vec4{ rotMat[0], 0.0f },
-        glm::vec4{ rotMat[1], 0.0f },
-        glm::vec4{ rotMat[2], 0.0f },
-        glm::vec4{ location, 1.0f }
-    };
-}
-
-/// @brief Decomposes a transformation matrix into location, rotation and scale
-/// @note A mirrored matrix (negative determinant) keeps its mirror as a negative x scale, so that
-/// transformMatrix(translation, rotation, scale) reproduces it. The rotation is always a unit quaternion.
-/// If an axis has zero length the rotation is undefined and `rotation` is left unchanged.
-void decomposeTRS(const glm::mat4& matrix, glm::vec3& translation, glm::quat& rotation, glm::vec3& scale)
-{
-    translation = glm::vec3(matrix[3]);
-    scale.x = glm::length(glm::vec3(matrix[0]));
-    scale.y = glm::length(glm::vec3(matrix[1]));
-    scale.z = glm::length(glm::vec3(matrix[2]));
-    if (scale.x == 0.0f || scale.y == 0.0f || scale.z == 0.0f)
-        return;
-
-    glm::mat3 rotationMat = glm::mat3(matrix);
-    rotationMat[0] /= scale.x;
-    rotationMat[1] /= scale.y;
-    rotationMat[2] /= scale.z;
-    if (glm::determinant(rotationMat) < 0.0f)
-    {
-        scale.x = -scale.x;
-        rotationMat[0] = -rotationMat[0];
-    }
-    rotation = glm::normalize(glm::quat_cast(rotationMat));
-}
-
-/// @brief Builds a right handed view matrix for a camera at `location` looking along `forward`
-auto viewMatrix(const glm::vec3& location, const glm::vec3& forward) -> glm::mat4
-{
-    const glm::vec3 f(glm::normalize(forward));                  // Forward
-    const glm::vec3 s(glm::normalize(glm::cross(f, world::UP))); // Sideways
-    const glm::vec3 u(glm::cross(s, f));                         // Up
-
-    glm::mat4 view{ 1.0f };
-    view[0][0] = s.x;
-    view[1][0] = s.y;
-    view[2][0] = s.z;
-    view[0][1] = u.x;
-    view[1][1] = u.y;
-    view[2][1] = u.z;
-    view[0][2] = -f.x;
-    view[1][2] = -f.y;
-    view[2][2] = -f.z;
-    view[3][0] = -glm::dot(s, location);
-    view[3][1] = -glm::dot(u, location);
-    view[3][2] = glm::dot(f, location);
-    return view;
-}
-
-/// @brief Builds the inverse of viewMatrix(location, forward)
-auto inverseViewMatrix(const glm::vec3& location, const glm::vec3& forward) -> glm::mat4
-{
-    const glm::vec3 f(glm::normalize(forward));
-    const glm::vec3 s(glm::normalize(glm::cross(f, world::UP)));
-    const glm::vec3 u(glm::cross(s, f));
-
-    glm::mat4 inverseView{ 1.0f };
-    inverseView[0] = glm::vec4{ s, 0.0f };
-    inverseView[1] = glm::vec4{ u, 0.0f };
-    inverseView[2] = glm::vec4{ -f, 0.0f };
-    inverseView[3] = glm::vec4{ location, 1.0f };
-    return inverseView;
+inline constexpr Float3 RIGHT = right<float>;
+inline constexpr Float3 FORWARD = forward<float>;
+inline constexpr Float3 UP = up<float>;
 }
 }

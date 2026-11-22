@@ -7,6 +7,8 @@ import aegis.reflect;
 import aegis.serialize;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::editor::sceneFilePath;

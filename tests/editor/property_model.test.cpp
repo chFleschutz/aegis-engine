@@ -6,6 +6,8 @@ import aegis.math;
 import aegis.reflect;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::editor::fieldLabel;
@@ -46,7 +48,7 @@ struct Everything
     glm::vec2 size{};
     glm::vec3 offset{};
     glm::vec4 tint{};
-    glm::quat turn{ 1.0f, 0.0f, 0.0f, 0.0f };
+    glm::quat turn = glm::quat::identity();
     Mode mode{ Mode::Off };
 };
 
@@ -197,7 +199,7 @@ TEST_SUITE("editor::propertyRow")
         {
             glm::vec3 offset{};
             float cone{ 0.5f };
-            glm::quat turn{ 1.0f, 0.0f, 0.0f, 0.0f };
+            glm::quat turn = glm::quat::identity();
             float factor{ 1.0f };
         };
         TypeRegistry types;

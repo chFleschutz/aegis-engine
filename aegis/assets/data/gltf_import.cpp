@@ -142,7 +142,7 @@ public:
             ModelNode out{
                 .name = node.name.empty() ? std::format("Node_{}", i) : std::string{ node.name },
                 .translation = { trs.translation.x(), trs.translation.y(), trs.translation.z() },
-                .rotation = { trs.rotation.w(), trs.rotation.x(), trs.rotation.y(), trs.rotation.z() },
+                .rotation = math::quatFromXyzw(trs.rotation.x(), trs.rotation.y(), trs.rotation.z(), trs.rotation.w()),
                 .scale = { trs.scale.x(), trs.scale.y(), trs.scale.z() },
             };
             if (parent != noParent)
@@ -429,7 +429,7 @@ private:
             .baseColor = glm::vec4{ pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2], pbr.baseColorFactor[3] },
             .metallic = static_cast<float>(pbr.metallicFactor),
             .roughness = static_cast<float>(pbr.roughnessFactor),
-            .emissive = glm::make_vec3(material.emissiveFactor.data()),
+            .emissive = glm::vec3{ material.emissiveFactor[0], material.emissiveFactor[1], material.emissiveFactor[2] },
             .alphaMode = toAlphaMode(material.alphaMode),
             .alphaCutoff = static_cast<float>(material.alphaCutoff),
             .doubleSided = material.doubleSided,

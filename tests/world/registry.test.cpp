@@ -3,6 +3,8 @@
 import std;
 import aegis.world;
 
+namespace math = aegis::math;
+
 namespace
 {
 using aegis::Children;

@@ -421,9 +421,15 @@ auto Viewport::drawGizmo(EditorContext& editor, FrameContext& frame, const Rect&
     // Scaling is always along the entity's own axes
     const auto mode = m_gizmoSpace == GizmoSpace::World && m_gizmoMode != GizmoMode::Scale ? ImGuizmo::MODE::WORLD : ImGuizmo::MODE::LOCAL;
 
+    // ImGuizmo is column-major: it reads and writes the transposes
+    using Floats = std::array<float, 16>;
+    const auto gizmoView = std::bit_cast<Floats>(math::transpose(view));
+    const auto gizmoProjection = std::bit_cast<Floats>(math::transpose(projection));
+    auto gizmoMatrix = std::bit_cast<Floats>(math::transpose(matrix));
     const glm::mat4 before = matrix;
-    const bool changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), operation, mode, glm::value_ptr(matrix), nullptr,
+    const bool changed = ImGuizmo::Manipulate(gizmoView.data(), gizmoProjection.data(), operation, mode, gizmoMatrix.data(), nullptr,
         snapping() ? snapValues.data() : nullptr);
+    matrix = math::transpose(std::bit_cast<glm::mat4>(gizmoMatrix));
     if ((changed || ImGuizmo::IsUsing()) && !m_gizmoDrag)
         beginGizmoDrag(editor, frame, before);
     if (!changed || !m_gizmoDrag)

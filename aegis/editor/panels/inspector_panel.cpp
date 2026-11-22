@@ -230,25 +230,25 @@ auto drawColor(const PropertyRow& row, const reflect::Value& value) -> std::opti
     const bool isVec4 = row.field->kind == reflect::FieldKind::Vec4;
     const glm::vec4 stored = isVec4 ? as<glm::vec4>(value) : glm::vec4{ as<glm::vec3>(value), 1.0f };
     // A color above 1, or a field allowed above 1, is HDR: no clamping, and shown as floats since hex cannot
-    const bool hdr = (row.max && *row.max > 1.0) || std::max({ stored.r, stored.g, stored.b }) > 1.0f;
+    const bool hdr = (row.max && *row.max > 1.0) || std::max({ stored.x, stored.y, stored.z }) > 1.0f;
     const ImGuiColorEditFlags flags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoTooltip | (hdr ? ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_DisplayRGB : ImGuiColorEditFlags_DisplayHex);
 
     const glm::vec3 shown = linearToSrgb(glm::vec3{ stored });
-    glm::vec4 edited{ shown, stored.a };
+    glm::vec4 edited{ shown, stored.w };
     const bool changed = isVec4 ? ImGui::ColorEdit4("##value", &edited.x, flags) : ImGui::ColorEdit3("##value", &edited.x, flags);
     ImGui::SetItemTooltip("Stored linear");
     if (!changed)
         return std::nullopt;
 
     const glm::vec3 linear = linearAfterEdit(glm::vec3{ stored }, shown, glm::vec3{ edited });
-    return isVec4 ? reflect::Value{ glm::vec4{ linear, edited.a } } : reflect::Value{ linear };
+    return isVec4 ? reflect::Value{ glm::vec4{ linear, edited.w } } : reflect::Value{ linear };
 }
 
 auto drawRotation(const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>
 {
     static RotationDrag s_drag;
     const ImGuiID id = ImGui::GetID("##value");
-    glm::vec3 euler = s_drag.id == id ? s_drag.euler : glm::degrees(glm::eulerAngles(as<glm::quat>(value, glm::quat{ 1.0f, 0.0f, 0.0f, 0.0f })));
+    glm::vec3 euler = s_drag.id == id ? s_drag.euler : glm::degrees(glm::eulerAngles(as<glm::quat>(value, glm::quat::identity())));
     // The conversion leaves noise around zero, which would show as -0.00: a zero is a zero
     for (int i = 0; i < 3; ++i)
         euler[i] = std::abs(euler[i]) < rotationNoise ? 0.0f : euler[i];
