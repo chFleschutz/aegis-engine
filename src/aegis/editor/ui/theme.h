@@ -142,15 +142,36 @@ public:
     ~MonospaceScope() { ImGui::PopFont(); }
 };
 
-// A square button showing one of 'icons'; 'id' is unique among the window's buttons. 'active' marks the chosen tool.
-inline auto iconButton(const char* icon, const char* id, bool active = false) -> bool
+// The accent fill on the buttons drawn until it goes out of scope: the default button, an active toggle or tool. With
+// 'filled' false it leaves them as they are.
+class AccentFillScope
 {
-    if (active)
+public:
+    explicit AccentFillScope(bool filled = true) :
+        m_filled{ filled }
     {
+        if (!m_filled)
+            return;
         ImGui::PushStyleColor(ImGuiCol_Button, accentFill);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, accentFillHover);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, accentFillActive);
     }
+    AccentFillScope(const AccentFillScope&) = delete;
+    auto operator=(const AccentFillScope&) -> AccentFillScope& = delete;
+    ~AccentFillScope()
+    {
+        if (m_filled)
+            ImGui::PopStyleColor(3);
+    }
+
+private:
+    bool m_filled;
+};
+
+// A square button showing one of 'icons'; 'id' is unique among the window's buttons. 'active' marks the chosen tool.
+inline auto iconButton(const char* icon, const char* id, bool active = false) -> bool
+{
+    const AccentFillScope fill{ active };
     ImGui::PushID(id);
     const float side = ImGui::GetFrameHeight();
     // No padding: the icon is wider than the square less the frame padding, and ImGui would put it at the left padding
@@ -158,8 +179,6 @@ inline auto iconButton(const char* icon, const char* id, bool active = false) ->
     const bool pressed = ImGui::Button(icon, ImVec2{ side, side });
     ImGui::PopStyleVar();
     ImGui::PopID();
-    if (active)
-        ImGui::PopStyleColor(3);
     return pressed;
 }
 }

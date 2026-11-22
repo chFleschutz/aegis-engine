@@ -4,7 +4,7 @@ module;
 
 module aegis.editor;
 import std;
-import :panels;
+import :widgets;
 
 namespace aegis::editor
 {

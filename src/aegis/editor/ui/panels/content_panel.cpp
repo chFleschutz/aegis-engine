@@ -14,8 +14,10 @@ import aegis.math;
 import aegis.reflect;
 import aegis.serialize;
 import aegis.world;
+import :edits;
 import :panels;
 import :theme;
+import :widgets;
 
 namespace aegis::editor
 {
@@ -725,48 +727,6 @@ private:
     std::size_t m_root{ 0 };
     std::string m_folder;
 };
-}
-
-auto acceptAssetPayload(const std::function<bool(const AssetPayload& payload)>& accepts) -> std::optional<AssetPayload>
-{
-    const ImGuiPayload* active = ImGui::GetDragDropPayload();
-    if (!active || !active->IsDataType(assetPayloadType) || active->DataSize != static_cast<int>(sizeof(AssetPayload)))
-        return std::nullopt;
-    AssetPayload payload;
-    std::memcpy(&payload, active->Data, sizeof(payload));
-    if (!accepts(payload))
-    {
-        ImGui::SetTooltip("%s", std::format("A {} cannot go here", payload.assetType()).c_str());
-        return std::nullopt;
-    }
-    return ImGui::AcceptDragDropPayload(assetPayloadType) ? std::optional{ payload } : std::nullopt;
-}
-
-auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t asset, world::Entity parent, std::optional<glm::vec3> location) -> bool
-{
-    auto& registry = editor.world()->registry();
-    const auto edits = editWorld(editor, frame);
-    const auto create = [&](world::Entity at) -> std::expected<world::Entity, Error> {
-        auto holder = frame.assets.instantiateScene(*editor.world(), frame.types, assets::AssetId{ asset }, at);
-        const auto* transformType = frame.types.find<Transform>();
-        if (holder && location && transformType)
-        {
-            const FieldValues values{ { .field = "location", .value = reflect::Value{ *location } } };
-            if (auto written = writeComponent(*transformType, registry, *holder, &registry.get<Transform>(*holder), values, edits.prepare); !written)
-                log::warn("Cannot place the instance: {}", reflect::describe(written.error()));
-        }
-        if (!holder)
-            return makeAssetError(std::move(holder.error()), "cannot instantiate the scene");
-        return *holder;
-    };
-    auto holder = instantiateEntity(edits, editor.undoStack(), parent, create);
-    if (!holder)
-    {
-        log::warn("Cannot instantiate {}: {}", assets::AssetId{ asset }, describe(holder.error()));
-        return false;
-    }
-    editor.select(*holder);
-    return true;
 }
 
 auto makeContentPanel() -> std::unique_ptr<Panel>

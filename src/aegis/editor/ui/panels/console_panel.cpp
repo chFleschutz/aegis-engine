@@ -10,6 +10,7 @@ import std;
 import aegis.core;
 import :panels;
 import :theme;
+import :widgets;
 
 namespace aegis::editor
 {
@@ -33,17 +34,9 @@ auto levelColor(log::Level level) -> ImVec4
 // A button showing whether 'on' is set, which flips it. A '###id' in 'label' keeps the ID while the text changes.
 void toggleButton(const std::string& label, bool& on)
 {
-    const bool wasOn = on;
-    if (wasOn)
-    {
-        ImGui::PushStyleColor(ImGuiCol_Button, theme::accentFill);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::accentFillHover);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accentFillActive);
-    }
+    const theme::AccentFillScope fill{ on };
     if (ImGui::Button(label.c_str()))
         on = !on;
-    if (wasOn)
-        ImGui::PopStyleColor(3);
 }
 
 // The repeat count ("x25") after a line that stands for 'repeats' messages (Collapse).

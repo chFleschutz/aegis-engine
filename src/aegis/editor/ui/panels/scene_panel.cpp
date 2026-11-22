@@ -12,8 +12,10 @@ import aegis.core;
 import aegis.math;
 import aegis.serialize;
 import aegis.world;
+import :edits;
 import :panels;
 import :theme;
+import :widgets;
 
 namespace aegis::editor
 {
@@ -502,59 +504,6 @@ private:
     std::optional<StableId> m_narrowOnRelease;               // One of several selected rows, pressed: selected alone if released without a drag
     bool m_rowClicked{ false };                              // A row took this frame's left click
 };
-}
-
-auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool
-{
-    if (!editor.world())
-        return false;
-    auto& registry = editor.world()->registry();
-    const auto roots = selectedRoots(registry, editor.selection());
-    if (roots.empty())
-        return false;
-    auto& history = editor.undoStack();
-    std::optional<UndoGroup> group;
-    if (roots.size() > 1)
-        group.emplace(history, std::format("Duplicate {} entities", roots.size()));
-
-    std::vector<StableId> copies;
-    for (const auto root : roots)
-    {
-        if (auto copy = duplicateEntity(editWorld(editor, frame), history, root))
-            copies.push_back(registry.get<StableId>(*copy));
-        else
-            log::warn("Cannot duplicate '{}': {}", nameOf(registry, root), describe(copy.error()));
-    }
-    if (copies.empty())
-        return false;
-    editor.selection().assign(copies);
-    return true;
-}
-
-auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool
-{
-    if (!editor.world())
-        return false;
-    auto& registry = editor.world()->registry();
-    const auto roots = selectedRoots(registry, editor.selection());
-    if (roots.empty())
-        return false;
-    auto& history = editor.undoStack();
-    std::optional<UndoGroup> group;
-    if (roots.size() > 1)
-        group.emplace(history, std::format("Delete {} entities", roots.size()));
-
-    bool destroyed = false;
-    for (const auto root : roots)
-    {
-        const std::string name = nameOf(registry, root);
-        if (auto result = destroyEntity(editWorld(editor, frame), history, root))
-            destroyed = true;
-        else
-            log::warn("Cannot destroy '{}': {}", name, describe(result.error()));
-    }
-    editor.selection().clear();
-    return destroyed;
 }
 
 auto makeScenePanel(ActionRegistry& actions) -> std::unique_ptr<Panel>

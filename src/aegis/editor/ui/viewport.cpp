@@ -16,8 +16,10 @@ import aegis.reflect;
 import aegis.render_passes;
 import aegis.rhi;
 import aegis.world;
-import :panels;
+import :edits;
+import :statistics;
 import :theme;
+import :widgets;
 
 namespace aegis::editor
 {

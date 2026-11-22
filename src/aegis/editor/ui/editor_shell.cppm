@@ -11,7 +11,7 @@ import :workspace;
 
 namespace aegis::editor
 {
-class StatisticsCheck; // :panels
+class StatisticsCheck; // :statistics
 }
 
 export namespace aegis::editor

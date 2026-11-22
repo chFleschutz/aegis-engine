@@ -86,7 +86,9 @@ src/aegis/editor/
    ├─ workspace        the panels and where they sit: dockspace, column and rail, drawer and pins, full viewport
    ├─ actions          action registry: id, label, shortcut, enabled(), run()
    ├─ theme            colors, sizes, fonts and icons in one place (theme.h: tokens)
-   ├─ widgets          property grid, one widget per FieldKind, asset slot, axis-colored vec3
+   ├─ edits            the world edits the menus and panels share (undo, redo, duplicate, delete, instantiate)
+   ├─ widgets          the widgets the panels and bars share: bar buttons, hints, search fields, icons, Create menu
+   ├─ statistics       the summary numbers of the Statistics panel and the stats overlay, and their check
    ├─ viewport         scene view: editor camera input, ImGuizmo inside the image rect, icons, picking
    └─ panels/          hierarchy, inspector, content, console, renderer, profiler,
                        statistics, project settings

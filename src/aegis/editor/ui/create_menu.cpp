@@ -9,8 +9,9 @@ import std;
 import aegis.core;
 import aegis.reflect;
 import aegis.world;
-import :panels;
+import :edits;
 import :theme;
+import :widgets;
 
 namespace aegis::editor
 {
