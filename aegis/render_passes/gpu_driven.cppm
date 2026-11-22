@@ -134,7 +134,7 @@ class GpuDrivenGeometryPass : public RenderPass
 {
 public:
     /// @brief The shader file both techniques' mesh and fragment stages are in (techniqueShader).
-    static constexpr std::string_view shaderFile{ "gpu-driven/geometry" };
+    static constexpr std::string_view shaderFile{ "gpu_driven/geometry" };
 
     /// @param view The index of the view in FrameScene::views it draws (whose "CameraData" it reads).
     /// @param tile Where a Technique::Depth pass draws instead of its own "Depth" (GeometryPass's); none: its own.

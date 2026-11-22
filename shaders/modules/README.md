@@ -88,7 +88,7 @@ it into a `SurfaceOutput` (albedo, tangent-space normal, AO/roughness/metallic, 
 `shadingModel` says whether the lighting pass lights it. Each surface module ends with `public typealias Surface =
 <its type>;`.
 
-A technique (`cpu-driven/geometry.slang`, `gpu-driven/geometry.slang`: the G-buffer, today) does `import
+A technique (`cpu_driven/geometry.slang`, `gpu_driven/geometry.slang`: the G-buffer, today) does `import
 SURFACE_MODULE;` and names only `Surface`. It gets a material as a `MaterialAddress`, which only
 `evaluateSurface<Surface>` reads, as `Surface.Params*`: no technique casts the address itself. `shaders/CMakeLists.txt` lists the techniques; `aegis_add_shaders`
 builds each one once per surface shader, with `-DSURFACE_MODULE=surfaces.<name>`, into

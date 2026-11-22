@@ -103,8 +103,8 @@ struct PipelineState
 
 /// @brief The SPIR-V file of 'technique' (its path in the shader folder, without .slang) built for 'variant'
 ///        (aegis_add_shaders TECHNIQUES): with its template's surface shader, and masked if its alpha mode is
-///        AlphaMode::Mask. "gpu-driven/geometry" and an unlit variant give "gpu-driven/geometry.unlit.spv", or
-///        "gpu-driven/geometry.unlit.masked.spv" masked.
+///        AlphaMode::Mask. "gpu_driven/geometry" and an unlit variant give "gpu_driven/geometry.unlit.spv", or
+///        "gpu_driven/geometry.unlit.masked.spv" masked.
 [[nodiscard]] inline auto techniqueShader(std::string_view technique, const assets::MaterialVariant& variant) -> std::string
 {
     assert(variant.materialTemplate && "a material variant names its template");

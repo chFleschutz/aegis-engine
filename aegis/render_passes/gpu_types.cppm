@@ -24,7 +24,7 @@ export namespace aegis::render_graph
 /// @brief Threads per workgroup side of the 2D compute passes: [numthreads(16, 16, 1)] in lighting.slang,
 ///        post_process.slang, bloom/*.slang and ibl/*.slang.
 inline constexpr std::uint32_t computeGroupSize{ 16 };
-/// @brief Threads per workgroup of the culling shader: [numthreads(64, 1, 1)] in gpu-driven/culling.slang.
+/// @brief Threads per workgroup of the culling shader: [numthreads(64, 1, 1)] in gpu_driven/culling.slang.
 inline constexpr std::uint32_t cullingGroupSize{ 64 };
 /// @brief MAX_REFLECTION_LOD in modules/lighting.slang: the last mip of the prefiltered environment map (checked
 ///        against Ibl::prefilteredMipLevels).
@@ -158,7 +158,7 @@ struct LightingUniforms
 // Each is the PushConstants struct of the shader named in its comment. At most
 // rhi::CommandBuffer::maxPushConstantSize bytes, which CommandBuffer::pushConstants checks.
 
-/// @brief gpu-driven/culling.slang
+/// @brief gpu_driven/culling.slang
 struct CullingConstants
 {
     rhi::DeviceAddress camera;
@@ -172,7 +172,7 @@ struct CullingConstants
     std::uint32_t dynamicCount;
 };
 
-/// @brief indirectDraw::GeometryConstants (gpu-driven/task.slang and geometry.slang)
+/// @brief indirectDraw::GeometryConstants (gpu_driven/task.slang and geometry.slang)
 struct GpuDrivenGeometryConstants
 {
     rhi::DeviceAddress camera;
@@ -186,7 +186,7 @@ struct GpuDrivenGeometryConstants
     GeometryFlags flags;
 };
 
-/// @brief cpu-driven/geometry.slang
+/// @brief cpu_driven/geometry.slang
 struct StaticMeshConstants
 {
     glm::mat3x4 model; // Top three rows
@@ -198,7 +198,7 @@ struct StaticMeshConstants
     rhi::DeviceAddress material;
 };
 
-/// @brief cpu-driven/forward.slang: StaticMeshConstants and the view's lighting block.
+/// @brief cpu_driven/forward.slang: StaticMeshConstants and the view's lighting block.
 struct ForwardConstants
 {
     glm::mat3x4 model; // Top three rows

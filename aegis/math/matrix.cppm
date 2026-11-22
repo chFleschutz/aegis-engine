@@ -160,7 +160,7 @@ template<Scalar T, std::size_t R, std::size_t C>
 }
 
 // The 4x4 shapes, which the engine multiplies every frame and per instance, are written out: in the Development
-// build type (-O1) the generic loops above measured 5x (matrix) and 11x (vector) glm's time in tools/bench-math.
+// build type (-O1) the generic loops above measured 5x (matrix) and 11x (vector) glm's time in tools/bench_math.
 // Same values as the generic kernels; the differential tests in tests/math pick these overloads for Float4x4.
 
 template<Scalar T>

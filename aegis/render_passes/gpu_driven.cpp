@@ -190,7 +190,7 @@ auto CullingPass::name() const -> std::string_view
 
 auto CullingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    auto pipeline = createComputePipeline(pool.device(), "Culling", "gpu-driven/culling.slang.spv");
+    auto pipeline = createComputePipeline(pool.device(), "Culling", "gpu_driven/culling.slang.spv");
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
     m_pipeline = std::move(*pipeline);
@@ -294,7 +294,7 @@ auto GpuDrivenGeometryPass::createPipeline(const PipelineKey& key) const -> std:
     // task stage's DrawIndex, which a mesh shader with a task stage must not.
     const auto geometry = techniqueShader(shaderFile, key.variant);
     std::vector stages{
-        ShaderEntry{ rhi::ShaderStage::Task, "gpu-driven/task.slang.spv", "taskMain" },
+        ShaderEntry{ rhi::ShaderStage::Task, "gpu_driven/task.slang.spv", "taskMain" },
         ShaderEntry{ rhi::ShaderStage::Mesh, geometry, "meshMain" },
     };
     if (const auto fragment = fragmentEntry(key.technique, key.variant))

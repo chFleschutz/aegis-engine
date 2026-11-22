@@ -14,17 +14,17 @@ export namespace aegis::render_graph
 /// @brief Draws every instance of the frame's InstanceStore whose draw batch its technique draws (drawsBatch: for the
 ///        G-buffer and depth, the unblended batches of one MaterialType; forward, the blended ones), one indexed draw
 ///        each (the CPU-driven path), with its batch's pipeline for its technique (mirrored instances with the
-///        clockwise one), built for the batch template's surface shader: from cpu-driven/geometry.slang into the
-///        G-buffer, or depth only for a shadow view; from cpu-driven/forward.slang lit and blended into the scene
+///        clockwise one), built for the batch template's surface shader: from cpu_driven/geometry.slang into the
+///        G-buffer, or depth only for a shadow view; from cpu_driven/forward.slang lit and blended into the scene
 ///        color, with the lighting block of its pass (RenderContext::lighting), back to front by the view depth of each
 ///        instance's bounding-sphere centre (RenderContext::view), so the blends compose.
 class StaticMeshRenderSystem : public RenderSystem
 {
 public:
     /// @brief The shader file the G-buffer and depth techniques draw with (techniqueShader).
-    static constexpr std::string_view shaderFile{ "cpu-driven/geometry" };
+    static constexpr std::string_view shaderFile{ "cpu_driven/geometry" };
     /// @brief The shader file the forward technique draws with.
-    static constexpr std::string_view forwardShaderFile{ "cpu-driven/forward" };
+    static constexpr std::string_view forwardShaderFile{ "cpu_driven/forward" };
 
     explicit StaticMeshRenderSystem(Technique technique = Technique::GBuffer,
         assets::MaterialType type = assets::MaterialType::Opaque);
