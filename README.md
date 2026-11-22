@@ -99,7 +99,7 @@ The engine relies on the following external libraries:
 - [entt](https://github.com/skypjack/entt) - Entity component system (ECS)
 - [fastgltf](https://github.com/spnda/fastgltf) - GLTF 3D model loader
 - [glfw](https://github.com/glfw/glfw) - Window management
-- [glm](https://github.com/g-truc/glm) - Math library
+- [glm](https://github.com/g-truc/glm) - Reference for the math library's tests and benchmark
 - [imgui](https://github.com/ocornut/imgui) - Immediate mode UI
 - [imguizmo](https://github.com/CedricGuillemet/ImGuizmo) - Gizmos
 - [meshoptimizer](https://github.com/zeux/meshoptimizer) - Generating meshlets

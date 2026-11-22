@@ -65,10 +65,10 @@ helpers take what they need as parameters instead (`indirectDraw::getInstance(st
 
 Every shader compiles with `-fvk-use-scalar-layout` (see `cmake/AegisShaders.cmake`, which every shader goes through): push constants
 and everything read through a pointer are packed like C++ structs, with each member aligned to its
-component type (a `float3` takes 12 bytes, aligned to 4). So a C++ struct of `glm::vec3`, `float` and
+component type (a `float3` takes 12 bytes, aligned to 4). So a C++ struct of `math::Float3`, `float` and
 `rhi::DeviceAddress` matches the Slang struct member for member — `assets::Vertex`, `StaticMesh::GpuData`
-and material parameter blocks rely on it. Matrices are row-major (`-matrix-layout-row-major`); upload
-`glm::rowMajor4(m)`.
+and material parameter blocks rely on it. Matrices are row-major (`-matrix-layout-row-major`), like
+`aegis.math`'s, so they upload as they are.
 
 Working examples: `computeMain` in `tests/device/shader.slang`, and `shaders/ibl/*.slang`
 (driven by `render_graph::Ibl`).
