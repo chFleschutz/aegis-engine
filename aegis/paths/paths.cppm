@@ -34,7 +34,7 @@ struct Lookup
 /// @brief Directory holding the compiled shaders (`<name>.slang.spv`, in the shaders/ layout).
 [[nodiscard]] auto shaders() -> const std::filesystem::path&;
 
-/// @brief Root of the sample project, the samples/ submodule; its assets are in `content/`. It may not be checked out.
+/// @brief Root of the sample project, the games/examples/project/ submodule; its assets are in `content/`. It may not be checked out.
 [[nodiscard]] auto project() -> const std::filesystem::path&;
 
 /// @brief The folder of 'project' that holds its assets, `<project>/content`: the only one the asset database

@@ -29,12 +29,13 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
 - The MSVC presets **don't build yet** (internal compiler errors in `render_graph`) and configure only
   from a shell with the Visual Studio environment (`vcvars64.bat`).
 - Clone with `--recurse-submodules`. The sample project (the examples' scenes and the assets the
-  device tests load) is the opt-in submodule `samples/`: `git submodule update --init --checkout
-  samples`. Without it configure skips the `Examples` game and the device tests that load samples.
+  device tests load) is the opt-in submodule `samples`, checked out at the `Examples` game's project
+  folder: `git submodule update --init --checkout games/examples/project`. Without it configure
+  skips the `Examples` game and the device tests that load samples.
   It clones the full history, so `tools/init-submodules.sh` shares the main checkout's copy with
   worktrees and git can tell whether a pointer is on its `origin/main`; a main checkout whose
-  `samples/` is still shallow (cloned before #327) needs `git -C samples fetch --unshallow` once,
-  and the same for `external/zstd` (cloned before #370).
+  samples are still shallow (cloned before #327) needs `git -C games/examples/project fetch
+  --unshallow` once, and the same for `external/zstd` (cloned before #370).
   A change to the samples is a PR in aegis-samples (branch from its `origin/main`); the engine PR
   bumps the `samples` pointer to that commit and says to merge the samples PR first.
 - Vendored files (`external/ktx`, the editor's Lucide icon font and its generated
@@ -79,13 +80,14 @@ success code: test `has_value()`, read `.error()` and `*result`. Calls with seve
 
 ### Examples and games
 The examples are two games built by `aegis_add_game` (`cmake/AegisGame.cmake`, whose header lists
-the targets and the headless `device`/`editor` tests it adds), each in `examples/<lowercased-name>`
+the targets and the headless `device`/`editor` tests it adds), each in `games/<lowercased-name>`
 with a runtime and an `-Editor` flavor: `Template`, an empty project (the safest smoke test), and
-`Examples`, whose project is the `samples/` submodule and whose examples are its scene files, picked
-with `--scene <path>` relative to its `content/` (default `scenes/simple.scene`, the simplest):
+`Examples`, whose project is the samples submodule (`games/examples/project/`) and whose examples are
+its scene files, picked with `--scene <path>` relative to its `content/` (default
+`scenes/simple.scene`, the simplest):
 
     cmake --build --preset windows-clang-debug --target Examples
-    build\windows-clang-debug\examples\examples\Examples.exe --scene scenes/sponza.scene
+    build\windows-clang-debug\games\examples\Examples.exe --scene scenes/sponza.scene
 
 Report whether it built clean and the window rendered; on a build failure, surface the first real
 error, not the downstream cascade. A windowed example has no pass/fail signal (validation errors only
@@ -109,7 +111,7 @@ it today").
 ## Code style (most important)
 **Match the conventions of the code you are editing.** The engine follows the rules below, except
 the **legacy** rest, which keeps older conventions until it is rewritten: `aegis/launch/`, `math/`
-and `examples/`. There, misuse is an `assert` and `math` is one `.cppm` with no partitions.
+and `games/`. There, misuse is an `assert` and `math` is one `.cppm` with no partitions.
 
 - *Errors:* `std::expected<T, Error>` built with `makeError`, never thrown.
 - *Modules:* one module per folder, a `.cppm` interface and `.cpp` implementation units, split into
@@ -188,7 +190,7 @@ Keep messages short: one imperative subject line (e.g. `Add rhi sampler`), no bo
 is non-obvious. **No `Co-Authored-By` or other agent/tool attribution trailers**, in commits or PR
 descriptions.
 
-**Code changes go through a PR** (anything under `aegis/`, `shaders/`, `tests/`, `examples/`, `tools/`,
+**Code changes go through a PR** (anything under `aegis/`, `shaders/`, `tests/`, `games/`, `tools/`,
 CMake or CI). Docs-only changes may be committed to `main` directly. `/implement <issue>` takes an
 issue to an open PR.
 
@@ -249,7 +251,7 @@ showing green.
 
 ## Verifying device code
 Green unit tests are *not* sufficient when device code changed. `aegis/test/` (`aegis-test`) is
-the only `main()` that checks a real `rhi::Device` for failures; `examples/` run the same stack but
+the only `main()` that checks a real `rhi::Device` for failures; `games/` run the same stack but
 nothing fails them on a regression. Debug builds enable core **and synchronization** validation, and
 `aegis-test` exits non-zero on any failed check or validation error of severity *error* (messages go
 to stderr; warnings print but don't fail, and the count is process-wide) — a run is only verified if

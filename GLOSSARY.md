@@ -169,7 +169,7 @@ _Avoid_: action map, input settings
 ### Projects and assets
 
 **Project**:
-A game's folder of data, found by the launcher. The sample project is the `samples/` submodule.
+A game's folder of data, found by the launcher. The sample project is the `games/examples/project/` submodule.
 _Avoid_: game folder
 
 **Project file**:

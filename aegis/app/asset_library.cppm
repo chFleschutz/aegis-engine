@@ -44,7 +44,7 @@ public:
         std::filesystem::path indexFile;     // The database's index cache; empty for none
         std::filesystem::path importCache;   // The import cache's folder (assets::ImportCache); empty for none
 
-        /// @brief The sample project (the samples/ submodule), the engine's content folder, and the index and the
+        /// @brief The sample project (the games/examples/project/ submodule), the engine's content folder, and the index and the
         ///        import cache in the build tree (see aegis.paths).
         [[nodiscard]] static auto standard() -> Sources;
     };

@@ -51,7 +51,7 @@ struct Options
                                // frames (see SceneShell::switchWorlds)
     bool postProcess{ false }; // With --scene: give the main camera a PostProcess (postProcessSettings), and rebuild the
                                // frame graph halfway (a view for the first half of the frames, none after it)
-    bool noSamples{ false };   // Skip the checks that load the sample project (samples/ not checked out)
+    bool noSamples{ false };   // Skip the checks that load the sample project (games/examples/project/ not checked out)
 };
 
 // --scene: the target's size. --view: the view's size, unlike the target's, and the one it is resized to halfway.

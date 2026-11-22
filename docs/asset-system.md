@@ -123,7 +123,7 @@ my_game/
 
 The examples, `aegis-test`'s scene checks and the device tests share one sample project,
 `aegis-samples`. It is a separate repository, because sample assets are large and the engine
-repository should stay small, and is checked out as the submodule `samples/`. It replaces
+repository should stay small, and is checked out as the submodule `games/examples/project/`. It replaces
 `aegis-assets`, whose name also clashes with the `aegis-assets` library target (#180).
 
 - **A project like any other.** It follows "Project layout": `project.aegis` once it needs settings,
@@ -141,7 +141,7 @@ repository should stay small, and is checked out as the submodule `samples/`. It
   sidecar that isn't committed gets a new ID on every clone, and scenes reference assets by ID.
 - **Opt-in.** `.gitmodules` sets `update = none` for it:
   `git clone --recurse-submodules` fetches the libraries but not the samples, and
-  `git submodule update --init --checkout samples` fetches them. The submodule pin ties every
+  `git submodule update --init --checkout games/examples/project` fetches them. The submodule pin ties every
   engine commit to the sample commit it was tested with.
 - **Full history, not shallow** (#327): it is barely larger than the pinned commit alone (86.5
   against 86.1 MiB in November 2026), and a shallow copy can't be a `--reference` for worktrees and
