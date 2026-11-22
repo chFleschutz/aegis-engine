@@ -59,6 +59,12 @@ if(AEGIS_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
+# The math benchmark (tools/bench-math): off by default, never run by ctest.
+option(AEGIS_BUILD_BENCHMARKS "Build aegis-bench-math, the aegis.math vs glm benchmark" OFF)
+if(AEGIS_BUILD_BENCHMARKS)
+    add_subdirectory(tools/bench-math)
+endif()
+
 if(BUILD_EXAMPLES AND PROJECT_IS_TOP_LEVEL)
     add_subdirectory(examples)
 endif()
