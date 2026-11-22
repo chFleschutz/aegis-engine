@@ -7,7 +7,7 @@
 #   tools/format.sh --check    with either mode: report unformatted files, change nothing,
 #                              exit 1 if any
 #
-# Covers src/, tests/ and examples/ (*.cppm, *.cpp, *.h, *.hpp); external/ and modules/ are
+# Covers aegis/, tests/ and examples/ (*.cppm, *.cpp, *.h, *.hpp); external/ and modules/ are
 # third-party and never formatted. Set CLANG_FORMAT to pick a specific binary.
 
 set -euo pipefail
@@ -33,8 +33,8 @@ if [[ "$version" != "22" ]]; then
 fi
 
 cd "$(git rev-parse --show-toplevel)"
-pathspec=(src tests examples)
-is_source() { grep -E '^(src|tests|examples)/.*\.(cppm|cpp|h|hpp)$' || true; }
+pathspec=(aegis tests examples)
+is_source() { grep -E '^(aegis|tests|examples)/.*\.(cppm|cpp|h|hpp)$' || true; }
 
 if [[ $all -eq 1 ]]; then
     files=$(git ls-files -- "${pathspec[@]}" | is_source)

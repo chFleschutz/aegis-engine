@@ -25,7 +25,7 @@ endif()
 
 # Slang shader compiler, from the same Vulkan SDK as the headers (Vulkan_INCLUDE_DIR is <sdk>/Include,
 # or <sdk>/x86_64/include on Linux). Found here, before any subdirectory: both shaders/ and aegis-test
-# (src/aegis/test) compile with it.
+# (aegis/test) compile with it.
 cmake_path(GET Vulkan_INCLUDE_DIR PARENT_PATH AEGIS_VULKAN_SDK_DIR)
 find_program(SLANGC_EXE slangc
     HINTS "${AEGIS_VULKAN_SDK_DIR}/Bin" "${AEGIS_VULKAN_SDK_DIR}/bin" "$ENV{VULKAN_SDK}/bin" "$ENV{VULKAN_SDK}/Bin"
@@ -35,7 +35,7 @@ include(cmake/AegisShaders.cmake)
 include(cmake/AegisGame.cmake)
 
 add_subdirectory(external SYSTEM)
-add_subdirectory(src)
+add_subdirectory(aegis)
 
 # The sample project (docs/asset-system.md, "Sample project"): the opt-in submodule samples/. The Examples game and
 # the device tests that load its assets need it; the library, the engine content and the unit tests never do.

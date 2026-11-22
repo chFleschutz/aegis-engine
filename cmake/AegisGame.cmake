@@ -9,7 +9,7 @@
 # Creates
 # - <Name>-module: the game's sources, compiled once. An OBJECT library, because a static one would let the
 #   linker drop object files nothing references, such as the one with AEGIS_GAME_MODULE.
-# - <Name>: the runtime executable, the launcher (src/aegis/launch/main.cpp, the only main()) plus the game.
+# - <Name>: the runtime executable, the launcher (aegis/launch/main.cpp, the only main()) plus the game.
 #   It doesn't link aegis-editor.
 # - <Name>-Editor: the same with the editor's shell (editor::EditorShell) installed.
 # Both look up the project as paths::locate does: --project, then project/ next to the executable, then PROJECT
@@ -27,7 +27,7 @@ function(aegis_add_game name)
     endif()
     cmake_path(ABSOLUTE_PATH G_PROJECT BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE)
     # Relative to this file, so a project that add_subdirectory()s the engine can call it too.
-    cmake_path(SET launcher NORMALIZE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../src/aegis/launch/main.cpp")
+    cmake_path(SET launcher NORMALIZE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../aegis/launch/main.cpp")
 
     add_library(${name}-module OBJECT ${G_SOURCES})
     target_link_libraries(${name}-module PUBLIC Aegis::Engine)
