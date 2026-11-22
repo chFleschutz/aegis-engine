@@ -194,7 +194,10 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
             return fail(std::format("The helmet's material must use the texture of '{}' that its own ID loads", image));
     }
 
-    const auto paintingId = library->id("materials/textures/painting.png");
+    const auto painting = library->id("materials/textures/painting.png");
+    if (!painting)
+        return fail(std::format("id() of a sample texture failed: {}", describe(painting.error())));
+    const auto paintingId = *painting;
     if (library->loadTexture(paintingId).get() != library->loadTexture(paintingId).get() || !library->loadTexture(paintingId))
         return fail("Loading one texture ID twice must return the same texture");
 

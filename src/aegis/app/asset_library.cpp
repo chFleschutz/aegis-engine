@@ -1,7 +1,3 @@
-module;
-
-#include <cstdlib>
-
 module aegis.asset_library;
 
 import std;
@@ -757,14 +753,11 @@ auto AssetLibrary::addFile(std::string_view path) -> std::expected<AssetId, Asse
     return *found;
 }
 
-auto AssetLibrary::id(std::string_view path, std::string_view key) const -> AssetId
+auto AssetLibrary::id(std::string_view path, std::string_view key) const -> std::expected<AssetId, AssetLibraryError>
 {
     const auto found = find(path, key);
     if (!found)
-    {
-        log::fatal("No asset '{}'{}{} in the project", path, key.empty() ? "" : " / ", key);
-        std::exit(EXIT_FAILURE);
-    }
+        return makeError(AssetLibraryErrorCode::NotFound, std::format("no asset '{}'{}{} in the project", path, key.empty() ? "" : " / ", key));
     return *found;
 }
 

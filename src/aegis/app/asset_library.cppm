@@ -59,9 +59,9 @@ public:
     ///        with '/') and a sub-asset key ("" for the file's main asset).
     [[nodiscard]] auto find(std::string_view path, std::string_view key = {}) const -> std::optional<assets::AssetId>;
 
-    /// @brief Like find, for code that has nothing to fall back on: an unknown path is logged and exits the
-    ///        process, like the engine's other setup errors.
-    [[nodiscard]] auto id(std::string_view path, std::string_view key = {}) const -> assets::AssetId;
+    /// @brief Like find, for code that reports a missing asset instead of skipping it.
+    /// @return NotFound, naming the path and key, for an unknown path.
+    [[nodiscard]] auto id(std::string_view path, std::string_view key = {}) const -> std::expected<assets::AssetId, AssetLibraryError>;
 
     /// @brief The asset 'id' names, loaded on first use. Types: assets::Texture, assets::StaticMesh,
     ///        assets::Material (a part of a model file, or a material file), assets::Environment and assets::Model.
