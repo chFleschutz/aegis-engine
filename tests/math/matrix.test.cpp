@@ -71,7 +71,7 @@ auto randomInvertible(Rng& rng) -> M
     }
 }
 
-// Compile-only checks: every glm form whose meaning would change is rejected (docs/math-library-plan.md,
+// Compile-only checks: every glm form whose meaning would change is rejected (docs/plans/math-library-plan.md,
 // "Migration hazards"), so a migration slip is a compile error rather than a silent transpose.
 template<typename M>
 concept SingleIndexable = requires(M m) { m[0]; };

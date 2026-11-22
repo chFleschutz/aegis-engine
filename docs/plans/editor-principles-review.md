@@ -1,6 +1,6 @@
 # Editor UX plan: the design principles against the editor
 
-A review of the editor as of `b2d2055a` against [`editor-ui-design-principles.md`](editor-ui-design-principles.md),
+A review of the editor as of `b2d2055a` against [`editor-ui-design-principles.md`](../editor-ui-design-principles.md),
 and the plan that follows from it. Each point of the principles is checked against the code, judged for whether it
 applies to this engine, and either closed, planned as an item, or deferred with the trigger that brings it back. Plan
 items are numbered **UX-n** for issues to cite. The earlier review (UI-01 to UI-33) is fully merged ([#272] to [#283]).
@@ -124,7 +124,7 @@ commands record while it is open. Continuous merging stays within one entry. **D
 order, the title, a group that changes nothing (dropped), and the saved marker. **Size:** S, editor-core only.
 
 ### UX-2: One write path for components
-**Here:** the inspector writes through `setField` and the storage's change hook (R1, the rule of [`0002-static-dynamic-hybrid.md`](adr/0002-static-dynamic-hybrid.md) in one place); the
+**Here:** the inspector writes through `setField` and the storage's change hook (R1, the rule of [`0002-static-dynamic-hybrid.md`](../adr/0002-static-dynamic-hybrid.md) in one place); the
 gizmo assigns `Transform` and calls `markStaticDirty` itself, and `instantiateAsset` sets the holder's location the
 same way. **Change:** both write through the same registry write as the inspector (a component write with the change
 hook in `core/inspector`). **Done when:** nothing under `ui/` calls `markStaticDirty`; a gizmo drag of a static entity

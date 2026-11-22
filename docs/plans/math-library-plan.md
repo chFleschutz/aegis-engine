@@ -5,7 +5,7 @@ required surface, gates) are in `math-library-plan.md` from the stray docs, the 
 them as given, adds what the spec left open, and settles the architecture, the consumer API, the
 implementation style and the PR sequence. Survey numbers are from `claude/math-library-plan` on
 2026-11-21. The decision is recorded in
-[`docs/adr/0013-own-generic-row-major-math-library.md`](adr/0013-own-generic-row-major-math-library.md).
+[`docs/adr/0013-own-generic-row-major-math-library.md`](../adr/0013-own-generic-row-major-math-library.md).
 
 **Deviations from the spec:**
 - The spec lists integer and `double` types as a non-goal. This plan keeps them out of the
@@ -506,7 +506,7 @@ Each PR follows AGENTS (worktree, `ctest -LE device` per commit, full `ctest` be
      `AGENTS.md` (math leaves the legacy list), `docs/agent-notes.md` (the `rowMajor4` note becomes
      "upload matrices as they are"), and an `aegis.math` paragraph in AGENTS "Code style" (row-major
      storage, column vectors, `[r, c]`, named default state, `*` vs `mul`, citing
-     [`docs/adr/0013-own-generic-row-major-math-library.md`](adr/0013-own-generic-row-major-math-library.md)).
+     [`docs/adr/0013-own-generic-row-major-math-library.md`](../adr/0013-own-generic-row-major-math-library.md)).
      These are coding rules, so they stay out of `GLOSSARY.md`.
    - Full `ctest` with device and golden tests, and screenshots of `simple` and `sponza`: a wrong
      hand rewrite shows as a wrong image, not a failed build.

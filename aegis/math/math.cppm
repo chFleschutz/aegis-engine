@@ -16,7 +16,7 @@ module;
 export module aegis.math;
 import std;
 
-// The generic types (docs/math-library-plan.md). They stand beside the glm wrapper below until the engine moves
+// The generic types (docs/plans/math-library-plan.md). They stand beside the glm wrapper below until the engine moves
 // to them; the names don't clash (PascalCase types, overloads by type).
 export import :scalar;
 export import :vector;

@@ -1,6 +1,6 @@
 # An own generic, row-major math library replaces glm
 
-Decided 2026-11-21, see [`docs/math-library-plan.md`](../math-library-plan.md).
+Decided 2026-11-21, see [`docs/plans/math-library-plan.md`](../plans/math-library-plan.md).
 
 `aegis.math` becomes the engine's own math library, and glm stays only as the test oracle. It is built
 from three class templates, `Vector<T, N>`, `Matrix<T, R, C>` and `Quaternion<T>`, constrained by
