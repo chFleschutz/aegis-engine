@@ -6,7 +6,7 @@
 # The engine uses libktx's KTX2 reader and writer: the files below, under 1 MB of the 550 MB repository (its tests,
 # tools, Basis Universal, the ASTC encoder and its copy of zstd are left out). They keep their upstream paths;
 # external/CMakeLists.txt builds them as the `ktx` target, against the zstd submodule (external/zstd) and with
-# external/ktx_stubs.c for the zlib and KTX1 code libktx refers to but the engine never runs. Only these files are
+# external/glue/ktx_stubs.c for the zlib and KTX1 code libktx refers to but the engine never runs. Only these files are
 # downloaded (a sparse, blob-filtered clone).
 #
 # Commit the result on its own ("Update KTX-Software to <tag>"); its hash goes into .git-blame-ignore-revs. A file

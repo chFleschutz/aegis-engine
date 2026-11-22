@@ -7,7 +7,7 @@ description: Diagnosis loop for hard bugs and performance regressions. Use when 
 
 A discipline for hard bugs. Skip phases only when explicitly justified. `<preset>` is
 `windows-clang-debug` on Windows and `linux-clang-debug` on Linux; `aegis-test` is
-`build/<preset>/src/aegis/test/aegis-test`.
+`build/<preset>/tests/device/aegis-test`.
 
 ## Hazard: a repro that hangs the GPU
 
@@ -55,7 +55,7 @@ above is the one limit on that.
 3. **Differential.** The same run CPU- vs GPU-driven (`--scene` vs `--gpu-driven`), or two commits in
    two worktrees. A bug on one side only cuts the suspects at once.
 4. **`--screenshot` against the reference images.** For a wrong image that validation doesn't report:
-   `--compare tests/golden/<name>.png --tolerance 0`, or `ctest --preset <preset> -L golden`. They
+   `--compare tests/device/golden/<name>.png --tolerance 0`, or `ctest --preset <preset> -L golden`. They
    were generated on the dev GPU, so they only hold on it.
 5. **`git bisect run`** for a bug between two known states, in its own worktree. Exit 125 skips a
    commit that doesn't build, and `--no-tests=error` stops a test name that matches nothing from

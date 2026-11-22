@@ -7,7 +7,7 @@ and checking that every light is shaded. The colors and IDs come from a fixed se
 same file.
 
 Usage: tools/generate-lights-scene.py [output] [lights]
-       (defaults: samples/content/scenes/stress/lights.scene and 1024 lights, e.g. 128 to compare)
+       (defaults: games/examples/project/content/scenes/stress/lights.scene and 1024 lights, e.g. 128 to compare)
 """
 
 import colorsys
@@ -116,7 +116,7 @@ def dump(scene):
 
 def main():
     root = Path(__file__).resolve().parent.parent
-    output = Path(sys.argv[1]) if len(sys.argv) > 1 else root / "samples" / "content" / "scenes" / "stress" / "lights.scene"
+    output = Path(sys.argv[1]) if len(sys.argv) > 1 else root / "games" / "examples" / "project" / "content" / "scenes" / "stress" / "lights.scene"
     light_count = int(sys.argv[2]) if len(sys.argv) > 2 else LIGHTS
     scene = build(light_count)
     output.write_text(dump(scene), encoding="utf-8", newline="\n")

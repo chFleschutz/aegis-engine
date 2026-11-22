@@ -5,7 +5,7 @@ About 10,000 cubes in groups of 100 under 100 group entities, plus a few chains 
 (not only its play world) is large, for measuring the editor's per-frame UI cost ("Editor UI" in the profiler) and the
 hierarchy at scale. The IDs come from a fixed seed, so running it again writes the same file.
 
-Usage: tools/generate-hierarchy-scene.py [output]   (default: samples/content/scenes/stress/hierarchy.scene)
+Usage: tools/generate-hierarchy-scene.py [output]   (default: games/examples/project/content/scenes/stress/hierarchy.scene)
 """
 
 import json
@@ -116,7 +116,7 @@ def dump(scene):
 
 def main():
     root = Path(__file__).resolve().parent.parent
-    output = Path(sys.argv[1]) if len(sys.argv) > 1 else root / "samples" / "content" / "scenes" / "stress" / "hierarchy.scene"
+    output = Path(sys.argv[1]) if len(sys.argv) > 1 else root / "games" / "examples" / "project" / "content" / "scenes" / "stress" / "hierarchy.scene"
     scene = build()
     output.write_text(dump(scene), encoding="utf-8", newline="\n")
     print(f"Wrote {len(scene['entities'])} entities to {output}")

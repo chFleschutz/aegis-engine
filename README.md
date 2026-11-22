@@ -66,7 +66,7 @@ Follow these steps to get started:
 
     ```bash
     git clone --recurse-submodules https://github.com/chFleschutz/aegis-engine.git
-    git -C aegis-engine submodule update --init --checkout samples
+    git -C aegis-engine submodule update --init --checkout games/examples/project
     ```
 
 2. Configure and build with a preset (`windows-clang-*` or `linux-clang-*`, each `-debug` or
@@ -77,8 +77,8 @@ Follow these steps to get started:
     cmake --build --preset windows-clang-debug
     ```
 
-3. Run one of the examples, e.g. `build/windows-clang-debug/examples/examples/Examples --scene scenes/sponza.scene`
-   (the scene files are in `samples/content/scenes`).
+3. Run one of the examples, e.g. `build/windows-clang-debug/games/examples/Examples --scene scenes/sponza.scene`
+   (the scene files are in `games/examples/project/content/scenes`).
 
 4. Optionally run the tests (the `device` tests need a Vulkan GPU; `-LE device` skips them):
 

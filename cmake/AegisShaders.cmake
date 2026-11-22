@@ -16,7 +16,7 @@
 # Outputs in OUTPUT_DIR that no longer belong to a source are removed at configure.
 #
 # Each (technique, surface shader) pair is compiled with -DSURFACE_MODULE=<the surface's module path, such as
-# surfaces.unlit> into <technique path without .slang>.<surface name>.spv (gpu-driven/geometry.unlit.spv), and again
+# surfaces.unlit> into <technique path without .slang>.<surface name>.spv (gpu_driven/geometry.unlit.spv), and again
 # with -DALPHA_MASK, the build for masked materials, into <...>.<surface name>.masked.spv. Each
 # surface shader also gets <its path without .slang>.layout.json (surfaces/unlit.layout.json): slangc's reflection
 # of its parameter block, from AegisSurfaceLayout.slang, which the material template loader checks templates against.

@@ -2,7 +2,7 @@
 
 Unit tests for **pure, GPU-independent logic** in any module (`rhi`, `assets`, `render_graph`, `render_passes`, `math`, `platform`,
 `world`). Scope is intentionally narrow: logic that survives the migration. Device-level integration
-stays in the harness (`../src/aegis/test/`), which CTest also runs headless as three
+stays in the harness (`device/`), which CTest also runs headless as three
 `device`-labelled tests (triangle, CPU- and GPU-driven scene).
 
 ## Quick start
@@ -34,25 +34,25 @@ Unit tests are not sufficient when a change touches live device code:
 
 ```
 cmake --build --preset windows-clang-debug --target aegis-test
-build\windows-clang-debug\src\aegis\test\aegis-test.exe --headless       # offscreen, 600 frames
-build\windows-clang-debug\src\aegis\test\aegis-test.exe --frames 600     # windowed, exits by itself
-build\windows-clang-debug\src\aegis\test\aegis-test.exe --headless --gpu-driven --screenshot frame.png
+build\windows-clang-debug\tests\device\aegis-test.exe --headless       # offscreen, 600 frames
+build\windows-clang-debug\tests\device\aegis-test.exe --frames 600     # windowed, exits by itself
+build\windows-clang-debug\tests\device\aegis-test.exe --headless --gpu-driven --screenshot frame.png
 ```
 
-`../src/aegis/test/` (`aegis-test`) is the only `main()` that checks a real `rhi::Device` for failures —
-the `examples/` targets run the same stack, but open a window and nothing fails them on an RHI
+`device/` (`aegis-test`) is the only `main()` that checks a real `rhi::Device` for failures —
+the `games/` targets run the same stack, but open a window and nothing fails them on an RHI
 regression. Debug builds enable core and synchronization validation; the harness exits non-zero on
 a failed check or any validation error. CTest runs the headless form (label `device`); the windowed
 form is the only check of surface, swapchain and present, so run it when those change. The commands
 above use Windows paths and the `windows-clang-debug` preset; on Linux use `linux-clang-debug` and
-`build/linux-clang-debug/src/aegis/test/aegis-test`. The windowed run also checks `platform::Input`
+`build/linux-clang-debug/tests/device/aegis-test`. The windowed run also checks `platform::Input`
 with synthetic key and mouse messages, on Windows only (other platforms skip that check).
 
 ### Reference images
 
 `aegis-test --headless --compare <png> [--tolerance <0-255>]` compares the last frame with a reference
 and exits non-zero on a mismatch, writing `<name>.diff.png` (differing pixels in red) next to
-`--screenshot`, or into the working directory. The references in `tests/golden/` (triangle, `--scene`,
+`--screenshot`, or into the working directory. The references in `tests/device/golden/` (triangle, `--scene`,
 `--gpu-driven`, both scene paths with `--mirror`, `--blend` and `--blend-swap`, `--post-process`, and Sponza on both paths with `--scene-file`) come from the dev GPU and run locally as `golden`-labelled device tests
 (`ctest --preset windows-clang-debug -L golden`); CI's lavapipe job runs the other device tests but
 excludes these (`-LE golden`): software rendering differs from the dev GPU's. Other
@@ -62,7 +62,7 @@ The scene runs use `--no-overlay`, since the stats window shows timings that cha
 `scenes/sponza.scene`, so editing those files changes their references too. When
 a render change is intended, regenerate the affected reference with the same arguments the test uses
 plus `--screenshot` (arguments are in `tests/CMakeLists.txt`), for example
-`aegis-test --headless --scene --frames 120 --no-overlay --screenshot tests/golden/scene.png`
+`aegis-test --headless --scene --frames 120 --no-overlay --screenshot tests/device/golden/scene.png`
 (triangle: `--headless --frames 120`; GPU-driven: `--headless --gpu-driven --frames 120 --no-overlay`),
 look at the image, and commit it with the change.
 
@@ -87,8 +87,8 @@ return, so test the behavior *around* them, not the abort.
 
 ## Layout and naming
 
-Tests live at root `tests/`, mirroring **module** names — not source paths, so the planned
-flattening of `src/aegis/` never moves them.
+Tests live at root `tests/`, mirroring **module** names — not source paths, so moving a module's
+folder under `aegis/` never moves them.
 
 ```
 tests/
@@ -97,6 +97,7 @@ tests/
   <module>/            # rhi, math, assets, render_graph, render_passes, world, platform
     CMakeLists.txt
     *.test.cpp
+  device/              # aegis-test, the device-level harness (not doctest), and its golden/ references
 ```
 
 | Thing        | Convention                                            | Example                          |
@@ -236,7 +237,7 @@ if a single module's test link becomes slow.
 **Why a shared `aegis-test-main`.** The doctest implementation compiles once into a static lib that
 every test executable links, instead of being recompiled into each one.
 
-**Why `CMAKE_CXX_SCAN_FOR_MODULES` is set here.** `tests/` sits outside the `src/aegis/` scope that
+**Why `CMAKE_CXX_SCAN_FOR_MODULES` is set here.** `tests/` sits outside the `aegis/` scope that
 enables module scanning, so `CMakeLists.txt` in this directory turns it on explicitly.
 
 Tests are gated behind `AEGIS_BUILD_TESTS` (defaults to on for a top-level build) in the root

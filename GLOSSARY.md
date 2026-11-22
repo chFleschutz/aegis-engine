@@ -136,7 +136,7 @@ One of a game's two executables: the runtime `<Name>`, or the editor `<Name>-Edi
 _Avoid_: build type, target
 
 **Launcher**:
-The engine's `main()`, `src/aegis/launch/main.cpp`, shared by both flavors of every game.
+The engine's `main()`, `aegis/launch/main.cpp`, shared by both flavors of every game.
 _Avoid_: bootstrap, game main
 
 **Shell**:
@@ -169,7 +169,7 @@ _Avoid_: action map, input settings
 ### Projects and assets
 
 **Project**:
-A game's folder of data, found by the launcher. The sample project is the `samples/` submodule.
+A game's folder of data, found by the launcher. The sample project is the `games/examples/project/` submodule.
 _Avoid_: game folder
 
 **Project file**:

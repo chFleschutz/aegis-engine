@@ -1,0 +1,225 @@
+module;
+
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <imgui_stdlib.h>
+
+#include "aegis/editor/theme.h"
+
+module aegis.editor;
+import std;
+import aegis.editor.core;
+import aegis.reflect;
+import :theme;
+import :widgets;
+
+namespace aegis::editor
+{
+auto barButton(const char* label) -> bool
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float inset = std::round(2.0f * theme::scale());
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ style.FramePadding.x, std::max(style.FramePadding.y - inset, 0.0f) });
+    const bool pressed = ImGui::ButtonEx(label, ImVec2{ 0.0f, 0.0f }, ImGuiButtonFlags_AlignTextBaseLine);
+    ImGui::PopStyleVar();
+    return pressed;
+}
+
+auto labelButton(const char* id, std::span<const LabelPart> parts, bool lit) -> bool
+{
+    float width = 0.0f;
+    for (const auto& part : parts)
+        width += part.gap + ImGui::CalcTextSize(part.text.c_str()).x;
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const ImVec2 padding{ style.FramePadding.x, std::max(style.FramePadding.y - std::round(2.0f * theme::scale()), 0.0f) };
+    bool pressed = false;
+    {
+        const theme::AccentFillScope fill{ lit };
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, padding);
+        const std::string label = std::format("##{}", id);
+        pressed = ImGui::ButtonEx(label.c_str(), ImVec2{ width + 2.0f * padding.x, ImGui::GetFontSize() + 2.0f * padding.y }, ImGuiButtonFlags_AlignTextBaseLine);
+        ImGui::PopStyleVar();
+    }
+    ImVec2 position{ ImGui::GetItemRectMin().x + padding.x, ImGui::GetItemRectMin().y + padding.y };
+    for (const auto& part : parts)
+    {
+        position.x += part.gap;
+        ImGui::GetWindowDrawList()->AddText(position, part.color, part.text.c_str());
+        position.x += ImGui::CalcTextSize(part.text.c_str()).x;
+    }
+    return pressed;
+}
+
+TabularText::TabularText()
+{
+    for (char digit = '0'; digit <= '9'; ++digit)
+        m_digit = std::max(m_digit, ImGui::CalcTextSize(&digit, &digit + 1).x);
+}
+
+auto TabularText::width(std::string_view text) const -> float
+{
+    float width = 0.0f;
+    for (const char& c : text)
+        width += std::isdigit(static_cast<unsigned char>(c)) ? m_digit : ImGui::CalcTextSize(&c, &c + 1).x;
+    return width;
+}
+
+void TabularText::draw(float x, float y, std::uint32_t color, std::string_view text) const
+{
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    for (const char& c : text)
+    {
+        const float advance = ImGui::CalcTextSize(&c, &c + 1).x;
+        const bool digit = std::isdigit(static_cast<unsigned char>(c));
+        drawList->AddText(ImVec2{ std::round(x + (digit ? (m_digit - advance) * 0.5f : 0.0f)), y }, color, &c, &c + 1);
+        x += digit ? m_digit : advance;
+    }
+}
+
+auto searchField(const char* id, const char* hint, std::string& text, int flags) -> bool
+{
+    // The text starts right of the icon: ImGui pads both ends alike, so the padding makes room for it at each
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float iconWidth = ImGui::CalcTextSize(theme::icons::search).x;
+    const float gap = std::round(style.ItemInnerSpacing.x * 0.5f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ style.FramePadding.x + iconWidth + gap, style.FramePadding.y });
+    const bool changed = ImGui::InputTextWithHint(id, hint, &text, flags);
+    ImGui::PopStyleVar();
+    const ImVec2 min = ImGui::GetItemRectMin();
+    ImGui::GetWindowDrawList()->AddText(ImVec2{ min.x + style.FramePadding.x, min.y + style.FramePadding.y }, theme::packed(theme::textMuted), theme::icons::search);
+    return changed;
+}
+
+auto entityIcon(EntityKind kind) -> const char*
+{
+    switch (kind)
+    {
+    case EntityKind::Camera:
+        return theme::icons::camera;
+    case EntityKind::DirectionalLight:
+        return theme::icons::sun;
+    case EntityKind::PointLight:
+        return theme::icons::light;
+    case EntityKind::SpotLight:
+        return theme::icons::spotLight;
+    case EntityKind::AmbientLight:
+        return theme::icons::ambientLight;
+    case EntityKind::Sky:
+        return theme::icons::environment;
+    case EntityKind::Mesh:
+        return theme::icons::mesh;
+    case EntityKind::SceneInstance:
+        return theme::icons::instance;
+    case EntityKind::Scripted:
+        return theme::icons::script;
+    case EntityKind::Group:
+        return theme::icons::group;
+    case EntityKind::Empty:
+        return theme::icons::empty;
+    }
+    return theme::icons::empty;
+}
+
+auto entityIconColor(EntityKind kind) -> std::uint32_t
+{
+    // The viewport's colors for the cameras and what lights the scene; meshes and instances their own
+    switch (kind)
+    {
+    case EntityKind::Camera:
+        return theme::packed(theme::cameraIcon);
+    case EntityKind::DirectionalLight:
+    case EntityKind::PointLight:
+    case EntityKind::SpotLight:
+    case EntityKind::AmbientLight:
+    case EntityKind::Sky:
+        return theme::packed(theme::lightIcon);
+    case EntityKind::Mesh:
+        return theme::packed(theme::meshIcon);
+    case EntityKind::SceneInstance:
+        return theme::packed(theme::instanceIcon);
+    default:
+        return theme::packed(theme::textDim);
+    }
+}
+
+auto componentIcon(const reflect::TypeInfo& type) -> const char*
+{
+    if (type.category == reflect::TypeCategory::Script)
+        return theme::icons::script;
+    // The engine's components by their registered names; a game's get the generic icon
+    static constexpr std::array<std::pair<std::string_view, const char*>, 11> icons{ {
+        { "Transform", theme::icons::transform },
+        { "DynamicTag", theme::icons::dynamic },
+        { "MainCamera", theme::icons::mainCamera },
+        { "Camera", theme::icons::camera },
+        { "AmbientLight", theme::icons::ambientLight },
+        { "DirectionalLight", theme::icons::sun },
+        { "PointLight", theme::icons::light },
+        { "SpotLight", theme::icons::spotLight },
+        { "MeshRenderer", theme::icons::mesh },
+        { "Sky", theme::icons::environment },
+        { "SceneInstance", theme::icons::instance },
+    } };
+    const auto it = std::ranges::find(icons, std::string_view{ type.name }, [](const auto& entry) { return entry.first; });
+    return it != icons.end() ? it->second : theme::icons::genericComponent;
+}
+
+auto assetIcon(AssetKind kind) -> const char*
+{
+    switch (kind)
+    {
+    case AssetKind::StaticMesh:
+        return theme::icons::mesh;
+    case AssetKind::Material:
+        return theme::icons::material;
+    case AssetKind::Texture:
+        return theme::icons::texture;
+    case AssetKind::Scene:
+        return theme::icons::scene;
+    case AssetKind::Environment:
+        return theme::icons::environment;
+    case AssetKind::Model:
+        return theme::icons::model;
+    case AssetKind::Other:
+        return theme::icons::file;
+    }
+    return theme::icons::file;
+}
+
+auto assetIconColor(AssetKind kind) -> std::uint32_t
+{
+    switch (kind)
+    {
+    case AssetKind::StaticMesh:
+        return theme::packed(theme::meshIcon);
+    case AssetKind::Material:
+        return theme::packed(theme::materialIcon);
+    case AssetKind::Texture:
+        return theme::packed(theme::textureIcon);
+    case AssetKind::Scene:
+        return theme::packed(theme::sceneIcon);
+    case AssetKind::Environment:
+        return theme::packed(theme::lightIcon);
+    case AssetKind::Model:
+        return theme::packed(theme::instanceIcon);
+    case AssetKind::Other:
+        return theme::packed(theme::textDim);
+    }
+    return theme::packed(theme::textDim);
+}
+
+auto acceptAssetPayload(const std::function<bool(const AssetPayload& payload)>& accepts) -> std::optional<AssetPayload>
+{
+    const ImGuiPayload* active = ImGui::GetDragDropPayload();
+    if (!active || !active->IsDataType(assetPayloadType) || active->DataSize != static_cast<int>(sizeof(AssetPayload)))
+        return std::nullopt;
+    AssetPayload payload;
+    std::memcpy(&payload, active->Data, sizeof(payload));
+    if (!accepts(payload))
+    {
+        ImGui::SetTooltip("%s", std::format("A {} cannot go here", payload.assetType()).c_str());
+        return std::nullopt;
+    }
+    return ImGui::AcceptDragDropPayload(assetPayloadType) ? std::optional{ payload } : std::nullopt;
+}
+}

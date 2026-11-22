@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates src/aegis/editor/ui/lucide.cppm, the codepoints of the Lucide icon font, from content/fonts/Lucide.ttf.
+"""Generates aegis/editor/lucide.cppm, the codepoints of the Lucide icon font, from content/fonts/Lucide.ttf.
 
   tools/update-lucide.py              regenerates the module from the committed font (checks its sha256 first)
   tools/update-lucide.py <version>    e.g. tools/update-lucide.py 1.61.0: downloads that lucide-static release's
@@ -30,7 +30,7 @@ FONTS = ROOT / "content" / "fonts"
 FONT = FONTS / "Lucide.ttf"
 LICENSE = FONTS / "Lucide-LICENSE.txt"
 VERSION = FONTS / "Lucide-VERSION.txt"
-MODULE = ROOT / "src" / "aegis" / "editor" / "ui" / "lucide.cppm"
+MODULE = ROOT / "aegis" / "editor" / "lucide.cppm"
 
 PACKAGE = "lucide-static"
 PRIVATE_USE = range(0xE000, 0xF900)

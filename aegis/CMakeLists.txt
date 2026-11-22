@@ -1,0 +1,23 @@
+set(CMAKE_CXX_SCAN_FOR_MODULES ON)
+set(AEGIS_MODULE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_subdirectory(engine)
+add_subdirectory(asset_library)
+add_subdirectory(render_bridge)
+
+add_subdirectory(core)
+add_subdirectory(paths)
+add_subdirectory(platform)
+add_subdirectory(rhi)
+add_subdirectory(renderer)
+add_subdirectory(assets)
+add_subdirectory(reflect)
+add_subdirectory(render_graph)
+add_subdirectory(render_passes)
+
+add_subdirectory(math)
+add_subdirectory(world)
+add_subdirectory(scripting)
+add_subdirectory(serialize)
+add_subdirectory(editor_core)
+add_subdirectory(editor)

@@ -80,7 +80,7 @@ my_game/
   without a search, a folder can't hold two, and renaming a game doesn't rename the file. It holds
   the committed settings in sections; `config/` takes sections over only when they outgrow one file
   (per-platform overrides, files tools rewrite often), a versioned migration like any format change.
-  Today it holds only the `input` section, the input map (`ProjectFile`, `src/aegis/app/project_file.cppm`),
+  Today it holds only the `input` section, the input map (`ProjectFile`, `aegis/engine/project_file.cppm`),
   and has no version yet; a project without one has the defaults.
 - **`CMakeLists.txt` is at the root,** where presets, `cmake -S .` and IDEs look. The engine does
   the work through `aegis_add_game`, so the file stays a few lines:
@@ -123,7 +123,7 @@ my_game/
 
 The examples, `aegis-test`'s scene checks and the device tests share one sample project,
 `aegis-samples`. It is a separate repository, because sample assets are large and the engine
-repository should stay small, and is checked out as the submodule `samples/`. It replaces
+repository should stay small, and is checked out as the submodule `games/examples/project/`. It replaces
 `aegis-assets`, whose name also clashes with the `aegis-assets` library target (#180).
 
 - **A project like any other.** It follows "Project layout": `project.aegis` once it needs settings,
@@ -141,7 +141,7 @@ repository should stay small, and is checked out as the submodule `samples/`. It
   sidecar that isn't committed gets a new ID on every clone, and scenes reference assets by ID.
 - **Opt-in.** `.gitmodules` sets `update = none` for it:
   `git clone --recurse-submodules` fetches the libraries but not the samples, and
-  `git submodule update --init --checkout samples` fetches them. The submodule pin ties every
+  `git submodule update --init --checkout games/examples/project` fetches them. The submodule pin ties every
   engine commit to the sample commit it was tested with.
 - **Full history, not shallow** (#327): it is barely larger than the pinned commit alone (86.5
   against 86.1 MiB in November 2026), and a shallow copy can't be a `--reference` for worktrees and
@@ -404,19 +404,19 @@ implemented synchronously first; the slot lets hot reload swap contents.
 
 ### Working with it today
 
-- **Where things live:** `aegis::AssetLibrary` (`src/aegis/app/asset_library.*`, target
+- **Where things live:** `aegis::AssetLibrary` (`aegis/asset_library/asset_library.*`, target
   `aegis-asset-library`) loads assets by `AssetId` and caches them by ID; components store
   `AssetRef<T>` (`MeshRenderer`, `Sky`). It scans two roots through `assets::AssetDatabase`: the project
   content (`paths::projectContent`, the samples for now, the only project folder scanned; dot-files and
   dot-folders are skipped) and the engine content (named in code as `assets::engine::white`, ...).
-- **Two modules:** `aegis.assets.data` (`src/aegis/assets/data/`) is the CPU side: IDs, the database,
+- **Two modules:** `aegis.assets.data` (`aegis/assets/data/`) is the CPU side: IDs, the database,
   sidecars, importers, the import cache and their data. It imports `aegis.rhi.types`, never `aegis.rhi`,
-  so rhi edits don't rebuild it. `aegis.assets` (`src/aegis/assets/`) re-exports it and adds what needs a
+  so rhi edits don't rebuild it. `aegis.assets` (`aegis/assets/`) re-exports it and adds what needs a
   device (`Texture`, `StaticMesh`, `Material`, the loader). New code that needs no device goes in `data/`.
 - **Code names assets by path inside the library:** `assets.id("models/basic/cube.obj")` (an
   `std::expected`: an unknown path is `NotFound`), then `aegis::instantiate(context, id)` for a model or
   scene file, or `assets.loadEnvironment(id)`. The
-  folders come from `aegis.paths` (lookup order in `src/aegis/paths/paths.cppm`); there is no other
+  folders come from `aegis.paths` (lookup order in `aegis/paths/paths.cppm`); there is no other
   `-D` path to add. `aegis-test`'s fixture shader (`AEGIS_TEST_SHADER_PATH`) is the one exception.
 - **Configure-time paths:** `AEGIS_SHADER_DIR`, `AEGIS_PROJECT_DIR`, `AEGIS_CONTENT_DIR` and
   `AEGIS_CACHE_DIR` are absolute, so moving or renaming the source or build tree breaks loading until

@@ -20,13 +20,13 @@ target_compile_definitions(imgui PUBLIC IMGUI_IMPL_VULKAN_NO_PROTOTYPES)
 add_subdirectory(imguizmo)
 
 # libktx's KTX2 reader and writer: the part of KTX-Software in ktx/ (tools/update-ktx.sh), built here
-# instead of through its CMakeLists.txt, which needs the whole repository. ktx_stubs.c stands in for the zlib and
+# instead of through its CMakeLists.txt, which needs the whole repository. glue/ktx_stubs.c stands in for the zlib and
 # KTX1 code it leaves out; version.h is what upstream's build generates. Its zstd supercompression is zstd's own.
 file(STRINGS ktx/IMPORTED_VERSION KTX_IMPORTED_VERSION LIMIT_COUNT 1)
 file(CONFIGURE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ktx-generated/version.h
     CONTENT "#define LIBKTX_VERSION ${KTX_IMPORTED_VERSION}\n#define LIBKTX_DEFAULT_VERSION v4.0.__default__\n")
 add_library(ktx STATIC
-    ktx_stubs.c
+    glue/ktx_stubs.c
     ktx/lib/checkheader.c
     ktx/lib/filestream.c
     ktx/lib/hashlist.c
@@ -66,7 +66,7 @@ add_subdirectory(meshoptimizer)
 
 # stb is header-only; its implementation is compiled once here, so the old and new texture code can
 # both decode images without duplicate symbols.
-add_library(stb STATIC stb_image_impl.cpp)
+add_library(stb STATIC glue/stb_image_impl.cpp)
 target_include_directories(stb SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(tinyobjloader)
@@ -86,7 +86,7 @@ add_subdirectory(glaze)
 
 # xxHash: XXH3_64 for entity ID derivation and cache keys. Its implementation is compiled once here;
 # include xxhash.h only in .cpp files.
-add_library(xxhash STATIC xxhash_impl.c)
+add_library(xxhash STATIC glue/xxhash_impl.c)
 target_include_directories(xxhash SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/xxhash)
 
 # zstd: libktx's supercompression. The static library only; its CMakeLists.txt is in build/cmake.

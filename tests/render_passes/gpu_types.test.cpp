@@ -175,7 +175,7 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(geometryFlags(pipelineState(key)) == GeometryFlags::CullBackFacing);
     }
 
-    TEST_CASE("StaticMeshConstants matches cpu-driven/geometry.slang")
+    TEST_CASE("StaticMeshConstants matches cpu_driven/geometry.slang")
     {
         CHECK(offsetof(StaticMeshConstants, model) == 0);
         CHECK(offsetof(StaticMeshConstants, normalRow0) == 48);
@@ -187,7 +187,7 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(sizeof(StaticMeshConstants) == 112);
     }
 
-    TEST_CASE("ForwardConstants matches cpu-driven/forward.slang")
+    TEST_CASE("ForwardConstants matches cpu_driven/forward.slang")
     {
         CHECK(offsetof(ForwardConstants, model) == 0);
         CHECK(offsetof(ForwardConstants, normalRow0) == 48);

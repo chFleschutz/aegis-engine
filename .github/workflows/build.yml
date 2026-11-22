@@ -67,7 +67,7 @@ jobs:
       # the device tests load it, and without it CMake doesn't build the examples or register those tests.
       - name: Check out the samples
         if: ${{ matrix.lavapipe }}
-        run: git submodule update --init --checkout samples
+        run: git submodule update --init --checkout games/examples/project
 
       # The downloaded .debs are cached (keyed on the runner image, the LLVM version and the package list),
       # so a warm run installs from local files and only apt-get update touches the mirror.

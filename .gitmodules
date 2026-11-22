@@ -29,7 +29,7 @@
 	path = external/vma
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
 [submodule "samples"]
-	path = samples
+	path = games/examples/project
 	url = https://github.com/chFleschutz/aegis-samples.git
 	update = none
 [submodule "external/doctest"]

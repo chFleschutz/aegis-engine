@@ -15,7 +15,7 @@
 # barely larger than the pinned commit (#327), and zstd's pinned release isn't the tip of its
 # default branch, so a depth-1 clone fetches the release's whole history anyway (41 MB, against
 # 43 MB for a full clone; #370). An older main checkout still has shallow copies; run once there,
-# so worktrees share them: `git -C samples fetch --unshallow` if it was cloned before #327, and
+# so worktrees share them: `git -C games/examples/project fetch --unshallow` if it was cloned before #327, and
 # `git -C external/zstd fetch --unshallow` if before #370.
 #
 # The worktree's submodules depend on the main checkout's submodule object stores. To make one

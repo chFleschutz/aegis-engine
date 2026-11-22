@@ -40,23 +40,23 @@ TEST_SUITE("render_passes::techniqueShader")
     {
         const MaterialVariant unlit{ .materialTemplate = std::make_shared<const MaterialTemplate>("unlit") };
         const MaterialVariant pbr{ .materialTemplate = std::make_shared<const MaterialTemplate>("pbr") };
-        CHECK(techniqueShader("gpu-driven/geometry", unlit) == "gpu-driven/geometry.unlit.spv");
-        CHECK(techniqueShader("cpu-driven/geometry", pbr) == "cpu-driven/geometry.pbr.spv");
+        CHECK(techniqueShader("gpu_driven/geometry", unlit) == "gpu_driven/geometry.unlit.spv");
+        CHECK(techniqueShader("cpu_driven/geometry", pbr) == "cpu_driven/geometry.pbr.spv");
     }
 
     TEST_CASE("names the masked build for a masked variant")
     {
         MaterialVariant variant{ .materialTemplate = std::make_shared<const MaterialTemplate>("pbr"), .alphaMode = AlphaMode::Mask };
-        CHECK(techniqueShader("gpu-driven/geometry", variant) == "gpu-driven/geometry.pbr.masked.spv");
+        CHECK(techniqueShader("gpu_driven/geometry", variant) == "gpu_driven/geometry.pbr.masked.spv");
         variant.cullMode = CullMode::None;
-        CHECK(techniqueShader("cpu-driven/geometry", variant) == "cpu-driven/geometry.pbr.masked.spv");
+        CHECK(techniqueShader("cpu_driven/geometry", variant) == "cpu_driven/geometry.pbr.masked.spv");
     }
 
     TEST_CASE("names the plain build for an opaque or blended variant")
     {
         const auto pbrTemplate = std::make_shared<const MaterialTemplate>("pbr");
-        CHECK(techniqueShader("gpu-driven/geometry", MaterialVariant{ .materialTemplate = pbrTemplate, .cullMode = CullMode::None }) == "gpu-driven/geometry.pbr.spv");
-        CHECK(techniqueShader("gpu-driven/geometry", MaterialVariant{ .materialTemplate = pbrTemplate, .alphaMode = AlphaMode::Blend }) == "gpu-driven/geometry.pbr.spv");
+        CHECK(techniqueShader("gpu_driven/geometry", MaterialVariant{ .materialTemplate = pbrTemplate, .cullMode = CullMode::None }) == "gpu_driven/geometry.pbr.spv");
+        CHECK(techniqueShader("gpu_driven/geometry", MaterialVariant{ .materialTemplate = pbrTemplate, .alphaMode = AlphaMode::Blend }) == "gpu_driven/geometry.pbr.spv");
     }
 }
 

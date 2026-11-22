@@ -16,7 +16,7 @@
     Look at the PNG with an image viewer or your file-reading tool. Paths are relative to the current location.
 
 .EXAMPLE
-    tools/capture-window.ps1 -Exe build/windows-clang-debug/examples/examples/Examples-Editor.exe -Arguments '--scene','scenes/sponza.scene' -Png sponza.png
+    tools/capture-window.ps1 -Exe build/windows-clang-debug/games/examples/Examples-Editor.exe -Arguments '--scene','scenes/sponza.scene' -Png sponza.png
 
 .EXAMPLE
     tools/capture-window.ps1 -Name Examples-Editor -Png now.png -Seconds 0

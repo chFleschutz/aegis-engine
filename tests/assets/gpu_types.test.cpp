@@ -92,8 +92,8 @@ TEST_SUITE("assets::gpu_types")
 
     TEST_CASE("the mesh shader sizes its output arrays by the shared meshlet limits")
     {
-        const auto source = shaderSource("gpu-driven/geometry.slang");
-        REQUIRE_MESSAGE(!source.empty(), "shaders/gpu-driven/geometry.slang not found");
+        const auto source = shaderSource("gpu_driven/geometry.slang");
+        REQUIRE_MESSAGE(!source.empty(), "shaders/gpu_driven/geometry.slang not found");
         CHECK(source.contains("meshVertices[MESHLET_MAX_VERTICES]"));
         CHECK(source.contains("meshPrimitives[MESHLET_MAX_PRIMITIVES]"));
     }
