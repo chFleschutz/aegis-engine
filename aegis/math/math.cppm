@@ -160,13 +160,13 @@ export namespace aegis::math
 }
 
 /// @brief The element in row `r`, column `c` of the 3x4 matrix `m`: `m[r, c]` in the new library
-[[nodiscard]] inline auto element(glm::mat3x4& m, int r, int c) -> float&
+[[nodiscard]] constexpr auto element(glm::mat3x4& m, int r, int c) -> float&
 {
     return m[r][c];
 }
 
 /// @brief The element in row `r`, column `c` of the 3x4 matrix `m`: `m[r, c]` in the new library
-[[nodiscard]] inline auto element(const glm::mat3x4& m, int r, int c) -> float
+[[nodiscard]] constexpr auto element(const glm::mat3x4& m, int r, int c) -> float
 {
     return m[r][c];
 }
@@ -194,7 +194,7 @@ export namespace aegis::math
     element(projection, 0, 0) = 1.0f / halfWidth;
     element(projection, 1, 1) = -1.0f / halfHeight;
     element(projection, 2, 2) = -1.0f / (far - near);
-    element(projection, 2, 3) = -near / (far - near);
+    element(projection, 2, 3) = (0.0f - near) / (far - near); // +0 at near = 0, as orthographic<T>
     return projection;
 }
 

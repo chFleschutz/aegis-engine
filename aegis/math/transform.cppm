@@ -146,7 +146,7 @@ template<std::floating_point T>
     projection[0, 0] = T{ 1 } / halfWidth;
     projection[1, 1] = T{ -1 } / halfHeight;
     projection[2, 2] = T{ -1 } / (far - near);
-    projection[2, 3] = -near / (far - near);
+    projection[2, 3] = (T{ 0 } - near) / (far - near); // +0 at near = 0, as the hand-written sun shadow projection had
     return projection;
 }
 }

@@ -14,7 +14,7 @@ export namespace aegis::render_graph::detail
 }
 
 /// @brief Whether two model matrices (Instance::model) are equal, element by element.
-[[nodiscard]] inline auto sameModel(const glm::mat3x4& a, const glm::mat3x4& b) noexcept -> bool
+[[nodiscard]] constexpr auto sameModel(const glm::mat3x4& a, const glm::mat3x4& b) noexcept -> bool
 {
     for (int row = 0; row < 3; ++row)
     {

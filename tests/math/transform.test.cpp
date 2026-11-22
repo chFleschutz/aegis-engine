@@ -275,6 +275,9 @@ TEST_SUITE("math::projection")
         expected[1, 1] = -1.0f / halfWidth;
         expected[2, 2] = -1.0f / depth;
         expected[2, 3] = 0.0f;
-        CHECK(math::orthographic<float>(halfWidth, halfWidth, 0.0f, depth) == expected);
+        const auto projection = math::orthographic<float>(halfWidth, halfWidth, 0.0f, depth);
+        CHECK(projection == expected);
+        // +0, not -0, so the sun shadow projection keeps its bits when it moves onto the builder
+        CHECK_FALSE(std::signbit(projection[2, 3]));
     }
 }
