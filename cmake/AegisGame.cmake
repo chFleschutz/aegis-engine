@@ -19,7 +19,7 @@
 # copied or installed game is the export step's job (#134). With tests on, <Name> renders headless as a
 # `device` test: once per scene of SCENES (game-<name>-<scene file stem>), else once with its startup scene.
 # <Name>-Editor runs headless too (game-<name>-editor, -editor-default, -editor-play, -editor-play-stop, -editor-full and
-# -editor-folded, and with SCENES -editor-stats). A missing asset only logs a warning and renders a fallback, so that warning fails the test too.
+# -editor-folded, and with SCENES -editor-stats; with SCENES every variant but -editor and -editor-stats also carries the label `slow`). A missing asset only logs a warning and renders a fallback, so that warning fails the test too.
 function(aegis_add_game name)
     cmake_parse_arguments(G "" "PROJECT;EDITOR_SELECT" "SOURCES;SCENES" ${ARGN})
     if(NOT G_SOURCES OR NOT G_PROJECT)
@@ -74,6 +74,11 @@ function(aegis_add_game name)
             list(APPEND editor_args --scene ${first})
         endif()
         file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/screenshots")
+        # A game with SCENES loads its first scene under the editor, which is slow on a software driver: each of these
+        # takes ~50 s on lavapipe, against ~10 s without a scene. They run the same editor state as the twins of a
+        # game without SCENES (Template), so they get the label `slow` and CI's lavapipe games shard skips them
+        # (-LE slow); a local ctest runs them all. The all-panels and -stats runs stay: they select an entity and need the scene.
+        set(scene_duplicate_variants "-default" "-play" "-play-stop" "-full" "-folded")
         foreach(variant IN ITEMS "" "-default" "-play" "-play-stop" "-full" "-folded")
             set(editor_test game-${lowered}-editor${variant})
             set(variant_args ${editor_args})
@@ -96,7 +101,11 @@ function(aegis_add_game name)
             endif()
             add_test(NAME ${editor_test} COMMAND ${name}-Editor ${variant_args}
                 --screenshot "${PROJECT_BINARY_DIR}/screenshots/${editor_test}.png")
-            set_tests_properties(${editor_test} PROPERTIES LABELS "device;game;editor" RESOURCE_LOCK gpu TIMEOUT 300
+            set(editor_labels "device;game;editor")
+            if(G_SCENES AND variant IN_LIST scene_duplicate_variants)
+                list(APPEND editor_labels slow)
+            endif()
+            set_tests_properties(${editor_test} PROPERTIES LABELS "${editor_labels}" RESOURCE_LOCK gpu TIMEOUT 300
                 FAIL_REGULAR_EXPRESSION "Failed to load;play never stopped")
         endforeach()
         # During play the editor's statistics must count the play world: the check adds an instance that draws nothing

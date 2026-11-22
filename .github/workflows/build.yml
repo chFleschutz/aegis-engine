@@ -51,7 +51,7 @@ jobs:
           - config: debug
             lavapipe: true
             shard: games
-            ctest_filter: -L game
+            ctest_filter: -L game -LE slow
           - config: debug
             lavapipe: true
             shard: scenes

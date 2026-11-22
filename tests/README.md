@@ -66,6 +66,13 @@ plus `--screenshot` (arguments are in `tests/CMakeLists.txt`), for example
 (triangle: `--headless --frames 120`; GPU-driven: `--headless --gpu-driven --frames 120 --no-overlay`),
 look at the image, and commit it with the change.
 
+### Slow tests
+
+Label `slow` marks device tests that CI's lavapipe games shard skips (`-L game -LE slow`) because a software
+driver makes them the longest checks: the editor variants of a game with `SCENES` (`aegis_add_game`) that a
+scene-less game's twin already covers. Local `ctest` runs them and writes their screenshots to
+`<build>/screenshots/`; `ctest -N -L slow` lists them.
+
 ## What we test
 
 Pure logic that needs no live `rhi::Device`: ring/offset math, free lists, generational handles,
