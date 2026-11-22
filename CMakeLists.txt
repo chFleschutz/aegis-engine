@@ -37,14 +37,14 @@ include(cmake/AegisGame.cmake)
 add_subdirectory(external SYSTEM)
 add_subdirectory(aegis)
 
-# The sample project (docs/asset-system.md, "Sample project"): the opt-in submodule samples/. The Examples game and
+# The sample project (docs/asset-system.md, "Sample project"): the opt-in submodule games/examples/project/. The Examples game and
 # the device tests that load its assets need it; the library, the engine content and the unit tests never do.
-if(PROJECT_IS_TOP_LEVEL AND EXISTS "${PROJECT_SOURCE_DIR}/samples/content")
+if(PROJECT_IS_TOP_LEVEL AND EXISTS "${PROJECT_SOURCE_DIR}/games/examples/project/content")
     set(AEGIS_SAMPLES ON)
 else()
     set(AEGIS_SAMPLES OFF)
     if(PROJECT_IS_TOP_LEVEL)
-        message(STATUS "Samples not checked out, so the Examples game and the device tests that load them are skipped. Opt in with: git submodule update --init --checkout samples")
+        message(STATUS "Samples not checked out, so the Examples game and the device tests that load them are skipped. Opt in with: git submodule update --init --checkout games/examples/project")
     endif()
 endif()
 
@@ -66,7 +66,7 @@ if(AEGIS_BUILD_BENCHMARKS)
 endif()
 
 if(BUILD_EXAMPLES AND PROJECT_IS_TOP_LEVEL)
-    add_subdirectory(examples)
+    add_subdirectory(games)
 endif()
 
 # Print configuration
