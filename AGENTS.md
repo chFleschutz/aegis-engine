@@ -39,7 +39,7 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
   A change to the samples is a PR in aegis-samples (branch from its `origin/main`); the engine PR
   bumps the `samples` pointer to that commit and says to merge the samples PR first.
 - Vendored files (`external/ktx`, the editor's Lucide icon font and its generated
-  `aegis/editor/ui/lucide.cppm`) change only through their `tools/update-*` script, committed on
+  `aegis/editor/lucide.cppm`) change only through their `tools/update-*` script, committed on
   its own.
 
 > **Vulkan SDK 1.4.363.0 is pinned** (CI uses the same): the RHI imports the SDK's Vulkan-Hpp module

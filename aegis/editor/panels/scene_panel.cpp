@@ -4,7 +4,7 @@ module;
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
 
-#include "aegis/editor/ui/theme.h"
+#include "aegis/editor/theme.h"
 
 module aegis.editor;
 import std;

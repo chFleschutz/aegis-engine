@@ -65,33 +65,33 @@ replaced the hand-written type lists and `ComponentTraits` with the type registr
 ### Module layout
 
 ```
-aegis/editor/
-├─ core/                          aegis-editor-core, module aegis.editor.core (no ImGui)
-│  ├─ context          EditorContext: project, edit/play worlds, selection, undo stack, play state
-│  ├─ selection        set of StableIds + the active one; drops entities that no longer exist
-│  ├─ commands         Command interface; SetField, Rename, Create/Destroy/Duplicate entity,
-│  │                   Add/Remove component, Attach/Detach script, Reparent
-│  ├─ undo_stack       history, merging of continuous edits, the saved marker (dirty flag)
-│  ├─ scene_document   SceneDocument: the current scene file, the action waiting on the unsaved-changes
-│  │                   prompt or Save As, autosave timing and recovery
-│  ├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, limits, unit, readOnly}
-│  ├─ inspector        the components and scripts an entity shows and can add; field writes + change hook
-│  ├─ hierarchy_model  entity tree as rows in sibling order, with the name filter; pure
-│  ├─ play_session     Edit -> Playing <-> Paused -> Edit, step
-│  ├─ editor_camera    fly/orbit/pan/dolly/focus math -> view, projection and picking rays
-│  ├─ picking          ray against bounding spheres, icon hits in screen space
-│  └─ settled_extent   the viewport's render size, applied once the panel's size settles
-└─ ui/                            aegis-editor, module aegis.editor (ImGui in .cpp only)
-   ├─ editor_shell     implements Shell; owns the context, the viewport and the workspace; menus, status bar, scene
-   ├─ workspace        the panels and where they sit: dockspace, column and rail, drawer and pins, full viewport
-   ├─ actions          action registry: id, label, shortcut, enabled(), run()
-   ├─ theme            colors, sizes, fonts and icons in one place (theme.h: tokens)
-   ├─ edits            the world edits the menus and panels share (undo, redo, duplicate, delete, instantiate)
-   ├─ widgets          the widgets the panels and bars share: bar buttons, hints, search fields, icons, Create menu
-   ├─ statistics       the summary numbers of the Statistics panel and the stats overlay, and their check
-   ├─ viewport         scene view: editor camera input, ImGuizmo inside the image rect, icons, picking
-   └─ panels/          hierarchy, inspector, content, console, renderer, profiler,
-                       statistics, project settings
+aegis/editor_core/                aegis-editor-core, module aegis.editor.core (no ImGui)
+├─ context          EditorContext: project, edit/play worlds, selection, undo stack, play state
+├─ selection        set of StableIds + the active one; drops entities that no longer exist
+├─ commands         Command interface; SetField, Rename, Create/Destroy/Duplicate entity,
+│                   Add/Remove component, Attach/Detach script, Reparent
+├─ undo_stack       history, merging of continuous edits, the saved marker (dirty flag)
+├─ scene_document   SceneDocument: the current scene file, the action waiting on the unsaved-changes
+│                   prompt or Save As, autosave timing and recovery
+├─ property_model   TypeInfo/FieldInfo + metadata -> rows {label, widget, limits, unit, readOnly}
+├─ inspector        the components and scripts an entity shows and can add; field writes + change hook
+├─ hierarchy_model  entity tree as rows in sibling order, with the name filter; pure
+├─ play_session     Edit -> Playing <-> Paused -> Edit, step
+├─ editor_camera    fly/orbit/pan/dolly/focus math -> view, projection and picking rays
+├─ picking          ray against bounding spheres, icon hits in screen space
+└─ settled_extent   the viewport's render size, applied once the panel's size settles
+
+aegis/editor/                     aegis-editor, module aegis.editor (ImGui in .cpp only)
+├─ editor_shell     implements Shell; owns the context, the viewport and the workspace; menus, status bar, scene
+├─ workspace        the panels and where they sit: dockspace, column and rail, drawer and pins, full viewport
+├─ actions          action registry: id, label, shortcut, enabled(), run()
+├─ theme            colors, sizes, fonts and icons in one place (theme.h: tokens)
+├─ edits            the world edits the menus and panels share (undo, redo, duplicate, delete, instantiate)
+├─ widgets          the widgets the panels and bars share: bar buttons, hints, search fields, icons, Create menu
+├─ statistics       the summary numbers of the Statistics panel and the stats overlay, and their check
+├─ viewport         scene view: editor camera input, ImGuizmo inside the image rect, icons, picking
+└─ panels/          hierarchy, inspector, content, console, renderer, profiler,
+                    statistics, project settings
 ```
 
 `Panel` is a small interface (`name()`, `draw(EditorContext&)`, `open` flag). It says where it sits with one
@@ -282,7 +282,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   `SkinnedMesh`, curves). A game registers drawers from its editor-only sources. Nothing in the
   runtime knows about them.
 - **Reset and copy:** a right click on a component or script header opens a menu of Reset (the values of a default instance, `TypeInfo::create`), Copy and Paste (field values as one JSON object
-  of `toText` text on the system clipboard, in `core/component_text`; a paste only applies to the same type and skips
+  of `toText` text on the system clipboard, in `editor_core/component_text`; a paste only applies to the same type and skips
   read-only fields) and Remove (Detach for a script). Reset and Paste are one `ComponentEdit` each, so one undo
   reverts them. An entity's ⋮ menu beside its name offers Copy ID; the ID otherwise shows in the name's tooltip.
   The "Add..." popup's search field filters components and scripts by name and category; Enter adds the first match.
@@ -294,7 +294,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - **Undo stack:** commands with `apply` / `revert` on a `World`, merged by key (same entity, type and
   field, within one interaction), with a saved marker. The dirty flag is "position != saved". It is
   pure and tested on a device-less world ([#165]). Edit → Undo and Redo name the edit they would take
-  ("Undo Move 'Helmet'", `editTitle` in `core/edits`; [#281]).
+  ("Undo Move 'Helmet'", `editTitle` in `editor_core/edits`; [#281]).
 - **Hierarchy:** rows come from `Parent` / `Children` / `Siblings`, walked iteratively (as today),
   with a name filter (matching rows keep their ancestors). Drag and drop reparents and reorders,
   rejecting cycles (`Registry::isInSubtree`). F2 renames, Del deletes, Ctrl+D duplicates, F frames the entity. One Create menu (Empty, then
@@ -422,7 +422,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 
 ## UI design
 
-Decided in E8 ([#204]) and built: the theme is `ui/theme.h` (the tokens), `ui/theme.cppm` (the icons) and `ui/theme.cpp` (the
+Decided in E8 ([#204]) and built: the theme is `editor/theme.h` (the tokens), `editor/theme.cppm` (the icons) and `editor/theme.cpp` (the
 fonts and the style), the layout is `Workspace::drawDockspace`. What the owner's workflow and scale trials show (below) tunes the
 tokens, not this structure.
 
@@ -526,7 +526,7 @@ tokens, not this structure.
 ### Visual style
 
 - **Theme:** dark neutral grays with one accent, a muted blue (`#4A8CD9`), for selection and the active tab.
-  The play state has its own tint. Every color is a named token in `ui/theme.h` (backgrounds, text, accent,
+  The play state has its own tint. Every color is a named token in `editor/theme.h` (backgrounds, text, accent,
   warning, error, play tint, axis X/Y/Z, viewport icons), never an inline value. Text reaches 4.5:1 (WCAG 2) on
   every background it is drawn on, disabled controls excepted; each token's comment gives its ratios. Filled
   controls take a darker shade of the accent (`#2A5D9C`), and read-only content (instance members, engine content)
@@ -546,14 +546,14 @@ tokens, not this structure.
   ImGui 1.92 rasterizes fonts at any size, so one file per family covers every scale. Inter has alternate
   glyphs in the private-use area where Lucide's icons live: Inter excludes that range, so Lucide's win. The
   codepoints are generated, never typed: `tools/update-lucide.py` reads the font's glyph names into the partition
-  `:lucide` (`ui/lucide.cppm`: every icon, `lucide::mousePointer2`), and `:theme` names the ones the editor uses
+  `:lucide` (`editor/lucide.cppm`: every icon, `lucide::mousePointer2`), and `:theme` names the ones the editor uses
   (`icons::select = lucide::mousePointer2`). `content/fonts/Lucide-VERSION.txt` records the release and the font's
   hash; `tools/update-lucide.py <version>` updates the font, its license and the module in one step.
 - **Inspector and hierarchy polish:** the inspector is a two-column grid, vector fields carry thin axis strips,
   and component headers carry icons. Each entity kind (`entityKind`: camera, directional, point and ambient light,
   sky, mesh, scene instance, scripted, group, empty) has an icon and a color (`entityIcon`, `entityIconColor`),
   shown in its hierarchy row and the inspector's header. Bold non-default values are a follow-up.
-- **Shortcuts:** one action registry (`ui/actions.cppm`: id, label, chord, `enabled()`, `run()`) feeds the
+- **Shortcuts:** one action registry (`editor/actions.cppm`: id, label, chord, `enabled()`, `run()`) feeds the
   menus, the tooltips and the shortcut handler, which skips a frame while a text box has the keyboard.
 
   | Action | Shortcut |

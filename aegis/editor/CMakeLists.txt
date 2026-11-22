@@ -1,77 +1,3 @@
-# The editor's model: selection, the shared context, the editor camera, picking, the inspector's property model, the edits and undo history, and scene files and their autosaves. No ImGui, no GPU; tested by aegis-tests-editor.
-add_library(aegis-editor-core STATIC)
-
-target_link_libraries(aegis-editor-core
-    PUBLIC
-        aegis-core
-        aegis-math
-        aegis-reflect
-        aegis-serialize # Subtree snapshots of the structural edits, the play copy and scene files
-        aegis-world
-    PRIVATE
-        aegis-scripting # Attaching and detaching scripts
-        glaze::glaze
-)
-
-target_sources(aegis-editor-core
-    PUBLIC
-    FILE_SET CXX_MODULES FILES
-    core/core.cppm
-    core/asset_browser.cppm
-    core/autosave.cppm
-    core/chord.cppm
-    core/color.cppm
-    core/console.cppm
-    core/commands.cppm
-    core/component_text.cppm
-    core/context.cppm
-    core/drawers.cppm
-    core/edits.cppm
-    core/error.cppm
-    core/full_viewport.cppm
-    core/editor_camera.cppm
-    core/hierarchy.cppm
-    core/inspector.cppm
-    core/picking.cppm
-    core/play.cppm
-    core/preferences.cppm
-    core/property_model.cppm
-    core/recent_scenes.cppm
-    core/scene_document.cppm
-    core/scene_file.cppm
-    core/selection.cppm
-    core/side_rail.cppm
-    core/settled_extent.cppm
-    core/undo_stack.cppm
-    PRIVATE
-    core/asset_browser.cpp
-    core/autosave.cpp
-    core/chord.cpp
-    core/color.cpp
-    core/commands.cpp
-    core/component_text.cpp
-    core/console.cpp
-    core/context.cpp
-    core/drawers.cpp
-    core/edits.cpp
-    core/error.cpp
-    core/full_viewport.cpp
-    core/editor_camera.cpp
-    core/hierarchy.cpp
-    core/inspector.cpp
-    core/picking.cpp
-    core/play.cpp
-    core/preferences.cpp
-    core/property_model.cpp
-    core/recent_scenes.cpp
-    core/scene_document.cpp
-    core/scene_file.cpp
-    core/selection.cpp
-    core/side_rail.cpp
-    core/settled_extent.cpp
-    core/undo_stack.cpp
-)
-
 # The editor's ImGui layer: EditorShell and the panels. Only a game's <Game>-Editor links it (aegis_add_game).
 add_library(aegis-editor STATIC)
 
@@ -103,40 +29,40 @@ target_compile_definitions(aegis-editor PRIVATE AEGIS_VERSION="${AegisEngine_VER
 target_sources(aegis-editor
     PUBLIC
     FILE_SET CXX_MODULES FILES
-    ui/actions.cppm
-    ui/edits.cppm
-    ui/editor.cppm
-    ui/editor_shell.cppm
-    ui/lucide.cppm
-    ui/options.cppm
-    ui/panel.cppm
-    ui/panels.cppm
-    ui/statistics.cppm
-    ui/theme.cppm
-    ui/viewport.cppm
-    ui/widgets.cppm
-    ui/workspace.cppm
+    actions.cppm
+    edits.cppm
+    editor.cppm
+    editor_shell.cppm
+    lucide.cppm
+    options.cppm
+    panel.cppm
+    panels.cppm
+    statistics.cppm
+    theme.cppm
+    viewport.cppm
+    widgets.cppm
+    workspace.cppm
     PRIVATE
-    ui/actions.cpp
-    ui/create_menu.cpp
-    ui/edits.cpp
-    ui/editor_shell.cpp
-    ui/hint.cpp
-    ui/options.cpp
-    ui/panels/about_panel.cpp
-    ui/panels/all_entities_panel.cpp
-    ui/panels/content_panel.cpp
-    ui/panels/console_panel.cpp
-    ui/panels/preferences_panel.cpp
-    ui/panels/inspector_panel.cpp
-    ui/panels/profiler_panel.cpp
-    ui/panels/renderer_panel.cpp
-    ui/panels/scene_panel.cpp
-    ui/panels/shortcuts_panel.cpp
-    ui/panels/statistics_panel.cpp
-    ui/statistics.cpp
-    ui/theme.cpp
-    ui/viewport.cpp
-    ui/widgets.cpp
-    ui/workspace.cpp
+    actions.cpp
+    create_menu.cpp
+    edits.cpp
+    editor_shell.cpp
+    hint.cpp
+    options.cpp
+    panels/about_panel.cpp
+    panels/all_entities_panel.cpp
+    panels/content_panel.cpp
+    panels/console_panel.cpp
+    panels/preferences_panel.cpp
+    panels/inspector_panel.cpp
+    panels/profiler_panel.cpp
+    panels/renderer_panel.cpp
+    panels/scene_panel.cpp
+    panels/shortcuts_panel.cpp
+    panels/statistics_panel.cpp
+    statistics.cpp
+    theme.cpp
+    viewport.cpp
+    widgets.cpp
+    workspace.cpp
 )
