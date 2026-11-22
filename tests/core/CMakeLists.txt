@@ -1,4 +1,5 @@
-aegis_add_test(core
+aegis_add_test(
+    core
     SOURCES
         align.test.cpp
         flags.test.cpp

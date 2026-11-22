@@ -7,5 +7,7 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 # Release: within 10% of glm. Development: no slower than glm, within the 3% the timings scatter between runs.
 add_executable(aegis-bench-math bench_math.cpp)
 target_link_libraries(aegis-bench-math PRIVATE aegis-math glm::glm)
-target_compile_definitions(aegis-bench-math PRIVATE
-    "AEGIS_BENCH_GATE=$<IF:$<CONFIG:Release>,1.10,$<IF:$<CONFIG:Development>,1.03,0.0>>")
+target_compile_definitions(
+    aegis-bench-math
+    PRIVATE "AEGIS_BENCH_GATE=$<IF:$<CONFIG:Release>,1.10,$<IF:$<CONFIG:Development>,1.03,0.0>>"
+)

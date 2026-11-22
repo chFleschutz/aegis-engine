@@ -17,7 +17,10 @@ function(aegis_add_test module)
     cmake_parse_arguments(T "" "" "SOURCES;LIBS" ${ARGN})
     add_executable(aegis-tests-${module} ${T_SOURCES})
     target_link_libraries(aegis-tests-${module} PRIVATE aegis-test-main ${T_LIBS})
-    doctest_discover_tests(aegis-tests-${module} PROPERTIES LABELS ${module} TIMEOUT ${AEGIS_UNIT_TEST_TIMEOUT})
+    doctest_discover_tests(
+        aegis-tests-${module}
+        PROPERTIES LABELS ${module} TIMEOUT ${AEGIS_UNIT_TEST_TIMEOUT}
+    )
 endfunction()
 
 add_subdirectory(asset_library)
@@ -47,11 +50,14 @@ set(AEGIS_TEST_SKIP_RETURN_CODE 77) # Keep in step with tests/device/test.cppm
 function(aegis_add_device_test name)
     cmake_parse_arguments(T "" "" "ARGS;LABELS" ${ARGN})
     add_test(NAME ${name} COMMAND aegis-test ${T_ARGS})
-    set_tests_properties(${name} PROPERTIES
-        LABELS "device;${T_LABELS}"
-        RESOURCE_LOCK gpu
-        TIMEOUT 300
-        SKIP_RETURN_CODE ${AEGIS_TEST_SKIP_RETURN_CODE})
+    set_tests_properties(
+        ${name}
+        PROPERTIES
+            LABELS "device;${T_LABELS}"
+            RESOURCE_LOCK gpu
+            TIMEOUT 300
+            SKIP_RETURN_CODE ${AEGIS_TEST_SKIP_RETURN_CODE}
+    )
 endfunction()
 
 # The device tests load compiled shaders, so they exist only when the shaders are built
@@ -72,95 +78,323 @@ if(TARGET compile_shaders)
     # rendering differs from the dev GPU (the triangle by 1 per channel, the scenes by up to 176 on ~80k pixels:
     # beyond any tolerance that would still catch a regression). The stats window is left out, its timings
     # change every run.
-    aegis_add_device_test(aegis-test-golden-triangle
-        ARGS --headless --frames 120 --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/triangle.png --tolerance 0 ${samples_args}
-        LABELS golden)
+    aegis_add_device_test(
+        aegis-test-golden-triangle
+        ARGS
+            --headless
+            --frames
+            120
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/triangle.png
+            --tolerance
+            0
+            ${samples_args}
+        LABELS golden
+    )
 endif()
 
 if(TARGET compile_shaders AND AEGIS_SAMPLES)
     # The same harness rendering a loaded scene through the render graph (aegis.render_graph).
     aegis_add_device_test(aegis-test-scene ARGS --headless --scene --frames 120)
-    aegis_add_device_test(aegis-test-scene-gpu-driven ARGS --headless --gpu-driven --frames 120 LABELS mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-scene-gpu-driven
+        ARGS --headless --gpu-driven --frames 120
+        LABELS mesh-shaders
+    )
 
     # The scene changes while frames are in flight: a model loaded, one destroyed, materials edited.
-    aegis_add_device_test(aegis-test-scene-mutation ARGS --headless --scene --mutate-scene --frames 150)
-    aegis_add_device_test(aegis-test-scene-gpu-driven-mutation ARGS --headless --gpu-driven --mutate-scene --frames 150 LABELS mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-scene-mutation
+        ARGS --headless --scene --mutate-scene --frames 150
+    )
+    aegis_add_device_test(
+        aegis-test-scene-gpu-driven-mutation
+        ARGS --headless --gpu-driven --mutate-scene --frames 150
+        LABELS mesh-shaders
+    )
 
     # An unlit cube next to a PBR one: the last frame shows its colour unlit, on both geometry paths.
-    aegis_add_device_test(aegis-test-scene-unlit ARGS --headless --scene --unlit --no-overlay --frames 30)
-    aegis_add_device_test(aegis-test-scene-gpu-driven-unlit ARGS --headless --gpu-driven --unlit --no-overlay --frames 30 LABELS mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-scene-unlit
+        ARGS --headless --scene --unlit --no-overlay --frames 30
+    )
+    aegis_add_device_test(
+        aegis-test-scene-gpu-driven-unlit
+        ARGS --headless --gpu-driven --unlit --no-overlay --frames 30
+        LABELS mesh-shaders
+    )
 
     # An unlit, double-sided plane seen from behind: the last frame shows its colour, on both paths.
-    aegis_add_device_test(aegis-test-scene-double-sided ARGS --headless --scene --double-sided --no-overlay --frames 30)
-    aegis_add_device_test(aegis-test-scene-gpu-driven-double-sided ARGS --headless --gpu-driven --double-sided --no-overlay --frames 30 LABELS mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-scene-double-sided
+        ARGS --headless --scene --double-sided --no-overlay --frames 30
+    )
+    aegis_add_device_test(
+        aegis-test-scene-gpu-driven-double-sided
+        ARGS --headless --gpu-driven --double-sided --no-overlay --frames 30
+        LABELS mesh-shaders
+    )
 
     # Two overlapping half-transparent cubes in front of the helmet: the forward pass draws them, the G-buffer does not,
     # on both paths.
-    aegis_add_device_test(aegis-test-scene-blend ARGS --headless --scene --blend --frames 120)
-    aegis_add_device_test(aegis-test-scene-gpu-driven-blend ARGS --headless --gpu-driven --blend --frames 120 LABELS mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-scene-blend
+        ARGS --headless --scene --blend --frames 120
+    )
+    aegis_add_device_test(
+        aegis-test-scene-gpu-driven-blend
+        ARGS --headless --gpu-driven --blend --frames 120
+        LABELS mesh-shaders
+    )
 
     # The scene through a second camera into a view of its own size, resized apart from the target.
-    aegis_add_device_test(aegis-test-scene-view ARGS --headless --scene --view --frames 120)
-    aegis_add_device_test(aegis-test-scene-gpu-driven-view ARGS --headless --gpu-driven --view --frames 120 LABELS mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-scene-view
+        ARGS --headless --scene --view --frames 120
+    )
+    aegis_add_device_test(
+        aegis-test-scene-gpu-driven-view
+        ARGS --headless --gpu-driven --view --frames 120
+        LABELS mesh-shaders
+    )
 
     # Two views of different sizes in one frame, each matching itself rendered alone; culling keeps a cube in one only.
-    aegis_add_device_test(aegis-test-scene-views ARGS --headless --scene --views --no-overlay --frames 60)
-    aegis_add_device_test(aegis-test-scene-gpu-driven-views ARGS --headless --gpu-driven --views --no-overlay --frames 60 LABELS mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-scene-views
+        ARGS --headless --scene --views --no-overlay --frames 60
+    )
+    aegis_add_device_test(
+        aegis-test-scene-gpu-driven-views
+        ARGS --headless --gpu-driven --views --no-overlay --frames 60
+        LABELS mesh-shaders
+    )
 
     # A second world from the scene file, without the helmet, renders in the middle third of the frames.
-    aegis_add_device_test(aegis-test-scene-worlds ARGS --headless --scene --worlds --frames 120)
-    aegis_add_device_test(aegis-test-scene-gpu-driven-worlds ARGS --headless --gpu-driven --worlds --frames 120 LABELS mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-scene-worlds
+        ARGS --headless --scene --worlds --frames 120
+    )
+    aegis_add_device_test(
+        aegis-test-scene-gpu-driven-worlds
+        ARGS --headless --gpu-driven --worlds --frames 120
+        LABELS mesh-shaders
+    )
 
     # The main camera's PostProcess, kept when the frame graph is rebuilt halfway.
-    aegis_add_device_test(aegis-test-scene-post-process ARGS --headless --scene --post-process --frames 120)
+    aegis_add_device_test(
+        aegis-test-scene-post-process
+        ARGS --headless --scene --post-process --frames 120
+    )
 
     # The scene's reference images (see above).
-    aegis_add_device_test(aegis-test-golden-scene
-        ARGS --headless --scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene.png --tolerance 0
-        LABELS golden)
-    aegis_add_device_test(aegis-test-golden-scene-gpu-driven
-        ARGS --headless --gpu-driven --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-gpu-driven.png --tolerance 0
-        LABELS golden mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-golden-scene
+        ARGS
+            --headless
+            --scene
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene.png
+            --tolerance
+            0
+        LABELS golden
+    )
+    aegis_add_device_test(
+        aegis-test-golden-scene-gpu-driven
+        ARGS
+            --headless
+            --gpu-driven
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-gpu-driven.png
+            --tolerance
+            0
+        LABELS golden mesh-shaders
+    )
     # The helmet mirrored (a scale of -1 on x): it must look like the plain one, not inside out (#171).
-    aegis_add_device_test(aegis-test-golden-scene-mirrored
-        ARGS --headless --scene --mirror --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-mirrored.png --tolerance 0
-        LABELS golden)
-    aegis_add_device_test(aegis-test-golden-scene-mirrored-gpu-driven
-        ARGS --headless --gpu-driven --mirror --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-mirrored-gpu-driven.png --tolerance 0
-        LABELS golden mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-golden-scene-mirrored
+        ARGS
+            --headless
+            --scene
+            --mirror
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-mirrored.png
+            --tolerance
+            0
+        LABELS golden
+    )
+    aegis_add_device_test(
+        aegis-test-golden-scene-mirrored-gpu-driven
+        ARGS
+            --headless
+            --gpu-driven
+            --mirror
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-mirrored-gpu-driven.png
+            --tolerance
+            0
+        LABELS golden mesh-shaders
+    )
     # The two overlapping half-transparent cubes in front of the helmet, lit by the forward pass and composed back to
     # front: with --blend-swap they trade places, so a fixed draw order composes one of the two images wrongly.
-    aegis_add_device_test(aegis-test-golden-scene-blend
-        ARGS --headless --scene --blend --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend.png --tolerance 0
-        LABELS golden)
-    aegis_add_device_test(aegis-test-golden-scene-blend-gpu-driven
-        ARGS --headless --gpu-driven --blend --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend-gpu-driven.png --tolerance 0
-        LABELS golden mesh-shaders)
-    aegis_add_device_test(aegis-test-golden-scene-blend-swap
-        ARGS --headless --scene --blend-swap --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend-swap.png --tolerance 0
-        LABELS golden)
-    aegis_add_device_test(aegis-test-golden-scene-blend-swap-gpu-driven
-        ARGS --headless --gpu-driven --blend-swap --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend-swap-gpu-driven.png --tolerance 0
-        LABELS golden mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-golden-scene-blend
+        ARGS
+            --headless
+            --scene
+            --blend
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend.png
+            --tolerance
+            0
+        LABELS golden
+    )
+    aegis_add_device_test(
+        aegis-test-golden-scene-blend-gpu-driven
+        ARGS
+            --headless
+            --gpu-driven
+            --blend
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend-gpu-driven.png
+            --tolerance
+            0
+        LABELS golden mesh-shaders
+    )
+    aegis_add_device_test(
+        aegis-test-golden-scene-blend-swap
+        ARGS
+            --headless
+            --scene
+            --blend-swap
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend-swap.png
+            --tolerance
+            0
+        LABELS golden
+    )
+    aegis_add_device_test(
+        aegis-test-golden-scene-blend-swap-gpu-driven
+        ARGS
+            --headless
+            --gpu-driven
+            --blend-swap
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-blend-swap-gpu-driven.png
+            --tolerance
+            0
+        LABELS golden mesh-shaders
+    )
     # Rendered with the main camera's PostProcess after the graph was rebuilt: not the plain scene's image.
-    aegis_add_device_test(aegis-test-golden-scene-post-process
-        ARGS --headless --scene --post-process --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-post-process.png --tolerance 0
-        LABELS golden)
+    aegis_add_device_test(
+        aegis-test-golden-scene-post-process
+        ARGS
+            --headless
+            --scene
+            --post-process
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-post-process.png
+            --tolerance
+            0
+        LABELS golden
+    )
     # Back on the main world after the second one rendered, the last frame is the plain scene's.
-    aegis_add_device_test(aegis-test-golden-scene-worlds
-        ARGS --headless --scene --worlds --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene.png --tolerance 0
-        LABELS golden)
-    aegis_add_device_test(aegis-test-golden-scene-worlds-gpu-driven
-        ARGS --headless --gpu-driven --worlds --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-gpu-driven.png --tolerance 0
-        LABELS golden mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-golden-scene-worlds
+        ARGS
+            --headless
+            --scene
+            --worlds
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene.png
+            --tolerance
+            0
+        LABELS golden
+    )
+    aegis_add_device_test(
+        aegis-test-golden-scene-worlds-gpu-driven
+        ARGS
+            --headless
+            --gpu-driven
+            --worlds
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-gpu-driven.png
+            --tolerance
+            0
+        LABELS golden mesh-shaders
+    )
     # The same scene without a reference, so CI's lavapipe job builds the masked pipelines under validation.
-    aegis_add_device_test(aegis-test-scene-sponza ARGS --headless --scene-file scenes/sponza.scene --frames 10 --no-overlay)
-    aegis_add_device_test(aegis-test-scene-sponza-gpu-driven ARGS --headless --gpu-driven --scene-file scenes/sponza.scene --frames 10 --no-overlay LABELS mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-scene-sponza
+        ARGS --headless --scene-file scenes/sponza.scene --frames 10 --no-overlay
+    )
+    aegis_add_device_test(
+        aegis-test-scene-sponza-gpu-driven
+        ARGS --headless --gpu-driven --scene-file scenes/sponza.scene --frames 10 --no-overlay
+        LABELS mesh-shaders
+    )
     # Sponza's masked, double-sided materials (foliage, #135): cut out by their alpha, both sides drawn.
-    aegis_add_device_test(aegis-test-golden-sponza
-        ARGS --headless --scene-file scenes/sponza.scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/sponza.png --tolerance 0
-        LABELS golden)
-    aegis_add_device_test(aegis-test-golden-sponza-gpu-driven
-        ARGS --headless --gpu-driven --scene-file scenes/sponza.scene --frames 120 --no-overlay --compare ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/sponza-gpu-driven.png --tolerance 0
-        LABELS golden mesh-shaders)
+    aegis_add_device_test(
+        aegis-test-golden-sponza
+        ARGS
+            --headless
+            --scene-file
+            scenes/sponza.scene
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/sponza.png
+            --tolerance
+            0
+        LABELS golden
+    )
+    aegis_add_device_test(
+        aegis-test-golden-sponza-gpu-driven
+        ARGS
+            --headless
+            --gpu-driven
+            --scene-file
+            scenes/sponza.scene
+            --frames
+            120
+            --no-overlay
+            --compare
+            ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/sponza-gpu-driven.png
+            --tolerance
+            0
+        LABELS golden mesh-shaders
+    )
 endif()

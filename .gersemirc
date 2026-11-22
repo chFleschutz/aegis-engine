@@ -1,0 +1,8 @@
+# CMake formatting with gersemi (pinned in .github/workflows/build.yml); tools/format.sh runs it.
+# yaml-language-server: $schema=https://raw.githubusercontent.com/BlankSpruce/gersemi/0.29.2/gersemi/configuration.schema.json
+
+# Files that define the engine's own commands (and doctest's), so their keywords format like CMake's.
+definitions: [cmake, tests/CMakeLists.txt, external/doctest/scripts/cmake/doctest.cmake]
+indent: 4
+line_length: 100
+list_expansion: favour-inlining

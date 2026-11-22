@@ -175,13 +175,19 @@ modules) must both build; CI proves the Linux build on every PR.
 - **Platform headers stay behind a guard.** Windowing and input go through `aegis.platform` (GLFW);
   the only Win32 code is `aegis-test`'s synthetic-input check, behind `#ifdef _WIN32`.
 
-### Formatting (clang-format)
-One root `.clang-format` (clang-format **22.x**); `ColumnLimit: 0` keeps your line breaks. **The
-whole tree is formatted and stays that way:** run `tools/format.sh` before committing (it formats
-the files changed on your branch). If it reformats lines you didn't touch, commit that as a separate
-formatting commit before your change. A tree-wide reformat goes in its own commit and into
-`.git-blame-ignore-revs`. Guard deliberately hand-aligned blocks (e.g. enum tables) with
-`// clang-format off` / `on`.
+### Formatting (clang-format, gersemi)
+C++ follows one root `.clang-format` (clang-format **22.x**); `ColumnLimit: 0` keeps your line
+breaks. CMake files follow the root `.gersemirc` (gersemi **0.29.x**, `pip install gersemi==0.29.2`,
+the version CI pins). **The whole tree is formatted and stays that way:** run `tools/format.sh`
+before committing (it formats the files changed on your branch, C++ and CMake). If it reformats
+lines you didn't touch, commit that as a separate formatting commit before your change. A tree-wide
+reformat goes in its own commit and into `.git-blame-ignore-revs`. Guard deliberately hand-aligned
+blocks (e.g. enum tables) with `// clang-format off` / `on`, or `# gersemi: off` / `on` in CMake.
+- gersemi joins an argument list onto one line when it fits, so a comment trailing the list's last
+  item ends up describing the whole line: put a comment that names one argument on its own line
+  above it.
+- A new CMake function with keyword arguments formats by them only if `.gersemirc`'s `definitions`
+  lists its file (`cmake/` is listed whole); otherwise gersemi warns about an unknown command.
 
 **Line endings are LF** in the repository and in every checkout, Windows included; scripted edits
 (sed, perl) can match `\n` alone.

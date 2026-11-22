@@ -1,4 +1,5 @@
-aegis_add_test(render_graph
+aegis_add_test(
+    render_graph
     SOURCES
         declarations.test.cpp
         error.test.cpp

@@ -18,6 +18,7 @@ env:
   LLVM_VERSION: 22
   LLVM_WINDOWS_VERSION: 22.1.4
   CLANG_FORMAT_VERSION: 22.1.8
+  GERSEMI_VERSION: 0.29.2
 
 jobs:
   format:
@@ -26,9 +27,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # tools/format.sh requires clang-format 22.x; pin the exact release so formatting can't drift.
-      - name: Install clang-format
-        run: pip install "clang-format==$CLANG_FORMAT_VERSION"
+      # .gersemirc reads doctest_discover_tests' keywords from doctest's CMake script.
+      - name: Check out doctest
+        run: git submodule update --init --depth 1 external/doctest
+
+      # tools/format.sh requires clang-format 22.x and gersemi 0.29.x; pin the exact releases so
+      # formatting can't drift.
+      - name: Install clang-format and gersemi
+        run: pip install "clang-format==$CLANG_FORMAT_VERSION" "gersemi==$GERSEMI_VERSION"
 
       - name: Check formatting
         run: tools/format.sh --all --check
