@@ -267,5 +267,9 @@ it exits 0.
 a software Vulkan driver, with validation (`ctest -L device -LE golden`). lavapipe has mesh shaders, so
 both geometry paths run. It does not cover, so run these on a real GPU before pushing:
 - the reference images (`golden`; software rendering differs in the last bits),
+- the `slow` tests: the games shard of the lavapipe job skips them (`-LE slow`) to cut its wall time. They are the
+  Examples editor variants (`-default`, `-play`, `-play-stop`, `-full`, `-folded`) whose Template twins run in CI,
+  so only the Inspector flyout of a selected entity (`game-examples-editor-folded`) goes unchecked there. A local
+  `ctest` runs them; `ctest -L slow` runs only them,
 - windowed runs: surface, swapchain, acquire, present and `platform::Input` (`aegis-test --frames 600`),
 - Windows drivers, and anything timing- or performance-related.
