@@ -1,7 +1,9 @@
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 set(AEGIS_MODULE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 
-add_subdirectory(app)
+add_subdirectory(engine)
+add_subdirectory(asset_library)
+add_subdirectory(render_bridge)
 
 add_subdirectory(core)
 add_subdirectory(paths)

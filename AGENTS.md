@@ -140,8 +140,9 @@ linked PRIVATE, so code outside rhi cannot name `vk::` types. ImGui's Vulkan bac
 **Known deviations (current state):** the `Error` types differ per module (rhi struct `{code}`,
 `renderer` enum, `render_graph` `{message, rhi?}`, `assets` struct); `platform::Window` asserts
 instead of returning one, and `world` and `scripting` assert on misuse that could be recoverable;
-components, `Profiler` and `Engine` sit directly in `aegis`; `app/` (the engine, `AssetLibrary`, the render
-bridge, scene defaults) holds several modules in one folder, and some of its errors are still `std::string`; `Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
+components, `Profiler` and `Engine` sit directly in `aegis`; `engine/` holds several modules
+(`aegis.engine`, `aegis.game`, `aegis.defaults`, `aegis.project_file`, `aegis.scene_description`) instead of
+partitions, and some of its errors are still `std::string`; `Window::glfwWindow()` returns a raw `GLFWwindow*` for the ImGui backend.
 
 **Foundation (`aegis.core`, `aegis/core/`):** logging, flag enums, alignment, `match` and the
 profiler; any module may import it.

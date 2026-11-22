@@ -80,7 +80,7 @@ my_game/
   without a search, a folder can't hold two, and renaming a game doesn't rename the file. It holds
   the committed settings in sections; `config/` takes sections over only when they outgrow one file
   (per-platform overrides, files tools rewrite often), a versioned migration like any format change.
-  Today it holds only the `input` section, the input map (`ProjectFile`, `aegis/app/project_file.cppm`),
+  Today it holds only the `input` section, the input map (`ProjectFile`, `aegis/engine/project_file.cppm`),
   and has no version yet; a project without one has the defaults.
 - **`CMakeLists.txt` is at the root,** where presets, `cmake -S .` and IDEs look. The engine does
   the work through `aegis_add_game`, so the file stays a few lines:
@@ -404,7 +404,7 @@ implemented synchronously first; the slot lets hot reload swap contents.
 
 ### Working with it today
 
-- **Where things live:** `aegis::AssetLibrary` (`aegis/app/asset_library.*`, target
+- **Where things live:** `aegis::AssetLibrary` (`aegis/asset_library/asset_library.*`, target
   `aegis-asset-library`) loads assets by `AssetId` and caches them by ID; components store
   `AssetRef<T>` (`MeshRenderer`, `Sky`). It scans two roots through `assets::AssetDatabase`: the project
   content (`paths::projectContent`, the samples for now, the only project folder scanned; dot-files and
