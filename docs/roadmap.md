@@ -141,7 +141,7 @@ standard libraries the same module, so the failures it was meant to catch no lon
 
 **[Backlog](https://github.com/chFleschutz/aegis-engine/milestone/9)** (was "After the foundation") holds unscheduled work, in no order: the Vulkan-Hpp
 module built without debug info ([#220](https://github.com/chFleschutz/aegis-engine/issues/220)), reference images for the games and the editor ([#225](https://github.com/chFleschutz/aegis-engine/issues/225)),
-a visible Template scene ([#224](https://github.com/chFleschutz/aegis-engine/issues/224)), the README usage section ([#2](https://github.com/chFleschutz/aegis-engine/issues/2)), building one target while
+a visible Template scene ([#224](https://github.com/chFleschutz/aegis-engine/issues/224)), building one target while
 iterating ([#218](https://github.com/chFleschutz/aegis-engine/issues/218)), and the device-lost bug ([#154](https://github.com/chFleschutz/aegis-engine/issues/154), before M14's [#260](https://github.com/chFleschutz/aegis-engine/issues/260): its repro freezes the
 owner's PC, never run it without asking).
 
