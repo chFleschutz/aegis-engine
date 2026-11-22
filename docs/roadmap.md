@@ -115,16 +115,8 @@ that each of M12's features stays one PR. It runs in parallel with M10.
 - last, clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22), `needs-design`, after #255), once scenes have hundreds of
   lights.
 
-**[M13. Gameplay foundation](https://github.com/chFleschutz/aegis-engine/milestone/15)** gives a game a simulation loop and the services gameplay needs.
-It starts once play-in-editor ([#166](https://github.com/chFleschutz/aegis-engine/issues/166)) is merged, so gameplay can be tried in the editor:
-- the fixed-step phase and the hierarchy updated in order ([#257](https://github.com/chFleschutz/aegis-engine/issues/257), after [#219](https://github.com/chFleschutz/aegis-engine/issues/219) and [#194](https://github.com/chFleschutz/aegis-engine/issues/194)), then
-  scripts get time, spawning, lookup and events ([#258](https://github.com/chFleschutz/aegis-engine/issues/258));
-- then physics, audio and input actions (issues to be filed). The libraries are the owner's call;
-  Jolt Physics and miniaudio are the recommendation, with their headers only in `.cpp` files;
-- save games ([#168](https://github.com/chFleschutz/aegis-engine/issues/168)) can start at any point; they are `area/world` too.
-
 **[M14. Vertical slice and shipping](https://github.com/chFleschutz/aegis-engine/milestone/16)** builds a small game in the sample project on M12 and
-M13 (issue to be filed), and with it what a shipped game needs. The game is the first pass/fail
+[M21 Gameplay foundation](https://github.com/chFleschutz/aegis-engine/milestone/22) (issue to be filed), and with it what a shipped game needs. The game is the first pass/fail
 target beyond the render tests: what it lacks becomes issues here.
 - background work: a job system ([#259](https://github.com/chFleschutz/aegis-engine/issues/259)), then background asset loading ([#260](https://github.com/chFleschutz/aegis-engine/issues/260), `needs-design`,
   after [#154](https://github.com/chFleschutz/aegis-engine/issues/154));
@@ -138,16 +130,16 @@ areas and rules are in the [`plan-milestone` skill](../.claude/skills/plan-miles
 - **render** (`render_graph`, `render_passes`, `renderer`, `rhi`): [M17 Shadows and materials](https://github.com/chFleschutz/aegis-engine/milestone/18)
   (Active), [M19 Frame-graph rebuilds](https://github.com/chFleschutz/aegis-engine/milestone/20) (Planning), then the rest of Render features above:
   anti-aliasing, auto exposure, vertex tangents ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) and clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22)).
-- **content** (`assets`, `world`, `app`, `editor`, `platform`, `math`): [M18 Editor structure](https://github.com/chFleschutz/aegis-engine/milestone/19)
-  (Active), [M20 Math library](https://github.com/chFleschutz/aegis-engine/milestone/21) (Planning), then Gameplay foundation above.
+- **content** (`assets`, `world`, `app`, `editor`, `platform`, `math`, `physics`, `audio`): [M20 Math library](https://github.com/chFleschutz/aegis-engine/milestone/21)
+  (Active), [M21 Gameplay foundation](https://github.com/chFleschutz/aegis-engine/milestone/22) (Planning). Save games
+  ([#168](https://github.com/chFleschutz/aegis-engine/issues/168)) can follow M21 at any point.
 - The vertical slice needs both lanes' targets; plan it once they are done.
 
 **[M8. Verification tiers](https://github.com/chFleschutz/aegis-engine/milestone/8?closed=1)** (P9, done) added local reference-image comparison and the CI
 format check. The missing-include scanner (8.2) was dropped: since PR #91, `import std` gives both
 standard libraries the same module, so the failures it was meant to catch no longer happen.
 
-**[Backlog](https://github.com/chFleschutz/aegis-engine/milestone/9)** (was "After the foundation") holds unscheduled work, in no order: the legacy
-modules' function bodies moved into `.cpp` files ([#219](https://github.com/chFleschutz/aegis-engine/issues/219), before M13's [#257](https://github.com/chFleschutz/aegis-engine/issues/257)), the Vulkan-Hpp
+**[Backlog](https://github.com/chFleschutz/aegis-engine/milestone/9)** (was "After the foundation") holds unscheduled work, in no order: the Vulkan-Hpp
 module built without debug info ([#220](https://github.com/chFleschutz/aegis-engine/issues/220)), reference images for the games and the editor ([#225](https://github.com/chFleschutz/aegis-engine/issues/225)),
 a visible Template scene ([#224](https://github.com/chFleschutz/aegis-engine/issues/224)), the README usage section ([#2](https://github.com/chFleschutz/aegis-engine/issues/2)), building one target while
 iterating ([#218](https://github.com/chFleschutz/aegis-engine/issues/218)), and the device-lost bug ([#154](https://github.com/chFleschutz/aegis-engine/issues/154), before M14's [#260](https://github.com/chFleschutz/aegis-engine/issues/260): its repro freezes the
