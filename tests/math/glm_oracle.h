@@ -76,7 +76,8 @@ auto toGlmQuat(Q q)
     return glm::qua<typename Q::ValueType>::wxyz(q.w, q.x, q.y, q.z);
 }
 
-/// @brief Equal within `tolerance`, scaled by the larger magnitude once that exceeds 1 (as math::nearlyEqual)
+/// @brief Equal within `tolerance` relative to 1 + the larger magnitude (doctest's Approx): up to twice as loose as
+/// math::nearlyEqual for large values, and absolute near zero
 inline auto near(double expected, double tolerance) -> doctest::Approx
 {
     return doctest::Approx(expected).epsilon(tolerance).scale(1.0);

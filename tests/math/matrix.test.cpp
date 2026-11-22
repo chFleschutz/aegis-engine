@@ -27,7 +27,14 @@ TYPE_TO_STRING_AS("Double3x3", Double3x3);
 TYPE_TO_STRING_AS("Double3x4", Double3x4);
 TYPE_TO_STRING_AS("Double4x4", Double4x4);
 
+// No integer matrix aliases until a first use, but the generic core must already work for them.
+using Int3x3 = math::Matrix<std::int32_t, 3, 3>;
+using Uint2x4 = math::Matrix<std::uint32_t, 2, 4>;
+TYPE_TO_STRING_AS("Int3x3", Int3x3);
+TYPE_TO_STRING_AS("Uint2x4", Uint2x4);
+
 #define AEGIS_MATRICES Float2x2, Float3x3, Float3x4, Float4x4, Double2x2, Double3x3, Double3x4, Double4x4
+#define AEGIS_ALL_MATRICES AEGIS_MATRICES, Int3x3, Uint2x4
 #define AEGIS_SQUARE_MATRICES Float2x2, Float3x3, Float4x4, Double2x2, Double3x3, Double4x4
 
 namespace
@@ -112,7 +119,7 @@ static_assert(math::transpose(Float2x3::zero()) == Float3x2::zero());
 
 TEST_SUITE("math::Matrix")
 {
-    TEST_CASE_TEMPLATE("zero and identity name their state", M, AEGIS_MATRICES)
+    TEST_CASE_TEMPLATE("zero and identity name their state", M, AEGIS_ALL_MATRICES)
     {
         using T = typename M::ValueType;
         const auto zero = M::zero();
@@ -132,7 +139,7 @@ TEST_SUITE("math::Matrix")
         }
     }
 
-    TEST_CASE_TEMPLATE("reads and writes rows and columns", M, AEGIS_MATRICES)
+    TEST_CASE_TEMPLATE("reads and writes rows and columns", M, AEGIS_ALL_MATRICES)
     {
         using T = typename M::ValueType;
         auto m = indexed<M>();
@@ -149,12 +156,12 @@ TEST_SUITE("math::Matrix")
 
         m.setRow(1, RowOf<M>{ T{ 7 } });
         CHECK(m.row(1) == RowOf<M>{ T{ 7 } });
-        m.setColumn(0, ColumnOf<M>{ T{ -1 } });
-        CHECK(m.column(0) == ColumnOf<M>{ T{ -1 } });
-        CHECK(m[1, 0] == T{ -1 });
+        m.setColumn(0, ColumnOf<M>{ T{ 9 } });
+        CHECK(m.column(0) == ColumnOf<M>{ T{ 9 } });
+        CHECK(m[1, 0] == T{ 9 });
     }
 
-    TEST_CASE_TEMPLATE("round-trips through fromRows and fromColumns", M, AEGIS_MATRICES)
+    TEST_CASE_TEMPLATE("round-trips through fromRows and fromColumns", M, AEGIS_ALL_MATRICES)
     {
         const auto m = indexed<M>();
         if constexpr (M::rowCount == 2)
@@ -172,7 +179,7 @@ TEST_SUITE("math::Matrix")
             CHECK(M::fromColumns(m.column(0), m.column(1), m.column(2), m.column(3)) == m);
     }
 
-    TEST_CASE_TEMPLATE("transposes rows into columns", M, AEGIS_MATRICES)
+    TEST_CASE_TEMPLATE("transposes rows into columns", M, AEGIS_ALL_MATRICES)
     {
         const auto m = indexed<M>();
         const auto t = math::transpose(m);
@@ -181,7 +188,7 @@ TEST_SUITE("math::Matrix")
         CHECK(math::transpose(t) == m);
     }
 
-    TEST_CASE_TEMPLATE("adds and scales element-wise", M, AEGIS_MATRICES)
+    TEST_CASE_TEMPLATE("adds and scales element-wise", M, AEGIS_ALL_MATRICES)
     {
         using T = typename M::ValueType;
         const auto a = indexed<M>();

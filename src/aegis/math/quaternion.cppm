@@ -39,7 +39,7 @@ struct Quaternion
     }
 
     /// @brief The rotation by the Euler angles `radians` (pitch around x, yaw around y, roll around z), as glm builds
-    /// it: the inverse of eulerAngles()
+    /// it: the inverse of eulerAngles() within its principal ranges
     [[nodiscard]] static auto fromEuler(Vector<T, 3> radians) noexcept -> Quaternion
     {
         const T cx = std::cos(radians.x * T{ 0.5 });
