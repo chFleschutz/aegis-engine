@@ -1,9 +1,20 @@
 name: Build
 
+# Docs-only changes (docs/, any *.md, .claude/) start no run: none of them is a build or test input.
+# Such a pull request never reports the required checks, which is fine because docs-only changes go
+# to main directly (AGENTS.md). A change that also touches any other path runs the whole workflow.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".claude/**"
   pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".claude/**"
   workflow_dispatch:
 
 concurrency:

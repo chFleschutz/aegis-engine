@@ -198,8 +198,9 @@ is non-obvious. **No `Co-Authored-By` or other agent/tool attribution trailers**
 descriptions.
 
 **Code changes go through a PR** (anything under `aegis/`, `shaders/`, `tests/`, `games/`, `tools/`,
-CMake or CI). Docs-only changes may be committed to `main` directly. `/implement <issue>` takes an
-issue to an open PR.
+CMake or CI). Docs-only changes may be committed to `main` directly: a change that touches only
+`docs/`, `*.md` files or `.claude/` starts no CI run, so a docs-only PR never gets its required
+checks. `/implement <issue>` takes an issue to an open PR.
 
 **Planned work:** GitHub issues are the work items, grouped into milestones, with "Blocked by"
 relations. **The assignee is the status:** whoever starts an item assigns it (`gh issue edit <n>
