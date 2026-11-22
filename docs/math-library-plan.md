@@ -127,8 +127,9 @@ matrix.cppm          :matrix      Matrix<T, R, C>, MatrixType; factories, [r, c]
                                   affineInverse (square 2..4), shape and scalar conversion
 quaternion.cppm      :quaternion  Quaternion<T>; factories, product, rotate a vector, conjugate, inverse,
                                   normalize, slerp, rotationMatrix, eulerAngles
-transform.cppm       :transform   world axes, forward/right/up, transformMatrix, decomposeTRS, viewMatrix,
-                                  inverseViewMatrix, perspective, orthographic: templates on the float type
+transform.cppm       :transform   world::right/forward/up<T>, forward/right/up, transformMatrix, decomposeTRS
+                                  (returns DecomposedTransform{location, rotation, scale}), viewMatrix,
+                                  inverseViewMatrix, perspective, orthographic: templates on the float type (#445)
 aliases.cppm         :aliases     the exported aliases and a static_assert block on their layout
 ```
 
@@ -486,7 +487,9 @@ Each PR follows AGENTS (worktree, `ctest -LE device` per commit, full `ctest` be
    build this branch once against PR 1's types: the compile errors are the list. Can be stacked on 1.
 3. **`refactor/math-swap`: switch the backend.**
    - Commit A: bridges and temporary shims (`rowMajor4` as identity) re-pointed at the new types;
-     the `transform` partition takes the new types.
+     the glm `world::RIGHT/FORWARD/UP` become `Float3` constants (`world::up<float>` and so on) and
+     the glm transform helpers go; their callers take the `:transform` templates (#445), and
+     `transform_system.cpp` reads `decomposeTRS`'s struct.
    - Commit B, **mechanical**: a committed script (`tools/migrate-math.sh`, deleted in commit D)
      renames `glm::vec3` → `math::Float3`, `glm::mat4` → `math::Float4x4`, `glm::quat` →
      `math::Quat`, `glm::length` → `math::length`, the exact `glm::mat4{ 1.0f }` / `{ 0.0f }` and
@@ -503,10 +506,9 @@ Each PR follows AGENTS (worktree, `ctest -LE device` per commit, full `ctest` be
      These are coding rules, so they stay out of `GLOSSARY.md`.
    - Full `ctest` with device and golden tests, and screenshots of `simple` and `sponza`: a wrong
      hand rewrite shows as a wrong image, not a failed build.
-4. **Follow-ups, on demand only:** `decomposeTRS` returning a struct instead of out-parameters,
-   reverse-Z (`perspective` gets a depth-mode parameter in the PR that introduces it), integer-only
-   and per-component comparison operations with their first user, specialised or SIMD overloads for a
-   shape that a profile shows hot.
+4. **Follow-ups, on demand only:** reverse-Z (`perspective` gets a depth-mode parameter in the PR that
+   introduces it), integer-only and per-component comparison operations with their first user,
+   specialised or SIMD overloads for a shape that a profile shows hot.
 
 ## Spec open questions, resolved
 
