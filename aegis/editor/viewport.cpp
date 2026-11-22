@@ -399,7 +399,7 @@ auto Viewport::drawGizmo(EditorContext& editor, FrameContext& frame, const Rect&
 
     const glm::mat4 view = m_camera.view();
     glm::mat4 projection = m_camera.projection(aspect());
-    projection[1][1] *= -1.0f; // ImGuizmo expects y up
+    math::element(projection, 1, 1) *= -1.0f; // ImGuizmo expects y up
 
     // The gizmo works in world space; the result is converted back to the local transforms
     glm::mat4 matrix = registry.get<GlobalTransform>(selected).matrix();

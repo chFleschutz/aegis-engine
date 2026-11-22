@@ -293,7 +293,7 @@ private:
         if (m_options.view || m_options.views)
         {
             // Ahead and to the right of the main camera, turned towards the helmet; CameraSystem keeps its matrices.
-            m_viewCamera = registry.create("View Camera", glm::vec3{ 2.2f, -2.2f, 0.3f }, glm::quat{ glm::radians(glm::vec3{ 0.0f, 0.0f, 45.0f }) });
+            m_viewCamera = registry.create("View Camera", glm::vec3{ 2.2f, -2.2f, 0.3f }, math::quatFromEuler(glm::radians(glm::vec3{ 0.0f, 0.0f, 45.0f })));
             registry.add<Camera>(m_viewCamera);
             registry.markStaticDirty(m_viewCamera); // Once the world has begun, a new static entity needs it for its global transform
         }
@@ -451,7 +451,7 @@ private:
             auto& transform = registry.get<Transform>(*cube);
             transform.location = location;
             // Turned so that three faces, each lit differently, face the camera.
-            transform.rotation = glm::quat{ glm::vec3{ glm::radians(30.0f), 0.0f, glm::radians(40.0f) } };
+            transform.rotation = math::quatFromEuler(glm::vec3{ glm::radians(30.0f), 0.0f, glm::radians(40.0f) });
             transform.scale = glm::vec3{ 0.25f };
             for (const auto entity : subtree(registry, *cube))
             {

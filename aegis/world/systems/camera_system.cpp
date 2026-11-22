@@ -28,15 +28,6 @@ void CameraSystem::calcPerspectiveProjection(CameraMatrices& matrices, const Cam
 {
     assert(std::abs(matrices.aspect - std::numeric_limits<float>::epsilon()) > 0.0f);
 
-    // Projection matrix for right handed system with depth range [0, 1]
-    // Note: Value [1][1] is negated because Vulkan uses a flipped y-axis
-    const float tanHalfFovy = std::tan(camera.fov / 2.0f);
-    glm::mat4 perspective{ 0.0f };
-    perspective[0][0] = 1.0f / (matrices.aspect * tanHalfFovy);
-    perspective[1][1] = -1.0f / (tanHalfFovy);
-    perspective[2][2] = camera.far / (camera.near - camera.far);
-    perspective[2][3] = -1.0f;
-    perspective[3][2] = -(camera.far * camera.near) / (camera.far - camera.near);
-    matrices.projection = perspective;
+    matrices.projection = math::perspective(camera.fov, matrices.aspect, camera.near, camera.far);
 }
 }

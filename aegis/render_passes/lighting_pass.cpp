@@ -221,8 +221,8 @@ auto packSpotShadow(LightData& data, const FrameScene::SpotLight& light, const F
     data.shadowRegion = glm::vec4{ static_cast<float>(tile.x) / atlas.x, static_cast<float>(tile.y) / atlas.y,
         static_cast<float>(tile.extent.x) / atlas.x, static_cast<float>(tile.extent.y) / atlas.y };
     data.shadowBias = light.shadowBias;
-    // The perspective projection spans 2 / projection[0][0] meters across the tile one meter along the light's axis.
-    data.shadowTexelSize = 2.0f / (std::abs(camera.projection[0][0]) * static_cast<float>(std::max(tile.extent.x, 1u)));
+    // The perspective projection spans 2 / projection[0, 0] meters across the tile one meter along the light's axis.
+    data.shadowTexelSize = 2.0f / (std::abs(math::element(camera.projection, 0, 0)) * static_cast<float>(std::max(tile.extent.x, 1u)));
 }
 
 auto packLights(const FrameScene& scene) -> std::vector<LightData>
@@ -271,7 +271,7 @@ auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddres
         if (shadow && camera)
         {
             // The cascades split the main view's camera axis; the shadow views hold their fitted cameras.
-            uniforms.cameraForward = glm::vec4{ -camera->view[0][2], -camera->view[1][2], -camera->view[2][2], 0.0f };
+            uniforms.cameraForward = glm::vec4{ -glm::vec3{ math::row(camera->view, 2) }, 0.0f };
             uniforms.shadowBias = light->shadowBias;
             uniforms.shadowCascadeBlend = shadowCascadeBlend;
             const auto splits = shadowCascadeSplits(*light, camera->projection);
@@ -280,12 +280,12 @@ auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddres
                 const auto shadowCamera = scene.camera(shadow->view + cascade);
                 if (!shadowCamera)
                     break;
-                // The orthographic projection spans 2 / projection[0][0] meters across the map.
+                // The orthographic projection spans 2 / projection[0, 0] meters across the map.
                 const auto extent = scene.views[shadow->view + cascade].extent.value_or(shadowMapExtent);
                 uniforms.shadowCascades[cascade] = {
                     .viewProjection = glm::rowMajor4(shadowCamera->projection * shadowCamera->view),
                     .map = shadow->maps[cascade],
-                    .texelSize = 2.0f / (std::abs(shadowCamera->projection[0][0]) * static_cast<float>(std::max(extent.x, 1u))),
+                    .texelSize = 2.0f / (std::abs(math::element(shadowCamera->projection, 0, 0)) * static_cast<float>(std::max(extent.x, 1u))),
                     .splitFar = splits[cascade],
                 };
                 uniforms.shadowCascadeCount = cascade + 1;

@@ -112,27 +112,15 @@ auto fitDirectionalShadow(const FrameScene::DirectionalLight& light, const Frame
     const float y = snap(glm::dot(up, worldCenter));
     const float eye = glm::dot(toLight, worldCenter) + radius + shadowCasterReach;
 
-    glm::mat4 view{ 1.0f };
-    view[0][0] = side.x;
-    view[1][0] = side.y;
-    view[2][0] = side.z;
-    view[0][1] = up.x;
-    view[1][1] = up.y;
-    view[2][1] = up.z;
-    view[0][2] = toLight.x;
-    view[1][2] = toLight.y;
-    view[2][2] = toLight.z;
-    view[3][0] = -x;
-    view[3][1] = -y;
-    view[3][2] = -eye;
+    const auto view = math::fromRows(
+        glm::vec4{ side, -x },
+        glm::vec4{ up, -y },
+        glm::vec4{ toLight, -eye },
+        glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
     // Right-handed, depth 0 at the eye to 1 past the sphere, y flipped for Vulkan as the cameras' projections are.
     const float depth = 2.0f * radius + shadowCasterReach;
-    glm::mat4 projection{ 1.0f };
-    projection[0][0] = 1.0f / halfWidth;
-    projection[1][1] = -1.0f / halfWidth;
-    projection[2][2] = -1.0f / depth;
-    projection[3][2] = 0.0f;
+    const auto projection = math::orthographic(halfWidth, halfWidth, 0.0f, depth);
 
     return {
         .view = view,
@@ -167,31 +155,17 @@ auto fitSpotShadow(const FrameScene::SpotLight& light) -> FrameScene::Camera
     const auto side = glm::normalize(glm::cross(forward, worldUp));
     const auto up = glm::cross(side, forward);
 
-    glm::mat4 view{ 1.0f };
-    view[0][0] = side.x;
-    view[1][0] = side.y;
-    view[2][0] = side.z;
-    view[0][1] = up.x;
-    view[1][1] = up.y;
-    view[2][1] = up.z;
-    view[0][2] = -forward.x;
-    view[1][2] = -forward.y;
-    view[2][2] = -forward.z;
-    view[3][0] = -glm::dot(side, light.position);
-    view[3][1] = -glm::dot(up, light.position);
-    view[3][2] = glm::dot(forward, light.position);
+    const auto view = math::fromRows(
+        glm::vec4{ side, -glm::dot(side, light.position) },
+        glm::vec4{ up, -glm::dot(up, light.position) },
+        glm::vec4{ -forward, glm::dot(forward, light.position) },
+        glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f });
 
     // Right-handed, depth 0 at the near plane to 1 at the range, y flipped for Vulkan as the cameras' projections are.
     const float fov = std::clamp(2.0f * light.outerConeAngle, 0.01f, maxSpotShadowFov);
-    const float tanHalfFov = std::tan(fov / 2.0f);
     const float near = std::max(light.range / 1000.0f, 0.05f);
     const float far = std::max(light.range, 2.0f * near);
-    glm::mat4 projection{ 0.0f };
-    projection[0][0] = 1.0f / tanHalfFov;
-    projection[1][1] = -1.0f / tanHalfFov;
-    projection[2][2] = far / (near - far);
-    projection[2][3] = -1.0f;
-    projection[3][2] = -(far * near) / (far - near);
+    const auto projection = math::perspective(fov, 1.0f, near, far);
 
     return {
         .view = view,

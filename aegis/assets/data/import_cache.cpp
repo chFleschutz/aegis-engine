@@ -383,7 +383,7 @@ auto toEntry(const glm::quat& q) -> std::array<float, 4>
 
 auto toQuat(const std::array<float, 4>& a) -> glm::quat
 {
-    return { a[3], a[0], a[1], a[2] };
+    return math::quatFromXyzw(a[0], a[1], a[2], a[3]);
 }
 
 auto readEntry(const std::filesystem::path& directory) -> std::expected<ModelEntry, Error>

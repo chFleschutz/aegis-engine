@@ -61,7 +61,7 @@ TEST_SUITE("editor::EditorCamera")
     {
         const EditorCamera camera = originCamera();
         const glm::mat4 projection = camera.projection(2.0f);
-        CHECK(projection[1][1] < 0.0f);
+        CHECK(aegis::math::element(projection, 1, 1) < 0.0f);
         const auto depth = [&](float distance) {
             const glm::vec4 clip = projection * glm::vec4{ 0.0f, 0.0f, -distance, 1.0f };
             return clip.z / clip.w;

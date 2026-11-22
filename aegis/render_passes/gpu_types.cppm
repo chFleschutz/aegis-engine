@@ -72,9 +72,9 @@ AEGIS_FLAGS(GeometryFlags)
 ///        row-major.
 struct CameraData
 {
-    glm::mat4 view;
-    glm::mat4 projection;
-    glm::mat4 viewProjection;
+    glm::mat4 view{ 0.0f };
+    glm::mat4 projection{ 0.0f };
+    glm::mat4 viewProjection{ 0.0f };
     Frustum frustum;
     glm::vec3 position;
 };
@@ -82,7 +82,7 @@ struct CameraData
 /// @brief indirectDraw::Instance: one drawable instance as the GPU-driven shaders read it.
 struct InstanceData
 {
-    glm::mat3x4 model; // Top three rows of the model matrix
+    glm::mat3x4 model{ 0.0f }; // Top three rows of the model matrix
     glm::vec3 normalRow0;
     glm::vec3 normalRow1;
     glm::vec3 normalRow2;
@@ -189,7 +189,7 @@ struct GpuDrivenGeometryConstants
 /// @brief cpu_driven/geometry.slang
 struct StaticMeshConstants
 {
-    glm::mat3x4 model; // Top three rows
+    glm::mat3x4 model{ 0.0f }; // Top three rows
     glm::vec3 normalRow0;
     glm::vec3 normalRow1;
     glm::vec3 normalRow2;
@@ -201,7 +201,7 @@ struct StaticMeshConstants
 /// @brief cpu_driven/forward.slang: StaticMeshConstants and the view's lighting block.
 struct ForwardConstants
 {
-    glm::mat3x4 model; // Top three rows
+    glm::mat3x4 model{ 0.0f }; // Top three rows
     glm::vec3 normalRow0;
     glm::vec3 normalRow1;
     glm::vec3 normalRow2;
@@ -222,7 +222,7 @@ struct LightingConstants
 /// @brief sky_box.slang
 struct SkyBoxConstants
 {
-    glm::mat4 viewProjection;
+    glm::mat4 viewProjection{ 0.0f };
     rhi::TextureDescriptor skybox;
 };
 
@@ -310,7 +310,7 @@ export namespace aegis::render_graph::detail
 ///        path has no flags in its constants and picks a pipeline with the other front face instead.
 struct GpuTransform
 {
-    glm::mat3x4 model; // Row r of the model matrix is model[r], translation in .w
+    glm::mat3x4 model{ 0.0f }; // Row r of the model matrix is math::row(model, r), translation in .w
     glm::vec3 normalRow0;
     glm::vec3 normalRow1;
     glm::vec3 normalRow2;
@@ -318,23 +318,17 @@ struct GpuTransform
 };
 
 /// @brief The GpuTransform of a model matrix given by its top three rows (toModelRows). The normal matrix is
-///        the inverse transpose of the upper 3x3; its rows are the columns of the inverse, which is how glm
-///        stores them. A negative determinant (a mirror, e.g. a scale of -1 on one axis) sets
-///        InstanceFlags::Mirrored.
+///        the inverse transpose of the upper 3x3; its rows are the columns of the inverse. A negative
+///        determinant (a mirror, e.g. a scale of -1 on one axis) sets InstanceFlags::Mirrored.
 [[nodiscard]] inline auto toGpuTransform(const glm::mat3x4& rows) -> GpuTransform
 {
-    glm::mat3 linear; // Column-major: column c, row r is rows[r][c]
-    for (int column = 0; column < 3; ++column)
-    {
-        for (int row = 0; row < 3; ++row)
-            linear[column][row] = rows[row][column];
-    }
+    const auto linear = math::fromRows(glm::vec3{ math::row(rows, 0) }, glm::vec3{ math::row(rows, 1) }, glm::vec3{ math::row(rows, 2) });
     const auto normalMatrix = glm::inverse(linear);
     return {
         .model = rows,
-        .normalRow0 = normalMatrix[0],
-        .normalRow1 = normalMatrix[1],
-        .normalRow2 = normalMatrix[2],
+        .normalRow0 = math::column(normalMatrix, 0),
+        .normalRow1 = math::column(normalMatrix, 1),
+        .normalRow2 = math::column(normalMatrix, 2),
         .flags = glm::determinant(linear) < 0.0f ? InstanceFlags::Mirrored : InstanceFlags::None,
     };
 }

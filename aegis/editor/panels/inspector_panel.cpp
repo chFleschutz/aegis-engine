@@ -34,12 +34,13 @@ struct RotationDrag
     glm::vec3 euler{ 0.0f };
 };
 
-// The value held as T, or T's default for a value of another kind (a getter always returns its field's kind).
+// The value held as T, or 'fallback' for a value of another kind (a getter always returns its field's kind). A type
+// whose default state is not zero (a rotation) names its fallback.
 template<class T>
-auto as(const reflect::Value& value) -> T
+auto as(const reflect::Value& value, T fallback = {}) -> T
 {
     const T* held = std::get_if<T>(&value);
-    return held ? *held : T{};
+    return held ? *held : fallback;
 }
 
 template<class T>
@@ -247,7 +248,7 @@ auto drawRotation(const PropertyRow& row, const reflect::Value& value) -> std::o
 {
     static RotationDrag s_drag;
     const ImGuiID id = ImGui::GetID("##value");
-    glm::vec3 euler = s_drag.id == id ? s_drag.euler : glm::degrees(glm::eulerAngles(as<glm::quat>(value)));
+    glm::vec3 euler = s_drag.id == id ? s_drag.euler : glm::degrees(glm::eulerAngles(as<glm::quat>(value, glm::quat{ 1.0f, 0.0f, 0.0f, 0.0f })));
     // The conversion leaves noise around zero, which would show as -0.00: a zero is a zero
     for (int i = 0; i < 3; ++i)
         euler[i] = std::abs(euler[i]) < rotationNoise ? 0.0f : euler[i];
@@ -256,7 +257,7 @@ auto drawRotation(const PropertyRow& row, const reflect::Value& value) -> std::o
         s_drag = { .id = id, .euler = euler };
     else if (s_drag.id == id)
         s_drag = {};
-    return changed ? std::optional{ reflect::Value{ glm::quat{ glm::radians(euler) } } } : std::nullopt;
+    return changed ? std::optional{ reflect::Value{ math::quatFromEuler(glm::radians(euler)) } } : std::nullopt;
 }
 
 auto drawCombo(const PropertyRow& row, const reflect::Value& value) -> std::optional<reflect::Value>

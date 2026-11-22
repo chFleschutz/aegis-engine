@@ -60,7 +60,7 @@ public:
             const glm::vec3 location{ uniform(-extent.x, extent.x), uniform(-extent.y, extent.y), uniform(-extent.z, extent.z) };
             const glm::vec3 angles = tumble ? glm::vec3{ uniform(0.0f, 360.0f), uniform(0.0f, 360.0f), uniform(0.0f, 360.0f) }
                                             : glm::vec3{ 0.0f, 0.0f, uniform(0.0f, 360.0f) };
-            const auto rotation = glm::quat{ glm::radians(tilt + angles) };
+            const auto rotation = aegis::math::quatFromEuler(glm::radians(tilt + angles));
             const glm::vec3 size{ uniform(scale.x, scale.y) };
 
             // Copied, not referenced: adding to the registry may move the template's renderer

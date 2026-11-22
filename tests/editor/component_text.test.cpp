@@ -97,7 +97,7 @@ auto filled() -> Everything
         .size = { 1.5f, -2.0f },
         .offset = { 1.0f, 2.0f, 3.0f },
         .tint = { 0.25f, 0.5f, 0.75f, 1.0f },
-        .turn = glm::quat{ 0.5f, 0.5f, 0.5f, 0.5f },
+        .turn = aegis::math::quatFromXyzw(0.5f, 0.5f, 0.5f, 0.5f),
         .mode = Mode::On,
         .serial = 7,
     };

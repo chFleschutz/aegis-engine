@@ -131,7 +131,7 @@ public:
         const auto& sceneName = m_gltf.scenes[sceneIndex].name;
         m_model.name = sceneName.empty() ? m_name : std::string{ sceneName };
         // glTF is Y-up; the engine is Z-up.
-        m_model.rootRotation = glm::quat{ glm::radians(glm::vec3{ 90.0f, 0.0f, 0.0f }) };
+        m_model.rootRotation = math::quatFromEuler(glm::radians(glm::vec3{ 90.0f, 0.0f, 0.0f }));
 
         for (const auto& [i, parent] : *walk)
         {

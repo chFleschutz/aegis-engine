@@ -91,7 +91,7 @@ TEST_SUITE("reflect::toNode")
         CHECK((v3.x == 1.0f && v3.y == 2.0f && v3.z == 3.0f));
         const auto v4 = std::get<glm::vec4>(roundTrip(FieldKind::Vec4, glm::vec4{ 1.0f, 2.0f, 3.0f, 4.0f }).second);
         CHECK((v4.x == 1.0f && v4.y == 2.0f && v4.z == 3.0f && v4.w == 4.0f));
-        const auto q = std::get<glm::quat>(roundTrip(FieldKind::Quat, glm::quat{ 0.4f, 0.1f, 0.2f, 0.3f }).second);
+        const auto q = std::get<glm::quat>(roundTrip(FieldKind::Quat, aegis::math::quatFromXyzw(0.1f, 0.2f, 0.3f, 0.4f)).second);
         CHECK((q.x == 0.1f && q.y == 0.2f && q.z == 0.3f && q.w == 0.4f));
         CHECK(std::get<std::int64_t>(roundTrip(FieldKind::Enum, std::int64_t{ 3 }).second) == 3);
         CHECK(std::get<std::uint64_t>(roundTrip(FieldKind::AssetRef, std::uint64_t{ 0xa3f09c2e4b1d7788 }).second) == 0xa3f09c2e4b1d7788);
@@ -107,7 +107,7 @@ TEST_SUITE("reflect::toNode")
 
     TEST_CASE("writes a quaternion as x y z w")
     {
-        auto node = toNode(FieldKind::Quat, glm::quat{ 4.0f, 1.0f, 2.0f, 3.0f }); // glm takes w first
+        auto node = toNode(FieldKind::Quat, aegis::math::quatFromXyzw(1.0f, 2.0f, 3.0f, 4.0f));
         REQUIRE(node.has_value());
         REQUIRE(node->items.size() == 4);
         CHECK(node->items[0].text == "1");

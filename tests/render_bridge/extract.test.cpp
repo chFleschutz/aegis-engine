@@ -55,8 +55,12 @@ TEST_SUITE("render_bridge::extractFrameScene")
         const auto camera = registry.create("Camera");
         registry.add<aegis::Camera>(camera);
         auto& matrices = registry.get<aegis::CameraMatrices>(camera);
-        matrices.view[3] = glm::vec4{ 1.0f, 2.0f, 3.0f, 1.0f };
-        matrices.projection[0][0] = 2.0f;
+        matrices.view = aegis::math::fromRows(
+            glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f },
+            glm::vec4{ 0.0f, 1.0f, 0.0f, 2.0f },
+            glm::vec4{ 0.0f, 0.0f, 1.0f, 3.0f },
+            glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f });
+        aegis::math::element(matrices.projection, 0, 0) = 2.0f;
         matrices.aspect = 1.5f;
         registry.get<aegis::GlobalTransform>(camera).location = { 5.0f, 6.0f, 7.0f };
         world.setMainCamera(camera);
@@ -127,7 +131,7 @@ TEST_SUITE("render_bridge::extractFrameScene")
         registry.add<aegis::AmbientLight>(ambient, glm::vec3{ 0.1f, 0.2f, 0.3f }, 0.5f);
         const auto sun = registry.create("Sun");
         registry.add<aegis::DirectionalLight>(sun, glm::vec3{ 1.0f, 0.5f, 0.25f }, 2.0f);
-        const auto rotation = glm::quat{ glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }) };
+        const auto rotation = aegis::math::quatFromEuler(glm::radians(glm::vec3{ 60.0f, 0.0f, 45.0f }));
         registry.get<aegis::GlobalTransform>(sun).rotation = rotation;
 
         const auto scene = aegis::extractFrameScene(world, instances);
@@ -176,7 +180,7 @@ TEST_SUITE("render_bridge::extractFrameScene")
         registry.add<aegis::SpotLight>(light, glm::vec3{ 0.0f, 1.0f, 0.0f }, 50.0f, 8.0f, 0.25f, 0.5f, true, 2.5f);
         auto& transform = registry.get<aegis::GlobalTransform>(light);
         transform.location = { 1.0f, 2.0f, 3.0f };
-        transform.rotation = glm::quat{ glm::vec3{ 0.3f, 0.0f, 1.2f } };
+        transform.rotation = aegis::math::quatFromEuler(glm::vec3{ 0.3f, 0.0f, 1.2f });
 
         const auto scene = aegis::extractFrameScene(world, instances);
         REQUIRE(scene.spotLights.size() == 1);

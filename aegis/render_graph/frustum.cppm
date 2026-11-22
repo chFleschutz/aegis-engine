@@ -16,10 +16,10 @@ struct Frustum
     ///        depth range.
     [[nodiscard]] static auto extractFrom(const glm::mat4& viewProjection) -> Frustum
     {
-        const auto row0 = glm::row(viewProjection, 0);
-        const auto row1 = glm::row(viewProjection, 1);
-        const auto row2 = glm::row(viewProjection, 2);
-        const auto row3 = glm::row(viewProjection, 3);
+        const auto row0 = math::row(viewProjection, 0);
+        const auto row1 = math::row(viewProjection, 1);
+        const auto row2 = math::row(viewProjection, 2);
+        const auto row3 = math::row(viewProjection, 3);
 
         Frustum frustum{ {
             row3 + row0,
