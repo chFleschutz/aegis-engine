@@ -11,4 +11,9 @@ PUBLIC
 	BASE_DIRS "${AEGIS_MODULE_ROOT}"
 	FILES
 		math.cppm
+		aliases.cppm
+		matrix.cppm
+		quaternion.cppm
+		scalar.cppm
+		vector.cppm
 )

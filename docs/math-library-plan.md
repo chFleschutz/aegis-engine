@@ -112,7 +112,7 @@ the integer-only operations (`%`, bitwise, shifts) once a first integer user nee
 ## Architecture
 
 Module `aegis.math`, namespace `aegis::math`, folder `src/aegis/math/`, new-style (moves from the
-legacy list in `AGENTS.md`). `import std;` only: no global module fragment, no glm, no macros.
+legacy list in `AGENTS.md`). `import std;`, plus `<cassert>` for `assert` in the partitions that check indices: no glm, no other macros.
 `aegis-math` links nothing.
 
 ```
