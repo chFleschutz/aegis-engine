@@ -2,33 +2,27 @@
 # aegis-render-passes (../render_passes/).
 add_library(aegis-render-graph STATIC)
 
-target_link_libraries(aegis-render-graph
-    PUBLIC
-        aegis-math
-        aegis-renderer
-        aegis-rhi
-    PRIVATE
-        aegis-core
+target_link_libraries(
+    aegis-render-graph
+    PUBLIC aegis-math aegis-renderer aegis-rhi
+    PRIVATE aegis-core
 )
 
-target_sources(aegis-render-graph
+target_sources(
+    aegis-render-graph
     PUBLIC
-    FILE_SET CXX_MODULES FILES
-    render_graph.cppm
-    declarations.cppm
-    error.cppm
-    frame_graph.cppm
-    graph_builder.cppm
-    frustum.cppm
-    immediate.cppm
-    render_pass.cppm
-    resource.cppm
-    resource_pool.cppm
-    schedule.cppm
-    PRIVATE
-    declarations.cpp
-    frame_graph.cpp
-    resource_pool.cpp
-    schedule.cpp
+        FILE_SET CXX_MODULES
+            FILES
+                render_graph.cppm
+                declarations.cppm
+                error.cppm
+                frame_graph.cppm
+                graph_builder.cppm
+                frustum.cppm
+                immediate.cppm
+                render_pass.cppm
+                resource.cppm
+                resource_pool.cppm
+                schedule.cppm
+    PRIVATE declarations.cpp frame_graph.cpp resource_pool.cpp schedule.cpp
 )
-

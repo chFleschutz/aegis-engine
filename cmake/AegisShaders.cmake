@@ -44,7 +44,11 @@ if(CMAKE_GENERATOR MATCHES "Ninja|Makefiles")
 else()
     set(_aegis_depfiles_default OFF)
 endif()
-option(AEGIS_SHADER_DEPFILES "Track shader imports with slangc -depfile (otherwise every shader depends on every module)" ${_aegis_depfiles_default})
+option(
+    AEGIS_SHADER_DEPFILES
+    "Track shader imports with slangc -depfile (otherwise every shader depends on every module)"
+    ${_aegis_depfiles_default}
+)
 
 set(AEGIS_SLANG_CAPABILITIES
     spirv_1_6
@@ -68,7 +72,13 @@ set(_AEGIS_SHADERS_DIR "${CMAKE_CURRENT_LIST_DIR}")
 # -reflection-json output, NO_VALIDATE skips spirv-val, DEPENDS adds file dependencies. Appends the outputs to the
 # caller's 'outputs' and the depfile to its 'depfiles'.
 function(_aegis_add_slang_command source spv comment)
-    cmake_parse_arguments(C "NO_VALIDATE" "REFLECTION" "DEFINES;INCLUDE_FLAGS;MODULES;DEPENDS" ${ARGN})
+    cmake_parse_arguments(
+        C
+        "NO_VALIDATE"
+        "REFLECTION"
+        "DEFINES;INCLUDE_FLAGS;MODULES;DEPENDS"
+        ${ARGN}
+    )
     get_filename_component(spv_dir "${spv}" DIRECTORY)
     file(MAKE_DIRECTORY "${spv_dir}")
     set(command_outputs "${spv}")
@@ -98,32 +108,29 @@ function(_aegis_add_slang_command source spv comment)
 
     set(validate "")
     if(AEGIS_SPIRV_VAL_EXE AND NOT C_NO_VALIDATE)
-        set(validate COMMAND ${CMAKE_COMMAND}
-            -DSPIRV_VAL=${AEGIS_SPIRV_VAL_EXE} -DSPV=${spv}
-            -P ${_AEGIS_SHADERS_DIR}/AegisValidateSpirv.cmake)
+        set(validate
+            COMMAND
+            ${CMAKE_COMMAND}
+            -DSPIRV_VAL=${AEGIS_SPIRV_VAL_EXE}
+            -DSPV=${spv}
+            -P
+            ${_AEGIS_SHADERS_DIR}/AegisValidateSpirv.cmake
+        )
     endif()
 
     add_custom_command(
         OUTPUT ${command_outputs}
-        COMMAND ${SLANGC_EXE} "${source}"
-            -target spirv
-            -profile ${AEGIS_SLANG_PROFILE}
-            -o "${spv}"
-            ${C_INCLUDE_FLAGS}
-            ${define_flags}
-            ${depfile_flags}
-            ${reflection_flags}
-            -fvk-use-entrypoint-name
-            -matrix-layout-row-major
+        COMMAND
+            ${SLANGC_EXE} "${source}" -target spirv -profile ${AEGIS_SLANG_PROFILE} -o "${spv}"
+            ${C_INCLUDE_FLAGS} ${define_flags} ${depfile_flags} ${reflection_flags}
+            -fvk-use-entrypoint-name -matrix-layout-row-major
             -fvk-use-scalar-layout # C++-compatible packing for device-address reads (modules/README.md)
             -warnings-as-errors all # like the C++ build; a disabled warning stays disabled
             # binding overlap: the bindless arrays alias their bindings (modules/bindless.slang)
-            -warnings-disable 39001
-            $<$<CONFIG:Debug,Development>:-O0> $<$<CONFIG:Release>:-O3>
+            -warnings-disable 39001 $<$<CONFIG:Debug,Development>:-O0> $<$<CONFIG:Release>:-O3>
             $<$<CONFIG:Debug,Development>:-g> # Development's speed-up is on the CPU; shaders as in Debug
-        ${validate}
-        DEPENDS "${source}" ${module_deps} ${C_DEPENDS}
-        ${depfile_args}
+            ${validate}
+        DEPENDS "${source}" ${module_deps} ${C_DEPENDS} ${depfile_args}
         COMMENT "${comment}"
         VERBATIM
         COMMAND_EXPAND_LISTS
@@ -134,7 +141,13 @@ function(_aegis_add_slang_command source spv comment)
 endfunction()
 
 function(aegis_add_shaders target)
-    cmake_parse_arguments(S "" "BASE_DIR;OUTPUT_DIR" "SOURCES;TECHNIQUES;SURFACES;INCLUDE_DIRS;MODULES" ${ARGN})
+    cmake_parse_arguments(
+        S
+        ""
+        "BASE_DIR;OUTPUT_DIR"
+        "SOURCES;TECHNIQUES;SURFACES;INCLUDE_DIRS;MODULES"
+        ${ARGN}
+    )
     if(NOT S_BASE_DIR)
         set(S_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
@@ -151,8 +164,13 @@ function(aegis_add_shaders target)
     set(depfiles "")
     foreach(source IN LISTS S_SOURCES)
         file(RELATIVE_PATH rel "${S_BASE_DIR}" "${source}")
-        _aegis_add_slang_command("${source}" "${S_OUTPUT_DIR}/${rel}.spv" "Compiling Slang shader: ${rel}"
-            INCLUDE_FLAGS ${include_flags} MODULES ${S_MODULES})
+        _aegis_add_slang_command(
+            "${source}"
+            "${S_OUTPUT_DIR}/${rel}.spv"
+            "Compiling Slang shader: ${rel}"
+            INCLUDE_FLAGS ${include_flags}
+            MODULES ${S_MODULES}
+        )
     endforeach()
 
     foreach(surface IN LISTS S_SURFACES)
@@ -164,30 +182,50 @@ function(aegis_add_shaders target)
         get_filename_component(surface_name "${surface}" NAME_WE)
 
         # The layout stub's SPIR-V is only a by-product of its reflection, so it is not validated.
-        _aegis_add_slang_command("${_AEGIS_SHADERS_DIR}/AegisSurfaceLayout.slang" "${S_OUTPUT_DIR}/${surface_stem}.layout.spv"
+        _aegis_add_slang_command(
+            "${_AEGIS_SHADERS_DIR}/AegisSurfaceLayout.slang"
+            "${S_OUTPUT_DIR}/${surface_stem}.layout.spv"
             "Reflecting surface shader: ${surface_rel}"
             DEFINES "SURFACE_MODULE=${surface_module}"
             REFLECTION "${S_OUTPUT_DIR}/${surface_stem}.layout.json"
             NO_VALIDATE
-            INCLUDE_FLAGS ${include_flags} MODULES ${S_MODULES} DEPENDS "${surface}")
+            INCLUDE_FLAGS ${include_flags}
+            MODULES ${S_MODULES}
+            DEPENDS "${surface}"
+        )
 
         foreach(technique IN LISTS S_TECHNIQUES)
             file(RELATIVE_PATH technique_rel "${S_BASE_DIR}" "${technique}")
             string(REGEX REPLACE "[.]slang$" "" technique_stem "${technique_rel}")
-            _aegis_add_slang_command("${technique}" "${S_OUTPUT_DIR}/${technique_stem}.${surface_name}.spv"
+            _aegis_add_slang_command(
+                "${technique}"
+                "${S_OUTPUT_DIR}/${technique_stem}.${surface_name}.spv"
                 "Compiling Slang shader: ${technique_rel} with ${surface_rel}"
                 DEFINES "SURFACE_MODULE=${surface_module}"
-                INCLUDE_FLAGS ${include_flags} MODULES ${S_MODULES} DEPENDS "${surface}")
-            _aegis_add_slang_command("${technique}" "${S_OUTPUT_DIR}/${technique_stem}.${surface_name}.masked.spv"
+                INCLUDE_FLAGS ${include_flags}
+                MODULES ${S_MODULES}
+                DEPENDS "${surface}"
+            )
+            _aegis_add_slang_command(
+                "${technique}"
+                "${S_OUTPUT_DIR}/${technique_stem}.${surface_name}.masked.spv"
                 "Compiling Slang shader: ${technique_rel} with ${surface_rel}, masked"
                 DEFINES "SURFACE_MODULE=${surface_module}" "ALPHA_MASK=1"
-                INCLUDE_FLAGS ${include_flags} MODULES ${S_MODULES} DEPENDS "${surface}")
+                INCLUDE_FLAGS ${include_flags}
+                MODULES ${S_MODULES}
+                DEPENDS "${surface}"
+            )
         endforeach()
     endforeach()
 
     # Outputs of sources that were removed or renamed would otherwise stay in the build tree, where the
     # renderer could still load them.
-    file(GLOB_RECURSE existing "${S_OUTPUT_DIR}/*.spv" "${S_OUTPUT_DIR}/*.spv.d" "${S_OUTPUT_DIR}/*.layout.json")
+    file(
+        GLOB_RECURSE existing
+        "${S_OUTPUT_DIR}/*.spv"
+        "${S_OUTPUT_DIR}/*.spv.d"
+        "${S_OUTPUT_DIR}/*.layout.json"
+    )
     foreach(file IN LISTS existing)
         if(NOT file IN_LIST outputs AND NOT file IN_LIST depfiles)
             message(STATUS "Removing orphaned shader output: ${file}")

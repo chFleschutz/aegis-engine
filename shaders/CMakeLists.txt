@@ -18,7 +18,8 @@ file(GLOB_RECURSE SLANG_MODULES CONFIGURE_DEPENDS "${SHADERS_DIR}/modules/*.slan
 list(FILTER SLANG_SOURCES EXCLUDE REGEX ".*/(modules|surfaces)/.*")
 list(REMOVE_ITEM SLANG_SOURCES ${SLANG_TECHNIQUES})
 
-aegis_add_shaders(compile_shaders
+aegis_add_shaders(
+    compile_shaders
     SOURCES ${SLANG_SOURCES}
     TECHNIQUES ${SLANG_TECHNIQUES}
     SURFACES ${SLANG_SURFACES}

@@ -46,19 +46,39 @@ function(aegis_add_game name)
     # pixels, and on lavapipe (CI) the run time grows with them. They load compiled shaders, so they exist only when those are built.
     if(AEGIS_BUILD_TESTS AND TARGET compile_shaders)
         string(TOLOWER ${name} lowered)
-        set(args --headless --frames 120 --width 640 --height 360)
+        set(args
+            --headless
+            --frames
+            120
+            --width
+            640
+            --height
+            360
+        )
         if(G_SCENES)
             foreach(scene IN LISTS G_SCENES)
                 cmake_path(GET scene STEM stem)
                 string(TOLOWER "game-${lowered}-${stem}" test)
                 add_test(NAME ${test} COMMAND ${name} ${args} --scene ${scene})
-                set_tests_properties(${test} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300
-                    FAIL_REGULAR_EXPRESSION "Failed to load")
+                set_tests_properties(
+                    ${test}
+                    PROPERTIES
+                        LABELS "device;game"
+                        RESOURCE_LOCK gpu
+                        TIMEOUT 300
+                        FAIL_REGULAR_EXPRESSION "Failed to load"
+                )
             endforeach()
         else()
             add_test(NAME game-${lowered} COMMAND ${name} ${args})
-            set_tests_properties(game-${lowered} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300
-                FAIL_REGULAR_EXPRESSION "Failed to load")
+            set_tests_properties(
+                game-${lowered}
+                PROPERTIES
+                    LABELS "device;game"
+                    RESOURCE_LOCK gpu
+                    TIMEOUT 300
+                    FAIL_REGULAR_EXPRESSION "Failed to load"
+            )
         endif()
 
         # The editor flavor runs 60 frames of its UI over the viewport and keeps the screenshot,
@@ -68,7 +88,15 @@ function(aegis_add_game name)
         # viewport's bar (inside the viewport's draw, where the shell asserts that no world is swapped), once in full
         # viewport and once with the right column folded into the side rail and the Inspector of EDITOR_SELECT's entity
         # in its flyout. The first scene stands for the project.
-        set(editor_args --headless --frames 60 --width 1280 --height 720)
+        set(editor_args
+            --headless
+            --frames
+            60
+            --width
+            1280
+            --height
+            720
+        )
         if(G_SCENES)
             list(GET G_SCENES 0 first)
             list(APPEND editor_args --scene ${first})
@@ -78,8 +106,18 @@ function(aegis_add_game name)
         # takes ~50 s on lavapipe, against ~10 s without a scene. They run the same editor state as the twins of a
         # game without SCENES (Template), so they get the label `slow` and CI's lavapipe games shard skips them
         # (-LE slow); a local ctest runs them all. The all-panels and -stats runs stay: they select an entity and need the scene.
-        set(scene_duplicate_variants "-default" "-play" "-play-stop" "-full" "-folded")
-        foreach(variant IN ITEMS "" "-default" "-play" "-play-stop" "-full" "-folded")
+        set(scene_duplicate_variants
+            "-default"
+            "-play"
+            "-play-stop"
+            "-full"
+            "-folded"
+        )
+        foreach(
+            variant
+            IN
+            ITEMS "" "-default" "-play" "-play-stop" "-full" "-folded"
+        )
             set(editor_test game-${lowered}-editor${variant})
             set(variant_args ${editor_args})
             if(NOT variant)
@@ -99,22 +137,41 @@ function(aegis_add_game name)
                     list(APPEND variant_args --editor-select "${G_EDITOR_SELECT}")
                 endif()
             endif()
-            add_test(NAME ${editor_test} COMMAND ${name}-Editor ${variant_args}
-                --screenshot "${PROJECT_BINARY_DIR}/screenshots/${editor_test}.png")
+            add_test(
+                NAME ${editor_test}
+                COMMAND
+                    ${name}-Editor ${variant_args} --screenshot
+                    "${PROJECT_BINARY_DIR}/screenshots/${editor_test}.png"
+            )
             set(editor_labels "device;game;editor")
             if(G_SCENES AND variant IN_LIST scene_duplicate_variants)
                 list(APPEND editor_labels slow)
             endif()
-            set_tests_properties(${editor_test} PROPERTIES LABELS "${editor_labels}" RESOURCE_LOCK gpu TIMEOUT 300
-                FAIL_REGULAR_EXPRESSION "Failed to load;play never stopped")
+            set_tests_properties(
+                ${editor_test}
+                PROPERTIES
+                    LABELS "${editor_labels}"
+                    RESOURCE_LOCK gpu
+                    TIMEOUT 300
+                    FAIL_REGULAR_EXPRESSION "Failed to load;play never stopped"
+            )
         endforeach()
         # During play the editor's statistics must count the play world: the check adds an instance that draws nothing
         # to it (StatisticsCheck), so it needs a scene with a mesh. It logs a failure, also when it never ran.
         if(G_SCENES)
             set(stats_test game-${lowered}-editor-stats)
-            add_test(NAME ${stats_test} COMMAND ${name}-Editor ${editor_args} --editor-play --editor-check-stats)
-            set_tests_properties(${stats_test} PROPERTIES LABELS "device;game;editor" RESOURCE_LOCK gpu TIMEOUT 300
-                FAIL_REGULAR_EXPRESSION "Failed to load;Editor statistics check failed")
+            add_test(
+                NAME ${stats_test}
+                COMMAND ${name}-Editor ${editor_args} --editor-play --editor-check-stats
+            )
+            set_tests_properties(
+                ${stats_test}
+                PROPERTIES
+                    LABELS "device;game;editor"
+                    RESOURCE_LOCK gpu
+                    TIMEOUT 300
+                    FAIL_REGULAR_EXPRESSION "Failed to load;Editor statistics check failed"
+            )
         endif()
     endif()
 endfunction()

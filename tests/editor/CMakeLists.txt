@@ -1,4 +1,5 @@
-aegis_add_test(editor
+aegis_add_test(
+    editor
     SOURCES
         asset_browser.test.cpp
         autosave.test.cpp
