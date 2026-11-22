@@ -13,7 +13,6 @@ target_link_libraries(aegis-render-passes
     PRIVATE
         aegis-paths
         imgui
-        vulkan-module # The UI pass hands raw Vulkan handles to ImGui's backend
 )
 
 target_sources(aegis-render-passes

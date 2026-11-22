@@ -131,7 +131,7 @@ through `shared_ptr`.
 **Vulkan stays inside rhi:** use `import vulkan` and `vk::raii`, never `#include <vulkan/vulkan.h>`,
 and only inside the new RHI modules; everything else goes through `aegis::rhi`. rhi classes expose
 native `vk::` handles for interop (`Device::device()`, `Buffer::vk()`, ...); the vulkan module is
-linked PRIVATE, so code outside rhi cannot name `vk::` types, except `render_graph/passes/ui_pass.cpp`, which imports it for the ImGui backend.
+linked PRIVATE, so code outside rhi cannot name `vk::` types. ImGui's Vulkan backend sits behind `rhi::ImGuiBackend`.
 
 **Known deviations (current state):** the `Error` types differ per module (rhi struct `{code}`,
 `renderer` enum, `render_graph` `{message, rhi?}`, `assets` struct); `platform::Window` asserts

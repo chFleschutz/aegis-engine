@@ -17,10 +17,11 @@ import aegis.rhi;
 
 export namespace aegis
 {
-/// @brief The ImGui context and its platform backend, and the UI's place in the frame: beginFrame opens it
-///        after the input was read, endFrame closes it (ImGui::Render) before the frame graph's UI pass
-///        records it. ImGui's Vulkan backend belongs to that pass (render_graph::UiPass); the textures the UI
-///        shows are registered with it (uiTexture).
+/// @brief The ImGui context and both its backends, for the engine's lifetime: the platform one (GLFW, attach) and the
+///        Vulkan one (rhi::ImGuiBackend, createBackend), which no frame-graph rebuild restarts. It also holds the UI's
+///        place in the frame: beginFrame opens it after the input was read, endFrame closes it (ImGui::Render) before
+///        the frame graph's UI pass records it through the backend (backend). The textures the UI shows are registered
+///        with the backend (uiTexture).
 class Presentation
 {
 public:
@@ -35,30 +36,30 @@ public:
     /// @brief Follows the window's input through ImGui's GLFW backend; without it (headless) the UI is
     ///        drawn, not interacted with.
     void attach(platform::Window& window);
-    /// @brief Shuts the GLFW backend down, for attach to start it again. Shutting ImGui's Vulkan backend down (the
-    ///        UI pass, when the frame graph is rebuilt) also destroys ImGui's platform windows, the main one too.
-    void detach();
     /// @brief Opens the frame. Headless, the display is 'extent' and time advances by 'deltaSeconds'.
     void beginFrame(rhi::Extent2D extent, float deltaSeconds);
     /// @brief Ends the frame: its draw data is ready for the UI pass.
     void endFrame();
 
+    /// @brief Starts ImGui's Vulkan backend, once the device exists, and what uiTexture registers with.
+    [[nodiscard]] auto createBackend(const rhi::Context& context, rhi::Device& device, std::uint32_t framesInFlight) -> std::expected<void, std::string>;
+    /// @brief The backend the frame graph's UI pass records through (UiPass::Desc::backend); null before createBackend.
+    [[nodiscard]] auto backend() noexcept -> rhi::ImGuiBackend*;
     /// @brief An ImTextureID showing 'view' (an image of the frame graph, say) with ImGui::Image, valid in this
-    ///        frame only: ask again in every frame that shows it. 0 before the frame graph's UI pass exists.
+    ///        frame only: ask again in every frame that shows it. 0 before createBackend.
     /// @note The UI pass samples it: the image must be in a shader read state by then, as a view's "Final" is.
     [[nodiscard]] auto uiTexture(rhi::ImageViewHandle view) -> std::uint64_t;
-    /// @brief Creates what uiTexture registers with, once the device exists.
-    [[nodiscard]] auto createTextures(rhi::Device& device) -> std::expected<void, std::string>;
-    /// @brief Releases every texture uiTexture handed out. The GPU must be idle: call it before the frame graph is
-    ///        resized (its views are recreated) or rebuilt (the UI pass goes, and ImGui's backend with it).
+    /// @brief Releases every texture uiTexture handed out. The GPU must be idle: call it before the views the UI shows
+    ///        are recreated (the frame graph is resized or rebuilt).
     void releaseTextures();
-    /// @brief Releases the textures and what they are registered with, while the device and the UI pass exist.
-    void destroyTextures();
+    /// @brief Releases the textures and shuts the Vulkan backend down, while the device exists.
+    void destroyBackend();
 
 private:
-    struct Textures; // render_graph::UiTextures, kept out of this interface
+    struct Textures; // The registrations, kept out of this interface
 
     bool m_glfw{ false }; // ImGui's GLFW backend is initialized
+    std::unique_ptr<rhi::ImGuiBackend> m_backend;
     std::unique_ptr<Textures> m_textures;
 };
 

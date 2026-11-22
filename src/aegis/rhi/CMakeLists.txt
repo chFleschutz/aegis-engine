@@ -57,6 +57,7 @@ target_link_libraries(aegis-rhi
         vulkan-module
         GPUOpen::VulkanMemoryAllocator
         glfw
+        imgui # ImGui_ImplVulkan, behind ImGuiBackend
 )
 
 target_sources(aegis-rhi
@@ -74,6 +75,7 @@ target_sources(aegis-rhi
         fwd.cppm
         image.cppm
         image_view.cppm
+        imgui_backend.cppm
         memory.cppm
         query.cppm
         queue.cppm
@@ -97,6 +99,7 @@ target_sources(aegis-rhi
         device.cpp
         image.cpp
         image_view.cpp
+        imgui_backend.cpp
         memory.cpp
         query.cpp
         queue.cpp
