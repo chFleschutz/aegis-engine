@@ -128,11 +128,11 @@ auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
     if (desc.shownViews)
     {
         // The frame's target shows only the UI; each "Final" stays its view's, for the UI to show.
-        graph.add<UiPass>(UiPass::Desc{ .context = desc.context, .targetFormat = desc.shownViews->targetFormat, .finals = std::move(finals) });
+        graph.add<UiPass>(UiPass::Desc{ .backend = desc.uiBackend, .targetFormat = desc.shownViews->targetFormat, .finals = std::move(finals) });
         return;
     }
     if (desc.ui)
-        graph.add<UiPass>(UiPass::Desc{ .context = desc.context, .finals = { finals.front() } });
+        graph.add<UiPass>(UiPass::Desc{ .backend = desc.uiBackend, .finals = { finals.front() } });
     graph.add<PresentPass>(finals.front());
 }
 

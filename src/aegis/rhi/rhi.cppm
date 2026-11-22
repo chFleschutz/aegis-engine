@@ -15,6 +15,7 @@ export import :deletion_queue;
 export import :device;
 export import :image;
 export import :image_view;
+export import :imgui_backend;
 export import :pipeline;
 export import :query;
 export import :queue;

@@ -431,14 +431,14 @@ auto Engine::initialize() -> std::expected<void, EngineError>
 Engine::~Engine()
 {
     // The GPU may still use what the members below free. The shell ends first, while the worlds, the
-    // frame graph and ImGui still exist; the members then go bottom up (the UI pass before the ImGui
+    // frame graph and ImGui still exist; the members then go bottom up (the ImGui backends before the ImGui
     // context). A failed create() leaves the later members empty.
     if (m_device)
         m_device->waitIdle();
     m_shell->onShutdown();
     m_shell.reset();
-    // Its registrations are freed through the UI pass, and its sampler through the device.
-    m_presentation.destroyTextures();
+    // The UI's backend and textures go through the device, which outlives them.
+    m_presentation.destroyBackend();
 }
 
 auto Engine::useGpuDrivenRendering() const -> bool
@@ -628,8 +628,8 @@ auto Engine::createRenderer() -> std::expected<void, EngineError>
         return std::unexpected{ makeError(EngineErrorCode::RendererFailed, std::format("Failed to create the renderer: {}", aegis::renderer::describe(renderer.error()))) };
     m_renderer = std::move(*renderer);
 
-    if (auto created = m_presentation.createTextures(*m_device); !created)
-        return std::unexpected{ makeError(EngineErrorCode::RendererFailed, std::format("Failed to create the UI textures: {}", created.error())) };
+    if (auto created = m_presentation.createBackend(*m_context, *m_device, FRAMES_IN_FLIGHT); !created)
+        return std::unexpected{ makeError(EngineErrorCode::RendererFailed, std::format("Failed to create the UI backend: {}", created.error())) };
     return {};
 }
 
@@ -646,24 +646,13 @@ auto Engine::createFrameGraph(std::vector<ViewTarget> views) -> std::expected<vo
 {
     using aegis::render_graph::DefaultPassesDesc;
 
-    // The UI pass owns ImGui's Vulkan backend, of which there is one: the old graph goes first. Its shutdown takes
-    // ImGui's platform windows along, so the GLFW backend starts again too.
-    if (m_frameGraph)
-    {
-        m_frameGraph.reset();
-        if (m_window)
-        {
-            m_presentation.detach();
-            m_presentation.attach(*m_window);
-        }
-    }
     m_views = std::move(views);
     m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, m_renderer->extent());
     DefaultPassesDesc desc{
         .scene = m_frameScene,
         .gpuDriven = useGpuDrivenRendering(),
         .ui = true, // The shell's UI, empty for a game; headless too, for screenshots of it
-        .context = m_context.get(),
+        .uiBackend = m_presentation.backend(),
     };
     // Without views of its own the main camera renders onto the target, following it.
     if (!m_views.empty())

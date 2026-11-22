@@ -44,8 +44,9 @@ struct DefaultPassesDesc
     bool gpuDriven;
     /// @brief Draws ImGui over the frame: the draw data of the frame the caller ended (see UiPass).
     bool ui{ false };
-    /// @brief Needed with ui to compile the graph (ImGui's backend takes the instance); declaring it needs none.
-    const rhi::Context* context{ nullptr };
+    /// @brief Needed with ui to compile the graph: the UI pass records through it. It belongs to the caller and outlives
+    ///        the graph; declaring the graph needs none.
+    rhi::ImGuiBackend* uiBackend{ nullptr };
     /// @brief The views, in the order of FrameScene::views; at least one main view. Without shadow views (see
     ///        addShadowViews) the main views are lit unshadowed.
     std::vector<View> views{ View{ .name = std::string{ names::mainView } } };
