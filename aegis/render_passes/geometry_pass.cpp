@@ -29,9 +29,10 @@ auto SpotShadowAtlasPass::execute(ResourcePool& pool, const FrameInfo& frameInfo
 
 // Geometry -------------------------------------------------------------------------------------------
 
-GeometryPass::GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, Technique technique,
-    std::uint32_t view, std::optional<DepthTile> tile) :
+GeometryPass::GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+    Technique technique, std::uint32_t view, std::optional<DepthTile> tile) :
     m_scene{ scene },
+    m_pipelines{ pipelines },
     m_technique{ technique },
     m_view{ view },
     m_tile{ std::move(tile) }
@@ -78,7 +79,7 @@ auto GeometryPass::createResources(ResourcePool& pool) -> std::expected<void, Er
 
     for (const auto& system : m_renderSystems)
     {
-        if (auto created = system->createResources(pool.device(), { attachments, pool.format(m_depth) }); !created)
+        if (auto created = system->createResources(m_pipelines, pool.device(), { attachments, pool.format(m_depth) }); !created)
             return created;
     }
     return {};

@@ -1,6 +1,7 @@
 export module aegis.render_passes:render_system;
 import std;
 import :frame_scene;
+import :pipeline_library;
 import aegis.render_graph;
 import aegis.rhi;
 import aegis.math;
@@ -39,8 +40,9 @@ public:
     auto operator=(const RenderSystem&) -> RenderSystem& = delete;
     auto operator=(RenderSystem&&) -> RenderSystem& = delete;
 
-    /// @brief Creates the system's pipelines for its pass's attachments.
-    [[nodiscard]] virtual auto createResources(rhi::Device& device, const RenderTargets& targets)
+    /// @brief Takes the system's pipelines for its pass's attachments from 'pipelines' (or remembers where to take
+    ///        them from in prepare).
+    [[nodiscard]] virtual auto createResources(PipelineLibrary& pipelines, rhi::Device& device, const RenderTargets& targets)
         -> std::expected<void, Error> = 0;
 
     /// @brief Creates what drawing 'frameScene' needs and the system lacks (RenderPass::prepare).

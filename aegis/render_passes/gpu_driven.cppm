@@ -5,6 +5,7 @@ import :geometry_pass;
 import :instance_store;
 import :gpu_types;
 import :pipeline_cache;
+import :pipeline_library;
 import aegis.render_graph;
 import aegis.assets;
 import aegis.rhi;
@@ -101,8 +102,8 @@ class CullingPass : public RenderPass
 {
 public:
     /// @param view The index of the view in FrameScene::views it culls for (whose "CameraData" it reads).
-    CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances,
-        std::uint32_t view = 0);
+    CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+        const InstanceUpdatePass& instances, std::uint32_t view = 0);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -112,6 +113,7 @@ public:
 
 private:
     const FrameSceneSource& m_scene;
+    PipelineLibrary& m_pipelines;
     const InstanceUpdatePass& m_instances;
     std::uint32_t m_view;
     ResourceId m_cameraData;
@@ -123,7 +125,7 @@ private:
     ResourceId m_counts;
     std::uint32_t m_visibilityCapacity;
     std::uint32_t m_commandCapacity;
-    std::optional<rhi::Pipeline> m_pipeline;
+    const rhi::Pipeline* m_pipeline{ nullptr };
 };
 
 /// @brief The GPU-driven geometry pass (mesh shaders): one indirect-count draw per opaque draw batch, with that
@@ -138,12 +140,13 @@ public:
 
     /// @param view The index of the view in FrameScene::views it draws (whose "CameraData" it reads).
     /// @param tile Where a Technique::Depth pass draws instead of its own "Depth" (GeometryPass's); none: its own.
-    GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances,
-        Technique technique = Technique::GBuffer, std::uint32_t view = 0, std::optional<DepthTile> tile = std::nullopt);
+    GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+        const InstanceUpdatePass& instances, Technique technique = Technique::GBuffer, std::uint32_t view = 0,
+        std::optional<DepthTile> tile = std::nullopt);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
-    /// @brief Creates the pipelines of the frame's draw batches it draws.
+    /// @brief Takes the pipelines of the frame's draw batches it draws from its PipelineLibrary.
     [[nodiscard]] auto prepare(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
@@ -151,9 +154,10 @@ public:
     [[nodiscard]] auto pipelines() const noexcept -> const PipelineCache<>& { return m_pipelines; }
 
 private:
-    [[nodiscard]] auto createPipeline(const PipelineKey& key) const -> std::expected<rhi::Pipeline, Error>;
+    [[nodiscard]] auto findPipeline(const PipelineKey& key) const -> std::expected<const rhi::Pipeline*, Error>;
 
     const FrameSceneSource& m_scene;
+    PipelineLibrary& m_pipelineLibrary;
     const InstanceUpdatePass& m_instances;
     Technique m_technique;
     std::uint32_t m_view;

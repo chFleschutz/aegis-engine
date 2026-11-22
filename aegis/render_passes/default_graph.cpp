@@ -70,12 +70,12 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
     {
         const auto& instances = desc.instances ? *desc.instances : graph.add<InstanceUpdatePass>(scene);
         graph.add<ClearDrawCountsPass>();
-        graph.add<CullingPass>(scene, instances, desc.view);
-        graph.add<GpuDrivenGeometryPass>(scene, instances, Technique::GBuffer, desc.view);
+        graph.add<CullingPass>(scene, desc.pipelines, instances, desc.view);
+        graph.add<GpuDrivenGeometryPass>(scene, desc.pipelines, instances, Technique::GBuffer, desc.view);
     }
     else
     {
-        graph.add<GeometryPass>(scene, Technique::GBuffer, desc.view).addRenderSystem<StaticMeshRenderSystem>();
+        graph.add<GeometryPass>(scene, desc.pipelines, Technique::GBuffer, desc.view).addRenderSystem<StaticMeshRenderSystem>();
     }
 
     std::optional<LightingPass::ShadowMaps> shadow;
@@ -87,13 +87,13 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
         if (drawsSpotShadows(desc))
             shadow->spotAtlas = std::string{ names::spotShadowAtlas };
     }
-    graph.add<LightingPass>(scene, desc.view, shadow);
-    graph.add<SkyBoxPass>(scene, desc.view);
+    graph.add<LightingPass>(scene, desc.pipelines, desc.view, shadow);
+    graph.add<SkyBoxPass>(scene, desc.pipelines, desc.view);
     // Blended draws take the CPU-driven draw on both geometry paths.
-    graph.add<ForwardPass>(scene, desc.view, shadow).addRenderSystem<StaticMeshRenderSystem>(Technique::Forward);
-    graph.add<TransparentPass>(scene, desc.view).addRenderSystem<PointLightRenderSystem>();
-    graph.add<BloomPass>(scene);
-    graph.add<PostProcessingPass>(scene);
+    graph.add<ForwardPass>(scene, desc.pipelines, desc.view, shadow).addRenderSystem<StaticMeshRenderSystem>(Technique::Forward);
+    graph.add<TransparentPass>(scene, desc.pipelines, desc.view).addRenderSystem<PointLightRenderSystem>();
+    graph.add<BloomPass>(scene, desc.pipelines);
+    graph.add<PostProcessingPass>(scene, desc.pipelines);
 }
 
 auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
@@ -107,12 +107,12 @@ auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
     {
         const auto& instances = desc.instances ? *desc.instances : graph.add<InstanceUpdatePass>(scene);
         graph.add<ClearDrawCountsPass>();
-        graph.add<CullingPass>(scene, instances, desc.view);
-        graph.add<GpuDrivenGeometryPass>(scene, instances, Technique::Depth, desc.view, std::move(tile));
+        graph.add<CullingPass>(scene, desc.pipelines, instances, desc.view);
+        graph.add<GpuDrivenGeometryPass>(scene, desc.pipelines, instances, Technique::Depth, desc.view, std::move(tile));
     }
     else
     {
-        graph.add<GeometryPass>(scene, Technique::Depth, desc.view, std::move(tile)).addRenderSystem<StaticMeshRenderSystem>(Technique::Depth);
+        graph.add<GeometryPass>(scene, desc.pipelines, Technique::Depth, desc.view, std::move(tile)).addRenderSystem<StaticMeshRenderSystem>(Technique::Depth);
     }
 }
 

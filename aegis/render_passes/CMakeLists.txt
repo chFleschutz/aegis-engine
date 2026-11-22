@@ -34,6 +34,7 @@ target_sources(
                 names.cppm
                 pass_settings.cppm
                 pipeline_cache.cppm
+                pipeline_library.cppm
                 post_effects.cppm
                 render_system.cppm
                 scene_update_pass.cppm
@@ -52,6 +53,7 @@ target_sources(
         instance_store.cpp
         lighting_pass.cpp
         pass_settings.cpp
+        pipeline_library.cpp
         post_effects.cpp
         scene_update_pass.cpp
         screen_passes.cpp

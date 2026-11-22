@@ -361,6 +361,9 @@ public:
     /// @brief Finds assets by path and loads them by ID.
     [[nodiscard]] auto assets() -> AssetLibrary& { return *m_assets; }
 
+    /// @brief The passes' pipelines and BRDF LUT, which every frame graph the engine builds shares.
+    [[nodiscard]] auto pipelines() const -> const render_graph::PipelineLibrary& { return *m_pipelines; }
+
     /// @brief The main world: scenes load into it (loadScene), and it renders unless the shell renders another
     ///        (FrameContext::render). It exists from create() on and is never destroyed.
     [[nodiscard]] auto world() -> world::World& { return *m_mainWorld; }
@@ -509,6 +512,8 @@ private:
     world::World* m_renderRequest{ nullptr };      // This frame's, from the shell (FrameContext::render); none for the main world
     const world::World* m_lastRendered{ nullptr }; // The world whose instances the passes' buffers hold
     render_graph::FrameSceneSource m_frameScene;   // Where the passes read the frame scene; outlives the graph
+    // The passes' pipelines and BRDF LUT: outlive every frame graph, so a rebuild (followViews) creates none.
+    std::unique_ptr<render_graph::PipelineLibrary> m_pipelines{ std::make_unique<render_graph::PipelineLibrary>() };
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
     std::vector<ViewTarget> m_views; // The views the frame graph renders into targets of their own; none: onto the target
     bool m_quit{ false };            // quit(): run() ends after this frame

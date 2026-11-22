@@ -166,9 +166,10 @@ auto ClearDrawCountsPass::execute(ResourcePool& pool, const FrameInfo& frameInfo
 
 // Culling --------------------------------------------------------------------------------------------
 
-CullingPass::CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, const InstanceUpdatePass& instances,
-    std::uint32_t view) :
+CullingPass::CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+    const InstanceUpdatePass& instances, std::uint32_t view) :
     m_scene{ scene },
+    m_pipelines{ pipelines },
     m_instances{ instances },
     m_view{ view },
     m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) },
@@ -190,10 +191,10 @@ auto CullingPass::name() const -> std::string_view
 
 auto CullingPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    auto pipeline = createComputePipeline(pool.device(), "Culling", "gpu_driven/culling.slang.spv");
+    auto pipeline = m_pipelines.compute(pool.device(), "Culling", "gpu_driven/culling.slang.spv");
     if (!pipeline)
         return std::unexpected{ pipeline.error() };
-    m_pipeline = std::move(*pipeline);
+    m_pipeline = *pipeline;
     return {};
 }
 
@@ -235,8 +236,10 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
 // GPU-driven geometry --------------------------------------------------------------------------------
 
 GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene,
-    const InstanceUpdatePass& instances, Technique technique, std::uint32_t view, std::optional<DepthTile> tile) :
+    PipelineLibrary& pipelines, const InstanceUpdatePass& instances, Technique technique, std::uint32_t view,
+    std::optional<DepthTile> tile) :
     m_scene{ scene },
+    m_pipelineLibrary{ pipelines },
     m_instances{ instances },
     m_technique{ technique },
     m_view{ view },
@@ -249,7 +252,7 @@ GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations,
     m_visibility{ declarations.addReference(names::visibleInstances, Usage::ShaderRead) },
     m_commands{ declarations.addReference(names::indirectDrawCommands, Usage::IndirectRead) },
     m_counts{ declarations.addReference(names::indirectDrawCounts, Usage::IndirectRead) },
-    m_pipelines{ [this](const PipelineKey& key) { return createPipeline(key); } }
+    m_pipelines{ [this](const PipelineKey& key) { return findPipeline(key); } }
 {
 }
 
@@ -283,7 +286,7 @@ auto GpuDrivenGeometryPass::prepare(ResourcePool& /*pool*/) -> std::expected<voi
     return {};
 }
 
-auto GpuDrivenGeometryPass::createPipeline(const PipelineKey& key) const -> std::expected<rhi::Pipeline, Error>
+auto GpuDrivenGeometryPass::findPipeline(const PipelineKey& key) const -> std::expected<const rhi::Pipeline*, Error>
 {
     const auto state = pipelineState(key);
     auto attachments = m_colorAttachments;
@@ -299,7 +302,7 @@ auto GpuDrivenGeometryPass::createPipeline(const PipelineKey& key) const -> std:
     };
     if (const auto fragment = fragmentEntry(key.technique, key.variant))
         stages.push_back(ShaderEntry{ rhi::ShaderStage::Fragment, geometry, *fragment });
-    return createGraphicsPipeline(*m_device,
+    return m_pipelineLibrary.graphics(*m_device,
         rhi::Pipeline::GraphicsDesc{
             .name = key.technique == Technique::Depth ? "GpuDrivenDepth" : "GpuDrivenGeometry",
             .colorAttachments = attachments,
@@ -347,9 +350,10 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
         if (!drawsInGBuffer(batch))
             continue;
         const auto key = gpuKey(m_technique, batch.variant);
-        const auto* pipeline = m_pipelines.find(key);
-        if (!pipeline)
+        const auto* found = m_pipelines.find(key);
+        if (!found)
             continue;
+        const auto* pipeline = *found;
         if (pipeline != bound)
         {
             cmd.bindPipeline(*pipeline);

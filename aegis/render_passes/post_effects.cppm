@@ -3,6 +3,7 @@ import std;
 import :draw_order;
 import :frame_scene;
 import :gpu_types;
+import :pipeline_library;
 import :render_system;
 import aegis.render_graph;
 import aegis.rhi;
@@ -25,7 +26,7 @@ public:
         float upsampleScale{ 1.0f };
     };
 
-    BloomPass(ResourceDeclarations& declarations, const FrameSceneSource& scene);
+    BloomPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines);
     ~BloomPass() override;
 
     [[nodiscard]] auto name() const -> std::string_view override;
@@ -41,15 +42,16 @@ private:
     auto freeMipViews() -> void;
 
     const FrameSceneSource& m_scene;
+    PipelineLibrary& m_pipelines;
     ResourceId m_sceneColor;
     ResourceId m_bloom;
     Settings m_settings;
     rhi::Device* m_device{ nullptr };
     std::vector<rhi::ImageViewHandle> m_mipViews; // One per mip, storage and sampled
     std::optional<rhi::SamplerHandle> m_sampler;
-    std::optional<rhi::Pipeline> m_threshold;
-    std::optional<rhi::Pipeline> m_downsample;
-    std::optional<rhi::Pipeline> m_upsample;
+    const rhi::Pipeline* m_threshold{ nullptr };
+    const rhi::Pipeline* m_downsample{ nullptr };
+    const rhi::Pipeline* m_upsample{ nullptr };
 };
 
 /// @brief Renders into "SceneColor" after lighting, depth tested against "Depth" without writing it:
@@ -57,9 +59,11 @@ private:
 class TransparentPass : public RenderPass
 {
 public:
+    /// @param pipelines Where its render systems take their pipelines from.
     /// @param view The index of the view in FrameScene::views it draws (its camera), whose view matrix its render
     ///        systems sort their blended draws by.
-    TransparentPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view = 0);
+    TransparentPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+        std::uint32_t view = 0);
 
     template<typename T, typename... Args>
         requires std::derived_from<T, RenderSystem> && std::constructible_from<T, Args...>
@@ -78,6 +82,7 @@ public:
 
 private:
     const FrameSceneSource& m_scene;
+    PipelineLibrary& m_pipelines;
     std::uint32_t m_view;
     ResourceId m_sceneColor;
     ResourceId m_depth;
@@ -90,12 +95,12 @@ private:
 class PointLightRenderSystem : public RenderSystem
 {
 public:
-    [[nodiscard]] auto createResources(rhi::Device& device, const RenderTargets& targets)
+    [[nodiscard]] auto createResources(PipelineLibrary& pipelines, rhi::Device& device, const RenderTargets& targets)
         -> std::expected<void, Error> override;
     auto render(const RenderContext& context) -> void override;
 
 private:
-    std::optional<rhi::Pipeline> m_pipeline;
+    const rhi::Pipeline* m_pipeline{ nullptr };
     std::vector<detail::DepthSortedDraw> m_order; // This frame's billboards, back to front: indices into pointLights
 };
 }

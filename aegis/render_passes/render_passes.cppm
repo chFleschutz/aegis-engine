@@ -21,6 +21,7 @@ export import :lighting_pass;
 export import :names;
 export import :pass_settings;
 export import :pipeline_cache;
+export import :pipeline_library;
 export import :post_effects;
 export import :render_system;
 export import :scene_update_pass;

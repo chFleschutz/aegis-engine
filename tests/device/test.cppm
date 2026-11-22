@@ -104,6 +104,7 @@ public:
     auto verifyGraphTextures() -> std::expected<void, std::string>;
     auto verifyGraphHistory() -> std::expected<void, std::string>;
     auto verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::string>;
+    auto verifyPipelineSharing(bool gpuDriven) -> std::expected<void, std::string>;
 
 private:
     // One pool per frame in flight, so a frame's timestamps are read only after the GPU finished it.

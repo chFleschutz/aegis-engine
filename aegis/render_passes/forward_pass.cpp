@@ -4,9 +4,10 @@ import aegis.rhi;
 
 namespace aegis::render_graph
 {
-ForwardPass::ForwardPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view,
-    const std::optional<LightingPass::ShadowMaps>& shadow) :
+ForwardPass::ForwardPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+    std::uint32_t view, const std::optional<LightingPass::ShadowMaps>& shadow) :
     m_scene{ scene },
+    m_pipelines{ pipelines },
     m_view{ view },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::ColorAttachment) },
     m_depth{ declarations.addReference(names::depth, Usage::DepthRead) },
@@ -34,7 +35,7 @@ auto ForwardPass::createResources(ResourcePool& pool) -> std::expected<void, Err
     const std::array colorAttachments{ rhi::Pipeline::ColorAttachment{ .format = pool.format(m_sceneColor) } };
     for (const auto& system : m_renderSystems)
     {
-        if (auto created = system->createResources(pool.device(), { colorAttachments, pool.format(m_depth) }); !created)
+        if (auto created = system->createResources(m_pipelines, pool.device(), { colorAttachments, pool.format(m_depth) }); !created)
             return created;
     }
     return {};

@@ -326,9 +326,13 @@ auto Harness::verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::str
 {
     // The graphs never record a frame, so nothing is ever bound to it.
     const render_graph::FrameSceneSource scene;
+    // Outlives the graphs, as the engine's does. Its BRDF LUT is computed before counting: it stays after the graphs.
+    render_graph::PipelineLibrary pipelines;
+    if (auto lut = pipelines.brdfLut(*m_device); !lut)
+        return std::unexpected{ std::format("Computing the BRDF LUT: {}", describe(lut.error())) };
     const auto build = [&](std::unique_ptr<render_graph::FrameGraph>& graph) -> std::expected<void, std::string> {
         graph = std::make_unique<render_graph::FrameGraph>(*m_device, m_renderer->extent());
-        render_graph::addDefaultPasses(*graph, { .scene = scene, .gpuDriven = gpuDriven });
+        render_graph::addDefaultPasses(*graph, { .scene = scene, .pipelines = pipelines, .gpuDriven = gpuDriven });
         if (auto compiled = graph->compile(); !compiled)
             return std::unexpected{ std::format("Compiling the default graph: {}", describe(compiled.error())) };
         return {};
@@ -365,6 +369,50 @@ auto Harness::verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::str
     }
     std::println("Graph rebuild verified ({}): {} images per graph, nothing leaked over 3 builds",
         gpuDriven ? "GPU-driven" : "CPU-driven", graphResources - liveBefore.images);
+    return {};
+}
+}
+
+namespace aegis::test
+{
+// Compiles the default graph with one main view, then with two (each with its shadow views), then rebuilds the
+// two-view graph, all with one pipeline library: the second view's passes and the rebuilt graph's find every
+// pipeline and the BRDF LUT in it, so they create none and submit no IBL work. The graphs record no frame, so this
+// covers the pipelines passes take when compiled; the draw batches' pipelines, taken in prepare, are covered by the
+// --views scene run.
+auto Harness::verifyPipelineSharing(bool gpuDriven) -> std::expected<void, std::string>
+{
+    const render_graph::FrameSceneSource scene; // Never bound: no frame is recorded
+    render_graph::PipelineLibrary pipelines;
+    const auto compile = [&](std::vector<render_graph::DefaultPassesDesc::View> views) -> std::expected<void, std::string> {
+        render_graph::addShadowViews(views);
+        render_graph::FrameGraph graph{ *m_device, m_renderer->extent() };
+        render_graph::addDefaultPasses(graph, { .scene = scene, .pipelines = pipelines, .gpuDriven = gpuDriven, .views = std::move(views) });
+        if (auto compiled = graph.compile(); !compiled)
+            return std::unexpected{ std::format("Compiling the default graph: {}", describe(compiled.error())) };
+        m_device->waitIdle();
+        return {};
+    };
+
+    if (auto compiled = compile({ { .name = "Main" } }); !compiled)
+        return compiled;
+    const auto oneView = pipelines.size();
+    const auto firstLut = pipelines.computedBrdfLut();
+    if (oneView == 0 || !firstLut)
+        return std::unexpected{ "The default graph took no pipeline or no BRDF LUT from its library" };
+
+    for (const auto* build : { "with a second view", "rebuilt" })
+    {
+        if (auto compiled = compile({ { .name = "Edit" }, { .name = "Play", .extent = rhi::Extent2D{ 320, 240 } } }); !compiled)
+            return compiled;
+        if (pipelines.size() != oneView)
+            return std::unexpected{ std::format("The default graph {} holds {} pipelines in its library, with one view {}", build, pipelines.size(), oneView) };
+        if (pipelines.computedBrdfLut() != firstLut)
+            return std::unexpected{ std::format("The default graph {} computed the BRDF LUT again", build) };
+    }
+
+    std::println("Pipeline sharing verified ({}): {} pipelines and one BRDF LUT for one view, two and a rebuild",
+        gpuDriven ? "GPU-driven" : "CPU-driven", oneView);
     return {};
 }
 }

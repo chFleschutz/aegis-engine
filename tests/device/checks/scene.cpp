@@ -357,10 +357,26 @@ private:
     // --views, at the safe point. Frame 40 reads both views rendered together in the frame before (the world stood
     // still since viewsFreezeFrame): the side cube shows in the side view only. Then each view renders alone (the frame
     // graph rebuilt for it), and its image, read the frame after, must equal the one rendered together, pixel for
-    // pixel. From frame 45 on both render again, for the screenshots.
+    // pixel. From frame 45 on both render again, for the screenshots. The three rebuilds create no pipeline and compute
+    // no BRDF LUT: by frame 46 the engine's pipeline library holds what it held at frame 40.
     auto checkViews() -> std::expected<void, std::string>
     {
         constexpr std::uint32_t togetherFrame{ 40 };
+        constexpr std::uint32_t rebuiltFrame{ togetherFrame + 6 };
+        if (m_frame == togetherFrame || m_frame == rebuiltFrame)
+        {
+            const auto& pipelines = m_engine->pipelines();
+            const auto& lut = pipelines.computedBrdfLut();
+            if (!lut)
+                return std::unexpected{ "the lighting passes took no BRDF LUT from the engine's pipeline library" };
+            if (m_frame == togetherFrame)
+                m_pipelinesTogether = { pipelines.size(), lut };
+            else if (m_pipelinesTogether.count != pipelines.size() || m_pipelinesTogether.brdfLut != lut)
+                return std::unexpected{ std::format("rebuilding the graph for the views changed the pipeline library: {} pipelines, {} before{}",
+                    pipelines.size(), m_pipelinesTogether.count, m_pipelinesTogether.brdfLut != lut ? ", and a new BRDF LUT" : "") };
+            else
+                std::println("Views verified: three graph rebuilds created none of the {} pipelines and no BRDF LUT", pipelines.size());
+        }
         const auto read = [&](std::string_view view) -> std::expected<std::vector<std::byte>, std::string> {
             auto pixels = m_engine->readView(view);
             if (!pixels)
@@ -820,6 +836,12 @@ private:
     std::vector<std::shared_ptr<assets::Material>> m_culled;               // --mutate-scene: the materials set to cull nothing
     std::shared_ptr<assets::Material> m_blended;                           // --blend: the first blended cube's material
     world::World* m_second{ nullptr };                                     // --worlds: the second world, from the same scene file
+    // --views: the engine's pipeline library while both views render, before the graph is rebuilt for each alone.
+    struct
+    {
+        std::size_t count{ 0 };
+        std::shared_ptr<assets::Texture> brdfLut;
+    } m_pipelinesTogether;
 };
 
 // --unlit: the unlit cube shows its colour, (0, 1, 1), as it is: Reinhard maps 1 to 0.5, which gamma 2.2 or an sRGB

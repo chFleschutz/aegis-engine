@@ -153,9 +153,13 @@ auto Harness::create(const Options& options) -> std::expected<Harness, std::stri
         return std::unexpected{ result.error() };
     if (auto result = harness.verifyGraphRebuild(false); !result)
         return std::unexpected{ result.error() };
+    if (auto result = harness.verifyPipelineSharing(false); !result)
+        return std::unexpected{ result.error() };
     if (harness.m_device->capabilities().meshShaders)
     {
         if (auto result = harness.verifyGraphRebuild(true); !result)
+            return std::unexpected{ result.error() };
+        if (auto result = harness.verifyPipelineSharing(true); !result)
             return std::unexpected{ result.error() };
     }
     if (options.noSamples)

@@ -24,13 +24,14 @@ auto cpuKey(Technique technique, const assets::MaterialVariant& variant, bool mi
 StaticMeshRenderSystem::StaticMeshRenderSystem(Technique technique, assets::MaterialType type) :
     m_technique{ technique },
     m_type{ type },
-    m_pipelines{ [this](const PipelineKey& key) { return createPipeline(key); } }
+    m_pipelines{ [this](const PipelineKey& key) { return findPipeline(key); } }
 {
 }
 
-auto StaticMeshRenderSystem::createResources(rhi::Device& device, const RenderTargets& targets)
+auto StaticMeshRenderSystem::createResources(PipelineLibrary& pipelines, rhi::Device& device, const RenderTargets& targets)
     -> std::expected<void, Error>
 {
+    m_pipelineLibrary = &pipelines;
     m_device = &device;
     m_colorAttachments.assign(targets.colorAttachments.begin(), targets.colorAttachments.end());
     m_depthAttachment = targets.depthAttachment;
@@ -59,6 +60,10 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
         material->update(context.frameIndex);
 
     // Per draw batch, its pipelines (normal, mirrored); null for a batch this system skips or that was not prepared.
+    const auto find = [&](const assets::MaterialVariant& variant, bool mirrored) -> const rhi::Pipeline* {
+        const auto* found = m_pipelines.find(cpuKey(m_technique, variant, mirrored));
+        return found ? *found : nullptr;
+    };
     std::vector<std::array<const rhi::Pipeline*, 2>> batchPipelines;
     batchPipelines.reserve(instances.batches().size());
     for (const auto& batch : instances.batches())
@@ -66,7 +71,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
         if (!drawsBatch(m_technique, batch, m_type))
             batchPipelines.push_back({ nullptr, nullptr });
         else
-            batchPipelines.push_back({ m_pipelines.find(cpuKey(m_technique, batch.variant, false)), m_pipelines.find(cpuKey(m_technique, batch.variant, true)) });
+            batchPipelines.push_back({ find(batch.variant, false), find(batch.variant, true) });
     }
 
     const auto& cmd = context.cmd;
@@ -145,7 +150,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
         draw(instanceAt(entry.index));
 }
 
-auto StaticMeshRenderSystem::createPipeline(const PipelineKey& key) const -> std::expected<rhi::Pipeline, Error>
+auto StaticMeshRenderSystem::findPipeline(const PipelineKey& key) const -> std::expected<const rhi::Pipeline*, Error>
 {
     const auto state = pipelineState(key);
     auto attachments = m_colorAttachments;
@@ -163,7 +168,7 @@ auto StaticMeshRenderSystem::createPipeline(const PipelineKey& key) const -> std
         name = mirrored ? "StaticMeshDepthMirrored" : "StaticMeshDepth";
     else if (key.technique == Technique::Forward)
         name = mirrored ? "StaticMeshForwardMirrored" : "StaticMeshForward";
-    return createGraphicsPipeline(*m_device,
+    return m_pipelineLibrary->graphics(*m_device,
         rhi::Pipeline::GraphicsDesc{
             .name = name,
             .colorAttachments = attachments,

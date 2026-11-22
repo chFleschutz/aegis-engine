@@ -3,6 +3,7 @@ import std;
 import :frame_scene;
 import :names;
 import :pipeline_cache;
+import :pipeline_library;
 import :render_system;
 import aegis.render_graph;
 import aegis.rhi;
@@ -49,8 +50,9 @@ public:
 
     /// @param view The index of the view in FrameScene::views it draws (whose "CameraData" it reads).
     /// @param tile Where a Technique::Depth pass draws instead of its own "Depth"; none: its own.
-    GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, Technique technique = Technique::GBuffer,
-        std::uint32_t view = 0, std::optional<DepthTile> tile = std::nullopt);
+    /// @param pipelines Where its render systems take their pipelines from.
+    GeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+        Technique technique = Technique::GBuffer, std::uint32_t view = 0, std::optional<DepthTile> tile = std::nullopt);
 
     /// @brief Declares the G-buffer textures, in the order of gBufferFormats. The GPU-driven geometry pass fills the
     ///        same targets, so both declare them here.
@@ -80,6 +82,7 @@ public:
 
 private:
     const FrameSceneSource& m_scene;
+    PipelineLibrary& m_pipelines;
     Technique m_technique;
     std::uint32_t m_view;
     std::vector<ResourceId> m_gBuffer; // Empty with Technique::Depth
