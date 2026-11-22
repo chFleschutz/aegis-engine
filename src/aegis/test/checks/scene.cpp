@@ -331,7 +331,10 @@ private:
     {
         auto& registry = frame.world.registry();
         const auto& camera = registry.get<GlobalTransform>(m_viewCamera);
-        auto unlit = frame.assets.createMaterial(frame.assets.defaults().unlitTemplate);
+        auto unlitCreated = frame.assets.createMaterial(frame.assets.defaults().unlitTemplate);
+        if (!unlitCreated)
+            return std::unexpected{ describe(unlitCreated.error()) };
+        auto& unlit = *unlitCreated;
         if (auto set = unlit->setParameter("color", unlitColor); !set)
             return std::unexpected{ assets::describe(set.error()) };
         auto cube = frame.assets.instantiateScene(frame.world, frame.types, assets::engine::cube, {});
@@ -426,7 +429,10 @@ private:
         } };
         for (const auto& [albedo, location] : cubes)
         {
-            const auto material = frame.assets.createMaterial();
+            const auto created = frame.assets.createMaterial();
+            if (!created)
+                return std::unexpected{ describe(created.error()) };
+            const auto& material = *created;
             const std::array<std::pair<std::string_view, assets::MaterialValue>, 3> parameters{ {
                 { "albedo", albedo },
                 { "roughness", 0.6f },
@@ -490,10 +496,16 @@ private:
         if (!camera)
             return std::unexpected{ "the scene has no camera" };
 
-        auto unlit = frame.assets.createMaterial(frame.assets.defaults().unlitTemplate);
+        auto unlitCreated = frame.assets.createMaterial(frame.assets.defaults().unlitTemplate);
+        if (!unlitCreated)
+            return std::unexpected{ describe(unlitCreated.error()) };
+        auto& unlit = *unlitCreated;
         if (auto set = unlit->setParameter("color", unlitColor); !set)
             return std::unexpected{ assets::describe(set.error()) };
-        const auto pbr = frame.assets.createMaterial();
+        const auto pbrCreated = frame.assets.createMaterial();
+        if (!pbrCreated)
+            return std::unexpected{ describe(pbrCreated.error()) };
+        const auto& pbr = *pbrCreated;
 
         for (const auto& [material, side] : { std::pair{ unlit, 1.0f }, std::pair{ pbr, -1.0f } })
         {
@@ -527,7 +539,10 @@ private:
             return std::unexpected{ "the scene has no main camera" };
         const auto camera = registry.get<GlobalTransform>(mainCamera);
 
-        auto material = frame.assets.createMaterial(frame.assets.defaults().unlitTemplate);
+        auto created = frame.assets.createMaterial(frame.assets.defaults().unlitTemplate);
+        if (!created)
+            return std::unexpected{ describe(created.error()) };
+        auto& material = *created;
         if (auto set = material->setParameter("color", unlitColor); !set)
             return std::unexpected{ assets::describe(set.error()) };
         material->setCullMode(rhi::CullMode::None);

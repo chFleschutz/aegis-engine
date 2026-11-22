@@ -61,19 +61,6 @@ auto readFile(const std::filesystem::path& path) -> std::optional<std::string>
     return std::string{ std::istreambuf_iterator<char>{ stream }, std::istreambuf_iterator<char>{} };
 }
 
-template<class T, class E>
-auto check(std::expected<T, E> result, const std::string& what) -> T
-{
-    if (!result)
-    {
-        if constexpr (requires { describe(result.error()); })
-            log::fatal("Failed to {}: {}", what, describe(result.error()));
-        else
-            log::fatal("Failed to {}: {}", what, result.error().message);
-        std::exit(EXIT_FAILURE);
-    }
-    return std::move(*result);
-}
 }
 
 class AssetLibrary::Impl
@@ -301,20 +288,24 @@ public:
         return m_models.fill(id, std::move(shared));
     }
 
-    auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> AssetRef<assets::Material>
+    auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
     {
         if (!materialTemplate)
             materialTemplate = m_defaults.pbrTemplate;
-        auto material = check(assets::Material::create(*m_device, std::move(materialTemplate), m_framesInFlight), "create a material");
-        return m_materials.fill(AssetId::generate(), std::move(material));
+        auto material = assets::Material::create(*m_device, std::move(materialTemplate), m_framesInFlight);
+        if (!material)
+            return makeError(AssetLibraryErrorCode::CreateFailed, material.error(), "cannot create a material");
+        return m_materials.fill(AssetId::generate(), std::move(*material));
     }
 
-    auto copyMaterial(const AssetRef<assets::Material>& source) -> AssetRef<assets::Material>
+    auto copyMaterial(const AssetRef<assets::Material>& source) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
     {
         if (!source)
             return createMaterial(nullptr);
-        auto material = check(source->copy(), "copy a material");
-        return m_materials.fill(AssetId::generate(), std::move(material));
+        auto material = source->copy();
+        if (!material)
+            return makeError(AssetLibraryErrorCode::CreateFailed, material.error(), "cannot copy a material");
+        return m_materials.fill(AssetId::generate(), std::move(*material));
     }
 
     auto defaultEnvironment() -> AssetRef<assets::Environment>
@@ -809,12 +800,12 @@ auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegi
     return *holder;
 }
 
-auto AssetLibrary::createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> AssetRef<assets::Material>
+auto AssetLibrary::createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
 {
     return m_impl->createMaterial(std::move(materialTemplate));
 }
 
-auto AssetLibrary::copyMaterial(const AssetRef<assets::Material>& material) -> AssetRef<assets::Material>
+auto AssetLibrary::copyMaterial(const AssetRef<assets::Material>& material) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
 {
     return m_impl->copyMaterial(material);
 }

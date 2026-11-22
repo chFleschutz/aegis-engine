@@ -226,13 +226,19 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
         return fail("A missing model must fall back to the cube");
 
     // A run-time asset gets its own ID and loads back as itself.
-    const auto added = library->add(library->createMaterial().shared());
+    const auto created = library->createMaterial();
+    if (!created)
+        return fail(std::format("createMaterial failed: {}", describe(created.error())));
+    const auto added = library->add(created->shared());
     if (library->loadMaterial(added.id()).get() != added.get())
         return fail("A run-time asset must load back by its ID");
 
     // A copy of a shared material is its own: changing it leaves the original as it was.
     const auto& shared = model.meshes.front().primitives.front().material;
-    const auto copy = library->copyMaterial(shared);
+    const auto copied = library->copyMaterial(shared);
+    if (!copied)
+        return fail(std::format("copyMaterial failed: {}", describe(copied.error())));
+    const auto& copy = *copied;
     if (!copy || copy.get() == shared.get() || copy.id() == shared.id() ||
         copy->materialTemplate() != shared->materialTemplate())
         return fail("copyMaterial must give a new material of the same template under a new ID");

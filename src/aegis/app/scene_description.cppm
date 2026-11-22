@@ -23,10 +23,11 @@ struct SceneContext
 };
 
 /// @brief Instantiates the scene or model file 'scene' under 'parent' (see AssetLibrary::instantiateScene), for
-///        scene descriptions, which have nothing to fall back on: a failure is logged and exits the process, like
-///        AssetLibrary::id. A model that fails to load is no failure; it is replaced by the default cube.
-/// @return The entity holding the instance; move it to place the model.
-auto instantiate(SceneContext& context, assets::AssetId scene, world::Entity parent = {}) -> world::Entity;
+///        scene descriptions. A model that fails to load is no failure; it is replaced by the default cube.
+/// @return The entity holding the instance (move it to place the model), or why the scene could not be
+///         instantiated; the scene is then unchanged.
+[[nodiscard]] auto instantiate(SceneContext& context, assets::AssetId scene, world::Entity parent = {})
+    -> std::expected<world::Entity, AssetLibraryError>;
 
 /// @brief Base class for creating a scene
 class SceneDescription

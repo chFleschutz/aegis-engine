@@ -117,12 +117,15 @@ public:
     auto add(std::shared_ptr<T> asset) -> assets::AssetRef<T>;
 
     /// @brief A new instance of 'materialTemplate' (by default the PBR template).
-    auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate = nullptr)
-        -> assets::AssetRef<assets::Material>;
+    /// @return CreateFailed if the device cannot make its resources (out of memory, say).
+    [[nodiscard]] auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate = nullptr)
+        -> std::expected<assets::AssetRef<assets::Material>, AssetLibraryError>;
 
     /// @brief A copy of 'material' (its template and parameters) under a new ID, for an object that changes
     ///        its material without changing the shared one. A null 'material' gives a new PBR material.
-    auto copyMaterial(const assets::AssetRef<assets::Material>& material) -> assets::AssetRef<assets::Material>;
+    /// @return CreateFailed if the device cannot make the copy's resources.
+    [[nodiscard]] auto copyMaterial(const assets::AssetRef<assets::Material>& material)
+        -> std::expected<assets::AssetRef<assets::Material>, AssetLibraryError>;
 
     /// @brief Scans the asset folders again, picking up files added, changed or removed since (new sources get
     ///        sidecars). Assets already loaded stay as they are (no hot reload); on failure the database is unchanged.
