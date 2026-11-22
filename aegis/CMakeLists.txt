@@ -13,6 +13,7 @@ add_subdirectory(renderer)
 add_subdirectory(assets)
 add_subdirectory(reflect)
 add_subdirectory(render_graph)
+add_subdirectory(render_passes)
 add_subdirectory(test)
 
 add_subdirectory(math)

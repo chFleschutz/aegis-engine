@@ -48,7 +48,7 @@ member there (not re-checked with 1.4.363).
 On the C++ side, mirror the struct with `rhi::DeviceAddress` for pointers and the typed
 `rhi::*Descriptor` structs for descriptor indices, and record it with `cmd.pushConstants(value)`. The
 struct must fit in 128 bytes, which the typed `pushConstants` checks at compile time. The render graph's
-mirrors live in `aegis/render_graph/gpu_types.cppm`, named after their Slang twins, with their
+mirrors live in `aegis/render_passes/gpu_types.cppm`, named after their Slang twins, with their
 `sizeof`/`offsetof` pinned in `tests/render_graph/gpu_types.test.cpp`; asset mirrors (`Vertex`,
 `Meshlet`) are in `aegis/assets/data/gpu_types.cppm`. A material's parameter block has no C++ mirror: its
 material template lists the parameters, and the template loader checks them against the surface shader's

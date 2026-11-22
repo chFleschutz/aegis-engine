@@ -1,5 +1,5 @@
 # The framework only: no scene, ImGui or shaders, so its unit tests stay cheap. The passes are
-# aegis-render-passes (passes/).
+# aegis-render-passes (../render_passes/).
 add_library(aegis-render-graph STATIC)
 
 target_link_libraries(aegis-render-graph
@@ -32,4 +32,3 @@ target_sources(aegis-render-graph
     schedule.cpp
 )
 
-add_subdirectory(passes)
