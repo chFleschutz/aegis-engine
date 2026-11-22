@@ -4,16 +4,19 @@ import std;
 import aegis.assets;
 import aegis.reflect;
 import aegis.rhi;
+import aegis.serialize;
 import aegis.world;
+
+export import :error;
 
 export namespace aegis
 {
 /// @brief Reads the engine content's material templates (pbr.template and unlit.template in 'engineContent') with
 ///        their surface shaders' parameter blocks, which the build reflects into 'shaders'
 ///        (surfaces/<surface>.layout.json): what assets::DefaultAssets::create builds the default templates from.
-/// @return The file that could not be read or parsed, and why.
+/// @return The file that could not be read or parsed, and why (AssetLibraryErrorCode::ReadFailed).
 [[nodiscard]] auto loadEngineTemplates(const std::filesystem::path& engineContent, const std::filesystem::path& shaders)
-    -> std::expected<assets::EngineTemplates, std::string>;
+    -> std::expected<assets::EngineTemplates, AssetLibraryError>;
 
 /// @brief Loads assets by ID and keeps what it loaded: one slot per ID, so loading an ID twice returns the
 ///        same asset and the parts of a model file (its meshes, materials, textures) are shared with
@@ -47,16 +50,18 @@ public:
     };
 
     /// @brief Scans 'sources' and creates the default assets and the IBL pipelines.
+    /// @return ReadFailed if the sources cannot be scanned or the engine templates read, CreateFailed if the default
+    ///         assets or the IBL pipelines cannot be created.
     [[nodiscard]] static auto create(rhi::Device& device, std::uint32_t framesInFlight, const Sources& sources = Sources::standard())
-        -> std::expected<AssetLibrary, std::string>;
+        -> std::expected<AssetLibrary, AssetLibraryError>;
 
     /// @brief The ID of the asset made from a file of the project ('path' relative to the project's content/ folder,
     ///        with '/') and a sub-asset key ("" for the file's main asset).
     [[nodiscard]] auto find(std::string_view path, std::string_view key = {}) const -> std::optional<assets::AssetId>;
 
-    /// @brief Like find, for code that has nothing to fall back on: an unknown path is logged and exits the
-    ///        process, like the engine's other setup errors.
-    [[nodiscard]] auto id(std::string_view path, std::string_view key = {}) const -> assets::AssetId;
+    /// @brief Like find, for code that reports a missing asset instead of skipping it.
+    /// @return NotFound, naming the path and key, for an unknown path.
+    [[nodiscard]] auto id(std::string_view path, std::string_view key = {}) const -> std::expected<assets::AssetId, AssetLibraryError>;
 
     /// @brief The asset 'id' names, loaded on first use. Types: assets::Texture, assets::StaticMesh,
     ///        assets::Material (a part of a model file, or a material file), assets::Environment and assets::Model.
@@ -73,8 +78,8 @@ public:
 
     /// @brief Adds the file at 'path' in the project's content folder, written after the scan (a scene the editor
     ///        saved under a new name), to the database, or reads it again if it was there.
-    /// @return The ID of its main asset, or why the file is no asset (assets::AssetDatabase::addFile).
-    [[nodiscard]] auto addFile(std::string_view path) -> std::expected<assets::AssetId, std::string>;
+    /// @return The ID of its main asset, or why the file is no asset (ReadFailed, with assets::AssetDatabase::addFile's error).
+    [[nodiscard]] auto addFile(std::string_view path) -> std::expected<assets::AssetId, AssetLibraryError>;
 
     /// @brief Reads the scene file 'scene' (or a model file's scene, see below) and creates its entities in 'world'
     ///        with the IDs the file gives them (a world's root scene keeps its local IDs). 'types' names the components and scripts the file may
@@ -83,8 +88,10 @@ public:
     ///        defaultEnvironment(); a mesh renderer without a mesh or material is not drawn. The scenes its
     ///        SceneInstance components name are instantiated under their holders (see the overload below).
     /// @return Why the scene could not be read or instantiated (the file and line); 'world' is then unchanged.
+    ///         NotFound or WrongType if 'scene' names no scene file, ReadFailed if it cannot be read or parsed,
+    ///         InstantiateFailed if its entities cannot be created.
     [[nodiscard]] auto instantiateScene(world::World& world, const reflect::TypeRegistry& types, assets::AssetId scene)
-        -> std::expected<void, std::string>;
+        -> std::expected<void, AssetLibraryError>;
 
     /// @brief Creates an instance of the scene file or model file 'scene' in 'world' (a prefab, a model, or a
     ///        scene a script spawns): a new entity with a random ID, named after the file, holds it as a child of
@@ -97,7 +104,7 @@ public:
     ///        load is replaced by the default cube.
     /// @return The holder, or why the scene could not be read or instantiated; 'world' is then unchanged.
     [[nodiscard]] auto instantiateScene(world::World& world, const reflect::TypeRegistry& types, assets::AssetId scene, world::Entity parent)
-        -> std::expected<world::Entity, std::string>;
+        -> std::expected<world::Entity, AssetLibraryError>;
 
     /// @brief Loads the asset references of 'component', an instance of 'type', that are IDs without a slot: what
     ///        instantiateScene does to each component it reads (a MeshRenderer's mesh and material, a Sky's
@@ -110,16 +117,19 @@ public:
     auto add(std::shared_ptr<T> asset) -> assets::AssetRef<T>;
 
     /// @brief A new instance of 'materialTemplate' (by default the PBR template).
-    auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate = nullptr)
-        -> assets::AssetRef<assets::Material>;
+    /// @return CreateFailed if the device cannot make its resources (out of memory, say).
+    [[nodiscard]] auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate = nullptr)
+        -> std::expected<assets::AssetRef<assets::Material>, AssetLibraryError>;
 
     /// @brief A copy of 'material' (its template and parameters) under a new ID, for an object that changes
     ///        its material without changing the shared one. A null 'material' gives a new PBR material.
-    auto copyMaterial(const assets::AssetRef<assets::Material>& material) -> assets::AssetRef<assets::Material>;
+    /// @return CreateFailed if the device cannot make the copy's resources.
+    [[nodiscard]] auto copyMaterial(const assets::AssetRef<assets::Material>& material)
+        -> std::expected<assets::AssetRef<assets::Material>, AssetLibraryError>;
 
     /// @brief Scans the asset folders again, picking up files added, changed or removed since (new sources get
     ///        sidecars). Assets already loaded stay as they are (no hot reload); on failure the database is unchanged.
-    [[nodiscard]] auto rescan() -> std::expected<void, std::string>;
+    [[nodiscard]] auto rescan() -> std::expected<void, AssetLibraryError>;
 
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return *m_defaults; }
     [[nodiscard]] auto database() const -> const assets::AssetDatabase& { return *m_database; }

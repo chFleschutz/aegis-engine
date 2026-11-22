@@ -1,7 +1,3 @@
-module;
-
-#include <cstdlib>
-
 module aegis.asset_library;
 
 import std;
@@ -61,19 +57,6 @@ auto readFile(const std::filesystem::path& path) -> std::optional<std::string>
     return std::string{ std::istreambuf_iterator<char>{ stream }, std::istreambuf_iterator<char>{} };
 }
 
-template<class T, class E>
-auto check(std::expected<T, E> result, const std::string& what) -> T
-{
-    if (!result)
-    {
-        if constexpr (requires { describe(result.error()); })
-            log::fatal("Failed to {}: {}", what, describe(result.error()));
-        else
-            log::fatal("Failed to {}: {}", what, result.error().message);
-        std::exit(EXIT_FAILURE);
-    }
-    return std::move(*result);
-}
 }
 
 class AssetLibrary::Impl
@@ -166,24 +149,26 @@ public:
     }
 
     // Reads the scene file 'id', checked against 'types'. A model file's scene is the one loadScene keeps.
-    auto readScene(AssetId id, const reflect::TypeRegistry& types) -> std::expected<serialize::Scene, std::string>
+    auto readScene(AssetId id, const reflect::TypeRegistry& types) -> std::expected<serialize::Scene, AssetLibraryError>
     {
         const auto* entry = m_database.find(id);
         if (entry && isModelFile(*entry))
         {
             const auto scene = loadScene(id, types);
             if (!scene)
-                return std::unexpected{ scene.slot()->message };
+                return makeError(AssetLibraryErrorCode::ReadFailed, scene.slot()->message);
             return *scene;
         }
-        if (!entry || entry->type != "Scene")
-            return std::unexpected{ std::format("{} is not a scene file", id) };
+        if (!entry)
+            return makeError(AssetLibraryErrorCode::NotFound, std::format("no asset has the ID {}", id));
+        if (entry->type != "Scene")
+            return makeError(AssetLibraryErrorCode::WrongType, std::format("{} ('{}') is not a scene file", id, entry->path));
         auto text = readFile(m_database.absolutePath(*entry));
         if (!text)
-            return std::unexpected{ std::format("cannot read '{}'", entry->path) };
+            return makeError(AssetLibraryErrorCode::ReadFailed, std::format("cannot read '{}'", entry->path));
         auto scene = serialize::parseScene(*text, types);
         if (!scene)
-            return std::unexpected{ std::format("'{}' {}", entry->path, serialize::describe(scene.error())) };
+            return makeError(AssetLibraryErrorCode::ReadFailed, scene.error(), std::format("cannot parse '{}'", entry->path));
         return std::move(*scene);
     }
 
@@ -200,7 +185,7 @@ public:
         {
             const auto& slot = m_scenes.slot(id);
             slot->state = AssetState::Failed;
-            slot->message = std::move(scene.error());
+            slot->message = describe(scene.error());
             return AssetRef<serialize::Scene>{ id, slot };
         }
         return m_scenes.fill(id, std::make_shared<serialize::Scene>(std::move(*scene)));
@@ -299,20 +284,24 @@ public:
         return m_models.fill(id, std::move(shared));
     }
 
-    auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> AssetRef<assets::Material>
+    auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
     {
         if (!materialTemplate)
             materialTemplate = m_defaults.pbrTemplate;
-        auto material = check(assets::Material::create(*m_device, std::move(materialTemplate), m_framesInFlight), "create a material");
-        return m_materials.fill(AssetId::generate(), std::move(material));
+        auto material = assets::Material::create(*m_device, std::move(materialTemplate), m_framesInFlight);
+        if (!material)
+            return makeError(AssetLibraryErrorCode::CreateFailed, material.error(), "cannot create a material");
+        return m_materials.fill(AssetId::generate(), std::move(*material));
     }
 
-    auto copyMaterial(const AssetRef<assets::Material>& source) -> AssetRef<assets::Material>
+    auto copyMaterial(const AssetRef<assets::Material>& source) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
     {
         if (!source)
             return createMaterial(nullptr);
-        auto material = check(source->copy(), "copy a material");
-        return m_materials.fill(AssetId::generate(), std::move(material));
+        auto material = source->copy();
+        if (!material)
+            return makeError(AssetLibraryErrorCode::CreateFailed, material.error(), "cannot copy a material");
+        return m_materials.fill(AssetId::generate(), std::move(*material));
     }
 
     auto defaultEnvironment() -> AssetRef<assets::Environment>
@@ -644,6 +633,18 @@ private:
     Cache<serialize::Scene> m_scenes;
 };
 
+auto describe(const AssetLibraryError& error) -> std::string
+{
+    std::string text{ errorCodeName(error.code) };
+    if (!error.message.empty())
+        text += std::format(": {}", error.message);
+    if (error.assets)
+        text += std::format(" (caused by {})", assets::describe(*error.assets));
+    else if (error.serialize)
+        text += std::format(" (caused by {})", serialize::describe(*error.serialize));
+    return text;
+}
+
 auto AssetLibrary::Sources::standard() -> Sources
 {
     return {
@@ -667,38 +668,38 @@ auto AssetLibrary::operator=(AssetLibrary&&) noexcept -> AssetLibrary& = default
 AssetLibrary::~AssetLibrary() = default;
 
 auto loadEngineTemplates(const std::filesystem::path& engineContent, const std::filesystem::path& shaders)
-    -> std::expected<assets::EngineTemplates, std::string>
+    -> std::expected<assets::EngineTemplates, AssetLibraryError>
 {
-    const auto load = [&](std::string_view name) -> std::expected<assets::TemplateSource, std::string> {
+    const auto load = [&](std::string_view name) -> std::expected<assets::TemplateSource, AssetLibraryError> {
         const auto templatePath = engineContent / std::format("{}.template", name);
         auto text = readFile(templatePath);
         if (!text)
-            return std::unexpected{ std::format("cannot read '{}'", templatePath.string()) };
+            return makeError(AssetLibraryErrorCode::ReadFailed, std::format("cannot read '{}'", templatePath.string()));
         auto file = serialize::parseTemplate(*text);
         if (!file)
-            return std::unexpected{ std::format("'{}' {}", templatePath.string(), serialize::describe(file.error())) };
+            return makeError(AssetLibraryErrorCode::ReadFailed, file.error(), std::format("cannot parse '{}'", templatePath.string()));
 
         const auto layoutPath = shaders / "surfaces" / std::format("{}.layout.json", file->desc.surface);
         auto layout = readFile(layoutPath);
         if (!layout)
-            return std::unexpected{ std::format("'{}': cannot read '{}', the layout of its surface shader", templatePath.string(), layoutPath.string()) };
+            return makeError(AssetLibraryErrorCode::ReadFailed, std::format("'{}': cannot read '{}', the layout of its surface shader", templatePath.string(), layoutPath.string()));
         auto block = serialize::parseSurfaceLayout(*layout);
         if (!block)
-            return std::unexpected{ std::format("'{}' {}", layoutPath.string(), serialize::describe(block.error())) };
+            return makeError(AssetLibraryErrorCode::ReadFailed, block.error(), std::format("cannot parse '{}'", layoutPath.string()));
         return assets::TemplateSource{ .name = templatePath.filename().string(), .desc = std::move(file->desc), .block = std::move(*block) };
     };
 
     auto pbr = load("pbr");
     if (!pbr)
-        return std::unexpected{ pbr.error() };
+        return std::unexpected{ std::move(pbr.error()) };
     auto unlit = load("unlit");
     if (!unlit)
-        return std::unexpected{ unlit.error() };
+        return std::unexpected{ std::move(unlit.error()) };
     return assets::EngineTemplates{ .pbr = std::move(*pbr), .unlit = std::move(*unlit) };
 }
 
 auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, const Sources& sources)
-    -> std::expected<AssetLibrary, std::string>
+    -> std::expected<AssetLibrary, AssetLibraryError>
 {
     auto database = assets::AssetDatabase::scan({
         .roots = { { paths::projectContent(sources.project) }, { sources.engineContent, true } },
@@ -706,17 +707,20 @@ auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, con
         .createSidecars = true,
     });
     if (!database)
-        return std::unexpected{ std::format("Failed to scan the assets: {}", describe(database.error())) };
+        return makeError(AssetLibraryErrorCode::ReadFailed, database.error(), "failed to scan the assets");
 
     auto templates = loadEngineTemplates(sources.engineContent, paths::shaders());
     if (!templates)
-        return std::unexpected{ std::format("Failed to load the material templates: {}", templates.error()) };
+    {
+        templates.error().message = std::format("failed to load the material templates: {}", templates.error().message);
+        return std::unexpected{ std::move(templates.error()) };
+    }
     auto defaults = assets::DefaultAssets::create(device, framesInFlight, *templates);
     if (!defaults)
-        return std::unexpected{ std::format("Failed to create the default assets: {}", describe(defaults.error())) };
+        return makeError(AssetLibraryErrorCode::CreateFailed, defaults.error(), "failed to create the default assets");
     auto ibl = render_graph::Ibl::create(device);
     if (!ibl)
-        return std::unexpected{ std::format("Failed to create the IBL pipelines: {}", describe(ibl.error())) };
+        return makeError(AssetLibraryErrorCode::CreateFailed, std::format("failed to create the IBL pipelines: {}", render_graph::describe(ibl.error())));
 
     // Entries unused for long, or past the size limit, are deleted once per start.
     assets::ImportCache importCache{ sources.importCache };
@@ -726,10 +730,10 @@ auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, con
         std::move(importCache)) };
 }
 
-auto AssetLibrary::rescan() -> std::expected<void, std::string>
+auto AssetLibrary::rescan() -> std::expected<void, AssetLibraryError>
 {
     if (auto scanned = m_impl->rescan(); !scanned)
-        return std::unexpected{ std::format("Failed to rescan the assets: {}", describe(scanned.error())) };
+        return makeError(AssetLibraryErrorCode::ReadFailed, scanned.error(), "failed to rescan the assets");
     return {};
 }
 
@@ -738,37 +742,34 @@ auto AssetLibrary::find(std::string_view path, std::string_view key) const -> st
     return m_database->find(0, path, key);
 }
 
-auto AssetLibrary::addFile(std::string_view path) -> std::expected<AssetId, std::string>
+auto AssetLibrary::addFile(std::string_view path) -> std::expected<AssetId, AssetLibraryError>
 {
     auto& database = m_impl->database();
     if (auto added = database.addFile(0, path); !added)
-        return std::unexpected{ assets::describe(added.error()) };
+        return makeError(AssetLibraryErrorCode::ReadFailed, added.error(), std::format("cannot add '{}'", path));
     const auto found = database.find(0, path);
     if (!found)
-        return std::unexpected{ std::format("'{}' holds no asset", path) };
+        return makeError(AssetLibraryErrorCode::NotFound, std::format("'{}' holds no asset", path));
     return *found;
 }
 
-auto AssetLibrary::id(std::string_view path, std::string_view key) const -> AssetId
+auto AssetLibrary::id(std::string_view path, std::string_view key) const -> std::expected<AssetId, AssetLibraryError>
 {
     const auto found = find(path, key);
     if (!found)
-    {
-        log::fatal("No asset '{}'{}{} in the project", path, key.empty() ? "" : " / ", key);
-        std::exit(EXIT_FAILURE);
-    }
+        return makeError(AssetLibraryErrorCode::NotFound, std::format("no asset '{}'{}{} in the project", path, key.empty() ? "" : " / ", key));
     return *found;
 }
 
 auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegistry& types, AssetId scene)
-    -> std::expected<void, std::string>
+    -> std::expected<void, AssetLibraryError>
 {
     auto read = m_impl->readScene(scene, types);
     if (!read)
         return std::unexpected{ std::move(read.error()) };
     const auto resolve = [this, &types](const reflect::TypeInfo& type, void* component) { m_impl->resolve(type, component, types); };
     if (auto created = serialize::instantiate(world.registry(), types, *read, resolve); !created)
-        return std::unexpected{ std::format("Cannot instantiate scene {}: {}", scene, serialize::describe(created.error())) };
+        return makeError(AssetLibraryErrorCode::InstantiateFailed, created.error(), std::format("cannot instantiate scene {}", scene));
     return {};
 }
 
@@ -778,26 +779,26 @@ void AssetLibrary::resolve(const reflect::TypeInfo& type, void* component, const
 }
 
 auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegistry& types, AssetId scene, world::Entity parent)
-    -> std::expected<world::Entity, std::string>
+    -> std::expected<world::Entity, AssetLibraryError>
 {
     const auto loaded = m_impl->loadScene(scene, types);
     if (!loaded)
-        return std::unexpected{ std::format("Cannot instantiate scene {}: {}", scene, loaded.slot()->message) };
+        return makeError(AssetLibraryErrorCode::InstantiateFailed, std::format("cannot instantiate scene {}: {}", scene, loaded.slot()->message));
     const auto resolve = [this, &types](const reflect::TypeInfo& type, void* component) { m_impl->resolve(type, component, types); };
     auto holder = serialize::instantiate(world.registry(), types, loaded, parent, resolve);
     if (!holder)
-        return std::unexpected{ std::format("Cannot instantiate scene {}: {}", scene, serialize::describe(holder.error())) };
+        return makeError(AssetLibraryErrorCode::InstantiateFailed, holder.error(), std::format("cannot instantiate scene {}", scene));
     if (const auto* entry = m_database->find(scene))
         world.registry().get<Name>(*holder).name = std::filesystem::path{ entry->path }.stem().string();
     return *holder;
 }
 
-auto AssetLibrary::createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> AssetRef<assets::Material>
+auto AssetLibrary::createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
 {
     return m_impl->createMaterial(std::move(materialTemplate));
 }
 
-auto AssetLibrary::copyMaterial(const AssetRef<assets::Material>& material) -> AssetRef<assets::Material>
+auto AssetLibrary::copyMaterial(const AssetRef<assets::Material>& material) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
 {
     return m_impl->copyMaterial(material);
 }

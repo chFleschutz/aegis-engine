@@ -5,17 +5,18 @@ PUBLIC
 	aegis-assets
 	aegis-reflect
 	aegis-rhi
+	aegis-serialize # AssetLibraryError carries serialize::Error
 	aegis-world
 PRIVATE
 	aegis-core
 	aegis-paths
 	aegis-render-passes # Bakes environments with Ibl
-	aegis-serialize
 )
 target_sources(aegis-asset-library
 PUBLIC
 	FILE_SET CXX_MODULES FILES
 		asset_library.cppm
+		asset_library_error.cppm
 PRIVATE
 	asset_library.cpp
 )

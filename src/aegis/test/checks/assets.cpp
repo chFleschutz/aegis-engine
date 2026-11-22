@@ -21,7 +21,7 @@ auto Harness::verifyAssets() -> std::expected<void, std::string>
     constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
     auto templates = loadEngineTemplates(paths::content(), paths::shaders());
     if (!templates)
-        return std::unexpected{ std::format("Material templates: {}", templates.error()) };
+        return std::unexpected{ std::format("Material templates: {}", describe(templates.error())) };
     auto defaults = assets::DefaultAssets::create(*m_device, framesInFlight, *templates);
     if (!defaults)
         return std::unexpected{ std::format("Default assets: {}", assets::describe(defaults.error())) };
@@ -76,7 +76,7 @@ auto Harness::verifyAssets() -> std::expected<void, std::string>
     // The models as scene instances, loaded by an asset library (with its own default assets).
     auto library = AssetLibrary::create(*m_device, framesInFlight);
     if (!library)
-        return std::unexpected{ std::format("Asset library: {}", library.error()) };
+        return std::unexpected{ std::format("Asset library: {}", describe(library.error())) };
     reflect::TypeRegistry types;
     if (auto registered = world::registerComponents(types); !registered)
         return std::unexpected{ std::format("Component types: {}", reflect::describe(registered.error())) };
@@ -87,7 +87,7 @@ auto Harness::verifyAssets() -> std::expected<void, std::string>
         if (!id)
             return std::unexpected{ std::format("'{}' is not in the sample project", model) };
         if (auto holder = library->instantiateScene(models, types, *id, {}); !holder)
-            return std::unexpected{ std::format("Instantiating {}: {}", model, holder.error()) };
+            return std::unexpected{ std::format("Instantiating {}: {}", model, describe(holder.error())) };
     }
     const assets::Loader::Desc loaderDesc{
         .device = *m_device,
@@ -156,7 +156,7 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
     constexpr auto framesInFlight = renderer::Renderer::maxFramesInFlight;
     auto library = AssetLibrary::create(*m_device, framesInFlight);
     if (!library)
-        return std::unexpected{ std::format("Asset library: {}", library.error()) };
+        return std::unexpected{ std::format("Asset library: {}", describe(library.error())) };
     const auto fail = [](std::string message) -> std::expected<void, std::string> { return std::unexpected{ std::move(message) }; };
 
     const auto helmetFile = library->find("models/damaged_helmet/DamagedHelmet.gltf");
@@ -194,9 +194,17 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
             return fail(std::format("The helmet's material must use the texture of '{}' that its own ID loads", image));
     }
 
-    const auto paintingId = library->id("materials/textures/painting.png");
+    const auto painting = library->id("materials/textures/painting.png");
+    if (!painting)
+        return fail(std::format("id() of a sample texture failed: {}", describe(painting.error())));
+    const auto paintingId = *painting;
     if (library->loadTexture(paintingId).get() != library->loadTexture(paintingId).get() || !library->loadTexture(paintingId))
         return fail("Loading one texture ID twice must return the same texture");
+
+    // An unknown path is an error the caller can act on, not the end of the process.
+    const auto unknown = library->id("models/no/such/file.gltf");
+    if (unknown || unknown.error().code != AssetLibraryErrorCode::NotFound || !unknown.error().message.contains("models/no/such/file.gltf"))
+        return fail("id() of an unknown path must return NotFound naming the path");
 
     // Engine content is found like any other asset, in the read-only root.
     for (const auto id : { assets::engine::white, assets::engine::black, assets::engine::normal, assets::engine::checker })
@@ -226,13 +234,19 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
         return fail("A missing model must fall back to the cube");
 
     // A run-time asset gets its own ID and loads back as itself.
-    const auto added = library->add(library->createMaterial().shared());
+    const auto created = library->createMaterial();
+    if (!created)
+        return fail(std::format("createMaterial failed: {}", describe(created.error())));
+    const auto added = library->add(created->shared());
     if (library->loadMaterial(added.id()).get() != added.get())
         return fail("A run-time asset must load back by its ID");
 
     // A copy of a shared material is its own: changing it leaves the original as it was.
     const auto& shared = model.meshes.front().primitives.front().material;
-    const auto copy = library->copyMaterial(shared);
+    const auto copied = library->copyMaterial(shared);
+    if (!copied)
+        return fail(std::format("copyMaterial failed: {}", describe(copied.error())));
+    const auto& copy = *copied;
     if (!copy || copy.get() == shared.get() || copy.id() == shared.id() ||
         copy->materialTemplate() != shared->materialTemplate())
         return fail("copyMaterial must give a new material of the same template under a new ID");
@@ -275,7 +289,7 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
             return fail(std::format("'{}' has no ID in the database", path));
         aegis::world::World modelWorld;
         if (auto created = library->instantiateScene(modelWorld, types, *id); !created)
-            return fail(std::format("Instantiating the scene of '{}': {}", path, created.error()));
+            return fail(std::format("Instantiating the scene of '{}': {}", path, describe(created.error())));
         std::set<std::uint64_t> entityIds;
         for (const auto handle : modelWorld.registry().view<aegis::StableId>())
             entityIds.insert(modelWorld.registry().get<aegis::StableId>(aegis::world::Entity{ handle }).value);

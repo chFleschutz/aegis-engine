@@ -119,7 +119,7 @@ auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t 
                 log::warn("Cannot place the instance: {}", reflect::describe(written.error()));
         }
         if (!holder)
-            return makeAssetError(std::move(holder.error()), "cannot instantiate the scene");
+            return makeAssetError(describe(holder.error()), "cannot instantiate the scene");
         return *holder;
     };
     auto holder = instantiateEntity(edits, editor.undoStack(), parent, create);

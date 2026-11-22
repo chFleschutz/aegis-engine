@@ -394,7 +394,7 @@ auto EditorShell::saveAs(FrameContext& frame, std::string_view typed) -> std::ex
         return std::unexpected{ written.error() };
     auto added = frame.assets.addFile(*path);
     if (!added)
-        return makeAssetError(std::move(added.error()), "saved, but the asset database does not take it");
+        return makeAssetError(describe(added.error()), "saved, but the asset database does not take it");
     m_document.savedAs(added->value);
     rememberScene(database);
     return {};
