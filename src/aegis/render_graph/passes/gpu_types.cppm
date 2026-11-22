@@ -5,6 +5,7 @@ export module aegis.render_passes:gpu_types;
 import std;
 import :frame_scene;
 import :instance_store;
+import :pipeline_cache;
 import :shadows;
 import aegis.render_graph;
 import aegis.rhi;
@@ -48,6 +49,22 @@ enum class InstanceFlags : std::uint32_t
     Mirrored = 1 << 0, // The model matrix has a negative determinant: its triangles wind the other way
 };
 AEGIS_FLAGS(InstanceFlags)
+
+/// @brief indirect_draw.slang's GEOMETRY_* bits: GpuDrivenGeometryConstants::flags.
+enum class GeometryFlags : std::uint32_t
+{
+    None = 0,
+    CullBackFacing = 1 << 0, // The task stage culls the meshlets whose normal cone faces away from the camera
+};
+AEGIS_FLAGS(GeometryFlags)
+
+/// @brief The GEOMETRY_* bits of a draw batch drawn with a pipeline of 'state'. Its meshlets facing away from the
+///        camera are culled only if the pipeline culls back faces: one that culls nothing (a double-sided material)
+///        draws their back faces, and one that culls front faces draws nothing but them.
+[[nodiscard]] constexpr auto geometryFlags(const PipelineState& state) noexcept -> GeometryFlags
+{
+    return state.cullMode == rhi::CullMode::Back ? GeometryFlags::CullBackFacing : GeometryFlags::None;
+}
 
 // Buffers ---------------------------------------------------------------------------------------------
 
@@ -166,6 +183,7 @@ struct GpuDrivenGeometryConstants
     std::uint32_t batchSize;
     std::uint32_t staticCount;
     std::uint32_t dynamicCount;
+    GeometryFlags flags;
 };
 
 /// @brief cpu-driven/geometry.slang

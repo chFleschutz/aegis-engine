@@ -88,6 +88,10 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
     aegis_add_device_test(aegis-test-scene-unlit ARGS --headless --scene --unlit --no-overlay --frames 30)
     aegis_add_device_test(aegis-test-scene-gpu-driven-unlit ARGS --headless --gpu-driven --unlit --no-overlay --frames 30 LABELS mesh-shaders)
 
+    # An unlit, double-sided plane seen from behind: the last frame shows its colour, on both paths.
+    aegis_add_device_test(aegis-test-scene-double-sided ARGS --headless --scene --double-sided --no-overlay --frames 30)
+    aegis_add_device_test(aegis-test-scene-gpu-driven-double-sided ARGS --headless --gpu-driven --double-sided --no-overlay --frames 30 LABELS mesh-shaders)
+
     # Two overlapping half-transparent cubes in front of the helmet: the forward pass draws them, the G-buffer does not,
     # on both paths.
     aegis_add_device_test(aegis-test-scene-blend ARGS --headless --scene --blend --frames 120)

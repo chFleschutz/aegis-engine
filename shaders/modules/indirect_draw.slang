@@ -13,6 +13,9 @@ namespace indirectDraw
     /// Instance::flags bits (render_graph::InstanceFlags).
     public static const uint INSTANCE_MIRRORED = 1 << 0; // Negative determinant: triangles wind the other way
 
+    /// GeometryConstants::flags bits (render_graph::GeometryFlags).
+    public static const uint GEOMETRY_CULL_BACK_FACING = 1 << 0; // The batch culls back faces, so its meshlets facing away go too
+
     public struct Instance
     {
         public float3x4 model; // Top three rows of the model matrix
@@ -52,6 +55,14 @@ namespace indirectDraw
         public uint batchSize;
         public uint staticCount;
         public uint dynamicCount;
+        public uint flags; // GEOMETRY_* bits
+
+        /// Whether the task stage culls the meshlets whose normal cone faces away from the camera. A batch that
+        /// culls nothing (a double-sided material) draws their back faces.
+        public property bool cullsBackFacing
+        {
+            get { return (flags & GEOMETRY_CULL_BACK_FACING) != 0; }
+        }
 
         public func getInstance(uint id) -> Instance
         {

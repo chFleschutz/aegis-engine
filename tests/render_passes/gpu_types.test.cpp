@@ -3,6 +3,7 @@
 #include <cstddef>
 
 import std;
+import aegis.assets;
 import aegis.render_passes;
 import aegis.rhi;
 import aegis.math;
@@ -152,7 +153,26 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(GpuDrivenGeometryConstants, batchSize) == 36);
         CHECK(offsetof(GpuDrivenGeometryConstants, staticCount) == 40);
         CHECK(offsetof(GpuDrivenGeometryConstants, dynamicCount) == 44);
-        CHECK(sizeof(GpuDrivenGeometryConstants) == 48);
+        CHECK(offsetof(GpuDrivenGeometryConstants, flags) == 48);
+        CHECK(sizeof(GpuDrivenGeometryConstants) == 56); // The shader's 52, rounded up to the pointers' alignment
+    }
+
+    TEST_CASE("only a batch whose pipeline culls back faces culls its meshlets facing away")
+    {
+        using aegis::rhi::CullMode;
+        CHECK(geometryFlags(PipelineState{ .cullMode = CullMode::Back }) == GeometryFlags::CullBackFacing);
+        CHECK(geometryFlags(PipelineState{ .cullMode = CullMode::None }) == GeometryFlags::None);
+        CHECK(geometryFlags(PipelineState{ .cullMode = CullMode::Front }) == GeometryFlags::None);
+    }
+
+    TEST_CASE("a double-sided variant's G-buffer and depth batches keep their meshlets facing away")
+    {
+        auto key = PipelineKey{ .variant = aegis::assets::MaterialVariant{ .cullMode = aegis::rhi::CullMode::None }, .path = GeometryPath::GpuDriven };
+        CHECK(geometryFlags(pipelineState(key)) == GeometryFlags::None);
+        key.technique = Technique::Depth;
+        CHECK(geometryFlags(pipelineState(key)) == GeometryFlags::None);
+        key.variant.cullMode = aegis::rhi::CullMode::Back;
+        CHECK(geometryFlags(pipelineState(key)) == GeometryFlags::CullBackFacing);
     }
 
     TEST_CASE("StaticMeshConstants matches cpu-driven/geometry.slang")
