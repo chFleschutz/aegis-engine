@@ -401,8 +401,11 @@ template<FloatVector V>
 [[nodiscard]] auto normalize(V v) noexcept -> V
 {
     using T = typename V::ValueType;
-    const T len = length(v);
-    return len > T{ 0 } ? v / len : V{};
+    const T lengthSquared = dot(v, v);
+    // One division and a product, as glm does it: dividing every component costs more than the benchmark allows.
+    // The zero vector scales by zero, a select on the scalar rather than a branch on the vector.
+    const T scale = lengthSquared > T{ 0 } ? T{ 1 } / std::sqrt(lengthSquared) : T{ 0 };
+    return v * scale;
 }
 
 // The :scalar helpers, component-wise

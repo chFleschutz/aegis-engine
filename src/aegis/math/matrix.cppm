@@ -159,6 +159,39 @@ template<Scalar T, std::size_t R, std::size_t C>
     return detail::generate<T, R>([&](std::size_t r) { return dot(m.row(r), v); });
 }
 
+// The 4x4 shapes, which the engine multiplies every frame and per instance, are written out: the loops above are
+// unrolled only when the optimiser works hard (the benchmark in tools/bench-math puts the loop at 5x to 11x glm's
+// time in the Development build type, where it does not). Same values as the generic kernels.
+
+template<Scalar T>
+[[nodiscard]] constexpr auto operator*(const Matrix<T, 4, 4>& a, const Matrix<T, 4, 4>& b) noexcept -> Matrix<T, 4, 4>
+{
+    auto result = Matrix<T, 4, 4>::zero();
+    for (std::size_t r = 0; r < 4; ++r)
+    {
+        const T a0 = a[r, 0];
+        const T a1 = a[r, 1];
+        const T a2 = a[r, 2];
+        const T a3 = a[r, 3];
+        result[r, 0] = a0 * b[0, 0] + a1 * b[1, 0] + a2 * b[2, 0] + a3 * b[3, 0];
+        result[r, 1] = a0 * b[0, 1] + a1 * b[1, 1] + a2 * b[2, 1] + a3 * b[3, 1];
+        result[r, 2] = a0 * b[0, 2] + a1 * b[1, 2] + a2 * b[2, 2] + a3 * b[3, 2];
+        result[r, 3] = a0 * b[0, 3] + a1 * b[1, 3] + a2 * b[2, 3] + a3 * b[3, 3];
+    }
+    return result;
+}
+
+template<Scalar T>
+[[nodiscard]] constexpr auto operator*(const Matrix<T, 4, 4>& m, Vector<T, 4> v) noexcept -> Vector<T, 4>
+{
+    return {
+        m[0, 0] * v.x + m[0, 1] * v.y + m[0, 2] * v.z + m[0, 3] * v.w,
+        m[1, 0] * v.x + m[1, 1] * v.y + m[1, 2] * v.z + m[1, 3] * v.w,
+        m[2, 0] * v.x + m[2, 1] * v.y + m[2, 2] * v.z + m[2, 3] * v.w,
+        m[3, 0] * v.x + m[3, 1] * v.y + m[3, 2] * v.z + m[3, 3] * v.w,
+    };
+}
+
 /// @brief The matrix product under its Slang name, the same as `a * b`
 template<Scalar T, std::size_t R, std::size_t K, std::size_t C>
 [[nodiscard]] constexpr auto mul(const Matrix<T, R, K>& a, const Matrix<T, K, C>& b) noexcept -> Matrix<T, R, C>
