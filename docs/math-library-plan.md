@@ -463,8 +463,12 @@ rewrite by hand, which the full `ctest`, the golden images and the screenshots c
 - **Benchmark:** `tools/bench-math/` (`aegis-bench-math`, built only with `-DAEGIS_BUILD_BENCHMARKS=ON`,
   never in `ctest`), own vs glm on the spec's six operations, for `float` (and `double` for
   information). Gates: **Release within 10% of glm** on Clang/Windows and Clang/Linux; **dev preset
-  not slower than glm** on the same preset. `-O0` Debug numbers are reported, not gated. A shape that
-  misses a gate gets its specialised overload; the results go in the library PR.
+  not slower than glm** on the same preset, within the 3% that the timings scatter between runs. `-O0` Debug
+  numbers are reported, not gated. A shape that misses a gate gets its specialised overload; the results go in the
+  benchmark PR ([#446](https://github.com/chFleschutz/aegis-engine/issues/446)). The six operations: `Float4x4 *
+  Float4x4`, `Float4x4 * Float4`, `inverse(Float4x4)`, `Quat * Quat`, `Quat * Float3`, `normalize(Float3)`. In the
+  dev preset (`-O1`) the generic matrix loops were 5x to 11x glm's time, so the `Float4x4` products are written
+  out; `normalize` replaces its zero branch with a select.
 
 ## PR sequence
 
