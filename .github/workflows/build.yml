@@ -34,7 +34,7 @@ jobs:
         run: tools/format.sh --all --check
 
   linux:
-    name: ${{ matrix.lavapipe && format('Linux device tests (lavapipe, {0})', matrix.shard) || format('Linux ({0})', matrix.config) }}
+    name: ${{ matrix.lavapipe && format('Linux device tests (lavapipe, {0}, lock {1}, -j{2})', matrix.shard, matrix.gpu_lock, matrix.jobs) || format('Linux ({0})', matrix.config) }}
     # Ubuntu 26.04 ships Clang 22 and libstdc++ 15 with a working libstdc++.modules.json (earlier
     # releases point it at the wrong std.cc path, which breaks `import std`). Public preview for now.
     runs-on: ubuntu-26.04
@@ -48,14 +48,13 @@ jobs:
         # they are split over two jobs (the games, then everything else) to run in parallel. Not
         # required checks (yet): they run as their own jobs.
         include:
-          - config: debug
-            lavapipe: true
-            shard: games
-            ctest_filter: -L game -LE slow
-          - config: debug
-            lavapipe: true
-            shard: scenes
-            ctest_filter: -L device -LE "golden|game"
+          # MEASUREMENT (#469): each shard with the lock on and one test at a time (today), and off at -j2 and -j4.
+          - { config: debug, lavapipe: true, shard: games, ctest_filter: -L game -LE slow, gpu_lock: 'ON', jobs: 1 }
+          - { config: debug, lavapipe: true, shard: games, ctest_filter: -L game -LE slow, gpu_lock: 'OFF', jobs: 2 }
+          - { config: debug, lavapipe: true, shard: games, ctest_filter: -L game -LE slow, gpu_lock: 'OFF', jobs: 4 }
+          - { config: debug, lavapipe: true, shard: scenes, ctest_filter: -L device -LE "golden|game", gpu_lock: 'ON', jobs: 1 }
+          - { config: debug, lavapipe: true, shard: scenes, ctest_filter: -L device -LE "golden|game", gpu_lock: 'OFF', jobs: 2 }
+          - { config: debug, lavapipe: true, shard: scenes, ctest_filter: -L device -LE "golden|game", gpu_lock: 'OFF', jobs: 4 }
     env:
       PRESET: linux-clang-${{ matrix.config }}
     steps:
@@ -130,7 +129,7 @@ jobs:
         run: |
           clang++ -v
           cmake --version
-          cmake --preset "$PRESET"
+          cmake --preset "$PRESET" ${{ matrix.lavapipe && format('-DAEGIS_DEVICE_TEST_GPU_LOCK={0}', matrix.gpu_lock) || '' }}
 
       - name: Build
         run: cmake --build --preset "$PRESET"
@@ -153,7 +152,8 @@ jobs:
           export VK_ADD_LAYER_PATH=$(dirname "$layer")
           export VK_DRIVER_FILES=$(find /usr/share/vulkan/icd.d -name 'lvp_icd*.json' -print -quit)
           vulkaninfo --summary
-          ctest --preset "$PRESET" ${{ matrix.ctest_filter }}
+          nproc
+          ctest --preset "$PRESET" -j${{ matrix.jobs }} ${{ matrix.ctest_filter }}
 
   windows:
     name: Windows (${{ matrix.config }})
