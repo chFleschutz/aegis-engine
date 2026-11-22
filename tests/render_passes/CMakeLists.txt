@@ -10,6 +10,7 @@ aegis_add_test(
         instance_store.test.cpp
         pass_settings.test.cpp
         pipeline_cache.test.cpp
+        pipeline_library.test.cpp
         shadows.test.cpp
     LIBS aegis-render-passes
 )

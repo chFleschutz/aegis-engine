@@ -107,6 +107,10 @@ _Avoid_: render mode, shader pass
 Everything that picks one pipeline for a draw batch: the technique, the material variant, the geometry path and the front face.
 _Avoid_: pipeline id, pipeline hash
 
+**Pipeline library**:
+The engine's one store of the passes' pipelines and the BRDF lookup table, which outlives every frame graph: each view's passes and each rebuilt graph take their pipelines from it, so a pipeline is created once.
+_Avoid_: pipeline cache (a pass's lookup by pipeline key), pipeline pool
+
 **Surface shader**:
 A material template's shader code: it turns a material's parameters into the properties of a surface (albedo, normal, ARM, emissive, alpha), and every technique calls it.
 _Avoid_: material shader
