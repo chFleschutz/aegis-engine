@@ -322,7 +322,7 @@ struct GpuTransform
 ///        determinant (a mirror, e.g. a scale of -1 on one axis) sets InstanceFlags::Mirrored.
 [[nodiscard]] inline auto toGpuTransform(const math::Float3x4& rows) -> GpuTransform
 {
-    const auto linear = math::fromRows(math::Float3{ rows.row(0) }, math::Float3{ rows.row(1) }, math::Float3{ rows.row(2) });
+    const math::Float3x3 linear{ rows };
     const auto normalMatrix = math::inverse(linear);
     return {
         .model = rows,

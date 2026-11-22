@@ -112,7 +112,7 @@ auto fitDirectionalShadow(const FrameScene::DirectionalLight& light, const Frame
     const float y = snap(math::dot(up, worldCenter));
     const float eye = math::dot(toLight, worldCenter) + radius + shadowCasterReach;
 
-    const auto view = math::fromRows(
+    const auto view = math::Float4x4::fromRows(
         math::Float4{ side, -x },
         math::Float4{ up, -y },
         math::Float4{ toLight, -eye },
@@ -155,7 +155,7 @@ auto fitSpotShadow(const FrameScene::SpotLight& light) -> FrameScene::Camera
     const auto side = math::normalize(math::cross(forward, worldUp));
     const auto up = math::cross(side, forward);
 
-    const auto view = math::fromRows(
+    const auto view = math::Float4x4::fromRows(
         math::Float4{ side, -math::dot(side, light.position) },
         math::Float4{ up, -math::dot(up, light.position) },
         math::Float4{ -forward, math::dot(forward, light.position) },

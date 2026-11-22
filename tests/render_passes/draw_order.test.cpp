@@ -33,7 +33,7 @@ TEST_SUITE("render_graph::draw_order")
     TEST_CASE("worldCenter moves the bounding sphere's centre by the model matrix")
     {
         // Scaled by 2 and moved by (10, 20, 30): rows of the model matrix with the translation in .w.
-        const auto model = aegis::math::fromRows(
+        const auto model = math::Float3x4::fromRows(
             math::Float4{ 2.0f, 0.0f, 0.0f, 10.0f },
             math::Float4{ 0.0f, 2.0f, 0.0f, 20.0f },
             math::Float4{ 0.0f, 0.0f, 2.0f, 30.0f });

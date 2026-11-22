@@ -217,7 +217,7 @@ auto packLight(const FrameScene::SpotLight& light) -> LightData
 auto packSpotShadow(LightData& data, const FrameScene::SpotLight& light, const FrameScene::Camera& camera, rhi::Rect2D tile) -> void
 {
     const auto atlas = math::Float2{ static_cast<float>(spotShadowAtlasExtent.x), static_cast<float>(spotShadowAtlasExtent.y) };
-    data.shadowViewProjection = glm::rowMajor4(camera.projection * camera.view);
+    data.shadowViewProjection = camera.projection * camera.view;
     data.shadowRegion = math::Float4{ static_cast<float>(tile.x) / atlas.x, static_cast<float>(tile.y) / atlas.y,
         static_cast<float>(tile.extent.x) / atlas.x, static_cast<float>(tile.extent.y) / atlas.y };
     data.shadowBias = light.shadowBias;
@@ -283,7 +283,7 @@ auto packLighting(const FrameScene& scene, std::uint32_t view, rhi::DeviceAddres
                 // The orthographic projection spans 2 / projection[0, 0] meters across the map.
                 const auto extent = scene.views[shadow->view + cascade].extent.value_or(shadowMapExtent);
                 uniforms.shadowCascades[cascade] = {
-                    .viewProjection = glm::rowMajor4(shadowCamera->projection * shadowCamera->view),
+                    .viewProjection = shadowCamera->projection * shadowCamera->view,
                     .map = shadow->maps[cascade],
                     .texelSize = 2.0f / (std::abs(shadowCamera->projection[0, 0]) * static_cast<float>(std::max(extent.x, 1u))),
                     .splitFar = splits[cascade],

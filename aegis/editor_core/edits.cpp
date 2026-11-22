@@ -346,28 +346,9 @@ auto fieldValues(const reflect::TypeInfo& type, const void* object) -> FieldValu
     return values;
 }
 
-// aegis.math does not export the glm vector operator==, so those compare per component.
 auto sameValue(const reflect::Value& a, const reflect::Value& b) -> bool
 {
-    return a.index() == b.index() && std::visit(
-                                         [&b](const auto& left) {
-                                             using T = std::decay_t<decltype(left)>;
-                                             const auto& right = std::get<T>(b);
-                                             if constexpr (std::equality_comparable<T>)
-                                             {
-                                                 return left == right;
-                                             }
-                                             else
-                                             {
-                                                 for (int i = 0; i < T::length(); ++i)
-                                                 {
-                                                     if (left[i] != right[i])
-                                                         return false;
-                                                 }
-                                                 return true;
-                                             }
-                                         },
-                                         a);
+    return a == b;
 }
 
 auto sameValues(const FieldValues& a, const FieldValues& b) -> bool

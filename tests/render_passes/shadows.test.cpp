@@ -52,7 +52,6 @@ auto near(float a, float b, float epsilon = 1e-4f) -> bool
     return std::abs(a - b) <= epsilon;
 }
 
-// glm's operator== is not part of aegis.math's exports.
 auto equal(const math::Float4x4& a, const math::Float4x4& b) -> bool
 {
     for (int row = 0; row < 4; ++row)

@@ -139,6 +139,6 @@ namespace aegis::render_graph::detail
 auto makeSkyBoxViewProjection(const FrameScene::Camera& camera) -> math::Float4x4
 {
     const auto viewRotation = math::Float4x4{ math::Float3x3{ camera.view } };
-    return glm::rowMajor4(camera.projection * viewRotation);
+    return camera.projection * viewRotation;
 }
 }

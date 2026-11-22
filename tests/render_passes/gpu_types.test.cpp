@@ -19,7 +19,6 @@ namespace
 {
 using namespace aegis::render_graph;
 
-// glm's operator== is not part of aegis.math's exports.
 auto equal(const math::Float3& v, float x, float y, float z) -> bool
 {
     return v.x == x && v.y == y && v.z == z;
@@ -317,7 +316,7 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
     TEST_CASE("the model rows hold the translation in w, and the normal rows are the inverse transpose")
     {
         // Scale (2, 4, 8) after translation (10, 20, 30).
-        const auto model = aegis::math::fromRows(
+        const auto model = math::Float4x4::fromRows(
             math::Float4{ 2.0f, 0.0f, 0.0f, 10.0f },
             math::Float4{ 0.0f, 4.0f, 0.0f, 20.0f },
             math::Float4{ 0.0f, 0.0f, 8.0f, 30.0f },
@@ -348,7 +347,7 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
     TEST_CASE("a plain transform is not flagged as mirrored")
     {
         // Rotated, scaled and moved, but with a positive determinant.
-        const auto model = aegis::math::fromColumns(
+        const auto model = math::Float4x4::fromColumns(
             math::Float4{ 0.0f, 2.0f, 0.0f, 0.0f },
             math::Float4{ -3.0f, 0.0f, 0.0f, 0.0f },
             math::Float4{ 0.0f, 0.0f, 1.0f, 0.0f },
@@ -361,7 +360,7 @@ TEST_SUITE("render_graph::detail::toGpuTransform")
     {
         math::Float4x4 oneAxis = math::Float4x4::identity();
         oneAxis[0, 0] = -1.0f;
-        const auto threeAxes = aegis::math::fromRows(
+        const auto threeAxes = math::Float4x4::fromRows(
             math::Float4{ -2.0f, 0.0f, 0.0f, 1.0f },
             math::Float4{ 0.0f, -1.0f, 0.0f, 2.0f },
             math::Float4{ 0.0f, 0.0f, -0.5f, 3.0f },

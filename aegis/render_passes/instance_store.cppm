@@ -10,21 +10,13 @@ export namespace aegis::render_graph::detail
 ///        hold a model matrix.
 [[nodiscard]] inline auto toModelRows(const math::Float4x4& model) -> math::Float3x4
 {
-    return math::Float3x4{ glm::rowMajor4(model) };
+    return math::Float3x4{ model };
 }
 
 /// @brief Whether two model matrices (Instance::model) are equal, element by element.
 [[nodiscard]] constexpr auto sameModel(const math::Float3x4& a, const math::Float3x4& b) noexcept -> bool
 {
-    for (int row = 0; row < 3; ++row)
-    {
-        for (int column = 0; column < 4; ++column)
-        {
-            if (a[row, column] != b[row, column])
-                return false;
-        }
-    }
-    return true;
+    return a == b;
 }
 }
 

@@ -28,7 +28,7 @@ struct ManifestEntry
     std::vector<std::string> dependencies;
 };
 
-// The model entry's shapes: glm types as arrays, quaternions [x, y, z, w] like the scene files.
+// The model entry's shapes: math types as arrays, quaternions [x, y, z, w] like the scene files.
 struct NodeEntry
 {
     std::string name;

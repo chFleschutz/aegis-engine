@@ -12,7 +12,6 @@ namespace
 {
 using aegis::render_graph::InstanceStore;
 
-// glm's operator== is not part of aegis.math's exports.
 auto equal(const math::Float3& a, const math::Float3& b) -> bool
 {
     return a.x == b.x && a.y == b.y && a.z == b.z;
@@ -57,7 +56,7 @@ TEST_SUITE("render_bridge::extractFrameScene")
         const auto camera = registry.create("Camera");
         registry.add<aegis::Camera>(camera);
         auto& matrices = registry.get<aegis::CameraMatrices>(camera);
-        matrices.view = aegis::math::fromRows(
+        matrices.view = math::Float4x4::fromRows(
             math::Float4{ 1.0f, 0.0f, 0.0f, 1.0f },
             math::Float4{ 0.0f, 1.0f, 0.0f, 2.0f },
             math::Float4{ 0.0f, 0.0f, 1.0f, 3.0f },

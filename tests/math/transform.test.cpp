@@ -109,7 +109,7 @@ TEST_SUITE("math::decomposeTRS")
         SUBCASE("mirrored x axis")
         {
             const auto [t, q, s] = math::decomposeTRS(math::transformMatrix(location, rotation, Float3{ -1.0f, 2.0f, 1.0f }));
-            oracle::checkVec(s, glm::vec<3, float>{ -1.0f, 2.0f, 1.0f }, 1e-5);
+            oracle::checkVec(s, glm::vec3{ -1.0f, 2.0f, 1.0f }, 1e-5);
             oracle::checkQuat(q, oracle::toGlmQuat(rotation), 1e-5);
         }
         SUBCASE("mirrored y axis")

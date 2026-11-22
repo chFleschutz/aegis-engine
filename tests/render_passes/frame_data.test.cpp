@@ -12,7 +12,6 @@ namespace
 using aegis::render_graph::FrameScene;
 using aegis::render_graph::InstanceStore;
 
-// glm's operator== is not part of aegis.math's exports.
 auto equal(const math::Float3& a, const math::Float3& b) -> bool
 {
     return a.x == b.x && a.y == b.y && a.z == b.z;
@@ -44,7 +43,7 @@ TEST_SUITE("render_graph::detail::makeCameraData")
     TEST_CASE("packs the matrices row-major and takes the camera position")
     {
         FrameScene::Camera camera{ .position = { 5.0f, 6.0f, 7.0f } };
-        camera.view = aegis::math::fromRows(
+        camera.view = math::Float4x4::fromRows(
             math::Float4{ 1.0f, 0.0f, 0.0f, 1.0f },
             math::Float4{ 0.0f, 1.0f, 0.0f, 2.0f },
             math::Float4{ 0.0f, 0.0f, 1.0f, 3.0f },
@@ -54,9 +53,9 @@ TEST_SUITE("render_graph::detail::makeCameraData")
 
         const auto data = makeCameraData(camera);
         CHECK(equal(data.position, math::Float3{ 5.0f, 6.0f, 7.0f }));
-        CHECK(equal(data.view, glm::rowMajor4(camera.view)));
-        CHECK(equal(data.projection, glm::rowMajor4(camera.projection)));
-        CHECK(equal(data.viewProjection, glm::rowMajor4(camera.projection * camera.view)));
+        CHECK(equal(data.view, camera.view));
+        CHECK(equal(data.projection, camera.projection));
+        CHECK(equal(data.viewProjection, camera.projection * camera.view));
         // Row-major: the translation sits in the last column of each row, i.e. in the w of the first three vectors.
         CHECK(data.view[0, 3] == 1.0f);
         CHECK(data.view[1, 3] == 2.0f);
@@ -147,7 +146,7 @@ TEST_SUITE("render_graph::detail::packLighting")
             CAPTURE(cascade);
             const auto& data = uniforms.shadowCascades[cascade];
             const auto& shadowCamera = *scene.views[1 + cascade].camera;
-            CHECK(equal(data.viewProjection, glm::rowMajor4(shadowCamera.projection * shadowCamera.view)));
+            CHECK(equal(data.viewProjection, shadowCamera.projection * shadowCamera.view));
             CHECK(data.map.image.index == 7 + cascade);
             CHECK(data.map.sampler.index == 3);
             CHECK(data.splitFar == splits[cascade]);
@@ -306,7 +305,7 @@ TEST_SUITE("render_graph::detail::packLights")
         // The light 3 m away is the second closest: the second tile, the atlas's top right quarter.
         const auto& data = lights[1];
         const auto& camera = *scene.views[*scene.spotLights[0].shadowView].camera;
-        CHECK(equal(data.shadowViewProjection, glm::rowMajor4(camera.projection * camera.view)));
+        CHECK(equal(data.shadowViewProjection, camera.projection * camera.view));
         CHECK(equal(data.shadowRegion, math::Float4{ 0.5f, 0.0f, 0.5f, 0.5f }));
         CHECK(data.shadowBias == 2.0f);
         // A 90 degree cone spans 2 m across the tile's 1024 texels one meter from the light.
@@ -419,11 +418,11 @@ TEST_SUITE("render_graph::detail::makeSkyBoxViewProjection")
         const math::Float4 x{ 0.0f, 0.0f, -1.0f, 0.0f };
         const math::Float4 y{ 0.0f, 1.0f, 0.0f, 0.0f };
         const math::Float4 z{ 1.0f, 0.0f, 0.0f, 0.0f };
-        const auto rotationOnly = aegis::math::fromColumns(x, y, z, math::Float4{ 0.0f, 0.0f, 0.0f, 1.0f });
-        camera.view = aegis::math::fromColumns(x, y, z, math::Float4{ 10.0f, 20.0f, 30.0f, 1.0f });
+        const auto rotationOnly = math::Float4x4::fromColumns(x, y, z, math::Float4{ 0.0f, 0.0f, 0.0f, 1.0f });
+        camera.view = math::Float4x4::fromColumns(x, y, z, math::Float4{ 10.0f, 20.0f, 30.0f, 1.0f });
         camera.projection[0, 0] = 2.0f;
 
-        CHECK(equal(makeSkyBoxViewProjection(camera), glm::rowMajor4(camera.projection * rotationOnly)));
+        CHECK(equal(makeSkyBoxViewProjection(camera), camera.projection * rotationOnly));
     }
 }
 
