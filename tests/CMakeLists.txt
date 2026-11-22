@@ -42,16 +42,16 @@ add_subdirectory(world)
 # Registers an aegis-test run that needs a GPU with a Vulkan driver (`ctest -LE device` skips it). It
 # exits non-zero on any failed check or validation error. aegis-test returns 77 when the device lacks a
 # feature the run needs, which CTest reports as skipped. Extra LABELS name that feature (`mesh-shaders`).
-# The `gpu` resource lock keeps device runs from overlapping when ctest runs tests in parallel.
+# aegis_lock_gpu keeps device runs from overlapping when ctest runs tests in parallel (AEGIS_DEVICE_TEST_GPU_LOCK).
 set(AEGIS_TEST_SKIP_RETURN_CODE 77) # Keep in step with tests/device/test.cppm
 function(aegis_add_device_test name)
     cmake_parse_arguments(T "" "" "ARGS;LABELS" ${ARGN})
     add_test(NAME ${name} COMMAND aegis-test ${T_ARGS})
     set_tests_properties(${name} PROPERTIES
         LABELS "device;${T_LABELS}"
-        RESOURCE_LOCK gpu
         TIMEOUT 300
         SKIP_RETURN_CODE ${AEGIS_TEST_SKIP_RETURN_CODE})
+    aegis_lock_gpu(${name})
 endfunction()
 
 # The device tests load compiled shaders, so they exist only when the shaders are built

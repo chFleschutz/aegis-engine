@@ -41,7 +41,7 @@ function(aegis_add_game name)
     target_compile_definitions(${name}-Editor PRIVATE AEGIS_LAUNCH_EDITOR)
 
     # Each test renders headless for a fixed number of frames; the exit code fails on a startup error, a render
-    # error, a validation error or an asset that failed to load. The `gpu` lock keeps device runs from
+    # error, a validation error or an asset that failed to load. aegis_lock_gpu keeps device runs from
     # overlapping. They render at 640x360, not the 1920x1080 default: a smoke test gains nothing from the
     # pixels, and on lavapipe (CI) the run time grows with them. They load compiled shaders, so they exist only when those are built.
     if(AEGIS_BUILD_TESTS AND TARGET compile_shaders)
@@ -52,13 +52,15 @@ function(aegis_add_game name)
                 cmake_path(GET scene STEM stem)
                 string(TOLOWER "game-${lowered}-${stem}" test)
                 add_test(NAME ${test} COMMAND ${name} ${args} --scene ${scene})
-                set_tests_properties(${test} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300
+                set_tests_properties(${test} PROPERTIES LABELS "device;game" TIMEOUT 300
                     FAIL_REGULAR_EXPRESSION "Failed to load")
+                aegis_lock_gpu(${test})
             endforeach()
         else()
             add_test(NAME game-${lowered} COMMAND ${name} ${args})
-            set_tests_properties(game-${lowered} PROPERTIES LABELS "device;game" RESOURCE_LOCK gpu TIMEOUT 300
+            set_tests_properties(game-${lowered} PROPERTIES LABELS "device;game" TIMEOUT 300
                 FAIL_REGULAR_EXPRESSION "Failed to load")
+            aegis_lock_gpu(game-${lowered})
         endif()
 
         # The editor flavor runs 60 frames of its UI over the viewport and keeps the screenshot,
@@ -105,16 +107,27 @@ function(aegis_add_game name)
             if(G_SCENES AND variant IN_LIST scene_duplicate_variants)
                 list(APPEND editor_labels slow)
             endif()
-            set_tests_properties(${editor_test} PROPERTIES LABELS "${editor_labels}" RESOURCE_LOCK gpu TIMEOUT 300
+            set_tests_properties(${editor_test} PROPERTIES LABELS "${editor_labels}" TIMEOUT 300
                 FAIL_REGULAR_EXPRESSION "Failed to load;play never stopped")
+            aegis_lock_gpu(${editor_test})
         endforeach()
         # During play the editor's statistics must count the play world: the check adds an instance that draws nothing
         # to it (StatisticsCheck), so it needs a scene with a mesh. It logs a failure, also when it never ran.
         if(G_SCENES)
             set(stats_test game-${lowered}-editor-stats)
             add_test(NAME ${stats_test} COMMAND ${name}-Editor ${editor_args} --editor-play --editor-check-stats)
-            set_tests_properties(${stats_test} PROPERTIES LABELS "device;game;editor" RESOURCE_LOCK gpu TIMEOUT 300
+            set_tests_properties(${stats_test} PROPERTIES LABELS "device;game;editor" TIMEOUT 300
                 FAIL_REGULAR_EXPRESSION "Failed to load;Editor statistics check failed")
+            aegis_lock_gpu(${stats_test})
         endif()
+    endif()
+endfunction()
+
+# aegis_lock_gpu(<test> ...)
+# Puts device tests under the CTest resource lock `gpu`, which keeps them from overlapping when ctest runs in
+# parallel, unless -DAEGIS_DEVICE_TEST_GPU_LOCK=OFF (CI's lavapipe jobs: the "GPU" there is the CPU).
+function(aegis_lock_gpu)
+    if(AEGIS_DEVICE_TEST_GPU_LOCK)
+        set_tests_properties(${ARGN} PROPERTIES RESOURCE_LOCK gpu)
     endif()
 endfunction()

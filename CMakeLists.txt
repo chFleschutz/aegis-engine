@@ -54,6 +54,9 @@ if(COMPILE_SHADERS)
 endif()
 
 option(AEGIS_BUILD_TESTS "Build unit tests" ${PROJECT_IS_TOP_LEVEL})
+# The device tests hold the CTest resource lock `gpu`, so `ctest -j` never runs two on one real GPU. CI's lavapipe
+# jobs turn it off: their "GPU" is the CPU, and the runner's idle cores can run tests side by side.
+option(AEGIS_DEVICE_TEST_GPU_LOCK "Serialise the device tests with the CTest resource lock gpu" ON)
 if(AEGIS_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
