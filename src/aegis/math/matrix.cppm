@@ -159,9 +159,9 @@ template<Scalar T, std::size_t R, std::size_t C>
     return detail::generate<T, R>([&](std::size_t r) { return dot(m.row(r), v); });
 }
 
-// The 4x4 shapes, which the engine multiplies every frame and per instance, are written out: the loops above are
-// unrolled only when the optimiser works hard (the benchmark in tools/bench-math puts the loop at 5x to 11x glm's
-// time in the Development build type, where it does not). Same values as the generic kernels.
+// The 4x4 shapes, which the engine multiplies every frame and per instance, are written out: in the Development
+// build type (-O1) the generic loops above measured 5x (matrix) and 11x (vector) glm's time in tools/bench-math.
+// Same values as the generic kernels; the differential tests in tests/math pick these overloads for Float4x4.
 
 template<Scalar T>
 [[nodiscard]] constexpr auto operator*(const Matrix<T, 4, 4>& a, const Matrix<T, 4, 4>& b) noexcept -> Matrix<T, 4, 4>

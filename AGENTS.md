@@ -25,7 +25,7 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
   `CMAKE_BUILD_TYPE` is `Debug`, `Development` or `Release`; generator expressions that mean "not
   Release" name both (`$<CONFIG:Debug,Development>`).
 - `-DAEGIS_BUILD_BENCHMARKS=ON` adds `aegis-bench-math` (`tools/bench-math/`), `aegis.math` against glm on six
-  operations; run it from a `-release` and a `-dev` build (it exits 1 past the gate) and never from `ctest`.
+  operations; run it from a `-release` and a `-dev` build (it exits 1 past the gate, 2 when the libraries disagree) and never from `ctest`.
 - The MSVC presets **don't build yet** (internal compiler errors in `render_graph`) and configure only
   from a shell with the Visual Studio environment (`vcvars64.bat`).
 - Clone with `--recurse-submodules`. The sample project (the examples' scenes and the assets the
