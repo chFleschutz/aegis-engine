@@ -155,11 +155,26 @@ The editor's panels and where each one sits: docked in the layout, in the right 
 **Safe point**:
 The moment in each frame when the shell runs: input has been read, and no world is being updated or rendered.
 
+**Input action**:
+A named button a game reads instead of a key ("Jump"): down while any of its inputs (keys, mouse buttons, gamepad buttons or axes) is.
+_Avoid_: action binding, key binding (`KeyBindings` are the editor's shortcut callbacks)
+
+**Input axis**:
+A named value from -1 to 1 a game reads instead of keys ("MoveX"), from a pair of inputs or a gamepad axis.
+
+**Input map**:
+A project's input actions and axes, `platform::InputMap`, from its project file. `InputState` reads them by name.
+_Avoid_: action map, input settings
+
 ### Projects and assets
 
 **Project**:
 A game's folder of data, found by the launcher. The sample project is the `samples/` submodule.
 _Avoid_: game folder
+
+**Project file**:
+A project's settings, `<project>/project.aegis`, read when the engine starts. So far it holds only the input map.
+_Avoid_: project settings, project manifest
 
 **Project content**:
 The `content/` folder of a project, which holds its assets.

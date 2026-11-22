@@ -87,6 +87,7 @@ target_sources(aegis-engine
 PRIVATE
 	engine.cpp
 	presentation.cpp
+	project_file.cpp
 	scene_defaults.cpp
 	scene_description.cpp
 PUBLIC 
@@ -94,6 +95,7 @@ PUBLIC
 	FILES
 		engine.cppm
 		game.cppm
+		project_file.cppm
 		scene_defaults.cppm
 		scene_description.cppm
 )

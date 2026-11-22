@@ -109,7 +109,8 @@ tests/
 | `SUBCASE`    | a variation sharing the case's setup                  | `"reuses a freed index"`         |
 
 Never put a `;` in a `TEST_CASE` name: CTest discovery splits the list on it, so both halves run zero
-cases while showing green. Split the case instead.
+cases while showing green. Split the case instead. Keep `[` and `]` out too: an unbalanced bracket
+("outside [0, 1)") makes `ctest` fail on `set_tests_properties unknown error` before it runs anything.
 
 Tests are ordinary `.cpp` TUs — the framework never touches module interfaces:
 

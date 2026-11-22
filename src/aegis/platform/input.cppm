@@ -4,6 +4,7 @@ module;
 export module aegis.platform:input;
 import std;
 import :key;
+import :input_map;
 import :input_state;
 import :key_bindings;
 import :window;
@@ -30,11 +31,14 @@ public:
     auto operator=(Input&&) -> Input& = delete;
 
     /// @brief Builds this frame's InputState: forgets the last frame's, then applies the events the window
-    ///        collected since. Call once per frame, after Window::update.
+    ///        collected since and the state of the first connected gamepad. Call once per frame, after Window::update.
     auto update() -> void;
 
     /// @brief The state as of the last update. Stays valid, and changes in place, for the life of this Input.
     [[nodiscard]] auto state() const -> const InputState& { return m_state; }
+
+    /// @brief The input actions and axes the state reads (InputState::action, InputState::axis).
+    auto setMap(InputMap map) -> void { m_state.setMap(std::move(map)); }
 
     auto setCursorMode(CursorMode mode) -> void;
 
@@ -52,6 +56,7 @@ public:
 
 private:
     auto onKey(int key, int action, int mods) -> void;
+    [[nodiscard]] static auto pollGamepad() -> GamepadEvent;
 
     Window& m_window;
     KeyBindings m_bindings;

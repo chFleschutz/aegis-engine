@@ -10,6 +10,7 @@ module aegis.engine;
 
 import std;
 import aegis.paths;
+import aegis.project_file;
 import aegis.render_passes;
 import aegis.scripting;
 
@@ -343,7 +344,7 @@ void Engine::setUpWorld(world::World& world)
     if (m_input)
         world.addSystem<scripting::ScriptSystem>(m_input->state(), m_input.get());
     else
-        world.addSystem<scripting::ScriptSystem>(); // Scripts see no input
+        world.addSystem<scripting::ScriptSystem>(m_headlessInput); // Scripts see the input map, and no input
     world.addSystem<world::TransformSystem>();
     world.addSystem<world::CameraSystem>();
     if (m_worldSetup)
@@ -408,6 +409,8 @@ auto Engine::initialize() -> std::expected<void, EngineError>
         return std::unexpected{ makeError(EngineErrorCode::TypesFailed, std::format("Failed to register the built-in types: {}", reflect::describe(registered.error()))) };
     if (auto created = createWindow(); !created)
         return created;
+    if (auto loaded = loadProjectFile(); !loaded)
+        return loaded;
     if (auto created = createRenderer(); !created)
         return created;
     if (auto created = createAssets(); !created)
@@ -603,6 +606,18 @@ auto Engine::createWindow() -> std::expected<void, EngineError>
     m_input = std::make_unique<platform::Input>(*m_window);
     m_window->setCloseHandler([this] { return m_shell->canClose(); });
     m_presentation.attach(*m_window); // After the input: ImGui's callbacks chain to the window's
+    return {};
+}
+
+auto Engine::loadProjectFile() -> std::expected<void, EngineError>
+{
+    auto file = aegis::loadProjectFile(m_desc.project.empty() ? paths::project() : m_desc.project);
+    if (!file)
+        return std::unexpected{ makeError(EngineErrorCode::ProjectFailed, std::format("Failed to read the project file {}", file.error())) };
+    if (m_input)
+        m_input->setMap(std::move(file->input));
+    else
+        m_headlessInput.setMap(std::move(file->input));
     return {};
 }
 

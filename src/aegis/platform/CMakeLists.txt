@@ -14,11 +14,14 @@ target_sources(aegis-platform
     glfw_state.cppm
     key.cppm
     key_bindings.cppm
+    input_map.cppm
     input_state.cppm
     input.cppm
     window.cppm
     PRIVATE
     input.cpp
+    input_map.cpp
+    input_state.cpp
     key_bindings.cpp
     window.cpp
 )
