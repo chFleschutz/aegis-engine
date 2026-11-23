@@ -107,7 +107,7 @@ private:
     std::size_t m_filesRead{ 0 };
 };
 
-/// @brief The default importer of a foreign file by extension ("model", "texture" or "environment"), or an
+/// @brief The default importer of a foreign file by extension ("model", "texture", "environment" or "audio"), or an
 ///        empty view for a file that is no asset source.
 [[nodiscard]] auto importerFor(const std::filesystem::path& path) -> std::string_view;
 

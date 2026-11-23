@@ -3,6 +3,7 @@
 // changes, and nothing here may import aegis.rhi. aegis.assets re-exports it and adds what needs a device.
 export module aegis.assets.data;
 export import :asset_database;
+export import :audio_clip;
 export import :asset_id;
 export import :asset_key;
 export import :asset_ref;
