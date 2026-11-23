@@ -35,17 +35,30 @@ struct Transform
     auto matrix() const -> math::Float4x4 { return math::transformMatrix(location, rotation, scale); }
 };
 
-/// @brief Transformation of the entity in world space (including parent transforms)
+/// @brief Transformation of the entity in world space (including parent transforms), written by the TransformSystem
+/// @note A matrix, not location, rotation and scale: a rotated child under a non-uniformly scaled parent has shear,
+///       which only a matrix keeps. location(), rotation() and scale() are computed from it; rotation() and scale()
+///       decompose it (dropping any shear), so prefer the matrix and its axes where they will do.
 struct GlobalTransform
 {
-    math::Float3 location{ 0.0f, 0.0f, 0.0f };
-    math::Quat rotation = math::Quat::identity();
-    math::Float3 scale{ 1.0f, 1.0f, 1.0f };
+    math::Float4x4 matrix = math::Float4x4::identity();
 
-    auto forward() const -> math::Float3 { return math::forward(rotation); }
-    auto right() const -> math::Float3 { return math::right(rotation); }
-    auto up() const -> math::Float3 { return math::up(rotation); }
-    auto matrix() const -> math::Float4x4 { return math::transformMatrix(location, rotation, scale); }
+    auto location() const -> math::Float3 { return math::Float3{ matrix.column(3) }; }
+    auto rotation() const -> math::Quat { return math::decomposeTRS(matrix).rotation; }
+    auto scale() const -> math::Float3 { return math::decomposeTRS(matrix).scale; }
+
+    // The matrix's normalized axes; an axis scaled to zero falls back to the world's
+    auto forward() const -> math::Float3 { return axis(1, math::world::forward<float>); }
+    auto right() const -> math::Float3 { return axis(0, math::world::right<float>); }
+    auto up() const -> math::Float3 { return axis(2, math::world::up<float>); }
+
+private:
+    auto axis(std::size_t column, math::Float3 fallback) const -> math::Float3
+    {
+        const math::Float3 direction{ matrix.column(column) };
+        const float length = math::length(direction);
+        return length > 0.0f ? direction / length : fallback;
+    }
 };
 
 /// @brief Stores the parent entity

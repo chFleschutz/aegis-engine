@@ -231,7 +231,7 @@ auto moveEntity(const EditWorld& world, UndoStack& history, world::Entity entity
     if (parent != oldParent) // A reorder keeps the local Transform as it is
     {
         const auto parentGlobal = parent ? worldTransform(registry, parent) : GlobalTransform{};
-        newPlace.transform = world::detail::toLocal(parentGlobal, worldTransform(registry, entity).matrix());
+        newPlace.transform = world::detail::toLocal(parentGlobal, worldTransform(registry, entity).matrix);
     }
     return perform(world, history, MoveEdit{ .entity = registry.get<StableId>(entity), .oldPlace = oldPlace, .newPlace = newPlace });
 }

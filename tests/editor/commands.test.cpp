@@ -532,11 +532,11 @@ TEST_SUITE("editor::moveEntity")
         for (const auto child : { first, entity, last })
             REQUIRE(registry.addChild(oldParent, child).has_value());
         const auto newParent = registry.create("New", math::Float3{ 0.0f, 5.0f, 0.0f }, math::Quat::identity(), math::Float3{ 2.0f });
-        const auto worldBefore = aegis::editor::worldTransform(registry, entity).location;
+        const auto worldBefore = aegis::editor::worldTransform(registry, entity).location();
 
         REQUIRE(moveEntity(f.edits(), f.history, entity, newParent, 0).has_value());
         CHECK(f.parentOf(entity) == newParent);
-        CHECK(near(aegis::editor::worldTransform(registry, entity).location, worldBefore));
+        CHECK(near(aegis::editor::worldTransform(registry, entity).location(), worldBefore));
         CHECK(near(registry.get<Transform>(entity).location, math::Float3{ 5.5f, -2.5f, 0.0f }));
 
         CHECK(f.undo());
@@ -546,7 +546,7 @@ TEST_SUITE("editor::moveEntity")
 
         CHECK(f.redo());
         CHECK(f.parentOf(entity) == newParent);
-        CHECK(near(aegis::editor::worldTransform(registry, entity).location, worldBefore));
+        CHECK(near(aegis::editor::worldTransform(registry, entity).location(), worldBefore));
     }
 
     TEST_CASE("reordering among the siblings keeps the local Transform")

@@ -20,8 +20,8 @@ void CameraSystem::onUpdate(Registry& registry, float deltaSeconds)
 
 void CameraSystem::calcViewMatrix(CameraMatrices& matrices, GlobalTransform& transform)
 {
-    matrices.view = math::viewMatrix(transform.location, transform.forward());
-    matrices.inverseView = math::inverseViewMatrix(transform.location, transform.forward());
+    matrices.view = math::viewMatrix(transform.location(), transform.forward());
+    matrices.inverseView = math::inverseViewMatrix(transform.location(), transform.forward());
 }
 
 void CameraSystem::calcPerspectiveProjection(CameraMatrices& matrices, const Camera& camera)

@@ -83,7 +83,7 @@ TEST_SUITE("world::World phases")
         CHECK(translationX != 0.0f); // The view already saw the move
         scene.update(0.016f);        // Nothing moved: the view must not change
         CHECK(registry.get<aegis::CameraMatrices>(camera).view[0, 3] == doctest::Approx(translationX));
-        CHECK(registry.get<aegis::GlobalTransform>(camera).location.x == doctest::Approx(3.0f));
+        CHECK(registry.get<aegis::GlobalTransform>(camera).location().x == doctest::Approx(3.0f));
     }
 
     TEST_CASE("deferred commands run in order at the start of the next update, before any system")
@@ -187,7 +187,7 @@ TEST_SUITE("world::World update modes")
         registry.markStaticDirty(camera); // What the editor does after moving a static entity
         scene.update(0.016f, UpdateMode::Edit);
 
-        CHECK(registry.get<aegis::GlobalTransform>(camera).location.x == doctest::Approx(3.0f));
+        CHECK(registry.get<aegis::GlobalTransform>(camera).location().x == doctest::Approx(3.0f));
         CHECK(registry.get<aegis::CameraMatrices>(camera).view[0, 3] != 0.0f);
     }
 }

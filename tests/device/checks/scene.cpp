@@ -320,7 +320,7 @@ private:
         return RenderView::Camera{
             .view = view.view,
             .projection = view.projection,
-            .position = registry.get<GlobalTransform>(m_viewCamera).location,
+            .position = registry.get<GlobalTransform>(m_viewCamera).location(),
         };
     }
 
@@ -341,8 +341,8 @@ private:
         if (!cube)
             return std::unexpected{ describe(cube.error()) };
         auto& transform = registry.get<Transform>(*cube);
-        transform.location = camera.location + camera.forward() * 0.5f;
-        transform.rotation = camera.rotation;
+        transform.location = camera.location() + camera.forward() * 0.5f;
+        transform.rotation = camera.rotation();
         transform.scale = math::Float3{ 0.1f };
         for (const auto entity : subtree(registry, *cube))
         {
@@ -437,8 +437,8 @@ private:
         if (!camera)
             return std::unexpected{ "the scene has no camera" };
 
-        const math::Float3 nearer = camera->location + camera->forward() * 1.1f + camera->right() * 0.12f;
-        const math::Float3 farther = camera->location + camera->forward() * 1.5f + camera->right() * 0.38f + camera->up() * 0.16f;
+        const math::Float3 nearer = camera->location() + camera->forward() * 1.1f + camera->right() * 0.12f;
+        const math::Float3 farther = camera->location() + camera->forward() * 1.5f + camera->right() * 0.38f + camera->up() * 0.16f;
         const std::array<std::pair<math::Float3, math::Float3>, 2> cubes{ {
             { math::Float3{ 1.0f, 0.25f, 0.1f }, m_options.blendSwap ? farther : nearer },
             { math::Float3{ 0.1f, 0.35f, 1.0f }, m_options.blendSwap ? nearer : farther },
@@ -529,8 +529,8 @@ private:
             if (!cube)
                 return std::unexpected{ describe(cube.error()) };
             auto& transform = registry.get<Transform>(*cube);
-            transform.location = camera->location + camera->forward() * 1.5f + camera->right() * (0.6f * side);
-            transform.rotation = camera->rotation;
+            transform.location = camera->location() + camera->forward() * 1.5f + camera->right() * (0.6f * side);
+            transform.rotation = camera->rotation();
             transform.scale = math::Float3{ 0.2f };
             for (const auto entity : subtree(registry, *cube))
             {
@@ -568,9 +568,9 @@ private:
         if (!plane)
             return std::unexpected{ plane.error() };
         auto& transform = registry.get<Transform>(*plane);
-        transform.location = camera.location + camera.forward() * 1.5f;
+        transform.location = camera.location() + camera.forward() * 1.5f;
         // Turns the plane's front (+z) to the camera's forward (+y), away from the camera.
-        transform.rotation = camera.rotation * math::Quat::fromAxisAngle(math::Float3{ 1.0f, 0.0f, 0.0f }, math::radians(-90.0f));
+        transform.rotation = camera.rotation() * math::Quat::fromAxisAngle(math::Float3{ 1.0f, 0.0f, 0.0f }, math::radians(-90.0f));
         transform.scale = math::Float3{ 0.05f };
         for (const auto entity : subtree(registry, *plane))
         {
