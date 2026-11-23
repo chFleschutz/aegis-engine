@@ -10,6 +10,7 @@ target_link_libraries(
     PUBLIC
         aegis-asset-library
         aegis-assets
+        aegis-audio # aegis.engine re-exports it: Engine::audio, and scripts play sounds
         aegis-core
         aegis-math # aegis.game re-exports it
         aegis-paths # The launcher (launch/main.cpp, compiled into each game) locates the project

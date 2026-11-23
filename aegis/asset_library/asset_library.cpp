@@ -1,6 +1,7 @@
 module aegis.asset_library;
 
 import std;
+import aegis.audio;
 import aegis.core;
 import aegis.paths;
 import aegis.reflect;
@@ -86,6 +87,7 @@ public:
     auto materials() -> Cache<assets::Material>& { return m_materials; }
     auto environments() -> Cache<assets::Environment>& { return m_environments; }
     auto models() -> Cache<assets::Model>& { return m_models; }
+    auto audioClips() -> Cache<assets::AudioClip>& { return m_audioClips; }
 
     auto loadTexture(AssetId id) -> AssetRef<assets::Texture>
     {
@@ -217,6 +219,33 @@ public:
             else if (!sky.environment.slot())
                 sky.environment = loadEnvironment(sky.environment.id());
         }
+        else if (type.type == typeid(audio::AudioSource))
+        {
+            auto& source = *static_cast<audio::AudioSource*>(component);
+            if (source.clip.id().valid() && !source.clip.slot())
+                source.clip = loadAudioClip(source.clip.id());
+        }
+    }
+
+    // The file's bytes come from the import cache unchanged and are decoded into memory on every load.
+    auto loadAudioClip(AssetId id) -> AssetRef<assets::AudioClip>
+    {
+        if (auto ref = m_audioClips.find(id))
+            return *ref;
+
+        const auto* entry = m_database.find(id);
+        if (!entry)
+            return failAudioClip(id, "no asset has this ID");
+        if (!entry->key.empty() || assets::importerFor(entry->path) != "audio")
+            return failAudioClip(id, std::format("'{}' is not an audio file", entry->path));
+
+        auto loaded = m_importCache.loadAudioFile(m_database.absolutePath(*entry));
+        if (!loaded)
+            return failAudioClip(id, assets::describe(loaded.error()));
+        auto clip = audio::decodeClip(loaded->bytes, entry->path);
+        if (!clip)
+            return failAudioClip(id, audio::describe(clip.error()));
+        return m_audioClips.fill(id, std::make_shared<assets::AudioClip>(std::move(*clip)));
     }
 
     auto loadEnvironment(AssetId id) -> AssetRef<assets::Environment>
@@ -470,6 +499,12 @@ private:
         return fail(m_environments, id, "environment", message, blackEnvironment());
     }
 
+    // No fallback: a missing clip is silent.
+    auto failAudioClip(AssetId id, const std::string& message) -> AssetRef<assets::AudioClip>
+    {
+        return fail(m_audioClips, id, "audio clip", message, std::shared_ptr<assets::AudioClip>{});
+    }
+
     auto failModel(AssetId id, const std::string& message) -> AssetRef<assets::Model>
     {
         std::shared_ptr<assets::Model> fallback;
@@ -629,6 +664,7 @@ private:
     Cache<assets::StaticMesh> m_meshes;
     Cache<assets::Material> m_materials;
     Cache<assets::Environment> m_environments;
+    Cache<assets::AudioClip> m_audioClips;
     Cache<assets::Model> m_models;
     Cache<serialize::Scene> m_scenes;
 };
@@ -833,6 +869,11 @@ auto AssetLibrary::loadModel(AssetId id) -> AssetRef<assets::Model>
     return m_impl->loadModel(id);
 }
 
+auto AssetLibrary::loadAudioClip(AssetId id) -> AssetRef<assets::AudioClip>
+{
+    return m_impl->loadAudioClip(id);
+}
+
 auto AssetLibrary::addTexture(std::shared_ptr<assets::Texture> asset) -> AssetRef<assets::Texture>
 {
     return m_impl->textures().fill(AssetId::generate(), std::move(asset));
@@ -856,5 +897,10 @@ auto AssetLibrary::addEnvironment(std::shared_ptr<assets::Environment> asset) ->
 auto AssetLibrary::addModel(std::shared_ptr<assets::Model> asset) -> AssetRef<assets::Model>
 {
     return m_impl->models().fill(AssetId::generate(), std::move(asset));
+}
+
+auto AssetLibrary::addAudioClip(std::shared_ptr<assets::AudioClip> asset) -> AssetRef<assets::AudioClip>
+{
+    return m_impl->audioClips().fill(AssetId::generate(), std::move(asset));
 }
 }

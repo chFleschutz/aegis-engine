@@ -347,6 +347,7 @@ void Engine::setUpWorld(world::World& world)
         world.addSystem<scripting::ScriptSystem>(m_headlessInput); // Scripts see the input map, and no input
     world.addSystem<world::TransformSystem>();
     world.addSystem<world::CameraSystem>();
+    world.addSystem<audio::AudioSystem>(*m_audio);
     if (m_worldSetup)
         m_worldSetup(world);
 }
@@ -404,7 +405,8 @@ auto Engine::initialize() -> std::expected<void, EngineError>
 {
     auto registered = world::registerComponents(m_types)
                           .and_then([this] { return serialize::registerComponents(m_types); })
-                          .and_then([this] { return scripting::registerKinematicMovementController(m_types); });
+                          .and_then([this] { return scripting::registerKinematicMovementController(m_types); })
+                          .and_then([this] { return audio::registerComponents(m_types); });
     if (!registered)
         return std::unexpected{ makeError(EngineErrorCode::TypesFailed, std::format("Failed to register the built-in types: {}", reflect::describe(registered.error()))) };
     if (auto created = createWindow(); !created)
@@ -414,6 +416,8 @@ auto Engine::initialize() -> std::expected<void, EngineError>
     if (auto created = createRenderer(); !created)
         return created;
     if (auto created = createAssets(); !created)
+        return created;
+    if (auto created = createAudio(); !created)
         return created;
     m_mainWorld = &createWorld(); // After the input, which its scripts read
 
@@ -524,6 +528,8 @@ auto Engine::run() -> int
         // Update: each world's systems run phase by phase, scripts first: they write the transforms, the others
         // derive from them (camera matrices included). In edit mode only the derived ones run.
         updateWorlds(currentFrameBegin);
+        // Headless, the sounds advance by the frame's time; either way the finished ones are freed.
+        m_audio->advance(frameTimeSec);
 
         // Rendering: uploads queued this frame (or while loading) go first, on the same queue.
         if (auto flushed = m_device->flushUploads(); !flushed)
@@ -654,6 +660,16 @@ auto Engine::createAssets() -> std::expected<void, EngineError>
     if (!assets)
         return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, describe(assets.error())) };
     m_assets.emplace(std::move(*assets));
+    return {};
+}
+
+auto Engine::createAudio() -> std::expected<void, EngineError>
+{
+    // Headless runs never open a device, so they behave the same on every machine.
+    auto created = audio::AudioEngine::create({ .device = !m_desc.headless });
+    if (!created)
+        return std::unexpected{ makeError(EngineErrorCode::AudioFailed, std::format("Failed to start the audio: {}", audio::describe(created.error()))) };
+    m_audio = std::move(*created);
     return {};
 }
 
