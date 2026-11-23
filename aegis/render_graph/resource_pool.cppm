@@ -31,14 +31,14 @@ public:
     /// @brief The extent unscoped textures that follow the output are sized by.
     [[nodiscard]] auto output() const noexcept -> rhi::Extent2D { return m_output; }
     /// @brief The extent the textures of the scope 'scope' (an index into ResourceDeclarations::scopes) that have none
-    ///        of their own are sized by: the scope's, or the output's. Valid after FrameGraph::compile.
+    ///        of their own are sized by: the scope's, or the output's. Valid once FrameGraph::create returned.
     [[nodiscard]] auto scopeExtent(std::uint32_t scope) const -> rhi::Extent2D;
 
     /// @brief Every declaration, in the order passes made them.
     [[nodiscard]] auto describe() const -> std::vector<ResourceDescription> { return m_declarations.describe(); }
     [[nodiscard]] auto name(ResourceId handle) const -> std::string_view { return m_declarations.name(handle); }
 
-    // Valid after FrameGraph::compile
+    // Valid once FrameGraph::create returned
 
     /// @brief The texture behind the declaration. Of a history pair: this frame's image, or the previous
     ///        frame's for an id from ResourceDeclarations::addHistoryReference.
