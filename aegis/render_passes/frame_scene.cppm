@@ -80,7 +80,7 @@ struct FrameScene
         math::Float3 color{ 1.0f };
         float intensity{ 1.0f };
         float range{ 20.0f }; // Meters; the light fades to zero there
-        float scale{ 1.0f };  // The transform's x scale, which sizes the light's billboard
+        float scale{ 1.0f };  // The length of the transform's x axis, which sizes the light's billboard
     };
 
     struct SpotLight
