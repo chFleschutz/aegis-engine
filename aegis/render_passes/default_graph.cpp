@@ -87,12 +87,12 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
         if (drawsSpotShadows(desc))
             shadow->spotAtlas = std::string{ names::spotShadowAtlas };
     }
-    graph.add<LightingPass>(scene, desc.pipelines, desc.view, shadow);
+    graph.add<LightingPass>(scene, desc.pipelines, desc.settings.lighting, desc.view, shadow);
     graph.add<SkyBoxPass>(scene, desc.pipelines, desc.view);
     // Blended draws take the CPU-driven draw on both geometry paths.
     graph.add<ForwardPass>(scene, desc.pipelines, desc.view, shadow).addRenderSystem<StaticMeshRenderSystem>(Technique::Forward);
     graph.add<TransparentPass>(scene, desc.pipelines, desc.view).addRenderSystem<PointLightRenderSystem>();
-    graph.add<BloomPass>(scene, desc.pipelines);
+    graph.add<BloomPass>(scene, desc.pipelines, desc.settings.bloom);
     graph.add<PostProcessingPass>(scene, desc.pipelines);
 }
 

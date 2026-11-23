@@ -15,6 +15,7 @@ using namespace aegis::render_graph;
 
 const FrameSceneSource scene; // Never bound: the graphs are only planned
 PipelineLibrary pipelines;    // Never asked for a pipeline: no pass creates its resources
+RenderSettings settings;      // The passes only keep a reference
 
 auto readFile(const std::filesystem::path& path) -> std::optional<std::string>
 {
@@ -43,7 +44,7 @@ auto planOfDefaultGraph(bool gpuDriven, std::optional<DefaultPassesDesc::ShownVi
     std::vector<DefaultPassesDesc::View> views = { { .name = "Main" } }) -> std::string
 {
     GraphBuilder builder;
-    addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .gpuDriven = gpuDriven, .ui = true, .views = std::move(views), .shownViews = shown });
+    addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .ui = true, .views = std::move(views), .shownViews = shown });
 
     const auto plan = builder.plan();
     REQUIRE(plan.has_value());
@@ -73,7 +74,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
         {
             CAPTURE(gpuDriven);
             GraphBuilder builder;
-            addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .gpuDriven = gpuDriven, .ui = true });
+            addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .ui = true });
 
             const auto plan = builder.plan();
             REQUIRE_MESSAGE(plan.has_value(), plan.error().message);
@@ -144,7 +145,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
             std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
             addShadowViews(views);
             GraphBuilder builder;
-            addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .gpuDriven = gpuDriven, .ui = true, .views = std::move(views) });
+            addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .ui = true, .views = std::move(views) });
             const auto plan = builder.plan();
             REQUIRE(plan.has_value());
             CHECK(builder.declarations().find("SpotShadowAtlas").has_value());
@@ -177,7 +178,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
         std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
         addShadowViews(views);
         GraphBuilder builder;
-        addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .gpuDriven = false, .ui = true, .views = std::move(views) });
+        addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .ui = true, .views = std::move(views) });
         CHECK(builder.declarations().find("MainShadow0/Final") == std::nullopt);
         CHECK(builder.declarations().find("MainShadow0/Depth").has_value());
         CHECK(builder.declarations().find("MainShadow3/Depth").has_value());
@@ -187,7 +188,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
     TEST_CASE("every pass of the default graph has a name")
     {
         GraphBuilder builder;
-        addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .gpuDriven = true, .ui = true });
+        addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = true, .ui = true });
 
         for (std::uint32_t pass = 0; pass < builder.declarations().passCount(); ++pass)
             CHECK_FALSE(builder.declarations().passName(pass).empty());

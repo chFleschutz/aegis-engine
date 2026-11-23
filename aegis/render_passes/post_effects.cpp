@@ -10,9 +10,11 @@ namespace aegis::render_graph
 {
 // Bloom ----------------------------------------------------------------------------------------------
 
-BloomPass::BloomPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines) :
+BloomPass::BloomPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+    Settings& settings) :
     m_scene{ scene },
     m_pipelines{ pipelines },
+    m_settings{ settings },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
     m_bloom{ declarations.addTexture(names::bloom, Usage::StorageWrite,
         { .format = rhi::Format::RGBA16_SFLOAT, .mipLevels = mipLevels, .usage = rhi::ImageUsage::Sampled }) }

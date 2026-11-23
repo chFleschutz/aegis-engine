@@ -19,14 +19,16 @@ public:
     static constexpr std::uint32_t mipLevels{ 6 };
 
     /// @brief Tuning knobs of the blur, not scene data: registered with aegis.reflect (passSettingsTypes), so the
-    ///        editor's renderer panel shows them, and a new graph starts from these.
+    ///        editor's renderer panel shows them. The pass reads them from its caller's object (RenderSettings::bloom).
     struct Settings
     {
         float downsampleScale{ 1.0f };
         float upsampleScale{ 1.0f };
     };
 
-    BloomPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines);
+    /// @param settings Read while recording, never copied; it must outlive the pass.
+    BloomPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+        Settings& settings);
     ~BloomPass() override;
 
     [[nodiscard]] auto name() const -> std::string_view override;
@@ -35,17 +37,15 @@ public:
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
     [[nodiscard]] auto settings() -> std::optional<PassSettings> override;
 
-    [[nodiscard]] auto bloomSettings() noexcept -> Settings& { return m_settings; }
-
 private:
     [[nodiscard]] auto createMipViews(ResourcePool& pool) -> std::expected<void, Error>;
     auto freeMipViews() -> void;
 
     const FrameSceneSource& m_scene;
     PipelineLibrary& m_pipelines;
+    Settings& m_settings;
     ResourceId m_sceneColor;
     ResourceId m_bloom;
-    Settings m_settings;
     rhi::Device* m_device{ nullptr };
     std::vector<rhi::ImageViewHandle> m_mipViews; // One per mip, storage and sampled
     std::optional<rhi::SamplerHandle> m_sampler;

@@ -45,6 +45,8 @@ public:
     auto endScope() -> void { m_declarations.endScope(); }
 
     [[nodiscard]] auto declarations() const noexcept -> const ResourceDeclarations& { return m_declarations; }
+    /// @brief The passes in the order added (FrameGraph::passes: in execution order, after compile).
+    [[nodiscard]] auto addedPasses() const noexcept -> std::span<const std::unique_ptr<RenderPass>> { return m_passes; }
 
     /// @brief Compiles what the passes declared into a plan, without a device.
     [[nodiscard]] auto plan() const -> std::expected<GraphPlan, Error> { return detail::compilePlan(m_declarations); }

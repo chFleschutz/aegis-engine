@@ -328,11 +328,12 @@ auto Harness::verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::str
     const render_graph::FrameSceneSource scene;
     // Outlives the graphs, as the engine's does. Its BRDF LUT is computed before counting: it stays after the graphs.
     render_graph::PipelineLibrary pipelines;
+    render_graph::RenderSettings settings;
     if (auto lut = pipelines.brdfLut(*m_device); !lut)
         return std::unexpected{ std::format("Computing the BRDF LUT: {}", describe(lut.error())) };
     const auto build = [&](std::unique_ptr<render_graph::FrameGraph>& graph) -> std::expected<void, std::string> {
         graph = std::make_unique<render_graph::FrameGraph>(*m_device, m_renderer->extent());
-        render_graph::addDefaultPasses(*graph, { .scene = scene, .pipelines = pipelines, .gpuDriven = gpuDriven });
+        render_graph::addDefaultPasses(*graph, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven });
         if (auto compiled = graph->compile(); !compiled)
             return std::unexpected{ std::format("Compiling the default graph: {}", describe(compiled.error())) };
         return {};
@@ -384,10 +385,11 @@ auto Harness::verifyPipelineSharing(bool gpuDriven) -> std::expected<void, std::
 {
     const render_graph::FrameSceneSource scene; // Never bound: no frame is recorded
     render_graph::PipelineLibrary pipelines;
+    render_graph::RenderSettings settings;
     const auto compile = [&](std::vector<render_graph::DefaultPassesDesc::View> views) -> std::expected<void, std::string> {
         render_graph::addShadowViews(views);
         render_graph::FrameGraph graph{ *m_device, m_renderer->extent() };
-        render_graph::addDefaultPasses(graph, { .scene = scene, .pipelines = pipelines, .gpuDriven = gpuDriven, .views = std::move(views) });
+        render_graph::addDefaultPasses(graph, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .views = std::move(views) });
         if (auto compiled = graph.compile(); !compiled)
             return std::unexpected{ std::format("Compiling the default graph: {}", describe(compiled.error())) };
         m_device->waitIdle();

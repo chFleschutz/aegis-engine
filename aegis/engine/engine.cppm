@@ -514,6 +514,8 @@ private:
     render_graph::FrameSceneSource m_frameScene;   // Where the passes read the frame scene; outlives the graph
     // The passes' pipelines and BRDF LUT: outlive every frame graph, so a rebuild (followViews) creates none.
     std::unique_ptr<render_graph::PipelineLibrary> m_pipelines{ std::make_unique<render_graph::PipelineLibrary>() };
+    // The passes' settings, which the renderer panel edits: outlive every frame graph, so a rebuild keeps them.
+    render_graph::RenderSettings m_renderSettings;
     std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
     std::vector<ViewTarget> m_views; // The views the frame graph renders into targets of their own; none: onto the target
     bool m_quit{ false };            // quit(): run() ends after this frame
