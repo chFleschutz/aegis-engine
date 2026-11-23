@@ -25,6 +25,7 @@ endfunction()
 
 add_subdirectory(asset_library)
 add_subdirectory(assets)
+add_subdirectory(audio)
 add_subdirectory(core)
 add_subdirectory(device) # aegis-test, the harness that checks a real device
 add_subdirectory(editor)
