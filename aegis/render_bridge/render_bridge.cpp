@@ -112,7 +112,7 @@ auto InstanceBridge::refresh(RenderInstance& instance, const MeshRenderer& rende
         return;
     }
 
-    const auto model = render_graph::detail::toModelRows(transform.matrix());
+    const auto model = render_graph::detail::toModelRows(transform.matrix);
     if (instance.id)
     {
         // Most instances are the same as at the last sync: compare before copying the shared pointers. A material
@@ -213,7 +213,7 @@ auto extractFrameScene(world::World& world, const render_graph::InstanceStore& i
         view.camera = FrameScene::Camera{
             .view = matrices.view,
             .projection = matrices.projection,
-            .position = registry.get<GlobalTransform>(camera).location,
+            .position = registry.get<GlobalTransform>(camera).location(),
         };
     }
     if (const auto camera = world.mainCamera(); camera && registry.has<PostProcess>(camera))
@@ -251,17 +251,17 @@ auto extractFrameScene(world::World& world, const render_graph::InstanceStore& i
     for (auto&& [entity, transform, light] : registry.view<GlobalTransform, PointLight>().each())
     {
         scene.pointLights.push_back({
-            .position = transform.location,
+            .position = transform.location(),
             .color = light.color,
             .intensity = light.intensity,
             .range = light.range,
-            .scale = transform.scale.x,
+            .scale = transform.scale().x,
         });
     }
     for (auto&& [entity, transform, light] : registry.view<GlobalTransform, SpotLight>().each())
     {
         scene.spotLights.push_back({
-            .position = transform.location,
+            .position = transform.location(),
             .direction = math::normalize(transform.forward()),
             .color = light.color,
             .intensity = light.intensity,
