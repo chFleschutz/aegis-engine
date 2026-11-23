@@ -187,6 +187,10 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
         ARGS --headless --scene --post-process --frames 120
     )
 
+    # The audio scene (#465): its looping AudioSource starts once on begin and still plays after the last frame. Headless
+    # runs mix without an audio device, so this runs the same on every machine.
+    aegis_add_device_test(aegis-test-audio ARGS --headless --audio --frames 120)
+
     # The scene's reference images (see above).
     aegis_add_device_test(
         aegis-test-golden-scene

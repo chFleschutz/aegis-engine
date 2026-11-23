@@ -78,6 +78,11 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
             options.scene = true;
             options.postProcess = true;
         }
+        else if (arg == "--audio")
+        {
+            options.scene = true;
+            options.audio = true;
+        }
         else if (arg == "--screenshot" && i + 1 < args.size())
         {
             options.screenshot = args[++i];
@@ -114,6 +119,12 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         }
     }
 
+    if (options.audio)
+    {
+        if (options.sceneFile != testSceneFile)
+            return std::unexpected{ "--audio loads a scene of its own, so it can't run with --scene-file" };
+        options.sceneFile = audioSceneFile;
+    }
     if (!options.compare.empty() && !options.headless)
         return std::unexpected{ "--compare needs --headless" };
     if (options.postProcess && (options.view || options.views))
@@ -143,7 +154,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::test::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--audio] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 
