@@ -511,3 +511,39 @@ TEST_SUITE("world::Registry::hierarchyVersion")
         CHECK(first.hierarchyVersion() != second.hierarchyVersion());
     }
 }
+
+TEST_SUITE("world::Registry context")
+{
+    struct Service
+    {
+        int value{ 0 };
+    };
+
+    TEST_CASE("a context value is found by its type until it is erased")
+    {
+        Registry registry;
+        CHECK(registry.context<Service>() == nullptr);
+
+        Service service{ 1 };
+        registry.setContext(service);
+        CHECK(registry.context<Service>() == &service);
+
+        Service other{ 2 };
+        registry.setContext(other);
+        CHECK(registry.context<Service>() == &other);
+
+        registry.eraseContext<Service>();
+        CHECK(registry.context<Service>() == nullptr);
+        registry.eraseContext<Service>(); // Erasing what is not there does nothing
+    }
+
+    TEST_CASE("clearing the entities keeps the context")
+    {
+        Registry registry;
+        Service service;
+        registry.setContext(service);
+        registry.create("Entity");
+        registry.clear();
+        CHECK(registry.context<Service>() == &service);
+    }
+}
