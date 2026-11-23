@@ -43,9 +43,10 @@ auto LightUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
 // Lighting -------------------------------------------------------------------------------------------
 
 LightingPass::LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
-    std::uint32_t view, std::optional<ShadowMaps> shadow) :
+    Settings& settings, std::uint32_t view, std::optional<ShadowMaps> shadow) :
     m_scene{ scene },
     m_pipelines{ pipelines },
+    m_settings{ settings },
     m_view{ view },
     m_gBuffer{
         declarations.addReference(names::position, Usage::StorageRead),

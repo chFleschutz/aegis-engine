@@ -666,6 +666,7 @@ auto Engine::createFrameGraph(std::vector<ViewTarget> views) -> std::expected<vo
     DefaultPassesDesc desc{
         .scene = m_frameScene,
         .pipelines = *m_pipelines,
+        .settings = m_renderSettings,
         .gpuDriven = useGpuDrivenRendering(),
         .ui = true, // The shell's UI, empty for a game; headless too, for screenshots of it
         .uiBackend = m_presentation.backend(),

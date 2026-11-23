@@ -40,7 +40,7 @@ class LightingPass : public RenderPass
 {
 public:
     /// @brief Tuning knobs and debug views, not scene data: registered with aegis.reflect (passSettingsTypes), so the
-    ///        editor's renderer panel shows them.
+    ///        editor's renderer panel shows them. The pass reads them from its caller's object (RenderSettings::lighting).
     struct Settings
     {
         float ambientOcclusionFactor{ 1.0f };
@@ -58,10 +58,11 @@ public:
         std::string spotAtlas;
     };
 
+    /// @param settings Read while recording, never copied; it must outlive the pass.
     /// @param view The index of the view in FrameScene::views it lights (its camera position).
     /// @param shadow None: the directional light is unshadowed.
     LightingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
-        std::uint32_t view = 0, std::optional<ShadowMaps> shadow = std::nullopt);
+        Settings& settings, std::uint32_t view = 0, std::optional<ShadowMaps> shadow = std::nullopt);
     LightingPass(const LightingPass&) = delete;
     LightingPass(LightingPass&&) = delete;
     ~LightingPass() override;
@@ -76,11 +77,10 @@ public:
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
     [[nodiscard]] auto settings() -> std::optional<PassSettings> override;
 
-    [[nodiscard]] auto lightingSettings() noexcept -> Settings& { return m_settings; }
-
 private:
     const FrameSceneSource& m_scene;
     PipelineLibrary& m_pipelines;
+    Settings& m_settings;
     std::uint32_t m_view;
     std::array<ResourceId, 5> m_gBuffer; // Position, Normal, Albedo, ARM, Emissive
     ResourceId m_sceneColor;
@@ -93,7 +93,6 @@ private:
     std::optional<rhi::SamplerHandle> m_shadowSampler;
     const rhi::Pipeline* m_pipeline{ nullptr };
     std::shared_ptr<assets::Texture> m_brdfLut; // The library's, not per environment
-    Settings m_settings;
 };
 }
 

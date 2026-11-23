@@ -38,7 +38,8 @@ public:
     [[nodiscard]] auto placement() const -> Placement override { return Placement::Drawer; }
     [[nodiscard]] auto menu() const -> Menu override { return Menu::Debug; }
 
-    // A pass's settings, set straight on the pass: runtime tunables, not scene data, so no undo entry.
+    // A pass's settings, set on the object the pass reads (the engine's RenderSettings, shared by every view's passes and
+    // kept across graph rebuilds): runtime tunables, not scene data, so no undo entry.
     static void drawSettings(const render_graph::PassSettings& settings, FrameContext& frame)
     {
         const auto edit = [&](const PropertyRow& row, const reflect::Value& value, bool) {

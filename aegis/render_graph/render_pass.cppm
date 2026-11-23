@@ -22,8 +22,9 @@ struct FrameInfo
     rhi::ImageViewHandle target;
 };
 
-/// @brief A pass's runtime tunables: 'object', the pass's instance of 'type' (registered with aegis.reflect in the
-///        Settings category), which the pass reads every frame. Tools edit it through the type's fields.
+/// @brief A pass's runtime tunables: 'object', the instance of 'type' (registered with aegis.reflect in the Settings
+///        category) the pass reads every frame, which may outlive the pass and be shared with other passes (the
+///        engine's RenderSettings). Tools edit it through the type's fields.
 struct PassSettings
 {
     const reflect::TypeInfo& type;
