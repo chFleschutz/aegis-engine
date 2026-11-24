@@ -115,6 +115,17 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
         LABELS mesh-shaders
     )
 
+    # A script spawns the engine's cube while frames are in flight and destroys it again, on both geometry paths.
+    aegis_add_device_test(
+        aegis-test-scene-spawn
+        ARGS --headless --scene --spawn --frames 30
+    )
+    aegis_add_device_test(
+        aegis-test-scene-gpu-driven-spawn
+        ARGS --headless --gpu-driven --spawn --frames 30
+        LABELS mesh-shaders
+    )
+
     # An unlit cube next to a PBR one: the last frame shows its colour unlit, on both geometry paths.
     aegis_add_device_test(
         aegis-test-scene-unlit

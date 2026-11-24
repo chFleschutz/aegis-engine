@@ -65,6 +65,18 @@ void Registry::destroy(Entity entity)
     m_registry.destroy(entity.id());
 }
 
+void Registry::destroySubtree(Entity root)
+{
+    std::vector<Entity> entities{ root };
+    for (std::size_t i = 0; i < entities.size(); ++i)
+    {
+        for (auto child = get<Children>(entities[i]).first; child; child = get<Siblings>(child).next)
+            entities.push_back(child);
+    }
+    for (const auto entity : entities | std::views::reverse)
+        destroy(entity);
+}
+
 void Registry::clear()
 {
     m_registry.clear();
@@ -245,7 +257,7 @@ auto Registry::makeIdGenerator() -> std::mt19937_64
     return std::mt19937_64{ seed };
 }
 
-auto Registry::randomId() -> std::uint64_t
+auto Registry::unusedId() -> std::uint64_t
 {
     std::uint64_t id = 0;
     while (id == 0 || m_ids.contains(id))

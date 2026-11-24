@@ -140,9 +140,6 @@ struct EditWorld
 ///        GlobalTransform needed, which only the TransformSystem keeps up to date).
 [[nodiscard]] auto worldTransform(world::Registry& registry, world::Entity entity) -> GlobalTransform;
 
-/// @brief Destroys 'root' and its descendants, the deepest first (Registry::destroy only detaches the children).
-void destroySubtree(world::Registry& registry, world::Entity root);
-
 /// @brief Writes one side of 'edit' to the world through the type registry, with the component's change hook, as
 ///        the editor's own edits do.
 /// @return Why it no longer applies (the entity, component or script is gone, a type or field is not registered,

@@ -15,6 +15,7 @@ import aegis.render_graph;
 import aegis.render_passes;
 import aegis.renderer;
 import aegis.rhi;
+import aegis.scripting;
 
 export namespace aegis
 {
@@ -509,6 +510,7 @@ private:
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
     std::optional<AssetLibrary> m_assets;
     reflect::TypeRegistry m_types;
+    std::unique_ptr<scripting::Spawner> m_spawner;                              // What scripts spawn through: every world's registry context
     std::unique_ptr<audio::AudioEngine> m_audio;                                // Outlives the worlds, whose AudioSystems play through it
     core::FrameClock m_clock{ core::FrameClock::clamped(MAX_FRAME_DELTA_SEC) }; // The UI's; each world has its own
     std::function<void(world::World&)> m_worldSetup;                            // The game's systems

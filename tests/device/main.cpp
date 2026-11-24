@@ -32,6 +32,11 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
             options.scene = true;
             options.mutateScene = true;
         }
+        else if (arg == "--spawn")
+        {
+            options.scene = true;
+            options.spawn = true;
+        }
         else if (arg == "--view")
         {
             options.scene = true;
@@ -150,6 +155,10 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         return std::unexpected{ "--double-sided counts the pixels of the unlit colour, as --unlit and --views do, so it can't run with either" };
     if (options.sceneFile != testSceneFile && (options.mirror || options.mutateScene || options.worlds || options.unlit || options.blend || options.doubleSided || options.view || options.views))
         return std::unexpected{ "--mirror, --mutate-scene, --worlds, --unlit, --blend, --blend-swap, --double-sided, --view and --views are written for the test scene, so they can't run with --scene-file" };
+    if (options.spawn && options.mutateScene)
+        return std::unexpected{ "--spawn and --mutate-scene both count the static instances, so they can't run together" };
+    if (options.spawn && options.frames != 0 && options.frames < 30)
+        return std::unexpected{ "--spawn needs at least 30 frames to spawn the cube and destroy it again" };
     if (options.scene && options.noSamples)
         return std::unexpected{ "--scene loads the sample project, so it can't run with --no-samples" };
 
@@ -165,7 +174,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::test::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--audio] [--physics] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--spawn] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--audio] [--physics] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 

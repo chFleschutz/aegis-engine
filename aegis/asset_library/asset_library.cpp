@@ -814,14 +814,14 @@ void AssetLibrary::resolve(const reflect::TypeInfo& type, void* component, const
     m_impl->resolve(type, component, types);
 }
 
-auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegistry& types, AssetId scene, world::Entity parent)
-    -> std::expected<world::Entity, AssetLibraryError>
+auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegistry& types, AssetId scene, world::Entity parent,
+    std::uint64_t holderId) -> std::expected<world::Entity, AssetLibraryError>
 {
     const auto loaded = m_impl->loadScene(scene, types);
     if (!loaded)
         return makeError(AssetLibraryErrorCode::InstantiateFailed, std::format("cannot instantiate scene {}: {}", scene, loaded.slot()->message));
     const auto resolve = [this, &types](const reflect::TypeInfo& type, void* component) { m_impl->resolve(type, component, types); };
-    auto holder = serialize::instantiate(world.registry(), types, loaded, parent, resolve);
+    auto holder = serialize::instantiate(world.registry(), types, loaded, parent, resolve, holderId);
     if (!holder)
         return makeError(AssetLibraryErrorCode::InstantiateFailed, holder.error(), std::format("cannot instantiate scene {}", scene));
     if (const auto* entry = m_database->find(scene))

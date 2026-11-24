@@ -59,6 +59,7 @@ struct Options
     bool audio{ false };       // Run the audio scene (audioSceneFile) and check that its one sound started and still plays
     bool physics{ false };     // Run the physics scene (physicsSceneFile) and check that its dynamic bodies fell, stayed above the
                                // floor and came to rest (see SceneShell::watchPhysics)
+    bool spawn{ false };       // With --scene: a script spawns the engine's cube and destroys it again (see SceneShell::checkSpawn)
 };
 
 // --scene: the target's size. --view: the view's size, unlike the target's, and the one it is resized to halfway.

@@ -103,6 +103,27 @@ TEST_SUITE("world::Registry")
         checkDetached(registry, second);
     }
 
+    TEST_CASE("destroySubtree destroys the root and its descendants, deepest first")
+    {
+        Registry registry;
+        const auto outside = registry.create("outside");
+        const auto root = registry.create("root");
+        const auto child = registry.create("child");
+        const auto grandchild = registry.create("grandchild");
+        REQUIRE(registry.setParent(root, outside));
+        REQUIRE(registry.setParent(child, root));
+        REQUIRE(registry.setParent(grandchild, child));
+        std::vector<std::string> order;
+        registry.addDestroyListener(&order, [&order](Registry& r, Entity e) { order.push_back(r.get<aegis::Name>(e).name); });
+
+        registry.destroySubtree(root);
+
+        CHECK(order == std::vector<std::string>{ "grandchild", "child", "root" });
+        CHECK(registry.valid(outside));
+        CHECK(registry.get<aegis::Children>(outside).first == Entity{});
+        CHECK(registry.entityCount() == 1);
+    }
+
     TEST_CASE("unlinks a removed child and keeps its siblings linked")
     {
         Registry registry;
