@@ -124,3 +124,42 @@ add_subdirectory(zstd/build/cmake EXCLUDE_FROM_ALL)
 # Upstream code, like libktx: no warnings of ours.
 set_target_properties(libzstd_static PROPERTIES COMPILE_WARNING_AS_ERROR OFF)
 target_compile_options(libzstd_static PRIVATE $<IF:$<C_COMPILER_ID:MSVC>,/w,-w>)
+
+# Jolt Physics: aegis.physics's rigid bodies, built through its own CMake (Build/), which adds only the Jolt library when
+# it is not the top-level project. Its public defines (JPH_DEBUG, JPH_ENABLE_ASSERTS, JPH_OBJECT_STREAM, the SIMD levels,
+# ...) must match between the library and its users, so they come only from the Jolt target's usage requirements: link
+# it, never set a JPH_ define by hand. No GPU compute (it would build its own Vulkan code), debug renderer, profiler,
+# install rules or flag overrides of its own (our presets set the flags).
+set(OVERRIDE_CXX_FLAGS OFF)
+set(ENABLE_ALL_WARNINGS OFF)
+set(INTERPROCEDURAL_OPTIMIZATION OFF)
+set(GENERATE_DEBUG_SYMBOLS OFF)
+set(ENABLE_INSTALL OFF)
+set(JPH_USE_DX12 OFF)
+set(JPH_USE_VK OFF)
+set(JPH_USE_MTL OFF)
+set(JPH_USE_CPU_COMPUTE OFF)
+set(DEBUG_RENDERER_IN_DEBUG_AND_RELEASE OFF)
+set(PROFILER_IN_DEBUG_AND_RELEASE OFF)
+# Asserts follow ours: on in Debug and Development, off in Release.
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(USE_ASSERTS OFF)
+else()
+    set(USE_ASSERTS ON)
+endif()
+add_subdirectory(jolt/Build EXCLUDE_FROM_ALL)
+# Upstream code: no warnings of ours.
+set_target_properties(Jolt PROPERTIES COMPILE_WARNING_AS_ERROR OFF)
+target_compile_options(Jolt PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/w,-w>)
+# Jolt's compile options leave its usage requirements: passed on to its users, they would also compile aegis.physics's
+# module interfaces, which include no Jolt, with other flags than their importers, and CMake would build a second BMI of
+# them for each importer (an extra build, and a Clang crash once). Its instruction-set flags (-mavx2, -mfpmath=sse,
+# /arch:AVX2, ...) go with its JPH_USE_* defines, as its headers use those intrinsics, so they move onto
+# JOLT_SOURCE_COMPILE_OPTIONS, which the .cpp files that include Jolt take (aegis/physics/). -pthread (Linux) stays a
+# link option: glibc needs it at link time, not to compile.
+get_target_property(JOLT_INTERFACE_OPTIONS Jolt INTERFACE_COMPILE_OPTIONS)
+list(FILTER JOLT_INTERFACE_OPTIONS INCLUDE REGEX "^(-m|/arch:)")
+set_target_properties(
+    Jolt
+    PROPERTIES INTERFACE_COMPILE_OPTIONS "" JOLT_SOURCE_COMPILE_OPTIONS "${JOLT_INTERFACE_OPTIONS}"
+)

@@ -10,6 +10,7 @@ module aegis.engine;
 
 import std;
 import aegis.paths;
+import aegis.physics;
 import aegis.project_file;
 import aegis.render_passes;
 import aegis.scripting;
@@ -364,12 +365,13 @@ void Engine::setWorldSetup(std::function<void(world::World& world)> setup)
 
 void Engine::setUpWorld(world::World& world)
 {
-    // The engine's systems, always present. Their phases order them (scripts, then transforms,
-    // then cameras); the game's come after them (setWorldSetup), in the phase they declare.
+    // The engine's systems, always present. Their phases order them (scripts, physics, then
+    // transforms, then cameras); the game's come after them (setWorldSetup), in the phase they declare.
     if (m_input)
         world.addSystem<scripting::ScriptSystem>(m_input->state(), m_input.get());
     else
         world.addSystem<scripting::ScriptSystem>(m_headlessInput); // Scripts see the input map, and no input
+    world.addSystem<physics::PhysicsSystem>();                     // After the scripts, whose fixed steps move kinematic bodies
     world.addSystem<world::TransformSystem>();
     world.addSystem<world::CameraSystem>();
     if (m_spawner)
@@ -432,7 +434,8 @@ auto Engine::initialize() -> std::expected<void, EngineError>
     auto registered = world::registerComponents(m_types)
                           .and_then([this] { return serialize::registerComponents(m_types); })
                           .and_then([this] { return scripting::registerKinematicMovementController(m_types); })
-                          .and_then([this] { return audio::registerComponents(m_types); });
+                          .and_then([this] { return audio::registerComponents(m_types); })
+                          .and_then([this] { return physics::registerComponents(m_types); });
     if (!registered)
         return std::unexpected{ makeError(EngineErrorCode::TypesFailed, std::format("Failed to register the built-in types: {}", reflect::describe(registered.error()))) };
     if (auto created = createWindow(); !created)

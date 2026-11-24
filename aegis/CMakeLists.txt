@@ -7,6 +7,7 @@ add_subdirectory(render_bridge)
 
 add_subdirectory(core)
 add_subdirectory(paths)
+add_subdirectory(physics)
 add_subdirectory(platform)
 add_subdirectory(rhi)
 add_subdirectory(renderer)

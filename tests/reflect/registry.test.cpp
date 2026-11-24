@@ -219,6 +219,42 @@ TEST_SUITE("reflect::TypeRegistry")
         CHECK(object.baseValue == 9);
     }
 
+    TEST_CASE("registers a field reached through accessors")
+    {
+        TypeRegistry types;
+        auto builder = types.component<Derived>("Derived");
+        REQUIRE(builder.has_value());
+        builder->property(
+            "doubled",
+            [](const Derived& object) { return object.own * 2.0f; },
+            [](Derived& object, float value) { object.own = value / 2.0f; },
+            { .min = 0.0 });
+        REQUIRE(builder->status().has_value());
+
+        const TypeInfo* info = types.find<Derived>();
+        REQUIRE(info->fields.size() == 1);
+        CHECK(info->fields[0].kind == FieldKind::Float);
+        CHECK(info->fields[0].meta.min == 0.0);
+
+        Derived object;
+        CHECK(std::get<float>(*info->get(&object, "doubled")) == 4.0f);
+        REQUIRE(info->set(&object, "doubled", 10.0f).has_value());
+        CHECK(object.own == 5.0f);
+        CHECK(info->set(&object, "doubled", std::string{ "text" }).error().code == ErrorCode::TypeMismatch);
+    }
+
+    TEST_CASE("rejects an accessor field under a name already taken")
+    {
+        TypeRegistry types;
+        auto builder = types.component<Derived>("Derived");
+        REQUIRE(builder.has_value());
+        builder->field("own", &Derived::own).property("own", [](const Derived& object) { return object.baseValue; }, [](Derived& object, int value) { object.baseValue = value; });
+
+        REQUIRE_FALSE(builder->status().has_value());
+        CHECK(builder->status().error().code == ErrorCode::DuplicateName);
+        CHECK(types.find<Derived>()->fields.size() == 1);
+    }
+
     TEST_CASE("creates an instance of a registered type by name")
     {
         TypeRegistry types;

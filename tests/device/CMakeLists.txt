@@ -26,6 +26,7 @@ target_link_libraries(
         aegis-engine # --scene runs through the app
         aegis-math
         aegis-paths
+        aegis-physics # --physics reads the scene's rigid bodies
         aegis-platform
         aegis-reflect
         aegis-render-bridge

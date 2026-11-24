@@ -29,6 +29,7 @@ target_link_libraries(
 target_link_libraries(
     aegis-engine
     PRIVATE
+        aegis-physics # Every game world gets a PhysicsSystem; only engine.cpp imports it
         imgui::imgui # Presentation: the ImGui context and its GLFW backend
         stb # stb_image_write for the headless screenshot
 )

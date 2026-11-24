@@ -32,6 +32,7 @@ add_subdirectory(editor)
 add_subdirectory(engine)
 add_subdirectory(math)
 add_subdirectory(paths)
+add_subdirectory(physics)
 add_subdirectory(platform)
 add_subdirectory(reflect)
 add_subdirectory(render_bridge)
@@ -201,6 +202,10 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
     # The audio scene (#465): its looping AudioSource starts once on begin and still plays after the last frame. Headless
     # runs mix without an audio device, so this runs the same on every machine.
     aegis_add_device_test(aegis-test-audio ARGS --headless --audio --frames 120)
+
+    # The physics scene (#463): its dynamic boxes fall onto the static floor and come to rest above it within 300 frames
+    # (5 s of simulation at the headless frame rate).
+    aegis_add_device_test(aegis-test-physics ARGS --headless --physics --frames 300)
 
     # The scene's reference images (see above).
     aegis_add_device_test(

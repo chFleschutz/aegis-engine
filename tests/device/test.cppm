@@ -22,6 +22,8 @@ export namespace aegis::test
 inline constexpr std::string_view testSceneFile{ "scenes/tests/aegis_test.scene" };
 // A looping, spatial AudioSource that plays on begin, in the sample project: what --audio loads.
 inline constexpr std::string_view audioSceneFile{ "scenes/audio.scene" };
+// Dynamic boxes dropped onto a static floor, in the sample project: what --physics loads.
+inline constexpr std::string_view physicsSceneFile{ "scenes/physics.scene" };
 
 struct Options
 {
@@ -55,6 +57,8 @@ struct Options
                                // frame graph halfway (a view for the first half of the frames, none after it)
     bool noSamples{ false };   // Skip the checks that load the sample project (games/examples/project/ not checked out)
     bool audio{ false };       // Run the audio scene (audioSceneFile) and check that its one sound started and still plays
+    bool physics{ false };     // Run the physics scene (physicsSceneFile) and check that its dynamic bodies fell, stayed above the
+                               // floor and came to rest (see SceneShell::watchPhysics)
     bool spawn{ false };       // With --scene: a script spawns the engine's cube and destroys it again (see SceneShell::checkSpawn)
 };
 

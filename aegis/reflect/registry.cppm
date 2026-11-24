@@ -47,6 +47,40 @@ public:
         return *this;
     }
 
+    // Registers a field T reaches through accessors instead of a data member: `get(const T&)` returns the value,
+    // `set(T&, value)` stores it. For state no member holds as a field type (one alternative of a std::variant).
+    // Readers (the scene loader) set fields in the order they were registered, so register a field that others
+    // depend on first. Otherwise like field().
+    template<class Get, class Set>
+        requires std::invocable<const Get&, const T&>
+    auto property(std::string_view name, Get get, Set set, FieldMeta meta = {}) -> TypeBuilder&
+    {
+        using Member = std::remove_cvref_t<std::invoke_result_t<const Get&, const T&>>;
+        static_assert(std::invocable<const Set&, T&, Member>, "the setter must take the owning type and the getter's value type");
+        using Conversion = FieldConversion<Member>;
+
+        if (m_info->findField(name))
+            return fail(ErrorCode::DuplicateName, std::format("type '{}' already has a field '{}'", m_info->name, name));
+        if (auto problem = metaProblem(Conversion::kind, meta); !problem.empty())
+            return fail(ErrorCode::InvalidMeta, std::format("field '{}' of type '{}': {}", name, m_info->name, problem));
+
+        FieldInfo info{ .name = std::string{ name }, .kind = Conversion::kind, .meta = std::move(meta) };
+        if constexpr (requires { Conversion::enumEntries(); })
+            info.enumEntries = Conversion::enumEntries();
+        if constexpr (requires { Conversion::assetType(); })
+            info.assetType = std::string{ Conversion::assetType() };
+        info.getter = [get = std::move(get)](const void* object) -> Value { return Conversion::toValue(get(*static_cast<const T*>(object))); };
+        info.setter = [set = std::move(set)](void* object, const Value& value) -> std::expected<void, Error> {
+            auto converted = Conversion::fromValue(value);
+            if (!converted)
+                return std::unexpected{ converted.error() };
+            set(*static_cast<T*>(object), std::move(*converted));
+            return {};
+        };
+        m_info->fields.push_back(std::move(info));
+        return *this;
+    }
+
     // The name an editor shows for the type (TypeInfo::displayName), when it differs from the registered one.
     auto displayName(std::string_view displayName) -> TypeBuilder&
     {

@@ -207,6 +207,30 @@ A clip played once at a position with no entity behind it (`audio::playOneShot`)
 The engine's one mixer, `audio::AudioEngine`, that every world's `AudioSystem` plays through. Headless it has no device and advances by frame time.
 _Avoid_: sound manager, audio device
 
+### Physics
+
+**Body**:
+An entity's presence in its world's physics, made by the `PhysicsSystem` for each entity with a `Collider` while the world plays. Its motion type is static, kinematic or dynamic.
+_Avoid_: physics object, actor
+
+**Collider**:
+The component that gives an entity's body its shape (box, sphere or capsule) at an offset, scaled by the entity's global scale. A `Collider` alone makes a static body.
+_Avoid_: collision shape, hitbox
+
+**RigidBody**:
+The component that sets a body's motion type, mass and surface: friction, restitution, damping and gravity factor.
+_Avoid_: physics component
+
+**Static body**:
+A body that never moves and that others collide with. Not the same as a static entity: a static body's entity may still move, its body stays put.
+_Avoid_: fixed body
+
+**Kinematic body**:
+A body that follows its entity's `Transform` (a script moves it) each fixed step and pushes dynamic bodies, unaffected by them.
+
+**Dynamic body**:
+A body moved by gravity and collisions; the `PhysicsSystem` writes its pose, blended by `alpha`, into its entity's `Transform`.
+
 ### Projects and assets
 
 **Project**:
