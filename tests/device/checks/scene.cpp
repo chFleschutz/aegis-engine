@@ -8,6 +8,7 @@ module aegis.test;
 import std;
 import aegis.assets;
 import aegis.engine;
+import aegis.render_bridge;
 import aegis.render_graph;
 import aegis.render_passes;
 import aegis.rhi;
@@ -654,15 +655,19 @@ private:
     // Frame 30 loads a second model, 60 destroys the first one, 90 edits the second one's materials and
     // 120 sets them to cull nothing, adding a dynamic copy of one of its parts in the same frame. The frame
     // after each of the first two, the instance pass must have written as many static instances as the scene
-    // holds; after the last, every instance of those materials, static and dynamic, must be in their new
-    // variant's batch, with a pipeline for it. The last frame (--screenshot) shows the second model, in red,
-    // and the copy at the model's origin.
+    // holds; after the third, every instance of those materials, static and dynamic, must be in their new
+    // variant's batch, with a pipeline for it. 130 moves the copy and makes it static in one go, and 140 makes
+    // it dynamic again and moves it back: the frame after each, its instance must be in the set it joined, where
+    // its Transform puts it. The last frame (--screenshot) shows the second model, in red, and the copy at the
+    // model's origin.
     auto mutateScene(FrameContext& frame) -> std::expected<void, std::string>
     {
         constexpr std::uint32_t loadFrame{ 30 };
         constexpr std::uint32_t destroyFrame{ 60 };
         constexpr std::uint32_t editFrame{ 90 };
         constexpr std::uint32_t cullFrame{ 120 };
+        constexpr std::uint32_t staticFrame{ 130 };
+        constexpr std::uint32_t dynamicFrame{ 140 };
         auto& registry = frame.world.registry();
 
         // The frame after a change: the instances written for it match the scene.
@@ -726,14 +731,54 @@ private:
                 return std::unexpected{ "no material to set to cull nothing" };
             // A new instance of a material whose variant changed is added in the new batch at once; the static
             // instances of that material must follow it there.
-            const auto copy = registry.create("Culled Copy", math::Float3{ 0.9f, 0.0f, 0.0f });
-            registry.add<MeshRenderer>(copy, *part);
-            registry.add<DynamicTag>(copy);
+            m_copy = registry.create("Culled Copy", math::Float3{ 0.9f, 0.0f, 0.0f });
+            registry.add<MeshRenderer>(m_copy, *part);
+            registry.add<DynamicTag>(m_copy);
         }
         else if (m_frame == cullFrame + 1)
         {
             return verifyCulled(frame);
         }
+        else if (m_frame == staticFrame)
+        {
+            // Moved in the frame it turns static: it must still show up where it went, not where it was.
+            registry.get<Transform>(m_copy).location = math::Float3{ 0.9f, 0.5f, 0.0f };
+            registry.remove<DynamicTag>(m_copy);
+        }
+        else if (m_frame == dynamicFrame)
+        {
+            registry.add<DynamicTag>(m_copy);
+            registry.get<Transform>(m_copy).location = math::Float3{ 0.9f, 0.0f, 0.0f };
+        }
+        else if (m_frame == staticFrame + 1 || m_frame == dynamicFrame + 1)
+        {
+            return verifyCopyDrawn(frame, m_frame == dynamicFrame + 1);
+        }
+        return {};
+    }
+
+    // The frame after the copy's DynamicTag came or went: its instance is in the set it joined, drawn where its
+    // Transform puts it.
+    auto verifyCopyDrawn(FrameContext& frame, bool dynamic) -> std::expected<void, std::string>
+    {
+        const auto& registry = frame.world.registry();
+        const auto* name = dynamic ? "dynamic" : "static";
+        if (!registry.valid(m_copy) || !registry.has<RenderInstance>(m_copy))
+            return std::unexpected{ std::format("the copy made {} has no render instance", name) };
+        const auto& id = registry.get<RenderInstance>(m_copy).id;
+        const auto& instances = frame.instances(frame.world);
+        if (!id || !instances.contains(*id))
+            return std::unexpected{ std::format("the copy made {} is not drawn", name) };
+        if (instances.isDynamic(*id) != dynamic)
+            return std::unexpected{ std::format("the copy made {} is drawn as {}", name, instances.isDynamic(*id) ? "dynamic" : "static") };
+        const auto expected = render_graph::detail::toModelRows(registry.get<Transform>(m_copy).matrix());
+        if (!render_graph::detail::sameModel(instances.get(*id).model, expected))
+        {
+            const auto& model = instances.get(*id).model;
+            return std::unexpected{ std::format("the copy made {} is drawn at ({}, {}, {}), its Transform puts it at ({}, {}, {})", name,
+                model[0, 3], model[1, 3], model[2, 3], expected[0, 3], expected[1, 3], expected[2, 3]) };
+        }
+        std::println("DynamicTag change verified: the copy made {} is drawn as {}, where its Transform puts it", name, name);
         return {};
     }
 
@@ -828,6 +873,7 @@ private:
     world::World* m_world{ nullptr };
     std::uint32_t m_frame{ 0 };                                            // Frames begun so far
     world::Entity m_helmet;                                                // The holder of the model instance the scene file holds
+    world::Entity m_copy;                                                  // --mutate-scene: the dynamic copy added with cull nothing
     world::Entity m_addedModel;                                            // --mutate-scene: the holder of the model instance loaded later
     world::Entity m_viewCamera;                                            // --view, --views: the camera the view renders through, not the main one
     ViewsShown m_viewsShown{ ViewsShown::Both };                           // --views: the views rendered
