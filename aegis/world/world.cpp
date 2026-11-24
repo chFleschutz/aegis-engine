@@ -50,7 +50,10 @@ void World::update(float deltaSeconds, UpdateMode mode)
             {
                 ++time.steps;
                 for (auto& system : m_systems)
-                    system->onFixedUpdate(m_registry, time.fixedStepSeconds);
+                {
+                    if (runs(*system, mode))
+                        system->onFixedUpdate(m_registry, time.fixedStepSeconds);
+                }
             }
         }
         for (auto& system : m_systems)

@@ -32,7 +32,8 @@ constexpr std::array ENGINE_OPTIONS{
     OptionHelp{ "--scene <path>", "The scene file to start with, by its path in the project's content/\nfolder. Defaults to the game's own." },
     OptionHelp{ "--dump-asset <id>", "Print the import cache entry of the asset with this ID (16 hex digits)\nand exit." },
 };
-constexpr float HEADLESS_FRAME_DELTA_SEC{ 1.0f / 60.0f }; // Fixed, so a headless run does not depend on the machine
+// Fixed, so a headless run does not depend on the machine; one fixed step of the worlds per frame
+constexpr float HEADLESS_FRAME_DELTA_SEC{ world::FixedStep::DEFAULT_STEP_SEC };
 
 auto makeError(EngineErrorCode code, std::string message) -> EngineError
 {
