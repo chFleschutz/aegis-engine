@@ -151,11 +151,14 @@ add_subdirectory(jolt/Build EXCLUDE_FROM_ALL)
 # Upstream code: no warnings of ours.
 set_target_properties(Jolt PROPERTIES COMPILE_WARNING_AS_ERROR OFF)
 target_compile_options(Jolt PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/w,-w>)
-# Jolt's instruction-set flags (-mavx2, ...) go with its JPH_USE_* defines: its headers use those intrinsics. Passed on to
-# its users, they would also compile aegis.physics's module interfaces, which include no Jolt, with other flags than
-# their importers, and CMake would build a second BMI of them for each importer. So they move off the usage
-# requirements onto JOLT_SOURCE_COMPILE_OPTIONS, which the .cpp files that include Jolt take (aegis/physics/).
+# Jolt's compile options leave its usage requirements: passed on to its users, they would also compile aegis.physics's
+# module interfaces, which include no Jolt, with other flags than their importers, and CMake would build a second BMI of
+# them for each importer (an extra build, and a Clang crash once). Its instruction-set flags (-mavx2, -mfpmath=sse,
+# /arch:AVX2, ...) go with its JPH_USE_* defines, as its headers use those intrinsics, so they move onto
+# JOLT_SOURCE_COMPILE_OPTIONS, which the .cpp files that include Jolt take (aegis/physics/). -pthread (Linux) stays a
+# link option: glibc needs it at link time, not to compile.
 get_target_property(JOLT_INTERFACE_OPTIONS Jolt INTERFACE_COMPILE_OPTIONS)
+list(FILTER JOLT_INTERFACE_OPTIONS INCLUDE REGEX "^(-m|/arch:)")
 set_target_properties(
     Jolt
     PROPERTIES INTERFACE_COMPILE_OPTIONS "" JOLT_SOURCE_COMPILE_OPTIONS "${JOLT_INTERFACE_OPTIONS}"
