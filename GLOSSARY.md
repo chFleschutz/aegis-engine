@@ -129,6 +129,14 @@ _Avoid_: fixed entity, immovable entity
 An entity with a `DynamicTag`, free to move in any frame.
 _Avoid_: movable entity
 
+**Fixed step**:
+A step of the simulation with the same length every time (`World::fixedStep`, 1/60 s by default), decoupled from the frame rate: an update runs zero or more of them in `Phase::FixedUpdate` (`onFixedUpdate`), and `alpha` is the fraction of a step left over.
+_Avoid_: tick, physics frame
+
+**World time**:
+A world's `Time`, which its update writes and its systems, scripts and the renderer read (`World::time`, `Registry::time`): the frame delta, the fixed step, `alpha`, the elapsed time and the frame and step counts. The world's `FrameClock` only hands out the frame deltas.
+_Avoid_: game time, scene time
+
 ### Games
 
 **Game**:
