@@ -96,17 +96,18 @@ public:
         -> std::expected<void, AssetLibraryError>;
 
     /// @brief Creates an instance of the scene file or model file 'scene' in 'world' (a prefab, a model, or a
-    ///        scene a script spawns): a new entity with a random ID, named after the file, holds it as a child of
-    ///        'parent' (a root entity for a null 'parent'), and the scene's entities derive their IDs from the
-    ///        holder's (serialize::deriveEntityId). Instantiating a scene twice gives two sets of entities that
+    ///        scene a script spawns): a new entity with the ID 'holderId' (a random one for 0), named after the file,
+    ///        holds it as a child of 'parent' (a root entity for a null 'parent'), and the scene's entities derive
+    ///        their IDs from the holder's (serialize::deriveEntityId). Instantiating a scene twice gives two sets of entities that
     ///        share their meshes and materials. Scene files are read once and kept.
     ///
     ///        A model file's main asset is the scene of its nodes (serialize::modelScene): its entities' local IDs
     ///        are kept in its sidecar next to its parts' IDs, so they survive reimports. A model that fails to
     ///        load is replaced by the default cube.
     /// @return The holder, or why the scene could not be read or instantiated; 'world' is then unchanged.
-    [[nodiscard]] auto instantiateScene(world::World& world, const reflect::TypeRegistry& types, assets::AssetId scene, world::Entity parent)
-        -> std::expected<world::Entity, AssetLibraryError>;
+    ///        A 'holderId' already in use fails with InstantiateFailed.
+    [[nodiscard]] auto instantiateScene(world::World& world, const reflect::TypeRegistry& types, assets::AssetId scene, world::Entity parent,
+        std::uint64_t holderId = 0) -> std::expected<world::Entity, AssetLibraryError>;
 
     /// @brief Loads the asset references of 'component', an instance of 'type', that are IDs without a slot: what
     ///        instantiateScene does to each component it reads (a MeshRenderer's mesh and material, a Sky's
