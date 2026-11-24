@@ -65,6 +65,18 @@ void Registry::destroy(Entity entity)
     m_registry.destroy(entity.id());
 }
 
+void Registry::destroySubtree(Entity root)
+{
+    std::vector<Entity> entities{ root };
+    for (std::size_t i = 0; i < entities.size(); ++i)
+    {
+        for (auto child = get<Children>(entities[i]).first; child; child = get<Siblings>(child).next)
+            entities.push_back(child);
+    }
+    for (const auto entity : entities | std::views::reverse)
+        destroy(entity);
+}
+
 void Registry::clear()
 {
     m_registry.clear();

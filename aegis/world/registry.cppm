@@ -60,7 +60,11 @@ public:
 
     /// @brief Destroys the entity (its StableId is gone with it and is not reused)
     /// @note The listeners added with addDestroyListener run first, while the entity still has all its components
+    ///       Its children are detached, not destroyed: destroySubtree removes them too.
     void destroy(Entity entity);
+
+    /// @brief Destroys 'root' and its descendants, the deepest first (each with destroy())
+    void destroySubtree(Entity root);
 
     /// @brief Destroys every entity, without calling the destroy listeners (end scripts and the like first)
     /// @note The StableIds are released; ids are random, so a new entity is unlikely to get a cleared one

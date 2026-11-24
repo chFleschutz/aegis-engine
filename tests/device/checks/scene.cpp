@@ -115,13 +115,6 @@ auto subtree(world::Registry& registry, world::Entity root) -> std::vector<world
     return entities;
 }
 
-// Destroys 'root' and its descendants.
-void destroySubtree(world::Registry& registry, world::Entity root)
-{
-    for (const auto entity : subtree(registry, root))
-        registry.destroy(entity);
-}
-
 // --unlit: the unlit cube's colour. Pure channels survive tone mapping and gamma exactly where they are 0, so any
 // light on the cube shows as red (verifyUnlit).
 constexpr math::Float3 unlitColor{ 0.0f, 1.0f, 1.0f };
@@ -698,7 +691,7 @@ private:
         }
         else if (m_frame == destroyFrame)
         {
-            destroySubtree(registry, m_helmet);
+            registry.destroySubtree(m_helmet);
         }
         else if (m_frame == destroyFrame + 1)
         {
@@ -838,7 +831,7 @@ private:
             }
             // The scene's entities keep their IDs in every world it is instantiated into.
             auto& registry = second.registry();
-            destroySubtree(registry, registry.find(frame.world.registry().get<StableId>(m_helmet)));
+            registry.destroySubtree(registry.find(frame.world.registry().get<StableId>(m_helmet)));
             frame.update(second, world::UpdateMode::Play);
             m_second = &second;
         }
