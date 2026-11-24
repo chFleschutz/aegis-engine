@@ -7,10 +7,15 @@ import aegis.rhi;
 
 export namespace aegis::render_graph
 {
-/// @brief The device-free half of a frame graph: the passes and the resources they declare. A graph can be
-///        built and planned (plan()) without a device; FrameGraph adds the resources and the recording.
+class FrameGraph;
+
+/// @brief The device-free half of a frame graph and the only type that declares passes and resources. A graph can
+///        be built and planned (plan()) without a device; FrameGraph::create takes over a finished builder and adds
+///        the resources and the recording.
 class GraphBuilder
 {
+    friend class FrameGraph;
+
 public:
     GraphBuilder() = default;
     GraphBuilder(const GraphBuilder&) = delete;
@@ -21,7 +26,7 @@ public:
     ~GraphBuilder() = default;
 
     /// @brief Adds a pass constructed as T(ResourceDeclarations&, args...). Order matters among passes accessing
-    ///        the same resource (a reader runs before a writer declared after it); compile() sorts the
+    ///        the same resource (a reader runs before a writer declared after it); plan() sorts the
     ///        rest and independent passes keep their add order.
     template<typename T, typename... Args>
         requires std::derived_from<T, RenderPass> && std::constructible_from<T, ResourceDeclarations&, Args...>
@@ -45,13 +50,13 @@ public:
     auto endScope() -> void { m_declarations.endScope(); }
 
     [[nodiscard]] auto declarations() const noexcept -> const ResourceDeclarations& { return m_declarations; }
-    /// @brief The passes in the order added (FrameGraph::passes: in execution order, after compile).
+    /// @brief The passes in the order added (FrameGraph::passes: in execution order).
     [[nodiscard]] auto addedPasses() const noexcept -> std::span<const std::unique_ptr<RenderPass>> { return m_passes; }
 
     /// @brief Compiles what the passes declared into a plan, without a device.
     [[nodiscard]] auto plan() const -> std::expected<GraphPlan, Error> { return detail::compilePlan(m_declarations); }
 
-protected:
+private:
     ResourceDeclarations m_declarations;
     std::vector<std::unique_ptr<RenderPass>> m_passes; // In the order added
 };

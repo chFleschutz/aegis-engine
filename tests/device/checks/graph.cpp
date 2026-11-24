@@ -40,10 +40,12 @@ auto Harness::verifyGraphTextures() -> std::expected<void, std::string>
 {
     const auto liveBefore = m_device->liveResources();
     {
-        render_graph::FrameGraph graph{ *m_device, m_renderer->extent() };
-        const auto& probe = graph.add<OutputProbePass>();
-        if (auto compiled = graph.compile(); !compiled)
-            return std::unexpected{ std::format("Compiling the probe graph: {}", describe(compiled.error())) };
+        render_graph::GraphBuilder builder;
+        const auto& probe = builder.add<OutputProbePass>();
+        auto created = render_graph::FrameGraph::create(*m_device, std::move(builder), m_renderer->extent());
+        if (!created)
+            return std::unexpected{ std::format("Compiling the probe graph: {}", describe(created.error())) };
+        auto& graph = **created;
 
         const auto texture = graph.pool().texture(probe.texture());
         const auto before = m_device->get(texture.view).sampledDescriptor();
@@ -235,14 +237,16 @@ auto Harness::verifyGraphHistory() -> std::expected<void, std::string>
 
     std::expected<void, std::string> result;
     {
-        render_graph::FrameGraph graph{ *m_device, { size, size } };
-        const auto& accumulate = graph.add<AccumulatePass>();
-        const auto& exporting = graph.add<ExportPass>();
-        if (auto compiled = graph.compile(); !compiled)
+        render_graph::GraphBuilder builder;
+        const auto& accumulate = builder.add<AccumulatePass>();
+        const auto& exporting = builder.add<ExportPass>();
+        auto created = render_graph::FrameGraph::create(*m_device, std::move(builder), { size, size });
+        if (!created)
         {
             renderer::freeTexture(*m_device, *exported);
-            return std::unexpected{ std::format("Compiling the history graph: {}", describe(compiled.error())) };
+            return std::unexpected{ std::format("Compiling the history graph: {}", describe(created.error())) };
         }
+        auto& graph = **created;
         graph.bind(exporting.exported(), *exported);
 
         std::uint32_t frame{ 0 };
@@ -332,10 +336,12 @@ auto Harness::verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::str
     if (auto lut = pipelines.brdfLut(*m_device); !lut)
         return std::unexpected{ std::format("Computing the BRDF LUT: {}", describe(lut.error())) };
     const auto build = [&](std::unique_ptr<render_graph::FrameGraph>& graph) -> std::expected<void, std::string> {
-        graph = std::make_unique<render_graph::FrameGraph>(*m_device, m_renderer->extent());
-        render_graph::addDefaultPasses(*graph, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .targetFormat = m_renderer->targetFormat() });
-        if (auto compiled = graph->compile(); !compiled)
-            return std::unexpected{ std::format("Compiling the default graph: {}", describe(compiled.error())) };
+        render_graph::GraphBuilder builder;
+        render_graph::addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .targetFormat = m_renderer->targetFormat() });
+        auto created = render_graph::FrameGraph::create(*m_device, std::move(builder), m_renderer->extent());
+        if (!created)
+            return std::unexpected{ std::format("Compiling the default graph: {}", describe(created.error())) };
+        graph = std::move(*created);
         return {};
     };
 
@@ -388,10 +394,11 @@ auto Harness::verifyPipelineSharing(bool gpuDriven) -> std::expected<void, std::
     render_graph::RenderSettings settings;
     const auto compile = [&](std::vector<render_graph::DefaultPassesDesc::View> views) -> std::expected<void, std::string> {
         render_graph::addShadowViews(views);
-        render_graph::FrameGraph graph{ *m_device, m_renderer->extent() };
-        render_graph::addDefaultPasses(graph, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .targetFormat = m_renderer->targetFormat(), .views = std::move(views) });
-        if (auto compiled = graph.compile(); !compiled)
-            return std::unexpected{ std::format("Compiling the default graph: {}", describe(compiled.error())) };
+        render_graph::GraphBuilder builder;
+        render_graph::addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .targetFormat = m_renderer->targetFormat(), .views = std::move(views) });
+        auto created = render_graph::FrameGraph::create(*m_device, std::move(builder), m_renderer->extent());
+        if (!created)
+            return std::unexpected{ std::format("Compiling the default graph: {}", describe(created.error())) };
         m_device->waitIdle();
         return {};
     };

@@ -662,7 +662,7 @@ auto Engine::createFrameGraph(std::vector<ViewTarget> views) -> std::expected<vo
     using aegis::render_graph::DefaultPassesDesc;
 
     m_views = std::move(views);
-    m_frameGraph = std::make_unique<aegis::render_graph::FrameGraph>(*m_device, m_renderer->extent());
+    m_frameGraph.reset(); // Frees the old graph's resources before the new one creates its own
     DefaultPassesDesc desc{
         .scene = m_frameScene,
         .pipelines = *m_pipelines,
@@ -682,9 +682,12 @@ auto Engine::createFrameGraph(std::vector<ViewTarget> views) -> std::expected<vo
     }
     // Each main view samples a shadow view of the directional light; frameScene adds the same views to the scene.
     render_graph::addShadowViews(desc.views);
-    buildFrameGraph(*m_frameGraph, desc, m_graphBuild, *m_shell);
-    if (auto compiled = m_frameGraph->compile(); !compiled)
-        return std::unexpected{ makeError(EngineErrorCode::FrameGraphFailed, std::format("Failed to compile the frame graph: {}", describe(compiled.error()))) };
+    render_graph::GraphBuilder builder;
+    buildFrameGraph(builder, desc, m_graphBuild, *m_shell);
+    auto created = render_graph::FrameGraph::create(*m_device, std::move(builder), m_renderer->extent());
+    if (!created)
+        return std::unexpected{ makeError(EngineErrorCode::FrameGraphFailed, std::format("Failed to compile the frame graph: {}", describe(created.error()))) };
+    m_frameGraph = std::move(*created);
     for (auto& view : m_views)
     {
         const auto final = m_frameGraph->declarations().find(render_graph::scopedName(view.name, render_graph::names::finalImage));
