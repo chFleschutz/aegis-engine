@@ -25,6 +25,7 @@ endfunction()
 
 add_subdirectory(asset_library)
 add_subdirectory(assets)
+add_subdirectory(audio)
 add_subdirectory(core)
 add_subdirectory(device) # aegis-test, the harness that checks a real device
 add_subdirectory(editor)
@@ -185,6 +186,10 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
         aegis-test-scene-post-process
         ARGS --headless --scene --post-process --frames 120
     )
+
+    # The audio scene (#465): its looping AudioSource starts once on begin and still plays after the last frame. Headless
+    # runs mix without an audio device, so this runs the same on every machine.
+    aegis_add_device_test(aegis-test-audio ARGS --headless --audio --frames 120)
 
     # The scene's reference images (see above).
     aegis_add_device_test(

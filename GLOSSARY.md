@@ -174,6 +174,23 @@ A named value from -1 to 1 a game reads instead of keys ("MoveX"), from a pair o
 A project's input actions and axes, `platform::InputMap`, from its project file. `InputState` reads them by name.
 _Avoid_: action map, input settings
 
+### Audio
+
+**AudioClip**:
+A sound decoded into memory, `assets::AudioClip`: an asset from a `.wav` or `.ogg` file.
+_Avoid_: sound file, sample
+
+**AudioSource**:
+The component that plays an `AudioClip` from its entity's position, started on begin or by `audio::play`.
+_Avoid_: emitter, sound component
+
+**One-shot**:
+A clip played once at a position with no entity behind it (`audio::playOneShot`), for scripts.
+
+**AudioEngine**:
+The engine's one mixer, `audio::AudioEngine`, that every world's `AudioSystem` plays through. Headless it has no device and advances by frame time.
+_Avoid_: sound manager, audio device
+
 ### Projects and assets
 
 **Project**:

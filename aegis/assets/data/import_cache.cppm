@@ -18,6 +18,7 @@ import :texture_data;
 //                                   and only its URI is kept
 //   <key>/texture.ktx2              a texture entry: the texture blob (see :texture_blob) of an image, external or
 //                                   embedded
+//   <key>/audio.bin                 an audio entry: the bytes of a `.wav` or `.ogg` file, unchanged (no transcoding)
 //   <key>/used                      empty; its write time is when the entry was last used (see evict)
 //   manifests/<source key>.json     the files the import of a source read besides the source (a glTF's buffers)
 //
@@ -39,6 +40,10 @@ inline constexpr std::uint32_t modelImporterVersion{ 2 };
 ///        other data (other mips, another format), so every texture entry is made again.
 inline constexpr std::uint32_t textureImporterVersion{ 1 };
 
+/// @brief The version of the audio importer, part of every audio entry's key: bump it when the entry holds other data
+///        (a transcoded format), so every audio entry is made again.
+inline constexpr std::uint32_t audioImporterVersion{ 1 };
+
 /// @brief The platform the cache's data is made for, part of every key.
 #ifdef _WIN32
 inline constexpr std::string_view importPlatform{ "windows" };
@@ -49,7 +54,7 @@ inline constexpr std::string_view importPlatform{ "linux" };
 /// @brief What a cache key is made from.
 struct ImportCacheKeyDesc
 {
-    std::string_view importer; // "model", "texture" or "environment"
+    std::string_view importer; // "model", "texture", "environment" or "audio"
     std::uint32_t importerVersion{ 0 };
     ImportSettings settings;
     std::string_view platform{ importPlatform };
@@ -111,6 +116,21 @@ public:
     /// @return ErrorCode::FileNotFound if 'source' does not exist, or the errors of loadTexture.
     [[nodiscard]] auto loadTextureFile(const std::filesystem::path& source, const TextureImport& import) const
         -> std::expected<TextureLoad, Error>;
+
+    struct AudioLoad
+    {
+        std::vector<std::byte> bytes; // The file's bytes as they are, for audio::decodeClip
+        bool cached{ false };         // Read from the cache; false if the file was copied into it
+    };
+
+    /// @brief The audio file 'source' (`.wav`, `.ogg`): read from the entry of its key if there is one, else copied
+    ///        into that entry unchanged. An entry that cannot be read is copied again; one that cannot be written is
+    ///        logged and the file's bytes are returned.
+    /// @return ErrorCode::FileNotFound if 'source' does not exist.
+    [[nodiscard]] auto loadAudioFile(const std::filesystem::path& source) const -> std::expected<AudioLoad, Error>;
+
+    /// @brief The folder of the audio entry of the file bytes 'bytes'; it may not exist.
+    [[nodiscard]] auto audioEntryDirectory(std::span<const std::byte> bytes) const -> std::filesystem::path;
 
     /// @brief The folder of the texture entry of 'encoded' with 'import'; it may not exist.
     [[nodiscard]] auto textureEntryDirectory(std::span<const std::byte> encoded, const TextureImport& import) const -> std::filesystem::path;

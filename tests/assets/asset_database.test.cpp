@@ -264,7 +264,10 @@ TEST_SUITE("assets::AssetDatabase")
         CHECK(importerFor("cube.obj") == "model");
         CHECK(importerFor("wood.png") == "texture");
         CHECK(importerFor("sky.hdr") == "environment");
+        CHECK(importerFor("hit.wav") == "audio");
+        CHECK(importerFor("music/Theme.OGG") == "audio");
         CHECK(importerFor("notes.txt").empty());
+        CHECK(typeOfImporter("audio") == "AudioClip");
     }
 
     TEST_CASE("the engine content constants name the files of the content folder")

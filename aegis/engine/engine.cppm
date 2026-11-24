@@ -3,6 +3,7 @@ export module aegis.engine;
 import std;
 export import aegis.asset_library;
 export import aegis.assets;
+export import aegis.audio;
 export import aegis.reflect;
 export import aegis.scene_description;
 export import aegis.world;
@@ -127,6 +128,7 @@ enum class EngineErrorCode
     FrameGraphFailed,
     SceneFailed,
     ProjectFailed,
+    AudioFailed,
 };
 
 struct EngineError
@@ -358,6 +360,10 @@ public:
     ///         frame, a failed screenshot or a validation error. The cause is logged.
     [[nodiscard]] auto run() -> int;
 
+    /// @brief The audio every world plays through: a device when windowed, none when headless (the mix advances by
+    ///        frame time; see audio::AudioEngine::Desc::device). Its stats count the sounds started and playing.
+    [[nodiscard]] auto audio() -> audio::AudioEngine& { return *m_audio; }
+
     /// @brief Finds assets by path and loads them by ID.
     [[nodiscard]] auto assets() -> AssetLibrary& { return *m_assets; }
 
@@ -453,6 +459,7 @@ private:
     auto createWindow() -> std::expected<void, EngineError>;
     auto createRenderer() -> std::expected<void, EngineError>;
     auto createAssets() -> std::expected<void, EngineError>;
+    auto createAudio() -> std::expected<void, EngineError>;
     /// @brief Reads the project file and hands its input map to the input (or the headless state).
     auto loadProjectFile() -> std::expected<void, EngineError>;
     /// @brief Replaces the frame graph with one rendering the main camera onto the renderer's target, or, with
@@ -502,6 +509,7 @@ private:
     std::unique_ptr<aegis::renderer::Renderer> m_renderer;
     std::optional<AssetLibrary> m_assets;
     reflect::TypeRegistry m_types;
+    std::unique_ptr<audio::AudioEngine> m_audio;                                // Outlives the worlds, whose AudioSystems play through it
     core::FrameClock m_clock{ core::FrameClock::clamped(MAX_FRAME_DELTA_SEC) }; // The UI's; each world has its own
     std::function<void(world::World&)> m_worldSetup;                            // The game's systems
     GraphBuild m_graphBuild;                                                    // The game's scene passes; empty for the engine's

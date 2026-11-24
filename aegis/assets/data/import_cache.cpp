@@ -17,6 +17,7 @@ constexpr std::uint32_t modelEntryVersion{ 1 };
 constexpr std::uint32_t manifestVersion{ 1 };
 constexpr std::string_view modelEntryFile{ "model.json" };
 constexpr std::string_view textureEntryFile{ "texture.ktx2" };
+constexpr std::string_view audioEntryFile{ "audio.bin" };
 constexpr std::string_view usedFile{ "used" };
 constexpr std::string_view manifestFolder{ "manifests" };
 
@@ -327,6 +328,24 @@ auto textureKey(std::span<const std::byte> encoded, const TextureImport& import)
     };
     desc.files.emplace_back(encoded);
     return importCacheKey(desc);
+}
+
+auto audioKey(std::span<const std::byte> bytes) -> std::uint64_t
+{
+    ImportCacheKeyDesc desc{ .importer = "audio", .importerVersion = audioImporterVersion };
+    desc.files.emplace_back(bytes);
+    return importCacheKey(desc);
+}
+
+// Writes the audio entry of 'bytes' into 'directory' (a new folder), the bytes last.
+auto writeAudio(std::span<const std::byte> bytes, const std::filesystem::path& directory) -> std::expected<void, Error>
+{
+    std::error_code error;
+    if (std::filesystem::create_directories(directory, error); error)
+        return makeError(ErrorCode::FileNotFound, std::format("Cannot create '{}': {}", directory.generic_string(), error.message()));
+    if (!writeBytes(directory / usedFile, {}) || !writeBytes(directory / audioEntryFile, bytes))
+        return makeError(ErrorCode::FileNotFound, std::format("Cannot write the audio entry '{}'", directory.generic_string()));
+    return {};
 }
 
 // The texture of the entry 'directory' with 'key'; any failure makes the entry a miss.
@@ -756,6 +775,34 @@ auto ImportCache::loadTextureFile(const std::filesystem::path& source, const Tex
     if (!bytes)
         return makeError(ErrorCode::FileNotFound, std::format("Texture file does not exist: '{}'", source.string()));
     return loadTexture(*bytes, import);
+}
+
+auto ImportCache::audioEntryDirectory(std::span<const std::byte> bytes) const -> std::filesystem::path
+{
+    return m_directory / keyText(audioKey(bytes));
+}
+
+auto ImportCache::loadAudioFile(const std::filesystem::path& source) const -> std::expected<AudioLoad, Error>
+{
+    auto bytes = readBytes(source);
+    if (!bytes)
+        return makeError(ErrorCode::FileNotFound, std::format("Audio file does not exist: '{}'", source.string()));
+    if (m_directory.empty())
+        return AudioLoad{ .bytes = std::move(*bytes), .cached = false };
+
+    // The key covers the bytes, so an entry of the same size is the same file; another size is a damaged entry.
+    const auto directory = audioEntryDirectory(*bytes);
+    if (auto entry = readBytes(directory / audioEntryFile); entry && entry->size() == bytes->size())
+    {
+        touch(directory / usedFile);
+        return AudioLoad{ .bytes = std::move(*entry), .cached = true };
+    }
+    std::error_code error;
+    const bool damaged = std::filesystem::exists(directory, error);
+    const auto staging = m_directory / scratchName("staging");
+    if (const auto written = publish(m_directory, staging, directory, damaged, audioEntryFile, writeAudio(*bytes, staging)); !written)
+        log::warn("The audio file '{}' is not cached, so it is copied again next time: {}", source.generic_string(), describe(written.error()));
+    return AudioLoad{ .bytes = std::move(*bytes), .cached = false };
 }
 
 auto ImportCache::dumpTexture(std::span<const std::byte> encoded, const TextureImport& import) const -> std::expected<std::string, Error>

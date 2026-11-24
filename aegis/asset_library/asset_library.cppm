@@ -64,7 +64,8 @@ public:
     [[nodiscard]] auto id(std::string_view path, std::string_view key = {}) const -> std::expected<assets::AssetId, AssetLibraryError>;
 
     /// @brief The asset 'id' names, loaded on first use. Types: assets::Texture, assets::StaticMesh,
-    ///        assets::Material (a part of a model file, or a material file), assets::Environment and assets::Model.
+    ///        assets::Material (a part of a model file, or a material file), assets::Environment, assets::Model and
+    ///        assets::AudioClip.
     template<class T>
     [[nodiscard]] auto load(assets::AssetId id) -> assets::AssetRef<T>;
 
@@ -75,6 +76,7 @@ public:
     auto loadMaterial(assets::AssetId id) -> assets::AssetRef<assets::Material>;
     auto loadEnvironment(assets::AssetId id) -> assets::AssetRef<assets::Environment>;
     auto loadModel(assets::AssetId id) -> assets::AssetRef<assets::Model>;
+    auto loadAudioClip(assets::AssetId id) -> assets::AssetRef<assets::AudioClip>;
 
     /// @brief Adds the file at 'path' in the project's content folder, written after the scan (a scene the editor
     ///        saved under a new name), to the database, or reads it again if it was there.
@@ -152,6 +154,7 @@ private:
     auto addMaterial(std::shared_ptr<assets::Material> asset) -> assets::AssetRef<assets::Material>;
     auto addEnvironment(std::shared_ptr<assets::Environment> asset) -> assets::AssetRef<assets::Environment>;
     auto addModel(std::shared_ptr<assets::Model> asset) -> assets::AssetRef<assets::Model>;
+    auto addAudioClip(std::shared_ptr<assets::AudioClip> asset) -> assets::AssetRef<assets::AudioClip>;
 
     std::unique_ptr<Impl> m_impl;
     const assets::DefaultAssets* m_defaults;
@@ -172,6 +175,8 @@ auto AssetLibrary::load(assets::AssetId id) -> assets::AssetRef<T>
         return loadEnvironment(id);
     else if constexpr (std::same_as<T, assets::Model>)
         return loadModel(id);
+    else if constexpr (std::same_as<T, assets::AudioClip>)
+        return loadAudioClip(id);
     else
         static_assert(!sizeof(T), "AssetLibrary cannot load this asset type");
 }
@@ -189,6 +194,8 @@ auto AssetLibrary::add(std::shared_ptr<T> asset) -> assets::AssetRef<T>
         return addEnvironment(std::move(asset));
     else if constexpr (std::same_as<T, assets::Model>)
         return addModel(std::move(asset));
+    else if constexpr (std::same_as<T, assets::AudioClip>)
+        return addAudioClip(std::move(asset));
     else
         static_assert(!sizeof(T), "AssetLibrary cannot hold this asset type");
 }
