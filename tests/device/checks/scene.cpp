@@ -8,6 +8,7 @@ module aegis.test;
 import std;
 import aegis.assets;
 import aegis.engine;
+import aegis.physics;
 import aegis.render_bridge;
 import aegis.render_graph;
 import aegis.render_passes;
@@ -24,6 +25,7 @@ struct SceneResult
     std::vector<std::string> errors;
     rhi::Extent2D view{ viewExtent }; // --view: the view's size in the last frame
     std::uint32_t viewShown{ 0 };     // --view: frames whose UI showed the view (Presentation::uiTexture)
+    std::string physicsVerified;     // --physics: what the check saw, when it passed
 };
 
 // --views: the views, by name; the main one renders through the main camera.
@@ -197,9 +199,13 @@ public:
             if (auto added = addSideCube(frame); !added)
                 m_result.errors.push_back(std::format("Adding the side view's cube failed: {}", added.error()));
         }
+        if (m_options.physics && m_frame == 0)
+            startWatchingPhysics(registry);
         // --views compares frames rendered apart: the world stands still once it is set up.
         if (!m_options.views || m_frame < viewsFreezeFrame)
             frame.update(frame.world, world::UpdateMode::Play);
+        if (m_options.physics)
+            watchPhysics(registry);
         if (m_options.views)
         {
             registry.get<CameraMatrices>(m_viewCamera).aspect = static_cast<float>(sideViewExtent.x) / static_cast<float>(sideViewExtent.y);
@@ -263,6 +269,71 @@ public:
     }
 
 private:
+    // --physics: the physics scene's floor has its top at z = 0.
+    static constexpr float physicsFloorTop{ 0.0f };
+    // --physics: a body has come to rest when it moved less than this along z over the last physicsSettleFrames.
+    static constexpr float physicsRestTolerance{ 0.001f };
+    static constexpr std::uint32_t physicsSettleFrames{ 30 };
+
+    struct WatchedBody
+    {
+        world::Entity entity;
+        float start;    // Its height when the world began
+        float settling; // Its height physicsSettleFrames before the last frame
+    };
+
+    // --physics, before the first update: the dynamic bodies and where they begin.
+    void startWatchingPhysics(world::Registry& registry)
+    {
+        for (auto&& [entity, body] : registry.view<physics::RigidBody>().each())
+        {
+            if (body.motionType == physics::MotionType::Dynamic)
+                m_watched.push_back({ .entity = world::Entity{ entity }, .start = registry.get<Transform>(world::Entity{ entity }).location.z, .settling = 0.0f });
+        }
+        if (m_watched.empty())
+            m_result.errors.push_back("Physics check failed: the scene has no dynamic RigidBody");
+    }
+
+    // --physics, after each update: in the last frame each dynamic body must have fallen, stay above the floor and rest.
+    void watchPhysics(world::Registry& registry)
+    {
+        if (m_options.frames <= physicsSettleFrames)
+        {
+            if (m_frame == 0)
+                m_result.errors.push_back(std::format("Physics check failed: it needs more than {} frames", physicsSettleFrames));
+            return;
+        }
+        const bool settling = m_frame + 1 + physicsSettleFrames == m_options.frames;
+        const bool last = m_frame + 1 == m_options.frames;
+        if (!settling && !last)
+            return;
+
+        float lowest = std::numeric_limits<float>::max();
+        float restless = 0.0f;
+        for (auto& watched : m_watched)
+        {
+            const auto& name = registry.get<Name>(watched.entity).name;
+            const float z = registry.get<Transform>(watched.entity).location.z;
+            if (settling)
+            {
+                watched.settling = z;
+                continue;
+            }
+            if (z >= watched.start - 0.1f)
+                m_result.errors.push_back(std::format("Physics check failed: '{}' did not fall (from z {} to {})", name, watched.start, z));
+            if (z <= physicsFloorTop)
+                m_result.errors.push_back(std::format("Physics check failed: '{}' fell through the floor (z {})", name, z));
+            if (std::abs(z - watched.settling) >= physicsRestTolerance)
+                m_result.errors.push_back(std::format("Physics check failed: '{}' still moves ({} m over the last {} frames)", name, z - watched.settling, physicsSettleFrames));
+            lowest = std::min(lowest, z);
+            restless = std::max(restless, std::abs(z - watched.settling));
+        }
+        if (last && !m_watched.empty())
+            m_result.physicsVerified = std::format("Physics verified: {} dynamic bodies fell and rest above the floor (lowest center at z {:.3f}, at most {:.5f} m "
+                                                   "of movement over the last {} frames)",
+                m_watched.size(), lowest, restless, physicsSettleFrames);
+    }
+
     // The first frame: the edits the options ask for on the scene as the file left it.
     void setUp(world::World& world)
     {
@@ -872,6 +943,7 @@ private:
     Engine* m_engine{ nullptr };
     world::World* m_world{ nullptr };
     std::uint32_t m_frame{ 0 };                                            // Frames begun so far
+    std::vector<WatchedBody> m_watched;                                    // --physics: the dynamic bodies
     world::Entity m_helmet;                                                // The holder of the model instance the scene file holds
     world::Entity m_copy;                                                  // --mutate-scene: the dynamic copy added with cull nothing
     world::Entity m_addedModel;                                            // --mutate-scene: the holder of the model instance loaded later
@@ -1034,6 +1106,8 @@ auto runScene(const Options& options) -> int
         else
             std::println("Audio verified: the AudioSource started once and still plays");
     }
+    if (options.physics && !result.physicsVerified.empty())
+        std::println("{}", result.physicsVerified);
     // The graph follows the view from the first frame on, so the UI can show it in every frame.
     if (options.view && options.frames != 0)
     {
