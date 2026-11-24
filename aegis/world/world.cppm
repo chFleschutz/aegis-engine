@@ -13,6 +13,7 @@ module;
 //   :render_components MeshRenderer and Sky, which name assets.
 //   :registry          Registry: the entities' storage, the hierarchy and the StableId lookup.
 //   :system            System, Phase and UpdateMode.
+//   :time              FixedStep, the accumulator of the fixed steps, and Time, a world's time.
 //   :types             The registered components, reachable without naming their type (ComponentStorage).
 //   :transform_system  TransformSystem: the global transforms, from the hierarchy.
 //   :camera_system     CameraSystem: the cameras' matrices.
@@ -27,6 +28,7 @@ export import :entity;
 export import :registry;
 export import :render_components;
 export import :system;
+export import :time;
 export import :transform_system;
 export import :types;
 
@@ -49,6 +51,12 @@ public:
     ///        by default; assign core::FrameClock::fixed(step) for a deterministic run. Whoever updates the world ticks it.
     /// @note reset() keeps it: the clock belongs to the world, not to the scene in it.
     [[nodiscard]] auto clock() -> core::FrameClock& { return m_clock; }
+    /// @brief The world's time as of its last update: frame delta, fixed step, alpha, elapsed time and counters
+    /// @note The same as registry().time(), where systems and scripts read it. reset() keeps it.
+    [[nodiscard]] auto time() const -> const Time& { return m_registry.time(); }
+    /// @brief The length of the world's fixed steps (default 1/60 s) and the most one update runs (default 8)
+    /// @note reset() keeps it, with the time gathered towards the next step.
+    [[nodiscard]] auto fixedStep() -> FixedStep& { return m_fixedStep; }
     /// @brief The entity with the MainCamera tag, the first ambient light and the first directional light
     /// @note These are queries, not stored entities: they read as null once the entity is destroyed
     ///       (or loses the component), and a scene file needs no special case for them.
@@ -75,7 +83,9 @@ public:
     /// @brief Starts the systems that run in 'mode'
     void begin(UpdateMode mode = UpdateMode::Play);
 
-    /// @brief Applies the deferred commands, then runs the systems of 'mode' phase by phase
+    /// @brief Applies the deferred commands, advances the time, then runs the systems of 'mode' phase by phase
+    /// @note In UpdateMode::Play, Phase::FixedUpdate runs every system's onFixedUpdate once per fixed step the
+    ///       frame completes (FixedStep::advance); Edit runs no steps.
     void update(float deltaSeconds, UpdateMode mode = UpdateMode::Play);
 
     /// @brief Empties the scene: the systems end what they run (scripts get onDestroy) while the
@@ -96,5 +106,6 @@ private:
     std::vector<std::function<void(Registry&)>> m_deferred;
     std::vector<std::unique_ptr<System>> m_systems;
     core::FrameClock m_clock{ core::FrameClock::clamped() };
+    FixedStep m_fixedStep;
 };
 }

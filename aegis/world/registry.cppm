@@ -8,6 +8,7 @@ import std;
 export import aegis.math;
 import :entity;
 import :components;
+export import :time;
 
 export namespace aegis::world
 {
@@ -200,6 +201,10 @@ public:
     /// @brief What a hierarchy view shows changed by a write entt doesn't see (a Name written through get<Name>()).
     auto invalidateHierarchy() noexcept -> void;
 
+    /// @brief The time of the world that owns the registry (World::time): systems and scripts read it here
+    /// @note A registry without a world keeps the default: no frame, no steps.
+    [[nodiscard]] auto time() const noexcept -> const Time& { return m_time; }
+
     template<typename Component>
     auto onConstruct()
     {
@@ -213,6 +218,8 @@ public:
     }
 
 private:
+    friend class World; // Writes the time
+
     /// @brief Unlinks the (valid) child from its parent's children, if it has a parent
     void detach(Entity child);
 
@@ -235,5 +242,6 @@ private:
     std::vector<DestroyListener> m_destroyListeners;
     std::uint64_t m_staticVersion{ 0 };
     std::uint64_t m_hierarchyVersion{ 0 };
+    Time m_time;
 };
 }

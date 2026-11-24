@@ -1,18 +1,21 @@
 #include <doctest/doctest.h>
 
 import std;
+import aegis.core;
 import aegis.math;
 import aegis.world;
 
 namespace
 {
+using aegis::world::FixedStep;
 using aegis::world::Phase;
 using aegis::world::Registry;
 using aegis::world::System;
 using aegis::world::UpdateMode;
 using aegis::world::World;
 
-template<Phase P, bool Edit = false>
+// Logs its hooks; its fixed steps only if Fixed, with the world's step count
+template<Phase P, bool Edit = false, bool Fixed = false>
 class Recorder : public System
 {
 public:
@@ -26,6 +29,12 @@ public:
     [[nodiscard]] auto runsInEdit() const -> bool override { return Edit; }
     void onBegin(Registry&) override { m_log.push_back(m_name + ".begin"); }
     void onUpdate(Registry&, float) override { m_log.push_back(m_name); }
+    void onFixedUpdate(Registry& registry, float step) override
+    {
+        CHECK(step == registry.time().fixedStepSeconds);
+        if constexpr (Fixed)
+            m_log.push_back(m_name + ".fixed" + std::to_string(registry.time().steps));
+    }
 
 private:
     std::vector<std::string>& m_log;
@@ -46,6 +55,94 @@ TEST_SUITE("world::World phases")
         scene.update(0.016f);
 
         CHECK(log == std::vector<std::string>{ "pre", "update", "post", "late" });
+    }
+
+    TEST_CASE("the fixed steps run between the pre-update and the update phase")
+    {
+        std::vector<std::string> log;
+        World scene;
+        scene.addSystem<Recorder<Phase::Update, false, true>>(log, "update");
+        scene.addSystem<Recorder<Phase::FixedUpdate, false, true>>(log, "fixed");
+        scene.addSystem<Recorder<Phase::PreUpdate, false, true>>(log, "pre");
+        scene.fixedStep().setStep(0.25f);
+        scene.update(0.5f);
+
+        // Every system's onFixedUpdate once per step, in the order they were added; then the onUpdate of the
+        // systems in the fixed-update phase
+        CHECK(log == std::vector<std::string>{ "pre", "update.fixed1", "fixed.fixed1", "pre.fixed1", "update.fixed2", "fixed.fixed2", "pre.fixed2", "fixed", "update" });
+    }
+
+    TEST_CASE("an update runs as many fixed steps as the frame completes")
+    {
+        std::vector<std::string> log;
+        World scene;
+        scene.addSystem<Recorder<Phase::Update, false, true>>(log, "s");
+        scene.fixedStep().setStep(0.25f);
+
+        scene.update(0.125f); // Shorter than a step
+        CHECK(log == std::vector<std::string>{ "s" });
+        scene.update(0.125f); // Completes the first
+        CHECK(log == std::vector<std::string>{ "s", "s.fixed1", "s" });
+        log.clear();
+        scene.update(0.75f); // Three
+        CHECK(log == std::vector<std::string>{ "s.fixed2", "s.fixed3", "s.fixed4", "s" });
+    }
+
+    TEST_CASE("a frame clock fixed to the step runs exactly one fixed step per update")
+    {
+        World scene;
+        scene.clock() = aegis::core::FrameClock::fixed(FixedStep::DEFAULT_STEP_SEC); // What a headless engine sets
+        int steps = 0;
+        class Counter : public System
+        {
+        public:
+            explicit Counter(int& steps) :
+                m_steps(steps)
+            {
+            }
+            void onFixedUpdate(Registry&, float) override { ++m_steps; }
+
+        private:
+            int& m_steps;
+        };
+        scene.addSystem<Counter>(steps);
+        for (int frame = 1; frame <= 600; ++frame)
+        {
+            scene.update(scene.clock().tick(aegis::core::FrameClock::Clock::now()));
+            REQUIRE(steps == frame);
+        }
+        CHECK(scene.time().steps == 600);
+        CHECK(scene.time().alpha == 0.0f);
+    }
+
+    TEST_CASE("the world's time follows its updates and is the registry's")
+    {
+        World scene;
+        scene.fixedStep().setStep(0.25f);
+        CHECK(scene.time().frame == 0);
+        CHECK(scene.time().steps == 0);
+
+        scene.update(0.375f);
+        scene.update(0.25f);
+        const auto& time = scene.registry().time();
+        CHECK(&time == &scene.time());
+        CHECK(time.deltaSeconds == 0.25f);
+        CHECK(time.fixedStepSeconds == 0.25f);
+        CHECK(time.elapsedSeconds == 0.625);
+        CHECK(time.frame == 2);
+        CHECK(time.steps == 2);
+        CHECK(time.alpha == 0.5f);
+
+        scene.reset(); // The time belongs to the world, not to the scene in it
+        CHECK(scene.time().frame == 2);
+        CHECK(scene.fixedStep().step() == 0.25f);
+    }
+
+    TEST_CASE("a registry without a world has the default time")
+    {
+        const Registry registry;
+        CHECK(registry.time().frame == 0);
+        CHECK(registry.time().fixedStepSeconds == FixedStep::DEFAULT_STEP_SEC);
     }
 
     TEST_CASE("systems of one phase run in the order they were added")
@@ -162,6 +259,21 @@ TEST_SUITE("world::World update modes")
         CHECK_FALSE(System{}.runsInEdit());
         CHECK(aegis::world::TransformSystem{}.runsInEdit());
         CHECK(aegis::world::CameraSystem{}.runsInEdit());
+    }
+
+    TEST_CASE("edit mode runs no fixed steps, while the frame time advances")
+    {
+        std::vector<std::string> log;
+        World scene;
+        scene.addSystem<Recorder<Phase::PostUpdate, true, true>>(log, "derived");
+        scene.fixedStep().setStep(0.25f);
+        scene.update(1.0f, UpdateMode::Edit);
+
+        CHECK(log == std::vector<std::string>{ "derived" });
+        CHECK(scene.time().frame == 1);
+        CHECK(scene.time().elapsedSeconds == 1.0);
+        CHECK(scene.time().steps == 0);
+        CHECK(scene.fixedStep().remainder() == 0.0); // Nothing gathered towards a step either
     }
 
     TEST_CASE("edit mode applies the deferred commands")

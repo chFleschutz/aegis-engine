@@ -31,6 +31,18 @@ struct Recorder : Script
     }
 };
 
+// Writes its creation, fixed steps and updates to g_log
+struct Stepper : Script
+{
+    void onCreate(ScriptContext&) override { g_log.push_back("step.create"); }
+    void onFixedUpdate(ScriptContext& context, float step) override
+    {
+        CHECK(step == context.registry().time().fixedStepSeconds);
+        g_log.push_back("step.fixed");
+    }
+    void onUpdate(ScriptContext&, float) override { g_log.push_back("step.update"); }
+};
+
 // Moves its entity every update, by a registered speed
 struct Mover : Script
 {
@@ -96,6 +108,7 @@ struct Fixture
         g_log.clear();
         REQUIRE(registerScript<Recorder>(types, "Recorder")->field("tag", &Recorder::tag).status());
         REQUIRE(registerScript<Mover>(types, "Mover")->field("speed", &Mover::speed).status());
+        REQUIRE(registerScript<Stepper>(types, "Stepper"));
         REQUIRE(registerScript<Suicide>(types, "Suicide"));
         REQUIRE(registerScript<Spawner>(types, "Spawner"));
         REQUIRE(registerScript<NoDefault>(types, "NoDefault"));
@@ -238,6 +251,18 @@ TEST_SUITE("scripting::ScriptSystem")
         f.scene.update(0.016f);
         f.scene.update(0.016f);
         CHECK(g_log == std::vector<std::string>{ "late.create", "late.update", "late.update" });
+    }
+
+    TEST_CASE("calls onFixedUpdate once per fixed step, after onCreate and before onUpdate")
+    {
+        Fixture f;
+        f.scene.fixedStep().setStep(0.25f);
+        f.spawn("Stepper");
+        f.scene.update(0.5f);
+        CHECK(g_log == std::vector<std::string>{ "step.create", "step.fixed", "step.fixed", "step.update" });
+        g_log.clear();
+        f.scene.update(0.125f);
+        CHECK(g_log == std::vector<std::string>{ "step.update" });
     }
 
     TEST_CASE("runs the scripts of an entity in attach order")
@@ -399,6 +424,14 @@ TEST_SUITE("scripting::ScriptSystem in edit mode")
         f.spawnRecorder("a");
         f.scene.begin(world::UpdateMode::Edit);
         f.scene.update(0.016f, world::UpdateMode::Edit);
+        CHECK(g_log.empty());
+    }
+
+    TEST_CASE("an edit world runs no fixed steps of scripts")
+    {
+        Fixture f;
+        f.spawn("Stepper");
+        f.scene.update(1.0f, world::UpdateMode::Edit);
         CHECK(g_log.empty());
     }
 
