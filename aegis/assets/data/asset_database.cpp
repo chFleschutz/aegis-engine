@@ -244,6 +244,8 @@ auto importerFor(const std::filesystem::path& path) -> std::string_view
         return "texture";
     if (extension == ".hdr")
         return "environment";
+    if (extension == ".wav" || extension == ".ogg")
+        return "audio";
     return {};
 }
 
@@ -255,6 +257,8 @@ auto typeOfImporter(std::string_view importer) -> std::string_view
         return "Texture";
     if (importer == "environment")
         return "Environment";
+    if (importer == "audio")
+        return "AudioClip";
     return {};
 }
 

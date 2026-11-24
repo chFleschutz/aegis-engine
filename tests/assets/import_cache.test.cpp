@@ -679,3 +679,69 @@ TEST_SUITE("assets::ImportCache::loadTexture")
         CHECK_FALSE(std::filesystem::exists(fixture.cache.textureEntryDirectory(png(), {})));
     }
 }
+
+TEST_SUITE("assets::ImportCache::loadAudioFile")
+{
+    TEST_CASE("the first load copies the file unchanged and the second reads the cache")
+    {
+        const Fixture fixture;
+        const std::string bytes{ "RIFF....WAVE: any bytes, the cache does not decode them" };
+        fixture.write("hit.wav", bytes);
+        const auto path = fixture.root / "assets" / "hit.wav";
+
+        const auto first = fixture.cache.loadAudioFile(path);
+        REQUIRE(first);
+        CHECK_FALSE(first->cached);
+        const auto expected = std::as_bytes(std::span{ bytes });
+        CHECK(std::ranges::equal(first->bytes, expected));
+        const auto directory = fixture.cache.audioEntryDirectory(first->bytes);
+        CHECK(Fixture::filesOf(directory) == std::map<std::string, std::string>{ { "audio.bin", bytes }, { "used", "" } });
+
+        const auto second = fixture.cache.loadAudioFile(path);
+        REQUIRE(second);
+        CHECK(second->cached);
+        CHECK(std::ranges::equal(second->bytes, expected));
+    }
+
+    TEST_CASE("another file gets another entry")
+    {
+        const Fixture fixture;
+        fixture.write("a.ogg", "first");
+        fixture.write("b.ogg", "second");
+        const auto a = fixture.cache.loadAudioFile(fixture.root / "assets" / "a.ogg");
+        const auto b = fixture.cache.loadAudioFile(fixture.root / "assets" / "b.ogg");
+        REQUIRE(a);
+        REQUIRE(b);
+        CHECK(fixture.cache.audioEntryDirectory(a->bytes) != fixture.cache.audioEntryDirectory(b->bytes));
+    }
+
+    TEST_CASE("a damaged audio entry is copied again")
+    {
+        const Fixture fixture;
+        fixture.write("hit.wav", "the sound");
+        const auto path = fixture.root / "assets" / "hit.wav";
+        const auto first = fixture.cache.loadAudioFile(path);
+        REQUIRE(first);
+        std::ofstream{ fixture.cache.audioEntryDirectory(first->bytes) / "audio.bin", std::ios::binary | std::ios::trunc } << "cut";
+
+        const auto again = fixture.cache.loadAudioFile(path);
+        REQUIRE(again);
+        CHECK_FALSE(again->cached);
+        CHECK(fixture.cache.loadAudioFile(path)->cached);
+    }
+
+    TEST_CASE("a missing audio file is an error")
+    {
+        const Fixture fixture;
+        CHECK(fixture.cache.loadAudioFile(fixture.root / "assets" / "none.wav").error().code == ErrorCode::FileNotFound);
+    }
+
+    TEST_CASE("without a cache folder the audio file is read each time")
+    {
+        const Fixture fixture;
+        fixture.write("hit.wav", "the sound");
+        const ImportCache cache;
+        CHECK_FALSE(cache.loadAudioFile(fixture.root / "assets" / "hit.wav")->cached);
+        CHECK_FALSE(cache.loadAudioFile(fixture.root / "assets" / "hit.wav")->cached);
+    }
+}

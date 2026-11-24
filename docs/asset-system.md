@@ -367,6 +367,7 @@ they hold.
 | `MaterialTemplate` | `.template` in engine content (PBR, unlit) | its surface shader and parameter list, checked against the shader's reflected block (`shaders/modules/README.md`); no project templates until game shaders are content (#372) |
 | `Environment` | `.hdr` with the environment importer (the `.hdr` default) | sky cube, irradiance, prefiltered maps |
 | `Scene` | `.scene`, or a glTF/OBJ import (the file's main asset) | entities; also prefabs and models |
+| `AudioClip` | `.wav` `.ogg` (Vorbis), the `audio` importer | the file's bytes kept unchanged in the cache, decoded into memory (32-bit float, the file's rate and channels) by `audio::decodeClip` on load; no fallback, a missing clip is silent |
 
 - A glTF needs no runtime `Model` type: it imports as a `Scene` with mesh, material and texture
   sub-assets. `ModelData` exists only inside the importer.
@@ -379,7 +380,7 @@ they hold.
 from `shaders/`), C++ scripts (attached by registered name).
 
 **Later, with their features:** `Shader` (`.slang`, compiled by the asset pipeline: #372),
-`Script` (a VM language, with a sidecar), `AudioClip` (`.wav` `.ogg`), `Font` (`.ttf`, to an atlas),
+`Script` (a VM language, with a sidecar), `Font` (`.ttf`, to an atlas),
 `Skeleton` and `AnimationClip` (glTF sub-assets), `InputMap` (`.input`, from `KeyBindings`).
 
 ## Code structure
@@ -440,7 +441,8 @@ implemented synchronously first; the slot lets hot reload swap contents.
   named by its key (#137 named it by asset ID, one version per file): `model.json` (the key, the
   files the import read besides the source, the node tree, materials, images and the blob of each
   primitive), `mesh-<m>-<p>.mesh` per primitive, `image-<i>.bin` with an embedded image's encoded
-  bytes and the empty use marker `used`; a texture entry holds `texture.ktx2` and `used`; the
+  bytes and the empty use marker `used`; a texture entry holds `texture.ktx2` and `used`; an audio entry
+  holds the source's bytes unchanged as `audio.bin` and `used` (#465: no transcoding yet); the
   manifests are in `manifests/<source key>.json`. Switching branches back and forth reimports nothing, and two checkouts that point
   `AEGIS_CACHE_DIR` at one folder share it. Entries hold no asset IDs, so identical files share one.
   An external image is an asset of its own: the entry keeps its URI, and changing the image reloads
@@ -518,6 +520,7 @@ linked `PRIVATE`, all usable without exceptions:
 | Mesh compression | meshoptimizer (already a dependency) |
 | File watching | efsw (#143) |
 | Decoding | stb_image, fastgltf, tinyobjloader (kept; importers only, so they leave shipped games) |
+| Audio | miniaudio (device, mixing, WAV), with stb_vorbis for Ogg Vorbis; in `aegis.audio`, which also decodes clips at load |
 
 No library for random IDs (`std::mt19937_64`), the pak (a sorted table plus memory-mapped reads) or a
 job system (not before loading goes async). First check: one `.cpp` that includes glaze and does

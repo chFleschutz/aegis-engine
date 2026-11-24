@@ -25,6 +25,7 @@ target_sources(
                 texture.cppm
                 upload.cppm
                 data/asset_database.cppm
+                data/audio_clip.cppm
                 data/asset_id.cppm
                 data/asset_key.cppm
                 data/asset_ref.cppm

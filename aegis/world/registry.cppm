@@ -205,6 +205,32 @@ public:
     /// @note A registry without a world keeps the default: no frame, no steps.
     [[nodiscard]] auto time() const noexcept -> const Time& { return m_time; }
 
+    /// @brief Makes 'value' reachable through context<T>() by whoever holds the registry: a world's services that
+    ///        scripts and free functions find through the registry alone (audio::playOneShot finds the world's
+    ///        audio). One per type; a second call replaces the first.
+    /// @note The registry stores a pointer: 'value' must outlive it, or be removed with eraseContext<T>() first.
+    ///       clear() keeps it.
+    template<typename T>
+    void setContext(T& value)
+    {
+        m_registry.ctx().insert_or_assign<T*>(&value);
+    }
+
+    /// @brief The value setContext<T> gave, or null
+    template<typename T>
+    [[nodiscard]] auto context() const -> T*
+    {
+        const auto* found = m_registry.ctx().find<T*>();
+        return found ? *found : nullptr;
+    }
+
+    /// @brief Removes the value setContext<T> gave, if any
+    template<typename T>
+    void eraseContext()
+    {
+        m_registry.ctx().erase<T*>();
+    }
+
     template<typename Component>
     auto onConstruct()
     {

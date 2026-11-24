@@ -52,7 +52,7 @@ public:
     ///        (ResourceDeclarations::reads, writes): each access is declared once, in the constructor.
     [[nodiscard]] virtual auto name() const -> std::string_view = 0;
 
-    /// @brief Creates what the pass owns. Called by FrameGraph::compile once graph resources exist.
+    /// @brief Creates what the pass owns. Called by FrameGraph::create once graph resources exist.
     [[nodiscard]] virtual auto createResources(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
 
     /// @brief Called by FrameGraph::resized after the graph recreated its output-sized

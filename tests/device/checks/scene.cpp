@@ -1015,11 +1015,24 @@ auto runScene(const Options& options) -> int
     }
 
     auto exitCode = (*engine)->run();
+    // Read before the engine and its audio go.
+    const auto audio = (*engine)->audio().stats();
     engine->reset(); // The shell has finished with the result
     for (const auto& error : result.errors)
     {
         std::println("{}", error);
         exitCode = exitFailure;
+    }
+    // The audio scene's one AudioSource plays on begin and loops: started once, and still playing at the end.
+    if (options.audio)
+    {
+        if (audio.started != 1 || audio.playing != 1)
+        {
+            std::println("Audio check failed: {} sounds started and {} playing, expected 1 and 1", audio.started, audio.playing);
+            exitCode = exitFailure;
+        }
+        else
+            std::println("Audio verified: the AudioSource started once and still plays");
     }
     // The graph follows the view from the first frame on, so the UI can show it in every frame.
     if (options.view && options.frames != 0)

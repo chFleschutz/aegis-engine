@@ -9,6 +9,8 @@ target_link_libraries(
         aegis-serialize # AssetLibraryError carries serialize::Error
         aegis-world
     PRIVATE
+        # Decodes audio clips and resolves AudioSource's clip
+        aegis-audio
         aegis-core
         aegis-paths
         # Bakes environments with Ibl

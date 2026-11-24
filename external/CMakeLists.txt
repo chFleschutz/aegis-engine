@@ -101,6 +101,18 @@ add_subdirectory(glaze)
 add_library(xxhash STATIC glue/xxhash_impl.c)
 target_include_directories(xxhash SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/xxhash)
 
+# miniaudio: aegis.audio's device, mixing and decoding (WAV, and Ogg Vorbis through stb_vorbis). Its implementation
+# is compiled once here, without MP3 and FLAC; include miniaudio.h only in .cpp files of aegis.audio.
+add_library(miniaudio STATIC glue/miniaudio_impl.c)
+target_include_directories(miniaudio SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio)
+target_compile_definitions(miniaudio PUBLIC MA_NO_MP3 MA_NO_FLAC)
+# Upstream code: no warnings of ours.
+set_target_properties(miniaudio PROPERTIES COMPILE_WARNING_AS_ERROR OFF)
+target_compile_options(miniaudio PRIVATE $<IF:$<C_COMPILER_ID:MSVC>,/w,-w>)
+find_package(Threads REQUIRED)
+# Linux: miniaudio loads its backends (ALSA, PulseAudio, JACK) with dlopen.
+target_link_libraries(miniaudio PRIVATE Threads::Threads ${CMAKE_DL_LIBS} $<$<PLATFORM_ID:Linux>:m>)
+
 # zstd: libktx's supercompression. The static library only; its CMakeLists.txt is in build/cmake.
 set(ZSTD_BUILD_STATIC ON)
 set(ZSTD_BUILD_SHARED OFF)

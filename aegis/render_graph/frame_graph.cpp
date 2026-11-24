@@ -5,17 +5,27 @@ import aegis.rhi;
 
 namespace aegis::render_graph
 {
-FrameGraph::FrameGraph(rhi::Device& device, rhi::Extent2D output) :
+FrameGraph::FrameGraph(rhi::Device& device, ResourceDeclarations&& declarations,
+    std::vector<std::unique_ptr<RenderPass>>&& passes, rhi::Extent2D output) :
+    m_declarations{ std::move(declarations) },
+    m_passes{ std::move(passes) },
     m_pool{ device, m_declarations, output }
 {
 }
 
-auto FrameGraph::compile() -> std::expected<void, Error>
+auto FrameGraph::create(rhi::Device& device, GraphBuilder&& builder, rhi::Extent2D output)
+    -> std::expected<std::unique_ptr<FrameGraph>, Error>
 {
-    if (m_compiled)
-        return makeError(ErrorCode::InvalidGraph, "The frame graph is already compiled");
+    // The pool refers to the graph's declarations, so the graph stays where it is created.
+    std::unique_ptr<FrameGraph> graph{ new FrameGraph{ device, std::move(builder.m_declarations), std::move(builder.m_passes), output } };
+    if (auto built = graph->build(); !built)
+        return std::unexpected{ std::move(built.error()) };
+    return graph;
+}
 
-    auto plan = this->plan();
+auto FrameGraph::build() -> std::expected<void, Error>
+{
+    auto plan = detail::compilePlan(m_declarations);
     if (!plan)
         return std::unexpected{ std::move(plan.error()) };
     m_order = plan->order;
@@ -44,7 +54,6 @@ auto FrameGraph::compile() -> std::expected<void, Error>
             return makeError(ErrorCode::ResourceCreationFailed, "Failed to create the frame graph's timestamp queries", pool.error());
         m_timers.push_back({ .pool = std::move(*pool) });
     }
-    m_compiled = true;
     return {};
 }
 
