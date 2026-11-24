@@ -64,7 +64,11 @@
     barrier Main/Final: StorageWrite -> ColorAttachment
 11. Present
     use    Main/Final TransferSrc
+    import Target TransferDst
     barrier Main/Final: ColorAttachment -> TransferSrc
+    barrier Target: ColorAttachment -> TransferDst
+end of frame
+    barrier Target: TransferDst -> ColorAttachment
 resources
     Lights: buffer, host written
     Main/CameraData: buffer, host written
@@ -78,3 +82,4 @@ resources
     Main/LightingUniforms: buffer, host written
     Main/Bloom: texture RGBA16_SFLOAT
     Main/Final: texture RGBA16_SFLOAT
+    Target: imported texture BGRA8_SRGB

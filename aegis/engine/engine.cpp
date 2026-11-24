@@ -562,12 +562,12 @@ auto Engine::run() -> int
         }
         auto rendered = m_renderer->renderFrame([this, &instances](const aegis::renderer::Renderer::FrameInfo& frame) {
             m_lastFrameIndex = frame.frameIndex;
-            m_frameGraph->execute({
+            const render_graph::FrameInfo frameInfo{
                 .cmd = frame.cmd,
                 .frameIndex = frame.frameIndex,
                 .extent = frame.extent,
-                .target = frame.target,
-            });
+            };
+            m_frameGraph->execute(frameInfo, frame.target);
             // Recorded: the next frame needs only what changes after this one.
             instances.clearDirty();
         });
@@ -685,6 +685,7 @@ auto Engine::createFrameGraph(std::vector<ViewTarget> views) -> std::expected<vo
         .pipelines = *m_pipelines,
         .settings = m_renderSettings,
         .gpuDriven = useGpuDrivenRendering(),
+        .targetFormat = m_renderer->targetFormat(),
         .ui = true, // The shell's UI, empty for a game; headless too, for screenshots of it
         .uiBackend = m_presentation.backend(),
     };
@@ -694,7 +695,7 @@ auto Engine::createFrameGraph(std::vector<ViewTarget> views) -> std::expected<vo
         desc.views.clear();
         for (const auto& view : m_views)
             desc.views.push_back({ .name = view.name, .extent = view.extent });
-        desc.shownViews = DefaultPassesDesc::ShownViews{ .targetFormat = m_renderer->targetFormat() };
+        desc.shownViews = true;
     }
     // Each main view samples a shadow view of the directional light; frameScene adds the same views to the scene.
     render_graph::addShadowViews(desc.views);

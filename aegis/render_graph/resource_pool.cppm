@@ -114,6 +114,7 @@ private:
     /// @brief After a frame was recorded: nothing is fresh any more, and the history pairs swap.
     auto endFrame() -> void;
     auto bind(ResourceId handle, const renderer::Texture& texture) -> void;
+    auto bind(ResourceId handle, rhi::ImageViewHandle view) -> void;
     auto bind(ResourceId handle, rhi::BufferHandle buffer) -> void;
     [[nodiscard]] auto actual(ResourceId handle) const -> std::uint32_t;
     /// @brief The image of the created or imported entry 'entry'; of a history pair the current one, or with

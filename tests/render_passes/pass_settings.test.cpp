@@ -3,6 +3,7 @@
 import std;
 import aegis.reflect;
 import aegis.render_passes;
+import aegis.rhi;
 
 namespace
 {
@@ -11,6 +12,8 @@ namespace reflect = aegis::reflect;
 
 const FrameSceneSource scene; // Never bound: the passes are only constructed
 PipelineLibrary pipelines;    // Never asked for a pipeline: no pass creates its resources
+
+constexpr auto targetFormat = aegis::rhi::Format::BGRA8_SRGB; // The swapchain's usual format
 
 // The settings objects of the graph's passes that have any, in the order added.
 auto settingsObjects(const GraphBuilder& builder) -> std::vector<void*>
@@ -80,7 +83,7 @@ TEST_SUITE("render_graph::passSettingsTypes")
         const DefaultPassesDesc::View play{ .name = "Play" };
         {
             GraphBuilder builder;
-            addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .views = { edit } });
+            addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .targetFormat = targetFormat, .views = { edit } });
             // As the renderer panel does: through the pass.
             for (const auto& pass : builder.addedPasses())
                 if (const auto passSettings = pass->settings(); passSettings && passSettings->type.name == "LightingSettings")
@@ -94,7 +97,7 @@ TEST_SUITE("render_graph::passSettingsTypes")
 
         // The rebuilt graph, with a second view, starts from what was set: both views' passes read the one object.
         GraphBuilder rebuilt;
-        addDefaultPasses(rebuilt, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .views = { edit, play } });
+        addDefaultPasses(rebuilt, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .targetFormat = targetFormat, .views = { edit, play } });
         CHECK(settingsObjects(rebuilt) == std::vector<void*>{ &settings.lighting, &settings.bloom, &settings.lighting, &settings.bloom });
         CHECK(settings.lighting.viewMode == LightingViewMode::Albedo);
         CHECK(settings.bloom.downsampleScale == doctest::Approx(0.5f));

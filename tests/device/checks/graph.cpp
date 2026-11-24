@@ -254,12 +254,12 @@ auto Harness::verifyGraphHistory() -> std::expected<void, std::string>
             for (std::uint32_t i = 0; i < frames; ++i, ++frame)
             {
                 auto ran = submitAndWait("GraphHistoryFrame", [&](const auto& cmd) {
-                    graph.execute({
+                    const render_graph::FrameInfo frameInfo{
                         .cmd = cmd,
                         .frameIndex = frame % renderer::Renderer::maxFramesInFlight,
                         .extent = graph.pool().output(),
-                        .target = {},
-                    });
+                    };
+                    graph.execute(frameInfo, {}); // The graph declares no frame target: nothing to bind
                 });
                 if (!ran)
                     return ran;
@@ -337,7 +337,7 @@ auto Harness::verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::str
         return std::unexpected{ std::format("Computing the BRDF LUT: {}", describe(lut.error())) };
     const auto build = [&](std::unique_ptr<render_graph::FrameGraph>& graph) -> std::expected<void, std::string> {
         render_graph::GraphBuilder builder;
-        render_graph::addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven });
+        render_graph::addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .targetFormat = m_renderer->targetFormat() });
         auto created = render_graph::FrameGraph::create(*m_device, std::move(builder), m_renderer->extent());
         if (!created)
             return std::unexpected{ std::format("Compiling the default graph: {}", describe(created.error())) };
@@ -395,7 +395,7 @@ auto Harness::verifyPipelineSharing(bool gpuDriven) -> std::expected<void, std::
     const auto compile = [&](std::vector<render_graph::DefaultPassesDesc::View> views) -> std::expected<void, std::string> {
         render_graph::addShadowViews(views);
         render_graph::GraphBuilder builder;
-        render_graph::addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .views = std::move(views) });
+        render_graph::addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .targetFormat = m_renderer->targetFormat(), .views = std::move(views) });
         auto created = render_graph::FrameGraph::create(*m_device, std::move(builder), m_renderer->extent());
         if (!created)
             return std::unexpected{ std::format("Compiling the default graph: {}", describe(created.error())) };

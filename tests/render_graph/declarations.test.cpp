@@ -305,6 +305,25 @@ TEST_SUITE("render_graph::compilePlan")
         declarations.addReference("Lights", Usage::SampledFragment);
         CHECK(messageOf(compilePlan(declarations)).contains("'Lights'"));
     }
+
+    TEST_CASE("the frame target is imported by the first pass declaring it and referenced by the others")
+    {
+        ResourceDeclarations declarations;
+        declarations.beginPass("Present");
+        const auto imported = declareFrameTarget(declarations, Usage::TransferDst, Format::BGRA8_SRGB);
+        declarations.beginPass("UI");
+        const auto drawn = declareFrameTarget(declarations, Usage::ColorAttachment, Format::BGRA8_SRGB);
+
+        CHECK(declarations.find(frameTarget) == imported);
+        const auto entries = declarations.entries();
+        const auto* desc = std::get_if<ImportedTextureDesc>(&entries[imported.index].info);
+        REQUIRE(desc != nullptr);
+        CHECK(desc->format == Format::BGRA8_SRGB);
+        CHECK(desc->before == Usage::ColorAttachment); // The renderer's contract, both ways
+        CHECK(desc->after == Usage::ColorAttachment);
+        CHECK(std::holds_alternative<ResourceDeclarations::Reference>(entries[drawn.index].info));
+        CHECK(compilePlan(declarations).has_value());
+    }
 }
 
 TEST_SUITE("render_graph::ResourceDeclarations scopes")

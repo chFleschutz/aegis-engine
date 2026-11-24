@@ -93,7 +93,7 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
     graph.add<ForwardPass>(scene, desc.pipelines, desc.view, shadow).addRenderSystem<StaticMeshRenderSystem>(Technique::Forward);
     graph.add<TransparentPass>(scene, desc.pipelines, desc.view).addRenderSystem<PointLightRenderSystem>();
     graph.add<BloomPass>(scene, desc.pipelines, desc.settings.bloom);
-    graph.add<PostProcessingPass>(scene, desc.pipelines);
+    graph.add<PostProcessingPass>(scene, desc.pipelines, PostProcessingPass::Desc{ .targetEncodes = desc.targetEncodes() });
 }
 
 auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
@@ -128,12 +128,12 @@ auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
     if (desc.shownViews)
     {
         // The frame's target shows only the UI; each "Final" stays its view's, for the UI to show.
-        graph.add<UiPass>(UiPass::Desc{ .backend = desc.uiBackend, .targetFormat = desc.shownViews->targetFormat, .finals = std::move(finals) });
+        graph.add<UiPass>(UiPass::Desc{ .backend = desc.uiBackend, .targetFormat = desc.targetFormat, .finals = std::move(finals) });
         return;
     }
     if (desc.ui)
         graph.add<UiPass>(UiPass::Desc{ .backend = desc.uiBackend, .finals = { finals.front() } });
-    graph.add<PresentPass>(finals.front());
+    graph.add<PresentPass>(desc.targetFormat, finals.front());
 }
 
 auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void

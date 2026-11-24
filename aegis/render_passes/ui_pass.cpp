@@ -19,6 +19,8 @@ UiPass::UiPass(ResourceDeclarations& declarations, Desc desc) :
         if (!desc.targetFormat)
             break; // Drawn over: only the first
     }
+    if (desc.targetFormat)
+        m_target = declareFrameTarget(declarations, Usage::ColorAttachment, *desc.targetFormat);
 }
 
 auto UiPass::name() const -> std::string_view
@@ -47,7 +49,7 @@ auto UiPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 
     const auto& cmd = frameInfo.cmd;
     std::array colorAttachments{ m_targetFormat
-                                     ? rhi::Attachment::color(frameInfo.target, rhi::ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f })
+                                     ? rhi::Attachment::color(pool.texture(*m_target).view, rhi::ClearColor{ 0.0f, 0.0f, 0.0f, 1.0f })
                                      : rhi::Attachment::colorLoad(pool.texture(m_finals.front()).view) };
     cmd.beginRendering({ .colorAttachments = colorAttachments });
     if (draws)

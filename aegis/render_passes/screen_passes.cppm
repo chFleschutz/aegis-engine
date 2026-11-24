@@ -37,9 +37,17 @@ private:
 class PostProcessingPass : public RenderPass
 {
 public:
-    /// @param bloom Read "Bloom" (a BloomPass must be in the graph); otherwise bloom is off.
+    struct Desc
+    {
+        /// @brief The frame's target encodes on write (an sRGB format, DefaultPassesDesc::targetEncodes): "Final"
+        ///        stays linear, as gamma here would apply it twice.
+        bool targetEncodes{ false };
+        /// @brief Read "Bloom" (a BloomPass must be in the graph); otherwise bloom is off.
+        bool bloom{ true };
+    };
+
     PostProcessingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
-        bool bloom = true);
+        Desc desc);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -51,21 +59,24 @@ private:
     ResourceId m_sceneColor;
     std::optional<ResourceId> m_bloom;
     ResourceId m_final;
+    bool m_targetEncodes;
     const rhi::Pipeline* m_pipeline{ nullptr };
 };
 
-/// @brief Copies a finished image (by default "Final") onto the frame's target: the swapchain image
+/// @brief Copies a finished image (by default "Final") onto the frame's target (names::target): the swapchain image
 ///        or the renderer's offscreen target.
 class PresentPass : public RenderPass
 {
 public:
-    explicit PresentPass(ResourceDeclarations& declarations, std::string_view source = names::finalImage);
+    /// @param targetFormat The format of the frame's target (renderer::Renderer::targetFormat()).
+    PresentPass(ResourceDeclarations& declarations, rhi::Format targetFormat, std::string_view source = names::finalImage);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
 private:
     ResourceId m_source;
+    ResourceId m_target;
 };
 }
 

@@ -17,6 +17,8 @@ const FrameSceneSource scene; // Never bound: the graphs are only planned
 PipelineLibrary pipelines;    // Never asked for a pipeline: no pass creates its resources
 RenderSettings settings;      // The passes only keep a reference
 
+constexpr auto targetFormat = aegis::rhi::Format::BGRA8_SRGB; // The swapchain's usual format
+
 auto readFile(const std::filesystem::path& path) -> std::optional<std::string>
 {
     std::ifstream file{ path, std::ios::binary };
@@ -40,11 +42,11 @@ auto updateRequested() -> bool
 #endif
 }
 
-auto planOfDefaultGraph(bool gpuDriven, std::optional<DefaultPassesDesc::ShownViews> shown = std::nullopt,
+auto planOfDefaultGraph(bool gpuDriven, bool shown = false,
     std::vector<DefaultPassesDesc::View> views = { { .name = "Main" } }) -> std::string
 {
     GraphBuilder builder;
-    addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .ui = true, .views = std::move(views), .shownViews = shown });
+    addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .targetFormat = targetFormat, .ui = true, .views = std::move(views), .shownViews = shown });
 
     const auto plan = builder.plan();
     REQUIRE(plan.has_value());
@@ -74,7 +76,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
         {
             CAPTURE(gpuDriven);
             GraphBuilder builder;
-            addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .ui = true });
+            addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .targetFormat = targetFormat, .ui = true });
 
             const auto plan = builder.plan();
             REQUIRE_MESSAGE(plan.has_value(), plan.error().message);
@@ -95,7 +97,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
     TEST_CASE("the default graph rendering into a view matches its plan snapshot")
     {
         // The UI pass samples "Final" and comes last, with no present pass.
-        checkSnapshot("default_graph_view.txt", planOfDefaultGraph(false, DefaultPassesDesc::ShownViews{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB }));
+        checkSnapshot("default_graph_view.txt", planOfDefaultGraph(false, true));
     }
 
     TEST_CASE("the GPU-driven default graph with two views matches its plan snapshot")
@@ -103,7 +105,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
         // One shared instance pass; each view's scene passes with resources of their own, culling included, and the
         // barriers between them; the UI pass samples both views' "Final".
         checkSnapshot("default_graph_two_views.txt",
-            planOfDefaultGraph(true, DefaultPassesDesc::ShownViews{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB },
+            planOfDefaultGraph(true, true,
                 { { .name = "Edit" }, { .name = "Play", .extent = aegis::rhi::Extent2D{ 320, 240 } } }));
     }
 
@@ -113,7 +115,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
         // lighting samples.
         std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
         addShadowViews(views);
-        checkSnapshot("default_graph_shadow_cpu.txt", planOfDefaultGraph(false, std::nullopt, std::move(views)));
+        checkSnapshot("default_graph_shadow_cpu.txt", planOfDefaultGraph(false, false, std::move(views)));
     }
 
     TEST_CASE("the GPU-driven default graph with shadow views matches its plan snapshot")
@@ -121,7 +123,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
         // Each shadow view culls with its own camera into buffers of its own.
         std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
         addShadowViews(views);
-        checkSnapshot("default_graph_shadow_gpu_driven.txt", planOfDefaultGraph(true, std::nullopt, std::move(views)));
+        checkSnapshot("default_graph_shadow_gpu_driven.txt", planOfDefaultGraph(true, false, std::move(views)));
     }
 
     TEST_CASE("the spot shadow views are declared first, then the other views in their order")
@@ -145,7 +147,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
             std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
             addShadowViews(views);
             GraphBuilder builder;
-            addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .ui = true, .views = std::move(views) });
+            addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .targetFormat = targetFormat, .ui = true, .views = std::move(views) });
             const auto plan = builder.plan();
             REQUIRE(plan.has_value());
             CHECK(builder.declarations().find("SpotShadowAtlas").has_value());
@@ -178,7 +180,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
         std::vector<DefaultPassesDesc::View> views{ { .name = "Main" } };
         addShadowViews(views);
         GraphBuilder builder;
-        addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .ui = true, .views = std::move(views) });
+        addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .targetFormat = targetFormat, .ui = true, .views = std::move(views) });
         CHECK(builder.declarations().find("MainShadow0/Final") == std::nullopt);
         CHECK(builder.declarations().find("MainShadow0/Depth").has_value());
         CHECK(builder.declarations().find("MainShadow3/Depth").has_value());
@@ -188,7 +190,7 @@ TEST_SUITE("render_graph::addDefaultPasses")
     TEST_CASE("every pass of the default graph has a name")
     {
         GraphBuilder builder;
-        addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = true, .ui = true });
+        addDefaultPasses(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = true, .targetFormat = targetFormat, .ui = true });
 
         for (std::uint32_t pass = 0; pass < builder.declarations().passCount(); ++pass)
             CHECK_FALSE(builder.declarations().passName(pass).empty());
