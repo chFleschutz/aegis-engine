@@ -1,3 +1,6 @@
+module;
+#include <cassert>
+
 module aegis.render_graph;
 import std;
 import aegis.renderer;
@@ -120,7 +123,10 @@ auto FrameGraph::execute(const FrameInfo& frameInfo, rhi::ImageViewHandle target
 {
     // The swapchain image changes every frame.
     if (m_target)
+    {
+        assert(target.isValid() && "The frame graph declares the frame target: execute needs the renderer's");
         m_pool.bind(*m_target, target);
+    }
 
     // The renderer waited for the frame that last used this slot, so its timestamps are final.
     auto* timer = m_timers.empty() ? nullptr : &m_timers[frameInfo.frameIndex];
