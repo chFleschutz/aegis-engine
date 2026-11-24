@@ -24,7 +24,7 @@ auto soundDesc(const AudioSource& source, const math::Float3& position) -> Sound
 auto positionOf(world::Registry& registry, world::Entity entity) -> math::Float3
 {
     if (registry.has<GlobalTransform>(entity))
-        return registry.get<GlobalTransform>(entity).location;
+        return registry.get<GlobalTransform>(entity).location();
     return registry.get<Transform>(entity).location;
 }
 }
@@ -68,7 +68,7 @@ void AudioSystem::onUpdate(world::Registry& registry, float)
     if (const auto camera = registry.first<MainCamera, GlobalTransform>())
     {
         const auto& transform = registry.get<GlobalTransform>(camera);
-        m_engine->setListener(transform.location, transform.forward(), transform.up());
+        m_engine->setListener(transform.location(), transform.forward(), transform.up());
     }
 
     std::erase_if(m_sounds, [this, &registry](const EntitySound& playing) {
