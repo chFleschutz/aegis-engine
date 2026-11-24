@@ -8,6 +8,7 @@ import std;
 export import aegis.math;
 import :entity;
 import :components;
+export import :events;
 export import :time;
 
 export namespace aegis::world
@@ -50,8 +51,13 @@ public:
     auto create(const std::string& name = std::string{}, const math::Float3& location = math::Float3{ 0.0f },
         const math::Quat& rotation = math::Quat::identity(), const math::Float3& scale = math::Float3{ 1.0f }) -> Entity
     {
-        return createWithId(randomId(), name, location, rotation, scale);
+        return createWithId(unusedId(), name, location, rotation, scale);
     }
+
+    /// @brief A random StableId value that no entity of the registry has: for an entity created later with
+    ///        createWithId, whose ID must be known now (a deferred spawn)
+    /// @note It is not reserved; random 64-bit IDs make a clash before its use unlikely, and createWithId refuses one.
+    [[nodiscard]] auto unusedId() -> std::uint64_t;
 
     /// @brief Like create, with a given StableId (a loader restoring a saved entity)
     /// @return The new entity, or a null Entity (and nothing created) if the id is zero or already in use
@@ -209,6 +215,11 @@ public:
     /// @note A registry without a world keeps the default: no frame, no steps.
     [[nodiscard]] auto time() const noexcept -> const Time& { return m_time; }
 
+    /// @brief The event queues of the world that owns the registry: emit an event during a frame, read it in the next
+    /// @note World::update swaps them and World::reset clears them; a registry without a world never swaps.
+    [[nodiscard]] auto events() noexcept -> Events& { return m_events; }
+    [[nodiscard]] auto events() const noexcept -> const Events& { return m_events; }
+
     /// @brief Makes 'value' reachable through context<T>() by whoever holds the registry: a world's services that
     ///        scripts and free functions find through the registry alone (audio::playOneShot finds the world's
     ///        audio). One per type; a second call replaces the first.
@@ -248,7 +259,7 @@ public:
     }
 
 private:
-    friend class World; // Writes the time
+    friend class World; // Writes the time, swaps and clears the events
 
     /// @brief Unlinks the (valid) child from its parent's children, if it has a parent
     void detach(Entity child);
@@ -264,8 +275,6 @@ private:
 
     static auto makeIdGenerator() -> std::mt19937_64;
 
-    auto randomId() -> std::uint64_t;
-
     entt::registry m_registry;
     std::unordered_map<std::uint64_t, entt::entity> m_ids;
     std::mt19937_64 m_idGenerator{ makeIdGenerator() };
@@ -273,5 +282,6 @@ private:
     std::uint64_t m_staticVersion{ 0 };
     std::uint64_t m_hierarchyVersion{ 0 };
     Time m_time;
+    Events m_events;
 };
 }

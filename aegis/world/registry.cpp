@@ -257,7 +257,7 @@ auto Registry::makeIdGenerator() -> std::mt19937_64
     return std::mt19937_64{ seed };
 }
 
-auto Registry::randomId() -> std::uint64_t
+auto Registry::unusedId() -> std::uint64_t
 {
     std::uint64_t id = 0;
     while (id == 0 || m_ids.contains(id))
