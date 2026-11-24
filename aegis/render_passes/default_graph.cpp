@@ -41,6 +41,17 @@ auto drawsSpotShadows(const DefaultPassesDesc& desc) -> bool
 {
     return std::ranges::any_of(desc.views, [](const DefaultPassesDesc::View& view) { return view.tile.has_value(); });
 }
+
+// A view's GPU-driven passes: an instance update of its own unless addSharedPasses added the one all views share
+// (which creates the unscoped "StaticInstances"), then draw count clear, culling and geometry.
+auto addGpuDrivenPasses(GraphBuilder& graph, const DefaultPassesDesc& desc, Technique technique, std::optional<DepthTile> tile) -> void
+{
+    if (!graph.declarations().find(names::staticInstances))
+        graph.add<InstanceUpdatePass>(desc.scene);
+    graph.add<ClearDrawCountsPass>();
+    graph.add<CullingPass>(desc.scene, desc.pipelines, desc.view);
+    graph.add<GpuDrivenGeometryPass>(desc.scene, desc.pipelines, technique, desc.view, std::move(tile));
+}
 }
 
 auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> SharedPasses
@@ -49,7 +60,7 @@ auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> Shar
     if (drawsSpotShadows(desc))
         graph.add<SpotShadowAtlasPass>();
     if (desc.gpuDriven)
-        shared.instances = &graph.add<InstanceUpdatePass>(desc.scene);
+        graph.add<InstanceUpdatePass>(desc.scene);
     return shared;
 }
 
@@ -67,12 +78,7 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
     if (!desc.lights)
         graph.add<LightUpdatePass>(scene);
     if (desc.gpuDriven)
-    {
-        const auto& instances = desc.instances ? *desc.instances : graph.add<InstanceUpdatePass>(scene);
-        graph.add<ClearDrawCountsPass>();
-        graph.add<CullingPass>(scene, desc.pipelines, instances, desc.view);
-        graph.add<GpuDrivenGeometryPass>(scene, desc.pipelines, instances, Technique::GBuffer, desc.view);
-    }
+        addGpuDrivenPasses(graph, desc, Technique::GBuffer, std::nullopt);
     else
     {
         graph.add<GeometryPass>(scene, desc.pipelines, Technique::GBuffer, desc.view).addRenderSystem<StaticMeshRenderSystem>();
@@ -104,12 +110,7 @@ auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
         tile = DepthTile{ .texture = std::string{ names::spotShadowAtlas }, .rect = *rect };
     graph.add<SceneUpdatePass>(scene, desc.view);
     if (desc.gpuDriven)
-    {
-        const auto& instances = desc.instances ? *desc.instances : graph.add<InstanceUpdatePass>(scene);
-        graph.add<ClearDrawCountsPass>();
-        graph.add<CullingPass>(scene, desc.pipelines, instances, desc.view);
-        graph.add<GpuDrivenGeometryPass>(scene, desc.pipelines, instances, Technique::Depth, desc.view, std::move(tile));
-    }
+        addGpuDrivenPasses(graph, desc, Technique::Depth, std::move(tile));
     else
     {
         graph.add<GeometryPass>(scene, desc.pipelines, Technique::Depth, desc.view, std::move(tile)).addRenderSystem<StaticMeshRenderSystem>(Technique::Depth);
@@ -140,7 +141,6 @@ auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> voi
 {
     auto viewDesc = desc;
     const auto shared = addSharedPasses(graph, desc);
-    viewDesc.instances = shared.instances;
     viewDesc.lights = shared.lights;
     for (const auto view : viewDeclarationOrder(desc.views))
     {

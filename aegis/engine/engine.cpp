@@ -363,7 +363,6 @@ auto buildFrameGraph(render_graph::GraphBuilder& graph, const render_graph::Defa
 {
     auto viewDesc = desc;
     const auto shared = render_graph::addSharedPasses(graph, desc);
-    viewDesc.instances = shared.instances;
     viewDesc.lights = shared.lights;
     for (const auto view : render_graph::viewDeclarationOrder(desc.views))
     {

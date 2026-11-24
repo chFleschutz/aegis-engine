@@ -167,10 +167,9 @@ auto ClearDrawCountsPass::execute(ResourcePool& pool, const FrameInfo& frameInfo
 // Culling --------------------------------------------------------------------------------------------
 
 CullingPass::CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
-    const InstanceUpdatePass& instances, std::uint32_t view) :
+    std::uint32_t view) :
     m_scene{ scene },
     m_pipelines{ pipelines },
-    m_instances{ instances },
     m_view{ view },
     m_cameraData{ declarations.addReference(names::cameraData, Usage::ShaderRead) },
     m_staticInstances{ declarations.addReference(names::staticInstances, Usage::ShaderRead) },
@@ -212,7 +211,9 @@ auto CullingPass::prepare(ResourcePool& pool) -> std::expected<void, Error>
 
 auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    const auto instanceCount = m_instances.staticCount() + m_instances.dynamicCount();
+    // The InstanceUpdatePass's prepare grew the instance buffers to the store, so they hold all its instances.
+    const auto& store = m_scene.current().instances;
+    const auto instanceCount = store.instanceCount();
     if (instanceCount == 0 || !m_scene.current().camera(m_view))
         return;
 
@@ -227,8 +228,8 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
         .visibility = pool.bufferAddress(m_visibility),
         .commands = pool.bufferAddress(m_commands),
         .counts = pool.bufferAddress(m_counts),
-        .staticCount = m_instances.staticCount(),
-        .dynamicCount = m_instances.dynamicCount(),
+        .staticCount = store.staticInstanceCount(),
+        .dynamicCount = store.dynamicInstanceCount(),
     });
     cmd.dispatch(groupCount(instanceCount, cullingGroupSize));
 }
@@ -236,11 +237,9 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
 // GPU-driven geometry --------------------------------------------------------------------------------
 
 GpuDrivenGeometryPass::GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene,
-    PipelineLibrary& pipelines, const InstanceUpdatePass& instances, Technique technique, std::uint32_t view,
-    std::optional<DepthTile> tile) :
+    PipelineLibrary& pipelines, Technique technique, std::uint32_t view, std::optional<DepthTile> tile) :
     m_scene{ scene },
     m_pipelineLibrary{ pipelines },
-    m_instances{ instances },
     m_technique{ technique },
     m_view{ view },
     m_gBuffer{ technique == Technique::GBuffer ? std::ranges::to<std::vector>(GeometryPass::declareGBuffer(declarations)) : std::vector<ResourceId>{} },
@@ -340,10 +339,11 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
     const auto& commands = pool.buffer(m_commands);
     const auto& counts = pool.buffer(m_counts);
     // Culling's prepare grew the command buffer to every batch's maximum draw count.
-    assert(m_scene.current().instances.instanceCount() <= pool.bufferSize(m_commands) / indirectCommandSize &&
+    const auto& store = m_scene.current().instances;
+    assert(store.instanceCount() <= pool.bufferSize(m_commands) / indirectCommandSize &&
            "The indirect command buffer was not grown in prepare");
     const rhi::Pipeline* bound{ nullptr };
-    for (const auto& batch : m_scene.current().instances.batches())
+    for (const auto& batch : store.batches())
     {
         // The G-buffer holds opaque surfaces only, as on the CPU path (StaticMeshRenderSystem). A batch that was
         // not prepared has no pipeline and is skipped.
@@ -366,8 +366,8 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
             .visibility = pool.bufferAddress(m_visibility),
             .batchFirst = batch.firstInstance,
             .batchSize = batch.instanceCount,
-            .staticCount = m_instances.staticCount(),
-            .dynamicCount = m_instances.dynamicCount(),
+            .staticCount = store.staticInstanceCount(),
+            .dynamicCount = store.dynamicInstanceCount(),
             .flags = geometryFlags(pipelineState(key)),
         });
         cmd.drawMeshTasksIndirectCount(commands, indirectCommandSize * batch.firstInstance, counts,
