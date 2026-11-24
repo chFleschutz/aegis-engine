@@ -212,7 +212,7 @@ auto applySubtree(const EditWorld& world, const SubtreeEdit& edit, EditSide side
         const auto root = findEntity(world.registry, edit.root);
         if (!root)
             return std::unexpected{ root.error() };
-        destroySubtree(world.registry, *root);
+        world.registry.destroySubtree(*root);
         return {};
     }
 
@@ -366,20 +366,6 @@ auto worldTransform(world::Registry& registry, world::Entity entity) -> GlobalTr
     for (const auto current : chain | std::views::reverse)
         global = world::detail::compose(global, registry.get<Transform>(current));
     return global;
-}
-
-void destroySubtree(world::Registry& registry, world::Entity root)
-{
-    std::vector<world::Entity> entities{ root };
-    for (std::size_t i = 0; i < entities.size(); ++i)
-    {
-        if (!registry.has<Children>(entities[i]))
-            continue;
-        for (auto child = registry.get<Children>(entities[i]).first; child; child = registry.get<Siblings>(child).next)
-            entities.push_back(child);
-    }
-    for (const auto entity : entities | std::views::reverse)
-        registry.destroy(entity);
 }
 
 auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::expected<void, Error>

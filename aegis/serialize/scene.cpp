@@ -747,12 +747,14 @@ auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, 
 }
 
 auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const assets::AssetRef<Scene>& scene,
-    world::Entity parent, const PrepareComponent& prepare) -> std::expected<world::Entity, Error>
+    world::Entity parent, const PrepareComponent& prepare, std::uint64_t holderId) -> std::expected<world::Entity, Error>
 {
     if (!scene)
         return makeError(ErrorCode::MissingScene, std::format("the scene {} is not loaded", formatId(scene.id().value)));
 
-    const world::Entity holder = registry.create();
+    const world::Entity holder = registry.createWithId(holderId != 0 ? holderId : registry.unusedId());
+    if (!holder)
+        return makeError(ErrorCode::DuplicateEntity, std::format("the holder's ID {} is already in use", formatId(holderId)));
     registry.add<SceneInstance>(holder, SceneInstance{ scene });
     if (parent)
         std::ignore = registry.addChild(parent, holder);

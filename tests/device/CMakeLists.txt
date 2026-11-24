@@ -33,6 +33,7 @@ target_link_libraries(
         aegis-render-passes
         aegis-renderer
         aegis-rhi
+        aegis-scripting # --spawn's script
         aegis-world
         imgui
         stb # stb_image_write for --screenshot

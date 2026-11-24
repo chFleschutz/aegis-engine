@@ -156,7 +156,7 @@ auto instantiateEntity(const EditWorld& world, UndoStack& history, world::Entity
     auto scene = snapshot(world, *holder);
     if (!scene)
     {
-        destroySubtree(registry, *holder);
+        registry.destroySubtree(*holder);
         return std::unexpected{ scene.error() };
     }
     history.record(SubtreeEdit{ .subtree = std::move(*scene), .root = registry.get<StableId>(*holder), .parent = idOf(registry, parent), .index = indexOf(registry, *holder) });
@@ -194,7 +194,7 @@ auto duplicateEntity(const EditWorld& world, UndoStack& history, world::Entity e
     auto copyScene = snapshot(world, *copy);
     if (!copyScene)
     {
-        destroySubtree(registry, *copy);
+        registry.destroySubtree(*copy);
         return std::unexpected{ copyScene.error() };
     }
     history.record(SubtreeEdit{ .subtree = std::move(*copyScene), .root = registry.get<StableId>(*copy), .parent = idOf(registry, parent), .index = index });

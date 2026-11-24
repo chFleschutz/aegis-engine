@@ -12,6 +12,7 @@ import aegis.render_bridge;
 import aegis.render_graph;
 import aegis.render_passes;
 import aegis.rhi;
+import aegis.scripting;
 import aegis.world;
 
 namespace aegis::test
@@ -115,12 +116,33 @@ auto subtree(world::Registry& registry, world::Entity root) -> std::vector<world
     return entities;
 }
 
-// Destroys 'root' and its descendants.
-void destroySubtree(world::Registry& registry, world::Entity root)
+// --spawn: what CubeSpawner announces.
+struct CubeSpawned
 {
-    for (const auto entity : subtree(registry, root))
-        registry.destroy(entity);
-}
+    StableId holder;
+};
+
+// --spawn: spawns the engine's cube as its entity's child in its first update and announces it; destroys it when the
+// shell asks.
+struct CubeSpawner : scripting::Script
+{
+    StableId holder;
+    bool destroyNow{ false };
+
+    void onUpdate(scripting::ScriptContext& context, float) override
+    {
+        if (holder == StableId{})
+        {
+            holder = context.spawn(assets::engine::cube, context.entity(), Transform{ .location = { 0.9f, 0.0f, 0.0f }, .scale = math::Float3{ 0.3f } });
+            context.emit(CubeSpawned{ holder });
+        }
+        if (destroyNow)
+        {
+            context.destroy(context.find(holder));
+            destroyNow = false;
+        }
+    }
+};
 
 // --unlit: the unlit cube's colour. Pure channels survive tone mapping and gamma exactly where they are 0, so any
 // light on the cube shows as red (verifyUnlit).
@@ -164,6 +186,11 @@ public:
     auto onStartup(Engine& engine) -> std::expected<void, EngineError> override
     {
         m_engine = &engine;
+        if (m_options.spawn)
+        {
+            if (auto registered = scripting::registerScript<CubeSpawner>(engine.types(), "CubeSpawner"); !registered)
+                m_result.errors.push_back(std::format("Registering CubeSpawner failed: {}", reflect::describe(registered.error())));
+        }
         return {};
     }
 
@@ -200,6 +227,11 @@ public:
         // --views compares frames rendered apart: the world stands still once it is set up.
         if (!m_options.views || m_frame < viewsFreezeFrame)
             frame.update(frame.world, world::UpdateMode::Play);
+        if (m_options.spawn)
+        {
+            if (auto checked = checkSpawn(frame); !checked)
+                m_result.errors.push_back(std::format("Spawn check failed: {}", checked.error()));
+        }
         if (m_options.views)
         {
             registry.get<CameraMatrices>(m_viewCamera).aspect = static_cast<float>(sideViewExtent.x) / static_cast<float>(sideViewExtent.y);
@@ -650,6 +682,69 @@ private:
             std::println("  {:<20} GPU {:7.4f} ms  CPU {:7.4f} ms", name, gpuMs, cpuMs);
     }
 
+    // --spawn: a script spawns the engine's cube and destroys it again while frames are in flight. Called once per
+    // frame at the safe point; the world updates after it (FrameContext::update), and changes a script asks for happen
+    // at the start of the update after the one that asks. Frame 1 attaches CubeSpawner to a new entity: update 1
+    // spawns the cube as the entity's child and announces it in an event, update 2 creates it. Frame 3 sees the
+    // cube's holder as the spawner's child, holding a drawn mesh, and the event naming it. Frame spawnDestroyFrame asks
+    // the script to destroy the cube; two frames later it and its children are gone. The frame after each check, the
+    // instance pass wrote the static instances the scene holds.
+    auto checkSpawn(FrameContext& frame) -> std::expected<void, std::string>
+    {
+        constexpr std::uint32_t attachFrame{ 1 };
+        constexpr std::uint32_t spawnedFrame{ attachFrame + 2 };
+        constexpr std::uint32_t destroyedFrame{ spawnDestroyFrame + 2 };
+        auto& registry = frame.world.registry();
+        if (m_frame == attachFrame)
+        {
+            m_spawnBaseline = drawableStatic(registry);
+            m_spawner = registry.create("Spawner");
+            if (auto attached = scripting::attachScript(registry, frame.types, m_spawner, "CubeSpawner"); !attached)
+                return std::unexpected{ std::format("attaching CubeSpawner: {}", reflect::describe(attached.error())) };
+        }
+        else if (m_frame == spawnedFrame)
+        {
+            const auto id = cubeSpawner(registry).holder;
+            const auto holder = registry.find(id);
+            if (id == StableId{} || !holder)
+                return std::unexpected{ "the spawned cube's holder does not exist the update after the spawn" };
+            if (registry.get<Parent>(holder).entity != m_spawner)
+                return std::unexpected{ "the spawned cube is not the spawner's child" };
+            const auto events = registry.events().read<CubeSpawned>();
+            if (events.size() != 1 || events[0].holder != id)
+                return std::unexpected{ std::format("{} CubeSpawned events readable, expected the one naming the holder", events.size()) };
+            const auto drawn = drawableStatic(registry);
+            if (drawn <= m_spawnBaseline)
+                return std::unexpected{ std::format("spawning the cube left {} drawable static entities, {} before", drawn, m_spawnBaseline) };
+            std::println("Spawn verified: the script's cube exists the update after, announced, {} -> {} static instances", m_spawnBaseline, drawn);
+        }
+        else if (m_frame == spawnDestroyFrame)
+            cubeSpawner(registry).destroyNow = true;
+        else if (m_frame == destroyedFrame)
+        {
+            if (registry.find(cubeSpawner(registry).holder))
+                return std::unexpected{ "the spawned cube's holder survives the update after its destroy" };
+            if (const auto drawn = drawableStatic(registry); drawn != m_spawnBaseline)
+                return std::unexpected{ std::format("destroying the cube left {} drawable static entities, {} before the spawn", drawn, m_spawnBaseline) };
+            std::println("Spawn verified: the script destroyed its cube with its children");
+        }
+        else if (m_frame == spawnedFrame + 1 || m_frame == destroyedFrame + 1)
+        {
+            const auto expected = drawableStatic(registry);
+            if (const auto written = writtenStatic(frame.frameGraph); written && *written != expected)
+                return std::unexpected{ std::format("{} static instances written, the scene has {}", *written, expected) };
+        }
+        return {};
+    }
+
+    [[nodiscard]] auto cubeSpawner(world::Registry& registry) const -> CubeSpawner&
+    {
+        return *dynamic_cast<CubeSpawner*>(registry.get<scripting::Scripts>(m_spawner).entries[0].script.get());
+    }
+
+    // --spawn: the frame that asks CubeSpawner to destroy its cube.
+    static constexpr std::uint32_t spawnDestroyFrame{ 20 };
+
     // --mutate-scene: changes the scene the way an editor or gameplay code would, while frames are in
     // flight, and checks that the GPU-driven path follows. Called once per frame at the safe point.
     // Frame 30 loads a second model, 60 destroys the first one, 90 edits the second one's materials and
@@ -698,7 +793,7 @@ private:
         }
         else if (m_frame == destroyFrame)
         {
-            destroySubtree(registry, m_helmet);
+            registry.destroySubtree(m_helmet);
         }
         else if (m_frame == destroyFrame + 1)
         {
@@ -838,7 +933,7 @@ private:
             }
             // The scene's entities keep their IDs in every world it is instantiated into.
             auto& registry = second.registry();
-            destroySubtree(registry, registry.find(frame.world.registry().get<StableId>(m_helmet)));
+            registry.destroySubtree(registry.find(frame.world.registry().get<StableId>(m_helmet)));
             frame.update(second, world::UpdateMode::Play);
             m_second = &second;
         }
@@ -879,6 +974,8 @@ private:
     ViewsShown m_viewsShown{ ViewsShown::Both };                           // --views: the views rendered
     std::map<std::string, std::vector<std::byte>, std::less<>> m_together; // --views: each view's image, rendered with the other
     std::uint32_t m_staticDrawn{ 0 };                                      // --mutate-scene: drawable static entities before the last change
+    world::Entity m_spawner;                                               // --spawn: the entity with CubeSpawner
+    std::uint32_t m_spawnBaseline{ 0 };                                    // --spawn: drawable static entities before the spawn
     std::vector<std::shared_ptr<assets::Material>> m_culled;               // --mutate-scene: the materials set to cull nothing
     std::shared_ptr<assets::Material> m_blended;                           // --blend: the first blended cube's material
     world::World* m_second{ nullptr };                                     // --worlds: the second world, from the same scene file

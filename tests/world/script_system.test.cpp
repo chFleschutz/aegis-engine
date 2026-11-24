@@ -1,6 +1,8 @@
 #include <doctest/doctest.h>
 
 import std;
+import aegis.assets;
+import aegis.platform;
 import aegis.reflect;
 import aegis.world;
 import aegis.scripting;
@@ -66,7 +68,7 @@ struct Suicide : Script
 };
 
 // Spawns an entity with a Recorder in the first update
-struct Spawner : Script
+struct EntitySpawner : Script
 {
     const TypeRegistry* types{ nullptr };
     bool spawned{ false };
@@ -110,7 +112,7 @@ struct Fixture
         REQUIRE(registerScript<Mover>(types, "Mover")->field("speed", &Mover::speed).status());
         REQUIRE(registerScript<Stepper>(types, "Stepper"));
         REQUIRE(registerScript<Suicide>(types, "Suicide"));
-        REQUIRE(registerScript<Spawner>(types, "Spawner"));
+        REQUIRE(registerScript<EntitySpawner>(types, "EntitySpawner"));
         REQUIRE(registerScript<NoDefault>(types, "NoDefault"));
         REQUIRE(registerScript<MultiBase>(types, "MultiBase"));
         REQUIRE(types.script<Orphan>("Orphan"));
@@ -377,8 +379,8 @@ TEST_SUITE("scripting::ScriptSystem")
     TEST_CASE("a script can spawn an entity with a script")
     {
         Fixture f;
-        const auto spawner = f.spawn("Spawner");
-        auto* script = dynamic_cast<Spawner*>(f.scene.registry().get<Scripts>(spawner).entries[0].script.get());
+        const auto spawner = f.spawn("EntitySpawner");
+        auto* script = dynamic_cast<EntitySpawner*>(f.scene.registry().get<Scripts>(spawner).entries[0].script.get());
         REQUIRE(script);
         script->types = &f.types;
 
@@ -441,5 +443,175 @@ TEST_SUITE("scripting::ScriptSystem in edit mode")
         const auto entity = f.spawn("Mover");
         f.scene.update(1.0f, world::UpdateMode::Edit);
         CHECK(f.scene.registry().get<Transform>(entity).location.x == doctest::Approx(0.0f));
+    }
+}
+
+namespace
+{
+struct Ping
+{
+    std::uint64_t from{ 0 };
+};
+
+// Reads the world's time in its update
+struct Clock : Script
+{
+    std::vector<std::uint64_t> frames;
+    void onUpdate(ScriptContext& context, float deltaSeconds) override
+    {
+        CHECK(context.time().deltaSeconds == deltaSeconds);
+        frames.push_back(context.time().frame);
+    }
+};
+
+// Emits a Ping with its entity's ID in every update and records the senders of the Pings it read
+struct Pinger : Script
+{
+    std::vector<std::vector<std::uint64_t>> received;
+    void onUpdate(ScriptContext& context, float) override
+    {
+        std::vector<std::uint64_t> senders;
+        for (const auto& ping : context.events<Ping>())
+            senders.push_back(ping.from);
+        received.push_back(std::move(senders));
+        context.emit(Ping{ context.get<StableId>().value });
+    }
+};
+
+// Destroys the entity with the StableId `target` (and its children) in its first update
+struct Destroyer : Script
+{
+    std::uint64_t target{ 0 };
+    bool alive{ false }; // Whether the target was still there right after the call
+    void onUpdate(ScriptContext& context, float) override
+    {
+        if (target == 0)
+            return;
+        const auto entity = context.find(StableId{ target });
+        REQUIRE(entity);
+        context.destroy(entity);
+        alive = context.registry().valid(entity);
+        target = 0;
+    }
+};
+
+// Tries to spawn in its first update; a world without a Spawner refuses
+struct LonelySpawner : Script
+{
+    std::optional<StableId> result;
+    void onUpdate(ScriptContext& context, float) override
+    {
+        if (!result)
+            result = context.spawn(assets::AssetId{ 42 });
+    }
+};
+
+template<typename T>
+auto scriptOf(world::Registry& registry, Entity entity) -> T*
+{
+    return dynamic_cast<T*>(registry.get<Scripts>(entity).entries[0].script.get());
+}
+
+struct ContextFixture : Fixture
+{
+    ContextFixture()
+    {
+        REQUIRE(registerScript<Clock>(types, "Clock"));
+        REQUIRE(registerScript<Pinger>(types, "Pinger"));
+        REQUIRE(registerScript<Destroyer>(types, "Destroyer"));
+        REQUIRE(registerScript<LonelySpawner>(types, "LonelySpawner"));
+    }
+};
+}
+
+TEST_SUITE("scripting::ScriptContext")
+{
+    TEST_CASE("gives the world's time")
+    {
+        ContextFixture f;
+        const auto entity = f.spawn("Clock");
+        f.scene.update(0.25f);
+        f.scene.update(0.5f);
+        CHECK(scriptOf<Clock>(f.scene.registry(), entity)->frames == std::vector<std::uint64_t>{ 1, 2 });
+    }
+
+    TEST_CASE("scripts read in the next update the events other scripts emitted, whatever their order")
+    {
+        ContextFixture f;
+        const auto a = f.spawn("Pinger", "A");
+        const auto b = f.spawn("Pinger", "B");
+        const auto idA = f.scene.registry().get<StableId>(a).value;
+        const auto idB = f.scene.registry().get<StableId>(b).value;
+
+        f.scene.update(0.016f);
+        f.scene.update(0.016f);
+
+        // Both read both pings, in the order the scripts ran (the entities' order in the view)
+        const auto& receivedA = scriptOf<Pinger>(f.scene.registry(), a)->received;
+        const auto& receivedB = scriptOf<Pinger>(f.scene.registry(), b)->received;
+        CHECK(receivedA == receivedB);
+        REQUIRE(receivedA.size() == 2);
+        CHECK(receivedA[0].empty());
+        auto senders = receivedA[1];
+        std::ranges::sort(senders);
+        auto expected = std::vector<std::uint64_t>{ idA, idB };
+        std::ranges::sort(expected);
+        CHECK(senders == expected);
+    }
+
+    TEST_CASE("finds an entity by its StableId, and a null one for an unknown ID")
+    {
+        ContextFixture f;
+        const auto entity = f.scene.registry().create("Target");
+        const ScriptContext context{ f.scene.registry(), entity, platform::InputState{} };
+        CHECK(context.find(f.scene.registry().get<StableId>(entity)) == entity);
+        CHECK_FALSE(context.find(StableId{ f.scene.registry().unusedId() }));
+    }
+
+    TEST_CASE("destroy removes the entity and its children at the start of the next update, with onDestroy")
+    {
+        ContextFixture f;
+        const auto target = f.spawnRecorder("target");
+        const auto child = f.spawnRecorder("child");
+        REQUIRE(f.scene.registry().setParent(child, target));
+        const auto destroyer = f.spawn("Destroyer");
+        auto* script = scriptOf<Destroyer>(f.scene.registry(), destroyer);
+        script->target = f.scene.registry().get<StableId>(target).value;
+
+        f.scene.update(0.016f); // Asks
+        CHECK(script->alive);   // Deferred
+        CHECK(f.scene.registry().valid(target));
+        CHECK(f.scene.registry().valid(child));
+
+        g_log.clear();
+        f.scene.update(0.016f); // Destroys, before any script runs
+        CHECK_FALSE(f.scene.registry().valid(target));
+        CHECK_FALSE(f.scene.registry().valid(child));
+        CHECK(g_log == std::vector<std::string>{ "child.destroy", "target.destroy" });
+    }
+
+    TEST_CASE("destroying an entity that is gone by the next update does nothing")
+    {
+        ContextFixture f;
+        const auto target = f.scene.registry().create("Target");
+        const ScriptContext context{ f.scene.registry(), target, platform::InputState{} };
+        context.destroy(target);
+        f.scene.registry().destroy(target);
+        const auto other = f.scene.registry().create("Other"); // May reuse the slot
+        f.scene.update(0.016f);
+        CHECK(f.scene.registry().valid(other));
+    }
+
+    TEST_CASE("spawn returns a null ID in a world without a Spawner")
+    {
+        ContextFixture f;
+        const auto entity = f.spawn("LonelySpawner");
+        const auto before = f.scene.registry().entityCount();
+        f.scene.update(0.016f);
+        f.scene.update(0.016f);
+        const auto* script = scriptOf<LonelySpawner>(f.scene.registry(), entity);
+        REQUIRE(script->result);
+        CHECK(*script->result == StableId{});
+        CHECK(f.scene.registry().entityCount() == before);
     }
 }

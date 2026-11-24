@@ -18,6 +18,30 @@ namespace aegis
 {
 namespace
 {
+// What ScriptContext::spawn instantiates through: the engine's asset library and types.
+class AssetSpawner final : public scripting::Spawner
+{
+public:
+    AssetSpawner(AssetLibrary& assets, const reflect::TypeRegistry& types) :
+        m_assets(assets),
+        m_types(types)
+    {
+    }
+
+    auto spawn(world::World& world, assets::AssetId scene, world::Entity parent, std::uint64_t holderId)
+        -> std::expected<world::Entity, std::string> override
+    {
+        auto holder = m_assets.instantiateScene(world, m_types, scene, parent, holderId);
+        if (!holder)
+            return std::unexpected{ describe(holder.error()) };
+        return *holder;
+    }
+
+private:
+    AssetLibrary& m_assets;
+    const reflect::TypeRegistry& m_types;
+};
+
 constexpr std::uint32_t DEFAULT_HEADLESS_FRAMES{ 600 };
 
 // parseArgs's options, for helpText
@@ -348,6 +372,8 @@ void Engine::setUpWorld(world::World& world)
         world.addSystem<scripting::ScriptSystem>(m_headlessInput); // Scripts see the input map, and no input
     world.addSystem<world::TransformSystem>();
     world.addSystem<world::CameraSystem>();
+    if (m_spawner)
+        world.registry().setContext<scripting::Spawner>(*m_spawner);
     world.addSystem<audio::AudioSystem>(*m_audio);
     if (m_worldSetup)
         m_worldSetup(world);
@@ -660,6 +686,7 @@ auto Engine::createAssets() -> std::expected<void, EngineError>
     if (!assets)
         return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, describe(assets.error())) };
     m_assets.emplace(std::move(*assets));
+    m_spawner = std::make_unique<AssetSpawner>(*m_assets, m_types);
     return {};
 }
 

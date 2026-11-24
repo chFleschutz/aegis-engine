@@ -1,16 +1,33 @@
 export module aegis.scripting:script;
 
 import std;
+import aegis.assets;
 import aegis.platform;
 import aegis.reflect;
 import aegis.world;
 
 export namespace aegis::scripting
 {
-/// @brief Everything a script can reach: its entity, the entity's registry and the input
+/// @brief Instantiates scene and model assets for ScriptContext::spawn: the engine implements it over its asset
+///        library and makes it each world's registry context (world::Registry::setContext<Spawner>), so
+///        aegis.scripting needs no asset library
+class Spawner
+{
+public:
+    virtual ~Spawner() = default;
+
+    /// @brief Creates an instance of the scene or model asset 'scene' in 'world', held by a new entity with the
+    ///        StableId 'holderId', as a child of 'parent' (a root entity for a null 'parent')
+    /// @return The holder, or why the scene could not be instantiated ('world' is then unchanged)
+    [[nodiscard]] virtual auto spawn(world::World& world, assets::AssetId scene, world::Entity parent, std::uint64_t holderId)
+        -> std::expected<world::Entity, std::string> = 0;
+};
+
+/// @brief Everything a script can reach: its entity, the entity's registry, the input, the world's time, spawning
+///        and destroying entities, finding them by ID, and the world's events
 ///
-/// This is deliberately narrow. A script gets no engine, renderer, window or asset access: what it
-/// needs beyond components and input is handed to it through its own registered fields.
+/// This is deliberately narrow. A script gets no engine, renderer or window: what it needs beyond this is handed
+/// to it through its own registered fields (the scene a spawner instantiates is an AssetRef field).
 class ScriptContext
 {
 public:
@@ -37,6 +54,48 @@ public:
     {
         if (m_cursor)
             m_cursor->setCursorMode(mode);
+    }
+
+    /// @brief The world's time as of this update: frame delta, fixed step, alpha, elapsed time and counters
+    [[nodiscard]] auto time() const -> const world::Time& { return m_registry.time(); }
+
+    /// @brief The entity with this StableId, or a null Entity
+    [[nodiscard]] auto find(StableId id) const -> world::Entity { return m_registry.find(id); }
+
+    /// @brief Instantiates the scene or model asset 'scene' at the start of the next update: a new entity holds the
+    ///        instance, as a child of 'parent' (a root entity for a null 'parent'), with 'transform' as its local
+    ///        transform
+    /// @return The StableId the holder will have (find() it from the next update on, or send it in an event), or a
+    ///         null StableId if the world cannot spawn (no World or no Spawner in the registry's context, or a
+    ///         'parent' that is not alive)
+    /// @note Spawning that fails when it runs (the scene doesn't load, 'parent' was destroyed meanwhile) logs a
+    ///       warning and creates nothing.
+    auto spawn(assets::AssetId scene, world::Entity parent = {}, const Transform& transform = {}) const -> StableId;
+
+    /// @brief spawn() with the ID of an asset reference: a script's AssetRef field
+    template<typename T>
+    auto spawn(const assets::AssetRef<T>& scene, world::Entity parent = {}, const Transform& transform = {}) const -> StableId
+    {
+        return spawn(scene.id(), parent, transform);
+    }
+
+    /// @brief Destroys the entity and its descendants at the start of the next update (their scripts get onDestroy
+    ///        then); an entity that is gone by then is skipped
+    /// @note Does nothing, with a warning, in a registry without a World.
+    auto destroy(world::Entity entity) const -> void;
+
+    /// @brief Sends 'event' to every script and system of the world: they read it during the next update
+    template<world::Event T>
+    auto emit(T event) const -> void
+    {
+        m_registry.events().emit(std::move(event));
+    }
+
+    /// @brief The events of type T emitted during the previous update, in the order they were emitted
+    template<world::Event T>
+    [[nodiscard]] auto events() const -> std::span<const T>
+    {
+        return m_registry.events().read<T>();
     }
 
     /// @brief Returns true if the entity has all components of type T...
@@ -85,7 +144,7 @@ public:
     virtual void onCreate(ScriptContext& context) {}
     /// @brief Called once per fixed step of the world, zero or more times per frame and before onUpdate, with the
     ///        step's length in seconds: for physics and gameplay that must not depend on the frame rate
-    /// @note context.registry().time() holds the world's time, alpha included.
+    /// @note context.time() holds the world's time, alpha included.
     virtual void onFixedUpdate(ScriptContext& context, float stepSeconds) {}
     /// @brief Called every frame with the time of the last frame in seconds
     virtual void onUpdate(ScriptContext& context, float deltaSeconds) {}

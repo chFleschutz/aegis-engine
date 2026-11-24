@@ -8,6 +8,7 @@ target_sources(
             FILES
                 components.cppm
                 entity.cppm
+                events.cppm
                 registry.cppm
                 render_components.cppm
                 types.cppm

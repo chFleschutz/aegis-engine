@@ -76,23 +76,6 @@ auto ids(Registry& registry) -> std::set<std::uint64_t>
     return result;
 }
 
-// Destroys `root` and its descendants
-auto destroySubtree(Registry& registry, Entity root) -> void
-{
-    std::vector<Entity> pending{ root };
-    std::vector<Entity> order;
-    while (!pending.empty())
-    {
-        const Entity current = pending.back();
-        pending.pop_back();
-        order.push_back(current);
-        for (Entity child = registry.get<aegis::Children>(current).first; child; child = registry.get<aegis::Siblings>(child).next)
-            pending.push_back(child);
-    }
-    for (auto it = order.rbegin(); it != order.rend(); ++it)
-        registry.destroy(*it);
-}
-
 // Root -> Floor, Lamp -> (Bulb with a script, Crate): the lamp is captured, the floor is its sibling
 auto buildWorld(Registry& registry, const TypeRegistry& types) -> void
 {
@@ -173,7 +156,7 @@ TEST_SUITE("serialize::scene subtrees")
         const Scene scene = capture(registry, types, entity(registry, lampId));
         const std::string before = aegis::serialize::writeScene(scene);
 
-        destroySubtree(registry, entity(registry, lampId));
+        registry.destroySubtree(entity(registry, lampId));
         CHECK(ids(registry) == std::set<std::uint64_t>{ rootId, floorId });
 
         const Entity root = entity(registry, rootId);
@@ -265,7 +248,7 @@ TEST_SUITE("serialize::scene subtrees")
         CHECK(scene.entities.size() == 4);
         CHECK_FALSE(std::ranges::contains(scene.entities, deriveEntityId(holderId, 1), &aegis::serialize::SceneEntity::id));
 
-        destroySubtree(registry, entity(registry, lampId));
+        registry.destroySubtree(entity(registry, lampId));
         CHECK(ids(registry) == std::set<std::uint64_t>{ rootId, floorId });
         auto restored = aegis::serialize::instantiate(registry, types, scene, entity(registry, rootId), 0, EntityIds::Keep, prepareWith(prop));
         REQUIRE(restored.has_value());
@@ -317,7 +300,7 @@ TEST_SUITE("serialize::scene subtrees")
         buildWorld(registry, types);
         auto world = aegis::serialize::saveScene(registry, types, snapshotId);
         REQUIRE(world.has_value());
-        destroySubtree(registry, entity(registry, rootId));
+        registry.destroySubtree(entity(registry, rootId));
 
         // The whole world has one root; without it, the floor and the lamp are two
         std::erase_if(world->entities, [](const auto& saved) { return saved.id == rootId; });

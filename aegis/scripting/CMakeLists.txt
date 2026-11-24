@@ -1,8 +1,13 @@
 add_library(aegis-scripting STATIC)
 
-# PUBLIC: the module interfaces import aegis.world, aegis.math, aegis.platform and aegis.reflect.
+# PUBLIC: the module interfaces import aegis.world, aegis.assets, aegis.math, aegis.platform and aegis.reflect.
+# PRIVATE: the implementation imports aegis.core.
 
-target_link_libraries(aegis-scripting PUBLIC aegis-math aegis-platform aegis-reflect aegis-world)
+target_link_libraries(
+    aegis-scripting
+    PUBLIC aegis-assets aegis-math aegis-platform aegis-reflect aegis-world
+    PRIVATE aegis-core
+)
 
 target_sources(
     aegis-scripting

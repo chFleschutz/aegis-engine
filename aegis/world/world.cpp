@@ -32,6 +32,7 @@ void World::update(float deltaSeconds, UpdateMode mode)
 {
     aegis::ScopeProfiler profiler("Scene Update");
 
+    m_registry.m_events.swap();
     applyDeferred();
 
     auto& time = m_registry.m_time;
@@ -71,6 +72,7 @@ void World::reset()
         system->onReset(m_registry);
     }
     m_deferred.clear();
+    m_registry.m_events.clear();
     m_registry.clear();
     for (auto& system : m_systems)
         system->onDetach(m_registry);

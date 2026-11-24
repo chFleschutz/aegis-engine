@@ -139,11 +139,12 @@ enum class EntityIds
 [[nodiscard]] auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const Scene& subtree, world::Entity parent,
     std::size_t index, EntityIds ids, const PrepareComponent& prepare = {}) -> std::expected<world::Entity, Error>;
 
-// Creates an instance of `scene` (a loaded reference): a new entity with a random ID holds it, as a child of
-// `parent` (a root entity for a null `parent`), and the scene's entities derive their IDs from the holder's.
-// Otherwise like the overload above. Returns the holder.
+// Creates an instance of `scene` (a loaded reference): a new entity holds it, with the ID `holderId` (a random one
+// for 0), as a child of `parent` (a root entity for a null `parent`), and the scene's entities derive their IDs from
+// the holder's. Otherwise like the overload above (a `holderId` the registry already uses: DuplicateEntity). Returns
+// the holder.
 [[nodiscard]] auto instantiate(world::Registry& registry, const reflect::TypeRegistry& types, const assets::AssetRef<Scene>& scene,
-    world::Entity parent, const PrepareComponent& prepare = {}) -> std::expected<world::Entity, Error>;
+    world::Entity parent, const PrepareComponent& prepare = {}, std::uint64_t holderId = 0) -> std::expected<world::Entity, Error>;
 }
 
 // Module-internal: shared with :model.

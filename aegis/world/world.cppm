@@ -9,6 +9,7 @@ module;
 //
 // Partitions:
 //   :entity            Entity and the EnTT names the world exports.
+//   :events            Events, a world's double-buffered event queues.
 //   :components        The core components: Name, StableId, Transform, the hierarchy, Camera, the lights and post-process.
 //   :render_components MeshRenderer and Sky, which name assets.
 //   :registry          Registry: the entities' storage, the hierarchy and the StableId lookup.
@@ -25,6 +26,7 @@ import aegis.math;
 export import :camera_system;
 export import :components;
 export import :entity;
+export import :events;
 export import :registry;
 export import :render_components;
 export import :system;
@@ -38,7 +40,9 @@ export namespace aegis::world
 class World
 {
 public:
-    World() = default;
+    /// @brief Makes itself its registry's context (Registry::context<World>()), so scripts and free functions that
+    ///        hold only the registry can defer() changes
+    World() { m_registry.setContext<World>(*this); }
     World(const World&) = delete;
     World(World&&) = delete;
     ~World() { reset(); }
@@ -83,14 +87,15 @@ public:
     /// @brief Starts the systems that run in 'mode'
     void begin(UpdateMode mode = UpdateMode::Play);
 
-    /// @brief Applies the deferred commands, advances the time, then runs the systems of 'mode' phase by phase
+    /// @brief Swaps the event queues, applies the deferred commands, advances the time, then runs the systems of
+    ///        'mode' phase by phase
     /// @note In UpdateMode::Play, Phase::FixedUpdate runs every system's onFixedUpdate once per fixed step the
     ///       frame completes (FixedStep::advance); Edit runs no steps.
     void update(float deltaSeconds, UpdateMode mode = UpdateMode::Play);
 
     /// @brief Empties the scene: the systems end what they run (scripts get onDestroy) while the
     ///        entities still exist, then every entity and then every system is removed
-    /// @note Slots, StableIds and the registry's destroy listeners go with the entities. The scene can be
+    /// @note Slots, StableIds, the events and the registry's destroy listeners go with the entities. The scene can be
     ///       filled again afterwards (systems included).
     void reset();
 
