@@ -6,13 +6,12 @@ namespace aegis::world::detail
 {
 auto compose(const GlobalTransform& parentGlobal, const Transform& local) -> GlobalTransform
 {
-    const auto [location, rotation, scale] = math::decomposeTRS(parentGlobal.matrix() * local.matrix());
-    return { location, rotation, scale };
+    return { parentGlobal.matrix * local.matrix() };
 }
 
 auto toLocal(const GlobalTransform& parentGlobal, const math::Float4x4& world) -> Transform
 {
-    const auto [location, rotation, scale] = math::decomposeTRS(math::inverse(parentGlobal.matrix()) * world);
+    const auto [location, rotation, scale] = math::decomposeTRS(math::inverse(parentGlobal.matrix) * world);
     return { location, rotation, scale };
 }
 }
@@ -53,9 +52,7 @@ void TransformSystem::onUpdate(Registry& registry, float deltaSeconds)
     {
         if (!parent.entity || !registry.has<GlobalTransform>(parent.entity))
         {
-            globalTransform.location = transform.location;
-            globalTransform.rotation = transform.rotation;
-            globalTransform.scale = transform.scale;
+            globalTransform.matrix = transform.matrix();
             continue;
         }
 

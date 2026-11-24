@@ -63,7 +63,7 @@ TEST_SUITE("render_bridge::extractFrameScene")
             math::Float4{ 0.0f, 0.0f, 0.0f, 1.0f });
         matrices.projection[0, 0] = 2.0f;
         matrices.aspect = 1.5f;
-        registry.get<aegis::GlobalTransform>(camera).location = { 5.0f, 6.0f, 7.0f };
+        registry.get<aegis::GlobalTransform>(camera).matrix = math::transformMatrix(math::Float3{ 5.0f, 6.0f, 7.0f }, math::Quat::identity(), math::Float3{ 1.0f });
         world.setMainCamera(camera);
 
         const auto scene = aegis::extractFrameScene(world, instances);
@@ -133,7 +133,7 @@ TEST_SUITE("render_bridge::extractFrameScene")
         const auto sun = registry.create("Sun");
         registry.add<aegis::DirectionalLight>(sun, math::Float3{ 1.0f, 0.5f, 0.25f }, 2.0f);
         const auto rotation = aegis::math::Quat::fromEuler(math::radians(math::Float3{ 60.0f, 0.0f, 45.0f }));
-        registry.get<aegis::GlobalTransform>(sun).rotation = rotation;
+        registry.get<aegis::GlobalTransform>(sun).matrix = math::transformMatrix(math::Float3{}, rotation, math::Float3{ 1.0f });
 
         const auto scene = aegis::extractFrameScene(world, instances);
         REQUIRE(scene.ambientLight.has_value());
@@ -142,7 +142,7 @@ TEST_SUITE("render_bridge::extractFrameScene")
         REQUIRE(scene.directionalLight.has_value());
         CHECK(equal(scene.directionalLight->color, math::Float3{ 1.0f, 0.5f, 0.25f }));
         CHECK(scene.directionalLight->intensity == 2.0f);
-        const auto expected = math::normalize(aegis::GlobalTransform{ .rotation = rotation }.forward());
+        const auto expected = math::forward(rotation);
         CHECK(math::length(scene.directionalLight->direction) == doctest::Approx(1.0f));
         CHECK(scene.directionalLight->direction.x == doctest::Approx(expected.x));
         CHECK(scene.directionalLight->direction.y == doctest::Approx(expected.y));
@@ -160,8 +160,7 @@ TEST_SUITE("render_bridge::extractFrameScene")
             const auto light = registry.create("Light");
             registry.add<aegis::PointLight>(light, math::Float3{ 1.0f, 0.0f, 0.0f }, 3.0f, 12.0f);
             auto& transform = registry.get<aegis::GlobalTransform>(light);
-            transform.location = { static_cast<float>(i), 0.0f, 0.0f };
-            transform.scale = { 2.0f, 4.0f, 8.0f };
+            transform.matrix = math::transformMatrix(math::Float3{ static_cast<float>(i), 0.0f, 0.0f }, math::Quat::identity(), math::Float3{ 2.0f, 4.0f, 8.0f });
         }
 
         const auto scene = aegis::extractFrameScene(world, instances);
@@ -180,8 +179,8 @@ TEST_SUITE("render_bridge::extractFrameScene")
         const auto light = registry.create("Spot");
         registry.add<aegis::SpotLight>(light, math::Float3{ 0.0f, 1.0f, 0.0f }, 50.0f, 8.0f, 0.25f, 0.5f, true, 2.5f);
         auto& transform = registry.get<aegis::GlobalTransform>(light);
-        transform.location = { 1.0f, 2.0f, 3.0f };
-        transform.rotation = aegis::math::Quat::fromEuler(math::Float3{ 0.3f, 0.0f, 1.2f });
+        const auto rotation = aegis::math::Quat::fromEuler(math::Float3{ 0.3f, 0.0f, 1.2f });
+        transform.matrix = math::transformMatrix(math::Float3{ 1.0f, 2.0f, 3.0f }, rotation, math::Float3{ 1.0f });
 
         const auto scene = aegis::extractFrameScene(world, instances);
         REQUIRE(scene.spotLights.size() == 1);
@@ -194,7 +193,7 @@ TEST_SUITE("render_bridge::extractFrameScene")
         CHECK(spot.outerConeAngle == 0.5f);
         CHECK(spot.castsShadows);
         CHECK(spot.shadowBias == 2.5f);
-        const auto expected = math::normalize(transform.forward());
+        const auto expected = math::forward(rotation);
         CHECK(math::length(spot.direction) == doctest::Approx(1.0f));
         CHECK(spot.direction.x == doctest::Approx(expected.x));
         CHECK(spot.direction.y == doctest::Approx(expected.y));

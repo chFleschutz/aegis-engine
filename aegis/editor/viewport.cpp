@@ -67,7 +67,7 @@ auto meshBounds(world::Registry& registry, world::Entity entity) -> std::optiona
     if (!mesh)
         return std::nullopt;
     const auto& bounds = mesh->bounds();
-    return transformSphere(Sphere{ .center = bounds.center, .radius = bounds.radius }, registry.get<GlobalTransform>(entity).matrix());
+    return transformSphere(Sphere{ .center = bounds.center, .radius = bounds.radius }, registry.get<GlobalTransform>(entity).matrix);
 }
 
 // Corner brackets around 'box' in the accent at 'alpha', over a dark outline, 'width' pixels wide at 100%.
@@ -301,7 +301,7 @@ void Viewport::placeCamera(world::World& world)
     // Before the first update the global transform may not be derived yet; a root camera's local one is its global
     const auto parent = registry.get<Parent>(camera).entity;
     const bool root = !parent || !registry.has<GlobalTransform>(camera);
-    const auto location = root ? registry.get<Transform>(camera).location : registry.get<GlobalTransform>(camera).location;
+    const auto location = root ? registry.get<Transform>(camera).location : registry.get<GlobalTransform>(camera).location();
     const auto forward = root ? registry.get<Transform>(camera).forward() : registry.get<GlobalTransform>(camera).forward();
     m_camera.lookAlong(location, forward);
 }
@@ -357,7 +357,7 @@ void Viewport::focusSelection(const EditorContext& editor)
     {
         auto bounds = meshBounds(registry, root);
         if (!bounds && registry.has<GlobalTransform>(root))
-            bounds = Sphere{ .center = registry.get<GlobalTransform>(root).location, .radius = pointFocusRadius };
+            bounds = Sphere{ .center = registry.get<GlobalTransform>(root).location(), .radius = pointFocusRadius };
         if (bounds)
             framed = framed ? enclose(*framed, *bounds) : *bounds;
     }
@@ -402,7 +402,7 @@ auto Viewport::drawGizmo(EditorContext& editor, FrameContext& frame, const Rect&
     projection[1, 1] *= -1.0f; // ImGuizmo expects y up
 
     // The gizmo works in world space; the result is converted back to the local transforms
-    math::Float4x4 matrix = registry.get<GlobalTransform>(selected).matrix();
+    math::Float4x4 matrix = registry.get<GlobalTransform>(selected).matrix;
 
     auto operation = ImGuizmo::OPERATION::TRANSLATE;
     const auto& preferences = editor.preferences();
@@ -466,7 +466,7 @@ void Viewport::beginGizmoDrag(EditorContext& editor, FrameContext& frame, const 
         if (!registry.has<Transform, GlobalTransform>(root))
             continue;
         entities.push_back(root);
-        roots.push_back({ .id = registry.get<StableId>(root), .start = registry.get<GlobalTransform>(root).matrix() });
+        roots.push_back({ .id = registry.get<StableId>(root), .start = registry.get<GlobalTransform>(root).matrix });
     }
     m_gizmoDrag.emplace(start, std::move(roots), TransformDrag{ editWorld(editor, frame), entities, verb });
 }
@@ -716,7 +716,7 @@ auto Viewport::drawIcons(const EditorContext& editor, const Rect& rect) -> std::
         const world::Entity entity{ handle };
         if (!registry.has<GlobalTransform, StableId>(entity))
             return;
-        const math::Float3 location = registry.get<GlobalTransform>(entity).location;
+        const math::Float3 location = registry.get<GlobalTransform>(entity).location();
         const auto ndc = m_camera.project(location, aspect());
         if (!ndc || std::abs(ndc->x) > 1.0f || std::abs(ndc->y) > 1.0f)
             return;

@@ -41,9 +41,29 @@ TEST_SUITE("world::TransformSystem")
         system.onBegin(registry);
 
         const auto& global = registry.get<GlobalTransform>(child);
-        CHECK(near(global.location, { 0.0f, 2.0f, 0.0f }));
-        CHECK(near(global.scale, math::Float3{ 2.0f }));
-        CHECK(near(global.rotation * math::Float3{ 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }));
+        CHECK(near(global.location(), { 0.0f, 2.0f, 0.0f }));
+        CHECK(near(global.scale(), math::Float3{ 2.0f }));
+        CHECK(near(global.rotation() * math::Float3{ 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }));
+    }
+
+    TEST_CASE("keeps the shear of a rotated child under a non-uniformly scaled parent")
+    {
+        Registry registry;
+        const auto parent = registry.create("parent", { 1.0f, 2.0f, 3.0f }, math::Quat::identity(), math::Float3{ 1.0f, 3.0f, 1.0f });
+        const auto child = registry.create("child", { 0.5f, 0.0f, 0.0f }, math::Quat::fromAxisAngle(math::Float3{ 0.0f, 0.0f, 1.0f }, 0.6f));
+        REQUIRE(registry.setParent(child, parent));
+        registry.add<DynamicTag>(child);
+
+        TransformSystem system;
+        system.onBegin(registry);
+        const auto expected = registry.get<Transform>(parent).matrix() * registry.get<Transform>(child).matrix();
+        CHECK(registry.get<GlobalTransform>(child).matrix == expected);
+
+        // The child's axes are no longer perpendicular: TRS could not hold this
+        CHECK(math::dot(registry.get<GlobalTransform>(child).right(), registry.get<GlobalTransform>(child).forward()) != Approx(0.0f));
+
+        system.onUpdate(registry, 0.0f);
+        CHECK(registry.get<GlobalTransform>(child).matrix == expected);
     }
 
     TEST_CASE("adds the parent's location and composes a chain of three")
@@ -59,8 +79,8 @@ TEST_SUITE("world::TransformSystem")
         system.onBegin(registry);
 
         // middle sits at (10,1,0); leaf is one unit further along the root's rotated x axis
-        CHECK(near(registry.get<GlobalTransform>(middle).location, { 10.0f, 1.0f, 0.0f }));
-        CHECK(near(registry.get<GlobalTransform>(leaf).location, { 10.0f, 2.0f, 0.0f }));
+        CHECK(near(registry.get<GlobalTransform>(middle).location(), { 10.0f, 1.0f, 0.0f }));
+        CHECK(near(registry.get<GlobalTransform>(leaf).location(), { 10.0f, 2.0f, 0.0f }));
     }
 
     TEST_CASE("updates only entities with DynamicTag after begin")
@@ -76,7 +96,7 @@ TEST_SUITE("world::TransformSystem")
 
         TransformSystem system;
         system.onBegin(registry);
-        CHECK(near(registry.get<GlobalTransform>(dynamicChild).location, { 0.0f, 1.0f, 0.0f }));
+        CHECK(near(registry.get<GlobalTransform>(dynamicChild).location(), { 0.0f, 1.0f, 0.0f }));
 
         registry.get<Transform>(parent).location = { 5.0f, 0.0f, 0.0f };
         registry.get<Transform>(dynamicChild).location = { 2.0f, 0.0f, 0.0f };
@@ -84,9 +104,9 @@ TEST_SUITE("world::TransformSystem")
         system.onUpdate(registry, 0.016f);
         system.onUpdate(registry, 0.016f);
 
-        CHECK(near(registry.get<GlobalTransform>(parent).location, { 5.0f, 0.0f, 0.0f }));
-        CHECK(near(registry.get<GlobalTransform>(dynamicChild).location, { 5.0f, 2.0f, 0.0f }));
-        CHECK(near(registry.get<GlobalTransform>(staticChild).location, { 0.0f, 1.0f, 0.0f }));
+        CHECK(near(registry.get<GlobalTransform>(parent).location(), { 5.0f, 0.0f, 0.0f }));
+        CHECK(near(registry.get<GlobalTransform>(dynamicChild).location(), { 5.0f, 2.0f, 0.0f }));
+        CHECK(near(registry.get<GlobalTransform>(staticChild).location(), { 0.0f, 1.0f, 0.0f }));
     }
 }
 
@@ -101,18 +121,18 @@ TEST_SUITE("world::TransformSystem static dirty")
 
         TransformSystem system;
         system.onBegin(registry);
-        CHECK(near(registry.get<GlobalTransform>(child).location, { 1.0f, 0.0f, 0.0f }));
+        CHECK(near(registry.get<GlobalTransform>(child).location(), { 1.0f, 0.0f, 0.0f }));
 
         registry.get<Transform>(parent).location = { 0.0f, 5.0f, 0.0f };
         system.onUpdate(registry, 0.0f);
-        CHECK(near(registry.get<GlobalTransform>(child).location, { 1.0f, 0.0f, 0.0f })); // Static: frozen
+        CHECK(near(registry.get<GlobalTransform>(child).location(), { 1.0f, 0.0f, 0.0f })); // Static: frozen
 
         registry.markStaticDirty(parent);
         const auto marked = registry.staticVersion();
         system.onUpdate(registry, 0.0f);
 
-        CHECK(near(registry.get<GlobalTransform>(parent).location, { 0.0f, 5.0f, 0.0f }));
-        CHECK(near(registry.get<GlobalTransform>(child).location, { 1.0f, 5.0f, 0.0f }));
+        CHECK(near(registry.get<GlobalTransform>(parent).location(), { 0.0f, 5.0f, 0.0f }));
+        CHECK(near(registry.get<GlobalTransform>(child).location(), { 1.0f, 5.0f, 0.0f }));
         CHECK(!registry.has<aegis::StaticDirtyTag>(parent));
         CHECK(registry.staticVersion() != marked); // Whoever rebuilt after the mark rebuilds again
     }
@@ -132,12 +152,12 @@ TEST_SUITE("world::detail::toLocal")
 {
     TEST_CASE("is the inverse of compose")
     {
-        const GlobalTransform parent{ { 1.0f, -2.0f, 3.0f }, quarterTurnZ(), math::Float3{ 2.0f } };
+        const GlobalTransform parent{ math::transformMatrix(math::Float3{ 1.0f, -2.0f, 3.0f }, quarterTurnZ(), math::Float3{ 2.0f }) };
         const Transform local{ { 0.5f, 1.5f, -1.0f }, math::Quat::fromAxisAngle(math::normalize(math::Float3{ 1.0f, 1.0f, 0.0f }), 0.7f),
             math::Float3{ 0.5f, 0.5f, 0.5f } };
 
         const auto global = aegis::world::detail::compose(parent, local);
-        const auto back = aegis::world::detail::toLocal(parent, global.matrix());
+        const auto back = aegis::world::detail::toLocal(parent, global.matrix);
 
         CHECK(near(back.location, local.location));
         CHECK(near(back.scale, local.scale));

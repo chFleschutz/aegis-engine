@@ -7,8 +7,8 @@ import :system;
 export namespace aegis::world::detail
 {
 /// @brief Composes the global transform of a child from its parent's global transform and its own local transform
-/// @note Goes through matrices, so the parent's rotation and scale apply to the child's location. A non-uniform
-/// parent scale combined with a child rotation introduces shear, which TRS cannot represent (it is dropped).
+/// @note The product of the matrices (parent * local), so the parent's rotation and scale apply to the child's
+/// location, and the shear of a rotated child under a non-uniformly scaled parent is kept.
 [[nodiscard]] auto compose(const GlobalTransform& parentGlobal, const Transform& local) -> GlobalTransform;
 
 /// @brief Converts a world matrix into the local transform of an entity below the given parent (inverse of compose)

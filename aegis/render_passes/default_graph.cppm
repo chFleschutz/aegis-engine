@@ -113,7 +113,7 @@ auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 
 /// @brief Adds the engine's standard passes: addSharedPasses, then addScenePasses in each view's scope (in
-///        viewDeclarationOrder: the spot shadow views first), then addOutputPasses. Compile the graph afterwards (FrameGraph::compile, or GraphBuilder::plan
+///        viewDeclarationOrder: the spot shadow views first), then addOutputPasses. Compile the graph afterwards (FrameGraph::create, or GraphBuilder::plan
 ///        without a device).
 auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void;
 }
