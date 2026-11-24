@@ -137,6 +137,14 @@ _Avoid_: tick, physics frame
 A world's `Time`, which its update writes and its systems, scripts and the renderer read (`World::time`, `Registry::time`): the frame delta, the fixed step, `alpha`, the elapsed time and the frame and step counts. The world's `FrameClock` only hands out the frame deltas.
 _Avoid_: game time, scene time
 
+**Event**:
+A plain struct that the systems and scripts of one world send each other through its `Events` (`Registry::events`, `ScriptContext::emit`): emitted during an update, read by every reader during the next one, then dropped. Events are not saved, so a type needs no registration.
+_Avoid_: message, signal (entt's signals are component observers)
+
+**Spawn**:
+Instantiating a scene or model asset from a script at run time (`ScriptContext::spawn`), at the start of the next update: a new holder entity, whose StableId the script gets at once, holds the instance. The engine's `scripting::Spawner` does it through the asset library.
+_Avoid_: instantiate (for the script's call), create
+
 ### Games
 
 **Game**:
