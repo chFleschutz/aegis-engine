@@ -347,7 +347,7 @@ void Engine::setUpWorld(world::World& world)
         world.addSystem<scripting::ScriptSystem>(m_input->state(), m_input.get());
     else
         world.addSystem<scripting::ScriptSystem>(m_headlessInput); // Scripts see the input map, and no input
-    world.addSystem<physics::PhysicsSystem>(); // After the scripts, whose fixed steps move kinematic bodies
+    world.addSystem<physics::PhysicsSystem>();                     // After the scripts, whose fixed steps move kinematic bodies
     world.addSystem<world::TransformSystem>();
     world.addSystem<world::CameraSystem>();
     world.addSystem<audio::AudioSystem>(*m_audio);

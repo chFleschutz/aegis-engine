@@ -25,7 +25,7 @@ struct SceneResult
     std::vector<std::string> errors;
     rhi::Extent2D view{ viewExtent }; // --view: the view's size in the last frame
     std::uint32_t viewShown{ 0 };     // --view: frames whose UI showed the view (Presentation::uiTexture)
-    std::string physicsVerified;     // --physics: what the check saw, when it passed
+    std::string physicsVerified;      // --physics: what the check saw, when it passed
 };
 
 // --views: the views, by name; the main one renders through the main camera.

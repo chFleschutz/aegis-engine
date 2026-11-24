@@ -174,29 +174,29 @@ auto unscaledShape(const Collider& collider) -> std::expected<JPH::ShapeRefC, st
     auto rotation = JPH::Quat::sIdentity();
     const auto made = core::match(
         collider.shape,
-            [](const BoxShape& box) -> std::expected<JPH::ShapeSettings::ShapeResult, std::string> {
-                const auto& h = box.halfExtents;
-                if (!(h.x > 0.0f && h.y > 0.0f && h.z > 0.0f))
-                    return std::unexpected{ std::format("a box needs half extents above zero, not ({}, {}, {})", h.x, h.y, h.z) };
-                const float convexRadius = std::min({ JPH::cDefaultConvexRadius, h.x, h.y, h.z });
-                const JPH::Ref<JPH::BoxShapeSettings> settings = new JPH::BoxShapeSettings{ toJolt(h), convexRadius };
-                return settings->Create();
-            },
-            [](const SphereShape& sphere) -> std::expected<JPH::ShapeSettings::ShapeResult, std::string> {
-                if (!(sphere.radius > 0.0f))
-                    return std::unexpected{ std::format("a sphere needs a radius above zero, not {}", sphere.radius) };
-                const JPH::Ref<JPH::SphereShapeSettings> settings = new JPH::SphereShapeSettings{ sphere.radius };
-                return settings->Create();
-            },
-            [&rotation](const CapsuleShape& capsule) -> std::expected<JPH::ShapeSettings::ShapeResult, std::string> {
-                if (!(capsule.radius > 0.0f && capsule.halfHeight > 0.0f))
-                    return std::unexpected{
-                        std::format("a capsule needs a radius and half height above zero, not {} and {}", capsule.radius, capsule.halfHeight)
-                    };
-                rotation = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), 0.5f * JPH::JPH_PI);
-                const JPH::Ref<JPH::CapsuleShapeSettings> settings = new JPH::CapsuleShapeSettings{ capsule.halfHeight, capsule.radius };
-                return settings->Create();
-            });
+        [](const BoxShape& box) -> std::expected<JPH::ShapeSettings::ShapeResult, std::string> {
+            const auto& h = box.halfExtents;
+            if (!(h.x > 0.0f && h.y > 0.0f && h.z > 0.0f))
+                return std::unexpected{ std::format("a box needs half extents above zero, not ({}, {}, {})", h.x, h.y, h.z) };
+            const float convexRadius = std::min({ JPH::cDefaultConvexRadius, h.x, h.y, h.z });
+            const JPH::Ref<JPH::BoxShapeSettings> settings = new JPH::BoxShapeSettings{ toJolt(h), convexRadius };
+            return settings->Create();
+        },
+        [](const SphereShape& sphere) -> std::expected<JPH::ShapeSettings::ShapeResult, std::string> {
+            if (!(sphere.radius > 0.0f))
+                return std::unexpected{ std::format("a sphere needs a radius above zero, not {}", sphere.radius) };
+            const JPH::Ref<JPH::SphereShapeSettings> settings = new JPH::SphereShapeSettings{ sphere.radius };
+            return settings->Create();
+        },
+        [&rotation](const CapsuleShape& capsule) -> std::expected<JPH::ShapeSettings::ShapeResult, std::string> {
+            if (!(capsule.radius > 0.0f && capsule.halfHeight > 0.0f))
+                return std::unexpected{
+                    std::format("a capsule needs a radius and half height above zero, not {} and {}", capsule.radius, capsule.halfHeight)
+                };
+            rotation = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), 0.5f * JPH::JPH_PI);
+            const JPH::Ref<JPH::CapsuleShapeSettings> settings = new JPH::CapsuleShapeSettings{ capsule.halfHeight, capsule.radius };
+            return settings->Create();
+        });
     if (!made)
         return std::unexpected{ made.error() };
     if (made->HasError())
