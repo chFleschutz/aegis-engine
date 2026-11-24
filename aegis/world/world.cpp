@@ -33,8 +33,29 @@ void World::update(float deltaSeconds, UpdateMode mode)
     aegis::ScopeProfiler profiler("Scene Update");
 
     applyDeferred();
-    for (const auto phase : { Phase::PreUpdate, Phase::Update, Phase::PostUpdate, Phase::LateUpdate })
+
+    auto& time = m_registry.m_time;
+    time.deltaSeconds = deltaSeconds;
+    time.elapsedSeconds += deltaSeconds;
+    ++time.frame;
+    time.fixedStepSeconds = m_fixedStep.step();
+    const auto steps = mode == UpdateMode::Play ? m_fixedStep.advance(deltaSeconds) : 0;
+    time.alpha = m_fixedStep.alpha();
+
+    for (const auto phase : { Phase::PreUpdate, Phase::FixedUpdate, Phase::Update, Phase::PostUpdate, Phase::LateUpdate })
     {
+        if (phase == Phase::FixedUpdate)
+        {
+            for (std::uint32_t step = 0; step < steps; ++step)
+            {
+                ++time.steps;
+                for (auto& system : m_systems)
+                {
+                    if (runs(*system, mode))
+                        system->onFixedUpdate(m_registry, time.fixedStepSeconds);
+                }
+            }
+        }
         for (auto& system : m_systems)
         {
             if (system->phase() == phase && runs(*system, mode))

@@ -9,8 +9,8 @@ export namespace aegis::scripting
 {
 /// @brief Runs the scripts of every entity that has a Scripts component
 ///
-/// Per entity, in attach order: onCreate once (before the script's first onUpdate), then onUpdate every
-/// frame. onDestroy runs when the entity is destroyed and when the scene is reset, while the entity
+/// Per entity, in attach order: onCreate once (before the script's first other hook), then onFixedUpdate once per
+/// fixed step of the world (in Phase::FixedUpdate, before Update) and onUpdate every frame. onDestroy runs when the entity is destroyed and when the scene is reset, while the entity
 /// still has all its components. A script that was never created gets no onDestroy.
 /// Add it before the systems that read what scripts write (the TransformSystem), so a script's change
 /// shows up in the same frame.
@@ -37,15 +37,25 @@ public:
     void onDetach(world::Registry& registry) override { registry.removeDestroyListener(this); }
 
     /// @brief Creates the scripts that exist when the scene begins
-    void onBegin(world::Registry& registry) override { run(registry, 0.0f, false); }
+    void onBegin(world::Registry& registry) override { run(registry, 0.0f, Hook::None); }
 
-    void onUpdate(world::Registry& registry, float deltaSeconds) override { run(registry, deltaSeconds, true); }
+    void onFixedUpdate(world::Registry& registry, float stepSeconds) override { run(registry, stepSeconds, Hook::FixedUpdate); }
+
+    void onUpdate(world::Registry& registry, float deltaSeconds) override { run(registry, deltaSeconds, Hook::Update); }
 
     void onReset(world::Registry& registry) override { destroyAll(registry); }
 
 private:
-    /// @brief Creates the scripts that need it and optionally updates them all
-    void run(world::Registry& registry, float deltaSeconds, bool update);
+    /// @brief What run calls on every script after creating the ones that need it
+    enum class Hook
+    {
+        None,
+        FixedUpdate,
+        Update,
+    };
+
+    /// @brief Creates the scripts that need it and calls 'hook' on them all
+    void run(world::Registry& registry, float seconds, Hook hook);
 
     /// @brief Calls onDestroy on the entity's running scripts
     void destroyScripts(world::Registry& registry, world::Entity entity);

@@ -18,8 +18,27 @@ auto toLocal(const GlobalTransform& parentGlobal, const math::Float4x4& world) -
 
 namespace aegis::world
 {
+void TransformSystem::onAttach(Registry& registry)
+{
+    registry.onDestroy<DynamicTag>().connect<&TransformSystem::onDynamicDestroy>(this);
+}
+
+void TransformSystem::onDetach(Registry& registry)
+{
+    registry.onDestroy<DynamicTag>().disconnect(this);
+    m_lostDynamic.clear();
+}
+
+void TransformSystem::onDynamicDestroy(entt::registry&, entt::entity entity)
+{
+    // Also when the entity is destroyed: onUpdate skips it then.
+    m_lostDynamic.emplace_back(entity);
+}
+
 void TransformSystem::onBegin(Registry& registry)
 {
+    m_lostDynamic.clear(); // begin computes them all
+
     // Calculate initial global transforms for all entities
     std::vector<Entity> hierarchy;
     auto view = registry.view<GlobalTransform>();
@@ -44,20 +63,38 @@ void TransformSystem::onBegin(Registry& registry)
 
 void TransformSystem::onUpdate(Registry& registry, float deltaSeconds)
 {
-    updateStaticDirty(registry);
-
-    // Note: This lags 1 frame per parent behind the actual local transform (but this is fine :)
-    auto view = registry.view<Transform, GlobalTransform, Parent, DynamicTag>();
-    for (auto&& [entity, transform, globalTransform, parent] : view.each())
+    // An entity that became static is where its Transform puts it now, which may be past its last global transform
+    for (const auto entity : m_lostDynamic)
     {
-        if (!parent.entity || !registry.has<GlobalTransform>(parent.entity))
-        {
-            globalTransform.matrix = transform.matrix();
-            continue;
-        }
+        if (registry.valid(entity) && !registry.has<DynamicTag>(entity))
+            registry.markStaticDirty(entity);
+    }
+    m_lostDynamic.clear();
 
-        auto& parentGlobal = registry.get<GlobalTransform>(parent.entity);
-        globalTransform = detail::compose(parentGlobal, transform);
+    updateStaticDirty(registry);
+    updateDynamic(registry);
+}
+
+void TransformSystem::updateDynamic(Registry& registry)
+{
+    m_dynamic.clear();
+    for (auto&& [entity, transform, globalTransform, parent] : registry.view<Transform, GlobalTransform, Parent, DynamicTag>().each())
+    {
+        std::uint32_t depth = 0;
+        for (Entity ancestor = parent.entity; ancestor; ancestor = registry.get<Parent>(ancestor).entity)
+            ++depth;
+        m_dynamic.push_back({ depth, Entity{ entity } });
+    }
+    std::ranges::sort(m_dynamic, {}, &Ranked::depth);
+
+    for (const auto& [depth, entity] : m_dynamic)
+    {
+        const Entity parent = registry.get<Parent>(entity).entity;
+        auto& globalTransform = registry.get<GlobalTransform>(entity);
+        if (!parent || !registry.has<GlobalTransform>(parent))
+            globalTransform.matrix = registry.get<Transform>(entity).matrix();
+        else
+            globalTransform = detail::compose(registry.get<GlobalTransform>(parent), registry.get<Transform>(entity));
     }
 }
 

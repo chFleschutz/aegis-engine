@@ -13,9 +13,16 @@ target_sources(
                 types.cppm
                 world.cppm
                 system.cppm
+                time.cppm
                 systems/camera_system.cppm
                 systems/transform_system.cppm
-    PRIVATE registry.cpp types.cpp world.cpp systems/camera_system.cpp systems/transform_system.cpp
+    PRIVATE
+        registry.cpp
+        time.cpp
+        types.cpp
+        world.cpp
+        systems/camera_system.cpp
+        systems/transform_system.cpp
 )
 
 # PUBLIC: the module interfaces import aegis.math, :render_components imports aegis.assets,

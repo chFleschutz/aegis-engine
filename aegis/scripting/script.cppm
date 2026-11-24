@@ -67,7 +67,7 @@ private:
     platform::Input* m_cursor;
 };
 
-/// @brief Behavior attached to an entity, with the fixed hooks onCreate, onUpdate and onDestroy
+/// @brief Behavior attached to an entity, with the fixed hooks onCreate, onFixedUpdate, onUpdate and onDestroy
 ///
 /// A script is created by its registered name (reflect::TypeRegistry::script), so its persistent state
 /// belongs in registered fields: that is what a scene file saves and the editor shows. Anything else a
@@ -81,8 +81,12 @@ public:
     Script& operator=(const Script&) = delete;
     virtual ~Script() = default;
 
-    /// @brief Called once, before the script's first onUpdate (the entity and its other components exist)
+    /// @brief Called once, before the script's first onFixedUpdate or onUpdate (the entity and its other components exist)
     virtual void onCreate(ScriptContext& context) {}
+    /// @brief Called once per fixed step of the world, zero or more times per frame and before onUpdate, with the
+    ///        step's length in seconds: for physics and gameplay that must not depend on the frame rate
+    /// @note context.registry().time() holds the world's time, alpha included.
+    virtual void onFixedUpdate(ScriptContext& context, float stepSeconds) {}
     /// @brief Called every frame with the time of the last frame in seconds
     virtual void onUpdate(ScriptContext& context, float deltaSeconds) {}
     /// @brief Called once when the entity is destroyed or the scene is reset, with the entity still intact

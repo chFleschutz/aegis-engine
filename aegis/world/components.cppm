@@ -85,12 +85,14 @@ struct Children
     world::Entity last{};
 };
 
-/// @brief Tags an entity as dynamic: its global transform is recomputed every frame.
+/// @brief Tags an entity as dynamic: its global transform is recomputed every frame, after its parent's.
 ///
 /// The static/dynamic rule: an entity without this tag is static and stays frozen after World::begin,
 /// so editing its Transform changes nothing on screen by itself.
-///  - Anything that moves its entity every frame (a script, an animation) must tag it, and
-///    only while the scene is set up: adding or removing the tag later is not supported yet.
+///  - Anything that moves its entity every frame (a script, an animation) must tag it.
+///  - The tag may come and go at any time, World::begin or not: an entity tagged later follows its Transform
+///    from the next update, and one that loses the tag gets its global transform (and its descendants') once
+///    more from where its Transform puts it, then freezes there.
 ///  - A one-off edit of a static entity (the editor's gizmo and inspector) calls
 ///    Registry::markStaticDirty(entity) after changing its Transform.
 ///  - Creating or destroying entities and adding or removing MeshRenderer need nothing: the

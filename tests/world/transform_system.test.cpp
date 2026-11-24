@@ -175,3 +175,95 @@ TEST_SUITE("world::detail::toLocal")
         CHECK(near(local.scale, world.scale));
     }
 }
+
+TEST_SUITE("world::TransformSystem hierarchy order")
+{
+    TEST_CASE("a chain of three dynamic entities is right after one update, whatever order they were tagged in")
+    {
+        for (const bool rootFirst : { true, false })
+        {
+            CAPTURE(rootFirst);
+            aegis::world::World scene;
+            scene.addSystem<TransformSystem>();
+            auto& registry = scene.registry();
+            const auto root = registry.create("root");
+            const auto middle = registry.create("middle", { 1.0f, 0.0f, 0.0f });
+            const auto leaf = registry.create("leaf", { 1.0f, 0.0f, 0.0f });
+            REQUIRE(registry.setParent(middle, root));
+            REQUIRE(registry.setParent(leaf, middle));
+            for (const auto entity : rootFirst ? std::array{ root, middle, leaf } : std::array{ leaf, middle, root })
+                registry.add<DynamicTag>(entity);
+            scene.begin();
+
+            registry.get<Transform>(root).location = { 10.0f, 0.0f, 0.0f };
+            registry.get<Transform>(root).rotation = quarterTurnZ();
+            registry.get<Transform>(middle).location = { 2.0f, 0.0f, 0.0f };
+            registry.get<Transform>(leaf).location = { 3.0f, 0.0f, 0.0f };
+            scene.update(0.0f);
+
+            CHECK(near(registry.get<GlobalTransform>(root).location(), { 10.0f, 0.0f, 0.0f }));
+            CHECK(near(registry.get<GlobalTransform>(middle).location(), { 10.0f, 2.0f, 0.0f }));
+            CHECK(near(registry.get<GlobalTransform>(leaf).location(), { 10.0f, 5.0f, 0.0f }));
+        }
+    }
+}
+
+TEST_SUITE("world::TransformSystem DynamicTag at run time")
+{
+    TEST_CASE("an entity tagged after begin follows its Transform from the next update")
+    {
+        aegis::world::World scene;
+        scene.addSystem<TransformSystem>();
+        auto& registry = scene.registry();
+        const auto entity = registry.create("entity");
+        scene.begin();
+
+        registry.get<Transform>(entity).location = { 4.0f, 0.0f, 0.0f };
+        scene.update(0.0f);
+        CHECK(near(registry.get<GlobalTransform>(entity).location(), { 0.0f, 0.0f, 0.0f })); // Static: frozen
+
+        registry.add<DynamicTag>(entity);
+        scene.update(0.0f);
+        CHECK(near(registry.get<GlobalTransform>(entity).location(), { 4.0f, 0.0f, 0.0f }));
+    }
+
+    TEST_CASE("an entity that loses its tag stays where its Transform puts it, then freezes")
+    {
+        aegis::world::World scene;
+        scene.addSystem<TransformSystem>();
+        auto& registry = scene.registry();
+        const auto entity = registry.create("entity");
+        const auto child = registry.create("child", { 1.0f, 0.0f, 0.0f });
+        REQUIRE(registry.setParent(child, entity));
+        registry.add<DynamicTag>(entity);
+        scene.begin();
+        scene.update(0.0f);
+
+        // Moved and made static in the same frame: the move still counts, for the static child too
+        registry.get<Transform>(entity).location = { 4.0f, 0.0f, 0.0f };
+        registry.remove<DynamicTag>(entity);
+        const auto before = registry.staticVersion();
+        scene.update(0.0f);
+        CHECK(near(registry.get<GlobalTransform>(entity).location(), { 4.0f, 0.0f, 0.0f }));
+        CHECK(near(registry.get<GlobalTransform>(child).location(), { 5.0f, 0.0f, 0.0f }));
+        CHECK(registry.staticVersion() != before); // The static set it joined is rebuilt
+
+        registry.get<Transform>(entity).location = { 8.0f, 0.0f, 0.0f };
+        scene.update(0.0f);
+        CHECK(near(registry.get<GlobalTransform>(entity).location(), { 4.0f, 0.0f, 0.0f }));
+    }
+
+    TEST_CASE("a destroyed dynamic entity leaves nothing to recompute")
+    {
+        aegis::world::World scene;
+        scene.addSystem<TransformSystem>();
+        auto& registry = scene.registry();
+        const auto entity = registry.create("entity");
+        registry.add<DynamicTag>(entity);
+        scene.begin();
+        registry.destroy(entity);
+        const auto before = registry.staticVersion();
+        scene.update(0.0f);
+        CHECK(registry.staticVersion() == before);
+    }
+}

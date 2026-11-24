@@ -10,7 +10,7 @@ void ScriptSystem::onAttach(world::Registry& registry)
     registry.addDestroyListener(this, [this](world::Registry& owner, world::Entity entity) { destroyScripts(owner, entity); });
 }
 
-void ScriptSystem::run(world::Registry& registry, float deltaSeconds, bool update)
+void ScriptSystem::run(world::Registry& registry, float seconds, Hook hook)
 {
     // Scripts spawn and destroy entities, which a view over Scripts must not see happen
     m_entities.clear();
@@ -36,8 +36,10 @@ void ScriptSystem::run(world::Registry& registry, float deltaSeconds, bool updat
                 if (!registry.valid(entity))
                     break;
             }
-            if (update)
-                script->onUpdate(context, deltaSeconds);
+            if (hook == Hook::FixedUpdate)
+                script->onFixedUpdate(context, seconds);
+            else if (hook == Hook::Update)
+                script->onUpdate(context, seconds);
         }
     }
 }

@@ -103,7 +103,7 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
         LABELS mesh-shaders
     )
 
-    # The scene changes while frames are in flight: a model loaded, one destroyed, materials edited.
+    # The scene changes while frames are in flight: a model loaded, one destroyed, materials edited, DynamicTag changed.
     aegis_add_device_test(
         aegis-test-scene-mutation
         ARGS --headless --scene --mutate-scene --frames 150
