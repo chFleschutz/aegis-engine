@@ -1,11 +1,16 @@
 export module aegis.render_passes:names;
 import std;
+import aegis.render_graph;
 
 /// The names of the graph resources more than one pass declares: one pass creates the resource, the others
 /// reference it by name. Using the constant instead of a literal turns a typo into a compile error. A view's scene
 /// passes declare them in the view's scope, where they become "<view>/<name>".
 export namespace aegis::render_graph::names
 {
+// The renderer's target for the frame, imported by the first pass that declares it (declareFrameTarget) and bound by
+// FrameGraph::execute.
+inline constexpr std::string_view target{ frameTarget };
+
 // The view the world renders through when the shell asks for none: the main camera, presented. Its resources are
 // scoped to it like any view's ("Main/Depth", see scopedName).
 inline constexpr std::string_view mainView{ "Main" };

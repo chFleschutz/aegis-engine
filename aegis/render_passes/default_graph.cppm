@@ -31,14 +31,6 @@ struct DefaultPassesDesc
         std::optional<rhi::Rect2D> tile;
     };
 
-    /// @brief The views render into targets of their own, which the UI shows: the frame's target shows only the UI,
-    ///        and there is no present pass.
-    struct ShownViews
-    {
-        /// @brief The frame's target format (renderer::Renderer::targetFormat()), which the UI draws onto.
-        rhi::Format targetFormat;
-    };
-
     /// @brief Where the scene passes read the frame scene; it must outlive the graph. The engine's is bound to
     ///        each frame's scene; a game's passes that read the scene take it from here too.
     const FrameSceneSource& scene;
@@ -50,6 +42,9 @@ struct DefaultPassesDesc
     RenderSettings& settings;
     /// @brief The mesh-shader geometry path; needs rhi::Device::Capabilities::meshShaders.
     bool gpuDriven;
+    /// @brief The format of the frame's target (renderer::Renderer::targetFormat()), names::target: the present pass
+    ///        copies onto it, or the UI draws onto it (shownViews).
+    rhi::Format targetFormat;
     /// @brief Draws ImGui over the frame: the draw data of the frame the caller ended (see UiPass).
     bool ui{ false };
     /// @brief Needed with ui to compile the graph: the UI pass records through it. It belongs to the caller and outlives
@@ -67,9 +62,16 @@ struct DefaultPassesDesc
     /// @brief The pass writing the lights all views share (addSharedPasses), which the lighting passes read; none:
     ///        addScenePasses adds one of its own to the view.
     const LightUpdatePass* lights{ nullptr };
-    /// @brief Render the views into targets of their own (see ShownViews): the UI pass reads each view's "Final" and
-    ///        draws onto the frame's target. Implies ui. Without it, the first view's "Final" is presented.
-    std::optional<ShownViews> shownViews;
+    /// @brief Render the views into targets of their own, which the UI shows: the UI pass reads each view's "Final"
+    ///        and draws onto the frame's target, and there is no present pass. Implies ui. Without it, the first
+    ///        view's "Final" is presented.
+    bool shownViews{ false };
+
+    /// @brief Whether the frame's target encodes on write (an sRGB format), so post-processing leaves "Final" linear.
+    [[nodiscard]] auto targetEncodes() const noexcept -> bool
+    {
+        return targetFormat == rhi::Format::BGRA8_SRGB || targetFormat == rhi::Format::RGBA8_SRGB;
+    }
 };
 
 /// @brief The passes addSharedPasses added, for the DefaultPassesDesc of the views' scene passes.

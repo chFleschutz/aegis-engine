@@ -95,6 +95,11 @@ auto ResourcePool::bind(ResourceId handle, const renderer::Texture& texture) -> 
     imported->texture = texture;
 }
 
+auto ResourcePool::bind(ResourceId handle, rhi::ImageViewHandle view) -> void
+{
+    bind(handle, renderer::Texture{ .image = {}, .view = view });
+}
+
 auto ResourcePool::bind(ResourceId handle, rhi::BufferHandle buffer) -> void
 {
     auto* imported = std::get_if<ImportedBuffer>(&m_created[actual(handle)]);
@@ -119,7 +124,11 @@ auto ResourcePool::format(ResourceId handle) const -> rhi::Format
 
 auto ResourcePool::extent(ResourceId handle) const -> rhi::Extent2D
 {
-    return m_device.get(texture(handle).image).extent().toExtent2D();
+    const auto& found = texture(handle);
+    // An imported image bound by its view alone (a swapchain image) has no image handle.
+    if (!found.image.isValid())
+        return m_device.get(found.view).extent().toExtent2D();
+    return m_device.get(found.image).extent().toExtent2D();
 }
 
 auto ResourcePool::buffer(ResourceId handle) const -> const rhi::Buffer&

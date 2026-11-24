@@ -11,6 +11,16 @@ import aegis.rhi;
 
 export namespace aegis::render_graph
 {
+/// @brief The name of the imported texture behind the renderer's target for the frame (swapchain image or offscreen
+///        target): FrameGraph::execute binds it every frame. It arrives in Usage::ColorAttachment and the graph leaves
+///        it so (renderer::Renderer's contract). Passes declare it with declareFrameTarget.
+inline constexpr std::string_view frameTarget{ "Target" };
+
+/// @brief Declares the current pass's access to the frame's target (frameTarget) of format 'format' (the renderer's,
+///        renderer::Renderer::targetFormat()): imports it if no pass declared before has, else references it. Declare
+///        it outside any scope.
+auto declareFrameTarget(ResourceDeclarations& declarations, Usage usage, rhi::Format format) -> ResourceId;
+
 /// @brief How long one pass took: on the GPU, and recording it on the CPU.
 struct PassTiming
 {
@@ -60,6 +70,9 @@ public:
     ///        find), in the state it was declared to be in when a frame starts. Call after compile and before
     ///        the first execute; it stays bound until bound again. The graph never frees it.
     auto bind(ResourceId resource, const renderer::Texture& texture) -> void { m_pool.bind(resource, texture); }
+    /// @brief Sets the image behind an imported texture by its view alone, for an image with no rhi::ImageHandle (a
+    ///        swapchain image); the graph's barriers cover the view's subresources.
+    auto bind(ResourceId resource, rhi::ImageViewHandle view) -> void { m_pool.bind(resource, view); }
     /// @brief Sets the buffer behind an imported buffer, like the texture overload.
     auto bind(ResourceId resource, rhi::BufferHandle buffer) -> void { m_pool.bind(resource, buffer); }
 
@@ -70,10 +83,11 @@ public:
     ///         prepared then, and the frame must not be executed.
     [[nodiscard]] auto prepare() -> std::expected<void, Error>;
 
-    /// @brief Records every pass, in order, into frameInfo.cmd, then the barriers that leave imported
-    ///        resources as declared. Afterwards persistent textures and history pairs are no longer fresh, and
-    ///        the history pairs swap.
-    auto execute(const FrameInfo& frameInfo) -> void;
+    /// @brief Binds 'target' (the renderer's target for this frame, in Usage::ColorAttachment) to frameTarget if a
+    ///        pass declared it, then records every pass, in order, into frameInfo.cmd, then the barriers that leave
+    ///        imported resources as declared. Afterwards persistent textures and history pairs are no longer fresh,
+    ///        and the history pairs swap.
+    auto execute(const FrameInfo& frameInfo, rhi::ImageViewHandle target) -> void;
 
     [[nodiscard]] auto pool() noexcept -> ResourcePool& { return m_pool; }
 
@@ -95,6 +109,7 @@ private:
     std::vector<std::vector<detail::Transition>> m_transitions; // Per entry of m_order
     std::vector<detail::Transition> m_endOfFrame;               // After the last pass
     std::vector<detail::ResourceKind> m_kinds;                  // Per pool entry
+    std::optional<ResourceId> m_target;                         // frameTarget, if a pass declared it
     bool m_compiled{ false };
 
     // GPU timestamps around every pass: one pool per frame in flight, read once its frame is done.

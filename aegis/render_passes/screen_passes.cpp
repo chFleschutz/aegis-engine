@@ -67,14 +67,15 @@ auto SkyBoxPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 // Post-processing -----------------------------------------------------------------------------------
 
 PostProcessingPass::PostProcessingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene,
-    PipelineLibrary& pipelines, bool bloom) :
+    PipelineLibrary& pipelines, Desc desc) :
     m_scene{ scene },
     m_pipelines{ pipelines },
     m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
-    m_bloom{ bloom ? std::optional{ declarations.addReference(names::bloom, Usage::StorageRead) } : std::nullopt },
+    m_bloom{ desc.bloom ? std::optional{ declarations.addReference(names::bloom, Usage::StorageRead) } : std::nullopt },
     // 16-bit: the image may stay linear until the blit onto an sRGB target encodes it (see execute). As a
     // view's target it is also copied out, for a screenshot.
-    m_final{ declarations.addTexture(names::finalImage, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT, .usage = rhi::ImageUsage::TransferSrc }) }
+    m_final{ declarations.addTexture(names::finalImage, Usage::StorageWrite, { .format = rhi::Format::RGBA16_SFLOAT, .usage = rhi::ImageUsage::TransferSrc }) },
+    m_targetEncodes{ desc.targetEncodes }
 {
 }
 
@@ -94,11 +95,6 @@ auto PostProcessingPass::createResources(ResourcePool& pool) -> std::expected<vo
 
 auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    // An sRGB target (the swapchain prefers one) encodes on write; gamma here would apply it twice. A view's
-    // "Final" reaches the same target through the UI, so the same holds for it.
-    const auto targetFormat = pool.device().get(frameInfo.target).format();
-    const bool targetEncodes = targetFormat == rhi::Format::BGRA8_SRGB || targetFormat == rhi::Format::RGBA8_SRGB;
-
     const auto& settings = m_scene.current().postProcess;
     const auto sceneColor = pool.storageDescriptor(m_sceneColor);
     const auto& cmd = frameInfo.cmd;
@@ -110,7 +106,9 @@ auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
         .toneMapping = settings.toneMapping,
         .bloomIntensity = m_bloom ? settings.bloomIntensity : 0.0f,
         .exposure = settings.exposure,
-        .gamma = targetEncodes ? 1.0f : settings.gamma,
+        // An sRGB target (the swapchain prefers one) encodes on write. A view's "Final" reaches the same target
+        // through the UI, so the same holds for it.
+        .gamma = m_targetEncodes ? 1.0f : settings.gamma,
     });
     const auto extent = pool.extent(m_final);
     cmd.dispatch(groupCount(extent.x, computeGroupSize), groupCount(extent.y, computeGroupSize));
@@ -118,8 +116,9 @@ auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
 
 // Present -------------------------------------------------------------------------------------------
 
-PresentPass::PresentPass(ResourceDeclarations& declarations, std::string_view source) :
-    m_source{ declarations.addReference(source, Usage::TransferSrc) }
+PresentPass::PresentPass(ResourceDeclarations& declarations, rhi::Format targetFormat, std::string_view source) :
+    m_source{ declarations.addReference(source, Usage::TransferSrc) },
+    m_target{ declareFrameTarget(declarations, Usage::TransferDst, targetFormat) }
 {
 }
 
@@ -130,11 +129,7 @@ auto PresentPass::name() const -> std::string_view
 
 auto PresentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    // The target arrives as a color attachment and must leave as one (renderer::Renderer's contract).
-    const auto& cmd = frameInfo.cmd;
-    cmd.transitionImageLayout(frameInfo.target, rhi::ResourceState::ColorAttachment, rhi::ResourceState::CopyDst);
-    cmd.blit(pool.texture(m_source).view, frameInfo.target);
-    cmd.transitionImageLayout(frameInfo.target, rhi::ResourceState::CopyDst, rhi::ResourceState::ColorAttachment);
+    frameInfo.cmd.blit(pool.texture(m_source).view, pool.texture(m_target).view);
 }
 }
 

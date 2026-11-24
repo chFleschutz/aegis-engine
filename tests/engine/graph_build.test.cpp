@@ -17,6 +17,8 @@ const FrameSceneSource scene; // Never bound: the graphs are only planned
 PipelineLibrary pipelines;    // Never asked for a pipeline: no pass creates its resources
 RenderSettings settings;      // The passes only keep a reference
 
+constexpr auto targetFormat = aegis::rhi::Format::BGRA8_SRGB; // The swapchain's usual format
+
 // Draws onto "Final", as an overlay would.
 class OverlayPass final : public RenderPass
 {
@@ -81,14 +83,13 @@ TEST_SUITE("engine::buildFrameGraph")
 {
     TEST_CASE("without a game hook and with the game shell the frame graph is the default graph")
     {
-        const std::optional<DefaultPassesDesc::ShownViews> view{ DefaultPassesDesc::ShownViews{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB } };
         for (const bool gpuDriven : { false, true })
         {
             for (const bool withView : { false, true })
             {
                 CAPTURE(gpuDriven);
                 CAPTURE(withView);
-                const DefaultPassesDesc desc{ .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .ui = true, .shownViews = withView ? view : std::nullopt };
+                const DefaultPassesDesc desc{ .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = gpuDriven, .targetFormat = targetFormat, .ui = true, .shownViews = withView };
                 GraphBuilder engine;
                 aegis::GameShell shell;
                 buildFrameGraph(engine, desc, {}, shell);
@@ -112,7 +113,7 @@ TEST_SUITE("engine::buildFrameGraph")
             addScenePasses(graph, desc);
             graph.add<OverlayPass>("Game Overlay");
         };
-        buildFrameGraph(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .ui = true }, game, shell);
+        buildFrameGraph(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .targetFormat = targetFormat, .ui = true }, game, shell);
 
         const auto names = plannedNames(builder);
         CHECK(position(names, "Main/Post Processing") < position(names, "Main/Game Overlay"));
@@ -126,7 +127,7 @@ TEST_SUITE("engine::buildFrameGraph")
         GraphBuilder builder;
         aegis::GameShell shell;
         const aegis::GraphBuild game = [](GraphBuilder& graph, const DefaultPassesDesc& /*desc*/) { graph.add<FinalPass>(); };
-        buildFrameGraph(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .ui = true }, game, shell);
+        buildFrameGraph(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .targetFormat = targetFormat, .ui = true }, game, shell);
 
         CHECK(plannedNames(builder) == std::vector<std::string_view>{ "Light Update", "Main/Game Final", "UI", "Present" });
     }
@@ -142,9 +143,10 @@ TEST_SUITE("engine::buildFrameGraph")
                 .pipelines = pipelines,
                 .settings = settings,
                 .gpuDriven = true,
+                .targetFormat = targetFormat,
                 .ui = true,
                 .views = { { .name = "Edit" }, { .name = "Play", .extent = aegis::rhi::Extent2D{ 320, 240 } } },
-                .shownViews = DefaultPassesDesc::ShownViews{ .targetFormat = aegis::rhi::Format::BGRA8_SRGB },
+                .shownViews = true,
             },
             game, shell);
 

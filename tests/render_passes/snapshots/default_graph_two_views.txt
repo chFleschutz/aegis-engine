@@ -169,8 +169,12 @@
 23. UI
     use    Edit/Final SampledFragment
     use    Play/Final SampledFragment
+    import Target ColorAttachment
     barrier Edit/Final: StorageWrite -> SampledFragment
     barrier Play/Final: StorageWrite -> SampledFragment
+    barrier Target: ColorAttachment -> ColorAttachment
+end of frame
+    barrier Target: ColorAttachment -> ColorAttachment
 resources
     Lights: buffer, host written
     StaticInstances: buffer, host written
@@ -204,3 +208,4 @@ resources
     Play/LightingUniforms: buffer, host written
     Play/Bloom: texture RGBA16_SFLOAT
     Play/Final: texture RGBA16_SFLOAT
+    Target: imported texture BGRA8_SRGB

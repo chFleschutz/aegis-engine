@@ -19,7 +19,7 @@ public:
     {
         /// @brief The backend the pass records through; needed by createResources, so a graph can be declared without it.
         rhi::ImGuiBackend* backend{ nullptr };
-        /// @brief Draw onto the frame's target, of this format and cleared first, and sample every one of 'finals'
+        /// @brief Draw onto the frame's target (names::target), of this format and cleared first, and sample every one of 'finals'
         ///        (the views' targets, which the UI shows) instead of drawing over the first.
         std::optional<rhi::Format> targetFormat;
         /// @brief The images the UI draws over (the first) or samples (all, with targetFormat), by their names in the
@@ -36,6 +36,7 @@ public:
 private:
     rhi::ImGuiBackend* m_backend;
     std::optional<rhi::Format> m_targetFormat; // Drawing onto the frame's target
+    std::optional<ResourceId> m_target;        // names::target, when drawing onto it
     std::vector<ResourceId> m_finals;
 };
 }

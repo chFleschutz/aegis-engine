@@ -5,6 +5,14 @@ import aegis.rhi;
 
 namespace aegis::render_graph
 {
+auto declareFrameTarget(ResourceDeclarations& declarations, Usage usage, rhi::Format format) -> ResourceId
+{
+    if (declarations.find(frameTarget))
+        return declarations.addReference(frameTarget, usage);
+    return declarations.importTexture(frameTarget, usage,
+        { .format = format, .before = Usage::ColorAttachment, .after = Usage::ColorAttachment });
+}
+
 FrameGraph::FrameGraph(rhi::Device& device, rhi::Extent2D output) :
     m_pool{ device, m_declarations, output }
 {
@@ -33,6 +41,7 @@ auto FrameGraph::compile() -> std::expected<void, Error>
             return std::unexpected{ std::move(error) };
         }
     }
+    m_target = m_declarations.find(frameTarget);
     m_transitions = std::move(plan->transitions);
     m_endOfFrame = std::move(plan->endOfFrame);
 
@@ -107,8 +116,12 @@ auto FrameGraph::prepare() -> std::expected<void, Error>
     return {};
 }
 
-auto FrameGraph::execute(const FrameInfo& frameInfo) -> void
+auto FrameGraph::execute(const FrameInfo& frameInfo, rhi::ImageViewHandle target) -> void
 {
+    // The swapchain image changes every frame.
+    if (m_target)
+        m_pool.bind(*m_target, target);
+
     // The renderer waited for the frame that last used this slot, so its timestamps are final.
     auto* timer = m_timers.empty() ? nullptr : &m_timers[frameInfo.frameIndex];
     if (timer)
@@ -182,8 +195,13 @@ auto FrameGraph::recordTransitions(const rhi::CommandBuffer& cmd,
         }
         // A fresh image was never accessed in a previous frame: its contents are undefined.
         const bool undefined = !transition.from || (transition.crossFrame && m_pool.isFreshAt(transition.resource));
-        cmd.transitionImageLayout(m_pool.textureAt(transition.resource, transition.previous).image,
-            undefined ? rhi::ResourceState::Unknown : detail::toResourceState(*transition.from), toState);
+        const auto fromState = undefined ? rhi::ResourceState::Unknown : detail::toResourceState(*transition.from);
+        // An imported image bound by its view alone (a swapchain image) has no image handle.
+        const auto& texture = m_pool.textureAt(transition.resource, transition.previous);
+        if (texture.image.isValid())
+            cmd.transitionImageLayout(texture.image, fromState, toState);
+        else
+            cmd.transitionImageLayout(texture.view, fromState, toState);
     }
 }
 }

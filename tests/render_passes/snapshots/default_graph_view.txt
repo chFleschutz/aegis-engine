@@ -61,7 +61,11 @@
     barrier Main/Final: undefined -> StorageWrite
 10. UI
     use    Main/Final SampledFragment
+    import Target ColorAttachment
     barrier Main/Final: StorageWrite -> SampledFragment
+    barrier Target: ColorAttachment -> ColorAttachment
+end of frame
+    barrier Target: ColorAttachment -> ColorAttachment
 resources
     Lights: buffer, host written
     Main/CameraData: buffer, host written
@@ -75,3 +79,4 @@ resources
     Main/LightingUniforms: buffer, host written
     Main/Bloom: texture RGBA16_SFLOAT
     Main/Final: texture RGBA16_SFLOAT
+    Target: imported texture BGRA8_SRGB
