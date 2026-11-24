@@ -56,9 +56,8 @@ public:
     [[nodiscard]] auto prepare(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
 
-    /// @brief The instances actually written: what culling dispatches over.
+    /// @brief The static instances last written, for checks: prepare grew the buffer to the store, so its count.
     [[nodiscard]] auto staticCount() const noexcept -> std::uint32_t { return m_static.written; }
-    [[nodiscard]] auto dynamicCount() const noexcept -> std::uint32_t { return m_dynamic.written; }
 
 private:
     struct InstanceBuffer
@@ -103,7 +102,7 @@ class CullingPass : public RenderPass
 public:
     /// @param view The index of the view in FrameScene::views it culls for (whose "CameraData" it reads).
     CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
-        const InstanceUpdatePass& instances, std::uint32_t view = 0);
+        std::uint32_t view = 0);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -114,7 +113,6 @@ public:
 private:
     const FrameSceneSource& m_scene;
     PipelineLibrary& m_pipelines;
-    const InstanceUpdatePass& m_instances;
     std::uint32_t m_view;
     ResourceId m_cameraData;
     ResourceId m_staticInstances;
@@ -141,8 +139,7 @@ public:
     /// @param view The index of the view in FrameScene::views it draws (whose "CameraData" it reads).
     /// @param tile Where a Technique::Depth pass draws instead of its own "Depth" (GeometryPass's); none: its own.
     GpuDrivenGeometryPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
-        const InstanceUpdatePass& instances, Technique technique = Technique::GBuffer, std::uint32_t view = 0,
-        std::optional<DepthTile> tile = std::nullopt);
+        Technique technique = Technique::GBuffer, std::uint32_t view = 0, std::optional<DepthTile> tile = std::nullopt);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
@@ -158,7 +155,6 @@ private:
 
     const FrameSceneSource& m_scene;
     PipelineLibrary& m_pipelineLibrary;
-    const InstanceUpdatePass& m_instances;
     Technique m_technique;
     std::uint32_t m_view;
     std::vector<ResourceId> m_gBuffer; // Empty with Technique::Depth

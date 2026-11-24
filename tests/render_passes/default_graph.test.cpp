@@ -185,6 +185,34 @@ TEST_SUITE("render_graph::addDefaultPasses")
         CHECK(builder.declarations().find("Main/Final").has_value());
     }
 
+    TEST_CASE("a GPU-driven view adds its own instance update only without the shared one")
+    {
+        const auto instanceUpdates = [](const GraphBuilder& builder) {
+            std::vector<std::string> found;
+            for (std::uint32_t pass = 0; pass < builder.declarations().passCount(); ++pass)
+            {
+                if (builder.declarations().passName(pass).ends_with("Instance Update"))
+                    found.emplace_back(builder.declarations().passName(pass));
+            }
+            return found;
+        };
+        const DefaultPassesDesc desc{ .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = true };
+
+        GraphBuilder shared;
+        addSharedPasses(shared, desc);
+        shared.beginScope("Main");
+        addScenePasses(shared, desc);
+        shared.endScope();
+        CHECK(instanceUpdates(shared) == std::vector<std::string>{ "Instance Update" });
+
+        GraphBuilder own;
+        own.beginScope("Main");
+        addScenePasses(own, desc);
+        own.endScope();
+        CHECK(instanceUpdates(own) == std::vector<std::string>{ "Main/Instance Update" });
+        CHECK(own.declarations().find("Main/StaticInstances").has_value());
+    }
+
     TEST_CASE("every pass of the default graph has a name")
     {
         GraphBuilder builder;

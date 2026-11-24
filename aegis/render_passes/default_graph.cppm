@@ -61,9 +61,6 @@ struct DefaultPassesDesc
     /// @brief The index in 'views' (and FrameScene::views) of the view whose scene passes are being declared; set
     ///        before each view's passes (addDefaultPasses, the engine).
     std::uint32_t view{ 0 };
-    /// @brief The pass writing the instances all views share (addSharedPasses), which the GPU-driven scene passes
-    ///        read; none: addScenePasses adds one of its own to the view.
-    const InstanceUpdatePass* instances{ nullptr };
     /// @brief The pass writing the lights all views share (addSharedPasses), which the lighting passes read; none:
     ///        addScenePasses adds one of its own to the view.
     const LightUpdatePass* lights{ nullptr };
@@ -75,8 +72,7 @@ struct DefaultPassesDesc
 /// @brief The passes addSharedPasses added, for the DefaultPassesDesc of the views' scene passes.
 struct SharedPasses
 {
-    const InstanceUpdatePass* instances{ nullptr }; // For DefaultPassesDesc::instances; none without gpuDriven
-    const LightUpdatePass* lights{ nullptr };       // For DefaultPassesDesc::lights
+    const LightUpdatePass* lights{ nullptr }; // For DefaultPassesDesc::lights
 };
 
 /// @brief Appends maxShadowCascades shadow views (ViewKind::Shadow, shadowViewName, shadowMapExtent) for each main view
@@ -92,7 +88,8 @@ auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void;
 
 /// @brief Adds the passes all views share, outside any scope: the LightUpdatePass writing the frame's lights, the
 ///        SpotShadowAtlasPass creating "SpotShadowAtlas" when a view draws into it (View::tile) and, with gpuDriven,
-///        the InstanceUpdatePass writing its instances and draw batches.
+///        the InstanceUpdatePass writing its instances and draw batches, which the views' GPU-driven passes share
+///        instead of adding one of their own.
 auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> SharedPasses;
 
 /// @brief Adds the passes that render the view desc.view: for a main view, into "Final": scene update, light update
