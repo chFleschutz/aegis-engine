@@ -231,6 +231,18 @@ A body that follows its entity's `Transform` (a script moves it) each fixed step
 **Dynamic body**:
 A body moved by gravity and collisions; the `PhysicsSystem` writes its pose, blended by `alpha`, into its entity's `Transform`.
 
+**Character**:
+An entity the `PhysicsSystem` walks through the world for its `CharacterController`: an upright capsule standing on the entity's location, moved each fixed step by the controller's desired velocity and gravity. It slides along walls, climbs steps and pushes dynamic bodies. Not a body, though it has an inner body that bodies and queries meet.
+_Avoid_: player controller, character body
+
+**Contact event**:
+`ContactBegin` or `ContactEnd`, the event the `PhysicsSystem` emits after a fixed step when two entities' bodies (a character's too) start or stop touching. A pair that stays in contact sends one begin, also while its bodies sleep.
+_Avoid_: collision event, collision callback
+
+**Physics query**:
+A question to a playing world's physics through its registry: `physics::raycast` for the first body along a ray, `physics::overlapSphere` and `physics::overlapBox` for the entities whose bodies overlap a volume.
+_Avoid_: trace, physics test
+
 ### Projects and assets
 
 **Project**:
