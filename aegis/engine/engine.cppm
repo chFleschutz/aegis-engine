@@ -318,6 +318,12 @@ public:
     void onFrame(FrameContext& frame) override { frame.update(frame.world, world::UpdateMode::Play); }
 };
 
+/// @brief The views the frame graph renders (render_graph::DefaultPassesDesc::views), and so the frame scene's
+///        (render_graph::frameSceneViews), in that order: a main view for each of 'targets' with its name and extent,
+///        or, without targets, render_graph::names::mainView following the output; then their shadow views
+///        (render_graph::addShadowViews).
+[[nodiscard]] auto graphViews(std::span<const ViewTarget> targets) -> std::vector<render_graph::DefaultPassesDesc::View>;
+
 /// @brief Declares the passes that render the scene, in place of the engine's (GameModule::buildGraph).
 using GraphBuild = std::function<void(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc, const render_graph::ViewContext& view)>;
 

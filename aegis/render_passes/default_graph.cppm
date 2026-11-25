@@ -98,6 +98,11 @@ struct SharedPasses
 ///        for the frame scene's views.
 auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void;
 
+/// @brief The frame scene's views (FrameScene::views) for a graph declared with 'views': one for each, in the same
+///        order, with its name, extent, kind, shadow views and tile, and no camera. Give the main views their cameras,
+///        then the shadow views theirs (fitShadowViews).
+[[nodiscard]] auto frameSceneViews(std::span<const DefaultPassesDesc::View> views) -> std::vector<FrameScene::View>;
+
 /// @brief The order to declare the views' passes in: the indices of 'views', the spot shadow views (View::tile) first,
 ///        then the others in their order. A reference is ordered after the writes declared before it, so the spot
 ///        shadow views must draw their tiles of the shared "SpotShadowAtlas" before the main views' lighting reads it.

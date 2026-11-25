@@ -79,6 +79,42 @@ auto position(const std::vector<std::string_view>& names, std::string_view name)
 }
 }
 
+TEST_SUITE("engine::graphViews")
+{
+    TEST_CASE("the frame scene's views are the graph's, in its order")
+    {
+        const std::vector<aegis::ViewTarget> targets{ { .name = "Edit", .extent = { 640, 480 } }, { .name = "Play", .extent = { 320, 240 } } };
+        const auto views = aegis::graphViews(targets);
+        const auto sceneViews = frameSceneViews(views);
+
+        REQUIRE(views.size() == 2 + 2 * maxShadowCascades + maxShadowedSpotLights);
+        CHECK(views[0].name == "Edit");
+        CHECK(views[0].extent == aegis::rhi::Extent2D{ 640, 480 });
+        CHECK(views[1].name == "Play");
+        CHECK(views[1].extent == aegis::rhi::Extent2D{ 320, 240 });
+        REQUIRE(sceneViews.size() == views.size());
+        for (std::size_t i = 0; i < views.size(); ++i)
+        {
+            CAPTURE(i);
+            CHECK(sceneViews[i].name == views[i].name);
+            CHECK(sceneViews[i].extent == views[i].extent);
+            CHECK(sceneViews[i].kind == views[i].kind);
+            CHECK(sceneViews[i].shadow == views[i].shadow);
+            CHECK(sceneViews[i].tile == views[i].tile);
+            CHECK_FALSE(sceneViews[i].camera.has_value());
+        }
+    }
+
+    TEST_CASE("without targets the main view follows the output")
+    {
+        const auto views = aegis::graphViews({});
+        REQUIRE(views.size() == 1 + maxShadowCascades + maxShadowedSpotLights);
+        CHECK(views[0].name == names::mainView);
+        CHECK_FALSE(views[0].extent.has_value());
+        CHECK(views[0].shadow == 1u);
+    }
+}
+
 TEST_SUITE("engine::buildFrameGraph")
 {
     TEST_CASE("without a game hook and with the game shell the frame graph is the default graph")

@@ -20,6 +20,15 @@ auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void
         views.push_back({ .name = spotShadowViewName(index), .extent = spotShadowTileExtent, .kind = ViewKind::Shadow, .tile = spotShadowTile(index) });
 }
 
+auto frameSceneViews(std::span<const DefaultPassesDesc::View> views) -> std::vector<FrameScene::View>
+{
+    std::vector<FrameScene::View> sceneViews;
+    sceneViews.reserve(views.size());
+    for (const auto& view : views)
+        sceneViews.push_back({ .name = view.name, .extent = view.extent, .kind = view.kind, .shadow = view.shadow, .tile = view.tile });
+    return sceneViews;
+}
+
 auto viewDeclarationOrder(std::span<const DefaultPassesDesc::View> views) -> std::vector<std::uint32_t>
 {
     std::vector<std::uint32_t> order;
