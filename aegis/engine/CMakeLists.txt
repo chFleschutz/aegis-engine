@@ -13,6 +13,7 @@ target_link_libraries(
         aegis-audio # aegis.engine re-exports it: Engine::audio, and scripts play sounds
         aegis-core
         aegis-math # aegis.game re-exports it
+        aegis-physics # aegis.game re-exports it: scripts drive characters and query the physics
         aegis-paths # The launcher (launch/main.cpp, compiled into each game) locates the project
         aegis-platform
         aegis-reflect
@@ -29,7 +30,6 @@ target_link_libraries(
 target_link_libraries(
     aegis-engine
     PRIVATE
-        aegis-physics # Every game world gets a PhysicsSystem; only engine.cpp imports it
         imgui::imgui # Presentation: the ImGui context and its GLFW backend
         stb # stb_image_write for the headless screenshot
 )

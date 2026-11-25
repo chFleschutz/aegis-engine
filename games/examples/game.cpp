@@ -7,7 +7,8 @@ namespace math = aegis::math;
 
 namespace examples
 {
-auto registerSpawner(aegis::reflect::TypeRegistry& types) -> std::expected<void, aegis::reflect::Error>; // spawner.cpp
+auto registerSpawner(aegis::reflect::TypeRegistry& types) -> std::expected<void, aegis::reflect::Error>;        // spawner.cpp
+auto registerCharacterInput(aegis::reflect::TypeRegistry& types) -> std::expected<void, aegis::reflect::Error>; // character_input.cpp
 }
 
 namespace
@@ -81,7 +82,8 @@ auto registerTypes(aegis::reflect::TypeRegistry& types) -> std::expected<void, a
         .and_then([](auto builder) { return builder.field("speed", &ColorChanger::speed).status(); })
         .and_then([&types] { return aegis::scripting::registerScript<LightPulse>(types, "LightPulse"); })
         .and_then([](auto builder) { return builder.field("speed", &LightPulse::speed).status(); })
-        .and_then([&types] { return examples::registerSpawner(types); });
+        .and_then([&types] { return examples::registerSpawner(types); })
+        .and_then([&types] { return examples::registerCharacterInput(types); });
 }
 }
 

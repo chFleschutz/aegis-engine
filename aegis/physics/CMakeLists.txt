@@ -5,7 +5,7 @@ target_sources(
     PUBLIC
         FILE_SET CXX_MODULES
             BASE_DIRS "${AEGIS_MODULE_ROOT}"
-            FILES components.cppm physics.cppm physics_system.cppm
+            FILES components.cppm contacts.cppm physics.cppm physics_system.cppm queries.cppm
     PRIVATE components.cpp physics_system.cpp
 )
 

@@ -12,6 +12,7 @@ namespace
 using namespace aegis;
 using physics::BoxShape;
 using physics::CapsuleShape;
+using physics::CharacterController;
 using physics::Collider;
 using physics::MotionType;
 using physics::RigidBody;
@@ -133,5 +134,37 @@ TEST_SUITE("physics::components")
         REQUIRE(info->set(&collider, "radius", 9.0f).has_value());
         REQUIRE(std::holds_alternative<BoxShape>(collider.shape));
         CHECK(std::get<BoxShape>(collider.shape).halfExtents == math::Float3{ 2.0f });
+    }
+
+    TEST_CASE("loads a saved CharacterController back the same, without its desired velocity and grounded flag")
+    {
+        reflect::TypeRegistry types;
+        registerTypes(types);
+        world::Registry original;
+        const auto hero = original.create("Hero");
+        original.add<CharacterController>(hero, CharacterController{
+                                                    .radius = 0.4f,
+                                                    .height = 2.0f,
+                                                    .maxSlope = 35.0f,
+                                                    .stepHeight = 0.25f,
+                                                    .pushStrength = 250.0f,
+                                                    .desiredVelocity = { 1.0f, 2.0f, 3.0f },
+                                                    .grounded = true,
+                                                });
+        const std::string text = saveText(original, types);
+        CHECK(text.find("desiredVelocity") == std::string::npos);
+        CHECK(text.find("grounded") == std::string::npos);
+
+        world::Registry loaded;
+        load(text, types, loaded);
+        CHECK(saveText(loaded, types) == text);
+        const auto& controller = loaded.get<CharacterController>(named(loaded, "Hero"));
+        CHECK(controller.radius == 0.4f);
+        CHECK(controller.height == 2.0f);
+        CHECK(controller.maxSlope == 35.0f);
+        CHECK(controller.stepHeight == 0.25f);
+        CHECK(controller.pushStrength == 250.0f);
+        CHECK(controller.desiredVelocity == math::Float3{ 0.0f });
+        CHECK_FALSE(controller.grounded);
     }
 }
