@@ -23,9 +23,8 @@ BloomPass::BloomPass(ResourceDeclarations& declarations, const FrameSceneSource&
 
 BloomPass::~BloomPass()
 {
-    freeMipViews();
     if (m_sampler)
-        m_device->free(*m_sampler);
+        m_samplerDevice->free(*m_sampler);
 }
 
 auto BloomPass::name() const -> std::string_view
@@ -35,21 +34,20 @@ auto BloomPass::name() const -> std::string_view
 
 auto BloomPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
 {
-    m_device = &pool.device();
-
+    auto& device = pool.device();
     for (auto [pipeline, name, path] : {
              std::tuple{ &m_threshold, "BloomThreshold", "bloom/threshold.slang.spv" },
              std::tuple{ &m_downsample, "BloomDownsample", "bloom/downsample.slang.spv" },
              std::tuple{ &m_upsample, "BloomUpsample", "bloom/upsample.slang.spv" },
          })
     {
-        auto found = m_pipelines.compute(*m_device, name, path);
+        auto found = m_pipelines.compute(device, name, path);
         if (!found)
             return std::unexpected{ found.error() };
         *pipeline = *found;
     }
 
-    auto sampler = m_device->createSampler({
+    auto sampler = device.createSampler({
         .name = "BloomSampler",
         .addressMode = rhi::SamplerAddressMode::ClampToEdge,
         .maxAnisotropy = 1.0f,
@@ -57,52 +55,19 @@ auto BloomPass::createResources(ResourcePool& pool) -> std::expected<void, Error
     if (!sampler)
         return makeError(ErrorCode::ResourceCreationFailed, "Failed to create the bloom sampler", sampler.error());
     m_sampler = *sampler;
-
-    return createMipViews(pool);
-}
-
-auto BloomPass::resized(ResourcePool& pool) -> std::expected<void, Error>
-{
-    // The renderer replaced the image behind "Bloom"; the mip views still see the old one.
-    freeMipViews();
-    return createMipViews(pool);
-}
-
-auto BloomPass::createMipViews(ResourcePool& pool) -> std::expected<void, Error>
-{
-    // The image has fewer mips than requested when the window is tiny.
-    const auto& image = m_device->get(pool.texture(m_bloom).image);
-    for (std::uint32_t mip = 0; mip < image.mipLevels(); ++mip)
-    {
-        auto view = m_device->createImageView(pool.texture(m_bloom).image,
-            rhi::ImageView::Desc{
-                .name = std::format("BloomMip{}", mip),
-                .extent = { std::max(image.extent().x >> mip, 1u), std::max(image.extent().y >> mip, 1u), 1 },
-                .format = image.format(),
-                .range = { .baseMipLevel = mip, .mipLevelCount = 1 },
-                .usage = rhi::ImageUsage::Storage | rhi::ImageUsage::Sampled,
-            });
-        if (!view)
-            return makeError(ErrorCode::ResourceCreationFailed, "Failed to create a bloom mip view", view.error());
-        m_mipViews.push_back(*view);
-    }
+    m_samplerDevice = &device;
     return {};
-}
-
-auto BloomPass::freeMipViews() -> void
-{
-    for (const auto view : m_mipViews)
-        m_device->free(view);
-    m_mipViews.clear();
 }
 
 auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
-    const auto storage = [&](rhi::ImageViewHandle view) { return *m_device->get(view).storageDescriptor(); };
-    const auto sampled = [&](rhi::ImageViewHandle view) {
-        return rhi::TextureDescriptor{ *m_device->get(view).sampledDescriptor(), m_device->get(*m_sampler).descriptor() };
+    const auto& device = pool.device();
+    const auto view = [&](std::uint32_t mip) { return pool.mipView(m_bloom, mip); };
+    const auto storage = [&](std::uint32_t mip) { return *device.get(view(mip)).storageDescriptor(); };
+    const auto sampled = [&](std::uint32_t mip) {
+        return rhi::TextureDescriptor{ *device.get(view(mip)).sampledDescriptor(), device.get(*m_sampler).descriptor() };
     };
-    const auto mipExtent = [&](std::uint32_t mip) { return m_device->get(m_mipViews[mip]).extent(); };
+    const auto mipExtent = [&](std::uint32_t mip) { return device.get(view(mip)).extent(); };
     const auto dispatchMip = [&](std::uint32_t mip) {
         frameInfo.cmd.dispatch(groupCount(mipExtent(mip).x, computeGroupSize), groupCount(mipExtent(mip).y, computeGroupSize));
     };
@@ -114,7 +79,7 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     cmd.bindPipeline(*m_threshold);
     cmd.pushConstants(BloomThresholdConstants{
         .input = pool.storageDescriptor(m_sceneColor),
-        .output = storage(m_mipViews[0]),
+        .output = storage(0),
         .threshold = settings.bloomThreshold,
         .softThreshold = settings.bloomSoftThreshold,
     });
@@ -122,33 +87,33 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 
     // Down the chain: each mip is read (sampled) once the next one is written from it.
     cmd.bindPipeline(*m_downsample);
-    const auto mipCount = static_cast<std::uint32_t>(m_mipViews.size());
+    // The image has fewer mips than requested when the window is tiny.
+    const auto mipCount = device.get(pool.texture(m_bloom).image).mipLevels();
     for (std::uint32_t mip = 1; mip < mipCount; ++mip)
     {
-        cmd.transitionImageLayout(m_mipViews[mip - 1], rhi::ResourceState::ComputeStorage, rhi::ResourceState::ShaderReadCompute);
+        cmd.transitionImageLayout(view(mip - 1), rhi::ResourceState::ComputeStorage, rhi::ResourceState::ShaderReadCompute);
         cmd.pushConstants(BloomDownsampleConstants{
-            .output = storage(m_mipViews[mip]),
-            .input = sampled(m_mipViews[mip - 1]),
+            .output = storage(mip),
+            .input = sampled(mip - 1),
             .mipLevel = static_cast<std::int32_t>(mip - 1),
             .filterScale = m_settings.downsampleScale,
         });
         dispatchMip(mip);
     }
-    cmd.transitionImageLayout(m_mipViews[mipCount - 1], rhi::ResourceState::ComputeStorage,
-        rhi::ResourceState::ShaderReadCompute);
+    cmd.transitionImageLayout(view(mipCount - 1), rhi::ResourceState::ComputeStorage, rhi::ResourceState::ShaderReadCompute);
 
     // Back up: each mip is rewritten from the one below.
     cmd.bindPipeline(*m_upsample);
     for (auto mip = mipCount - 1; mip > 0; --mip)
     {
-        cmd.transitionImageLayout(m_mipViews[mip - 1], rhi::ResourceState::ShaderReadCompute, rhi::ResourceState::ComputeStorage);
+        cmd.transitionImageLayout(view(mip - 1), rhi::ResourceState::ShaderReadCompute, rhi::ResourceState::ComputeStorage);
         cmd.pushConstants(BloomUpsampleConstants{
-            .output = storage(m_mipViews[mip - 1]),
-            .input = sampled(m_mipViews[mip]),
+            .output = storage(mip - 1),
+            .input = sampled(mip),
             .filterScale = m_settings.upsampleScale,
         });
         dispatchMip(mip - 1);
-        cmd.transitionImageLayout(m_mipViews[mip - 1], rhi::ResourceState::ComputeStorage, rhi::ResourceState::ShaderReadCompute);
+        cmd.transitionImageLayout(view(mip - 1), rhi::ResourceState::ComputeStorage, rhi::ResourceState::ShaderReadCompute);
     }
 
     // Leave the state the graph expects after a StorageWrite.

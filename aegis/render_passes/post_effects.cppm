@@ -33,21 +33,16 @@ public:
 
     [[nodiscard]] auto name() const -> std::string_view override;
     [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
-    [[nodiscard]] auto resized(ResourcePool& pool) -> std::expected<void, Error> override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
     [[nodiscard]] auto settings() -> std::optional<PassSettings> override;
 
 private:
-    [[nodiscard]] auto createMipViews(ResourcePool& pool) -> std::expected<void, Error>;
-    auto freeMipViews() -> void;
-
     const FrameSceneSource& m_scene;
     PipelineLibrary& m_pipelines;
     Settings& m_settings;
     ResourceId m_sceneColor;
     ResourceId m_bloom;
-    rhi::Device* m_device{ nullptr };
-    std::vector<rhi::ImageViewHandle> m_mipViews; // One per mip, storage and sampled
+    rhi::Device* m_samplerDevice{ nullptr }; // Frees m_sampler
     std::optional<rhi::SamplerHandle> m_sampler;
     const rhi::Pipeline* m_threshold{ nullptr };
     const rhi::Pipeline* m_downsample{ nullptr };
