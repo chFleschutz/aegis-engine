@@ -203,13 +203,13 @@ TEST_SUITE("render_graph::addDefaultPasses")
         GraphBuilder shared;
         addSharedPasses(shared, desc);
         shared.beginScope("Main");
-        addScenePasses(shared, desc);
+        addScenePasses(shared, desc, ViewContext::of(desc.views, 0));
         shared.endScope();
         CHECK(instanceUpdates(shared) == std::vector<std::string>{ "Instance Update" });
 
         GraphBuilder own;
         own.beginScope("Main");
-        addScenePasses(own, desc);
+        addScenePasses(own, desc, ViewContext::of(desc.views, 0));
         own.endScope();
         CHECK(instanceUpdates(own) == std::vector<std::string>{ "Main/Instance Update" });
         CHECK(own.declarations().find("Main/StaticInstances").has_value());

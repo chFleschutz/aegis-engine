@@ -20,6 +20,15 @@ auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void
         views.push_back({ .name = spotShadowViewName(index), .extent = spotShadowTileExtent, .kind = ViewKind::Shadow, .tile = spotShadowTile(index) });
 }
 
+auto frameSceneViews(std::span<const DefaultPassesDesc::View> views) -> std::vector<FrameScene::View>
+{
+    std::vector<FrameScene::View> sceneViews;
+    sceneViews.reserve(views.size());
+    for (const auto& view : views)
+        sceneViews.push_back({ .name = view.name, .extent = view.extent, .kind = view.kind, .shadow = view.shadow, .tile = view.tile });
+    return sceneViews;
+}
+
 auto viewDeclarationOrder(std::span<const DefaultPassesDesc::View> views) -> std::vector<std::uint32_t>
 {
     std::vector<std::uint32_t> order;
@@ -44,13 +53,13 @@ auto drawsSpotShadows(const DefaultPassesDesc& desc) -> bool
 
 // A view's GPU-driven passes: an instance update of its own unless addSharedPasses added the one all views share
 // (which creates the unscoped "StaticInstances"), then draw count clear, culling and geometry.
-auto addGpuDrivenPasses(GraphBuilder& graph, const DefaultPassesDesc& desc, Technique technique, std::optional<DepthTile> tile) -> void
+auto addGpuDrivenPasses(GraphBuilder& graph, const DefaultPassesDesc& desc, std::uint32_t view, Technique technique, std::optional<DepthTile> tile) -> void
 {
     if (!graph.declarations().find(names::staticInstances))
         graph.add<InstanceUpdatePass>(desc.scene);
     graph.add<ClearDrawCountsPass>();
-    graph.add<CullingPass>(desc.scene, desc.pipelines, desc.view);
-    graph.add<GpuDrivenGeometryPass>(desc.scene, desc.pipelines, technique, desc.view, std::move(tile));
+    graph.add<CullingPass>(desc.scene, desc.pipelines, view);
+    graph.add<GpuDrivenGeometryPass>(desc.scene, desc.pipelines, technique, view, std::move(tile));
 }
 }
 
@@ -64,56 +73,56 @@ auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> Shar
     return shared;
 }
 
-auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
+auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc, const ViewContext& view) -> void
 {
-    const auto& view = desc.views[desc.view];
-    if (view.kind == ViewKind::Shadow)
+    const auto& described = desc.views[view.index];
+    if (described.kind == ViewKind::Shadow)
     {
-        addShadowPasses(graph, desc);
+        addShadowPasses(graph, desc, view);
         return;
     }
 
     const auto& scene = desc.scene;
-    graph.add<SceneUpdatePass>(scene, desc.view);
+    graph.add<SceneUpdatePass>(scene, view.index);
     if (!desc.lights)
         graph.add<LightUpdatePass>(scene);
     if (desc.gpuDriven)
-        addGpuDrivenPasses(graph, desc, Technique::GBuffer, std::nullopt);
+        addGpuDrivenPasses(graph, desc, view.index, Technique::GBuffer, std::nullopt);
     else
     {
-        graph.add<GeometryPass>(scene, desc.pipelines, Technique::GBuffer, desc.view).addRenderSystem<StaticMeshRenderSystem>();
+        graph.add<GeometryPass>(scene, desc.pipelines, Technique::GBuffer, view.index).addRenderSystem<StaticMeshRenderSystem>();
     }
 
     std::optional<LightingPass::ShadowMaps> shadow;
-    if (view.shadow)
+    if (described.shadow)
     {
-        shadow = LightingPass::ShadowMaps{ .view = *view.shadow };
+        shadow = LightingPass::ShadowMaps{ .view = *described.shadow };
         for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
-            shadow->maps[cascade] = scopedName(desc.views[*view.shadow + cascade].name, names::depth);
+            shadow->maps[cascade] = scopedName(desc.views[*described.shadow + cascade].name, names::depth);
         if (drawsSpotShadows(desc))
             shadow->spotAtlas = std::string{ names::spotShadowAtlas };
     }
-    graph.add<LightingPass>(scene, desc.pipelines, desc.settings.lighting, desc.view, shadow);
-    graph.add<SkyBoxPass>(scene, desc.pipelines, desc.view);
+    graph.add<LightingPass>(scene, desc.pipelines, desc.settings.lighting, view.index, shadow);
+    graph.add<SkyBoxPass>(scene, desc.pipelines, view.index);
     // Blended draws take the CPU-driven draw on both geometry paths.
-    graph.add<ForwardPass>(scene, desc.pipelines, desc.view, shadow).addRenderSystem<StaticMeshRenderSystem>(Technique::Forward);
-    graph.add<TransparentPass>(scene, desc.pipelines, desc.view).addRenderSystem<PointLightRenderSystem>();
+    graph.add<ForwardPass>(scene, desc.pipelines, view.index, shadow).addRenderSystem<StaticMeshRenderSystem>(Technique::Forward);
+    graph.add<TransparentPass>(scene, desc.pipelines, view.index).addRenderSystem<PointLightRenderSystem>();
     graph.add<BloomPass>(scene, desc.pipelines, desc.settings.bloom);
     graph.add<PostProcessingPass>(scene, desc.pipelines, PostProcessingPass::Desc{ .targetEncodes = desc.targetEncodes() });
 }
 
-auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
+auto addShadowPasses(GraphBuilder& graph, const DefaultPassesDesc& desc, const ViewContext& view) -> void
 {
     const auto& scene = desc.scene;
     std::optional<DepthTile> tile;
-    if (const auto& rect = desc.views[desc.view].tile)
+    if (const auto& rect = desc.views[view.index].tile)
         tile = DepthTile{ .texture = std::string{ names::spotShadowAtlas }, .rect = *rect };
-    graph.add<SceneUpdatePass>(scene, desc.view);
+    graph.add<SceneUpdatePass>(scene, view.index);
     if (desc.gpuDriven)
-        addGpuDrivenPasses(graph, desc, Technique::Depth, std::move(tile));
+        addGpuDrivenPasses(graph, desc, view.index, Technique::Depth, std::move(tile));
     else
     {
-        graph.add<GeometryPass>(scene, desc.pipelines, Technique::Depth, desc.view, std::move(tile)).addRenderSystem<StaticMeshRenderSystem>(Technique::Depth);
+        graph.add<GeometryPass>(scene, desc.pipelines, Technique::Depth, view.index, std::move(tile)).addRenderSystem<StaticMeshRenderSystem>(Technique::Depth);
     }
 }
 
@@ -140,13 +149,12 @@ auto addOutputPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 auto addDefaultPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> void
 {
     auto viewDesc = desc;
-    const auto shared = addSharedPasses(graph, desc);
-    viewDesc.lights = shared.lights;
-    for (const auto view : viewDeclarationOrder(desc.views))
+    viewDesc.lights = addSharedPasses(graph, desc).lights;
+    for (const auto index : viewDeclarationOrder(desc.views))
     {
-        graph.beginScope(desc.views[view].name, desc.views[view].extent);
-        viewDesc.view = view;
-        addScenePasses(graph, viewDesc);
+        const auto view = ViewContext::of(desc.views, index);
+        graph.beginScope(view.name, view.extent);
+        addScenePasses(graph, viewDesc, view);
         graph.endScope();
     }
     addOutputPasses(graph, viewDesc);

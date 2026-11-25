@@ -445,6 +445,45 @@ TEST_SUITE("render_passes::addShadowViews")
         CHECK(views.back().extent == spotShadowTileExtent);
     }
 
+    TEST_CASE("the graph's views copied into a frame scene get the cameras addShadowViews gives")
+    {
+        const InstanceStore instances;
+        const auto edit = camera({ 0.0f, 0.0f, 1.5f }, { 0.0f, 1.0f, 0.0f });
+        const auto play = camera({ 5.0f, 0.0f, 1.5f }, { 1.0f, 0.0f, 0.0f });
+        const std::vector<FrameScene::SpotLight> spotLights{
+            { .position = { 3.0f, 0.0f, 0.0f }, .direction = { 0.0f, 0.0f, -1.0f }, .castsShadows = true },
+            { .position = { 1.0f, 0.0f, 0.0f }, .direction = { 0.0f, 0.0f, -1.0f }, .castsShadows = true },
+        };
+        FrameScene added{ .instances = instances, .views = { { .name = "Edit", .camera = edit }, { .name = "Play", .camera = play } }, .directionalLight = sun, .spotLights = spotLights };
+        addShadowViews(added);
+
+        std::vector<DefaultPassesDesc::View> views{ { .name = "Edit" }, { .name = "Play" } };
+        addShadowViews(views);
+        FrameScene copied{ .instances = instances, .views = frameSceneViews(views), .directionalLight = sun, .spotLights = spotLights };
+        copied.views[0].camera = edit;
+        copied.views[1].camera = play;
+        fitShadowViews(copied);
+
+        REQUIRE(copied.views.size() == added.views.size());
+        for (std::size_t i = 0; i < copied.views.size(); ++i)
+        {
+            CAPTURE(i);
+            CHECK(copied.views[i].name == added.views[i].name);
+            REQUIRE(copied.views[i].camera.has_value() == added.views[i].camera.has_value());
+            if (copied.views[i].camera)
+            {
+                CHECK(equal(copied.views[i].camera->view, added.views[i].camera->view));
+                CHECK(equal(copied.views[i].camera->projection, added.views[i].camera->projection));
+            }
+        }
+        for (std::size_t light = 0; light < spotLights.size(); ++light)
+        {
+            CAPTURE(light);
+            CHECK(copied.spotLights[light].shadowView.has_value());
+            CHECK(copied.spotLights[light].shadowView == added.spotLights[light].shadowView);
+        }
+    }
+
     TEST_CASE("the closest shadow-casting spot lights get the spot shadow views, which all main views share")
     {
         const InstanceStore instances;

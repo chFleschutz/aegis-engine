@@ -57,7 +57,7 @@ class OverlayShell final : public aegis::Shell
 {
 public:
     void onFrame(aegis::FrameContext& /*frame*/) override {}
-    void buildGraph(GraphBuilder& graph, const DefaultPassesDesc& /*desc*/) override { graph.add<OverlayPass>("Shell Overlay"); }
+    void buildGraph(GraphBuilder& graph, const DefaultPassesDesc& /*desc*/, const ViewContext& /*view*/) override { graph.add<OverlayPass>("Shell Overlay"); }
 };
 
 // The names of the planned passes, in the order they run.
@@ -77,6 +77,42 @@ auto position(const std::vector<std::string_view>& names, std::string_view name)
     REQUIRE_MESSAGE(found != names.end(), "No pass ", name);
     return found - names.begin();
 }
+}
+
+TEST_SUITE("engine::graphViews")
+{
+    TEST_CASE("the frame scene's views are the graph's, in its order")
+    {
+        const std::vector<aegis::ViewTarget> targets{ { .name = "Edit", .extent = { 640, 480 } }, { .name = "Play", .extent = { 320, 240 } } };
+        const auto views = aegis::graphViews(targets);
+        const auto sceneViews = frameSceneViews(views);
+
+        REQUIRE(views.size() == 2 + 2 * maxShadowCascades + maxShadowedSpotLights);
+        CHECK(views[0].name == "Edit");
+        CHECK(views[0].extent == aegis::rhi::Extent2D{ 640, 480 });
+        CHECK(views[1].name == "Play");
+        CHECK(views[1].extent == aegis::rhi::Extent2D{ 320, 240 });
+        REQUIRE(sceneViews.size() == views.size());
+        for (std::size_t i = 0; i < views.size(); ++i)
+        {
+            CAPTURE(i);
+            CHECK(sceneViews[i].name == views[i].name);
+            CHECK(sceneViews[i].extent == views[i].extent);
+            CHECK(sceneViews[i].kind == views[i].kind);
+            CHECK(sceneViews[i].shadow == views[i].shadow);
+            CHECK(sceneViews[i].tile == views[i].tile);
+            CHECK_FALSE(sceneViews[i].camera.has_value());
+        }
+    }
+
+    TEST_CASE("without targets the main view follows the output")
+    {
+        const auto views = aegis::graphViews({});
+        REQUIRE(views.size() == 1 + maxShadowCascades + maxShadowedSpotLights);
+        CHECK(views[0].name == names::mainView);
+        CHECK_FALSE(views[0].extent.has_value());
+        CHECK(views[0].shadow == 1u);
+    }
 }
 
 TEST_SUITE("engine::buildFrameGraph")
@@ -109,8 +145,8 @@ TEST_SUITE("engine::buildFrameGraph")
     {
         GraphBuilder builder;
         OverlayShell shell;
-        const aegis::GraphBuild game = [](GraphBuilder& graph, const DefaultPassesDesc& desc) {
-            addScenePasses(graph, desc);
+        const aegis::GraphBuild game = [](GraphBuilder& graph, const DefaultPassesDesc& desc, const ViewContext& view) {
+            addScenePasses(graph, desc, view);
             graph.add<OverlayPass>("Game Overlay");
         };
         buildFrameGraph(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .targetFormat = targetFormat, .ui = true }, game, shell);
@@ -126,7 +162,7 @@ TEST_SUITE("engine::buildFrameGraph")
     {
         GraphBuilder builder;
         aegis::GameShell shell;
-        const aegis::GraphBuild game = [](GraphBuilder& graph, const DefaultPassesDesc& /*desc*/) { graph.add<FinalPass>(); };
+        const aegis::GraphBuild game = [](GraphBuilder& graph, const DefaultPassesDesc& /*desc*/, const ViewContext& /*view*/) { graph.add<FinalPass>(); };
         buildFrameGraph(builder, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .targetFormat = targetFormat, .ui = true }, game, shell);
 
         CHECK(plannedNames(builder) == std::vector<std::string_view>{ "Light Update", "Main/Game Final", "UI", "Present" });
@@ -136,7 +172,18 @@ TEST_SUITE("engine::buildFrameGraph")
     {
         GraphBuilder builder;
         OverlayShell shell;
-        const aegis::GraphBuild game = [](GraphBuilder& graph, const DefaultPassesDesc& /*desc*/) { graph.add<FinalPass>(); };
+        // What the game's hook is told about each view it declares.
+        struct Seen
+        {
+            std::uint32_t index;
+            std::string name;
+            std::optional<aegis::rhi::Extent2D> extent;
+        };
+        std::vector<Seen> seen;
+        const aegis::GraphBuild game = [&seen](GraphBuilder& graph, const DefaultPassesDesc& /*desc*/, const ViewContext& view) {
+            seen.push_back({ .index = view.index, .name = std::string{ view.name }, .extent = view.extent });
+            graph.add<FinalPass>();
+        };
         buildFrameGraph(builder,
             {
                 .scene = scene,
@@ -156,5 +203,13 @@ TEST_SUITE("engine::buildFrameGraph")
         const auto scopes = builder.declarations().scopes();
         REQUIRE(scopes.size() == 2);
         CHECK(scopes[1].extent == aegis::rhi::Extent2D{ 320, 240 });
+
+        REQUIRE(seen.size() == 2);
+        CHECK(seen[0].index == 0);
+        CHECK(seen[0].name == "Edit");
+        CHECK_FALSE(seen[0].extent.has_value());
+        CHECK(seen[1].index == 1);
+        CHECK(seen[1].name == "Play");
+        CHECK(seen[1].extent == aegis::rhi::Extent2D{ 320, 240 });
     }
 }

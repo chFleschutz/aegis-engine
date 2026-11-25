@@ -70,14 +70,18 @@ inline constexpr float maxSpotShadowFov{ 160.0f * std::numbers::pi_v<float> / 18
 ///        its direction, covering its outer cone (at most maxSpotShadowFov), from max(range / 1000, 5 cm) to its range.
 [[nodiscard]] auto fitSpotShadow(const FrameScene::SpotLight& light) -> FrameScene::Camera;
 
+/// @brief Gives the shadow views of 'scene' this frame's cameras. A main view's cascades (FrameScene::View::shadow) get
+///        the directional light's, fitted to their slices of the main view's camera (shadowCascadeSplits,
+///        fitDirectionalShadow); none without either or past the light's cascade count, and their passes then draw
+///        nothing. The spot shadow views (FrameScene::View::tile), which all main views share, go in their order to the
+///        spot lights selectShadowedSpotLights picks by distance to the first main view's camera, with fitSpotShadow's
+///        camera, and each picked light points at its view (FrameScene::SpotLight::shadowView); the others get none.
+auto fitShadowViews(FrameScene& scene) -> void;
+
 /// @brief Appends maxShadowCascades shadow views (ViewKind::Shadow, shadowViewName, shadowMapExtent) for each main view
-///        of 'scene' that has none, and points the main view at the first (FrameScene::View::shadow). Each cascade's
-///        camera is the directional light's, fitted to its slice of the main view's camera (shadowCascadeSplits,
-///        fitDirectionalShadow); none without either or past the light's cascade count, and its passes then draw
-///        nothing. Then, once, maxShadowedSpotLights spot shadow views (ViewKind::Shadow, spotShadowViewName,
-///        spotShadowTileExtent, spotShadowTile) shared by all main views: one for each spot light
-///        selectShadowedSpotLights picks by distance to the first main view's camera, with fitSpotShadow's camera, which
-///        it points at its view (FrameScene::SpotLight::shadowView); the others have no camera. The views come in the
-///        order addShadowViews gives the graph's (DefaultPassesDesc::views).
+///        of 'scene' that has none, and points the main view at the first (FrameScene::View::shadow); then, once,
+///        maxShadowedSpotLights spot shadow views (ViewKind::Shadow, spotShadowViewName, spotShadowTileExtent,
+///        spotShadowTile); then fitShadowViews. For a scene built by hand: the engine copies the graph's views instead
+///        (frameSceneViews), whose order addShadowViews of the graph's views gives as this one does.
 auto addShadowViews(FrameScene& scene) -> void;
 }

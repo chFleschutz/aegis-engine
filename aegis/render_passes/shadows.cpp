@@ -174,6 +174,48 @@ auto fitSpotShadow(const FrameScene::SpotLight& light) -> FrameScene::Camera
     };
 }
 
+auto fitShadowViews(FrameScene& scene) -> void
+{
+    for (const auto& view : scene.views)
+    {
+        if (view.kind != ViewKind::Main || !view.shadow)
+            continue;
+        std::vector<float> splits;
+        if (scene.directionalLight && view.camera)
+            splits = shadowCascadeSplits(*scene.directionalLight, view.camera->projection);
+        for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
+        {
+            std::optional<FrameScene::Camera> camera;
+            if (cascade < splits.size())
+            {
+                const float near = cascade == 0 ? 0.0f : splits[cascade - 1];
+                camera = fitDirectionalShadow(*scene.directionalLight, *view.camera, near, splits[cascade]);
+            }
+            scene.views[*view.shadow + cascade].camera = camera;
+        }
+    }
+
+    // The spot shadow views: all main views share them, as they share the light records.
+    const auto mainView = std::ranges::find_if(scene.views, [](const FrameScene::View& view) { return view.kind == ViewKind::Main; });
+    std::vector<std::uint32_t> selected;
+    if (mainView != scene.views.end() && mainView->camera)
+        selected = selectShadowedSpotLights(scene, mainView->camera->position);
+    std::size_t next = 0;
+    for (std::uint32_t index = 0; index < scene.views.size(); ++index)
+    {
+        auto& view = scene.views[index];
+        if (!view.tile)
+            continue;
+        view.camera.reset();
+        if (next < selected.size())
+        {
+            auto& light = scene.spotLights[selected[next++]];
+            view.camera = fitSpotShadow(light);
+            light.shadowView = index;
+        }
+    }
+}
+
 auto addShadowViews(FrameScene& scene) -> void
 {
     const auto mainViews = static_cast<std::uint32_t>(scene.views.size());
@@ -181,50 +223,17 @@ auto addShadowViews(FrameScene& scene) -> void
     {
         if (scene.views[i].kind != ViewKind::Main || scene.views[i].shadow)
             continue;
-        std::vector<float> splits;
-        if (scene.directionalLight && scene.views[i].camera)
-            splits = shadowCascadeSplits(*scene.directionalLight, scene.views[i].camera->projection);
         scene.views[i].shadow = static_cast<std::uint32_t>(scene.views.size());
         for (std::uint32_t cascade = 0; cascade < maxShadowCascades; ++cascade)
-        {
-            std::optional<FrameScene::Camera> camera;
-            if (cascade < splits.size())
-            {
-                const float near = cascade == 0 ? 0.0f : splits[cascade - 1];
-                camera = fitDirectionalShadow(*scene.directionalLight, *scene.views[i].camera, near, splits[cascade]);
-            }
-            scene.views.push_back({
-                .name = shadowViewName(scene.views[i].name, cascade),
-                .camera = camera,
-                .extent = shadowMapExtent,
-                .kind = ViewKind::Shadow,
-            });
-        }
+            scene.views.push_back({ .name = shadowViewName(scene.views[i].name, cascade), .extent = shadowMapExtent, .kind = ViewKind::Shadow });
     }
 
-    // The spot shadow views, once: all main views share them, as they share the light records.
-    if (std::ranges::any_of(scene.views, [](const FrameScene::View& view) { return view.tile.has_value(); }))
-        return;
-    const auto mainView = std::ranges::find_if(scene.views, [](const FrameScene::View& view) { return view.kind == ViewKind::Main; });
-    std::vector<std::uint32_t> selected;
-    if (mainView != scene.views.end() && mainView->camera)
-        selected = selectShadowedSpotLights(scene, mainView->camera->position);
-    for (std::uint32_t index = 0; index < maxShadowedSpotLights; ++index)
+    // The spot shadow views, once.
+    if (std::ranges::none_of(scene.views, [](const FrameScene::View& view) { return view.tile.has_value(); }))
     {
-        std::optional<FrameScene::Camera> camera;
-        if (index < selected.size())
-        {
-            auto& light = scene.spotLights[selected[index]];
-            camera = fitSpotShadow(light);
-            light.shadowView = static_cast<std::uint32_t>(scene.views.size());
-        }
-        scene.views.push_back({
-            .name = spotShadowViewName(index),
-            .camera = camera,
-            .extent = spotShadowTileExtent,
-            .kind = ViewKind::Shadow,
-            .tile = spotShadowTile(index),
-        });
+        for (std::uint32_t index = 0; index < maxShadowedSpotLights; ++index)
+            scene.views.push_back({ .name = spotShadowViewName(index), .extent = spotShadowTileExtent, .kind = ViewKind::Shadow, .tile = spotShadowTile(index) });
     }
+    fitShadowViews(scene);
 }
 }

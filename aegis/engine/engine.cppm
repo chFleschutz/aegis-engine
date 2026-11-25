@@ -195,8 +195,9 @@ struct GameModule
     /// @brief Declares the passes that render a main view's scene into "Final"; null for the engine's
     ///        (render_graph::addScenePasses). Shadow views always get the engine's (render_graph::addShadowPasses). A game adds its passes around those (calling addScenePasses itself) or
     ///        replaces them; the shell's passes and the output passes (UI, present) follow (buildFrameGraph). Runs on
-    ///        every rebuild of the frame graph: it only declares passes and keeps no state.
-    auto (*buildGraph)(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc) -> void{ nullptr };
+    ///        every rebuild of the frame graph, once per main view in its scope ('view'): it only declares passes and keeps
+    ///        no state.
+    auto (*buildGraph)(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc, const render_graph::ViewContext& view) -> void{ nullptr };
 };
 
 /// @brief Which input a shell keeps from the game this frame (its UI has it).
@@ -299,11 +300,11 @@ public:
     ///        of the views the UI makes applies from the next frame, so the graph's textures the UI shows stay valid
     ///        until they are drawn. Keep an extent steady while a panel is being dragged.
     [[nodiscard]] virtual auto renderViews() const -> std::vector<RenderView> { return {}; }
-    /// @brief Declares the shell's passes for one main view (desc.view), after the game's (GameModule::buildGraph) and
+    /// @brief Declares the shell's passes for one main view ('view'), after the game's (GameModule::buildGraph) and
     ///        before the output passes (UI, present), so they can draw onto the view's "Final", such as the editor's
     ///        overlays. None by default. Runs in each view's scope on every rebuild of the frame graph (the views
     ///        changing): it only declares passes and keeps no state.
-    virtual void buildGraph(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc) {}
+    virtual void buildGraph(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc, const render_graph::ViewContext& view) {}
     /// @brief Runs before the engine tears down, while the world, the frame graph and ImGui still exist.
     virtual void onShutdown() {}
 };
@@ -317,8 +318,14 @@ public:
     void onFrame(FrameContext& frame) override { frame.update(frame.world, world::UpdateMode::Play); }
 };
 
+/// @brief The views the frame graph renders (render_graph::DefaultPassesDesc::views), and so the frame scene's
+///        (render_graph::frameSceneViews), in that order: a main view for each of 'targets' with its name and extent,
+///        or, without targets, render_graph::names::mainView following the output; then their shadow views
+///        (render_graph::addShadowViews).
+[[nodiscard]] auto graphViews(std::span<const ViewTarget> targets) -> std::vector<render_graph::DefaultPassesDesc::View>;
+
 /// @brief Declares the passes that render the scene, in place of the engine's (GameModule::buildGraph).
-using GraphBuild = std::function<void(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc)>;
+using GraphBuild = std::function<void(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc, const render_graph::ViewContext& view)>;
 
 /// @brief Declares the frame graph's passes in the engine's order: the passes the views share
 ///        (render_graph::addSharedPasses); for each view of desc.views in render_graph::viewDeclarationOrder (the spot

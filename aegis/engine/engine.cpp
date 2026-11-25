@@ -386,25 +386,36 @@ void Engine::resetWorld()
     m_worlds.reset(world());
 }
 
+auto graphViews(std::span<const ViewTarget> targets) -> std::vector<render_graph::DefaultPassesDesc::View>
+{
+    std::vector<render_graph::DefaultPassesDesc::View> views;
+    for (const auto& target : targets)
+        views.push_back({ .name = target.name, .extent = target.extent });
+    if (views.empty())
+        views.push_back({ .name = std::string{ render_graph::names::mainView } });
+    // Each main view samples a shadow view of the directional light.
+    render_graph::addShadowViews(views);
+    return views;
+}
+
 auto buildFrameGraph(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc, const GraphBuild& game,
     Shell& shell) -> void
 {
     auto viewDesc = desc;
-    const auto shared = render_graph::addSharedPasses(graph, desc);
-    viewDesc.lights = shared.lights;
-    for (const auto view : render_graph::viewDeclarationOrder(desc.views))
+    viewDesc.lights = render_graph::addSharedPasses(graph, desc).lights;
+    for (const auto index : render_graph::viewDeclarationOrder(desc.views))
     {
-        graph.beginScope(desc.views[view].name, desc.views[view].extent);
-        viewDesc.view = view;
-        if (desc.views[view].kind == render_graph::ViewKind::Shadow)
-            render_graph::addShadowPasses(graph, viewDesc);
+        const auto view = render_graph::ViewContext::of(desc.views, index);
+        graph.beginScope(view.name, view.extent);
+        if (desc.views[index].kind == render_graph::ViewKind::Shadow)
+            render_graph::addShadowPasses(graph, viewDesc, view);
         else
         {
             if (game)
-                game(graph, viewDesc);
+                game(graph, viewDesc, view);
             else
-                render_graph::addScenePasses(graph, viewDesc);
-            shell.buildGraph(graph, viewDesc);
+                render_graph::addScenePasses(graph, viewDesc, view);
+            shell.buildGraph(graph, viewDesc, view);
         }
         graph.endScope();
     }
@@ -717,17 +728,10 @@ auto Engine::createFrameGraph(std::vector<ViewTarget> views) -> std::expected<vo
         .targetFormat = m_renderer->targetFormat(),
         .ui = true, // The shell's UI, empty for a game; headless too, for screenshots of it
         .uiBackend = m_presentation.backend(),
+        .views = graphViews(m_views), // frameScene gives the scene the same views
+        // Without views of its own the main camera renders onto the target, following it.
+        .shownViews = !m_views.empty(),
     };
-    // Without views of its own the main camera renders onto the target, following it.
-    if (!m_views.empty())
-    {
-        desc.views.clear();
-        for (const auto& view : m_views)
-            desc.views.push_back({ .name = view.name, .extent = view.extent });
-        desc.shownViews = true;
-    }
-    // Each main view samples a shadow view of the directional light; frameScene adds the same views to the scene.
-    render_graph::addShadowViews(desc.views);
     render_graph::GraphBuilder builder;
     buildFrameGraph(builder, desc, m_graphBuild, *m_shell);
     auto created = render_graph::FrameGraph::create(*m_device, std::move(builder), m_renderer->extent());
@@ -879,26 +883,26 @@ auto Engine::frameScene(world::World& shown, const render_graph::InstanceStore& 
     -> render_graph::FrameScene
 {
     auto scene = aegis::extractFrameScene(shown, instances);
-    if (m_views.empty())
-    {
-        render_graph::addShadowViews(scene); // As createFrameGraph's
-        return scene;                        // The main camera's view, onto the target
-    }
-    // The views the graph renders, in its order; a shell view asked for this frame gives its camera.
+    // The views the graph renders, from the list it was built from (graphViews), in its order. A main view renders
+    // through the camera of the shell's view of its name asked for this frame, else the world's main camera; without
+    // views of its own (the graph follows the shell's from the next frame) always the main camera, onto the target.
     const auto mainCamera = scene.camera(0);
-    scene.views.clear();
-    for (const auto& target : m_views)
+    scene.views = render_graph::frameSceneViews(graphViews(m_views));
+    for (auto& target : scene.views)
     {
+        if (target.kind != render_graph::ViewKind::Main)
+            continue;
+        if (m_views.empty())
+        {
+            target.camera = mainCamera;
+            continue;
+        }
         const auto view = std::ranges::find_if(views, [&](const RenderView& each) {
             return (each.name.empty() ? render_graph::names::mainView : std::string_view{ each.name }) == target.name;
         });
-        scene.views.push_back({
-            .name = target.name,
-            .camera = view != views.end() && view->camera ? view->camera : mainCamera,
-            .extent = target.extent,
-        });
+        target.camera = view != views.end() && view->camera ? view->camera : mainCamera;
     }
-    render_graph::addShadowViews(scene); // As createFrameGraph's
+    render_graph::fitShadowViews(scene);
     return scene;
 }
 
