@@ -4,6 +4,7 @@ import std;
 import aegis.math;
 import aegis.world;
 import :components;
+import :queries;
 
 export namespace aegis::physics
 {
@@ -56,6 +57,14 @@ public:
     [[nodiscard]] auto bodyCount() const -> std::size_t;
     /// @brief Whether the entity has a body
     [[nodiscard]] auto hasBody(world::Entity entity) const -> bool;
+
+    /// @brief physics::raycast on this world's bodies
+    [[nodiscard]] auto raycast(const math::Float3& origin, const math::Float3& direction, float maxDistance, world::Entity ignore) const -> std::optional<RayHit>;
+    /// @brief physics::overlapSphere on this world's bodies
+    [[nodiscard]] auto overlapSphere(const math::Float3& center, float radius, world::Entity ignore) const -> std::vector<world::Entity>;
+    /// @brief physics::overlapBox on this world's bodies
+    [[nodiscard]] auto overlapBox(const math::Float3& center, const math::Float3& halfExtents, const math::Quat& rotation, world::Entity ignore) const
+        -> std::vector<world::Entity>;
 
 private:
     struct Impl;

@@ -8,7 +8,14 @@ module;
 #include <Jolt/Core/JobSystemSingleThreaded.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Body/BodyFilter.h>
 #include <Jolt/Physics/Body/BodyInterface.h>
+#include <Jolt/Physics/Body/BodyLock.h>
+#include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/CollideShape.h>
+#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
+#include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
+#include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
@@ -154,6 +161,54 @@ auto fromJolt(JPH::RVec3Arg v) -> math::Float3
 auto fromJolt(JPH::QuatArg q) -> math::Quat
 {
     return math::Quat::fromXyzw(q.GetX(), q.GetY(), q.GetZ(), q.GetW());
+}
+
+// A body's user data is its entity (a character's inner body's too), so queries and contacts name the entity.
+auto toUserData(entt::entity entity) -> JPH::uint64
+{
+    return static_cast<JPH::uint64>(std::to_underlying(entity));
+}
+
+auto entityOf(JPH::uint64 userData) -> world::Entity
+{
+    return world::Entity{ static_cast<entt::entity>(static_cast<std::underlying_type_t<entt::entity>>(userData)) };
+}
+
+// Skips the bodies of one entity: its own body and a character's inner body.
+class IgnoreEntityFilter final : public JPH::BodyFilter
+{
+public:
+    explicit IgnoreEntityFilter(world::Entity ignore) :
+        m_ignore{ ignore }
+    {
+    }
+
+    [[nodiscard]] auto ShouldCollideLocked(const JPH::Body& body) const -> bool override
+    {
+        return !m_ignore || entityOf(body.GetUserData()) != m_ignore;
+    }
+
+private:
+    world::Entity m_ignore;
+};
+
+// The entities of the bodies a shape overlaps, ordered by entity, each once.
+auto overlappingEntities(const JPH::PhysicsSystem& physics, const JPH::Shape& shape, JPH::RMat44Arg transform, world::Entity ignore) -> std::vector<world::Entity>
+{
+    JPH::AllHitCollisionCollector<JPH::CollideShapeCollector> collector;
+    const IgnoreEntityFilter filter{ ignore };
+    physics.GetNarrowPhaseQuery().CollideShape(&shape, JPH::Vec3::sOne(), transform, JPH::CollideShapeSettings{}, JPH::RVec3::sZero(), collector, {}, {}, filter);
+
+    std::vector<world::Entity> entities;
+    entities.reserve(collector.mHits.size());
+    const auto& bodyInterface = physics.GetBodyInterface();
+    for (const auto& hit : collector.mHits)
+        entities.push_back(entityOf(bodyInterface.GetUserData(hit.mBodyID2)));
+    const auto order = [](world::Entity a, world::Entity b) { return std::to_underlying(a.id()) < std::to_underlying(b.id()); };
+    std::ranges::sort(entities, order);
+    const auto [first, last] = std::ranges::unique(entities);
+    entities.erase(first, last);
+    return entities;
 }
 
 auto toJolt(MotionType type) -> JPH::EMotionType
@@ -343,6 +398,7 @@ struct PhysicsSystem::Impl
         JPH::BodyCreationSettings settings{
             *shape, toJoltPosition(pose.location), toJolt(pose.rotation), toJolt(motionType), moves ? layers::MOVING : layers::NON_MOVING
         };
+        settings.mUserData = toUserData(entity.id());
         if (rigidBody)
         {
             settings.mFriction = rigidBody->friction;
@@ -526,6 +582,72 @@ auto PhysicsSystem::bodyCount() const -> std::size_t
 auto PhysicsSystem::hasBody(world::Entity entity) const -> bool
 {
     return m_impl->bodies.contains(entity.id());
+}
+
+auto PhysicsSystem::raycast(const math::Float3& origin, const math::Float3& direction, float maxDistance, world::Entity ignore) const -> std::optional<RayHit>
+{
+    const float directionLength = math::length(direction);
+    if (!(directionLength > 0.0f) || !(maxDistance > 0.0f))
+        return std::nullopt;
+    const auto unit = direction / directionLength;
+    const JPH::RRayCast ray{ toJoltPosition(origin), toJolt(unit * maxDistance) };
+
+    JPH::RayCastResult result;
+    const IgnoreEntityFilter filter{ ignore };
+    if (!m_impl->physics.GetNarrowPhaseQuery().CastRay(ray, result, {}, {}, filter))
+        return std::nullopt;
+
+    const JPH::BodyLockRead lock{ m_impl->physics.GetBodyLockInterface(), result.mBodyID };
+    if (!lock.Succeeded())
+        return std::nullopt;
+    const auto& body = lock.GetBody();
+    const auto point = ray.GetPointOnRay(result.mFraction);
+    return RayHit{
+        .entity = entityOf(body.GetUserData()),
+        .point = fromJolt(point),
+        .normal = fromJolt(JPH::RVec3{ body.GetWorldSpaceSurfaceNormal(result.mSubShapeID2, point) }),
+        .distance = result.mFraction * maxDistance,
+    };
+}
+
+auto PhysicsSystem::overlapSphere(const math::Float3& center, float radius, world::Entity ignore) const -> std::vector<world::Entity>
+{
+    if (!(radius > 0.0f))
+        return {};
+    JPH::SphereShape sphere{ radius };
+    sphere.SetEmbedded(); // On the stack: no reference may delete it
+    return overlappingEntities(m_impl->physics, sphere, JPH::RMat44::sTranslation(toJoltPosition(center)), ignore);
+}
+
+auto PhysicsSystem::overlapBox(const math::Float3& center, const math::Float3& halfExtents, const math::Quat& rotation, world::Entity ignore) const
+    -> std::vector<world::Entity>
+{
+    if (!(halfExtents.x > 0.0f && halfExtents.y > 0.0f && halfExtents.z > 0.0f))
+        return {};
+    const float convexRadius = std::min({ JPH::cDefaultConvexRadius, halfExtents.x, halfExtents.y, halfExtents.z });
+    JPH::BoxShape box{ toJolt(halfExtents), convexRadius };
+    box.SetEmbedded();
+    return overlappingEntities(m_impl->physics, box, JPH::RMat44::sRotationTranslation(toJolt(rotation), toJoltPosition(center)), ignore);
+}
+
+auto raycast(const world::Registry& registry, const math::Float3& origin, const math::Float3& direction, float maxDistance, world::Entity ignore)
+    -> std::optional<RayHit>
+{
+    const auto* system = registry.context<PhysicsSystem>();
+    return system ? system->raycast(origin, direction, maxDistance, ignore) : std::nullopt;
+}
+
+auto overlapSphere(const world::Registry& registry, const math::Float3& center, float radius, world::Entity ignore) -> std::vector<world::Entity>
+{
+    const auto* system = registry.context<PhysicsSystem>();
+    return system ? system->overlapSphere(center, radius, ignore) : std::vector<world::Entity>{};
+}
+
+auto overlapBox(const world::Registry& registry, const math::Float3& center, const math::Float3& halfExtents, const math::Quat& rotation, world::Entity ignore)
+    -> std::vector<world::Entity>
+{
+    const auto* system = registry.context<PhysicsSystem>();
+    return system ? system->overlapBox(center, halfExtents, rotation, ignore) : std::vector<world::Entity>{};
 }
 
 void PhysicsSystem::onBodyChanged(entt::registry&, entt::entity entity)
