@@ -4,7 +4,7 @@
 # and a changing light, so the startup and asset load are paid once. The other scenes stay demos (built, not run).
 aegis_add_game(
     Examples
-    SOURCES game.cpp spawner.cpp
+    SOURCES game.cpp spawner.cpp character_input.cpp
     PROJECT project
     SCENES scenes/smoke.scene
     EDITOR_SELECT "Pulsing Light" # A point light with a script: its Inspector shows both
