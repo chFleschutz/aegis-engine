@@ -1,0 +1,234 @@
+module;
+
+#include <stb/stb_image.h>
+
+module aegis.test;
+
+import std;
+import aegis.assets;
+import aegis.engine;
+
+// --material-file: a scene that names a material file renders with it, and a changed file renders differently.
+// The project is written to a temporary folder, so the run needs no sample project: a camera looks at the engine's
+// cube, whose material is the file's. The material is black and lit by nothing (no lights, the default black sky, which
+// the lighting pass needs to run), so the cube shows only its emissive colour; rewriting the file swaps that colour and a second engine renders it again.
+namespace aegis::test
+{
+namespace
+{
+constexpr std::string_view materialFile{ "materials/emissive.material" };
+constexpr std::string_view sceneFile{ "scenes/material_file.scene" };
+
+// The emissive colours of the two runs: one channel off in each, so a pixel shows which file was rendered.
+constexpr std::array<int, 3> cyan{ 0, 1, 1 };
+constexpr std::array<int, 3> yellow{ 1, 1, 0 };
+
+// The engine content's cube mesh (content/cube.obj.meta, "StaticMesh/cube/0").
+constexpr std::string_view cubeMesh{ "ebb588c4f30352a9" };
+
+auto materialText(const std::array<int, 3>& emissive) -> std::string
+{
+    return std::format(R"({{
+  "type": "Material",
+  "id": "4d8e1f0a7b3c9265",
+  "version": 1,
+  "template": "{}",
+  "parameters": {{
+    "albedo": [0, 0, 0],
+    "emissive": [{}, {}, {}],
+    "metallic": 0,
+    "roughness": 1
+  }}
+}}
+)",
+        assets::engine::pbrTemplate, emissive[0], emissive[1], emissive[2]);
+}
+
+auto sceneText() -> std::string
+{
+    return std::format(R"({{
+  "type": "Scene",
+  "id": "a37c05e19f2d6b84",
+  "version": 1,
+  "types": {{ "Camera": 1, "MainCamera": 1, "MeshRenderer": 1, "Sky": 1, "Transform": 1 }},
+  "entities": [
+    {{
+      "id": "1e9b47c2d05a836f",
+      "name": "Camera",
+      "children": [],
+      "components": {{
+        "Camera": {{ "fov": 1.0471976, "near": 0.1, "far": 100 }},
+        "MainCamera": {{}},
+        "Transform": {{ "location": [0, -3, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1] }}
+      }}
+    }},
+    {{
+      "id": "5c81e7f02a4d93b6",
+      "name": "Sky",
+      "children": [],
+      "components": {{
+        "Sky": {{ "environment": null }},
+        "Transform": {{ "location": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1] }}
+      }}
+    }},
+    {{
+      "id": "6f20d8b3a1c7e594",
+      "name": "Cube",
+      "children": [],
+      "components": {{
+        "MeshRenderer": {{ "mesh": "{}", "material": "4d8e1f0a7b3c9265" }},
+        "Transform": {{ "location": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1] }}
+      }}
+    }}
+  ]
+}}
+)",
+        cubeMesh);
+}
+
+auto writeText(const std::filesystem::path& file, std::string_view text) -> std::expected<void, std::string>
+{
+    std::error_code error;
+    std::filesystem::create_directories(file.parent_path(), error);
+    std::ofstream stream{ file, std::ios::binary | std::ios::trunc };
+    stream.write(text.data(), static_cast<std::streamsize>(text.size()));
+    if (error || !stream)
+        return std::unexpected{ std::format("cannot write '{}'", file.string()) };
+    return {};
+}
+
+// Deletes the temporary project, whatever the run did.
+struct TemporaryFolder
+{
+    std::filesystem::path path;
+
+    explicit TemporaryFolder(std::filesystem::path folder) :
+        path{ std::move(folder) }
+    {
+    }
+    TemporaryFolder(const TemporaryFolder&) = delete;
+    auto operator=(const TemporaryFolder&) -> TemporaryFolder& = delete;
+    ~TemporaryFolder()
+    {
+        std::error_code ignored;
+        std::filesystem::remove_all(path, ignored);
+    }
+};
+
+// The pixels of 'pixels' (RGBA8) that show 'colour' as an emissive colour, unlit: a 1 bright (the default post-processing
+// maps it to about 245) and a 0 as exactly 0, which no light or bloom raises. The bloom around the cube stays below 200.
+auto colourPixels(std::span<const std::byte> pixels, const std::array<int, 3>& colour) -> std::size_t
+{
+    std::size_t count{ 0 };
+    for (std::size_t i = 0; i + 3 < pixels.size(); i += 4)
+    {
+        bool match = true;
+        for (std::size_t channel = 0; channel < 3; ++channel)
+        {
+            const auto value = std::to_integer<int>(pixels[i + channel]);
+            match = match && (colour[channel] == 0 ? value == 0 : value >= 200);
+        }
+        count += match ? 1 : 0;
+    }
+    return count;
+}
+
+// How many pixels of the last frame show each of the two colours.
+struct Counts
+{
+    std::size_t cyan{ 0 };
+    std::size_t yellow{ 0 };
+};
+
+// Renders the scene file of 'project' headless with a fresh engine (and so a fresh asset library) and counts the
+// colours of its last frame.
+auto render(const Options& options, const std::filesystem::path& project, const std::filesystem::path& frameFile)
+    -> std::expected<Counts, std::string>
+{
+    {
+        auto engine = Engine::create({
+            .title = "aegis-test",
+            .width = sceneExtent.x,
+            .height = sceneExtent.y,
+            .headless = true,
+            .frames = options.frames,
+            .screenshot = frameFile.string(),
+            .gpuDriven = options.gpuDriven,
+            .project = project,
+        });
+        if (!engine)
+            return std::unexpected{ std::format("Failed to create the engine: {}", describe(engine.error())) };
+        if (options.gpuDriven && !(*engine)->useGpuDrivenRendering())
+            return std::unexpected{ std::string{ skipMeshShaders } };
+
+        const auto scene = (*engine)->assets().find(sceneFile);
+        if (!scene)
+            return std::unexpected{ std::format("'{}' is not in the temporary project", sceneFile) };
+        if (auto loaded = (*engine)->loadScene(*scene); !loaded)
+            return std::unexpected{ describe(loaded.error()) };
+        if ((*engine)->run() != exitSuccess)
+            return std::unexpected{ "the run failed (see the errors above)" };
+    }
+
+    int width{ 0 };
+    int height{ 0 };
+    int channels{ 0 };
+    const std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> image{
+        stbi_load(frameFile.string().c_str(), &width, &height, &channels, 4), &stbi_image_free
+    };
+    if (!image)
+        return std::unexpected{ std::format("failed to read the frame '{}'", frameFile.string()) };
+    const auto pixels = std::as_bytes(std::span{ image.get(), static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4 });
+    return Counts{ .cyan = colourPixels(pixels, cyan), .yellow = colourPixels(pixels, yellow) };
+}
+}
+
+auto runMaterialFile(const Options& options) -> int
+{
+    const TemporaryFolder project{ std::filesystem::temp_directory_path() / std::format("aegis-test-material-{:016x}", std::random_device{}() * 0x100000001ull) };
+    const auto content = project.path / "content";
+    // Headless, the last frame goes to --screenshot, else next to the project; the second run's overwrites the first's.
+    const std::filesystem::path frameFile = options.screenshot.empty() ? project.path / "frame.png" : std::filesystem::path{ options.screenshot };
+
+    const auto fail = [](std::string_view message) {
+        std::println("Material file check failed: {}", message);
+        return exitFailure;
+    };
+    for (const auto& [file, text] : { std::pair{ content / materialFile, materialText(cyan) }, std::pair{ content / sceneFile, sceneText() } })
+    {
+        if (auto written = writeText(file, text); !written)
+            return fail(written.error());
+    }
+
+    // A pixel count, not a reference image: software rendering differs in the last bits, and the cube covers about
+    // 40000 pixels of the 800x600 frame.
+    constexpr std::size_t minimum{ 10000 };
+    std::array<Counts, 2> counts{};
+    for (std::size_t run = 0; run < counts.size(); ++run)
+    {
+        if (run == 1)
+        {
+            if (auto written = writeText(content / materialFile, materialText(yellow)); !written)
+                return fail(written.error());
+        }
+        auto rendered = render(options, project.path, frameFile);
+        if (!rendered)
+        {
+            if (rendered.error() == skipMeshShaders)
+            {
+                std::println("{}", skipMeshShaders);
+                return skipExitCode;
+            }
+            return fail(rendered.error());
+        }
+        counts[run] = *rendered;
+    }
+
+    if (counts[0].cyan < minimum || counts[0].yellow != 0)
+        return fail(std::format("the first file's cube shows {} cyan and {} yellow pixels, expected at least {} and none", counts[0].cyan, counts[0].yellow, minimum));
+    if (counts[1].yellow < minimum || counts[1].cyan != 0)
+        return fail(std::format("the changed file's cube shows {} yellow and {} cyan pixels, expected at least {} and none", counts[1].yellow, counts[1].cyan, minimum));
+    std::println("Material file verified: the cube showed the file's emissive colour ({} pixels), and the changed file's ({} pixels)", counts[0].cyan, counts[1].yellow);
+    return exitSuccess;
+}
+}

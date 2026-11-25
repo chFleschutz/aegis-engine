@@ -112,6 +112,10 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         {
             options.noOverlay = true;
         }
+        else if (arg == "--material-file")
+        {
+            options.materialFile = true;
+        }
         else if (arg == "--no-samples")
         {
             options.noSamples = true;
@@ -159,6 +163,16 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         return std::unexpected{ "--spawn and --mutate-scene both count the static instances, so they can't run together" };
     if (options.spawn && options.frames != 0 && options.frames < 30)
         return std::unexpected{ "--spawn needs at least 30 frames to spawn the cube and destroy it again" };
+    if (options.materialFile)
+    {
+        // --gpu-driven picks its geometry path too; every other scene option is written for the test scene.
+        const bool sceneOptions = options.sceneFile != testSceneFile || options.mutateScene || options.spawn || options.mirror || options.unlit ||
+                                  options.blend || options.doubleSided || options.view || options.views || options.worlds || options.postProcess || options.audio ||
+                                  options.physics || (options.scene && !options.gpuDriven);
+        if (!options.headless || !options.compare.empty() || sceneOptions)
+            return std::unexpected{ "--material-file renders a project of its own headless, so it needs --headless and takes no other scene option than --gpu-driven, nor --compare" };
+        options.scene = false;
+    }
     if (options.scene && options.noSamples)
         return std::unexpected{ "--scene loads the sample project, so it can't run with --no-samples" };
 
@@ -174,12 +188,14 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::test::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--spawn] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--audio] [--physics] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--spawn] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--audio] [--physics] [--material-file] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 
     if (options->scene)
         return aegis::test::runScene(*options);
+    if (options->materialFile)
+        return aegis::test::runMaterialFile(*options);
 
     auto harness = aegis::test::Harness::create(*options);
     if (!harness)

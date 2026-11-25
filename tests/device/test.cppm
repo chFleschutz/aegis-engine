@@ -32,34 +32,36 @@ struct Options
     bool scene{ false };       // Render the test scene file through the app instead of the triangle (runScene)
     // With --scene: the scene file, relative to the sample project's content
     std::string sceneFile{ testSceneFile };
-    bool gpuDriven{ false };   // With --scene: the GPU-driven (mesh shader) geometry path
-    bool mutateScene{ false }; // With --scene: change the loaded scene while frames are in flight (see SceneShell::mutateScene)
-    bool mirror{ false };      // With --scene: mirror the helmet (a scale of -1 on x), which must not turn it inside out
-    bool unlit{ false };       // With --scene: an unlit cube next to a PBR one, whose colour the last frame must show
-                               // unlit (see SceneShell::addUnlitCubes)
-    bool blend{ false };       // With --scene: two overlapping half-transparent cubes in front of the helmet, drawn by the
-                               // forward pass alone, back to front (see SceneShell::addBlendedCubes)
-    bool blendSwap{ false };   // With --blend: the two cubes swap places, so the one added first is the farther
-    bool doubleSided{ false }; // With --scene: an unlit, double-sided plane with its back to the main camera, whose colour
-                               // the last frame must show (see SceneShell::addBackFacingPlane)
-    std::string screenshot;    // Headless: save the last frame here as PNG
-    std::string compare;       // Headless: fail unless the last frame matches this reference PNG (see compareToReference())
-    int tolerance{ 0 };        // With --compare: the largest per-channel difference (0-255) a pixel may have
-    bool noOverlay{ false };   // With --scene: leave the stats window out, its per-frame timings change every run
-    bool view{ false };        // With --scene: render through a second camera into a view of its own size, which
-                               // --screenshot and --compare then read (see viewExtent)
-    bool views{ false };       // With --scene: render two views of different sizes in one frame, the main camera's and a
-                               // second camera's, and check each against the view rendered alone (see SceneShell::checkViews);
-                               // --screenshot then writes one PNG per view
-    bool worlds{ false };      // With --scene: render a second world from the scene file in the middle third of the
-                               // frames (see SceneShell::switchWorlds)
-    bool postProcess{ false }; // With --scene: give the main camera a PostProcess (postProcessSettings), and rebuild the
-                               // frame graph halfway (a view for the first half of the frames, none after it)
-    bool noSamples{ false };   // Skip the checks that load the sample project (games/examples/project/ not checked out)
-    bool audio{ false };       // Run the audio scene (audioSceneFile) and check that its one sound started and still plays
-    bool physics{ false };     // Run the physics scene (physicsSceneFile) and check that its dynamic bodies fell, stayed above the
-                               // floor and came to rest (see SceneShell::watchPhysics)
-    bool spawn{ false };       // With --scene: a script spawns the engine's cube and destroys it again (see SceneShell::checkSpawn)
+    bool gpuDriven{ false };    // With --scene: the GPU-driven (mesh shader) geometry path
+    bool mutateScene{ false };  // With --scene: change the loaded scene while frames are in flight (see SceneShell::mutateScene)
+    bool mirror{ false };       // With --scene: mirror the helmet (a scale of -1 on x), which must not turn it inside out
+    bool unlit{ false };        // With --scene: an unlit cube next to a PBR one, whose colour the last frame must show
+                                // unlit (see SceneShell::addUnlitCubes)
+    bool blend{ false };        // With --scene: two overlapping half-transparent cubes in front of the helmet, drawn by the
+                                // forward pass alone, back to front (see SceneShell::addBlendedCubes)
+    bool blendSwap{ false };    // With --blend: the two cubes swap places, so the one added first is the farther
+    bool doubleSided{ false };  // With --scene: an unlit, double-sided plane with its back to the main camera, whose colour
+                                // the last frame must show (see SceneShell::addBackFacingPlane)
+    std::string screenshot;     // Headless: save the last frame here as PNG
+    std::string compare;        // Headless: fail unless the last frame matches this reference PNG (see compareToReference())
+    int tolerance{ 0 };         // With --compare: the largest per-channel difference (0-255) a pixel may have
+    bool noOverlay{ false };    // With --scene: leave the stats window out, its per-frame timings change every run
+    bool view{ false };         // With --scene: render through a second camera into a view of its own size, which
+                                // --screenshot and --compare then read (see viewExtent)
+    bool views{ false };        // With --scene: render two views of different sizes in one frame, the main camera's and a
+                                // second camera's, and check each against the view rendered alone (see SceneShell::checkViews);
+                                // --screenshot then writes one PNG per view
+    bool worlds{ false };       // With --scene: render a second world from the scene file in the middle third of the
+                                // frames (see SceneShell::switchWorlds)
+    bool postProcess{ false };  // With --scene: give the main camera a PostProcess (postProcessSettings), and rebuild the
+                                // frame graph halfway (a view for the first half of the frames, none after it)
+    bool noSamples{ false };    // Skip the checks that load the sample project (games/examples/project/ not checked out)
+    bool audio{ false };        // Run the audio scene (audioSceneFile) and check that its one sound started and still plays
+    bool physics{ false };      // Run the physics scene (physicsSceneFile) and check that its dynamic bodies fell, stayed above the
+                                // floor and came to rest (see SceneShell::watchPhysics)
+    bool spawn{ false };        // With --scene: a script spawns the engine's cube and destroys it again (see SceneShell::checkSpawn)
+    bool materialFile{ false }; // Headless: a scene in a temporary project renders with its material file, and again after the
+                                // file changed (see runMaterialFile)
 };
 
 // --scene: the target's size. --view: the view's size, unlike the target's, and the one it is resized to halfway.
@@ -71,6 +73,10 @@ inline constexpr rhi::Extent2D sideViewExtent{ 320, 240 };
 
 // checks/scene.cpp: --scene, the test scene file loaded and run by aegis::Engine (see the Options). Returns the exit code.
 auto runScene(const Options& options) -> int;
+
+// checks/material_file.cpp: --material-file, a scene that names a material file rendered twice by fresh engines, the file
+// changed in between. Needs no sample project. Returns the exit code.
+auto runMaterialFile(const Options& options) -> int;
 
 // The triangle and the device checks, on a device of its own: they test the RHI under the engine, not its startup.
 class Harness
