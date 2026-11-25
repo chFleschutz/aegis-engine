@@ -53,6 +53,11 @@ public:
     /// @brief The storage image slot of the texture's view, for a texture some pass declares with a storage
     ///        usage (Usage::StorageRead or StorageWrite).
     [[nodiscard]] auto storageDescriptor(ResourceId handle) const -> rhi::StorageImageDescriptor;
+    /// @brief A view of mip 'mip' alone of a texture the graph creates with more than one mip, with the bindless
+    ///        descriptors its merged usage allows. Of a history pair: of the image texture() returns. The handle stays
+    ///        valid across a resize, which recreates the view with the texture; a resize to a tiny extent can leave
+    ///        the image fewer mips than declared, so ask the image for its count.
+    [[nodiscard]] auto mipView(ResourceId handle, std::uint32_t mip) const -> rhi::ImageViewHandle;
     [[nodiscard]] auto buffer(ResourceId handle) const -> const rhi::Buffer&;
 
     /// @brief The address of the buffer, or of frame 'frameIndex's copy of a per-frame buffer.
@@ -75,7 +80,8 @@ public:
 private:
     struct CreatedTexture
     {
-        std::array<renderer::Texture, 2> textures; // A history pair has two, every other texture the first
+        std::array<renderer::Texture, 2> textures;                 // A history pair has two, every other texture the first
+        std::array<std::vector<rhi::ImageViewHandle>, 2> mipViews; // Per image: a view per mip, for more than one mip
         Lifetime lifetime;
         rhi::ImageUsage usage; // The merged usage it was created with, kept to recreate it
         bool fresh{ true };    // No frame ran since it was created or recreated
@@ -117,6 +123,10 @@ private:
     auto bind(ResourceId handle, rhi::ImageViewHandle view) -> void;
     auto bind(ResourceId handle, rhi::BufferHandle buffer) -> void;
     [[nodiscard]] auto actual(ResourceId handle) const -> std::uint32_t;
+    /// @brief Creates, recreates or frees the mip views of the created texture entry 'entry' to match its images' mips.
+    [[nodiscard]] auto updateMipViews(std::uint32_t entry) -> std::expected<void, Error>;
+    /// @brief Which of a created texture's images is current, or with 'previous' the previous frame's.
+    [[nodiscard]] auto imageIndex(const CreatedTexture& created, bool previous) const -> std::size_t;
     /// @brief The image of the created or imported entry 'entry'; of a history pair the current one, or with
     ///        'previous' the previous frame's.
     [[nodiscard]] auto textureAt(std::uint32_t entry, bool previous) const -> const renderer::Texture&;

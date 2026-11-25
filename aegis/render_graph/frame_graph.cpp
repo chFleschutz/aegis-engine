@@ -89,9 +89,7 @@ auto FrameGraph::readTimings(FrameTimer& timer) -> void
 
 auto FrameGraph::resized(rhi::Extent2D output) -> std::expected<void, Error>
 {
-    if (auto recreated = m_pool.resize(output); !recreated)
-        return recreated;
-    return resizedPasses();
+    return m_pool.resize(output);
 }
 
 auto FrameGraph::resized(std::string_view scope, rhi::Extent2D extent) -> std::expected<void, Error>
@@ -99,19 +97,7 @@ auto FrameGraph::resized(std::string_view scope, rhi::Extent2D extent) -> std::e
     const auto index = m_declarations.findScope(scope);
     if (!index)
         return makeError(ErrorCode::InvalidGraph, std::format("The frame graph has no scope '{}'", scope));
-    if (auto recreated = m_pool.resize(*index, extent); !recreated)
-        return recreated;
-    return resizedPasses();
-}
-
-auto FrameGraph::resizedPasses() -> std::expected<void, Error>
-{
-    for (const auto index : m_order)
-    {
-        if (auto result = m_passes[index]->resized(m_pool); !result)
-            return result;
-    }
-    return {};
+    return m_pool.resize(*index, extent);
 }
 
 auto FrameGraph::prepare() -> std::expected<void, Error>

@@ -34,8 +34,29 @@ private:
     render_graph::ResourceId m_fixed;
 };
 
+namespace
+{
+// The pool's view of each mip of the probe texture covers that mip alone, at its extent, with the descriptors
+// its usage allows (sampled, not storage).
+auto checkMipViews(const rhi::Device& device, const render_graph::ResourcePool& pool, render_graph::ResourceId texture)
+    -> std::expected<void, std::string>
+{
+    const auto& image = device.get(pool.texture(texture).image);
+    for (std::uint32_t mip = 0; mip < image.mipLevels(); ++mip)
+    {
+        const auto& view = device.get(pool.mipView(texture, mip));
+        const rhi::Extent3D expected{ std::max(image.extent().x >> mip, 1u), std::max(image.extent().y >> mip, 1u), 1 };
+        if (view.range().baseMipLevel != mip || view.range().mipLevelCount != 1 || view.extent() != expected)
+            return std::unexpected{ std::format("Mip view {} does not cover that mip alone", mip) };
+        if (!view.sampledDescriptor() || view.storageDescriptor())
+            return std::unexpected{ std::format("Mip view {} lacks the descriptors of the texture's usage", mip) };
+    }
+    return {};
+}
+}
+
 // A graph texture that follows the output: its view covers all mips and keeps its bindless slot when
-// FrameGraph::resized recreates it at the new extent, and the graph frees it again.
+// FrameGraph::resized recreates it at the new extent, and the graph frees it again. So do its mip views.
 auto Harness::verifyGraphTextures() -> std::expected<void, std::string>
 {
     const auto liveBefore = m_device->liveResources();
@@ -57,6 +78,12 @@ auto Harness::verifyGraphTextures() -> std::expected<void, std::string>
         const auto mipLevels = m_device->get(texture.image).mipLevels();
         if (m_device->get(texture.view).range().mipLevelCount != mipLevels)
             return std::unexpected{ "Graph texture view does not cover the image's mips" };
+        if (auto views = checkMipViews(*m_device, graph.pool(), probe.texture()); !views)
+            return views;
+        std::vector<rhi::ImageViewHandle> mipViews;
+        for (std::uint32_t mip = 0; mip < mipLevels; ++mip)
+            mipViews.push_back(graph.pool().mipView(probe.texture(), mip));
+        const auto mipSlot = *m_device->get(mipViews[1]).sampledDescriptor();
 
         const rhi::Extent2D resizedTo{ extentBefore.x + 64, extentBefore.y + 32 };
         m_device->waitIdle();
@@ -72,6 +99,34 @@ auto Harness::verifyGraphTextures() -> std::expected<void, std::string>
             return std::unexpected{ "Fixed-size graph texture changed with the output" };
         if (m_device->get(texture.view).range().mipLevelCount != m_device->get(texture.image).mipLevels())
             return std::unexpected{ "Resized graph texture view does not cover the image's mips" };
+        if (auto views = checkMipViews(*m_device, graph.pool(), probe.texture()); !views)
+            return std::unexpected{ std::format("After a resize: {}", views.error()) };
+        // The new extent may have a mip fewer; the views of the mips both images have keep their handles.
+        for (std::uint32_t mip = 0; mip < std::min(mipLevels, m_device->get(texture.image).mipLevels()); ++mip)
+        {
+            if (graph.pool().mipView(probe.texture(), mip) != mipViews[mip])
+                return std::unexpected{ std::format("Mip view {} changed its handle across a resize", mip) };
+        }
+        if (m_device->get(mipViews[1]).sampledDescriptor()->index != mipSlot.index)
+            return std::unexpected{ "A mip view lost its bindless slot across a resize" };
+
+        // A tiny output clamps the chain to one mip: the views of the others go, the first one stays.
+        m_device->waitIdle();
+        if (auto resized = graph.resized({ 2, 2 }); !resized)
+            return std::unexpected{ std::format("Resizing the probe graph to a tiny extent: {}", describe(resized.error())) };
+        if (m_device->get(texture.image).mipLevels() != 1 || graph.pool().mipView(probe.texture(), 0) != mipViews[0])
+            return std::unexpected{ "A tiny resize did not keep the first mip view alone" };
+        if (auto views = checkMipViews(*m_device, graph.pool(), probe.texture()); !views)
+            return std::unexpected{ std::format("After a tiny resize: {}", views.error()) };
+
+        // And back: the chain grows again, with new views of the mips the tiny image lacked.
+        m_device->waitIdle();
+        if (auto resized = graph.resized(resizedTo); !resized)
+            return std::unexpected{ std::format("Resizing the probe graph back from a tiny extent: {}", describe(resized.error())) };
+        if (m_device->get(texture.image).mipLevels() <= 1 || graph.pool().mipView(probe.texture(), 0) != mipViews[0])
+            return std::unexpected{ "Growing from a tiny extent did not keep the first mip view" };
+        if (auto views = checkMipViews(*m_device, graph.pool(), probe.texture()); !views)
+            return std::unexpected{ std::format("After growing from a tiny extent: {}", views.error()) };
 
         std::println("Graph textures verified: {} mips, bindless slot {} kept across a resize", mipLevels, after->index);
     }

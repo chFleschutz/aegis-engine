@@ -53,10 +53,6 @@ public:
     /// @brief Creates what the pass owns. Called by FrameGraph::create once graph resources exist.
     [[nodiscard]] virtual auto createResources(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
 
-    /// @brief Called by FrameGraph::resized after the graph recreated its output-sized
-    ///        textures, for a pass to recreate what it derived from them (e.g. extra image views).
-    [[nodiscard]] virtual auto resized(ResourcePool& /*pool*/) -> std::expected<void, Error> { return {}; }
-
     /// @brief Creates what recording the coming frame needs and the pass lacks, such as the pipelines of the draw
     ///        batches it draws, or a larger buffer for its instances. Called by FrameGraph::prepare for every pass,
     ///        before the frame is recorded: it has no command buffer, and only creates.

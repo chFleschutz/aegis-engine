@@ -60,7 +60,7 @@ public:
         -> std::expected<std::unique_ptr<FrameGraph>, Error>;
 
     /// @brief Call after renderer::Renderer::resize with its new extent: recreates the textures that follow
-    ///        the output. They keep their handles, but passes may hold views of the replaced images.
+    ///        the output. They keep their handles, and so do their mip views (ResourcePool::mipView).
     [[nodiscard]] auto resized(rhi::Extent2D output) -> std::expected<void, Error>;
     /// @brief Gives the scope 'scope' (ResourceDeclarations::beginScope) the extent 'extent': recreates its textures
     ///        that follow it, as resized does for the output's. The GPU must be idle.
@@ -107,7 +107,6 @@ private:
         rhi::Extent2D output);
 
     [[nodiscard]] auto build() -> std::expected<void, Error>;
-    [[nodiscard]] auto resizedPasses() -> std::expected<void, Error>;
     auto recordTransitions(const rhi::CommandBuffer& cmd, const std::vector<detail::Transition>& transitions) const -> void;
 
     ResourceDeclarations m_declarations;               // Before m_pool, which refers to it
