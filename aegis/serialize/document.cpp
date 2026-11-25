@@ -6,8 +6,8 @@ namespace aegis::serialize::detail
 {
 using reflect::Node;
 
-auto readHeader(const Node& root, std::string_view type, std::uint32_t current, std::span<const std::string_view> keys)
-    -> std::expected<Header, Error>
+auto readHeader(Node& root, std::string_view type, std::uint32_t current, std::span<const std::string_view> keys,
+    const FileMigrations& migrations) -> std::expected<Header, Error>
 {
     if (auto checked = expectKind(root, Node::Kind::Object, "the file"); !checked)
         return std::unexpected{ checked.error() };
@@ -17,8 +17,6 @@ auto readHeader(const Node& root, std::string_view type, std::uint32_t current, 
         return std::unexpected{ typeNode.error() };
     if ((*typeNode)->text != type)
         return makeError(ErrorCode::WrongType, std::format("the file is a '{}', not a '{}'", (*typeNode)->text, type), (*typeNode)->line);
-    if (auto checked = checkKeys(root, keys, std::format("the {}", type)); !checked)
-        return std::unexpected{ checked.error() };
 
     auto idNode = required(root, "id", Node::Kind::String, "the file");
     if (!idNode)
@@ -33,11 +31,12 @@ auto readHeader(const Node& root, std::string_view type, std::uint32_t current, 
     auto version = parseVersion(**versionNode, "\"version\"");
     if (!version)
         return std::unexpected{ version.error() };
-    if (*version > current)
-    {
-        return makeError(ErrorCode::UnsupportedVersion, std::format("the {} is version {}, newer than this engine's {}", type, *version, current),
-            (*versionNode)->line);
-    }
+    if (auto upgraded = upgradeFile(root, type, *version, current, migrations); !upgraded)
+        return std::unexpected{ upgraded.error() };
+
+    // The keys of the current version: an upgrade may have renamed or dropped older ones
+    if (auto checked = checkKeys(root, keys, std::format("the {}", type)); !checked)
+        return std::unexpected{ checked.error() };
     return Header{ .id = *id, .version = *version };
 }
 

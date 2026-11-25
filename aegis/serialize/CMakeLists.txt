@@ -20,7 +20,16 @@ target_sources(
                 json.cppm
                 material.cppm
                 material_template.cppm
+                migration.cppm
                 model.cppm
                 scene.cppm
-    PRIVATE document.cpp error.cpp json.cpp material.cpp material_template.cpp model.cpp scene.cpp
+    PRIVATE
+        document.cpp
+        error.cpp
+        json.cpp
+        material.cpp
+        material_template.cpp
+        migration.cpp
+        model.cpp
+        scene.cpp
 )

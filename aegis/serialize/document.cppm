@@ -2,6 +2,7 @@ export module aegis.serialize:document;
 import std;
 import aegis.reflect;
 import :error;
+import :migration;
 
 // What every native file shares: the `{type, id, version}` header, IDs as 16 lowercase hex digits, and the
 // checks that turn a node of the wrong shape into an error at its line. Module-internal: the file formats
@@ -15,10 +16,13 @@ struct Header
     std::uint32_t version{ 0 };
 };
 
-// Checks that `root` is an object of type `type` with only the keys `keys`, and reads its ID and version.
-// Fails with WrongType for another type and UnsupportedVersion for a version above `current`.
-[[nodiscard]] auto readHeader(const reflect::Node& root, std::string_view type, std::uint32_t current, std::span<const std::string_view> keys)
-    -> std::expected<Header, Error>;
+// Checks that `root` is an object of type `type`, reads its ID and version, upgrades it to `current` through
+// `migrations` (upgradeFile), then checks that it has only the keys `keys`, those of the current version. The
+// header holds the version the file was saved at.
+// Fails with WrongType for another type and UnsupportedVersion for a version above `current` or one no chain of
+// `migrations` upgrades.
+[[nodiscard]] auto readHeader(reflect::Node& root, std::string_view type, std::uint32_t current, std::span<const std::string_view> keys,
+    const FileMigrations& migrations = {}) -> std::expected<Header, Error>;
 
 // A new object node with the header members.
 [[nodiscard]] auto writeHeader(std::string_view type, std::uint64_t id, std::uint32_t version) -> reflect::Node;
