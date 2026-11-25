@@ -275,7 +275,9 @@ JSON (see "Formats and libraries") with a common header:
   file lists the component types it uses once in its header (`"types": { "PointLight": 2 }`), not on
   every entry.
 - **Migrations form a chain:** each type registers one upgrade per version, from n to n + 1, run on
-  load until the current version. A version newer than the engine knows is an error.
+  load until the current version. A version newer than the engine knows is an error. A file type's
+  chain is a `serialize::FileMigrations` that `serialize::upgradeFile` runs before the keys are checked
+  (material files: `materialMigrations`, empty until version 2); a component's runs through its `reflect::TypeInfo`.
 - **No engine version in asset files:** it would decide nothing the type versions don't, and every
   save after an engine update would change a line in every file. The project file records the
   engine version that last opened the project, for a warning when an older engine opens it.
