@@ -229,6 +229,28 @@ TEST_SUITE("physics::CharacterController")
         CHECK(fixture.system().hasBody(character));
     }
 
+    TEST_CASE("keeps walking when a Collider comes or goes on it while it plays")
+    {
+        Fixture fixture;
+        const auto floor = fixture.addFloor();
+        const auto character = fixture.addCharacter(math::Float3{ 0.0f });
+        fixture.world.begin();
+        fixture.run(30);
+        fixture.controller(character).desiredVelocity = { 2.0f, 0.0f, 0.0f };
+        fixture.run(30);
+
+        fixture.registry().add<Collider>(character);
+        fixture.run(15);
+        fixture.registry().remove<Collider>(character);
+        fixture.run(15);
+
+        CHECK(fixture.system().hasCharacter(character));
+        CHECK_FALSE(fixture.system().hasBody(character));
+        CHECK(fixture.location(character).x == doctest::Approx(2.0f).epsilon(0.05)); // A second at 2 m/s, never stopped
+        CHECK(fixture.touches(character, floor) == 1);
+        CHECK(fixture.ends.empty());
+    }
+
     TEST_CASE("is no character with a height not above twice its radius")
     {
         Fixture fixture;

@@ -607,6 +607,13 @@ struct PhysicsSystem::Impl
     // had; none without either.
     void createBody(world::Registry& registry, world::Entity entity)
     {
+        // A Collider or RigidBody that came or went on a character changes nothing: it stays as it moves.
+        if (characters.contains(entity.id()) && registry.has<CharacterController>(entity))
+        {
+            if (registry.has<Collider>(entity) || registry.has<RigidBody>(entity))
+                log::warn("The entity '{}' has a CharacterController and a Collider or RigidBody: it is a character, they do nothing", nameOf(registry, entity));
+            return;
+        }
         removeBody(entity.id());
         removeCharacter(entity.id());
         if (registry.has<CharacterController>(entity))
