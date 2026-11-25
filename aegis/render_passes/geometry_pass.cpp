@@ -122,7 +122,7 @@ auto GeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
         .cmd = cmd,
         .frameScene = m_scene.current(),
         .frameIndex = frameInfo.frameIndex,
-        .camera = pool.bufferAddress(m_cameraData, frameInfo.frameIndex),
+        .camera = pool.bufferAddress(m_cameraData),
     };
     for (const auto& system : m_renderSystems)
         system->render(context);

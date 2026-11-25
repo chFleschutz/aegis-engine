@@ -108,6 +108,8 @@ public:
     [[nodiscard]] auto entries() const noexcept -> std::span<const Entry> { return m_entries; }
     [[nodiscard]] auto passCount() const noexcept -> std::uint32_t { return static_cast<std::uint32_t>(m_passNames.size()); }
     [[nodiscard]] auto passName(std::uint32_t pass) const -> std::string_view { return m_passNames[pass]; }
+    /// @brief The scope the pass 'pass' was declared in, or none.
+    [[nodiscard]] auto passScope(std::uint32_t pass) const -> std::optional<std::uint32_t> { return m_passScopes[pass]; }
 
     /// @brief What the pass reads: its declarations that do not write, in declaration order.
     [[nodiscard]] auto reads(std::uint32_t pass) const -> std::vector<ResourceId>;

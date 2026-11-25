@@ -23,7 +23,7 @@ auto SceneUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
         return;
 
     const auto data = detail::makeCameraData(*camera);
-    pool.write(m_cameraData, frameInfo.frameIndex, std::as_bytes(std::span{ &data, 1 }));
+    pool.write(m_cameraData, std::as_bytes(std::span{ &data, 1 }));
 }
 
 namespace detail

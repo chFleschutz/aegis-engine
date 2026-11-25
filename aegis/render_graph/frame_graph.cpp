@@ -114,7 +114,7 @@ auto FrameGraph::prepare() -> std::expected<void, Error>
     return {};
 }
 
-auto FrameGraph::execute(const FrameInfo& frameInfo, rhi::ImageViewHandle target) -> void
+auto FrameGraph::execute(const rhi::CommandBuffer& cmd, std::uint32_t frameIndex, rhi::ImageViewHandle target) -> void
 {
     // The swapchain image changes every frame.
     if (m_target)
@@ -124,35 +124,42 @@ auto FrameGraph::execute(const FrameInfo& frameInfo, rhi::ImageViewHandle target
     }
 
     // The renderer waited for the frame that last used this slot, so its timestamps are final.
-    auto* timer = m_timers.empty() ? nullptr : &m_timers[frameInfo.frameIndex];
+    auto* timer = m_timers.empty() ? nullptr : &m_timers[frameIndex];
     if (timer)
     {
         if (timer->pending)
             readTimings(*timer);
-        frameInfo.cmd.resetQueries(timer->pool, 0, timer->pool.count());
+        cmd.resetQueries(timer->pool, 0, timer->pool.count());
         timer->cpuMs.assign(m_order.size(), 0.0);
     }
 
+    m_pool.beginFrame(frameIndex);
     for (std::size_t i = 0; i < m_order.size(); ++i)
     {
         const auto cpuStart = std::chrono::steady_clock::now();
-        auto& pass = *m_passes[m_order[i]];
-        frameInfo.cmd.beginLabel(m_declarations.passName(m_order[i]));
+        const auto index = m_order[i];
+        auto& pass = *m_passes[index];
+        cmd.beginLabel(m_declarations.passName(index));
         if (timer)
-            frameInfo.cmd.writeTimestamp(timer->pool, static_cast<std::uint32_t>(2 * i), rhi::TimestampStage::TopOfPipe);
+            cmd.writeTimestamp(timer->pool, static_cast<std::uint32_t>(2 * i), rhi::TimestampStage::TopOfPipe);
 
-        recordTransitions(frameInfo.cmd, m_transitions[i]);
+        recordTransitions(cmd, m_transitions[i]);
+        const auto scope = m_declarations.passScope(index);
+        const FrameInfo frameInfo{
+            .cmd = cmd,
+            .frameIndex = frameIndex,
+            .extent = scope ? m_pool.scopeExtent(*scope) : m_pool.output(),
+        };
         pass.execute(m_pool, frameInfo);
 
         if (timer)
         {
-            frameInfo.cmd.writeTimestamp(timer->pool, static_cast<std::uint32_t>(2 * i + 1),
-                rhi::TimestampStage::AllCommands);
+            cmd.writeTimestamp(timer->pool, static_cast<std::uint32_t>(2 * i + 1), rhi::TimestampStage::AllCommands);
             timer->cpuMs[i] = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - cpuStart).count();
         }
-        frameInfo.cmd.endLabel();
+        cmd.endLabel();
     }
-    recordTransitions(frameInfo.cmd, m_endOfFrame);
+    recordTransitions(cmd, m_endOfFrame);
     m_pool.endFrame();
     if (timer)
         timer->pending = true;
