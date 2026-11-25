@@ -112,7 +112,7 @@ the comment and stop.
   <One or two sentences: what the PR does and why.>
 
   **Before merging**
-  - <What the owner must do first: merge chFleschutz/aegis-samples#<n>, a setting outside the repo.>
+  - <What the owner must do first: a setting outside the repo.>
 
   **Changes**
   - <One bullet per change a reviewer looks for: the behaviour or API, and where (module, file).>

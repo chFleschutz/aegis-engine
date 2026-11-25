@@ -36,8 +36,10 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
   worktrees and git can tell whether a pointer is on its `origin/main`; a main checkout whose
   samples are still shallow (cloned before #327) needs `git -C games/examples/project fetch
   --unshallow` once, and the same for `external/zstd` (cloned before #370).
-  A change to the samples is a PR in aegis-samples (branch from its `origin/main`); the engine PR
-  bumps the `samples` pointer to that commit and says to merge the samples PR first.
+  aegis-samples is asset storage, split off only to keep the heavy assets out of this repository's
+  GitHub storage, so a samples change takes no PR: commit it on top of its `origin/main` and push
+  it straight to `main`, then bump the `samples` pointer to that commit in the engine PR. The
+  pinned commit is then already on `origin/main`, where a PR branch's commit may never land.
 - Vendored files (`external/ktx`, the editor's Lucide icon font and its generated
   `aegis/editor/lucide.cppm`) change only through their `tools/update-*` script, committed on
   its own.

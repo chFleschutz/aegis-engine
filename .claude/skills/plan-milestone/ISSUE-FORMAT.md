@@ -30,8 +30,7 @@ Branch `<kind>/<slug>` · size <S|M|L>
   `aegis-test` flag, an `Examples` scene, a test). For a feature: the gap it fills, as a fact about
   today's code.
 - **Hazards** for a repro or test that can hang the GPU (it freezes the machine, so it runs only with the
-  owner's OK, as in [`diagnose`](../diagnose/SKILL.md)), an aegis-samples PR that must merge first, a
-  public API it breaks.
+  owner's OK, as in [`diagnose`](../diagnose/SKILL.md)), a public API it breaks.
 - **Verification** names only what AGENTS.md's "Verify each commit" doesn't already require of every
   PR (building clean, `ctest -LE device`, the full `ctest`): a `--screenshot` to look at, a windowed
   run, a resize, a timing before and after, a forced failure. With nothing beyond those, write
