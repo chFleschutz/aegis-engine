@@ -884,13 +884,19 @@ auto Engine::frameScene(world::World& shown, const render_graph::InstanceStore& 
 {
     auto scene = aegis::extractFrameScene(shown, instances);
     // The views the graph renders, from the list it was built from (graphViews), in its order. A main view renders
-    // through the camera of the shell's view of its name asked for this frame, else the world's main camera.
+    // through the camera of the shell's view of its name asked for this frame, else the world's main camera; without
+    // views of its own (the graph follows the shell's from the next frame) always the main camera, onto the target.
     const auto mainCamera = scene.camera(0);
     scene.views = render_graph::frameSceneViews(graphViews(m_views));
     for (auto& target : scene.views)
     {
         if (target.kind != render_graph::ViewKind::Main)
             continue;
+        if (m_views.empty())
+        {
+            target.camera = mainCamera;
+            continue;
+        }
         const auto view = std::ranges::find_if(views, [&](const RenderView& each) {
             return (each.name.empty() ? render_graph::names::mainView : std::string_view{ each.name }) == target.name;
         });
