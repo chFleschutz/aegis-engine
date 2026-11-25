@@ -390,21 +390,20 @@ auto buildFrameGraph(render_graph::GraphBuilder& graph, const render_graph::Defa
     Shell& shell) -> void
 {
     auto viewDesc = desc;
-    const auto shared = render_graph::addSharedPasses(graph, desc);
-    viewDesc.lights = shared.lights;
-    for (const auto view : render_graph::viewDeclarationOrder(desc.views))
+    viewDesc.lights = render_graph::addSharedPasses(graph, desc).lights;
+    for (const auto index : render_graph::viewDeclarationOrder(desc.views))
     {
-        graph.beginScope(desc.views[view].name, desc.views[view].extent);
-        viewDesc.view = view;
-        if (desc.views[view].kind == render_graph::ViewKind::Shadow)
-            render_graph::addShadowPasses(graph, viewDesc);
+        const auto view = render_graph::ViewContext::of(desc.views, index);
+        graph.beginScope(view.name, view.extent);
+        if (desc.views[index].kind == render_graph::ViewKind::Shadow)
+            render_graph::addShadowPasses(graph, viewDesc, view);
         else
         {
             if (game)
-                game(graph, viewDesc);
+                game(graph, viewDesc, view);
             else
-                render_graph::addScenePasses(graph, viewDesc);
-            shell.buildGraph(graph, viewDesc);
+                render_graph::addScenePasses(graph, viewDesc, view);
+            shell.buildGraph(graph, viewDesc, view);
         }
         graph.endScope();
     }

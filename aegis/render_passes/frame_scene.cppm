@@ -39,7 +39,7 @@ struct FrameScene
     };
 
     /// @brief One rendering of the world in the frame: its scene passes run in a frame graph scope of its name, with
-    ///        resources of their own (DefaultPassesDesc::view picks the view by its index in 'views').
+    ///        resources of their own (ViewContext::index picks the view by its index in 'views').
     struct View
     {
         std::string name;
