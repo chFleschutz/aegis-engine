@@ -250,8 +250,8 @@ and order.
 3. **Commit in reviewable steps.** Keep mechanical changes (whole-file reformats, renames, deletions,
    signature churn) in their own commits, separate from logic changes.
 4. **Verify each commit:** it builds clean and `ctest -LE device` passes. **Before pushing**, and for
-   any change to device code, run the full `ctest` *including* the `device` tests (see "What CI
-   covers"), and look at the `--screenshot` output after render changes. Across worktrees, run one
+   any change to device code, run the full `ctest -LE flaky` *including* the `device` tests (see "What
+   CI covers"; `flaky` marks tests that fail on an untouched main, each with its issue), and look at the `--screenshot` output after render changes. Across worktrees, run one
    `ctest` with device tests at a time per machine.
 5. **Push and open the PR** with `gh pr create`; the body says `Closes #<issue>`. Fix CI failures
    with new commits; never force-push a PR under review.

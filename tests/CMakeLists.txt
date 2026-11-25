@@ -424,6 +424,8 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
             ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/sponza-gpu-driven.png
             --tolerance
             0
-        LABELS golden mesh-shaders
+        # flaky: a few dozen pixels differ from run to run, on an untouched main too (#501, #459); drop the label with
+        # that fix
+        LABELS golden mesh-shaders flaky
     )
 endif()
