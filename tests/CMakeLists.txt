@@ -215,6 +215,11 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
     # (5 s of simulation at the headless frame rate).
     aegis_add_device_test(aegis-test-physics ARGS --headless --physics --frames 300)
 
+    # The gameplay scene (#466) with scripted input, for 6 s of simulation at frame times of 1/30, 1/60 and 1/144 s: the
+    # boxes the character pushes rest at the same places, the Spawn action spawns the prefab, the first push plays one
+    # sound, and the moving platform's child follows it in the same frame.
+    aegis_add_device_test(aegis-test-gameplay ARGS --headless --gameplay)
+
     # The scene's reference images (see above).
     aegis_add_device_test(
         aegis-test-golden-scene

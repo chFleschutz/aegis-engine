@@ -1,6 +1,6 @@
 // The aegis-test harness: harness.cpp sets up the device and renders the triangle, checks/*.cpp hold the checks
-// it runs, one file per group, checks/scene.cpp runs --scene through the app (aegis::Engine), and main.cpp parses
-// the arguments.
+// it runs, one file per group, checks/scene.cpp runs --scene through the app (aegis::Engine), checks/gameplay.cpp runs
+// --gameplay through it with the Examples game, and main.cpp parses the arguments.
 export module aegis.test;
 
 import std;
@@ -24,6 +24,9 @@ inline constexpr std::string_view testSceneFile{ "scenes/tests/aegis_test.scene"
 inline constexpr std::string_view audioSceneFile{ "scenes/audio.scene" };
 // Dynamic boxes dropped onto a static floor, in the sample project: what --physics loads.
 inline constexpr std::string_view physicsSceneFile{ "scenes/physics.scene" };
+// A character walking into five boxes, a spawner, a moving platform and a contact sound, in the sample project, played
+// by the Examples game's scripts: what --gameplay runs.
+inline constexpr std::string_view gameplaySceneFile{ "scenes/gameplay.scene" };
 
 struct Options
 {
@@ -62,6 +65,8 @@ struct Options
     bool spawn{ false };        // With --scene: a script spawns the engine's cube and destroys it again (see SceneShell::checkSpawn)
     bool materialFile{ false }; // Headless: a scene in a temporary project renders with its material file, and again after the
                                 // file changed (see runMaterialFile)
+    bool gameplay{ false };     // Headless: run the gameplay scene (gameplaySceneFile) for the same simulated time at three frame
+                                // times with scripted input, and check that it plays the same (see runGameplay)
 };
 
 // --scene: the target's size. --view: the view's size, unlike the target's, and the one it is resized to halfway.
@@ -70,9 +75,13 @@ inline constexpr rhi::Extent2D sceneExtent{ 800, 600 };
 inline constexpr rhi::Extent2D viewExtent{ 480, 270 };
 inline constexpr rhi::Extent2D resizedViewExtent{ 400, 300 };
 inline constexpr rhi::Extent2D sideViewExtent{ 320, 240 };
+// --gameplay: the target's size, small since it renders about 1400 frames.
+inline constexpr rhi::Extent2D gameplayExtent{ 320, 240 };
 
 // checks/scene.cpp: --scene, the test scene file loaded and run by aegis::Engine (see the Options). Returns the exit code.
 auto runScene(const Options& options) -> int;
+// checks/gameplay.cpp: --gameplay, the gameplay scene at three frame times (see the Options). Returns the exit code.
+auto runGameplay(const Options& options) -> int;
 
 // checks/material_file.cpp: --material-file, a scene that names a material file rendered twice by fresh engines, the file
 // changed in between. Needs no sample project. Returns the exit code.
