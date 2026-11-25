@@ -2,6 +2,7 @@ export module aegis.serialize:material;
 import std;
 import aegis.reflect;
 import :error;
+import :migration;
 
 // Material files (docs/asset-system.md, "Native files"):
 //
@@ -21,9 +22,14 @@ import :error;
 //   shaders), `parameters` the values that override its defaults, written sorted by name.
 // - A value is a number, an array of 2 to 4 numbers (a vector) or a texture's asset ID. Which one a parameter
 //   takes is the template's to say, so the library checks the values against it when it loads the material.
+// - An older `version` is upgraded on load (materialMigrations); writeMaterial writes the current one.
 export namespace aegis::serialize
 {
 inline constexpr std::uint32_t materialVersion = 1;
+
+// The upgrades of material files to materialVersion, one per older version (none yet: version 1 is the first).
+// Raising materialVersion means adding the step from the version before it.
+[[nodiscard]] auto materialMigrations() -> const FileMigrations&;
 
 struct MaterialFile
 {
@@ -32,7 +38,8 @@ struct MaterialFile
     reflect::Node parameters{ reflect::Node::makeObject() }; // An object: one member per parameter
 };
 
-// Reads a material file and checks its layout and the shape of every value. Errors carry their line.
+// Reads a material file, upgraded to materialVersion, and checks its layout and the shape of every value. Errors
+// carry their line.
 [[nodiscard]] auto parseMaterial(std::string_view text) -> std::expected<MaterialFile, Error>;
 
 // The material file of `material`, parameters sorted by name: the same input gives the same bytes.

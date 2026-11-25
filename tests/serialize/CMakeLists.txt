@@ -4,6 +4,7 @@ aegis_add_test(
         json.test.cpp
         material.test.cpp
         material_template.test.cpp
+        migration.test.cpp
         model.test.cpp
         scene.test.cpp
         scene_instance.test.cpp

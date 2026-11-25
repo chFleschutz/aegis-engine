@@ -37,6 +37,12 @@ auto checkValue(const Node& value, std::string_view name) -> std::expected<void,
 }
 }
 
+auto materialMigrations() -> const FileMigrations&
+{
+    static const FileMigrations migrations;
+    return migrations;
+}
+
 auto parseMaterial(std::string_view text) -> std::expected<MaterialFile, Error>
 {
     static constexpr auto keys = std::to_array<std::string_view>({ "type", "id", "version", "template", "parameters" });
@@ -44,7 +50,7 @@ auto parseMaterial(std::string_view text) -> std::expected<MaterialFile, Error>
     auto root = parseJson(text);
     if (!root)
         return std::unexpected{ root.error() };
-    auto header = readHeader(*root, materialType, materialVersion, keys);
+    auto header = readHeader(*root, materialType, materialVersion, keys, materialMigrations());
     if (!header)
         return std::unexpected{ header.error() };
 

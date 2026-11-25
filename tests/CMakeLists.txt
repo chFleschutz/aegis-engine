@@ -75,6 +75,14 @@ if(TARGET compile_shaders)
     # The harness headless for a fixed number of frames.
     aegis_add_device_test(aegis-test-headless ARGS --headless --frames 600 ${samples_args})
 
+    # A scene in a temporary project renders with the material file it names, and again after the file changed
+    # (#141): engine content only, so it runs without the samples, on both geometry paths.
+    aegis_add_device_test(aegis-test-material-file ARGS --headless --material-file --frames 30)
+    aegis_add_device_test(
+        aegis-test-material-file-gpu-driven
+        ARGS --headless --material-file --gpu-driven --frames 30
+        LABELS mesh-shaders
+    )
     # Reference images: the last frame against tests/device/golden, generated on the dev GPU (see tests/README.md). Local
     # only: the lavapipe CI job runs the other device tests but excludes these with -LE golden, since software
     # rendering differs from the dev GPU (the triangle by 1 per channel, the scenes by up to 176 on ~80k pixels:

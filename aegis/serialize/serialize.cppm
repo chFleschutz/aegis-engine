@@ -7,6 +7,7 @@
 // Layers (each its own partition):
 //   :error     Error / ErrorCode / makeError / describe. Errors about a file carry its line.
 //   :json      reflect::Node <-> JSON text: JSONC on read, one fixed layout on write.
+//   :migration A native file type's migration chain: one upgrade per version, run on load (upgradeFile).
 //   :document  (module-internal) The `{type, id, version}` header and checks every native file shares.
 //   :scene     Scene files: read and check them, write them, save a world, instantiate a scene into a world.
 //   :material  Material files: a template's ID and parameter values, read and written as data.
@@ -20,5 +21,6 @@ export import :error;
 export import :json;
 export import :material;
 export import :material_template;
+export import :migration;
 export import :model;
 export import :scene;

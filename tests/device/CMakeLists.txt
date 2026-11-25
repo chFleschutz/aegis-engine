@@ -10,6 +10,7 @@ target_sources(
         checks/graph.cpp
         checks/ibl.cpp
         checks/input.cpp
+        checks/material_file.cpp
         checks/offscreen.cpp
         checks/rhi.cpp
         checks/scene.cpp
