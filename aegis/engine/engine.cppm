@@ -451,6 +451,11 @@ public:
     /// @brief No window, input or platform backend: frames render offscreen (AppDesc::headless).
     [[nodiscard]] auto headless() const -> bool { return !m_window; }
 
+    /// @brief The input every world's scripts read when headless: the project's input map, and nothing down until a
+    ///        check applies events to it (beginFrame, then apply, at the safe point before the worlds update). Null
+    ///        with a window, whose input comes from the platform.
+    [[nodiscard]] auto headlessInput() -> platform::InputState* { return m_window ? nullptr : &m_headlessInput; }
+
 private:
     friend struct FrameContext; // Its update and render ask for this frame's updates and rendered world
 
@@ -509,7 +514,7 @@ private:
     std::unique_ptr<aegis::platform::Window> m_window; // null when headless
     // Before ImGui's GLFW backend installs its callbacks, which chain to the window's. Null when headless.
     std::unique_ptr<aegis::platform::Input> m_input;
-    aegis::platform::InputState m_headlessInput; // What scripts read when headless: the input map, and no input
+    aegis::platform::InputState m_headlessInput; // What scripts read when headless: the input map, and what checks apply
     Presentation m_presentation;                 // The ImGui context: outlives the frame graph's UI pass and the shell
     std::uint32_t m_lastFrameIndex{ 0 };         // The frame slot the last frame drew into
     std::unique_ptr<aegis::rhi::Context> m_context;
