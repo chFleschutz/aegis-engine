@@ -120,19 +120,19 @@ that each of M12's features stays one PR. It runs in parallel with M10.
 target beyond the render tests: what it lacks becomes issues here.
 - background work: a job system ([#259](https://github.com/chFleschutz/aegis-engine/issues/259)), then background asset loading ([#260](https://github.com/chFleschutz/aegis-engine/issues/260), `needs-design`,
   after [#154](https://github.com/chFleschutz/aegis-engine/issues/154));
-- the later asset features ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md)): hot reload ([#143](https://github.com/chFleschutz/aegis-engine/issues/143)), prefab overrides and unpacking ([#142](https://github.com/chFleschutz/aegis-engine/issues/142)) and
-  native material files ([#141](https://github.com/chFleschutz/aegis-engine/issues/141));
+- the later asset features ([`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md)): hot reload, prefab overrides and material files moved to
+  [M23 Content authoring](https://github.com/chFleschutz/aegis-engine/milestone/24);
 - last, exporting the game ([#134](https://github.com/chFleschutz/aegis-engine/issues/134), [`0007-engine-hosts-the-game.md`](adr/0007-engine-hosts-the-game.md), [`0008-asset-sources-and-import-cache.md`](adr/0008-asset-sources-and-import-cache.md), `needs-design`): the cook step, install rules and the
   shipping build, tried on the slice.
 
 **Lanes.** Milestones run in two lanes, each with its own Active and Planning milestone; the lanes'
 areas and rules are in the [`plan-milestone` skill](../.claude/skills/plan-milestone/SKILL.md#milestone-rules).
 - **render** (`render_graph`, `render_passes`, `renderer`, `rhi`): [M19 Frame-graph rebuilds](https://github.com/chFleschutz/aegis-engine/milestone/20)
-  (Active; its Planning slot is free), then the rest of Render features above:
-  anti-aliasing, auto exposure, vertex tangents ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) and clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22)).
+  (Active), [M22 Image quality](https://github.com/chFleschutz/aegis-engine/milestone/23) (Planning: anti-aliasing and auto exposure), then the rest of
+  Render features above: vertex tangents ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) and clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22)).
 - **content** (`assets`, `world`, `app`, `editor`, `platform`, `math`, `physics`, `audio`): [M21 Gameplay foundation](https://github.com/chFleschutz/aegis-engine/milestone/22)
-  (Active); its Planning slot is free. Save games
-  ([#168](https://github.com/chFleschutz/aegis-engine/issues/168)) can follow M21 at any point.
+  (Active), [M23 Content authoring](https://github.com/chFleschutz/aegis-engine/milestone/24) (Planning: material files, prefab overrides, hot reload).
+  Save games ([#168](https://github.com/chFleschutz/aegis-engine/issues/168)) can follow M21 at any point.
 - The vertical slice needs both lanes' targets; plan it once they are done.
 
 **[M8. Verification tiers](https://github.com/chFleschutz/aegis-engine/milestone/8?closed=1)** (P9, done) added local reference-image comparison and the CI
