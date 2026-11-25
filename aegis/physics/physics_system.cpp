@@ -14,6 +14,7 @@ module;
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/CollideShape.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
+#include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
@@ -174,6 +175,94 @@ auto entityOf(JPH::uint64 userData) -> world::Entity
     return world::Entity{ static_cast<entt::entity>(static_cast<std::underlying_type_t<entt::entity>>(userData)) };
 }
 
+using EntityKey = std::underlying_type_t<entt::entity>;
+
+auto keyOf(entt::entity entity) -> EntityKey
+{
+    return std::to_underlying(entity);
+}
+
+auto entityOf(EntityKey key) -> world::Entity
+{
+    return world::Entity{ static_cast<entt::entity>(key) };
+}
+
+// Two entities whose bodies touch, the lower ID first.
+struct ContactPair
+{
+    EntityKey a;
+    EntityKey b;
+
+    auto operator<=>(const ContactPair&) const = default;
+
+    [[nodiscard]] auto contains(EntityKey entity) const -> bool { return a == entity || b == entity; }
+};
+
+// A pair of entities found touching in a step, with where.
+struct ContactReport
+{
+    ContactPair pair;
+    math::Float3 point;
+    math::Float3 normal; // From a toward b
+};
+
+// The report of two entities touching at 'point', with 'normal' pointing from 'first' toward 'second'; none for an
+// entity touching itself.
+auto makeReport(EntityKey first, EntityKey second, const math::Float3& point, const math::Float3& normal) -> std::optional<ContactReport>
+{
+    if (first == second)
+        return std::nullopt;
+    if (first < second)
+        return ContactReport{ .pair = { first, second }, .point = point, .normal = normal };
+    return ContactReport{ .pair = { second, first }, .point = point, .normal = -normal };
+}
+
+// Collects the body pairs that touch during a step. Jolt calls it from its job threads, so it only records, under a
+// lock; the system sorts the records and emits the events on the main thread after the step.
+class ContactCollector final : public JPH::ContactListener
+{
+public:
+    void OnContactAdded(const JPH::Body& body1, const JPH::Body& body2, const JPH::ContactManifold& manifold, JPH::ContactSettings&) override
+    {
+        record(body1, body2, manifold);
+    }
+
+    void OnContactPersisted(const JPH::Body& body1, const JPH::Body& body2, const JPH::ContactManifold& manifold, JPH::ContactSettings&) override
+    {
+        record(body1, body2, manifold);
+    }
+
+    // The reports since the last call, in the order they came.
+    auto take() -> std::vector<ContactReport>
+    {
+        const std::scoped_lock lock{ m_mutex };
+        return std::exchange(m_reports, {});
+    }
+
+private:
+    void record(const JPH::Body& body1, const JPH::Body& body2, const JPH::ContactManifold& manifold)
+    {
+        // The middle of the contact points on both bodies
+        auto point = manifold.mBaseOffset;
+        if (const auto count = manifold.mRelativeContactPointsOn1.size(); count != 0)
+        {
+            JPH::Vec3 sum = JPH::Vec3::sZero();
+            for (JPH::uint i = 0; i < count; ++i)
+                sum += manifold.mRelativeContactPointsOn1[i] + manifold.mRelativeContactPointsOn2[i];
+            point += sum / (2.0f * static_cast<float>(count));
+        }
+        auto report = makeReport(static_cast<EntityKey>(body1.GetUserData()), static_cast<EntityKey>(body2.GetUserData()), fromJolt(point),
+            fromJolt(JPH::RVec3{ manifold.mWorldSpaceNormal }));
+        if (!report)
+            return;
+        const std::scoped_lock lock{ m_mutex };
+        m_reports.push_back(*report);
+    }
+
+    std::mutex m_mutex;
+    std::vector<ContactReport> m_reports;
+};
+
 // Skips the bodies of one entity: its own body and a character's inner body.
 class IgnoreEntityFilter final : public JPH::BodyFilter
 {
@@ -330,16 +419,20 @@ struct PhysicsSystem::Impl
     ObjectPairs objectPairs;
     JPH::TempAllocatorImpl temp{ TEMP_ALLOCATOR_BYTES };
     JPH::JobSystemSingleThreaded jobs{ JPH::cMaxPhysicsJobs };
+    ContactCollector contacts; // Before the physics, which calls it
     JPH::PhysicsSystem physics;
 
     std::unordered_map<entt::entity, Body> bodies;
-    std::vector<entt::entity> pending; // Entities whose Collider or RigidBody came or went since the last step
-    bool running{ false };             // Between onBegin and onReset: bodies exist and follow the signals
+    std::vector<entt::entity> pending;    // Entities whose Collider or RigidBody came or went since the last step
+    std::vector<ContactPair> touching;    // Sorted: the pairs that sent a ContactBegin and no ContactEnd yet
+    world::Registry* registry{ nullptr }; // The registry of the world it is attached to: where the contact events go
+    bool running{ false };                // Between onBegin and onReset: bodies exist and follow the signals
 
     Impl()
     {
         physics.Init(MAX_BODIES, 0, MAX_BODY_PAIRS, MAX_CONTACT_CONSTRAINTS, broadPhase, objectVsBroadPhase, objectPairs);
         physics.SetGravity(toJolt(DEFAULT_GRAVITY));
+        physics.SetContactListener(&contacts);
         // Resting bodies sink into each other by up to the penetration slop (Jolt: 2 cm), which shows; 2 mm still rests
         // without jitter.
         auto settings = physics.GetPhysicsSettings();
@@ -361,6 +454,62 @@ struct PhysicsSystem::Impl
         bodyInterface.RemoveBody(found->second.id);
         bodyInterface.DestroyBody(found->second.id);
         bodies.erase(found);
+        endContacts(keyOf(entity));
+    }
+
+    // Ends the contacts of an entity that lost its body.
+    void endContacts(EntityKey entity)
+    {
+        const auto [first, last] = std::ranges::stable_partition(touching, [entity](const ContactPair& pair) { return !pair.contains(entity); });
+        if (registry)
+        {
+            for (auto pair = first; pair != last; ++pair)
+                registry->events().emit(ContactEnd{ .a = entityOf(pair->a), .b = entityOf(pair->b) });
+        }
+        touching.erase(first, last);
+    }
+
+    // Whether the entity's body is awake: an awake body reports its contacts every step, a sleeping one keeps them.
+    [[nodiscard]] auto isActive(EntityKey entity) const -> bool
+    {
+        const auto found = bodies.find(static_cast<entt::entity>(entity));
+        return found != bodies.end() && physics.GetBodyInterface().IsActive(found->second.id);
+    }
+
+    // Emits the contact events of the step that just ran: a ContactEnd for each pair that stopped touching, then a
+    // ContactBegin for each that started, both in pair order.
+    void emitContacts(world::Registry& registry)
+    {
+        auto reports = contacts.take();
+        std::ranges::stable_sort(reports, {}, &ContactReport::pair);
+        const auto [first, last] = std::ranges::unique(reports, {}, &ContactReport::pair);
+        reports.erase(first, last);
+        const auto reported = [&reports](const ContactPair& pair) { return std::ranges::binary_search(reports, pair, {}, &ContactReport::pair); };
+
+        // Touching now: the pairs reported in this step, and the earlier ones whose bodies all sleep (Jolt reports
+        // nothing for them, but they still touch).
+        std::vector<ContactPair> now;
+        now.reserve(reports.size() + touching.size());
+        for (const auto& report : reports)
+            now.push_back(report.pair);
+        for (const auto& pair : touching)
+        {
+            if (!reported(pair) && !isActive(pair.a) && !isActive(pair.b))
+                now.push_back(pair);
+        }
+        std::ranges::sort(now);
+
+        auto& events = registry.events();
+        std::vector<ContactPair> ended;
+        std::ranges::set_difference(touching, now, std::back_inserter(ended));
+        for (const auto& pair : ended)
+            events.emit(ContactEnd{ .a = entityOf(pair.a), .b = entityOf(pair.b) });
+        for (const auto& report : reports)
+        {
+            if (!std::ranges::binary_search(touching, report.pair))
+                events.emit(ContactBegin{ .a = entityOf(report.pair.a), .b = entityOf(report.pair.b), .point = report.point, .normal = report.normal });
+        }
+        touching = std::move(now);
     }
 
     void removeAll()
@@ -373,6 +522,8 @@ struct PhysicsSystem::Impl
         }
         bodies.clear();
         pending.clear();
+        touching.clear();
+        contacts.take();
     }
 
     // Gives the entity a body for its Collider, replacing the one it had; none without a Collider.
@@ -458,6 +609,7 @@ PhysicsSystem::~PhysicsSystem() = default;
 void PhysicsSystem::onAttach(world::Registry& registry)
 {
     registry.setContext<PhysicsSystem>(*this);
+    m_impl->registry = &registry;
     registry.onConstruct<Collider>().connect<&PhysicsSystem::onBodyChanged>(this);
     registry.onConstruct<RigidBody>().connect<&PhysicsSystem::onBodyChanged>(this);
     registry.onDestroy<RigidBody>().connect<&PhysicsSystem::onBodyChanged>(this);
@@ -468,6 +620,7 @@ void PhysicsSystem::onDetach(world::Registry& registry)
 {
     m_impl->removeAll();
     m_impl->running = false;
+    m_impl->registry = nullptr;
     registry.onConstruct<Collider>().disconnect(this);
     registry.onConstruct<RigidBody>().disconnect(this);
     registry.onDestroy<RigidBody>().disconnect(this);
@@ -527,6 +680,8 @@ void PhysicsSystem::onFixedUpdate(world::Registry& registry, float stepSeconds)
         body.location = fromJolt(location);
         body.rotation = fromJolt(rotation);
     }
+
+    m_impl->emitContacts(registry);
 }
 
 void PhysicsSystem::onUpdate(world::Registry& registry, float)

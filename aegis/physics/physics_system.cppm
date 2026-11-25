@@ -16,6 +16,9 @@ export namespace aegis::physics
 ///   changes the bodies at the next fixed step; a removed Collider or entity loses its body at once.
 /// - Each fixed step moves the kinematic bodies to their entity's pose, steps Jolt by the step and keeps each dynamic
 ///   body's pose before and after it.
+/// - After each step it emits the contact events (ContactBegin, ContactEnd) of the pairs that started or stopped
+///   touching, in pair order; a body that goes away (or is replaced, when its Collider or RigidBody changes) ends its
+///   contacts at once.
 /// - Once per frame, after the fixed steps (Phase::FixedUpdate) and so before the TransformSystem, it writes each
 ///   dynamic body's pose, blended by the world's alpha, into its entity's Transform: in its parent's space when it has
 ///   one, keeping the Transform's scale. The blend runs from the step before the last (alpha 0) to the last one, so
