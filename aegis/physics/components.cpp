@@ -97,6 +97,20 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
         .property("radius", radius, setRadius, { .min = 0.0, .step = 0.05, .unit = "m", .tooltip = "Sphere and capsule only" })
         .property("halfHeight", halfHeight, setHalfHeight, { .min = 0.0, .step = 0.05, .unit = "m", .tooltip = "Capsule only: half the length between its caps" })
         .field("offset", &Collider::offset, { .step = 0.05, .unit = "m", .tooltip = "The shape's center in the entity's space" });
-    return collider->status();
+    if (auto status = collider->status(); !status)
+        return status;
+
+    // desiredVelocity and grounded are runtime state: a script and the PhysicsSystem write them while the world plays.
+    auto character = world::registerComponent<CharacterController>(types, "CharacterController");
+    if (!character)
+        return std::unexpected{ character.error() };
+    character->displayName("Character Controller")
+        .category("Physics")
+        .field("radius", &CharacterController::radius, { .min = 0.01, .step = 0.05, .unit = "m" })
+        .field("height", &CharacterController::height, { .min = 0.03, .step = 0.05, .unit = "m", .tooltip = "Feet to top: more than twice the radius" })
+        .field("maxSlope", &CharacterController::maxSlope, { .min = 0.0, .max = 90.0, .step = 1.0, .unit = "deg", .tooltip = "The steepest slope it walks up" })
+        .field("stepHeight", &CharacterController::stepHeight, { .min = 0.0, .step = 0.05, .unit = "m", .tooltip = "The highest step it climbs" })
+        .field("pushStrength", &CharacterController::pushStrength, { .min = 0.0, .step = 10.0, .unit = "N", .tooltip = "The most force it pushes a dynamic body with" });
+    return character->status();
 }
 }

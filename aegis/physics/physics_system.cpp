@@ -11,17 +11,21 @@ module;
 #include <Jolt/Physics/Body/BodyFilter.h>
 #include <Jolt/Physics/Body/BodyInterface.h>
 #include <Jolt/Physics/Body/BodyLock.h>
+#include <Jolt/Physics/Character/CharacterVirtual.h>
+#include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/CollideShape.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
+#include <Jolt/Physics/Collision/ObjectLayer.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Collision/ShapeFilter.h>
 #include <Jolt/Physics/PhysicsSettings.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/RegisterTypes.h>
@@ -232,6 +236,13 @@ public:
         record(body1, body2, manifold);
     }
 
+    // A report from outside Jolt's step: a character's contact.
+    void add(const ContactReport& report)
+    {
+        const std::scoped_lock lock{ m_mutex };
+        m_reports.push_back(report);
+    }
+
     // The reports since the last call, in the order they came.
     auto take() -> std::vector<ContactReport>
     {
@@ -374,6 +385,30 @@ auto makeShape(const Collider& collider, const math::Float3& scale) -> std::expe
     return result.Get();
 }
 
+// A character's capsule standing on its origin (the feet) along math::world::up, or why it can't be made.
+auto characterShape(const CharacterController& controller) -> std::expected<JPH::ShapeRefC, std::string>
+{
+    const float halfCylinder = 0.5f * controller.height - controller.radius;
+    if (!(controller.radius > 0.0f && halfCylinder > 0.0f))
+        return std::unexpected{
+            std::format("a character needs a radius above zero and a height above twice its radius, not {} and {}", controller.radius, controller.height)
+        };
+    // The cylinder of Jolt's capsule runs along its Y axis; ours stands along math::world::up (Z).
+    const JPH::Ref<JPH::CapsuleShapeSettings> capsule = new JPH::CapsuleShapeSettings{ halfCylinder, controller.radius };
+    const JPH::Ref<JPH::RotatedTranslatedShapeSettings> placed = new JPH::RotatedTranslatedShapeSettings{
+        toJolt(math::world::up<float> * (0.5f * controller.height)), JPH::Quat::sRotation(JPH::Vec3::sAxisX(), 0.5f * JPH::JPH_PI), capsule
+    };
+    const auto result = placed->Create();
+    if (result.HasError())
+        return std::unexpected{ std::string{ result.GetError().c_str() } };
+    return result.Get();
+}
+
+auto nameOf(world::Registry& registry, world::Entity entity) -> std::string
+{
+    return registry.has<Name>(entity) ? registry.get<Name>(entity).name : std::string{};
+}
+
 auto parentOf(world::Registry& registry, world::Entity entity) -> world::Entity
 {
     if (!registry.has<Parent>(entity))
@@ -392,6 +427,27 @@ auto globalOf(world::Registry& registry, world::Entity entity) -> GlobalTransfor
         return world::detail::compose(globalOf(registry, parent), transform);
     return GlobalTransform{ .matrix = transform.matrix() };
 }
+
+// Writes a global pose into the entity's Transform, in its parent's space when it has one. Keeps the Transform's scale,
+// and its rotation when 'rotation' is none.
+void writePose(world::Registry& registry, world::Entity entity, const math::Float3& location, std::optional<math::Quat> rotation)
+{
+    auto& transform = registry.get<Transform>(entity);
+    const auto parent = parentOf(registry, entity);
+    if (!parent)
+    {
+        transform.location = location;
+        if (rotation)
+            transform.rotation = *rotation;
+        return;
+    }
+    const auto parentGlobal = globalOf(registry, parent);
+    const auto globalRotation = rotation ? *rotation : math::decomposeTRS(world::detail::compose(parentGlobal, transform).matrix).rotation;
+    const auto local = world::detail::toLocal(parentGlobal, math::transformMatrix(location, globalRotation, parentGlobal.scale() * transform.scale));
+    transform.location = local.location;
+    if (rotation)
+        transform.rotation = local.rotation;
+}
 }
 
 struct PhysicsSystem::Impl
@@ -405,6 +461,14 @@ struct PhysicsSystem::Impl
         math::Quat previousRotation;
         math::Float3 location;
         math::Quat rotation;
+    };
+
+    struct Character
+    {
+        JPH::Ref<JPH::CharacterVirtual> character;
+        // Its feet before and after the last step, for the frame's blend
+        math::Float3 previousLocation;
+        math::Float3 location;
     };
 
     static constexpr JPH::uint MAX_BODIES{ 65536 };
@@ -423,6 +487,7 @@ struct PhysicsSystem::Impl
     JPH::PhysicsSystem physics;
 
     std::unordered_map<entt::entity, Body> bodies;
+    std::unordered_map<entt::entity, Character> characters;
     std::vector<entt::entity> pending;    // Entities whose Collider or RigidBody came or went since the last step
     std::vector<ContactPair> touching;    // Sorted: the pairs that sent a ContactBegin and no ContactEnd yet
     world::Registry* registry{ nullptr }; // The registry of the world it is attached to: where the contact events go
@@ -445,6 +510,7 @@ struct PhysicsSystem::Impl
 
     ~Impl() { removeAll(); }
 
+    // Removes the entity's body (not its character).
     void removeBody(entt::entity entity)
     {
         const auto found = bodies.find(entity);
@@ -455,6 +521,13 @@ struct PhysicsSystem::Impl
         bodyInterface.DestroyBody(found->second.id);
         bodies.erase(found);
         endContacts(keyOf(entity));
+    }
+
+    // Removes the entity's character, and with it its inner body.
+    void removeCharacter(entt::entity entity)
+    {
+        if (characters.erase(entity) != 0)
+            endContacts(keyOf(entity));
     }
 
     // Ends the contacts of an entity that lost its body.
@@ -469,9 +542,12 @@ struct PhysicsSystem::Impl
         touching.erase(first, last);
     }
 
-    // Whether the entity's body is awake: an awake body reports its contacts every step, a sleeping one keeps them.
+    // Whether the entity's body is awake: an awake body reports its contacts every step, a sleeping one keeps them. A
+    // character reports its contacts every step.
     [[nodiscard]] auto isActive(EntityKey entity) const -> bool
     {
+        if (characters.contains(static_cast<entt::entity>(entity)))
+            return true;
         const auto found = bodies.find(static_cast<entt::entity>(entity));
         return found != bodies.end() && physics.GetBodyInterface().IsActive(found->second.id);
     }
@@ -521,15 +597,23 @@ struct PhysicsSystem::Impl
             bodyInterface.DestroyBody(body.id);
         }
         bodies.clear();
+        characters.clear();
         pending.clear();
         touching.clear();
         contacts.take();
     }
 
-    // Gives the entity a body for its Collider, replacing the one it had; none without a Collider.
+    // Gives the entity a character for its CharacterController, or else a body for its Collider, replacing the one it
+    // had; none without either.
     void createBody(world::Registry& registry, world::Entity entity)
     {
         removeBody(entity.id());
+        removeCharacter(entity.id());
+        if (registry.has<CharacterController>(entity))
+        {
+            createCharacter(registry, entity);
+            return;
+        }
         if (!registry.has<Collider>(entity))
             return;
 
@@ -582,6 +666,94 @@ struct PhysicsSystem::Impl
             registry.add<DynamicTag>(entity);
     }
 
+    void createCharacter(world::Registry& registry, world::Entity entity)
+    {
+        if (registry.has<Collider>(entity) || registry.has<RigidBody>(entity))
+            log::warn("The entity '{}' has a CharacterController and a Collider or RigidBody: it is a character, they do nothing", nameOf(registry, entity));
+
+        const auto& controller = registry.get<CharacterController>(entity);
+        auto shape = characterShape(controller);
+        if (!shape)
+        {
+            log::warn("The entity '{}' is no character: {}", nameOf(registry, entity), shape.error());
+            return;
+        }
+
+        const auto up = toJolt(math::world::up<float>);
+        const JPH::Ref<JPH::CharacterVirtualSettings> settings = new JPH::CharacterVirtualSettings{};
+        settings->mShape = *shape;
+        settings->mUp = up;
+        settings->mSupportingVolume = JPH::Plane{ up, -controller.radius }; // Contacts in the bottom half-sphere support it
+        settings->mMaxSlopeAngle = math::radians(controller.maxSlope);
+        settings->mMaxStrength = controller.pushStrength;
+        settings->mInnerBodyShape = *shape;
+        settings->mInnerBodyLayer = layers::MOVING;
+
+        const auto feet = math::decomposeTRS(globalOf(registry, entity).matrix).location;
+        Character character{
+            .character = new JPH::CharacterVirtual{ settings, toJoltPosition(feet), JPH::Quat::sIdentity(), toUserData(entity.id()), &physics },
+            .previousLocation = feet,
+            .location = feet,
+        };
+        characters.emplace(entity.id(), std::move(character));
+        if (!registry.has<DynamicTag>(entity))
+            registry.add<DynamicTag>(entity);
+    }
+
+    // Moves each character by its desired velocity and gravity for a step, and reports what it touches.
+    void moveCharacters(world::Registry& registry, float stepSeconds)
+    {
+        const auto up = toJolt(math::world::up<float>);
+        const auto gravity = physics.GetGravity();
+        const JPH::DefaultBroadPhaseLayerFilter broadPhaseFilter{ objectVsBroadPhase, layers::MOVING };
+        const JPH::DefaultObjectLayerFilter layerFilter{ objectPairs, layers::MOVING };
+        const JPH::BodyFilter bodyFilter;
+        const JPH::ShapeFilter shapeFilter;
+        auto& bodyInterface = physics.GetBodyInterface();
+
+        for (auto& [entity, character] : characters)
+        {
+            auto& controller = registry.get<CharacterController>(world::Entity{ entity });
+            auto& virtualCharacter = *character.character;
+            virtualCharacter.SetMaxSlopeAngle(math::radians(controller.maxSlope));
+            virtualCharacter.SetMaxStrength(controller.pushStrength);
+
+            // Jolt's recipe: on the ground it moves with the ground, plus a jump; in the air it keeps its vertical
+            // speed. Gravity and the walk come on top.
+            const auto desired = toJolt(controller.desiredVelocity);
+            const float jump = desired.Dot(up);
+            const auto walk = desired - jump * up;
+            virtualCharacter.UpdateGroundVelocity();
+            const auto groundVelocity = virtualCharacter.GetGroundVelocity();
+            const auto verticalVelocity = virtualCharacter.GetLinearVelocity().Dot(up) * up;
+            const bool towardGround = (verticalVelocity - groundVelocity).Dot(up) < 0.1f;
+            auto velocity = virtualCharacter.GetGroundState() == JPH::CharacterVirtual::EGroundState::OnGround && towardGround
+                                ? groundVelocity + jump * up
+                                : verticalVelocity;
+            velocity += walk + gravity * stepSeconds;
+            virtualCharacter.SetLinearVelocity(velocity);
+
+            JPH::CharacterVirtual::ExtendedUpdateSettings update;
+            update.mStickToFloorStepDown = -controller.stepHeight * up;
+            update.mWalkStairsStepUp = controller.stepHeight * up;
+            virtualCharacter.ExtendedUpdate(stepSeconds, gravity, update, broadPhaseFilter, layerFilter, bodyFilter, shapeFilter, temp);
+
+            controller.grounded = virtualCharacter.GetGroundState() == JPH::CharacterVirtual::EGroundState::OnGround;
+            character.previousLocation = character.location;
+            character.location = fromJolt(virtualCharacter.GetPosition());
+
+            for (const auto& contact : virtualCharacter.GetActiveContacts())
+            {
+                if (!contact.mHadCollision || contact.mWasDiscarded || contact.mCharacterB != nullptr)
+                    continue;
+                // The contact's normal points toward the character
+                const auto other = static_cast<EntityKey>(bodyInterface.GetUserData(contact.mBodyB));
+                if (auto report = makeReport(keyOf(entity), other, fromJolt(contact.mPosition), -fromJolt(JPH::RVec3{ contact.mContactNormal })))
+                    contacts.add(*report);
+            }
+        }
+    }
+
     void applyPending(world::Registry& registry)
     {
         auto entities = std::move(pending);
@@ -614,6 +786,8 @@ void PhysicsSystem::onAttach(world::Registry& registry)
     registry.onConstruct<RigidBody>().connect<&PhysicsSystem::onBodyChanged>(this);
     registry.onDestroy<RigidBody>().connect<&PhysicsSystem::onBodyChanged>(this);
     registry.onDestroy<Collider>().connect<&PhysicsSystem::onColliderDestroyed>(this);
+    registry.onConstruct<CharacterController>().connect<&PhysicsSystem::onBodyChanged>(this);
+    registry.onDestroy<CharacterController>().connect<&PhysicsSystem::onCharacterDestroyed>(this);
 }
 
 void PhysicsSystem::onDetach(world::Registry& registry)
@@ -625,6 +799,8 @@ void PhysicsSystem::onDetach(world::Registry& registry)
     registry.onConstruct<RigidBody>().disconnect(this);
     registry.onDestroy<RigidBody>().disconnect(this);
     registry.onDestroy<Collider>().disconnect(this);
+    registry.onConstruct<CharacterController>().disconnect(this);
+    registry.onDestroy<CharacterController>().disconnect(this);
     if (registry.context<PhysicsSystem>() == this)
         registry.eraseContext<PhysicsSystem>();
 }
@@ -633,14 +809,19 @@ void PhysicsSystem::onBegin(world::Registry& registry)
 {
     m_impl->removeAll();
 
-    std::vector<world::Entity> entities;
+    std::vector<entt::entity> entities;
     for (const auto entity : registry.view<Collider>())
-        entities.emplace_back(entity);
+        entities.push_back(entity);
+    for (const auto entity : registry.view<CharacterController>())
+        entities.push_back(entity);
+    std::ranges::sort(entities);
+    const auto [first, last] = std::ranges::unique(entities);
+    entities.erase(first, last);
     for (const auto entity : entities)
-        m_impl->createBody(registry, entity);
+        m_impl->createBody(registry, world::Entity{ entity });
 
     std::size_t bodiesWithoutCollider{ 0 };
-    for ([[maybe_unused]] const auto entity : registry.view<RigidBody>(entt::exclude<Collider>))
+    for ([[maybe_unused]] const auto entity : registry.view<RigidBody>(entt::exclude<Collider, CharacterController>))
         ++bodiesWithoutCollider;
     if (bodiesWithoutCollider != 0)
         log::warn("{} entities have a RigidBody and no Collider: they have no body until they get one", bodiesWithoutCollider);
@@ -663,6 +844,9 @@ void PhysicsSystem::onFixedUpdate(world::Registry& registry, float stepSeconds)
         const auto pose = math::decomposeTRS(globalOf(registry, world::Entity{ entity }).matrix);
         bodyInterface.MoveKinematic(body.id, toJoltPosition(pose.location), toJolt(pose.rotation), stepSeconds);
     }
+
+    // Before the step, as Jolt advises: the bodies a character pushed move in it.
+    m_impl->moveCharacters(registry, stepSeconds);
 
     constexpr int collisionSteps{ 1 };
     if (const auto error = m_impl->physics.Update(stepSeconds, collisionSteps, &m_impl->temp, &m_impl->jobs); error != JPH::EPhysicsUpdateError::None)
@@ -693,24 +877,10 @@ void PhysicsSystem::onUpdate(world::Registry& registry, float)
     {
         if (body.motionType != MotionType::Dynamic)
             continue;
-        const world::Entity entity{ id };
-        const auto location = math::lerp(body.previousLocation, body.location, alpha);
-        const auto rotation = math::slerp(body.previousRotation, body.rotation, alpha);
-
-        auto& transform = registry.get<Transform>(entity);
-        if (const auto parent = parentOf(registry, entity))
-        {
-            const auto parentGlobal = globalOf(registry, parent);
-            const auto local = world::detail::toLocal(parentGlobal, math::transformMatrix(location, rotation, parentGlobal.scale() * transform.scale));
-            transform.location = local.location;
-            transform.rotation = local.rotation;
-        }
-        else
-        {
-            transform.location = location;
-            transform.rotation = rotation;
-        }
+        writePose(registry, world::Entity{ id }, math::lerp(body.previousLocation, body.location, alpha), math::slerp(body.previousRotation, body.rotation, alpha));
     }
+    for (const auto& [id, character] : m_impl->characters)
+        writePose(registry, world::Entity{ id }, math::lerp(character.previousLocation, character.location, alpha), std::nullopt);
 }
 
 void PhysicsSystem::onReset(world::Registry&)
@@ -737,6 +907,11 @@ auto PhysicsSystem::bodyCount() const -> std::size_t
 auto PhysicsSystem::hasBody(world::Entity entity) const -> bool
 {
     return m_impl->bodies.contains(entity.id());
+}
+
+auto PhysicsSystem::hasCharacter(world::Entity entity) const -> bool
+{
+    return m_impl->characters.contains(entity.id());
 }
 
 auto PhysicsSystem::raycast(const math::Float3& origin, const math::Float3& direction, float maxDistance, world::Entity ignore) const -> std::optional<RayHit>
@@ -814,5 +989,12 @@ void PhysicsSystem::onBodyChanged(entt::registry&, entt::entity entity)
 void PhysicsSystem::onColliderDestroyed(entt::registry&, entt::entity entity)
 {
     m_impl->removeBody(entity);
+}
+
+void PhysicsSystem::onCharacterDestroyed(entt::registry&, entt::entity entity)
+{
+    m_impl->removeCharacter(entity);
+    if (m_impl->running)
+        m_impl->pending.push_back(entity); // Its Collider, if any, makes a body now
 }
 }
