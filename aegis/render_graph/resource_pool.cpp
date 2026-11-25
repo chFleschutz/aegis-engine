@@ -28,6 +28,11 @@ ResourcePool::~ResourcePool()
     {
         if (const auto* texture = std::get_if<CreatedTexture>(&created))
         {
+            for (const auto& views : texture->mipViews)
+            {
+                for (const auto view : views)
+                    m_device.free(view);
+            }
             for (const auto& image : texture->textures)
             {
                 if (image.image.isValid())
@@ -56,10 +61,62 @@ auto ResourcePool::textureAt(std::uint32_t entry, bool previous) const -> const 
     }
     const auto* created = std::get_if<CreatedTexture>(&m_created[entry]);
     assert(created && "Frame graph resource is not a texture");
-    if (created->lifetime != Lifetime::History)
-        return created->textures[0];
+    return created->textures[imageIndex(*created, previous)];
+}
+
+auto ResourcePool::imageIndex(const CreatedTexture& created, bool previous) const -> std::size_t
+{
+    if (created.lifetime != Lifetime::History)
+        return 0;
     const auto current = m_frame % 2;
-    return created->textures[previous ? 1 - current : current];
+    return previous ? 1 - current : current;
+}
+
+auto ResourcePool::mipView(ResourceId handle, std::uint32_t mip) const -> rhi::ImageViewHandle
+{
+    const auto* created = std::get_if<CreatedTexture>(&m_created[actual(handle)]);
+    assert(created && "Frame graph resource is not a texture the graph creates");
+    const auto& views = created->mipViews[imageIndex(*created, m_previous[handle.index])];
+    assert(mip < views.size() && "The frame graph texture has no view of this mip (it has one mip, or fewer than 'mip')");
+    return views[mip];
+}
+
+auto ResourcePool::updateMipViews(std::uint32_t entry) -> std::expected<void, Error>
+{
+    auto& created = std::get<CreatedTexture>(m_created[entry]);
+    const auto& declared = m_declarations.entries()[entry];
+    if (std::get<TextureDesc>(declared.info).mipLevels <= 1)
+        return {};
+    for (std::size_t i = 0; i < (created.lifetime == Lifetime::History ? 2u : 1u); ++i)
+    {
+        const auto& image = m_device.get(created.textures[i].image);
+        auto& views = created.mipViews[i];
+        // A recreated image can have fewer mips than the old one (a tiny extent clamps the chain).
+        while (views.size() > image.mipLevels())
+        {
+            m_device.free(views.back());
+            views.pop_back();
+        }
+        for (std::uint32_t mip = 0; mip < image.mipLevels(); ++mip)
+        {
+            const auto name = std::format("{}Mip{}", declared.name, mip);
+            const rhi::ImageView::Desc desc{
+                .name = name,
+                .extent = { std::max(image.extent().x >> mip, 1u), std::max(image.extent().y >> mip, 1u), 1 },
+                .format = image.format(),
+                .range = { .baseMipLevel = mip, .mipLevelCount = 1 },
+                .usage = created.usage,
+            };
+            auto view = mip < views.size() ? m_device.replace(views[mip], created.textures[i].image, desc)
+                                           : m_device.createImageView(created.textures[i].image, desc);
+            if (!view)
+                return makeError(ErrorCode::ResourceCreationFailed,
+                    std::format("Failed to create a mip view of frame graph texture '{}'", declared.name), view.error());
+            if (mip == views.size())
+                views.push_back(*view);
+        }
+    }
+    return {};
 }
 
 auto ResourcePool::texture(ResourceId handle) const -> const renderer::Texture&
@@ -254,6 +311,8 @@ auto ResourcePool::recreateFollowing(const std::function<bool(std::optional<std:
                 return makeError(ErrorCode::ResourceCreationFailed,
                     std::format("Failed to recreate frame graph texture '{}'", m_declarations.entries()[i].name), recreated.error());
         }
+        if (auto views = updateMipViews(i); !views)
+            return views;
         created->fresh = true; // The new images hold nothing of the previous frame
     }
     return {};
@@ -282,6 +341,8 @@ auto ResourcePool::createResources(const GraphPlan& plan) -> std::expected<void,
                     return makeError(ErrorCode::ResourceCreationFailed, std::format("Failed to create frame graph texture '{}'", entry.name), texture.error());
                 created.textures[image] = *texture;
             }
+            if (auto views = updateMipViews(i); !views)
+                return views;
         }
         else if (std::holds_alternative<ImportedTextureDesc>(entry.info))
         {
