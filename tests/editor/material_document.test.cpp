@@ -98,6 +98,19 @@ TEST_SUITE("editor::MaterialDocument")
         CHECK(floatOf(document, "roughness") == 0.25);
     }
 
+    TEST_CASE("compares numbers by value")
+    {
+        MaterialDocument document{ brick, "brick.material", brickFile() };
+        CHECK_FALSE(document.setParameter("roughness", Node::makeNumber(std::string{ "0.50" })));
+        CHECK(aegis::editor::sameParameter(Node::makeNumber(std::string{ "1.0" }), number(1.0)));
+        CHECK_FALSE(aegis::editor::sameParameter(number(1.0), Node::makeString("1")));
+        CHECK_FALSE(aegis::editor::sameParameter(number(1.0), std::nullopt));
+
+        document.setParameter("roughness", number(0.25));
+        document.setParameter("roughness", Node::makeNumber(std::string{ "0.500" }));
+        CHECK_FALSE(document.dirty());
+    }
+
     TEST_CASE("writes the parameters it was given sorted and keeps the file's header")
     {
         MaterialDocument document{ brick, "brick.material", brickFile() };

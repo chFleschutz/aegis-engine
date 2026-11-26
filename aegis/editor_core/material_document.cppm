@@ -36,7 +36,7 @@ public:
     /// @return Whether the file changed.
     auto setParameter(std::string_view name, std::optional<reflect::Node> value) -> bool;
 
-    /// @brief Whether the file differs from the one last read or saved (by the bytes serialize::writeMaterial gives).
+    /// @brief Whether the file differs from the one last read or saved, by value (sameParameter).
     [[nodiscard]] auto dirty() const -> bool;
     /// @brief The file was written: it is the saved one from now on.
     void markSaved();
@@ -83,7 +83,8 @@ private:
 [[nodiscard]] auto parameterNode(const MaterialParameterInfo& parameter, const reflect::Value& value)
     -> std::expected<std::optional<reflect::Node>, Error>;
 
-/// @brief Whether two file values are the same (none for a value not in the file).
+/// @brief Whether two file values mean the same (none for a value not in the file): numbers by value, so a hand-written
+///        "0.50" is the editor's 0.5.
 [[nodiscard]] auto sameParameter(const std::optional<reflect::Node>& a, const std::optional<reflect::Node>& b) -> bool;
 
 /// @brief The registered type the Material panel draws the parameters with (the inspector's property grid): a field

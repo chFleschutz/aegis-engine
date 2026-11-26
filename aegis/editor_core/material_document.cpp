@@ -11,6 +11,33 @@ using reflect::Node;
 
 // The drag step of a material's numbers: their usual range is 0 to 1.
 constexpr double numberStep{ 0.01 };
+
+// Whether two file values mean the same: numbers by value (a hand-written "0.50" is the editor's 0.5), an object's
+// members whatever their order.
+auto sameNode(const Node& a, const Node& b) -> bool
+{
+    if (a.kind != b.kind)
+        return false;
+    switch (a.kind)
+    {
+    case Node::Kind::Null: return true;
+    case Node::Kind::Bool: return a.boolean == b.boolean;
+    case Node::Kind::Number:
+    {
+        const auto left = a.number();
+        const auto right = b.number();
+        return left && right ? *left == *right : a.text == b.text;
+    }
+    case Node::Kind::String: return a.text == b.text;
+    case Node::Kind::Array: return std::ranges::equal(a.items, b.items, sameNode);
+    case Node::Kind::Object:
+        return a.items.size() == b.items.size() && std::ranges::all_of(a.items, [&b](const Node& member) {
+            const Node* other = b.find(member.key);
+            return other && sameNode(member, *other);
+        });
+    }
+    return false;
+}
 }
 
 MaterialDocument::MaterialDocument(std::uint64_t asset, std::string path, serialize::MaterialFile file) :
@@ -57,7 +84,7 @@ auto MaterialDocument::setParameter(std::string_view name, std::optional<Node> v
 
 auto MaterialDocument::dirty() const -> bool
 {
-    return serialize::writeMaterial(m_file) != serialize::writeMaterial(m_saved);
+    return m_file.id != m_saved.id || m_file.templateId != m_saved.templateId || !sameNode(m_file.parameters, m_saved.parameters);
 }
 
 void MaterialDocument::markSaved()
@@ -146,7 +173,7 @@ auto sameParameter(const std::optional<Node>& a, const std::optional<Node>& b) -
 {
     if (!a || !b)
         return !a && !b;
-    return serialize::writeJson(*a) == serialize::writeJson(*b);
+    return sameNode(*a, *b);
 }
 
 auto materialType(std::span<const MaterialParameterInfo> parameters) -> reflect::TypeInfo
