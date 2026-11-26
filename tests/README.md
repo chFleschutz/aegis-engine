@@ -66,6 +66,12 @@ plus `--screenshot` (arguments are in `tests/CMakeLists.txt`), for example
 (triangle: `--headless --frames 120`; GPU-driven: `--headless --gpu-driven --frames 120 --no-overlay`),
 look at the image, and commit it with the change.
 
+### Flaky tests
+
+Label `flaky` marks a test that fails now and then on an untouched `main`, while its open issue (named in the comment
+beside the label) is fixed: the pre-push run leaves it out (`ctest --preset windows-clang-debug -LE flaky`), so a red
+result there is the change's. `ctest -N -L flaky` lists them. The fix that makes one pass every run removes its label.
+
 ### Slow tests
 
 Label `slow` marks device tests that CI's lavapipe games shard skips (`-L game -LE slow`) because a software

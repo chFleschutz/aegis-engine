@@ -80,7 +80,7 @@ the comment and stop.
   `git fetch origin` then
   `git rebase --exec "cmake --build --preset <preset> && ctest --preset <preset> -LE device" origin/main`
   (it stops at the first failing commit; never on a PR under review).
-- Device code changed: run the full `ctest --preset <preset>` before pushing, and look at the
+- Device code changed: run the full `ctest --preset <preset> -LE flaky` before pushing, and look at the
   `--screenshot` output after render changes.
 - `tools/format.sh`, then don't push a red tree: report failures with their output.
 - **Spec check, before every push, section 6's included:** after `git fetch origin`, start a sub-agent

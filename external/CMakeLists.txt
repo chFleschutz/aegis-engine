@@ -155,8 +155,8 @@ target_compile_options(Jolt PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/w,-w>)
 # module interfaces, which include no Jolt, with other flags than their importers, and CMake would build a second BMI of
 # them for each importer (an extra build, and a Clang crash once). Its instruction-set flags (-mavx2, -mfpmath=sse,
 # /arch:AVX2, ...) go with its JPH_USE_* defines, as its headers use those intrinsics, so they move onto
-# JOLT_SOURCE_COMPILE_OPTIONS, which the .cpp files that include Jolt take (aegis/physics/). -pthread (Linux) stays a
-# link option: glibc needs it at link time, not to compile.
+# JOLT_SOURCE_COMPILE_OPTIONS, which every aegis.physics implementation file takes (PHYSICS_SOURCES in
+# aegis/physics/CMakeLists.txt). -pthread (Linux) stays a link option: glibc needs it at link time, not to compile.
 get_target_property(JOLT_INTERFACE_OPTIONS Jolt INTERFACE_COMPILE_OPTIONS)
 list(FILTER JOLT_INTERFACE_OPTIONS INCLUDE REGEX "^(-m|/arch:)")
 set_target_properties(
