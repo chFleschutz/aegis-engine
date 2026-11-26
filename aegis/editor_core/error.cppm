@@ -25,6 +25,7 @@ enum class ErrorCode
     ReflectFailed,      // The type registry refused; the cause is in Error::reflect
     HierarchyFailed,    // The hierarchy refused a change; the cause is in Error::hierarchy
     AssetFailed,        // The asset library refused; its text is in Error::assets
+    MissingMaterial,    // A material file an edit names is not open in the editor (MaterialDocuments)
 };
 
 struct Error

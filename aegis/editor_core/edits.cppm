@@ -5,6 +5,7 @@ import aegis.serialize;
 import aegis.world;
 import :error;
 import :inspector;
+import :material_document;
 
 export namespace aegis::editor
 {
@@ -99,8 +100,22 @@ struct SubtreeEdit
     bool destroy{ false };
 };
 
+/// @brief A parameter of a material file set, changed or removed (the Material panel). It changes the editor's copy of
+///        the file (MaterialDocuments) and the loaded material, not the world; Save writes the file.
+struct MaterialEdit
+{
+    std::uint64_t material{ 0 };           ///< The material file's asset ID
+    std::string file;                      ///< The file's name, for titles ("brick.material")
+    std::string parameter;                 ///< The parameter's name
+    std::optional<reflect::Node> oldValue; ///< None: not in the file (the template's default)
+    std::optional<reflect::Node> newValue;
+    bool open{ false }; ///< A continuous edit (a drag) that the next edit of the same parameter extends
+
+    [[nodiscard]] auto sameTarget(const MaterialEdit& other) const -> bool { return material == other.material && parameter == other.parameter; }
+};
+
 /// @brief One entry of the undo history: any edit the editor makes.
-using Edit = std::variant<FieldEdit, ComponentEdit, AddComponentEdit, AttachScriptEdit, RenameEdit, MoveEdit, SubtreeEdit>;
+using Edit = std::variant<FieldEdit, ComponentEdit, AddComponentEdit, AttachScriptEdit, RenameEdit, MoveEdit, SubtreeEdit, MaterialEdit>;
 
 /// @brief Which side of an edit to write.
 enum class EditSide
@@ -109,12 +124,17 @@ enum class EditSide
     New, ///< Redo
 };
 
-/// @brief The world edits apply to, with the type registry they are recorded through.
+/// @brief Gives a loaded material the parameters of its edited file (the asset library's applyMaterialFile).
+using ApplyMaterial = std::function<std::expected<void, Error>(const MaterialDocument& document)>;
+
+/// @brief The world edits apply to, with the type registry they are recorded through, and the material files they edit.
 struct EditWorld
 {
     const reflect::TypeRegistry& types;
     world::Registry& registry;
-    PrepareField prepare{}; ///< Finishes a written or created component (the asset library resolves its references)
+    PrepareField prepare{};                  ///< Finishes a written or created component (the asset library resolves its references)
+    MaterialDocuments* materials{ nullptr }; ///< The material files a MaterialEdit changes; none refuses them
+    ApplyMaterial applyMaterial{};           ///< Shows a changed material file in its loaded material; none changes only the file
 };
 
 /// @brief What 'edit' does, for messages: "Health.value", "add Health", "destroy 'Lamp'".

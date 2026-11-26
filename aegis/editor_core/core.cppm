@@ -22,7 +22,10 @@
 //   :hierarchy      HierarchyRow: the rows of the hierarchy panel, in sibling order, with the closed nodes' subtrees left out;
 //                   a Shift+click range over them, and the selected roots the actions act on.
 //   :editor_camera  EditorCamera: the viewport's camera (fly, orbit, pan, dolly, focus), never an entity.
-//   :edits          The edits the editor makes (fields, components, scripts, names, hierarchy, subtrees) and applyEdit.
+//   :material_document MaterialDocuments: the material files the Material panel edits, their parameters' values and
+//                   saved state, and new material files' names.
+//   :edits          The edits the editor makes (fields, components, scripts, names, hierarchy, subtrees, material
+//                   parameters) and applyEdit.
 //   :error          Error: what the editor returns when an edit, a file or a copy fails, and describe().
 //   :undo_stack     UndoStack: the history of edits (merged drags, the saved marker).
 //   :commands       The structural edits (create, destroy, duplicate, move, ...), applied and recorded.
@@ -49,6 +52,7 @@ export import :editor_camera;
 export import :full_viewport;
 export import :hierarchy;
 export import :inspector;
+export import :material_document;
 export import :picking;
 export import :play;
 export import :preferences;

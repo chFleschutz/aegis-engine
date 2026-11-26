@@ -25,6 +25,10 @@ void extendWith(RenameEdit& edit, RenameEdit&& next)
 {
     edit.newName = std::move(next.newName);
 }
+void extendWith(MaterialEdit& edit, MaterialEdit&& next)
+{
+    edit.newValue = std::move(next.newValue);
+}
 
 void setOpen(Edit& edit, bool open)
 {
@@ -67,6 +71,8 @@ auto changesNothing(const Edit& edit) -> bool
         return sameValues(component->oldValues, component->newValues);
     if (const auto* rename = std::get_if<RenameEdit>(&edit))
         return rename->oldName == rename->newName;
+    if (const auto* material = std::get_if<MaterialEdit>(&edit))
+        return sameParameter(material->oldValue, material->newValue);
     if (const auto* move = std::get_if<MoveEdit>(&edit))
         return move->oldPlace.parent == move->newPlace.parent && (!move->newPlace.parent || move->oldPlace.index == move->newPlace.index);
     return false;

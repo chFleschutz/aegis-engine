@@ -15,7 +15,7 @@ public:
 
     /// @brief Records an edit that is already applied. With 'continuous' (the widget is still being dragged or typed
     ///        in) the next edit of the same target extends this one, keeping its old side, until seal() or an edit
-    ///        that is not continuous; only field, component and rename edits merge, and only within one entry. An
+    ///        that is not continuous; only field, component, rename and material edits merge, and only within one entry. An
     ///        edit that changes nothing is ignored. While a group is open the edit joins the group's entry.
     void record(Edit edit, bool continuous = false);
 

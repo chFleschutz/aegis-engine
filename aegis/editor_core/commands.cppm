@@ -37,6 +37,13 @@ auto destroyEntity(const EditWorld& world, UndoStack& history, world::Entity ent
 [[nodiscard]] auto duplicateEntity(const EditWorld& world, UndoStack& history, world::Entity entity)
     -> std::expected<world::Entity, Error>;
 
+/// @brief Gives the parameter 'parameter' of the material file 'material' (open in EditWorld::materials) the file value
+///        'value', or removes it from the file for none, and shows it in the loaded material (EditWorld::applyMaterial).
+///        With 'continuous' (a drag) the next edit of the same parameter extends this one.
+/// @return MissingMaterial if the file is not open, or why the loaded material refused it (nothing changed then)
+auto editMaterial(const EditWorld& world, UndoStack& history, std::uint64_t material, std::string_view parameter,
+    std::optional<reflect::Node> value, bool continuous = false) -> std::expected<void, Error>;
+
 /// @brief Renames 'entity'. With 'continuous' (the name is still being typed) the next rename extends this one.
 auto renameEntity(const EditWorld& world, UndoStack& history, world::Entity entity, std::string name, bool continuous = false)
     -> std::expected<void, Error>;

@@ -327,6 +327,24 @@ auto pasteFields(const EditWorld& world, UndoStack& history, world::Entity entit
     return changeFields(world, history, entity, type, scriptIndex, std::move(*pasted));
 }
 
+auto editMaterial(const EditWorld& world, UndoStack& history, std::uint64_t material, std::string_view parameter,
+    std::optional<reflect::Node> value, bool continuous) -> std::expected<void, Error>
+{
+    const auto* document = world.materials ? world.materials->find(material) : nullptr;
+    if (!document)
+        return makeError(ErrorCode::MissingMaterial, std::format("the material {:016x} is not open in the editor", material));
+    const auto* current = document->parameter(parameter);
+    return perform(world, history,
+        MaterialEdit{
+            .material = material,
+            .file = std::string{ document->fileName() },
+            .parameter = std::string{ parameter },
+            .oldValue = current ? std::optional{ *current } : std::nullopt,
+            .newValue = std::move(value),
+        },
+        continuous);
+}
+
 auto editField(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type, std::optional<std::size_t> scriptIndex, std::string_view field, const reflect::Value& value, bool continuous)
     -> std::expected<void, Error>
 {
