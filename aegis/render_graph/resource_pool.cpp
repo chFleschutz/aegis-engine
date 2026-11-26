@@ -135,8 +135,14 @@ auto ResourcePool::isFresh(ResourceId handle) const -> bool
     return isFreshAt(actual(handle));
 }
 
+auto ResourcePool::beginFrame(std::uint32_t frameIndex) -> void
+{
+    m_frameIndex = frameIndex;
+}
+
 auto ResourcePool::endFrame() -> void
 {
+    m_frameIndex.reset();
     for (auto& created : m_created)
     {
         if (auto* texture = std::get_if<CreatedTexture>(&created))
@@ -200,26 +206,27 @@ auto ResourcePool::buffer(ResourceId handle) const -> const rhi::Buffer&
     return m_device.get(created->buffer);
 }
 
-auto ResourcePool::bufferOffset(ResourceId handle, std::uint32_t frameIndex) const -> std::size_t
+auto ResourcePool::bufferOffset(ResourceId handle) const -> std::size_t
 {
+    assert(m_frameIndex && "Per-frame buffer lookups are valid only while FrameGraph::execute records a frame");
     if (std::holds_alternative<ImportedBuffer>(m_created[actual(handle)]))
         return 0;
     const auto* created = std::get_if<CreatedBuffer>(&m_created[actual(handle)]);
     assert(created && "Frame graph resource is not a buffer");
-    return created->stride * frameIndex;
+    return created->stride * *m_frameIndex;
 }
 
-auto ResourcePool::bufferAddress(ResourceId handle, std::uint32_t frameIndex) const -> rhi::DeviceAddress
+auto ResourcePool::bufferAddress(ResourceId handle) const -> rhi::DeviceAddress
 {
-    return buffer(handle).deviceAddress() + bufferOffset(handle, frameIndex);
+    return buffer(handle).deviceAddress() + bufferOffset(handle);
 }
 
-auto ResourcePool::write(ResourceId handle, std::uint32_t frameIndex, std::span<const std::byte> data,
-    std::size_t offset) const -> void
+auto ResourcePool::write(ResourceId handle, std::span<const std::byte> data, std::size_t offset) const -> void
 {
+    const auto copyOffset = bufferOffset(handle); // Asserts outside a recorded frame, even with nothing to write
     if (data.empty())
         return;
-    buffer(handle).write(data.data(), data.size(), bufferOffset(handle, frameIndex) + offset);
+    buffer(handle).write(data.data(), data.size(), copyOffset + offset);
 }
 
 auto ResourcePool::bufferSize(ResourceId handle) const -> std::size_t

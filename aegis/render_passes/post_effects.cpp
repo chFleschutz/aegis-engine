@@ -184,7 +184,7 @@ auto TransparentPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
         .cmd = cmd,
         .frameScene = scene,
         .frameIndex = frameInfo.frameIndex,
-        .camera = pool.bufferAddress(m_cameraData, frameInfo.frameIndex),
+        .camera = pool.bufferAddress(m_cameraData),
         .view = camera ? camera->view : math::Float4x4::identity(),
     };
     for (const auto& system : m_renderSystems)

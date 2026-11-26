@@ -60,14 +60,14 @@ public:
     [[nodiscard]] auto mipView(ResourceId handle, std::uint32_t mip) const -> rhi::ImageViewHandle;
     [[nodiscard]] auto buffer(ResourceId handle) const -> const rhi::Buffer&;
 
-    /// @brief The address of the buffer, or of frame 'frameIndex's copy of a per-frame buffer.
-    [[nodiscard]] auto bufferAddress(ResourceId handle, std::uint32_t frameIndex = 0) const -> rhi::DeviceAddress;
-    /// @brief The byte offset of frame 'frameIndex's copy (0 for a buffer that is not per-frame).
-    [[nodiscard]] auto bufferOffset(ResourceId handle, std::uint32_t frameIndex = 0) const -> std::size_t;
+    // Valid only while FrameGraph::execute records a frame: they pick the copy of the frame it records
 
-    /// @brief Writes into frame 'frameIndex's copy of a buffer declared with Usage::HostWrite.
-    auto write(ResourceId handle, std::uint32_t frameIndex, std::span<const std::byte> data,
-        std::size_t offset = 0) const -> void;
+    /// @brief The address of the buffer, or of the recorded frame's copy of a per-frame buffer.
+    [[nodiscard]] auto bufferAddress(ResourceId handle) const -> rhi::DeviceAddress;
+    /// @brief The byte offset of the recorded frame's copy (0 for a buffer that is not per-frame).
+    [[nodiscard]] auto bufferOffset(ResourceId handle) const -> std::size_t;
+    /// @brief Writes into the recorded frame's copy of a buffer declared with Usage::HostWrite.
+    auto write(ResourceId handle, std::span<const std::byte> data, std::size_t offset = 0) const -> void;
 
     /// @brief The size of one copy of the buffer (of one frame's copy, for a per-frame buffer).
     [[nodiscard]] auto bufferSize(ResourceId handle) const -> std::size_t;
@@ -117,7 +117,9 @@ private:
     [[nodiscard]] auto resize(std::uint32_t scope, rhi::Extent2D extent) -> std::expected<void, Error>;
     /// @brief Recreates the textures without an extent of their own whose scope (none: unscoped) 'inScope' accepts.
     [[nodiscard]] auto recreateFollowing(const std::function<bool(std::optional<std::uint32_t>)>& inScope) -> std::expected<void, Error>;
-    /// @brief After a frame was recorded: nothing is fresh any more, and the history pairs swap.
+    /// @brief Before recording the frame of slot 'frameIndex': the per-frame buffer accessors pick its copy.
+    auto beginFrame(std::uint32_t frameIndex) -> void;
+    /// @brief After a frame was recorded: nothing is fresh any more, the history pairs swap, and no frame is recorded.
     auto endFrame() -> void;
     auto bind(ResourceId handle, const renderer::Texture& texture) -> void;
     auto bind(ResourceId handle, rhi::ImageViewHandle view) -> void;
@@ -143,5 +145,6 @@ private:
     std::vector<bool> m_previous;                                                                                        // Per entry: it reads the previous frame's image of a history pair
     std::vector<std::variant<std::monostate, CreatedTexture, CreatedBuffer, ImportedTexture, ImportedBuffer>> m_created; // Per entry
     std::uint32_t m_frame{ 0 };                                                                                          // Frames recorded; its parity picks the current image of a history pair
+    std::optional<std::uint32_t> m_frameIndex;                                                                           // The slot of the frame being recorded, between beginFrame and endFrame
 };
 }

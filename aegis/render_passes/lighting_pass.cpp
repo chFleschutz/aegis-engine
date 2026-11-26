@@ -37,7 +37,7 @@ auto LightUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
     const auto lights = detail::packLights(m_scene.current());
     assert(lights.size() <= m_capacity && "The light buffer was not grown in prepare");
     if (!lights.empty())
-        pool.write(m_lights, frameInfo.frameIndex, std::as_bytes(std::span{ lights }));
+        pool.write(m_lights, std::as_bytes(std::span{ lights }));
 }
 
 // Lighting -------------------------------------------------------------------------------------------
@@ -146,12 +146,12 @@ auto LightingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
         if (m_spotShadowAtlas.isValid())
             shadow->spotAtlas = rhi::TextureDescriptor{ *m_device->get(pool.texture(m_spotShadowAtlas).view).sampledDescriptor(), sampler };
     }
-    const auto uniforms = detail::packLighting(scene, m_view, pool.bufferAddress(m_lights, frameInfo.frameIndex),
+    const auto uniforms = detail::packLighting(scene, m_view, pool.bufferAddress(m_lights),
         lightCapacity, m_settings.ambientOcclusionFactor, m_settings.viewMode, shadow, m_brdfLut->descriptor());
-    pool.write(m_uniforms, frameInfo.frameIndex, std::as_bytes(std::span{ &uniforms, 1 }));
+    pool.write(m_uniforms, std::as_bytes(std::span{ &uniforms, 1 }));
 
     const LightingConstants constants{
-        .lighting = pool.bufferAddress(m_uniforms, frameInfo.frameIndex),
+        .lighting = pool.bufferAddress(m_uniforms),
         .sceneColor = pool.storageDescriptor(m_sceneColor),
         .gBuffer = {
             pool.storageDescriptor(m_gBuffer[0]),

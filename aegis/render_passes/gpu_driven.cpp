@@ -124,7 +124,7 @@ auto InstanceUpdatePass::write(ResourcePool& pool, InstanceBuffer& buffer, std::
     data.reserve(range.size());
     for (const auto& instance : instances.subspan(range.begin, range.size()))
         data.push_back(makeInstance(instance, frameIndex));
-    pool.write(buffer.buffer, frameIndex, std::as_bytes(std::span{ data }), sizeof(InstanceData) * range.begin);
+    pool.write(buffer.buffer, std::as_bytes(std::span{ data }), sizeof(InstanceData) * range.begin);
 }
 
 auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
@@ -142,7 +142,7 @@ auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
     batches.reserve(store.batches().size());
     for (const auto& batch : store.batches())
         batches.push_back({ batch.firstInstance, batch.instanceCount });
-    pool.write(m_drawBatchData, frameInfo.frameIndex, std::as_bytes(std::span{ batches }));
+    pool.write(m_drawBatchData, std::as_bytes(std::span{ batches }));
 }
 
 // Draw count clear -----------------------------------------------------------------------------------
@@ -217,14 +217,13 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
     if (instanceCount == 0 || !m_scene.current().camera(m_view))
         return;
 
-    const auto frame = frameInfo.frameIndex;
     const auto& cmd = frameInfo.cmd;
     cmd.bindPipeline(*m_pipeline);
     cmd.pushConstants(CullingConstants{
-        .camera = pool.bufferAddress(m_cameraData, frame),
-        .staticInstances = pool.bufferAddress(m_staticInstances, frame),
-        .dynamicInstances = pool.bufferAddress(m_dynamicInstances, frame),
-        .drawBatches = pool.bufferAddress(m_drawBatchData, frame),
+        .camera = pool.bufferAddress(m_cameraData),
+        .staticInstances = pool.bufferAddress(m_staticInstances),
+        .dynamicInstances = pool.bufferAddress(m_dynamicInstances),
+        .drawBatches = pool.bufferAddress(m_drawBatchData),
         .visibility = pool.bufferAddress(m_visibility),
         .commands = pool.bufferAddress(m_commands),
         .counts = pool.bufferAddress(m_counts),
@@ -335,7 +334,6 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
         return;
     }
 
-    const auto frame = frameInfo.frameIndex;
     const auto& commands = pool.buffer(m_commands);
     const auto& counts = pool.buffer(m_counts);
     // Culling's prepare grew the command buffer to every batch's maximum draw count.
@@ -360,9 +358,9 @@ auto GpuDrivenGeometryPass::execute(ResourcePool& pool, const FrameInfo& frameIn
             bound = pipeline;
         }
         cmd.pushConstants(GpuDrivenGeometryConstants{
-            .camera = pool.bufferAddress(m_cameraData, frame),
-            .staticInstances = pool.bufferAddress(m_staticInstances, frame),
-            .dynamicInstances = pool.bufferAddress(m_dynamicInstances, frame),
+            .camera = pool.bufferAddress(m_cameraData),
+            .staticInstances = pool.bufferAddress(m_staticInstances),
+            .dynamicInstances = pool.bufferAddress(m_dynamicInstances),
             .visibility = pool.bufferAddress(m_visibility),
             .batchFirst = batch.firstInstance,
             .batchSize = batch.instanceCount,

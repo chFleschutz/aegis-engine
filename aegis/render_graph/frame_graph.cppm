@@ -85,10 +85,11 @@ public:
     [[nodiscard]] auto prepare() -> std::expected<void, Error>;
 
     /// @brief Binds 'target' (the renderer's target for this frame, in Usage::ColorAttachment) to frameTarget if a
-    ///        pass declared it, then records every pass, in order, into frameInfo.cmd, then the barriers that leave
-    ///        imported resources as declared. Afterwards persistent textures and history pairs are no longer fresh,
-    ///        and the history pairs swap.
-    auto execute(const FrameInfo& frameInfo, rhi::ImageViewHandle target) -> void;
+    ///        pass declared it, then records every pass, in order, into 'cmd' for the frame slot 'frameIndex', then the
+    ///        barriers that leave imported resources as declared. Each pass gets its scope's extent (FrameInfo), and
+    ///        the pool's per-frame buffers pick the slot's copy while it records. Afterwards persistent textures and
+    ///        history pairs are no longer fresh, and the history pairs swap.
+    auto execute(const rhi::CommandBuffer& cmd, std::uint32_t frameIndex, rhi::ImageViewHandle target) -> void;
 
     [[nodiscard]] auto pool() noexcept -> ResourcePool& { return m_pool; }
 

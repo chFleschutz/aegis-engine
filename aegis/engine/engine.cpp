@@ -601,12 +601,7 @@ auto Engine::run() -> int
         }
         auto rendered = m_renderer->renderFrame([this, &instances](const aegis::renderer::Renderer::FrameInfo& frame) {
             m_lastFrameIndex = frame.frameIndex;
-            const render_graph::FrameInfo frameInfo{
-                .cmd = frame.cmd,
-                .frameIndex = frame.frameIndex,
-                .extent = frame.extent,
-            };
-            m_frameGraph->execute(frameInfo, frame.target);
+            m_frameGraph->execute(frame.cmd, frame.frameIndex, frame.target);
             // Recorded: the next frame needs only what changes after this one.
             instances.clearDirty();
         });

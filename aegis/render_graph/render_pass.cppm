@@ -9,14 +9,16 @@ import aegis.rhi;
 
 export namespace aegis::render_graph
 {
-/// @brief What a pass records a frame with.
+/// @brief What a pass records a frame with. FrameGraph::execute fills it per pass.
 struct FrameInfo
 {
     const rhi::CommandBuffer& cmd;
+    /// @brief The frame slot being recorded, for per-frame data the pass keeps itself. The pool's per-frame buffers
+    ///        already pick it (ResourcePool::bufferAddress).
     std::uint32_t frameIndex;
-    /// @brief The extent of the frame's target (frameTarget). A pass drawing into graph textures sizes its viewport
-    ///        and dispatches by them (ResourcePool::extent): in a scope (one view) they follow the scope's extent, not
-    ///        the target's.
+    /// @brief The extent of the executing pass's scope (ResourcePool::scopeExtent): the scope's own, else the output's;
+    ///        an unscoped pass gets the output's. A texture with an extent of its own (TextureDesc::extent) has that
+    ///        instead (ResourcePool::extent).
     rhi::Extent2D extent;
 };
 

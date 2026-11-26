@@ -309,12 +309,8 @@ auto Harness::verifyGraphHistory() -> std::expected<void, std::string>
             for (std::uint32_t i = 0; i < frames; ++i, ++frame)
             {
                 auto ran = submitAndWait("GraphHistoryFrame", [&](const auto& cmd) {
-                    const render_graph::FrameInfo frameInfo{
-                        .cmd = cmd,
-                        .frameIndex = frame % renderer::Renderer::maxFramesInFlight,
-                        .extent = graph.pool().output(),
-                    };
-                    graph.execute(frameInfo, {}); // The graph declares no frame target: nothing to bind
+                    // The graph declares no frame target: nothing to bind
+                    graph.execute(cmd, frame % renderer::Renderer::maxFramesInFlight, {});
                 });
                 if (!ran)
                     return ran;
