@@ -93,6 +93,10 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
             options.scene = true;
             options.physics = true;
         }
+        else if (arg == "--gameplay")
+        {
+            options.gameplay = true;
+        }
         else if (arg == "--screenshot" && i + 1 < args.size())
         {
             options.screenshot = args[++i];
@@ -145,6 +149,15 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
             return std::unexpected{ "--physics loads a scene of its own, so it can't run with --scene-file or --audio" };
         options.sceneFile = physicsSceneFile;
     }
+    if (options.gameplay)
+    {
+        if (!options.headless)
+            return std::unexpected{ "--gameplay plays its input into the headless engine, so it needs --headless" };
+        if (options.scene || options.materialFile || options.frames != 0 || !options.compare.empty())
+            return std::unexpected{ "--gameplay runs a scene of its own for a time of its own, so it can't run with the --scene checks, --material-file, --frames or --compare" };
+        if (options.noSamples)
+            return std::unexpected{ "--gameplay loads the sample project, so it can't run with --no-samples" };
+    }
     if (!options.compare.empty() && !options.headless)
         return std::unexpected{ "--compare needs --headless" };
     if (options.postProcess && (options.view || options.views))
@@ -188,10 +201,12 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::test::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--spawn] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--audio] [--physics] [--material-file] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--spawn] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--audio] [--physics] [--material-file] [--gameplay] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 
+    if (options->gameplay)
+        return aegis::test::runGameplay(*options);
     if (options->scene)
         return aegis::test::runScene(*options);
     if (options->materialFile)

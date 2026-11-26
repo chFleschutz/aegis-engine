@@ -7,6 +7,7 @@ target_sources(
         main.cpp
         harness.cpp
         checks/assets.cpp
+        checks/gameplay.cpp
         checks/graph.cpp
         checks/ibl.cpp
         checks/input.cpp
@@ -40,6 +41,12 @@ target_link_libraries(
         imgui
         stb # stb_image_write for --screenshot
 )
+
+# --gameplay plays the samples' gameplay scene with the Examples game's scripts: its module's objects come along.
+if(AEGIS_SAMPLES)
+    target_link_libraries(aegis-test PRIVATE Examples-module)
+    target_compile_definitions(aegis-test PRIVATE AEGIS_TEST_EXAMPLES)
+endif()
 
 # accumulate.slang reaches storage images through the engine's bindless module.
 aegis_add_shaders(

@@ -9,6 +9,9 @@ namespace examples
 {
 auto registerSpawner(aegis::reflect::TypeRegistry& types) -> std::expected<void, aegis::reflect::Error>;        // spawner.cpp
 auto registerCharacterInput(aegis::reflect::TypeRegistry& types) -> std::expected<void, aegis::reflect::Error>; // character_input.cpp
+auto registerActionSpawner(aegis::reflect::TypeRegistry& types) -> std::expected<void, aegis::reflect::Error>;  // action_spawner.cpp
+auto registerOscillator(aegis::reflect::TypeRegistry& types) -> std::expected<void, aegis::reflect::Error>;     // oscillator.cpp
+auto registerContactSound(aegis::reflect::TypeRegistry& types) -> std::expected<void, aegis::reflect::Error>;   // contact_sound.cpp
 }
 
 namespace
@@ -83,7 +86,10 @@ auto registerTypes(aegis::reflect::TypeRegistry& types) -> std::expected<void, a
         .and_then([&types] { return aegis::scripting::registerScript<LightPulse>(types, "LightPulse"); })
         .and_then([](auto builder) { return builder.field("speed", &LightPulse::speed).status(); })
         .and_then([&types] { return examples::registerSpawner(types); })
-        .and_then([&types] { return examples::registerCharacterInput(types); });
+        .and_then([&types] { return examples::registerCharacterInput(types); })
+        .and_then([&types] { return examples::registerActionSpawner(types); })
+        .and_then([&types] { return examples::registerOscillator(types); })
+        .and_then([&types] { return examples::registerContactSound(types); });
 }
 }
 
