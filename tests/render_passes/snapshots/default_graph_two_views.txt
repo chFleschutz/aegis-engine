@@ -6,20 +6,23 @@
     create DrawBatches HostWrite
 3. Edit/Scene Update
     create Edit/CameraData HostWrite
-4. Edit/Clear Draw Counts
-    create Edit/IndirectDrawCounts TransferDst
-    barrier Edit/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
-5. Edit/Culling
+4. Edit/Culling
     use    Edit/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
     use    DrawBatches ShaderRead
     create Edit/VisibleInstances StorageWrite
     create Edit/IndirectDrawCommands StorageWrite
-    use    Edit/IndirectDrawCounts StorageWrite
     barrier Edit/VisibleInstances: last frame's ShaderRead -> StorageWrite
     barrier Edit/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
-    barrier Edit/IndirectDrawCounts: TransferDst -> StorageWrite
+5. Edit/Draw Compaction
+    use    DrawBatches ShaderRead
+    use    Edit/VisibleInstances StorageWrite
+    use    Edit/IndirectDrawCommands StorageWrite
+    create Edit/IndirectDrawCounts StorageWrite
+    barrier Edit/VisibleInstances: StorageWrite -> StorageWrite
+    barrier Edit/IndirectDrawCommands: StorageWrite -> StorageWrite
+    barrier Edit/IndirectDrawCounts: last frame's IndirectRead -> StorageWrite
 6. Edit/GPU Driven Geometry
     use    Edit/CameraData ShaderRead
     use    StaticInstances ShaderRead
@@ -87,20 +90,23 @@
     barrier Edit/Final: undefined -> StorageWrite
 13. Play/Scene Update
     create Play/CameraData HostWrite
-14. Play/Clear Draw Counts
-    create Play/IndirectDrawCounts TransferDst
-    barrier Play/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
-15. Play/Culling
+14. Play/Culling
     use    Play/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
     use    DrawBatches ShaderRead
     create Play/VisibleInstances StorageWrite
     create Play/IndirectDrawCommands StorageWrite
-    use    Play/IndirectDrawCounts StorageWrite
     barrier Play/VisibleInstances: last frame's ShaderRead -> StorageWrite
     barrier Play/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
-    barrier Play/IndirectDrawCounts: TransferDst -> StorageWrite
+15. Play/Draw Compaction
+    use    DrawBatches ShaderRead
+    use    Play/VisibleInstances StorageWrite
+    use    Play/IndirectDrawCommands StorageWrite
+    create Play/IndirectDrawCounts StorageWrite
+    barrier Play/VisibleInstances: StorageWrite -> StorageWrite
+    barrier Play/IndirectDrawCommands: StorageWrite -> StorageWrite
+    barrier Play/IndirectDrawCounts: last frame's IndirectRead -> StorageWrite
 16. Play/GPU Driven Geometry
     use    Play/CameraData ShaderRead
     use    StaticInstances ShaderRead
@@ -181,9 +187,9 @@ resources
     DynamicInstances: buffer, host written
     DrawBatches: buffer, host written
     Edit/CameraData: buffer, host written
-    Edit/IndirectDrawCounts: buffer
     Edit/VisibleInstances: buffer
     Edit/IndirectDrawCommands: buffer
+    Edit/IndirectDrawCounts: buffer
     Edit/Position: texture RGBA16_SFLOAT
     Edit/Normal: texture RGBA16_SFLOAT
     Edit/Albedo: texture RGBA8_UNORM
@@ -195,9 +201,9 @@ resources
     Edit/Bloom: texture RGBA16_SFLOAT
     Edit/Final: texture RGBA16_SFLOAT
     Play/CameraData: buffer, host written
-    Play/IndirectDrawCounts: buffer
     Play/VisibleInstances: buffer
     Play/IndirectDrawCommands: buffer
+    Play/IndirectDrawCounts: buffer
     Play/Position: texture RGBA16_SFLOAT
     Play/Normal: texture RGBA16_SFLOAT
     Play/Albedo: texture RGBA8_UNORM

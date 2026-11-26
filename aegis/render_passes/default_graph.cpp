@@ -52,13 +52,13 @@ auto drawsSpotShadows(const DefaultPassesDesc& desc) -> bool
 }
 
 // A view's GPU-driven passes: an instance update of its own unless addSharedPasses added the one all views share
-// (which creates the unscoped "StaticInstances"), then draw count clear, culling and geometry.
+// (which creates the unscoped "StaticInstances"), then culling, draw compaction and geometry.
 auto addGpuDrivenPasses(GraphBuilder& graph, const DefaultPassesDesc& desc, std::uint32_t view, Technique technique, std::optional<DepthTile> tile) -> void
 {
     if (!graph.declarations().find(names::staticInstances))
         graph.add<InstanceUpdatePass>(desc.scene);
-    graph.add<ClearDrawCountsPass>();
     graph.add<CullingPass>(desc.scene, desc.pipelines, view);
+    graph.add<DrawCompactionPass>(desc.scene, desc.pipelines, view);
     graph.add<GpuDrivenGeometryPass>(desc.scene, desc.pipelines, technique, view, std::move(tile));
 }
 }

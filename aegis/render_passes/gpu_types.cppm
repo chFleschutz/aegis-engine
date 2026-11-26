@@ -26,6 +26,9 @@ export namespace aegis::render_graph
 inline constexpr std::uint32_t computeGroupSize{ 16 };
 /// @brief Threads per workgroup of the culling shader: [numthreads(64, 1, 1)] in gpu_driven/culling.slang.
 inline constexpr std::uint32_t cullingGroupSize{ 64 };
+/// @brief Threads per workgroup of the draw compaction shader: GROUP_SIZE in gpu_driven/compaction.slang. Each
+///        workgroup packs one draw batch.
+inline constexpr std::uint32_t compactionGroupSize{ 64 };
 /// @brief MAX_REFLECTION_LOD in modules/lighting.slang: the last mip of the prefiltered environment map (checked
 ///        against Ibl::prefilteredMipLevels).
 inline constexpr float maxReflectionLod{ 4.0f };
@@ -86,13 +89,14 @@ struct InstanceData
     math::Float3 normalRow0;
     math::Float3 normalRow1;
     math::Float3 normalRow2;
+    std::uint32_t batchSlot;     // Instance::batchSlot, in the gap before the pointer's alignment
     rhi::DeviceAddress mesh;     // assets::MeshGpuData
     rhi::DeviceAddress material; // assets::Material parameter block (MaterialAddress in the shaders)
     std::uint32_t drawBatch;
     InstanceFlags flags;
 };
 
-/// @brief culling.slang's DrawBatch: where a draw batch's instances live in the visibility and indirect
+/// @brief indirectDraw::DrawBatch: where a draw batch's instances live in the visibility and indirect
 ///        command buffers.
 struct DrawBatchData
 {
@@ -167,9 +171,17 @@ struct CullingConstants
     rhi::DeviceAddress drawBatches;
     rhi::DeviceAddress visibility;
     rhi::DeviceAddress commands;
-    rhi::DeviceAddress counts;
     std::uint32_t staticCount;
     std::uint32_t dynamicCount;
+};
+
+/// @brief gpu_driven/compaction.slang
+struct CompactionConstants
+{
+    rhi::DeviceAddress drawBatches;
+    rhi::DeviceAddress visibility;
+    rhi::DeviceAddress commands;
+    rhi::DeviceAddress counts;
 };
 
 /// @brief indirectDraw::GeometryConstants (gpu_driven/task.slang and geometry.slang)

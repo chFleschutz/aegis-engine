@@ -3,31 +3,19 @@ import modules.indirect_draw;
 import modules.meshlet_cull;
 import modules.visibility;
 
-// Frustum-culls every instance and, for each visible one, appends its ID to its draw batch and
-// writes the batch's indirect mesh-task command.
-
-struct DrawBatch
-{
-    uint offset;
-    uint count;
-}
-
-struct DrawMeshTasksIndirectCommand
-{
-    uint groupCountX;
-    uint groupCountY;
-    uint groupCountZ;
-}
+// Frustum-culls every instance and writes its ID and its indirect mesh-task command at its slot in its draw batch
+// (Instance::batchSlot); a culled instance's command launches no task group. The draw compaction pass
+// (compaction.slang) then packs each batch's visible instances in slot order, so the draws, and which of two surfaces
+// at the same depth ends up in the frame, do not depend on the order the invocations run in.
 
 struct PushConstants
 {
     common::Camera* camera;
     indirectDraw::Instance* staticInstances;
     indirectDraw::Instance* dynamicInstances;
-    DrawBatch* drawBatches;
+    indirectDraw::DrawBatch* drawBatches;
     uint* visibility;
-    DrawMeshTasksIndirectCommand* commands;
-    uint* counts; // One per draw batch, cleared to 0 before this pass
+    indirectDraw::DrawMeshTasksIndirectCommand* commands;
     uint staticCount;
     uint dynamicCount;
 }
@@ -45,21 +33,17 @@ func main(uint3 dispatchThreadID : SV_DispatchThreadID)
     let instance = indirectDraw::getInstance(push.staticInstances, push.dynamicInstances, push.staticCount, instanceID);
     let mesh = instance.mesh;
 
-    let worldBounds = mesh->bounds.transform(instance.modelMatrix);
-    if (!visibility::frustumVisible(worldBounds, push.camera->frustum))
-        return;
-
-    uint drawID;
-    InterlockedAdd(push.counts[instance.drawBatch], 1, drawID);
-
-    // The batch holds slots for the instances the registry counts. Should the instance buffers hold
-    // more for this batch, the extra ones would write into the next batch's slots.
+    // The store keeps a batch's slots below its instance count. Should the instance buffers hold more for this batch,
+    // the extra ones would write into the next batch's slots.
     let batch = push.drawBatches[instance.drawBatch];
-    if (drawID >= batch.count)
+    if (instance.batchSlot >= batch.count)
         return;
 
-    push.visibility[batch.offset + drawID] = instanceID;
+    let worldBounds = mesh->bounds.transform(instance.modelMatrix);
+    let visible = visibility::frustumVisible(worldBounds, push.camera->frustum);
+    let groupCountX = visible ? (mesh->meshletCount + TASK_GROUP_SIZE - 1) / TASK_GROUP_SIZE : 0;
 
-    let groupCountX = (mesh->meshletCount + TASK_GROUP_SIZE - 1) / TASK_GROUP_SIZE;
-    push.commands[batch.offset + drawID] = DrawMeshTasksIndirectCommand(groupCountX, 1, 1);
+    let slot = batch.offset + instance.batchSlot;
+    push.visibility[slot] = instanceID;
+    push.commands[slot] = indirectDraw::DrawMeshTasksIndirectCommand(groupCountX, 1, 1);
 }

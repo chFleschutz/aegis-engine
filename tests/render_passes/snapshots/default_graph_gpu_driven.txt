@@ -6,20 +6,23 @@
     create DrawBatches HostWrite
 3. Main/Scene Update
     create Main/CameraData HostWrite
-4. Main/Clear Draw Counts
-    create Main/IndirectDrawCounts TransferDst
-    barrier Main/IndirectDrawCounts: last frame's IndirectRead -> TransferDst
-5. Main/Culling
+4. Main/Culling
     use    Main/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
     use    DrawBatches ShaderRead
     create Main/VisibleInstances StorageWrite
     create Main/IndirectDrawCommands StorageWrite
-    use    Main/IndirectDrawCounts StorageWrite
     barrier Main/VisibleInstances: last frame's ShaderRead -> StorageWrite
     barrier Main/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
-    barrier Main/IndirectDrawCounts: TransferDst -> StorageWrite
+5. Main/Draw Compaction
+    use    DrawBatches ShaderRead
+    use    Main/VisibleInstances StorageWrite
+    use    Main/IndirectDrawCommands StorageWrite
+    create Main/IndirectDrawCounts StorageWrite
+    barrier Main/VisibleInstances: StorageWrite -> StorageWrite
+    barrier Main/IndirectDrawCommands: StorageWrite -> StorageWrite
+    barrier Main/IndirectDrawCounts: last frame's IndirectRead -> StorageWrite
 6. Main/GPU Driven Geometry
     use    Main/CameraData ShaderRead
     use    StaticInstances ShaderRead
@@ -101,9 +104,9 @@ resources
     DynamicInstances: buffer, host written
     DrawBatches: buffer, host written
     Main/CameraData: buffer, host written
-    Main/IndirectDrawCounts: buffer
     Main/VisibleInstances: buffer
     Main/IndirectDrawCommands: buffer
+    Main/IndirectDrawCounts: buffer
     Main/Position: texture RGBA16_SFLOAT
     Main/Normal: texture RGBA16_SFLOAT
     Main/Albedo: texture RGBA8_UNORM
