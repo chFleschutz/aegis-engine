@@ -22,8 +22,8 @@ export namespace aegis::render_graph::detail
 
 export namespace aegis::render_graph
 {
-/// @brief The instances drawn with one material variant. Culling appends a batch's visible instances
-///        from firstInstance on, so the batches tile [0, instance count) in id order.
+/// @brief The instances drawn with one material variant. Each instance has a slot in its batch (Instance::batchSlot),
+///        and culling writes it at firstInstance plus its slot, so the batches tile [0, instance count) in id order.
 struct DrawBatch
 {
     std::uint32_t id;
@@ -80,6 +80,10 @@ struct Instance
     /// @brief The id of the instance's draw batch, whose variant is the material's. Set by the store; add
     ///        and update ignore it.
     std::uint32_t drawBatch{ 0 };
+    /// @brief The instance's slot in its draw batch, in [0, the batch's instanceCount): the GPU-driven path draws a
+    ///        batch's visible instances in slot order, so the frame does not depend on the order culling finds them in.
+    ///        Set by the store, like drawBatch: an instance that leaves a batch gives its slot to the batch's last one.
+    std::uint32_t batchSlot{ 0 };
 };
 
 /// @brief The instances both geometry paths draw, in two dense arrays: the static set and the dynamic set.
@@ -111,7 +115,8 @@ public:
     auto remove(InstanceId id) -> void;
     /// @brief Replaces what the instance draws, moving it to the batch of 'variant' if that is another one.
     ///        Marks it dirty only if something changed.
-    /// @return An error if a new variant would exceed maxDrawBatches; the instance is unchanged then.
+    /// @return An error if a new variant would exceed maxDrawBatches; the instance is unchanged then, except that it
+    ///         may have another slot in its batch.
     [[nodiscard]] auto update(InstanceId id, Instance instance, const assets::MaterialVariant& variant)
         -> std::expected<void, Error>;
     /// @brief Moves every instance of each material whose variant changed since the store first held it or last
@@ -182,8 +187,11 @@ private:
     [[nodiscard]] auto location(InstanceId id) const -> const Location&;
     /// @brief The id of the batch of 'variant', created if it is new, on a freed id if there is one.
     [[nodiscard]] auto acquireBatch(const assets::MaterialVariant& variant) -> std::expected<std::uint32_t, Error>;
-    /// @brief Takes one instance out of the batch's count, freeing its id when that was the last.
-    auto leaveBatch(std::uint32_t batch) -> void;
+    /// @brief Puts the instance named 'id' into the batch's last slot.
+    auto joinBatch(InstanceId id, Instance& instance, std::uint32_t batch) -> void;
+    /// @brief Takes the instance out of its batch, moving the batch's last one into its slot, and frees the batch's id
+    ///        when that was the last.
+    auto leaveBatch(const Instance& instance) -> void;
     auto addMaterial(const std::shared_ptr<assets::Material>& material, const assets::MaterialVariant& variant) -> void;
     /// @brief Moves every instance of 'material' to 'batch'.
     auto moveMaterial(const assets::Material* material, std::uint32_t batch) -> void;
@@ -199,6 +207,7 @@ private:
     std::vector<std::optional<Location>> m_locations; // By InstanceId::index
     std::vector<std::uint32_t> m_freeIds;
     std::vector<DrawBatch> m_batches;
+    std::vector<std::vector<InstanceId>> m_batchMembers; // By batch id: the instance in each slot
     std::vector<std::uint32_t> m_freeBatchIds;
     std::unordered_map<assets::MaterialVariant, std::uint32_t, assets::MaterialVariant::Hash> m_batchIds;
     std::vector<std::shared_ptr<assets::Material>> m_materials;
