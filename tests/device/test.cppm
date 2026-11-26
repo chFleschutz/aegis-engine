@@ -83,8 +83,8 @@ auto runScene(const Options& options) -> int;
 // checks/gameplay.cpp: --gameplay, the gameplay scene at three frame times (see the Options). Returns the exit code.
 auto runGameplay(const Options& options) -> int;
 
-// checks/material_file.cpp: --material-file, a scene that names a material file rendered twice by fresh engines, the file
-// changed in between. Needs no sample project. Returns the exit code.
+// checks/material_file.cpp: --material-file, a scene that names a material file rendered three times by fresh engines: the
+// file, the file changed, and an edited copy applied to the loaded material. Needs no sample project. Returns the exit code.
 auto runMaterialFile(const Options& options) -> int;
 
 // The triangle and the device checks, on a device of its own: they test the RHI under the engine, not its startup.

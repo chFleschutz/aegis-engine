@@ -215,6 +215,11 @@ public:
     ///         rejects 'value'.
     [[nodiscard]] auto setParameter(const std::string& name, MaterialValue value) -> std::expected<void, Error>;
 
+    /// @brief Replaces every override with 'overrides': the parameters it leaves out take the template's default again
+    ///        (the editor reapplying a material file).
+    /// @return ErrorCode::InvalidArgument, leaving the material unchanged, if MaterialTemplate::check rejects a value.
+    [[nodiscard]] auto setOverrides(std::unordered_map<std::string, MaterialValue> overrides) -> std::expected<void, Error>;
+
     /// @brief The override if set, otherwise the template's default.
     /// @return nullptr if the template has no parameter 'name'.
     [[nodiscard]] auto parameter(const std::string& name) const -> const MaterialValue*;
