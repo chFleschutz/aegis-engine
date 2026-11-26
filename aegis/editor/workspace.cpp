@@ -119,6 +119,10 @@ auto dockIdOf(std::string_view title) -> ImGuiID
 
 // A docked, floating or dialog panel's window with its contents; its close button closes the panel. A dialog is centered
 // as it appears and sized to its contents (or as wide as it asks), with its title and no saved layout.
+// A floating panel's size the first time it opens (the layout file keeps it later), at 100% scale.
+constexpr float floatWidth{ 380.0f };
+constexpr float floatHeight{ 480.0f };
+
 void drawWindowPanel(Panel& panel, EditorContext& editor, FrameContext& frame)
 {
     bool open = true;
@@ -133,7 +137,11 @@ void drawWindowPanel(Panel& panel, EditorContext& editor, FrameContext& frame)
         visible = ImGui::Begin(title.c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings);
     }
     else
+    {
+        if (panel.placement() == Placement::Float) // ImGui's first size fits nothing
+            ImGui::SetNextWindowSize(ImVec2{ floatWidth * theme::scale(), floatHeight * theme::scale() }, ImGuiCond_FirstUseEver);
         visible = ImGui::Begin(panel.label().c_str(), &open);
+    }
     panel.setOpen(open);
     if (visible)
         panel.draw(editor, frame);

@@ -553,6 +553,12 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
 }
 }
 
+auto drawPropertyValue(const reflect::TypeInfo& type, const PropertyRow& row, const reflect::Value& value,
+    const assets::AssetDatabase& database, bool editable) -> std::optional<reflect::Value>
+{
+    return drawValue(type, row, value, database, editable);
+}
+
 void drawPropertyGrid(const reflect::TypeInfo& type, const void* object, bool readOnly, const assets::AssetDatabase& database,
     const std::function<void(const PropertyRow& row, const reflect::Value& value, bool active)>& edit,
     const std::function<void()>& released)

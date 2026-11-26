@@ -35,6 +35,11 @@ void drawPropertyGrid(const reflect::TypeInfo& type, const void* object, bool re
     const std::function<void(const PropertyRow& row, const reflect::Value& value, bool active)>& edit,
     const std::function<void()>& released = {});
 
+/// @brief The widget of the property grid's row 'row' (of a field of 'type') showing 'value': for a grid of the panel's own
+///        (the Material panel's). The new value when it was edited this frame; ImGui's last item is the widget.
+[[nodiscard]] auto drawPropertyValue(const reflect::TypeInfo& type, const PropertyRow& row, const reflect::Value& value,
+    const assets::AssetDatabase& database, bool editable) -> std::optional<reflect::Value>;
+
 /// @brief The icon of an asset of 'kind' (the asset list, the inspector's asset slots), and its color as an ImU32.
 [[nodiscard]] auto assetIcon(AssetKind kind) -> const char*;
 [[nodiscard]] auto assetIconColor(AssetKind kind) -> std::uint32_t;

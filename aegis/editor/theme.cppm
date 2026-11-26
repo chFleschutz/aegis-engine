@@ -69,6 +69,9 @@ inline constexpr const char* empty = lucide::boxSelect;
 // An empty asset slot.
 inline constexpr const char* none = lucide::ban;
 
+// The Material panel's button that resets a parameter to the template's default.
+inline constexpr const char* resetValue = lucide::rotateCcw;
+
 // The content browser's folders (the drawer button's folder is a closed one), its roots (the project's content and the
 // engine's), its toolbar's Rescan and view buttons, the breadcrumb's Up button and a grid tile's button that shows a
 // model's parts after it, and hides them.
@@ -82,6 +85,8 @@ inline constexpr const char* gridView = lucide::layoutGrid;
 inline constexpr const char* up = lucide::arrowUp;
 inline constexpr const char* showParts = lucide::chevronRight;
 inline constexpr const char* hideParts = lucide::chevronLeft;
+// Its toolbar's New Material.
+inline constexpr const char* newMaterial = lucide::filePlus;
 
 // The kinds of assets in the asset list (the mesh above is the static mesh).
 inline constexpr const char* material = lucide::palette;

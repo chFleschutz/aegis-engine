@@ -14,7 +14,8 @@ namespace aegis::editor
 [[nodiscard]] auto resolveAssets(FrameContext& frame) -> PrepareField;
 
 /// @brief The world the panels show (the edit world, or the play world while playing) as the edits see it; the asset library resolves the references of written components.
-[[nodiscard]] auto editWorld(const EditorContext& editor, FrameContext& frame) -> EditWorld;
+///        Material edits change the context's material files and their loaded materials (AssetLibrary::applyMaterialFile).
+[[nodiscard]] auto editWorld(EditorContext& editor, FrameContext& frame) -> EditWorld;
 
 /// @brief Steps the edit history back (or forward) and writes the value to the world; false if there is nothing to do or
 ///        the edit no longer applies (logged).
