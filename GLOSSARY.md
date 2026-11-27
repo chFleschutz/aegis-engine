@@ -277,6 +277,14 @@ _Avoid_: GUID, UUID, asset handle
 A reference to an asset: its `AssetId` plus the shared slot the library loads it into.
 _Avoid_: asset handle, asset pointer
 
+**Asset type**:
+A kind of asset the library holds, named by its C++ type's `assetType` (`"Texture"`, `"Scene"`, or one a game defines).
+_Avoid_: asset kind, asset class
+
+**Asset loader**:
+What the library knows about one asset type: how to make an asset of it from its `AssetId`, and what a failed one holds instead.
+_Avoid_: importer (decodes a source file), asset factory
+
 **Sub-asset**:
 A part of a model file with an `AssetId` of its own: a mesh, a material or an embedded texture.
 _Avoid_: sub-resource, embedded asset

@@ -420,6 +420,12 @@ implemented synchronously first; the slot lets hot reload swap contents.
   `AssetRef<T>` (`MeshRenderer`, `Sky`). It scans two roots through `assets::AssetDatabase`: the project
   content (`paths::projectContent`, the samples for now, the only project folder scanned; dot-files and
   dot-folders are skipped) and the engine content (named in code as `assets::engine::white`, ...).
+- **Asset types and their loaders:** each asset type (a C++ type with `static constexpr std::string_view
+  assetType`) loads through the asset loader registered for it in the library's `AssetCache`
+  (`aegis/asset_library/asset_cache.cppm`): `load` makes the asset from its ID, `fallback` is what a failed one
+  holds. The library registers the engine's types; a new type is one `AssetLibrary::registerLoader<T>` call
+  (a game makes it in its `onStartup`), then `load<T>(id)`. `resolve` still knows each component's references by
+  hand, so a component field of a new type does not load from a scene file yet (#514).
 - **Two modules:** `aegis.assets.data` (`aegis/assets/data/`) is the CPU side: IDs, the database,
   sidecars, importers, the import cache and their data. It imports `aegis.rhi.types`, never `aegis.rhi`,
   so rhi edits don't rebuild it. `aegis.assets` (`aegis/assets/`) re-exports it and adds what needs a

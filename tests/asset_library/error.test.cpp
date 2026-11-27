@@ -67,5 +67,7 @@ TEST_SUITE("AssetLibraryError")
         CHECK(errorCodeName(Code::ReadFailed) == "ReadFailed");
         CHECK(errorCodeName(Code::CreateFailed) == "CreateFailed");
         CHECK(errorCodeName(Code::InstantiateFailed) == "InstantiateFailed");
+        CHECK(errorCodeName(Code::InvalidValue) == "InvalidValue");
+        CHECK(errorCodeName(Code::AlreadyRegistered) == "AlreadyRegistered");
     }
 }

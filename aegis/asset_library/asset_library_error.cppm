@@ -14,6 +14,7 @@ enum class AssetLibraryErrorCode
     CreateFailed,      // A device resource could not be created: the default assets, the IBL pipelines, a material
     InstantiateFailed, // A scene could not be loaded or its entities could not be created
     InvalidValue,      // A value an asset cannot take: a material parameter the template lacks or of another kind
+    AlreadyRegistered, // An asset type already has an asset loader, or its name belongs to another C++ type
 };
 
 struct AssetLibraryError
@@ -50,6 +51,7 @@ struct AssetLibraryError
     case AssetLibraryErrorCode::CreateFailed: return "CreateFailed";
     case AssetLibraryErrorCode::InstantiateFailed: return "InstantiateFailed";
     case AssetLibraryErrorCode::InvalidValue: return "InvalidValue";
+    case AssetLibraryErrorCode::AlreadyRegistered: return "AlreadyRegistered";
     }
     return "Unknown";
 }

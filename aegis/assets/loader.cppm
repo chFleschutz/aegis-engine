@@ -40,6 +40,9 @@ struct ModelGpuMaterial
 ///        its meshes and materials.
 struct Model
 {
+    /// @brief The asset type's name (an asset library's AssetLoader is registered under it)
+    static constexpr std::string_view assetType{ "Model" };
+
     std::string name;
     math::Quat rootRotation = math::Quat::identity(); // See ModelData::rootRotation
     std::optional<std::uint32_t> rootMesh;            // Index into meshes; belongs to the root itself
