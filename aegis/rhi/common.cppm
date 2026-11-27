@@ -24,6 +24,7 @@ enum class Format
     // 16-bit
     R16_UNORM,
     RG16_UNORM,
+    RG16_SFLOAT,
     RGBA16_UNORM,
     RGBA16_SFLOAT,
     // 32-bit
@@ -53,6 +54,7 @@ enum class Format
     case Format::B10G11R11_UFLOAT: return "B10G11R11_UFLOAT";
     case Format::R16_UNORM: return "R16_UNORM";
     case Format::RG16_UNORM: return "RG16_UNORM";
+    case Format::RG16_SFLOAT: return "RG16_SFLOAT";
     case Format::RGBA16_UNORM: return "RGBA16_UNORM";
     case Format::RGBA16_SFLOAT: return "RGBA16_SFLOAT";
     case Format::R32_SFLOAT: return "R32_SFLOAT";

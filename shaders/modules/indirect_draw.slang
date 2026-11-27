@@ -27,6 +27,7 @@ namespace indirectDraw
         public MaterialAddress material;
         public uint drawBatch;
         public uint flags; // INSTANCE_* bits
+        public float3x4 previousModel; // Top three rows of last frame's model matrix (render_graph::Instance::previousModel)
 
         public property bool mirrored
         {
@@ -41,6 +42,11 @@ namespace indirectDraw
         public property float3x3 normalMatrix
         {
             get { return float3x3(normalRow0, normalRow1, normalRow2); }
+        }
+
+        public property float4x4 previousModelMatrix
+        {
+            get { return float4x4(previousModel, float4(0.0, 0.0, 0.0, 1.0)); }
         }
     }
 

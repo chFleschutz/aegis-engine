@@ -48,7 +48,7 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(sizeof(Frustum) == 96);
     }
 
-    TEST_CASE("InstanceData matches indirectDraw::Instance with a 112 byte stride")
+    TEST_CASE("InstanceData matches indirectDraw::Instance with a 160 byte stride")
     {
         CHECK(offsetof(InstanceData, model) == 0);
         CHECK(offsetof(InstanceData, normalRow0) == 48);
@@ -59,7 +59,8 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(InstanceData, material) == 96);
         CHECK(offsetof(InstanceData, drawBatch) == 104);
         CHECK(offsetof(InstanceData, flags) == 108);
-        CHECK(sizeof(InstanceData) == 112);
+        CHECK(offsetof(InstanceData, previousModel) == 112);
+        CHECK(sizeof(InstanceData) == 160);
     }
 
     TEST_CASE("DrawBatchData matches indirectDraw::DrawBatch")
@@ -198,7 +199,8 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(StaticMeshConstants, camera) == 88);
         CHECK(offsetof(StaticMeshConstants, mesh) == 96);
         CHECK(offsetof(StaticMeshConstants, material) == 104);
-        CHECK(sizeof(StaticMeshConstants) == 112);
+        CHECK(offsetof(StaticMeshConstants, previousModel) == 112);
+        CHECK(sizeof(StaticMeshConstants) == 120);
     }
 
     TEST_CASE("ForwardConstants matches cpu_driven/forward.slang")
@@ -307,6 +309,25 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(sizeof(IrradianceConstants) <= limit);
         CHECK(sizeof(PrefilterConstants) <= limit);
         CHECK(sizeof(BrdfLutConstants) <= limit);
+    }
+}
+
+TEST_SUITE("render_graph::detail::motionVector")
+{
+    using aegis::render_graph::detail::motionVector;
+
+    TEST_CASE("a point that stays put has no motion")
+    {
+        const aegis::math::Float4 clip{ 0.3f, -0.2f, 0.5f, 2.0f };
+        CHECK(motionVector(clip, clip) == aegis::math::Float2{ 0.0f, 0.0f });
+    }
+
+    TEST_CASE("the motion is half the move in normalized device coordinates, after the divide by w")
+    {
+        // From ndc (-0.5, 0.25) to (0.5, -0.25): half the view right and a quarter of it up (y down).
+        const auto motion = motionVector({ 1.0f, -0.5f, 0.5f, 2.0f }, { -2.0f, 1.0f, 0.5f, 4.0f });
+        CHECK(motion.x == doctest::Approx(0.5f));
+        CHECK(motion.y == doctest::Approx(-0.25f));
     }
 }
 

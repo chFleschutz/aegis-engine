@@ -94,6 +94,7 @@ TEST_SUITE("rhi::bytesPerTexel")
         // The Format enum groups these under "16-bit", which reads as a texel width but is not one.
         CHECK(bytesPerTexel(Format::R16_UNORM) == std::uint32_t{ 2 });
         CHECK(bytesPerTexel(Format::RG16_UNORM) == std::uint32_t{ 4 });
+        CHECK(bytesPerTexel(Format::RG16_SFLOAT) == std::uint32_t{ 4 });
         CHECK(bytesPerTexel(Format::RGBA16_UNORM) == std::uint32_t{ 8 });
 
         SUBCASE("the same holds for the 32-bit family")
@@ -147,8 +148,8 @@ TEST_SUITE("rhi::copyAlignment")
         constexpr std::array formats{
             Format::R8_UNORM, Format::RG8_UNORM, Format::RGBA8_UNORM, Format::RGBA8_SRGB,
             Format::BGRA8_UNORM, Format::BGRA8_SRGB, Format::RGB10A2_UNORM,
-            Format::B10G11R11_UFLOAT, Format::R16_UNORM, Format::RG16_UNORM, Format::RGBA16_UNORM,
-            Format::RGBA16_SFLOAT, Format::R32_SFLOAT, Format::RG32_SFLOAT, Format::RGB32_SFLOAT,
+            Format::B10G11R11_UFLOAT, Format::R16_UNORM, Format::RG16_UNORM, Format::RG16_SFLOAT,
+            Format::RGBA16_UNORM, Format::RGBA16_SFLOAT, Format::R32_SFLOAT, Format::RG32_SFLOAT, Format::RGB32_SFLOAT,
             Format::RGBA32_SFLOAT, Format::D32_SFLOAT
         };
 

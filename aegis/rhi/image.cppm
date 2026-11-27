@@ -40,6 +40,7 @@ export namespace aegis::rhi::detail
     case Format::RGB10A2_UNORM:
     case Format::B10G11R11_UFLOAT:
     case Format::RG16_UNORM:
+    case Format::RG16_SFLOAT:
     case Format::R32_SFLOAT:
     case Format::D32_SFLOAT:
         return 4;

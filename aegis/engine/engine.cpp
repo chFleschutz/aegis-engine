@@ -603,7 +603,7 @@ auto Engine::run() -> int
             m_lastFrameIndex = frame.frameIndex;
             m_frameGraph->execute(frame.cmd, frame.frameIndex, frame.target);
             // Recorded: the next frame needs only what changes after this one.
-            instances.clearDirty();
+            instances.endFrame();
         });
         if (!rendered)
         {

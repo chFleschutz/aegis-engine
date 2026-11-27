@@ -84,6 +84,7 @@ constexpr auto toVulkan(Format format) noexcept -> vk::Format
     case Format::B10G11R11_UFLOAT: return vk::Format::eB10G11R11UfloatPack32;
     case Format::R16_UNORM: return vk::Format::eR16Unorm;
     case Format::RG16_UNORM: return vk::Format::eR16G16Unorm;
+    case Format::RG16_SFLOAT: return vk::Format::eR16G16Sfloat;
     case Format::RGBA16_UNORM: return vk::Format::eR16G16B16A16Unorm;
     case Format::RGBA16_SFLOAT: return vk::Format::eR16G16B16A16Sfloat;
     case Format::R32_SFLOAT: return vk::Format::eR32Sfloat;
@@ -442,6 +443,7 @@ constexpr auto deriveImageAspectFlags(Format format) noexcept -> vk::ImageAspect
     case Format::B10G11R11_UFLOAT:
     case Format::R16_UNORM:
     case Format::RG16_UNORM:
+    case Format::RG16_SFLOAT:
     case Format::RGBA16_UNORM:
     case Format::RGBA16_SFLOAT:
     case Format::R32_SFLOAT:
@@ -574,6 +576,7 @@ constexpr auto toRHI(vk::Format format) noexcept -> Format
     case vk::Format::eB10G11R11UfloatPack32: return Format::B10G11R11_UFLOAT;
     case vk::Format::eR16Unorm: return Format::R16_UNORM;
     case vk::Format::eR16G16Unorm: return Format::RG16_UNORM;
+    case vk::Format::eR16G16Sfloat: return Format::RG16_SFLOAT;
     case vk::Format::eR16G16B16A16Unorm: return Format::RGBA16_UNORM;
     case vk::Format::eR16G16B16A16Sfloat: return Format::RGBA16_SFLOAT;
     case vk::Format::eR32Sfloat: return Format::R32_SFLOAT;

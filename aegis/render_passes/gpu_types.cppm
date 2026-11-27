@@ -100,6 +100,7 @@ struct InstanceData
     rhi::DeviceAddress material; // assets::Material parameter block (MaterialAddress in the shaders)
     std::uint32_t drawBatch;
     InstanceFlags flags;
+    math::Float3x4 previousModel = math::Float3x4::zero(); // Instance::previousModel: where its motion vectors start
 };
 
 /// @brief indirectDraw::DrawBatch: where a draw batch's instances live in the visibility and indirect
@@ -214,6 +215,7 @@ struct StaticMeshConstants
     rhi::DeviceAddress camera;
     rhi::DeviceAddress mesh;
     rhi::DeviceAddress material;
+    rhi::DeviceAddress previousModel{ 0 }; // math::Float3x4, the instance's entry of "PreviousModels"; 0: 'model' (no motion)
 };
 
 /// @brief cpu_driven/forward.slang: StaticMeshConstants and the view's lighting block.
@@ -355,6 +357,17 @@ struct GpuTransform
 [[nodiscard]] inline auto toGpuTransform(const math::Float4x4& model) -> GpuTransform
 {
     return toGpuTransform(toModelRows(model));
+}
+
+/// @brief The C++ twin of common::motionVector (modules/common.slang), so tests can pin it: how far a point moved on
+///        screen since the last frame, in uv (0 to 1 across the view, y down), from its unjittered clip position this
+///        frame and last frame. Sampling last frame's image at uv - motion finds the point there.
+[[nodiscard]] inline auto motionVector(const math::Float4& currentClip, const math::Float4& previousClip) -> math::Float2
+{
+    // Normalized device coordinates span 2 across the view, uv 1; both have y down (math::perspective flips it).
+    const math::Float2 current{ currentClip.x / currentClip.w, currentClip.y / currentClip.w };
+    const math::Float2 previous{ previousClip.x / previousClip.w, previousClip.y / previousClip.w };
+    return (current - previous) * 0.5f;
 }
 
 // The C++ twins of the light falloff in lighting::shade (PBR::distanceAttenuation and PBR::coneAttenuation in

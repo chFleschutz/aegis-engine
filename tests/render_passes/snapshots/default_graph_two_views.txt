@@ -35,6 +35,7 @@
     create Edit/Albedo ColorAttachment
     create Edit/ARM ColorAttachment
     create Edit/Emissive ColorAttachment
+    create Edit/MotionVectors ColorAttachment
     create Edit/Depth DepthAttachment
     barrier Edit/VisibleInstances: StorageWrite -> ShaderRead
     barrier Edit/IndirectDrawCommands: StorageWrite -> IndirectRead
@@ -44,6 +45,7 @@
     barrier Edit/Albedo: undefined -> ColorAttachment
     barrier Edit/ARM: undefined -> ColorAttachment
     barrier Edit/Emissive: undefined -> ColorAttachment
+    barrier Edit/MotionVectors: undefined -> ColorAttachment
     barrier Edit/Depth: undefined -> DepthAttachment
 7. Edit/Lighting
     use    Edit/Position StorageRead
@@ -119,6 +121,7 @@
     create Play/Albedo ColorAttachment
     create Play/ARM ColorAttachment
     create Play/Emissive ColorAttachment
+    create Play/MotionVectors ColorAttachment
     create Play/Depth DepthAttachment
     barrier Play/VisibleInstances: StorageWrite -> ShaderRead
     barrier Play/IndirectDrawCommands: StorageWrite -> IndirectRead
@@ -128,6 +131,7 @@
     barrier Play/Albedo: undefined -> ColorAttachment
     barrier Play/ARM: undefined -> ColorAttachment
     barrier Play/Emissive: undefined -> ColorAttachment
+    barrier Play/MotionVectors: undefined -> ColorAttachment
     barrier Play/Depth: undefined -> DepthAttachment
 17. Play/Lighting
     use    Play/Position StorageRead
@@ -195,6 +199,7 @@ resources
     Edit/Albedo: texture RGBA8_UNORM
     Edit/ARM: texture RGBA8_UNORM
     Edit/Emissive: texture RGBA8_UNORM
+    Edit/MotionVectors: texture RG16_SFLOAT
     Edit/Depth: texture D32_SFLOAT
     Edit/SceneColor: texture RGBA16_SFLOAT
     Edit/LightingUniforms: buffer, host written
@@ -209,6 +214,7 @@ resources
     Play/Albedo: texture RGBA8_UNORM
     Play/ARM: texture RGBA8_UNORM
     Play/Emissive: texture RGBA8_UNORM
+    Play/MotionVectors: texture RG16_SFLOAT
     Play/Depth: texture D32_SFLOAT
     Play/SceneColor: texture RGBA16_SFLOAT
     Play/LightingUniforms: buffer, host written

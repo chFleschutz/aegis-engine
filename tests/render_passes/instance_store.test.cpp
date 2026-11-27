@@ -146,7 +146,7 @@ TEST_SUITE("render_graph::InstanceStore")
         add(store, second);
         const auto d = add(store, first, 0.0f, true);
         const auto e = add(store, first);
-        store.clearDirty();
+        store.endFrame();
 
         store.remove(a);
         CHECK(store.get(e).batchSlot == 0);
@@ -156,7 +156,7 @@ TEST_SUITE("render_graph::InstanceStore")
         CHECK(store.staticDirty() == DirtyRange{ 0, 1 });
         CHECK(store.dynamicDirty().empty());
 
-        store.clearDirty();
+        store.endFrame();
         store.remove(e);
         CHECK(store.get(d).batchSlot == 0);
         CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
@@ -171,7 +171,7 @@ TEST_SUITE("render_graph::InstanceStore")
         const auto a = add(store, first);
         const auto b = add(store, first);
         const auto c = add(store, second);
-        store.clearDirty();
+        store.endFrame();
 
         REQUIRE(store.update(a, at(), second).has_value());
         CHECK(store.get(a).drawBatch == 1);
@@ -218,7 +218,7 @@ TEST_SUITE("render_graph::InstanceStore")
         const auto a = add(store, material, 1.0f);
         const auto b = add(store, material, 2.0f);
         const auto c = add(store, material, 3.0f);
-        store.clearDirty();
+        store.endFrame();
 
         store.remove(a);
         CHECK(!store.contains(a));
@@ -235,7 +235,7 @@ TEST_SUITE("render_graph::InstanceStore")
         const auto material = makeVariant();
         add(store, material);
         const auto last = add(store, material);
-        store.clearDirty();
+        store.endFrame();
 
         store.remove(last);
         CHECK(store.staticDirty().empty());
@@ -262,7 +262,7 @@ TEST_SUITE("render_graph::InstanceStore")
         CHECK(store.staticDirty() == DirtyRange{ 0, 2 });
         CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
 
-        store.clearDirty();
+        store.endFrame();
         CHECK(store.staticDirty().empty());
         CHECK(store.dynamicDirty().empty());
     }
@@ -274,7 +274,7 @@ TEST_SUITE("render_graph::InstanceStore")
         add(store, material);
         add(store, material);
         add(store, material, 0.0f, true);
-        store.clearDirty();
+        store.endFrame();
 
         store.markAllDirty();
         CHECK(store.staticDirty() == DirtyRange{ 0, 2 });
@@ -282,7 +282,7 @@ TEST_SUITE("render_graph::InstanceStore")
         add(store, material); // Beyond the old count: still covered
         CHECK(store.staticDirty() == DirtyRange{ 0, 3 });
 
-        store.clearDirty();
+        store.endFrame();
         CHECK(store.staticDirty().empty());
         CHECK(store.dynamicDirty().empty());
     }
@@ -293,7 +293,7 @@ TEST_SUITE("render_graph::InstanceStore")
         const auto material = makeVariant();
         add(store, material);
         const auto id = add(store, material, 1.0f);
-        store.clearDirty();
+        store.endFrame();
 
         REQUIRE(store.update(id, at(1.0f), material));
         CHECK(store.staticDirty().empty());
@@ -301,6 +301,102 @@ TEST_SUITE("render_graph::InstanceStore")
         REQUIRE(store.update(id, at(5.0f), material));
         CHECK(store.staticDirty() == DirtyRange{ 1, 2 });
         CHECK(store.get(id).model[0, 3] == 5.0f);
+    }
+
+    TEST_CASE("a new instance has no motion: its previous model is its model")
+    {
+        InstanceStore store;
+        auto instance = at(3.0f);
+        instance.previousModel[0, 3] = 9.0f; // Ignored
+        const auto id = store.add(std::move(instance), makeVariant(), false);
+        REQUIRE(id.has_value());
+        CHECK(store.get(*id).previousModel[0, 3] == 3.0f);
+    }
+
+    TEST_CASE("an update keeps the previous model until the end of the frame, which marks the instance dirty again")
+    {
+        InstanceStore store;
+        const auto material = makeVariant();
+        add(store, material);
+        const auto id = add(store, material, 1.0f);
+        store.endFrame();
+
+        REQUIRE(store.update(id, at(5.0f), material));
+        CHECK(store.get(id).model[0, 3] == 5.0f);
+        CHECK(store.get(id).previousModel[0, 3] == 1.0f);
+
+        // The GPU copies hold the old previous model: they must be written once more.
+        store.endFrame();
+        CHECK(store.get(id).previousModel[0, 3] == 5.0f);
+        CHECK(store.staticDirty() == DirtyRange{ 1, 2 });
+
+        store.endFrame();
+        CHECK(store.staticDirty().empty());
+    }
+
+    TEST_CASE("updates within one frame move from the model at the frame's start")
+    {
+        InstanceStore store;
+        const auto material = makeVariant();
+        const auto id = add(store, material, 1.0f);
+        store.endFrame();
+
+        REQUIRE(store.update(id, at(2.0f), material));
+        REQUIRE(store.update(id, at(3.0f), material));
+        CHECK(store.get(id).previousModel[0, 3] == 1.0f);
+        store.endFrame();
+        CHECK(store.get(id).previousModel[0, 3] == 3.0f);
+
+        // Back where it started within the frame: no motion, nothing to catch up.
+        REQUIRE(store.update(id, at(4.0f), material));
+        REQUIRE(store.update(id, at(3.0f), material));
+        store.endFrame();
+        CHECK(store.get(id).previousModel[0, 3] == 3.0f);
+        CHECK(store.staticDirty().empty());
+    }
+
+    TEST_CASE("a moved instance catches up at its new position after another's removal moves it")
+    {
+        InstanceStore store;
+        const auto material = makeVariant();
+        const auto first = add(store, material);
+        const auto moved = add(store, material, 1.0f);
+        store.endFrame();
+
+        REQUIRE(store.update(moved, at(2.0f), material));
+        store.remove(first); // 'moved' takes position 0
+        store.endFrame();
+        CHECK(store.get(moved).previousModel[0, 3] == 2.0f);
+        CHECK(store.staticDirty() == DirtyRange{ 0, 1 });
+    }
+
+    TEST_CASE("a moved instance keeps its previous model when it changes sets")
+    {
+        InstanceStore store;
+        const auto material = makeVariant();
+        const auto id = add(store, material, 1.0f);
+        store.endFrame();
+
+        REQUIRE(store.update(id, at(2.0f), material));
+        store.setDynamic(id, true);
+        CHECK(store.get(id).previousModel[0, 3] == 1.0f);
+        store.endFrame();
+        CHECK(store.get(id).previousModel[0, 3] == 2.0f);
+        CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
+    }
+
+    TEST_CASE("markAllDirty forgets the motion: each previous model becomes the model")
+    {
+        InstanceStore store;
+        const auto material = makeVariant();
+        const auto id = add(store, material, 1.0f);
+        store.endFrame();
+
+        REQUIRE(store.update(id, at(2.0f), material));
+        store.markAllDirty();
+        CHECK(store.get(id).previousModel[0, 3] == 2.0f);
+        store.endFrame();
+        CHECK(store.staticDirty().empty());
     }
 
     TEST_CASE("an update to another template moves the instance to that batch")
@@ -348,7 +444,7 @@ TEST_SUITE("render_graph::InstanceStore")
         twoSided.cullMode = aegis::rhi::CullMode::None;
         add(store, culled);
         const auto id = add(store, culled, 1.0f);
-        store.clearDirty();
+        store.endFrame();
 
         REQUIRE(store.update(id, at(1.0f), twoSided));
         CHECK(store.get(id).drawBatch == *store.batchId(twoSided));
@@ -361,7 +457,7 @@ TEST_SUITE("render_graph::InstanceStore")
     {
         InstanceStore store;
         add(store, makeVariant());
-        store.clearDirty();
+        store.endFrame();
         REQUIRE(store.syncVariants());
         CHECK(store.batchCount() == 1);
         CHECK(store.staticDirty().empty());
@@ -373,7 +469,7 @@ TEST_SUITE("render_graph::InstanceStore")
         const auto material = makeVariant();
         const auto id = add(store, material, 4.0f);
         add(store, material);
-        store.clearDirty();
+        store.endFrame();
 
         store.setDynamic(id, true);
         CHECK(store.isDynamic(id));
@@ -383,7 +479,7 @@ TEST_SUITE("render_graph::InstanceStore")
         CHECK(store.staticDirty() == DirtyRange{ 0, 1 });
         CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
 
-        store.clearDirty();
+        store.endFrame();
         store.setDynamic(id, true);
         CHECK(store.dynamicDirty().empty());
         CHECK(store.batches()[0].instanceCount == 2);

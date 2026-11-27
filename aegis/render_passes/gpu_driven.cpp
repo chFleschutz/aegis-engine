@@ -36,6 +36,7 @@ auto makeInstance(const Instance& instance, std::uint32_t frameIndex) -> Instanc
         .material = instance.material->parameterAddress(frameIndex),
         .drawBatch = instance.drawBatch,
         .flags = gpuTransform.flags,
+        .previousModel = instance.previousModel,
     };
 }
 }

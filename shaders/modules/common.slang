@@ -126,5 +126,16 @@ namespace common
         [vk::location(2)] public float4 albedo;
         [vk::location(3)] public float4 arm;
         [vk::location(4)] public float4 emissive;
+        [vk::location(5)] public float2 motion; // motionVector
+    }
+
+    /// How far a point moved on screen since the last frame, in uv (0 to 1 across the view, y down), from its
+    /// unjittered clip position this frame (Camera::viewProjection) and last frame (Camera::previousViewProjection,
+    /// with the instance's previous model). Sampling last frame's image at uv - motion finds the point there.
+    /// render_graph::detail::motionVector is its C++ twin.
+    public func motionVector(float4 currentClip, float4 previousClip) -> float2
+    {
+        // Normalized device coordinates span 2 across the view, uv 1; both have y down (the projection flips it).
+        return (currentClip.xy / currentClip.w - previousClip.xy / previousClip.w) * 0.5;
     }
 }

@@ -79,6 +79,10 @@ _Avoid_: subpixel offset, camera shake
 A frame in which a main view's camera comes from elsewhere than in the last frame (another camera, another world, the shell's camera instead of the main camera): nothing the view kept of earlier frames carries over.
 _Avoid_: camera switch, history reset
 
+**Motion vector**:
+How far the surface at a pixel moved on screen since the last frame, in uv, from the unjittered camera and the instance's model then and now; the geometry paths write it to the G-buffer's "MotionVectors". Where nothing opaque was drawn it is zero.
+_Avoid_: velocity, optical flow
+
 **Shadow view**:
 A view of the depth of the world as a light sees it, its shadow map, which a main view's lighting samples. Each main view has one per cascade of the directional light ("MainShadow0" to "MainShadow3"); the frame's closest shadow-casting spot lights each have one ("SpotShadow0" to "SpotShadow3"), which all main views share.
 _Avoid_: shadow pass (its passes), shadow camera (its camera), light view

@@ -75,6 +75,9 @@ struct Instance
 {
     /// @brief The top three rows of the model matrix, as shaders read it (detail::toModelRows).
     math::Float3x4 model = detail::toModelRows(math::Float4x4::identity());
+    /// @brief The model matrix at the last end of a frame (InstanceStore::endFrame), which the instance's motion vectors
+    ///        start from; 'model' for an instance added since. Set by the store, like drawBatch: add and update ignore it.
+    math::Float3x4 previousModel = detail::toModelRows(math::Float4x4::identity());
     std::shared_ptr<const assets::StaticMesh> mesh;
     std::shared_ptr<assets::Material> material;
     /// @brief The id of the instance's draw batch, whose variant is the material's. Set by the store; add
@@ -90,7 +93,8 @@ struct Instance
 ///        Each array is slot-allocated: a new instance goes to the end, a removed one is replaced by the last.
 ///        Instances are grouped into draw batches by material variant; a batch's id is freed with its last instance
 ///        and reused by the next new variant. Each array records the range of positions that changed since the last
-///        clearDirty(), so the GPU-driven path rewrites only those.
+///        endFrame(), so the GPU-driven path rewrites only those. Each instance keeps its model matrix of the last
+///        endFrame() too (Instance::previousModel), for motion vectors.
 ///        A plain value, filled by the app from the world (aegis::InstanceBridge) and read by the passes
 ///        through FrameScene::instances.
 class InstanceStore
@@ -136,13 +140,17 @@ public:
 
     [[nodiscard]] auto staticInstances() const noexcept -> std::span<const Instance> { return m_static.instances; }
     [[nodiscard]] auto dynamicInstances() const noexcept -> std::span<const Instance> { return m_dynamic.instances; }
-    /// @brief The positions of each set that changed since the last clearDirty(), within its current size.
+    /// @brief The positions of each set that changed since the last endFrame(), within its current size.
     [[nodiscard]] auto staticDirty() const noexcept -> DirtyRange { return m_static.dirty.clipped(staticInstanceCount()); }
     [[nodiscard]] auto dynamicDirty() const noexcept -> DirtyRange { return m_dynamic.dirty.clipped(dynamicInstanceCount()); }
-    /// @brief Forgets the changes, once the frame that read them has been recorded.
-    auto clearDirty() noexcept -> void;
+    /// @brief Forgets the changes, once the frame that read them has been recorded, and makes each instance's model
+    ///        its previous one (Instance::previousModel). An instance whose model changed this frame is marked changed
+    ///        again then, so the GPU copies of it catch up in the next frame.
+    auto endFrame() noexcept -> void;
     /// @brief Marks every position of both sets as changed, for consumers that hold another store's instances: the
-    ///        passes' buffers when the app renders another world's store than in the last frame.
+    ///        passes' buffers when the app renders another world's store than in the last frame. Forgets the
+    ///        instances' motion too: the passes drew none of the frames it happened in, so each previous model becomes
+    ///        the model.
     auto markAllDirty() noexcept -> void;
 
     /// @brief The batches by id. A freed id's entry has no instances and no variant until a new variant reuses it.
@@ -206,6 +214,7 @@ private:
     Set m_dynamic;
     std::vector<std::optional<Location>> m_locations; // By InstanceId::index
     std::vector<std::uint32_t> m_freeIds;
+    std::vector<InstanceId> m_moved; // The instances whose model changed since the last endFrame(), maybe repeated or removed
     std::vector<DrawBatch> m_batches;
     std::vector<std::vector<InstanceId>> m_batchMembers; // By batch id: the instance in each slot
     std::vector<std::uint32_t> m_freeBatchIds;
