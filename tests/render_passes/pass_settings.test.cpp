@@ -31,7 +31,7 @@ TEST_SUITE("render_graph::passSettingsTypes")
     TEST_CASE("registers each pass's settings in the Settings category")
     {
         const auto& types = passSettingsTypes();
-        for (const auto* type : { types.find<LightingPass::Settings>(), types.find<BloomPass::Settings>() })
+        for (const auto* type : { types.find<SceneUpdatePass::Settings>(), types.find<LightingPass::Settings>(), types.find<BloomPass::Settings>() })
         {
             REQUIRE(type != nullptr);
             CAPTURE(type->name);
@@ -70,6 +70,25 @@ TEST_SUITE("render_graph::passSettingsTypes")
         CHECK(bloom.downsampleScale == doctest::Approx(1.0f));
     }
 
+    TEST_CASE("sets the scene update pass's jitter by name, without the editor")
+    {
+        SceneUpdatePass::Settings camera;
+        GraphBuilder builder;
+        auto& pass = builder.add<SceneUpdatePass>(scene, 0u, &camera);
+        const auto settings = pass.settings();
+        REQUIRE(settings.has_value());
+        CHECK(settings->object == &camera);
+
+        REQUIRE(settings->type.setText(settings->object, "jitter", "true").has_value());
+        CHECK(camera.jitter);
+    }
+
+    TEST_CASE("a scene update pass without settings never jitters and shows none")
+    {
+        GraphBuilder builder;
+        CHECK_FALSE(builder.add<SceneUpdatePass>(scene).settings().has_value());
+    }
+
     TEST_CASE("a pass without tunables has no settings")
     {
         GraphBuilder builder;
@@ -98,7 +117,7 @@ TEST_SUITE("render_graph::passSettingsTypes")
         // The rebuilt graph, with a second view, starts from what was set: both views' passes read the one object.
         GraphBuilder rebuilt;
         addDefaultPasses(rebuilt, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .targetFormat = targetFormat, .views = { edit, play } });
-        CHECK(settingsObjects(rebuilt) == std::vector<void*>{ &settings.lighting, &settings.bloom, &settings.lighting, &settings.bloom });
+        CHECK(settingsObjects(rebuilt) == std::vector<void*>{ &settings.camera, &settings.lighting, &settings.bloom, &settings.camera, &settings.lighting, &settings.bloom });
         CHECK(settings.lighting.viewMode == LightingViewMode::Albedo);
         CHECK(settings.bloom.downsampleScale == doctest::Approx(0.5f));
     }

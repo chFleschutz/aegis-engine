@@ -34,13 +34,17 @@ TEST_SUITE("render_graph::gpu_types")
 {
     TEST_CASE("CameraData matches common::Camera")
     {
-        // Three row-major 4x4 matrices, the six frustum planes, then a float3 position (no padding).
+        // Six row-major 4x4 matrices, the six frustum planes, a float3 position and a float2 jitter (no padding).
         CHECK(offsetof(CameraData, view) == 0);
         CHECK(offsetof(CameraData, projection) == 64);
         CHECK(offsetof(CameraData, viewProjection) == 128);
-        CHECK(offsetof(CameraData, frustum) == 192);
-        CHECK(offsetof(CameraData, position) == 288);
-        CHECK(sizeof(CameraData) == 300);
+        CHECK(offsetof(CameraData, jitteredProjection) == 192);
+        CHECK(offsetof(CameraData, jitteredViewProjection) == 256);
+        CHECK(offsetof(CameraData, previousViewProjection) == 320);
+        CHECK(offsetof(CameraData, frustum) == 384);
+        CHECK(offsetof(CameraData, position) == 480);
+        CHECK(offsetof(CameraData, jitter) == 492);
+        CHECK(sizeof(CameraData) == 500);
         CHECK(sizeof(Frustum) == 96);
     }
 

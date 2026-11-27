@@ -61,6 +61,108 @@ TEST_SUITE("render_graph::detail::makeCameraData")
         CHECK(data.view[1, 3] == 2.0f);
         CHECK(data.view[2, 3] == 3.0f);
     }
+
+    TEST_CASE("without jitter or history the jittered and previous matrices are this frame's")
+    {
+        FrameScene::Camera camera;
+        camera.projection = math::perspective(math::radians(60.0f), 1.5f, 0.1f, 100.0f);
+        camera.view = math::viewMatrix(math::Float3{ 1.0f, 2.0f, 3.0f }, math::Float3{ 0.0f, 1.0f, 0.0f });
+
+        const auto data = makeCameraData(camera);
+        CHECK(equal(data.jitteredProjection, data.projection));
+        CHECK(equal(data.jitteredViewProjection, data.viewProjection));
+        CHECK(equal(data.previousViewProjection, data.viewProjection));
+        CHECK(data.jitter.x == 0.0f);
+        CHECK(data.jitter.y == 0.0f);
+    }
+
+    TEST_CASE("the jitter moves only the jittered matrices and the previous view-projection carries over")
+    {
+        FrameScene::Camera camera;
+        camera.projection = math::perspective(math::radians(60.0f), 1.5f, 0.1f, 100.0f);
+        const auto previous = camera.projection * math::viewMatrix(math::Float3{ 4.0f, 5.0f, 6.0f }, math::Float3{ 1.0f, 0.0f, 0.0f });
+        const math::Float2 jitter{ 0.01f, -0.02f };
+
+        const auto data = makeCameraData(camera, jitter, previous);
+        CHECK(equal(data.previousViewProjection, previous));
+        CHECK(equal(data.projection, camera.projection));
+        CHECK(equal(data.viewProjection, camera.projection * camera.view));
+        CHECK(equal(data.frustum.planes[0], aegis::render_graph::Frustum::extractFrom(data.viewProjection).planes[0]));
+        CHECK(equal(data.jitteredViewProjection, data.jitteredProjection * camera.view));
+        CHECK(data.jitter.x == jitter.x);
+        CHECK(data.jitter.y == jitter.y);
+        CHECK_FALSE(equal(data.jitteredProjection, data.projection));
+    }
+}
+
+TEST_SUITE("render_graph::detail::haltonJitter")
+{
+    using aegis::render_graph::jitterSequenceLength;
+    using aegis::render_graph::detail::haltonJitter;
+
+    TEST_CASE("starts at the Halton points of bases 2 and 3 after the first, centered on the pixel")
+    {
+        CHECK(haltonJitter(0).x == doctest::Approx(0.0f)); // 1/2 - 1/2
+        CHECK(haltonJitter(0).y == doctest::Approx(1.0f / 3.0f - 0.5f));
+        CHECK(haltonJitter(1).x == doctest::Approx(-0.25f)); // 1/4 - 1/2
+        CHECK(haltonJitter(1).y == doctest::Approx(2.0f / 3.0f - 0.5f));
+        CHECK(haltonJitter(2).x == doctest::Approx(0.25f)); // 3/4 - 1/2
+        CHECK(haltonJitter(2).y == doctest::Approx(1.0f / 9.0f - 0.5f));
+    }
+
+    TEST_CASE("stays within half a pixel, differs every frame and repeats after the sequence length")
+    {
+        for (std::uint32_t frame = 0; frame < jitterSequenceLength; ++frame)
+        {
+            CAPTURE(frame);
+            const auto jitter = haltonJitter(frame);
+            CHECK(std::abs(jitter.x) <= 0.5f);
+            CHECK(std::abs(jitter.y) <= 0.5f);
+            const auto repeated = haltonJitter(frame + jitterSequenceLength);
+            CHECK(repeated.x == jitter.x);
+            CHECK(repeated.y == jitter.y);
+            for (std::uint32_t other = 0; other < frame; ++other)
+            {
+                const auto earlier = haltonJitter(other);
+                CHECK((earlier.x != jitter.x || earlier.y != jitter.y));
+            }
+        }
+    }
+}
+
+TEST_SUITE("render_graph::detail::jitterProjection")
+{
+    using aegis::render_graph::detail::jitterOffset;
+    using aegis::render_graph::detail::jitterProjection;
+
+    TEST_CASE("a pixel offset is two over the extent in normalized device coordinates")
+    {
+        const auto offset = jitterOffset({ 0.5f, -0.25f }, { 200, 100 });
+        CHECK(offset.x == doctest::Approx(0.005f));
+        CHECK(offset.y == doctest::Approx(-0.005f));
+        const auto none = jitterOffset({ 0.5f, 0.5f }, { 0, 0 });
+        CHECK(none.x == 0.0f);
+        CHECK(none.y == 0.0f);
+    }
+
+    TEST_CASE("moves every projected point by the offset after the divide, at any depth")
+    {
+        const math::Float2 offset{ 0.01f, -0.02f };
+        for (const auto& projection : { math::perspective(math::radians(60.0f), 1.5f, 0.1f, 100.0f),
+                 math::orthographic(10.0f, 5.0f, 0.1f, 100.0f) })
+        {
+            const auto jittered = jitterProjection(projection, offset);
+            for (const auto& point : { math::Float4{ 0.0f, 0.0f, -1.0f, 1.0f }, math::Float4{ 3.0f, -2.0f, -50.0f, 1.0f } })
+            {
+                const auto clip = projection * point;
+                const auto moved = jittered * point;
+                CHECK(moved.w == doctest::Approx(clip.w));
+                CHECK(moved.z == doctest::Approx(clip.z));
+                CHECK(moved.x / moved.w == doctest::Approx(clip.x / clip.w + offset.x));
+                CHECK(moved.y / moved.w == doctest::Approx(clip.y / clip.w + offset.y));
+            }
+        }
+    }
 }
 
 TEST_SUITE("render_graph::detail::packLighting")

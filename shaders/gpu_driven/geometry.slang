@@ -41,7 +41,7 @@ func meshMain(
     {
         let vertex = mesh->vertices[mesh->meshletVertices[meshlet.vertexOffset + i]];
         float4 worldPos = mul(instance.modelMatrix, float4(vertex.position, 1.0));
-        meshVertices[i].position = mul(push.camera->viewProjection, worldPos);
+        meshVertices[i].position = mul(push.camera->jitteredViewProjection, worldPos);
         meshVertices[i].worldPosition = worldPos.xyz;
         meshVertices[i].worldNormal = normalize(mul(instance.normalMatrix, vertex.normal));
         meshVertices[i].uv = vertex.uv;

@@ -36,6 +36,9 @@ struct FrameScene
         math::Float4x4 view = math::Float4x4::identity();
         math::Float4x4 projection = math::Float4x4::identity();
         math::Float3 position{ 0.0f };
+        /// @brief The camera jumped since the last frame (another camera, another world): nothing of earlier frames
+        ///        carries over (CameraData::previousViewProjection is this frame's).
+        bool cut{ false };
     };
 
     /// @brief One rendering of the world in the frame: its scene passes run in a frame graph scope of its name, with

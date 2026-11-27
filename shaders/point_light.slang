@@ -34,7 +34,7 @@ func vertexMain(uint vertexID : SV_VertexID, out VSOut output)
     output.fragOffset = OFFSETS[vertexID];
     float4 viewOffset = float4(output.fragOffset, 0.0, 0.0) * push.radius;
     float4 viewPosition = mul(push.camera->view, push.worldPosition);
-    output.position = mul(push.camera->projection, viewPosition + viewOffset);
+    output.position = mul(push.camera->jitteredProjection, viewPosition + viewOffset);
 }
 
 [shader("fragment")]
