@@ -76,6 +76,9 @@ the comment and stop.
   fail before the fix, then commit the two together so every commit stays green. If no test can
   reach the bug, the PR body says why. When the cause isn't known, or the test could hang the GPU,
   call the Skill tool with "diagnose" first.
+- **A check you add goes red once:** plant the bug it guards (or break its input) and watch it fail
+  before you trust it green. A check that compares NaNs, or reads a target nothing drew, passes on
+  anything.
 - **Each commit on its own** builds clean (`cmake --build --preset <preset>`) and passes
   `ctest --preset <preset> -LE device`. To check several commits at once before the first push:
   `git fetch origin` then

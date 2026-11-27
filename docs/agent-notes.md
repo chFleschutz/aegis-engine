@@ -47,6 +47,8 @@ Gotchas from past sessions, to read when a build, tool or test behaves unexpecte
   looked up after the subdirectory that used it, and only a fresh configure showed it.
 - **Release builds are a separate check.** `assert` compiles to nothing there, so code that only
   uses a variable in an assert can break the release build or change behaviour.
+- **Grep build output for `error:`, not `error`.** File names such as `error.cppm` match the bare
+  word, so a clean build reads as failed; `error:|warning:|FAILED:` matches only diagnostics.
 - **A background build that exits 0 is not proof.** Check that the artifact exists: one background
   build reported success, but its executables were never linked.
 - **Don't background builds with `( … ) &` in Bash.** The subshell is killed when the call returns. Use

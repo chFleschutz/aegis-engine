@@ -48,6 +48,18 @@ above use Windows paths and the `windows-clang-debug` preset; on Linux use `linu
 `build/linux-clang-debug/tests/device/aegis-test`. The windowed run also checks `platform::Input`
 with synthetic key and mouse messages, on Windows only (other platforms skip that check).
 
+**Writing a check.** A check is a `Harness::verify…` member in `device/checks/<topic>.cpp`, declared
+in `test.cppm` and called from `Harness::create` (`harness.cpp`); the ones called before its
+samples gate also run in CI's `--no-samples` mode. The harness has `submitAndWait` (record, submit,
+wait), `flushAndWait` (queued uploads), `halfToFloat` and `readRgba16f` (`checks/ibl.cpp`). The
+engine's own `content/` needs no samples: `paths::content() / "cube.obj"` loads through
+`assets::Loader` with `DefaultAssets` built from `loadEngineTemplates` (as `checks/assets.cpp` does
+with a samples model). A graph texture reads back through a pass that references it with
+`Usage::TransferSrc` and copies it out (`ExportPass` in `checks/graph.cpp`). Compare floats with a
+helper that fails on non-finite values: NaN compares false against any tolerance, so a check of NaNs
+passes. The world is z-up, so a camera looking along z has no view matrix (`math::viewMatrix`
+asserts); look along y.
+
 ### Reference images
 
 `aegis-test --headless --compare <png> [--tolerance <0-255>]` compares the last frame with a reference
