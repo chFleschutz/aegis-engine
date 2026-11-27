@@ -24,7 +24,10 @@ export namespace aegis
 ///        anything that loads them by their own ID.
 ///
 /// Where an ID lives comes from the AssetDatabase (the project's assets and the engine content): foreign files
-/// load through their importers, material (`.material`) and scene (`.scene`) files through aegis.serialize. Loading is
+/// load through their importers, material (`.material`) and scene (`.scene`) files through aegis.serialize. Each asset
+/// type loads through its asset loader in the library's AssetCache: the library registers the engine's types
+/// (assets::Texture, assets::StaticMesh, assets::Material, assets::Environment, assets::Model, assets::AudioClip and
+/// serialize::Scene), a game registers its own (registerLoader). Loading is
 /// async-shaped and synchronous for now: a returned AssetRef is ready or failed. A failed or missing asset
 /// is logged once and replaced by engine content (the checker texture, the default cube, a material with the
 /// checker), so a scene with a broken reference still draws.
@@ -64,11 +67,24 @@ public:
     /// @return NotFound, naming the path and key, for an unknown path.
     [[nodiscard]] auto id(std::string_view path, std::string_view key = {}) const -> std::expected<assets::AssetId, AssetLibraryError>;
 
-    /// @brief The asset 'id' names, loaded on first use. Types: assets::Texture, assets::StaticMesh,
-    ///        assets::Material (a part of a model file, or a material file), assets::Environment, assets::Model and
-    ///        assets::AudioClip.
-    template<class T>
-    [[nodiscard]] auto load(assets::AssetId id) -> assets::AssetRef<T>;
+    /// @brief The asset 'id' names, loaded on first use by the asset loader of T: assets::Texture, assets::StaticMesh,
+    ///        assets::Material (a part of a model file, or a material file), assets::Environment, assets::Model,
+    ///        assets::AudioClip, or a type registered with registerLoader. A serialize::Scene loads only through
+    ///        instantiateScene and resolve, which name the types its components need. A T without a loader fails.
+    template<Asset T>
+    [[nodiscard]] auto load(assets::AssetId id) -> assets::AssetRef<T>
+    {
+        return m_cache->load<T>(id);
+    }
+
+    /// @brief Registers how assets of the type T load (load<T>): a game's own asset type, registered once (in its
+    ///        onStartup, say). Components' references of it are not resolved yet (resolve, #514).
+    /// @return AlreadyRegistered if T has a loader (the engine's types have) or another C++ type has its asset type name.
+    template<Asset T>
+    [[nodiscard]] auto registerLoader(AssetLoader<T> loader) -> std::expected<void, AssetLibraryError>
+    {
+        return m_cache->registerLoader<T>(std::move(loader));
+    }
 
     /// @brief The typed forms of load (the examples avoid naming the assets namespace, which a local called
     ///        'assets' hides).
@@ -117,8 +133,11 @@ public:
 
     /// @brief Registers an asset made at run time under a new ID, so it can be referenced like a loaded one.
     ///        It is not in the database: nothing finds it by path and a scene file could not load it again.
-    template<class T>
-    auto add(std::shared_ptr<T> asset) -> assets::AssetRef<T>;
+    template<Asset T>
+    auto add(std::shared_ptr<T> asset) -> assets::AssetRef<T>
+    {
+        return m_cache->fill<T>(assets::AssetId::generate(), std::move(asset));
+    }
 
     /// @brief A new instance of 'materialTemplate' (by default the PBR template).
     /// @return CreateFailed if the device cannot make its resources (out of memory, say).
@@ -158,55 +177,10 @@ private:
     class Impl;
     explicit AssetLibrary(std::unique_ptr<Impl> impl);
 
-    // Registers a run-time asset in the slot cache of its type.
-    auto addTexture(std::shared_ptr<assets::Texture> asset) -> assets::AssetRef<assets::Texture>;
-    auto addMesh(std::shared_ptr<assets::StaticMesh> asset) -> assets::AssetRef<assets::StaticMesh>;
-    auto addMaterial(std::shared_ptr<assets::Material> asset) -> assets::AssetRef<assets::Material>;
-    auto addEnvironment(std::shared_ptr<assets::Environment> asset) -> assets::AssetRef<assets::Environment>;
-    auto addModel(std::shared_ptr<assets::Model> asset) -> assets::AssetRef<assets::Model>;
-    auto addAudioClip(std::shared_ptr<assets::AudioClip> asset) -> assets::AssetRef<assets::AudioClip>;
-
     std::unique_ptr<Impl> m_impl;
+    AssetCache* m_cache;
     const assets::DefaultAssets* m_defaults;
     const assets::AssetDatabase* m_database;
     const assets::ImportCache* m_importCache;
 };
-
-template<class T>
-auto AssetLibrary::load(assets::AssetId id) -> assets::AssetRef<T>
-{
-    if constexpr (std::same_as<T, assets::Texture>)
-        return loadTexture(id);
-    else if constexpr (std::same_as<T, assets::StaticMesh>)
-        return loadMesh(id);
-    else if constexpr (std::same_as<T, assets::Material>)
-        return loadMaterial(id);
-    else if constexpr (std::same_as<T, assets::Environment>)
-        return loadEnvironment(id);
-    else if constexpr (std::same_as<T, assets::Model>)
-        return loadModel(id);
-    else if constexpr (std::same_as<T, assets::AudioClip>)
-        return loadAudioClip(id);
-    else
-        static_assert(!sizeof(T), "AssetLibrary cannot load this asset type");
-}
-
-template<class T>
-auto AssetLibrary::add(std::shared_ptr<T> asset) -> assets::AssetRef<T>
-{
-    if constexpr (std::same_as<T, assets::Texture>)
-        return addTexture(std::move(asset));
-    else if constexpr (std::same_as<T, assets::StaticMesh>)
-        return addMesh(std::move(asset));
-    else if constexpr (std::same_as<T, assets::Material>)
-        return addMaterial(std::move(asset));
-    else if constexpr (std::same_as<T, assets::Environment>)
-        return addEnvironment(std::move(asset));
-    else if constexpr (std::same_as<T, assets::Model>)
-        return addModel(std::move(asset));
-    else if constexpr (std::same_as<T, assets::AudioClip>)
-        return addAudioClip(std::move(asset));
-    else
-        static_assert(!sizeof(T), "AssetLibrary cannot hold this asset type");
-}
 }

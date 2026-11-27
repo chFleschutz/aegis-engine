@@ -18,38 +18,6 @@ using assets::AssetState;
 
 namespace
 {
-/// The loaded assets of one type by ID.
-template<class T>
-struct Cache
-{
-    std::unordered_map<AssetId, std::shared_ptr<AssetSlot<T>>> slots;
-
-    /// The slot of 'id' once it has been filled.
-    auto find(AssetId id) const -> std::optional<AssetRef<T>>
-    {
-        if (const auto it = slots.find(id); it != slots.end() && it->second->state != AssetState::Pending)
-            return AssetRef<T>{ id, it->second };
-        return std::nullopt;
-    }
-
-    auto slot(AssetId id) -> const std::shared_ptr<AssetSlot<T>>&
-    {
-        auto& slot = slots[id];
-        if (!slot)
-            slot = std::make_shared<AssetSlot<T>>();
-        return slot;
-    }
-
-    auto fill(AssetId id, std::shared_ptr<T> value) -> AssetRef<T>
-    {
-        const auto& s = slot(id);
-        s->value = std::move(value);
-        s->state = AssetState::Ready;
-        s->message.clear();
-        return AssetRef<T>{ id, s };
-    }
-};
-
 auto readFile(const std::filesystem::path& path) -> std::optional<std::string>
 {
     std::ifstream stream{ path, std::ios::binary };
@@ -63,6 +31,10 @@ auto readFile(const std::filesystem::path& path) -> std::optional<std::string>
 class AssetLibrary::Impl
 {
 public:
+    // What a loader returns: the asset, or why it failed.
+    template<class T>
+    using Loaded = std::expected<std::shared_ptr<T>, std::string>;
+
     Impl(rhi::Device& device, std::uint32_t framesInFlight, assets::DefaultAssets defaults, render_graph::Ibl ibl,
         assets::AssetDatabase database, assets::ImportCache importCache) :
         m_device{ &device },
@@ -74,80 +46,60 @@ public:
     {
     }
 
+    // The loaders keep 'this'
+    Impl(const Impl&) = delete;
+    auto operator=(const Impl&) -> Impl& = delete;
+
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return m_defaults; }
     [[nodiscard]] auto database() const -> const assets::AssetDatabase& { return m_database; }
     [[nodiscard]] auto database() -> assets::AssetDatabase& { return m_database; }
     [[nodiscard]] auto rescan() -> std::expected<void, assets::Error> { return m_database.rescan(); }
     [[nodiscard]] auto importCache() const -> const assets::ImportCache& { return m_importCache; }
-    [[nodiscard]] auto device() -> rhi::Device& { return *m_device; }
-    [[nodiscard]] auto framesInFlight() const -> std::uint32_t { return m_framesInFlight; }
+    [[nodiscard]] auto cache() -> AssetCache& { return m_cache; }
 
-    auto textures() -> Cache<assets::Texture>& { return m_textures; }
-    auto meshes() -> Cache<assets::StaticMesh>& { return m_meshes; }
-    auto materials() -> Cache<assets::Material>& { return m_materials; }
-    auto environments() -> Cache<assets::Environment>& { return m_environments; }
-    auto models() -> Cache<assets::Model>& { return m_models; }
-    auto audioClips() -> Cache<assets::AudioClip>& { return m_audioClips; }
-
-    auto loadTexture(AssetId id) -> AssetRef<assets::Texture>
+    // Registers the asset loaders of the engine's asset types.
+    [[nodiscard]] auto registerLoaders() -> std::expected<void, AssetLibraryError>
     {
-        if (auto ref = m_textures.find(id))
-            return *ref;
-
-        const auto* entry = m_database.find(id);
-        if (!entry)
-            return failTexture(id, "no asset has this ID");
-        if (!entry->key.empty())
+        const auto registered = std::array{
+            m_cache.registerLoader<assets::Texture>({
+                .load = [this](AssetId id) { return loadTexture(id); },
+                .fallback = [this](AssetId id) { return id != assets::engine::checker ? m_cache.load<assets::Texture>(assets::engine::checker).shared() : nullptr; },
+            }),
+            m_cache.registerLoader<assets::StaticMesh>({
+                .load = [this](AssetId id) { return loadPart<assets::StaticMesh>(id, "mesh"); },
+                .fallback = [this](AssetId) { return cubeMesh(); },
+            }),
+            m_cache.registerLoader<assets::Material>({
+                .load = [this](AssetId id) { return loadMaterial(id); },
+                .fallback = [this](AssetId) { return fallbackMaterial(); },
+            }),
+            m_cache.registerLoader<assets::Environment>({
+                .load = [this](AssetId id) { return loadEnvironment(id); },
+                .fallback = [this](AssetId) { return blackEnvironment(); },
+            }),
+            m_cache.registerLoader<assets::Model>({
+                .load = [this](AssetId id) { return loadModel(id); },
+                .fallback = [this](AssetId id) { return id != assets::engine::cube ? m_cache.load<assets::Model>(assets::engine::cube).shared() : nullptr; },
+            }),
+            m_cache.registerLoader<assets::AudioClip>({
+                .load = [this](AssetId id) { return loadAudioClip(id); },
+                .fallback = {}, // A missing clip is silent
+            }),
+            // A failure of a scene file is not logged: instantiating an instance of it returns it. One of a model
+            // file's scene was logged by its model.
+            m_cache.registerLoader<serialize::Scene>({
+                .load = [this](AssetId id) { return loadSceneAsset(id); },
+                .fallback = [this](AssetId id) { return sceneFallback(id); },
+                .ready = [this] { return m_types != nullptr; },
+                .logFailures = false,
+            }),
+        };
+        for (const auto& result : registered)
         {
-            loadOwner(*entry);
-            if (auto ref = m_textures.find(id))
-                return *ref;
-            return failTexture(id, std::format("'{}' has no texture '{}'", entry->path, entry->key));
+            if (!result)
+                return std::unexpected{ result.error() };
         }
-        if (assets::importerFor(entry->path) != "texture")
-            return failTexture(id, std::format("'{}' is not a texture file", entry->path));
-
-        auto loaded = m_importCache.loadTextureFile(m_database.absolutePath(*entry), { .name = entry->path, .srgb = assets::textureSrgb(entry->settings, true) });
-        if (!loaded)
-            return failTexture(id, assets::describe(loaded.error()));
-        auto texture = assets::Texture::create(*m_device, loaded->texture, entry->path);
-        if (!texture)
-            return failTexture(id, assets::describe(texture.error()));
-        return m_textures.fill(id, std::move(*texture));
-    }
-
-    auto loadMesh(AssetId id) -> AssetRef<assets::StaticMesh>
-    {
-        if (auto ref = m_meshes.find(id))
-            return *ref;
-
-        const auto* entry = m_database.find(id);
-        if (entry && !entry->key.empty())
-        {
-            loadOwner(*entry);
-            if (auto ref = m_meshes.find(id))
-                return *ref;
-            return failMesh(id, std::format("'{}' has no mesh '{}'", entry->path, entry->key));
-        }
-        return failMesh(id, entry ? "it is a file, not a mesh" : "no asset has this ID");
-    }
-
-    auto loadMaterial(AssetId id) -> AssetRef<assets::Material>
-    {
-        if (auto ref = m_materials.find(id))
-            return *ref;
-
-        const auto* entry = m_database.find(id);
-        if (entry && !entry->key.empty())
-        {
-            loadOwner(*entry);
-            if (auto ref = m_materials.find(id))
-                return *ref;
-            return failMaterial(id, std::format("'{}' has no material '{}'", entry->path, entry->key));
-        }
-        if (entry && entry->type == "Material")
-            return loadMaterialFile(id, *entry);
-        return failMaterial(id, entry ? "it is a file, not a material" : "no asset has this ID");
+        return {};
     }
 
     // Reads the scene file 'id', checked against 'types'. A model file's scene is the one loadScene keeps.
@@ -161,36 +113,17 @@ public:
                 return makeError(AssetLibraryErrorCode::ReadFailed, scene.slot()->message);
             return *scene;
         }
-        if (!entry)
-            return makeError(AssetLibraryErrorCode::NotFound, std::format("no asset has the ID {}", id));
-        if (entry->type != "Scene")
-            return makeError(AssetLibraryErrorCode::WrongType, std::format("{} ('{}') is not a scene file", id, entry->path));
-        auto text = readFile(m_database.absolutePath(*entry));
-        if (!text)
-            return makeError(AssetLibraryErrorCode::ReadFailed, std::format("cannot read '{}'", entry->path));
-        auto scene = serialize::parseScene(*text, types);
-        if (!scene)
-            return makeError(AssetLibraryErrorCode::ReadFailed, scene.error(), std::format("cannot parse '{}'", entry->path));
-        return std::move(*scene);
+        return readSceneFile(id, types);
     }
 
-    // The scene file or model file 'id' as an asset, read against 'types' on first use. A failure of a scene
-    // file is not logged: instantiating an instance of it returns it.
+    // The scene file or model file 'id' as an asset, read against 'types' on first use (the scene loader reads them
+    // while this runs).
     auto loadScene(AssetId id, const reflect::TypeRegistry& types) -> AssetRef<serialize::Scene>
     {
-        if (auto ref = m_scenes.find(id))
-            return *ref;
-        if (const auto* entry = m_database.find(id); entry && isModelFile(*entry))
-            return loadModelScene(id, types);
-        auto scene = readScene(id, types);
-        if (!scene)
-        {
-            const auto& slot = m_scenes.slot(id);
-            slot->state = AssetState::Failed;
-            slot->message = describe(scene.error());
-            return AssetRef<serialize::Scene>{ id, slot };
-        }
-        return m_scenes.fill(id, std::make_shared<serialize::Scene>(std::move(*scene)));
+        const auto* outer = std::exchange(m_types, &types);
+        auto scene = m_cache.load<serialize::Scene>(id);
+        m_types = outer;
+        return scene;
     }
 
     // Loads the assets a component read from a scene file names by ID only (a reference without a slot).
@@ -207,9 +140,9 @@ public:
         {
             auto& renderer = *static_cast<MeshRenderer*>(component);
             if (renderer.mesh.id().valid() && !renderer.mesh.slot())
-                renderer.mesh = loadMesh(renderer.mesh.id());
+                renderer.mesh = m_cache.load<assets::StaticMesh>(renderer.mesh.id());
             if (renderer.material.id().valid() && !renderer.material.slot())
-                renderer.material = loadMaterial(renderer.material.id());
+                renderer.material = m_cache.load<assets::Material>(renderer.material.id());
         }
         else if (type.type == typeid(Sky))
         {
@@ -217,100 +150,14 @@ public:
             if (!sky.environment.id().valid())
                 sky.environment = defaultEnvironment();
             else if (!sky.environment.slot())
-                sky.environment = loadEnvironment(sky.environment.id());
+                sky.environment = m_cache.load<assets::Environment>(sky.environment.id());
         }
         else if (type.type == typeid(audio::AudioSource))
         {
             auto& source = *static_cast<audio::AudioSource*>(component);
             if (source.clip.id().valid() && !source.clip.slot())
-                source.clip = loadAudioClip(source.clip.id());
+                source.clip = m_cache.load<assets::AudioClip>(source.clip.id());
         }
-    }
-
-    // The file's bytes come from the import cache unchanged and are decoded into memory on every load.
-    auto loadAudioClip(AssetId id) -> AssetRef<assets::AudioClip>
-    {
-        if (auto ref = m_audioClips.find(id))
-            return *ref;
-
-        const auto* entry = m_database.find(id);
-        if (!entry)
-            return failAudioClip(id, "no asset has this ID");
-        if (!entry->key.empty() || assets::importerFor(entry->path) != "audio")
-            return failAudioClip(id, std::format("'{}' is not an audio file", entry->path));
-
-        auto loaded = m_importCache.loadAudioFile(m_database.absolutePath(*entry));
-        if (!loaded)
-            return failAudioClip(id, assets::describe(loaded.error()));
-        auto clip = audio::decodeClip(loaded->bytes, entry->path);
-        if (!clip)
-            return failAudioClip(id, audio::describe(clip.error()));
-        return m_audioClips.fill(id, std::make_shared<assets::AudioClip>(std::move(*clip)));
-    }
-
-    auto loadEnvironment(AssetId id) -> AssetRef<assets::Environment>
-    {
-        if (auto ref = m_environments.find(id))
-            return *ref;
-
-        const auto* entry = m_database.find(id);
-        if (!entry)
-            return failEnvironment(id, "no asset has this ID");
-        if (!entry->key.empty() || assets::importerFor(entry->path) != "environment")
-            return failEnvironment(id, std::format("'{}' is not an environment file", entry->path));
-
-        // The equirectangular map comes from the import cache; the cube and its maps are made on the GPU each load.
-        auto equirect = m_importCache.loadTextureFile(m_database.absolutePath(*entry), { .name = entry->path, .environment = true });
-        if (!equirect)
-            return failEnvironment(id, assets::describe(equirect.error()));
-        auto texture = assets::Texture::create(*m_device, equirect->texture, entry->path, { .addressMode = rhi::SamplerAddressMode::ClampToEdge });
-        if (!texture)
-            return failEnvironment(id, assets::describe(texture.error()));
-        auto cube = m_ibl.cubeFromEquirectangular(**texture);
-        if (!cube)
-            return failEnvironment(id, render_graph::describe(cube.error()));
-        auto environment = m_ibl.environmentFrom(std::move(*cube));
-        if (!environment)
-            return failEnvironment(id, render_graph::describe(environment.error()));
-        return m_environments.fill(id, std::move(*environment));
-    }
-
-    auto loadModel(AssetId id) -> AssetRef<assets::Model>
-    {
-        if (auto ref = m_models.find(id))
-            return *ref;
-
-        const auto* entry = m_database.find(id);
-        if (!entry)
-            return failModel(id, "no asset has this ID");
-        if (!isModelFile(*entry))
-            return failModel(id, std::format("'{}' is not a model file", entry->path));
-
-        auto imported = m_importCache.loadModel(m_database.absolutePath(*entry), entry->settings);
-        if (!imported)
-            return failModel(id, assets::describe(imported.error()));
-        // External images are textures of their own, loaded and shared by their own IDs; embedded ones are parts,
-        // with their settings in the model's sidecar.
-        assets::resolveExternalImages(m_database, *entry, imported->model);
-        auto sidecar = readModelSidecar(*entry);
-        assets::SubAssetKeys keys{ sidecar.sidecar.settings.strictNames };
-        auto imageKeys = assets::embeddedImageKeys(imported->model, keys);
-        if (!imageKeys)
-            return failModel(id, assets::describe(imageKeys.error()));
-        assets::applyEmbeddedImageSettings(sidecar.sidecar, *imageKeys, imported->model);
-        const auto externalTexture = [this](const assets::ModelImage& image) {
-            return image.texture.valid() ? loadTexture(image.texture).shared() : nullptr;
-        };
-        auto model = assets::Loader::upload(
-            { .device = *m_device, .defaults = m_defaults, .framesInFlight = m_framesInFlight, .externalTexture = externalTexture, .importCache = &m_importCache },
-            imported->model);
-        if (!model)
-            return failModel(id, assets::describe(model.error()));
-
-        auto shared = std::make_shared<assets::Model>(std::move(*model));
-        if (auto registered = registerParts(*entry, std::move(sidecar), keys, *imageKeys, *shared); !registered)
-            return failModel(id, assets::describe(registered.error()));
-        return m_models.fill(id, std::move(shared));
     }
 
     auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
@@ -320,7 +167,7 @@ public:
         auto material = assets::Material::create(*m_device, std::move(materialTemplate), m_framesInFlight);
         if (!material)
             return makeError(AssetLibraryErrorCode::CreateFailed, material.error(), "cannot create a material");
-        return m_materials.fill(AssetId::generate(), std::move(*material));
+        return m_cache.fill<assets::Material>(AssetId::generate(), std::move(*material));
     }
 
     auto copyMaterial(const AssetRef<assets::Material>& source) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
@@ -330,7 +177,7 @@ public:
         auto material = source->copy();
         if (!material)
             return makeError(AssetLibraryErrorCode::CreateFailed, material.error(), "cannot copy a material");
-        return m_materials.fill(AssetId::generate(), std::move(*material));
+        return m_cache.fill<assets::Material>(AssetId::generate(), std::move(*material));
     }
 
     auto defaultEnvironment() -> AssetRef<assets::Environment>
@@ -338,9 +185,9 @@ public:
         if (!m_defaultEnvironment.valid())
         {
             m_defaultEnvironment = AssetId::generate();
-            m_environments.fill(m_defaultEnvironment, blackEnvironment());
+            m_cache.fill<assets::Environment>(m_defaultEnvironment, blackEnvironment());
         }
-        return *m_environments.find(m_defaultEnvironment);
+        return *m_cache.find<assets::Environment>(m_defaultEnvironment);
     }
 
     auto applyMaterialFile(AssetId id, const serialize::MaterialFile& file) -> std::expected<void, AssetLibraryError>
@@ -351,7 +198,7 @@ public:
         if (entry->type != "Material" || !entry->key.empty())
             return makeError(AssetLibraryErrorCode::WrongType, std::format("'{}' is not a material file", entry->path));
 
-        auto material = loadMaterial(id);
+        auto material = m_cache.load<assets::Material>(id);
         if (material.state() != AssetState::Ready)
             return makeError(AssetLibraryErrorCode::ReadFailed, std::format("'{}' did not load: {}", entry->path, material.slot()->message));
         auto materialTemplate = fileTemplate(file);
@@ -375,6 +222,165 @@ public:
     }
 
 private:
+    // The loaders of the engine's types. A part of a model file (a mesh, a material or an embedded texture) loads its
+    // model, which fills the slots of all its parts.
+
+    auto loadTexture(AssetId id) -> Loaded<assets::Texture>
+    {
+        const auto* entry = m_database.find(id);
+        if (!entry)
+            return std::unexpected{ "no asset has this ID" };
+        if (!entry->key.empty())
+            return loadPart<assets::Texture>(id, "texture");
+        if (assets::importerFor(entry->path) != "texture")
+            return std::unexpected{ std::format("'{}' is not a texture file", entry->path) };
+
+        auto loaded = m_importCache.loadTextureFile(m_database.absolutePath(*entry), { .name = entry->path, .srgb = assets::textureSrgb(entry->settings, true) });
+        if (!loaded)
+            return std::unexpected{ assets::describe(loaded.error()) };
+        auto texture = assets::Texture::create(*m_device, loaded->texture, entry->path);
+        if (!texture)
+            return std::unexpected{ assets::describe(texture.error()) };
+        return std::move(*texture);
+    }
+
+    // A part of a model file: its slot, filled by loading the model.
+    template<class T>
+    auto loadPart(AssetId id, std::string_view what) -> Loaded<T>
+    {
+        const auto* entry = m_database.find(id);
+        if (!entry)
+            return std::unexpected{ "no asset has this ID" };
+        if (entry->key.empty())
+            return std::unexpected{ std::format("it is a file, not a {}", what) };
+        loadOwner(*entry);
+        if (auto ref = m_cache.find<T>(id))
+            return ref->shared();
+        return std::unexpected{ std::format("'{}' has no {} '{}'", entry->path, what, entry->key) };
+    }
+
+    auto loadMaterial(AssetId id) -> Loaded<assets::Material>
+    {
+        const auto* entry = m_database.find(id);
+        if (entry && entry->key.empty() && entry->type == "Material")
+            return loadMaterialFile(*entry);
+        return loadPart<assets::Material>(id, "material");
+    }
+
+    // The file's bytes come from the import cache unchanged and are decoded into memory on every load.
+    auto loadAudioClip(AssetId id) -> Loaded<assets::AudioClip>
+    {
+        const auto* entry = m_database.find(id);
+        if (!entry)
+            return std::unexpected{ "no asset has this ID" };
+        if (!entry->key.empty() || assets::importerFor(entry->path) != "audio")
+            return std::unexpected{ std::format("'{}' is not an audio file", entry->path) };
+
+        auto loaded = m_importCache.loadAudioFile(m_database.absolutePath(*entry));
+        if (!loaded)
+            return std::unexpected{ assets::describe(loaded.error()) };
+        auto clip = audio::decodeClip(loaded->bytes, entry->path);
+        if (!clip)
+            return std::unexpected{ audio::describe(clip.error()) };
+        return std::make_shared<assets::AudioClip>(std::move(*clip));
+    }
+
+    auto loadEnvironment(AssetId id) -> Loaded<assets::Environment>
+    {
+        const auto* entry = m_database.find(id);
+        if (!entry)
+            return std::unexpected{ "no asset has this ID" };
+        if (!entry->key.empty() || assets::importerFor(entry->path) != "environment")
+            return std::unexpected{ std::format("'{}' is not an environment file", entry->path) };
+
+        // The equirectangular map comes from the import cache; the cube and its maps are made on the GPU each load.
+        auto equirect = m_importCache.loadTextureFile(m_database.absolutePath(*entry), { .name = entry->path, .environment = true });
+        if (!equirect)
+            return std::unexpected{ assets::describe(equirect.error()) };
+        auto texture = assets::Texture::create(*m_device, equirect->texture, entry->path, { .addressMode = rhi::SamplerAddressMode::ClampToEdge });
+        if (!texture)
+            return std::unexpected{ assets::describe(texture.error()) };
+        auto cube = m_ibl.cubeFromEquirectangular(**texture);
+        if (!cube)
+            return std::unexpected{ render_graph::describe(cube.error()) };
+        auto environment = m_ibl.environmentFrom(std::move(*cube));
+        if (!environment)
+            return std::unexpected{ render_graph::describe(environment.error()) };
+        return std::move(*environment);
+    }
+
+    auto loadModel(AssetId id) -> Loaded<assets::Model>
+    {
+        const auto* entry = m_database.find(id);
+        if (!entry)
+            return std::unexpected{ "no asset has this ID" };
+        if (!isModelFile(*entry))
+            return std::unexpected{ std::format("'{}' is not a model file", entry->path) };
+
+        auto imported = m_importCache.loadModel(m_database.absolutePath(*entry), entry->settings);
+        if (!imported)
+            return std::unexpected{ assets::describe(imported.error()) };
+        // External images are textures of their own, loaded and shared by their own IDs; embedded ones are parts,
+        // with their settings in the model's sidecar.
+        assets::resolveExternalImages(m_database, *entry, imported->model);
+        auto sidecar = readModelSidecar(*entry);
+        assets::SubAssetKeys keys{ sidecar.sidecar.settings.strictNames };
+        auto imageKeys = assets::embeddedImageKeys(imported->model, keys);
+        if (!imageKeys)
+            return std::unexpected{ assets::describe(imageKeys.error()) };
+        assets::applyEmbeddedImageSettings(sidecar.sidecar, *imageKeys, imported->model);
+        const auto externalTexture = [this](const assets::ModelImage& image) {
+            return image.texture.valid() ? m_cache.load<assets::Texture>(image.texture).shared() : nullptr;
+        };
+        auto model = assets::Loader::upload(
+            { .device = *m_device, .defaults = m_defaults, .framesInFlight = m_framesInFlight, .externalTexture = externalTexture, .importCache = &m_importCache },
+            imported->model);
+        if (!model)
+            return std::unexpected{ assets::describe(model.error()) };
+
+        auto shared = std::make_shared<assets::Model>(std::move(*model));
+        if (auto registered = registerParts(*entry, std::move(sidecar), keys, *imageKeys, *shared); !registered)
+            return std::unexpected{ assets::describe(registered.error()) };
+        return shared;
+    }
+
+    // A scene file, or a model file's scene, read against the types loadScene was given.
+    auto loadSceneAsset(AssetId id) -> Loaded<serialize::Scene>
+    {
+        if (const auto* entry = m_database.find(id); entry && isModelFile(*entry))
+            return loadModelScene(id, *m_types);
+        auto scene = readSceneFile(id, *m_types);
+        if (!scene)
+            return std::unexpected{ describe(scene.error()) };
+        return std::make_shared<serialize::Scene>(std::move(*scene));
+    }
+
+    // A model file whose model failed (logged by its loader) gives the engine cube's scene.
+    auto sceneFallback(AssetId id) -> std::shared_ptr<serialize::Scene>
+    {
+        const auto model = m_cache.find<assets::Model>(id);
+        if (!model || model->state() != AssetState::Failed || id == assets::engine::cube)
+            return nullptr;
+        return loadScene(assets::engine::cube, *m_types).shared();
+    }
+
+    // Reads the scene file 'id', checked against 'types'.
+    auto readSceneFile(AssetId id, const reflect::TypeRegistry& types) -> std::expected<serialize::Scene, AssetLibraryError>
+    {
+        const auto* entry = m_database.find(id);
+        if (!entry)
+            return makeError(AssetLibraryErrorCode::NotFound, std::format("no asset has the ID {}", id));
+        if (entry->type != "Scene")
+            return makeError(AssetLibraryErrorCode::WrongType, std::format("{} ('{}') is not a scene file", id, entry->path));
+        auto text = readFile(m_database.absolutePath(*entry));
+        if (!text)
+            return makeError(AssetLibraryErrorCode::ReadFailed, std::format("cannot read '{}'", entry->path));
+        auto scene = serialize::parseScene(*text, types);
+        if (!scene)
+            return makeError(AssetLibraryErrorCode::ReadFailed, scene.error(), std::format("cannot parse '{}'", entry->path));
+        return std::move(*scene);
+    }
+
     // The main asset of a .gltf, .glb or .obj file, which loads as a Model and as a Scene.
     static auto isModelFile(const assets::AssetEntry& entry) -> bool
     {
@@ -382,63 +388,50 @@ private:
     }
 
     // The scene of the model file 'id' (see serialize::modelScene), with the local IDs of its entities from the
-    // file's sidecar: new entities get new IDs, recorded there. A model that fails to load (logged by loadModel)
-    // gives the engine cube's scene.
-    auto loadModelScene(AssetId id, const reflect::TypeRegistry& types) -> AssetRef<serialize::Scene>
+    // file's sidecar: new entities get new IDs, recorded there.
+    auto loadModelScene(AssetId id, const reflect::TypeRegistry& types) -> Loaded<serialize::Scene>
     {
-        const auto model = loadModel(id); // Adds the model's parts to the database, which moves its entries
+        const auto model = m_cache.load<assets::Model>(id); // Adds the model's parts to the database, which moves its entries
         if (model.state() == AssetState::Failed)
-        {
-            const auto cube = id != assets::engine::cube ? loadScene(assets::engine::cube, types) : AssetRef<serialize::Scene>{};
-            const auto& slot = m_scenes.slot(id);
-            slot->state = AssetState::Failed;
-            slot->message = model.slot()->message;
-            slot->value = cube.shared();
-            return AssetRef<serialize::Scene>{ id, slot };
-        }
+            return std::unexpected{ model.slot()->message };
 
         const auto entry = *m_database.find(id);
         auto [sidecar, keepReason] = readModelSidecar(entry);
         const auto known = sidecar.subAssets.size();
         auto scene = serialize::modelScene(*model, id.value, types, [&sidecar](const std::string& key) { return sidecar.subAssetId(key).value; }, sidecar.settings.strictNames);
         if (!scene)
-        {
-            const auto& slot = m_scenes.slot(id);
-            slot->state = AssetState::Failed;
-            slot->message = std::format("'{}': {}", entry.path, serialize::describe(scene.error()));
-            return AssetRef<serialize::Scene>{ id, slot };
-        }
+            return std::unexpected{ std::format("'{}': {}", entry.path, serialize::describe(scene.error())) };
         saveModelSidecar(entry, sidecar, sidecar.subAssets.size() - known, keepReason);
-        return m_scenes.fill(id, std::make_shared<serialize::Scene>(std::move(*scene)));
+        return std::make_shared<serialize::Scene>(std::move(*scene));
     }
 
     // A material file: the template's parameters with the file's values. A bad file, an unknown template or a
     // value the template's parameter cannot take fails the whole material (the checker fallback).
-    auto loadMaterialFile(AssetId id, const assets::AssetEntry& entry) -> AssetRef<assets::Material>
+    auto loadMaterialFile(const assets::AssetEntry& entry) -> Loaded<assets::Material>
     {
         auto text = readFile(m_database.absolutePath(entry));
         if (!text)
-            return failMaterial(id, std::format("cannot read '{}'", entry.path));
+            return std::unexpected{ std::format("cannot read '{}'", entry.path) };
         auto file = serialize::parseMaterial(*text);
         if (!file)
-            return failMaterial(id, std::format("'{}' {}", entry.path, serialize::describe(file.error())));
+            return std::unexpected{ std::format("'{}' {}", entry.path, serialize::describe(file.error())) };
 
         auto materialTemplate = fileTemplate(*file);
         if (!materialTemplate)
-            return failMaterial(id, std::format("'{}': {}", entry.path, materialTemplate.error()));
+            return std::unexpected{ std::format("'{}': {}", entry.path, materialTemplate.error()) };
         auto material = assets::Material::create(*m_device, *materialTemplate, m_framesInFlight);
         if (!material)
-            return failMaterial(id, assets::describe(material.error()));
+            return std::unexpected{ assets::describe(material.error()) };
 
         for (const auto& value : file->parameters.items)
         {
             auto converted = convertParameter(**materialTemplate, value);
             if (!converted)
-                return failMaterial(id, std::format("'{}' line {}: {}", entry.path, value.line, converted.error()));
+                return std::unexpected{ std::format("'{}' line {}: {}", entry.path, value.line, converted.error()) };
             if (auto set = (*material)->setParameter(value.key, std::move(*converted)); !set)
-                return failMaterial(id, std::format("'{}' line {}: {}", entry.path, value.line, assets::describe(set.error())));
+                return std::unexpected{ std::format("'{}' line {}: {}", entry.path, value.line, assets::describe(set.error())) };
         }
-        return m_materials.fill(id, std::move(*material));
+        return std::move(*material);
     }
 
     // The template a material file names. Only one exists until custom shaders: the engine content's PBR template,
@@ -466,7 +459,7 @@ private:
                     auto textureId = reflect::fromNode(reflect::FieldKind::AssetRef, value);
                     if (!textureId)
                         return std::unexpected{ std::format("'{}': {}", value.key, reflect::describe(textureId.error())) };
-                    return loadTexture(AssetId{ std::get<std::uint64_t>(*textureId) }).shared();
+                    return m_cache.load<assets::Texture>(AssetId{ std::get<std::uint64_t>(*textureId) }).shared();
                 }
                 else
                 {
@@ -484,78 +477,28 @@ private:
     auto loadOwner(const assets::AssetEntry& part) -> void
     {
         if (const auto owner = m_database.find(part.root, part.path))
-            loadModel(*owner);
-    }
-
-    static auto describeFailure(AssetId id, std::string_view what, const std::string& message) -> std::string
-    {
-        return std::format("Failed to load {} {}: {}; using a fallback", what, id, message);
-    }
-
-    // A failure is logged once, when the slot is first filled; later loads of the ID find the slot.
-    template<class T>
-    auto fail(Cache<T>& cache, AssetId id, std::string_view what, const std::string& message, std::shared_ptr<T> fallback)
-        -> AssetRef<T>
-    {
-        log::warn("{}", describeFailure(id, what, message));
-        const auto& slot = cache.slot(id);
-        slot->state = AssetState::Failed;
-        slot->message = message;
-        slot->value = std::move(fallback);
-        return AssetRef<T>{ id, slot };
-    }
-
-    auto failTexture(AssetId id, const std::string& message) -> AssetRef<assets::Texture>
-    {
-        std::shared_ptr<assets::Texture> fallback;
-        if (id != assets::engine::checker)
-            fallback = loadTexture(assets::engine::checker).shared();
-        return fail(m_textures, id, "texture", message, std::move(fallback));
-    }
-
-    auto failMesh(AssetId id, const std::string& message) -> AssetRef<assets::StaticMesh>
-    {
-        return fail(m_meshes, id, "mesh", message, cubeMesh());
+            m_cache.load<assets::Model>(*owner);
     }
 
     // Every missing material shares one fallback, like the other types share their engine content.
-    auto failMaterial(AssetId id, const std::string& message) -> AssetRef<assets::Material>
+    auto fallbackMaterial() -> std::shared_ptr<assets::Material>
     {
         if (!m_fallbackMaterial)
         {
             if (auto material = m_defaults.createPbrMaterial(*m_device, m_framesInFlight))
             {
                 m_fallbackMaterial = std::move(*material);
-                if (const auto checker = loadTexture(assets::engine::checker).shared())
+                if (const auto checker = m_cache.load<assets::Texture>(assets::engine::checker).shared())
                     (void)m_fallbackMaterial->setParameter(assets::pbr::albedoMap, checker);
             }
         }
-        return fail(m_materials, id, "material", message, m_fallbackMaterial);
-    }
-
-    auto failEnvironment(AssetId id, const std::string& message) -> AssetRef<assets::Environment>
-    {
-        return fail(m_environments, id, "environment", message, blackEnvironment());
-    }
-
-    // No fallback: a missing clip is silent.
-    auto failAudioClip(AssetId id, const std::string& message) -> AssetRef<assets::AudioClip>
-    {
-        return fail(m_audioClips, id, "audio clip", message, std::shared_ptr<assets::AudioClip>{});
-    }
-
-    auto failModel(AssetId id, const std::string& message) -> AssetRef<assets::Model>
-    {
-        std::shared_ptr<assets::Model> fallback;
-        if (id != assets::engine::cube)
-            fallback = loadModel(assets::engine::cube).shared();
-        return fail(m_models, id, "model", message, std::move(fallback));
+        return m_fallbackMaterial;
     }
 
     // The default cube's mesh, or none if the engine content is missing it.
     auto cubeMesh() -> std::shared_ptr<assets::StaticMesh>
     {
-        const auto cube = loadModel(assets::engine::cube);
+        const auto cube = m_cache.load<assets::Model>(assets::engine::cube);
         if (!cube || cube->meshes.empty() || cube->meshes.front().primitives.empty())
             return nullptr;
         return cube->meshes.front().primitives.front().mesh.shared();
@@ -669,21 +612,21 @@ private:
             return std::unexpected{ std::move(added.error()) };
 
         for (std::size_t i = 0; i < model.textures.size(); ++i)
-            m_textures.fill(textureIds[i], model.textures[i].texture);
+            m_cache.fill<assets::Texture>(textureIds[i], model.textures[i].texture);
         for (std::size_t i = 0; i < model.materials.size(); ++i)
-            materialRefs[model.materials[i].material.get()] = m_materials.fill(materialIds[i], model.materials[i].material);
+            materialRefs[model.materials[i].material.get()] = m_cache.fill<assets::Material>(materialIds[i], model.materials[i].material);
 
         for (std::size_t i = 0; i < model.meshes.size(); ++i)
         {
             for (std::size_t j = 0; j < model.meshes[i].primitives.size(); ++j)
             {
                 auto& primitive = model.meshes[i].primitives[j];
-                primitive.mesh = m_meshes.fill(meshIds[i][j], primitive.mesh.shared());
+                primitive.mesh = m_cache.fill<assets::StaticMesh>(meshIds[i][j], primitive.mesh.shared());
 
                 // Primitives without a material share the load's one default material (see Loader).
                 auto [it, inserted] = materialRefs.try_emplace(primitive.material.get());
                 if (inserted)
-                    it->second = m_materials.fill(defaultMaterialId, primitive.material.shared());
+                    it->second = m_cache.fill<assets::Material>(defaultMaterialId, primitive.material.shared());
                 primitive.material = it->second;
             }
         }
@@ -698,14 +641,8 @@ private:
     assets::ImportCache m_importCache;
     AssetId m_defaultEnvironment;
     std::shared_ptr<assets::Material> m_fallbackMaterial;
-
-    Cache<assets::Texture> m_textures;
-    Cache<assets::StaticMesh> m_meshes;
-    Cache<assets::Material> m_materials;
-    Cache<assets::Environment> m_environments;
-    Cache<assets::AudioClip> m_audioClips;
-    Cache<assets::Model> m_models;
-    Cache<serialize::Scene> m_scenes;
+    const reflect::TypeRegistry* m_types{ nullptr }; // While loadScene runs: the types its scenes are read against
+    AssetCache m_cache;
 };
 
 auto describe(const AssetLibraryError& error) -> std::string
@@ -732,6 +669,7 @@ auto AssetLibrary::Sources::standard() -> Sources
 
 AssetLibrary::AssetLibrary(std::unique_ptr<Impl> impl) :
     m_impl{ std::move(impl) },
+    m_cache{ &m_impl->cache() },
     m_defaults{ &m_impl->defaults() },
     m_database{ &m_impl->database() },
     m_importCache{ &m_impl->importCache() }
@@ -801,8 +739,10 @@ auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, con
     assets::ImportCache importCache{ sources.importCache };
     (void)importCache.evict();
 
-    return AssetLibrary{ std::make_unique<Impl>(device, framesInFlight, std::move(*defaults), std::move(*ibl), std::move(*database),
-        std::move(importCache)) };
+    auto impl = std::make_unique<Impl>(device, framesInFlight, std::move(*defaults), std::move(*ibl), std::move(*database), std::move(importCache));
+    if (auto registered = impl->registerLoaders(); !registered)
+        return std::unexpected{ std::move(registered.error()) };
+    return AssetLibrary{ std::move(impl) };
 }
 
 auto AssetLibrary::rescan() -> std::expected<void, AssetLibraryError>
@@ -890,61 +830,31 @@ auto AssetLibrary::defaultEnvironment() -> AssetRef<assets::Environment>
 
 auto AssetLibrary::loadTexture(AssetId id) -> AssetRef<assets::Texture>
 {
-    return m_impl->loadTexture(id);
+    return load<assets::Texture>(id);
 }
 
 auto AssetLibrary::loadMesh(AssetId id) -> AssetRef<assets::StaticMesh>
 {
-    return m_impl->loadMesh(id);
+    return load<assets::StaticMesh>(id);
 }
 
 auto AssetLibrary::loadMaterial(AssetId id) -> AssetRef<assets::Material>
 {
-    return m_impl->loadMaterial(id);
+    return load<assets::Material>(id);
 }
 
 auto AssetLibrary::loadEnvironment(AssetId id) -> AssetRef<assets::Environment>
 {
-    return m_impl->loadEnvironment(id);
+    return load<assets::Environment>(id);
 }
 
 auto AssetLibrary::loadModel(AssetId id) -> AssetRef<assets::Model>
 {
-    return m_impl->loadModel(id);
+    return load<assets::Model>(id);
 }
 
 auto AssetLibrary::loadAudioClip(AssetId id) -> AssetRef<assets::AudioClip>
 {
-    return m_impl->loadAudioClip(id);
-}
-
-auto AssetLibrary::addTexture(std::shared_ptr<assets::Texture> asset) -> AssetRef<assets::Texture>
-{
-    return m_impl->textures().fill(AssetId::generate(), std::move(asset));
-}
-
-auto AssetLibrary::addMesh(std::shared_ptr<assets::StaticMesh> asset) -> AssetRef<assets::StaticMesh>
-{
-    return m_impl->meshes().fill(AssetId::generate(), std::move(asset));
-}
-
-auto AssetLibrary::addMaterial(std::shared_ptr<assets::Material> asset) -> AssetRef<assets::Material>
-{
-    return m_impl->materials().fill(AssetId::generate(), std::move(asset));
-}
-
-auto AssetLibrary::addEnvironment(std::shared_ptr<assets::Environment> asset) -> AssetRef<assets::Environment>
-{
-    return m_impl->environments().fill(AssetId::generate(), std::move(asset));
-}
-
-auto AssetLibrary::addModel(std::shared_ptr<assets::Model> asset) -> AssetRef<assets::Model>
-{
-    return m_impl->models().fill(AssetId::generate(), std::move(asset));
-}
-
-auto AssetLibrary::addAudioClip(std::shared_ptr<assets::AudioClip> asset) -> AssetRef<assets::AudioClip>
-{
-    return m_impl->audioClips().fill(AssetId::generate(), std::move(asset));
+    return load<assets::AudioClip>(id);
 }
 }
