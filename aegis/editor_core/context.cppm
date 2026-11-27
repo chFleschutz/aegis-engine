@@ -58,6 +58,10 @@ public:
     void markSaved() { (playing() ? m_editUndo : m_undo).markSaved(); }
     /// @brief Forgets the selection and the edit history, for another scene in the same world. Not while playing.
     void resetScene();
+    /// @brief The scene asset the edit world is saved as (no instance in it may hold that scene); none for a new scene.
+    [[nodiscard]] auto scene() const -> std::optional<std::uint64_t> { return m_scene; }
+    /// @brief Names the scene asset the edit world is saved as (SceneDocument does, as it opens and saves scenes).
+    void setScene(std::optional<std::uint64_t> scene) { m_scene = scene; }
 
     /// @brief Asks the shell to open the scene file 'scene' (an asset ID) once the panels are drawn: replacing the
     ///        world while they walk it would break them. A later request this frame replaces it.
@@ -103,6 +107,7 @@ private:
     ConsoleBuffer m_console;
     EditorPreferences m_preferences;
     MaterialDocuments m_materials;
+    std::optional<std::uint64_t> m_scene;
     std::optional<std::uint64_t> m_sceneRequest;
     std::optional<std::uint64_t> m_materialRequest;
     bool m_renameRequest{ false };

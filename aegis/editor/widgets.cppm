@@ -31,9 +31,10 @@ auto searchField(const char* id, const char* hint, std::string& text, int flags 
 ///        (propertyRows): the inspector's sections and the renderer panel's pass settings. 'edit' gets each field edited
 ///        this frame, its new value and whether its widget is still active (being dragged or typed in); 'released', if
 ///        set, is called when a widget is let go. 'readOnly' disables every row; 'database' names the assets of asset slots.
+///        The rows of the fields 'overridden' names (a scene instance's overrides) are marked with an accent bar.
 void drawPropertyGrid(const reflect::TypeInfo& type, const void* object, bool readOnly, const assets::AssetDatabase& database,
     const std::function<void(const PropertyRow& row, const reflect::Value& value, bool active)>& edit,
-    const std::function<void()>& released = {});
+    const std::function<void()>& released = {}, std::span<const std::string> overridden = {});
 
 /// @brief The widget of the property grid's row 'row' (of a field of 'type') showing 'value': for a grid of the panel's own
 ///        (the Material panel's). The new value when it was edited this frame; ImGui's last item is the widget.

@@ -537,9 +537,10 @@ auto drawValue(const reflect::TypeInfo& type, const PropertyRow& row, const refl
 constexpr float labelMinShare{ 0.3f };
 constexpr float labelMaxShare{ 0.4f };
 
-// The registered fields of 'object' (the entity's component or script of 'type') as a two-column property grid.
-// Each edit is recorded in the undo stack; a widget still being dragged or typed in extends one entry.
-void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool readOnly, EditorContext& editor, FrameContext& frame)
+// The registered fields of 'object' (the entity's component or script of 'type') as a two-column property grid, the
+// 'overridden' ones marked. Each edit is recorded in the undo stack; a widget still being dragged or typed in extends one entry.
+void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool readOnly,
+    std::span<const std::string> overridden, EditorContext& editor, FrameContext& frame)
 {
     const auto edit = [&](const PropertyRow& row, const reflect::Value& value, bool active) {
         // Only an asset slot loads what it names
@@ -549,7 +550,7 @@ void drawFields(const reflect::TypeInfo& type, void* object, world::Entity entit
         if (auto written = editField(edits, editor.undoStack(), entity, type, scriptIndex, row.field->name, value, active); !written)
             log::warn("Cannot set {}.{}: {}", type.name, row.field->name, describe(written.error()));
     };
-    drawPropertyGrid(type, object, readOnly, frame.assets.database(), edit, [&] { editor.undoStack().seal(); });
+    drawPropertyGrid(type, object, readOnly, frame.assets.database(), edit, [&] { editor.undoStack().seal(); }, overridden);
 }
 }
 
@@ -561,7 +562,7 @@ auto drawPropertyValue(const reflect::TypeInfo& type, const PropertyRow& row, co
 
 void drawPropertyGrid(const reflect::TypeInfo& type, const void* object, bool readOnly, const assets::AssetDatabase& database,
     const std::function<void(const PropertyRow& row, const reflect::Value& value, bool active)>& edit,
-    const std::function<void()>& released)
+    const std::function<void()>& released, std::span<const std::string> overridden)
 {
     const auto rows = propertyRows(type);
     // The values take most of the width (three axes share a row): the labels get what their widest needs, at least
@@ -581,10 +582,21 @@ void drawPropertyGrid(const reflect::TypeInfo& type, const void* object, bool re
         ImGui::PushID(row.field->name.c_str());
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
+        const bool isOverridden = std::ranges::contains(overridden, row.field->name);
+        if (isOverridden)
+        {
+            // A bar at the row's left edge, in the cell's padding, the height of the value's frame
+            const ImVec2 position = ImGui::GetCursorScreenPos();
+            const float barWidth = std::max(1.0f, std::round(2.0f * theme::scale()));
+            const float left = position.x - ImGui::GetStyle().CellPadding.x;
+            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2{ left, position.y }, ImVec2{ left + barWidth, position.y + ImGui::GetFrameHeight() }, theme::packed(theme::accent));
+        }
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(row.label.c_str());
         if (!row.field->meta.tooltip.empty())
-            ImGui::SetItemTooltip("%s", row.field->meta.tooltip.c_str());
+            ImGui::SetItemTooltip("%s%s", row.field->meta.tooltip.c_str(), isOverridden ? "\nOverridden by this instance" : "");
+        else if (isOverridden)
+            ImGui::SetItemTooltip("Overridden by this instance");
 
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-FLT_MIN);
@@ -651,14 +663,23 @@ enum class SectionAction
     Remove, ///< Remove the component, detach the script
 };
 
-// The menu of a section: Reset, Copy, Paste and Remove (Detach for a script), applied to the entity's component or
-// script 'type' at 'object'. Reset and Paste are one undo entry each.
-auto drawSectionMenu(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool readOnly, EditorContext& editor, FrameContext& frame) -> SectionAction
+// Whether the fields of a section of an entity with 'access' are read-only: those of a scene instance's entity are
+// overridable, except its scripts'.
+auto fieldsReadOnly(EntityAccess access, std::optional<std::size_t> scriptIndex) -> bool
+{
+    return access == EntityAccess::Locked || (access == EntityAccess::Overridable && scriptIndex);
+}
+
+// The menu of a section: Reset, Copy, Paste, Revert Overrides (for a scene instance's entity) and Remove (Detach for a
+// script), applied to the entity's component or script 'type' at 'object'. Reset, Paste and Revert are one undo entry each.
+auto drawSectionMenu(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, EntityAccess access,
+    std::span<const std::string> overridden, EditorContext& editor, FrameContext& frame) -> SectionAction
 {
     auto action = SectionAction::None;
     if (!ImGui::BeginPopup("##section"))
         return action;
 
+    const bool readOnly = fieldsReadOnly(access, scriptIndex);
     const bool hasFields = !type.fields.empty();
     if (ImGui::MenuItem("Reset", nullptr, false, !readOnly && hasFields))
     {
@@ -679,8 +700,14 @@ auto drawSectionMenu(const reflect::TypeInfo& type, void* object, world::Entity 
         if (auto pasted = pasteFields(editWorld(editor, frame), editor.undoStack(), entity, type, scriptIndex, clipboard); !pasted)
             log::warn("Cannot paste {}: {}", type.name, describe(pasted.error()));
     }
+    if (access == EntityAccess::Overridable && !scriptIndex && ImGui::MenuItem("Revert Overrides", nullptr, false, !overridden.empty()))
+    {
+        if (auto reverted = revertOverrides(editWorld(editor, frame), editor.undoStack(), entity, type); !reverted)
+            log::warn("Cannot revert {}: {}", type.name, describe(reverted.error()));
+    }
     ImGui::Separator();
-    const bool removable = !readOnly && !type.meta.required;
+    // A scene instance's entities keep the components of its scene
+    const bool removable = access == EntityAccess::Plain && !type.meta.required;
     if (ImGui::MenuItem(scriptIndex ? "Detach" : "Remove", nullptr, false, removable))
         action = SectionAction::Remove;
     ImGui::EndPopup();
@@ -691,7 +718,7 @@ auto drawSectionMenu(const reflect::TypeInfo& type, void* object, world::Entity 
 constexpr float chevronShare{ 0.6f };
 
 // A header per type: open with its fields, a leaf for a tag (no fields), a right click opening its menu. Returns false when the menu asked to remove the component or detach the script.
-auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, bool readOnly, EditorContext& editor, FrameContext& frame) -> bool
+auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity entity, std::optional<std::size_t> scriptIndex, EntityAccess access, EditorContext& editor, FrameContext& frame) -> bool
 {
     // ImGui's header in the controls' grey, its own label and triangle invisible: the chevron, the icon and the name
     // are drawn over it. Identified by the name (the ID stack holds the type), so its open state stays.
@@ -728,10 +755,11 @@ auto drawSection(const reflect::TypeInfo& type, void* object, world::Entity enti
 
     if (menuRequested)
         ImGui::OpenPopup("##section");
-    const auto action = drawSectionMenu(type, object, entity, scriptIndex, readOnly, editor, frame);
+    const auto overridden = scriptIndex ? std::vector<std::string>{} : overriddenFields(editor.world()->registry(), entity, type.name);
+    const auto action = drawSectionMenu(type, object, entity, scriptIndex, access, overridden, editor, frame);
 
     if (open)
-        drawFields(type, object, entity, scriptIndex, readOnly, editor, frame);
+        drawFields(type, object, entity, scriptIndex, fieldsReadOnly(access, scriptIndex), overridden, editor, frame);
     ImGui::Spacing();
     return action != SectionAction::Remove;
 }
@@ -758,22 +786,24 @@ public:
 
         auto& registry = editor.world()->registry();
         ImGui::PushID(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(registry.get<StableId>(entity).value)));
-        // A scene instance's entities are not saved (the holder's SceneInstance recreates them): an edit would be lost
-        const bool readOnly = registry.has<serialize::InstanceMember>(entity);
-        drawHeader(registry, entity, readOnly, editor, frame);
+        // A scene instance's entities are not saved (the holder's SceneInstance recreates them): only their component
+        // fields can be edited, as overrides the holder keeps, and not even those inside a nested instance
+        const auto access = entityAccess(registry, entity);
+        drawHeader(registry, entity, access, editor, frame);
         // It shows the active entity of a larger selection
         if (const auto count = editor.selection().ids().size(); count > 1)
             ImGui::TextDisabled("%zu selected", count);
-        drawComponents(registry, entity, readOnly, editor, frame);
-        drawScripts(registry, entity, readOnly, editor, frame);
-        if (!readOnly)
+        drawComponents(registry, entity, access, editor, frame);
+        drawScripts(registry, entity, access, editor, frame);
+        if (access == EntityAccess::Plain)
             drawAddMenu(registry, entity, editor, frame);
         ImGui::PopID();
     }
 
 private:
-    static void drawHeader(world::Registry& registry, world::Entity entity, bool readOnly, EditorContext& editor, FrameContext& frame)
+    static void drawHeader(world::Registry& registry, world::Entity entity, EntityAccess access, EditorContext& editor, FrameContext& frame)
     {
+        const bool readOnly = access != EntityAccess::Plain; // The name is the scene's
         const bool rename = editor.takeRenameRequest();
         const auto id = std::format("{:016x}", registry.get<StableId>(entity).value);
         const float side = ImGui::GetFrameHeight();
@@ -832,18 +862,21 @@ private:
         {
             const auto holder = registry.find(StableId{ registry.get<serialize::InstanceMember>(entity).holder });
             const char* holderName = holder && registry.has<Name>(holder) ? registry.get<Name>(holder).name.c_str() : "?";
-            ImGui::TextWrapped("Part of the scene instance '%s': read-only until overrides exist.", holderName);
+            if (access == EntityAccess::Overridable)
+                ImGui::TextWrapped("Part of the scene instance '%s': field edits are saved as its overrides.", holderName);
+            else
+                ImGui::TextWrapped("Part of the instance '%s' inside another instance: read-only. Unpack the outer one to edit it.", holderName);
         }
         ImGui::Separator();
     }
 
-    static void drawComponents(world::Registry& registry, world::Entity entity, bool readOnly, EditorContext& editor, FrameContext& frame)
+    static void drawComponents(world::Registry& registry, world::Entity entity, EntityAccess access, EditorContext& editor, FrameContext& frame)
     {
         const reflect::TypeInfo* removed = nullptr;
         for (const auto& section : componentSections(frame.types, registry, entity))
         {
             ImGui::PushID(section.type->name.c_str());
-            if (!drawSection(*section.type, section.object, entity, std::nullopt, readOnly, editor, frame))
+            if (!drawSection(*section.type, section.object, entity, std::nullopt, access, editor, frame))
                 removed = section.type;
             ImGui::PopID();
         }
@@ -854,7 +887,7 @@ private:
         }
     }
 
-    static void drawScripts(world::Registry& registry, world::Entity entity, bool readOnly, EditorContext& editor, FrameContext& frame)
+    static void drawScripts(world::Registry& registry, world::Entity entity, EntityAccess access, EditorContext& editor, FrameContext& frame)
     {
         if (!registry.has<scripting::Scripts>(entity))
             return;
@@ -866,7 +899,7 @@ private:
             if (!type || !entries[i].object)
                 continue;
             ImGui::PushID(static_cast<int>(i));
-            if (!drawSection(*type, entries[i].object, entity, i, readOnly, editor, frame))
+            if (!drawSection(*type, entries[i].object, entity, i, access, editor, frame))
                 detached = i;
             ImGui::PopID();
         }

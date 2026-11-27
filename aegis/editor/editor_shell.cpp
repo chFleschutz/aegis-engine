@@ -1014,6 +1014,7 @@ void EditorShell::buildActions()
         .run = [this](FrameContext& frame) { redoEdit(m_context, frame); } });
     m_actions.add({ .id = "edit.duplicate", .label = "Duplicate", .chord = chord(Key::D), .enabled = hasSelection, .run = [this](FrameContext& frame) { duplicateSelected(m_context, frame); } });
     m_actions.add({ .id = "edit.delete", .label = "Delete", .chord = chord(Key::Delete, false), .enabled = hasSelection, .run = [this](FrameContext& frame) { destroySelected(m_context, frame); } });
+    m_actions.add({ .id = "edit.unpack", .label = "Unpack", .enabled = [this] { return canUnpackSelected(m_context); }, .run = [this](FrameContext& frame) { unpackSelected(m_context, frame); } });
     m_actions.add({ .id = "edit.preferences", .label = "Preferences...", .run = [this](FrameContext&) { m_workspace.open(panels::preferences); } });
     m_actions.add({ .id = "edit.rename",
         .label = "Rename",
@@ -1118,6 +1119,7 @@ void EditorShell::drawMenuBar(FrameContext& frame)
         m_actions.menuItem("edit.duplicate", frame);
         m_actions.menuItem("edit.delete", frame);
         m_actions.menuItem("edit.rename", frame);
+        m_actions.menuItem("edit.unpack", frame);
         ImGui::Separator();
         m_actions.menuItem("edit.preferences", frame);
         ImGui::EndMenu();

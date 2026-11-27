@@ -463,7 +463,8 @@ void Viewport::beginGizmoDrag(EditorContext& editor, FrameContext& frame, const 
     std::vector<GizmoRoot> roots;
     for (const auto root : selectedRoots(registry, editor.selection()))
     {
-        if (!registry.has<Transform, GlobalTransform>(root))
+        // The drag leaves out what it cannot record (an entity of a nested scene instance)
+        if (!registry.has<Transform, GlobalTransform>(root) || entityAccess(registry, root) == EntityAccess::Locked)
             continue;
         entities.push_back(root);
         roots.push_back({ .id = registry.get<StableId>(root), .start = registry.get<GlobalTransform>(root).matrix });
