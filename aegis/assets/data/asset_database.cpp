@@ -183,7 +183,11 @@ auto stampOf(const std::filesystem::path& file) -> FileStamp
 {
     std::error_code ec;
     const auto time = std::filesystem::last_write_time(file, ec);
+    if (ec)
+        return {};
     const auto size = std::filesystem::file_size(file, ec);
+    if (ec)
+        return {};
     return { static_cast<std::int64_t>(time.time_since_epoch().count()), static_cast<std::uint64_t>(size) };
 }
 
@@ -270,14 +274,46 @@ auto isNativeFile(const std::filesystem::path& path) -> bool
 
 auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
 {
+    CachedFiles cached;
+    for (const auto& file : loadIndex(desc.indexFile).files)
+    {
+        const auto root = static_cast<std::size_t>(file.root);
+        if (auto entries = cachedEntries(file, root))
+            cached.emplace(std::pair{ root, file.path }, CachedFile{ file.modified, file.size, std::move(*entries) });
+    }
+    auto database = scanWith(std::move(desc), cached);
+    if (database)
+        database->writeIndex();
+    return database;
+}
+
+auto AssetDatabase::record(std::size_t root, std::string relative, const std::filesystem::path& file) -> IndexedFile
+{
+    const auto stamp = stampOf(file);
+    IndexedFile record{ root, std::move(relative), stamp.modified, stamp.size, {} };
+    if (isSidecar(file))
+    {
+        // The source of a sidecar: its path without ".meta"
+        const auto source = file.parent_path() / file.stem();
+        std::error_code ec;
+        record.sourceExists = std::filesystem::is_regular_file(source, ec);
+        const auto sourceStamp = record.sourceExists ? stampOf(source) : FileStamp{};
+        record.sourceModified = sourceStamp.modified;
+        record.sourceSize = sourceStamp.size;
+    }
+    else
+    {
+        record.sourceModified = stamp.modified;
+        record.sourceSize = stamp.size;
+    }
+    return record;
+}
+
+auto AssetDatabase::scanWith(ScanDesc desc, const CachedFiles& cachedFiles) -> std::expected<AssetDatabase, Error>
+{
     AssetDatabase database;
     database.m_desc = std::move(desc);
     const auto& roots = database.m_desc.roots;
-
-    const auto cached = loadIndex(database.m_desc.indexFile);
-    std::map<std::pair<std::uint64_t, std::string>, const IndexFileFile*> cachedFiles;
-    for (const auto& file : cached.files)
-        cachedFiles.emplace(std::pair{ file.root, file.path }, &file);
 
     for (std::size_t root = 0; root < roots.size(); ++root)
     {
@@ -331,12 +367,12 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
         for (const auto& file : files)
         {
             const auto relative = file.lexically_relative(rootPath).generic_string();
-            const auto stamp = stampOf(file);
+            auto record = AssetDatabase::record(root, relative, file);
 
             std::optional<std::vector<AssetEntry>> entries;
             if (const auto found = cachedFiles.find({ root, relative });
-                found != cachedFiles.end() && found->second->modified == stamp.modified && found->second->size == stamp.size)
-                entries = cachedEntries(*found->second, root);
+                found != cachedFiles.end() && found->second.modified == record.modified && found->second.size == record.size)
+                entries = found->second.entries;
             if (!entries)
             {
                 auto read = readEntries(file, relative, root);
@@ -346,7 +382,6 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
                 ++database.m_filesRead;
             }
 
-            IndexedFile record{ root, relative, stamp.modified, stamp.size, {} };
             for (auto& entry : *entries)
             {
                 record.entries.push_back(entry.id);
@@ -365,18 +400,79 @@ auto AssetDatabase::scan(ScanDesc desc) -> std::expected<AssetDatabase, Error>
         if (a.id == b.id)
             return makeError(ErrorCode::InvalidData, std::format("ID {} is used by both '{}' and '{}'", a.id, nameOf(a), nameOf(b)));
     }
-
-    database.writeIndex();
     return database;
 }
 
-auto AssetDatabase::rescan() -> std::expected<void, Error>
+auto AssetDatabase::rescan() -> std::expected<SourceChanges, Error>
 {
-    auto scanned = scan(m_desc);
+    // The files as this database has them stand in for the index: the same stamps and entries, without reading it.
+    CachedFiles cached;
+    for (const auto& file : m_files)
+    {
+        CachedFile entry{ file.modified, file.size, {} };
+        for (const auto id : file.entries)
+        {
+            if (const auto* found = find(id))
+                entry.entries.push_back(*found);
+        }
+        cached.emplace(std::pair{ file.root, file.path }, std::move(entry));
+    }
+    auto scanned = scanWith(m_desc, cached);
     if (!scanned)
         return std::unexpected{ std::move(scanned.error()) };
+
+    auto changes = diff(m_files, scanned->m_files);
+    const bool rewrite = scanned->m_filesRead > 0 || !changes.empty();
     *this = std::move(*scanned);
-    return {};
+    if (rewrite)
+        writeIndex();
+    return changes;
+}
+
+auto AssetDatabase::diff(std::span<const IndexedFile> before, std::span<const IndexedFile> after) -> SourceChanges
+{
+    // Both by the source a file names; a source has one sidecar (or is a native file), so the keys are unique.
+    std::map<std::pair<std::size_t, std::string>, const IndexedFile*> old;
+    for (const auto& file : before)
+        old.emplace(std::pair{ file.root, sourceOf(file.path) }, &file);
+
+    SourceChanges changes;
+    for (const auto& file : after)
+    {
+        SourceFile source{ file.root, sourceOf(file.path) };
+        const auto found = old.find({ source.root, source.path });
+        const IndexedFile* earlier = found != old.end() ? found->second : nullptr;
+        if (found != old.end())
+            old.erase(found);
+
+        const bool existed = earlier && earlier->sourceExists;
+        if (!file.sourceExists)
+        {
+            if (existed)
+                changes.removed.push_back(std::move(source));
+        }
+        else if (!existed)
+        {
+            changes.added.push_back(std::move(source));
+        }
+        else if (earlier->modified != file.modified || earlier->size != file.size || earlier->sourceModified != file.sourceModified ||
+                 earlier->sourceSize != file.sourceSize)
+        {
+            changes.changed.push_back(std::move(source));
+        }
+    }
+    // A source whose file is gone from the scan: a native file, or a foreign file whose sidecar went too
+    for (const auto& [key, file] : old)
+    {
+        if (file->sourceExists)
+            changes.removed.push_back({ key.first, key.second });
+    }
+
+    constexpr auto byRoot = [](const SourceFile& file) { return std::pair<std::size_t, std::string_view>{ file.root, file.path }; };
+    std::ranges::sort(changes.changed, {}, byRoot);
+    std::ranges::sort(changes.added, {}, byRoot);
+    std::ranges::sort(changes.removed, {}, byRoot);
+    return changes;
 }
 
 auto AssetDatabase::addFile(std::size_t root, std::string_view path) -> std::expected<void, Error>
@@ -431,8 +527,7 @@ auto AssetDatabase::addFile(std::size_t root, std::string_view path) -> std::exp
     }
 
     std::erase_if(m_entries, isOwn);
-    const auto stamp = stampOf(file);
-    IndexedFile record{ root, relative, stamp.modified, stamp.size, {} };
+    auto record = AssetDatabase::record(root, relative, file);
     for (auto& entry : *entries)
     {
         record.entries.push_back(entry.id);
@@ -499,16 +594,23 @@ auto AssetDatabase::find(std::size_t root, std::string_view path, std::string_vi
 auto AssetDatabase::addSubAssets(std::size_t root, std::string_view path, std::span<const std::pair<std::string, AssetId>> parts)
     -> std::expected<void, Error>
 {
+    // A copy: 'path' may name an entry's path, which an insertion below moves
+    const std::string source{ path };
     for (const auto& [key, id] : parts)
     {
         if (const auto* existing = find(id))
         {
-            if (existing->root == root && existing->path == path && existing->key == key)
+            if (existing->root == root && existing->path == source && existing->key == key)
                 continue;
             return makeError(ErrorCode::InvalidData,
-                std::format("ID {} for '{}' ({}) is already used by '{}'", id, path, key, existing->path));
+                std::format("ID {} for '{}' ({}) is already used by '{}'", id, source, key, existing->path));
         }
-        const AssetEntry entry{ id, root, std::string{ path }, key, {}, {} };
+        const AssetEntry entry{ id, root, source, key, std::string{ SubAssetKeys::typeOf(key) }, {} };
+        // The sidecar's record keeps it too, so a rescan that takes the file as it was (and the index) keeps the part
+        const auto sidecar = entry.path + std::string{ sidecarExtension };
+        const std::pair<std::size_t, std::string_view> fileKey{ root, sidecar };
+        if (const auto it = std::ranges::lower_bound(m_files, fileKey, {}, byRootAndPath); it != m_files.end() && byRootAndPath(*it) == fileKey)
+            it->entries.push_back(id);
         m_entries.insert(std::ranges::lower_bound(m_entries, id, {}, &AssetEntry::id), entry);
     }
     return {};

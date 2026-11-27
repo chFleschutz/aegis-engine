@@ -53,7 +53,7 @@ public:
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return m_defaults; }
     [[nodiscard]] auto database() const -> const assets::AssetDatabase& { return m_database; }
     [[nodiscard]] auto database() -> assets::AssetDatabase& { return m_database; }
-    [[nodiscard]] auto rescan() -> std::expected<void, assets::Error> { return m_database.rescan(); }
+    [[nodiscard]] auto rescan() -> std::expected<assets::SourceChanges, assets::Error> { return m_database.rescan(); }
     [[nodiscard]] auto importCache() const -> const assets::ImportCache& { return m_importCache; }
     [[nodiscard]] auto cache() -> AssetCache& { return m_cache; }
 
