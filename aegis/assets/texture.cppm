@@ -96,6 +96,14 @@ public:
     auto operator=(const Texture&) -> Texture& = delete;
     auto operator=(Texture&&) -> Texture& = delete;
 
+    /// @brief Takes the image of 'source', a new load of this texture, in place of its own and keeps its descriptors, so
+    ///        the materials that hold this texture show the new image without an update (a hot reload). 'source' keeps
+    ///        the old image and frees it; its own view and sampler are no longer of use. This texture keeps its sampler.
+    /// @warning The view's descriptor is rewritten in place (rhi::Device::replace), so no pending GPU work may read it:
+    ///          wait for the device to idle first.
+    /// @return The rhi's error if the new view cannot be created; both textures are unchanged then.
+    [[nodiscard]] auto adopt(Texture& source) -> std::expected<void, Error>;
+
     [[nodiscard]] auto image() const noexcept -> rhi::ImageHandle { return m_image; }
     [[nodiscard]] auto view() const noexcept -> rhi::ImageViewHandle { return m_view; }
     [[nodiscard]] auto sampler() const noexcept -> rhi::SamplerHandle { return m_sampler; }
