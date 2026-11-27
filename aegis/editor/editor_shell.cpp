@@ -503,6 +503,9 @@ void EditorShell::save(FrameContext& frame)
         return;
     }
     m_document.saved();
+    // The database records the file as written, so the next poll does not take the save for a change
+    if (auto added = frame.assets.addFile(entry->path); !added)
+        log::warn("The scene was saved, but the asset database does not take it: {}", describe(added.error()));
     rememberScene(frame.assets.database());
 }
 

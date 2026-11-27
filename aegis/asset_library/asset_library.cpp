@@ -58,9 +58,10 @@ public:
     auto reload(const assets::SourceChanges& changes) -> ReloadResult
     {
         ReloadResult result;
-        if (changes.empty())
+        // A texture's descriptor is rewritten in place, and no frame may still draw what is swapped out: the device
+        // idles first, once, if anything loaded is affected (a new file or a saved scene is not)
+        if (!affectsLoaded(changes))
             return result;
-        // A texture's descriptor is rewritten in place, and no frame may still draw what is swapped out
         m_device->waitIdle();
 
         const auto reloadId = [&](AssetId id, bool log) {
@@ -254,6 +255,22 @@ public:
     }
 
 private:
+    // Whether a reload of 'changes' would touch a loaded asset: one of the files' IDs, or a gone ID, has a slot.
+    auto affectsLoaded(const assets::SourceChanges& changes) const -> bool
+    {
+        if (std::ranges::any_of(changes.gone, [this](AssetId id) { return m_cache.loaded(id); }))
+            return true;
+        std::set<std::pair<std::size_t, std::string_view>> files;
+        for (const auto* list : { &changes.changed, &changes.added, &changes.removed })
+        {
+            for (const auto& file : *list)
+                files.emplace(file.root, file.path);
+        }
+        return std::ranges::any_of(m_database.entries(), [&](const assets::AssetEntry& entry) {
+            return files.contains({ entry.root, entry.path }) && m_cache.loaded(entry.id);
+        });
+    }
+
     // Reloads the loaded assets of one source file: its main asset, and for a model file the parts the new import
     // fills, then the loaded parts it did not fill, which fall back.
     template<class ReloadId>

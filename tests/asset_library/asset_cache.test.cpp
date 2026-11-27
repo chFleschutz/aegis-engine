@@ -328,6 +328,19 @@ TEST_SUITE("AssetCache")
         CHECK(shared->text == "shared");
     }
 
+    TEST_CASE("An ID is loaded once a type has a ready or failed slot of it")
+    {
+        AssetCache cache;
+        int loads = 0;
+        REQUIRE(cache.registerLoader(dialogueLoader(loads)));
+        CHECK_FALSE(cache.loaded(hello));
+        (void)cache.load<Dialogue>(hello);
+        (void)cache.load<Dialogue>(missing);
+        CHECK(cache.loaded(hello));
+        CHECK(cache.loaded(missing));
+        CHECK_FALSE(cache.loaded(assets::AssetId{ 0x4444 }));
+    }
+
     TEST_CASE("A reload skips IDs that were not loaded and loaders that are not ready")
     {
         AssetCache cache;

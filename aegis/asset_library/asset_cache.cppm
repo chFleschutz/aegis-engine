@@ -62,6 +62,15 @@ public:
         return {};
     }
 
+    /// @brief Whether any asset type has a slot of 'id' that is ready or failed: what a reload of it would touch.
+    [[nodiscard]] auto loaded(assets::AssetId id) const -> bool
+    {
+        return std::ranges::any_of(m_types, [id](const auto& type) {
+            const auto slot = type.second.slots.find(id);
+            return slot != type.second.slots.end() && !type.second.pending(slot->second.get());
+        });
+    }
+
     /// @brief Loads 'id' again for every asset type that has a slot of it, ready or failed, through the type's loader,
     ///        and gives that slot the new contents: the new object, or the loaded one updated by the loader's update
     ///        hook. A failed load gives the slot the loader's fallback (or, with an update hook, updates the loaded object
@@ -147,6 +156,7 @@ private:
         std::unordered_map<assets::AssetId, std::shared_ptr<void>> slots; // AssetSlot<T>s
         std::string_view name;                                            // T::assetType
         std::function<bool(AssetCache&, assets::AssetId, bool)> reload;   // reloadAs<T>, once T has a loader
+        bool (*pending)(const void* slot){ nullptr };                     // Whether an AssetSlot<T> is pending
     };
 
     template<Asset T>
@@ -154,6 +164,7 @@ private:
     {
         auto& entry = m_types[typeid(T)];
         entry.name = T::assetType;
+        entry.pending = [](const void* slot) { return static_cast<const assets::AssetSlot<T>*>(slot)->state == assets::AssetState::Pending; };
         return entry;
     }
 
