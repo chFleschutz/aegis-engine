@@ -135,15 +135,14 @@ auto GeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
     {
         // This frame's copy, which no frame in flight reads; prepare grew it to the store.
         const auto& instances = m_scene.current().instances;
-        std::vector<math::Float3x4> models;
-        models.reserve(instances.instanceCount());
+        m_previousModelRows.clear();
         for (const auto set : { instances.staticInstances(), instances.dynamicInstances() })
         {
             for (const auto& instance : set)
-                models.push_back(instance.previousModel);
+                m_previousModelRows.push_back(instance.previousModel);
         }
-        if (!models.empty())
-            pool.write(*m_previousModels, std::as_bytes(std::span{ models }));
+        if (!m_previousModelRows.empty())
+            pool.write(*m_previousModels, std::as_bytes(std::span{ m_previousModelRows }));
         previousModels = pool.bufferAddress(*m_previousModels);
     }
 

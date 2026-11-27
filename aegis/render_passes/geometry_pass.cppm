@@ -5,6 +5,7 @@ import :names;
 import :pipeline_cache;
 import :pipeline_library;
 import :render_system;
+import aegis.math;
 import aegis.render_graph;
 import aegis.rhi;
 
@@ -99,6 +100,7 @@ private:
     ResourceId m_cameraData;
     std::optional<ResourceId> m_previousModels; // The G-buffer technique's
     std::uint32_t m_previousModelCapacity{ initialPreviousModelCapacity };
+    std::vector<math::Float3x4> m_previousModelRows; // This frame's "PreviousModels", kept to reuse its memory
     std::vector<std::unique_ptr<RenderSystem>> m_renderSystems;
 };
 }
