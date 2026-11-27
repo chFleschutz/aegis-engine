@@ -38,14 +38,15 @@ Branch `<kind>/<slug>` · size <S|M|L>
 
 ## Outline body
 
-A Planning milestone's issues are outlines until activation writes the full body:
+An issue of a milestone that waits on another one's areas may be an outline until it is written out
+([`issues <n>`](SKILL.md#issues)) before work on it starts:
 
 ```md
 Outline · size <S|M|L>
 
 <what it delivers, in one or two lines>
 
-The full body is written when the milestone becomes Active.
+The full body is written before work on it starts.
 ```
 
 ## Labels
@@ -66,7 +67,7 @@ Create issues in dependency order, blockers first, so the relations can name rea
 
     gh issue create --title "<title>" --label <label> --label <label> --milestone "<milestone>" --body-file <file>
 
-Rewrite an existing issue (an outline on activation, a Backlog issue taken into a milestone):
+Rewrite an existing issue (an outline written out, a Backlog issue taken into a milestone):
 
     gh issue edit <n> --milestone "<milestone>" --body-file <file>
 
