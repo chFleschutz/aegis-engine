@@ -35,6 +35,7 @@ auto InstanceStore::add(Instance instance, const assets::MaterialVariant& varian
         m_locations.emplace_back();
     }
 
+    instance.previousModel = instance.model;
     joinBatch(id, instance, *batch);
     addMaterial(instance.material, variant);
     insert(id, std::move(instance), dynamic);
@@ -87,8 +88,10 @@ auto InstanceStore::update(InstanceId id, Instance instance, const assets::Mater
     }
     if (!detail::sameModel(instance.model, current.model))
     {
+        // previousModel stays the model of the frame's start until endFrame.
         current.model = instance.model;
         markDirty(set(dynamic).dirty, position);
+        m_moved.push_back(id);
     }
     return {};
 }
@@ -130,6 +133,7 @@ auto InstanceStore::clear() -> void
     m_dynamic = {};
     m_locations.clear();
     m_freeIds.clear();
+    m_moved.clear();
     m_batches.clear();
     m_batchMembers.clear();
     m_freeBatchIds.clear();
@@ -158,12 +162,31 @@ auto InstanceStore::endFrame() noexcept -> void
 {
     m_static.dirty = {};
     m_dynamic.dirty = {};
+    for (const auto id : m_moved)
+    {
+        if (!contains(id))
+            continue;
+        const auto [dynamic, position] = location(id);
+        auto& target = set(dynamic);
+        auto& instance = target.instances[position];
+        if (detail::sameModel(instance.previousModel, instance.model))
+            continue;
+        instance.previousModel = instance.model;
+        markDirty(target.dirty, position);
+    }
+    m_moved.clear();
 }
 
 auto InstanceStore::markAllDirty() noexcept -> void
 {
     m_static.dirty = DirtyRange::all();
     m_dynamic.dirty = DirtyRange::all();
+    for (auto* target : { &m_static, &m_dynamic })
+    {
+        for (auto& instance : target->instances)
+            instance.previousModel = instance.model;
+    }
+    m_moved.clear();
 }
 
 auto InstanceStore::batchId(const assets::MaterialVariant& variant) const -> std::optional<std::uint32_t>
