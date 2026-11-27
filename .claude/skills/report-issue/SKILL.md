@@ -39,8 +39,7 @@ each finding has its where, today's behaviour, its area and the issues it relate
 ## 3. Grill the open decisions
 
 List what the report leaves to the owner: the expected behaviour where it is unclear, the scope,
-whether it is wanted at all, how to split it, and its priority (the lane's Planning milestone or
-`Backlog`). When any is open, call the Skill tool for "grilling" with those decisions as the design
+whether it is wanted at all, how to split it, and its priority (an open milestone or `Backlog`). When any is open, call the Skill tool for "grilling" with those decisions as the design
 tree's roots, and for "domain-modeling" too when a finding brings a concept `GLOSSARY.md` lacks. With
 none open (a crash with an obvious expected behaviour), say so in one line and go on.
 
@@ -57,9 +56,9 @@ blockers only where one gates another. Write each body to a file in the scratchp
 - **Outline body** for an `idea`, which goes to `Backlog`.
 - **Milestone:** read the open ones
   (`gh api repos/{owner}/{repo}/milestones --jq '.[] | "\(.number) \(.title)\n\(.description)"'`)
-  and the lanes in the [milestone rules](../plan-milestone/SKILL.md#milestone-rules). An issue goes to
-  its lane's Planning milestone or `Backlog`, and to the Active one only when that milestone's "done
-  when" can't be met without it (a bug its own work caused); then say why.
+  and the [milestone rules](../plan-milestone/SKILL.md#milestone-rules). An issue goes to the open
+  milestone whose target it serves or to `Backlog`; to a milestone whose work has started only when
+  its "done when" can't be met without it (a bug its own work caused); then say why.
 
 ## 5. Show, wait, file
 

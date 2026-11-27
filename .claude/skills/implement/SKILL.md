@@ -28,8 +28,9 @@ the comment and stop.
   `gh issue view <n> --comments` can print nothing in Git Bash). Note the branch name, size, labels,
   content, out of scope, hazards, "done when", verification, and the blockers
   (`gh api repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by --jq '.[] | "\(.number) \(.state)"'`).
-- Stop if it is closed, assigned, blocked by an open issue (unless that blocker's branch can be the
-  stack base), or already has an open PR
+- Stop if it is closed, assigned, still an outline (`Outline · size`; it needs `/plan-milestone
+  issues <n>` first), blocked by an open issue (unless that blocker's branch can be the stack base),
+  or already has an open PR
   (`gh pr list --state open --search "<n>" --json number,title,headRefName`; look for its branch).
 - Labelled `needs-design`: the owner naming the issue is their go-ahead. Settle its open decisions
   in grilling rounds at the design checkpoint (section 2) before any code, then remove the label
