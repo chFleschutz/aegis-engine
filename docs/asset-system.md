@@ -246,9 +246,10 @@ marks its key as extracted; it is an idea, not planned (#245).
 **Finding an asset by ID** goes through an index, the one place paths exist:
 - *Development:* the database scans `content/` and the engine content, reading sidecars and native
   headers into `ID → path (+ key)`. It keeps the index in `.aegis/cache/index` with each file's
-  modification time and size, so a later start rereads only changed files; the editor's file watcher
-  updates it on moves and renames, which leave every reference intact. Until the watcher, the editor
-  adds a file it wrote (`AssetDatabase::addFile`) and rescans on request (`rescan`). Every entry
+  modification time and size, so a later start rereads only changed files. The editor rescans about twice a
+  second (`AssetDatabase::rescan`, which compares each source's and sidecar's stamp with the scan before and
+  reports the sources changed, added and removed) and adds a file it wrote (`addFile`), so its own writes are no
+  change. A move or rename shows as a removal and an addition; following it with the IDs kept is #539. Every entry
   carries its asset type: from the sidecar's importer, the sub-asset key prefix or the native header.
 - *Shipping:* the cook writes a sorted ID table into the pak; no scan, no paths. Godot
   (`uid_cache.bin`), Unity (`Library/`) and Unreal (`AssetRegistry.bin`) do the same.
@@ -426,6 +427,16 @@ implemented synchronously first; the slot lets hot reload swap contents.
   holds. The library registers the engine's types; a new type is one `AssetLibrary::registerLoader<T>` call
   (a game makes it in its `onStartup`), then `load<T>(id)`. `resolve` still knows each component's references by
   hand, so a component field of a new type does not load from a scene file yet (#514).
+- **Hot reload (#143):** the editor polls `AssetLibrary::rescan` about twice a second at the frame's safe point and
+  gives the changes to `AssetLibrary::reload`, which loads each changed source's loaded assets again through
+  their loaders (`AssetCache::reload`) into the slots they had, so every `AssetRef` sees the new contents. A
+  texture keeps its object and bindless descriptor (the loader's `update` hook, `Texture::adopt`), so materials
+  need no update; a mesh or material gets a new object, and the editor has the worlds read their static sets
+  again (`ReloadResult::resync`). A model's loaded parts get the new import's parts by key; a part it lost, a
+  removed source and a source that fails to import fall back with one warning and come back with their IDs.
+  A source nothing loaded only updates the index; a scene file and a model's node tree are not read again
+  (placed scenes are not updated entity by entity). The import stalls the frame for a large glTF until #260.
+  `aegis-test --hot-reload` checks it on a temporary project.
 - **Two modules:** `aegis.assets.data` (`aegis/assets/data/`) is the CPU side: IDs, the database,
   sidecars, importers, the import cache and their data. It imports `aegis.rhi.types`, never `aegis.rhi`,
   so rhi edits don't rebuild it. `aegis.assets` (`aegis/assets/`) re-exports it and adds what needs a
@@ -486,10 +497,10 @@ implemented synchronously first; the slot lets hot reload swap contents.
   manifests unused for 30 days and staging folders left for an hour go too.
   "Clear cache" deletes everything. A shared cache (a network folder or server keyed the same way)
   needs no format change later.
-- **Reimport:** the editor watches the project; a start without the editor checks the keys. The unit
+- **Reimport:** the editor polls the project; a start without the editor checks the keys. The unit
   of reimport is a file: its parts are matched by key, matched parts' slots get the new contents,
-  removed parts fall back and new parts are added (hot reload, #143). The manifest maps a changed
-  `.bin` to the models that read it.
+  removed parts fall back and new parts are added (hot reload, #143). The manifest will map a changed
+  `.bin` to the models that read it (#539).
 - **Cook** (`<Name>-Editor --cook <out>`): follow `AssetRef`s from the project's scenes (plus an
   "always include" list), import what the cache lacks, compile native files to binary, pack with an
   ID table. Importers then leave the shipped executable.
@@ -534,7 +545,7 @@ linked `PRIVATE`, all usable without exceptions:
 | Compression | zstd (also libktx's supercompression) |
 | Textures | KTX-Software (libktx: KTX2 reading and writing); a BC7 / ASTC encoder later (#269) |
 | Mesh compression | meshoptimizer (already a dependency) |
-| File watching | efsw (#143) |
+| File watching | none: the editor polls the stamps the scan reads (#143), which is portable and cheap at a project's size |
 | Decoding | stb_image, fastgltf, tinyobjloader (kept; importers only, so they leave shipped games) |
 | Audio | miniaudio (device, mixing, WAV), with stb_vorbis for Ogg Vorbis; in `aegis.audio`, which also decodes clips at load |
 
@@ -563,7 +574,7 @@ Order:
 4. 6.10 (#131): scene files.
 5. 6.16 (#140): scene instances with derived entity IDs; models load as scenes.
 6. Export (#134): cook and pak.
-7. Later: material files (#141), overrides and unpacking (#142), hot reload (#143). An idea, not
+7. Later: material files (#141), overrides and unpacking (#142), hot reload (#143), all done. An idea, not
    planned: extracting parts to their own files (#245).
 
 **Golden files:** a small scene, a material and a sidecar under `tests/`, with tests that must keep
@@ -583,7 +594,7 @@ accidental format change then fails CI instead of breaking a project.
 - `.blend` import through headless Blender, which every importing machine would need.
 - Overrides of nested instances (a path of local IDs) and of scripts; a `.prefab` extension for the
   browser (same format either way).
-- Soft references, hot reload and streaming.
+- Soft references and streaming.
 - Game shaders: content (imported and compiled by the asset pipeline, as material shaders would be)
   or source (`src/`, compiled by CMake through `aegis_add_shaders`, as the engine's are). The engine
   templates' surface shaders are source for now (#252); #372 decides the run-time path.

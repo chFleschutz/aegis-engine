@@ -285,6 +285,10 @@ _Avoid_: asset kind, asset class
 What the library knows about one asset type: how to make an asset of it from its `AssetId`, and what a failed one holds instead.
 _Avoid_: importer (decodes a source file), asset factory
 
+**Hot reload**:
+Giving the loaded assets of a source file changed on disk their new contents while the engine runs, in the slots their `AssetRef`s share, so every user sees them without a restart.
+_Avoid_: live reload, reimport (the import alone, which a hot reload runs)
+
 **Sub-asset**:
 A part of a model file with an `AssetId` of its own: a mesh, a material or an embedded texture.
 _Avoid_: sub-resource, embedded asset
