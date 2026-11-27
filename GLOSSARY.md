@@ -71,6 +71,14 @@ What the passes draw of one world in one frame: its instances, its views, the li
 One rendering of the world in a frame: a camera, an extent and a kind, main or shadow. Without a shell's views the main camera's view, "Main", renders onto the window; a shell's views each render into a target of their own.
 _Avoid_: render view (the shell's request for one, `RenderView`), viewport (the editor's panel), camera
 
+**Jitter**:
+A main view's sub-pixel offset of where the world lands on its pixels, different each frame in a short repeating sequence, so that frames accumulated over time sample the whole pixel. Only rasterization is jittered; culling and reprojection use the unjittered camera.
+_Avoid_: subpixel offset, camera shake
+
+**Camera cut**:
+A frame in which a main view's camera comes from elsewhere than in the last frame (another camera, another world, the shell's camera instead of the main camera): nothing the view kept of earlier frames carries over.
+_Avoid_: camera switch, history reset
+
 **Shadow view**:
 A view of the depth of the world as a light sees it, its shadow map, which a main view's lighting samples. Each main view has one per cascade of the directional light ("MainShadow0" to "MainShadow3"); the frame's closest shadow-casting spot lights each have one ("SpotShadow0" to "SpotShadow3"), which all main views share.
 _Avoid_: shadow pass (its passes), shadow camera (its camera), light view
