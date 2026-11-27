@@ -77,6 +77,17 @@ public:
     /// @brief The requested material, once; none if nothing was requested since.
     [[nodiscard]] auto takeMaterialRequest() -> std::optional<std::uint64_t> { return std::exchange(m_materialRequest, std::nullopt); }
 
+    /// @brief Asks the shell to look for changed asset files now (the content browser's Rescan) instead of at its next
+    ///        poll, and to reload what changed (hot reload).
+    void requestRescan() { m_rescanRequest = true; }
+    /// @brief Whether a rescan was requested since; once.
+    [[nodiscard]] auto takeRescanRequest() -> bool { return std::exchange(m_rescanRequest, false); }
+    /// @brief Counts the rescans that found changed, added or removed asset files, so a panel that lists the assets
+    ///        knows to read the database again.
+    [[nodiscard]] auto assetsVersion() const -> std::uint64_t { return m_assetsVersion; }
+    /// @brief A rescan found changes (the shell calls it).
+    void assetsChanged() { ++m_assetsVersion; }
+
     /// @brief Asks the inspector to put the keyboard in the selected entity's name field (F2) at its next draw.
     void requestRename() { m_renameRequest = true; }
     /// @brief Whether a rename was requested and not taken yet.
@@ -112,5 +123,7 @@ private:
     std::optional<std::uint64_t> m_materialRequest;
     bool m_renameRequest{ false };
     bool m_focusRequest{ false };
+    bool m_rescanRequest{ false };
+    std::uint64_t m_assetsVersion{ 0 };
 };
 }

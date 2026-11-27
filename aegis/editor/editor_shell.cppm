@@ -81,6 +81,13 @@ private:
     /// @brief Writes the edited material files, then the edit world to the open scene file, or opens Save As without one
     ///        (SceneDocument::save). A material that fails to save stops it, dropping the pending action.
     void save(FrameContext& frame);
+    /// @brief Hot reload: rescans the asset folders about twice a second (or at once on EditorContext::requestRescan) and
+    ///        reloads the loaded assets of the files that changed (AssetLibrary::reload), at the frame's safe point. A
+    ///        mesh or material that got a new object has the worlds read their static sets again.
+    void pollAssets(FrameContext& frame);
+    /// @brief The Material panel's documents of the reloaded 'materials': one without unsaved edits reads its file
+    ///        again; one with them keeps them, puts them back on the reloaded material and warns.
+    void reloadMaterialDocuments(FrameContext& frame, std::span<const assets::AssetId> materials);
     /// @brief Writes the material files with unsaved changes (MaterialDocuments::unsaved); false if one failed (logged).
     [[nodiscard]] auto saveMaterials(FrameContext& frame) -> bool;
     /// @brief Reverts the material files with unsaved changes and their loaded materials to the files as saved (Don't Save).
@@ -186,15 +193,17 @@ private:
     std::string m_fileError;                        // Why the last Save As failed, in its popup
     std::string m_title;                            // The window's, as last set
     PlaySession m_play;
-    world::World* m_playWorld{ nullptr };               // While a play session runs; the engine owns it
-    bool m_playAfterFirstFrame{ false };                // --editor-play
-    std::optional<int> m_stopAfter;                     // --editor-stop
-    int m_playedFrames{ 0 };                            // Of the play session, for --editor-stop
-    int m_stops{ 0 };                                   // Play sessions stopped, for --editor-stop
-    bool m_clickPlay{ false };                          // drawPlayButtons clicks Play or Stop at its next draw
-    bool m_drawing{ false };                            // While drawUi draws the panels: no world may be swapped
-    bool m_foldOnFirstFrame{ false };                   // --editor-fold
-    std::unique_ptr<StatisticsCheck> m_statisticsCheck; // --editor-check-stats
-    RollingAverage<20> m_gpuMs;                         // The frame graph's GPU time, which varies from frame to frame
+    world::World* m_playWorld{ nullptr };                  // While a play session runs; the engine owns it
+    bool m_playAfterFirstFrame{ false };                   // --editor-play
+    std::optional<int> m_stopAfter;                        // --editor-stop
+    int m_playedFrames{ 0 };                               // Of the play session, for --editor-stop
+    int m_stops{ 0 };                                      // Play sessions stopped, for --editor-stop
+    bool m_clickPlay{ false };                             // drawPlayButtons clicks Play or Stop at its next draw
+    bool m_drawing{ false };                               // While drawUi draws the panels: no world may be swapped
+    bool m_foldOnFirstFrame{ false };                      // --editor-fold
+    std::unique_ptr<StatisticsCheck> m_statisticsCheck;    // --editor-check-stats
+    RollingAverage<20> m_gpuMs;                            // The frame graph's GPU time, which varies from frame to frame
+    std::chrono::steady_clock::time_point m_nextAssetPoll; // pollAssets's next rescan
+    std::string m_assetPollError;                          // Why the last rescan failed, logged once while it fails
 };
 }

@@ -30,6 +30,18 @@ namespace aegis::editor
 {
 namespace
 {
+// How often the editor looks for changed asset files (hot reload): polling is portable, and a rescan rereads only
+// the files that changed.
+constexpr auto assetPollInterval = std::chrono::milliseconds{ 500 };
+
+auto readTextFile(const std::filesystem::path& file) -> std::optional<std::string>
+{
+    std::ifstream stream{ file, std::ios::binary };
+    if (!stream)
+        return std::nullopt;
+    return std::string{ std::istreambuf_iterator<char>{ stream }, std::istreambuf_iterator<char>{} };
+}
+
 // A window over the whole display, behind the panels, so mouse events reach the editor everywhere.
 void beginMainWindow()
 {
@@ -249,6 +261,8 @@ void EditorShell::onFrame(FrameContext& frame)
 {
     if (!m_context.playing())
         m_context.setWorld(frame.world);
+    // Before the panels draw, so they show what was reloaded
+    pollAssets(frame);
     m_context.selection().prune(m_context.world()->registry());
     if (m_document.update(std::chrono::steady_clock::now()))
         autosave(frame);
@@ -365,6 +379,74 @@ auto EditorShell::currentScene() const -> std::optional<assets::AssetId>
     return m_document.scene().transform([](std::uint64_t scene) { return assets::AssetId{ scene }; });
 }
 
+void EditorShell::pollAssets(FrameContext& frame)
+{
+    const auto now = std::chrono::steady_clock::now();
+    if (!m_context.takeRescanRequest() && now < m_nextAssetPoll)
+        return;
+    m_nextAssetPoll = now + assetPollInterval;
+
+    auto changes = frame.assets.rescan();
+    if (!changes)
+    {
+        // A broken file stays broken until it is fixed: said once, not twice a second
+        auto message = describe(changes.error());
+        if (message != m_assetPollError)
+            log::warn("Cannot look for changed assets: {}", message);
+        m_assetPollError = std::move(message);
+        return;
+    }
+    m_assetPollError.clear();
+    if (changes->empty())
+        return;
+    m_context.assetsChanged();
+    const auto reloaded = frame.assets.reload(*changes);
+    if (reloaded.resync)
+    {
+        // Static instances keep the mesh and material objects they read until their static set is read again
+        for (auto* world : { m_context.editWorld(), m_playWorld })
+        {
+            if (world)
+                world->registry().invalidateStatic();
+        }
+    }
+    reloadMaterialDocuments(frame, reloaded.reloaded);
+}
+
+void EditorShell::reloadMaterialDocuments(FrameContext& frame, std::span<const assets::AssetId> materials)
+{
+    const auto& database = frame.assets.database();
+    for (const auto material : materials)
+    {
+        auto* document = m_context.materials().find(material.value);
+        if (!document)
+            continue;
+        if (document->dirty())
+        {
+            // The loaded material is the file's now: the edits go back on it
+            if (auto applied = frame.assets.applyMaterialFile(material, document->file()); !applied)
+                log::warn("'{}' changed on disk, and its unsaved edits cannot be applied again: {}", document->path(), describe(applied.error()));
+            else
+                log::warn("'{}' changed on disk; the Material panel keeps its unsaved edits, which Save writes over the change", document->path());
+            continue;
+        }
+        const auto* entry = database.find(material);
+        const auto text = entry ? readTextFile(database.absolutePath(*entry)) : std::nullopt;
+        if (!text)
+        {
+            log::warn("'{}' changed on disk and cannot be read again; the Material panel shows it as it was", document->path());
+            continue;
+        }
+        auto file = serialize::parseMaterial(*text);
+        if (!file)
+        {
+            log::warn("'{}' changed on disk and does not parse ({}); the Material panel shows it as it was", document->path(), serialize::describe(file.error()));
+            continue;
+        }
+        document->reload(std::move(*file));
+    }
+}
+
 auto EditorShell::saveMaterials(FrameContext& frame) -> bool
 {
     const auto& database = frame.assets.database();
@@ -385,6 +467,9 @@ auto EditorShell::saveMaterials(FrameContext& frame) -> bool
             continue;
         }
         document->markSaved();
+        // The database records the file as written, so the next poll does not reload what the material already shows
+        if (auto added = frame.assets.addFile(document->path()); !added)
+            log::warn("'{}' was saved, but the asset database does not take it: {}", document->path(), describe(added.error()));
     }
     return saved;
 }

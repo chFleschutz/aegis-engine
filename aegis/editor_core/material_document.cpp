@@ -92,6 +92,12 @@ void MaterialDocument::markSaved()
     m_saved = m_file;
 }
 
+void MaterialDocument::reload(serialize::MaterialFile file)
+{
+    m_saved = file;
+    m_file = std::move(file);
+}
+
 auto MaterialDocument::revert() -> bool
 {
     if (!dirty())
