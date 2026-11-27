@@ -44,7 +44,7 @@ func vertexMain(uint vertexID : SV_VertexID, out VSOut output)
     let camera = push.camera;
 
     float4 worldPosition = mul(push.modelMatrix, float4(vertex.position, 1.0));
-    output.position = mul(camera->viewProjection, worldPosition);
+    output.position = mul(camera->jitteredViewProjection, worldPosition);
     output.worldPosition = worldPosition.xyz;
     output.worldNormal = normalize(mul(push.normalMatrix, vertex.normal));
     output.uv = vertex.uv;

@@ -874,7 +874,7 @@ void Engine::updateCameraAspect(const std::vector<RenderView>& views)
     }
 }
 
-auto Engine::frameScene(world::World& shown, const render_graph::InstanceStore& instances, const std::vector<RenderView>& views) const
+auto Engine::frameScene(world::World& shown, const render_graph::InstanceStore& instances, const std::vector<RenderView>& views)
     -> render_graph::FrameScene
 {
     auto scene = aegis::extractFrameScene(shown, instances);
@@ -883,20 +883,33 @@ auto Engine::frameScene(world::World& shown, const render_graph::InstanceStore& 
     // views of its own (the graph follows the shell's from the next frame) always the main camera, onto the target.
     const auto mainCamera = scene.camera(0);
     scene.views = render_graph::frameSceneViews(graphViews(m_views));
+    const CameraSource mainSource{ .world = &shown, .mainCamera = shown.mainCamera() };
+    std::unordered_map<std::string, CameraSource> sources;
     for (auto& target : scene.views)
     {
         if (target.kind != render_graph::ViewKind::Main)
             continue;
+        auto source = mainSource;
         if (m_views.empty())
-        {
             target.camera = mainCamera;
-            continue;
+        else
+        {
+            const auto view = std::ranges::find_if(views, [&](const RenderView& each) {
+                return (each.name.empty() ? render_graph::names::mainView : std::string_view{ each.name }) == target.name;
+            });
+            const bool throughShell = view != views.end() && view->camera;
+            target.camera = throughShell ? view->camera : mainCamera;
+            if (throughShell)
+                source = CameraSource{};
         }
-        const auto view = std::ranges::find_if(views, [&](const RenderView& each) {
-            return (each.name.empty() ? render_graph::names::mainView : std::string_view{ each.name }) == target.name;
-        });
-        target.camera = view != views.end() && view->camera ? view->camera : mainCamera;
+        if (!target.camera)
+            continue;
+        const auto last = m_cameraSources.find(target.name);
+        if (last == m_cameraSources.end() || last->second != source)
+            target.camera->cut = true;
+        sources.emplace(target.name, source);
     }
+    m_cameraSources = std::move(sources);
     render_graph::fitShadowViews(scene);
     return scene;
 }

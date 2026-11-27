@@ -11,14 +11,19 @@ namespace common
         public float4 planes[6]; // render_graph::Frustum
     }
 
-    /// render_graph::CameraData, written by the scene update pass once per frame.
+    /// render_graph::CameraData, written by the scene update pass once per frame. Rasterization uses the jittered
+    /// matrices; everything else (culling, reprojection, lighting) the unjittered ones.
     public struct Camera
     {
         public float4x4 view;
         public float4x4 projection;
         public float4x4 viewProjection;
-        public Frustum frustum;
+        public float4x4 jitteredProjection;     // projection moved by jitter
+        public float4x4 jitteredViewProjection; // viewProjection moved by jitter
+        public float4x4 previousViewProjection; // Last frame's unjittered; this frame's after a camera cut
+        public Frustum frustum;                 // Of the unjittered viewProjection
         public float3 position;
+        public float2 jitter; // This frame's sub-pixel offset in normalized device coordinates; zero when not jittering
 
         /// An orthographic projection (a directional light's shadow view) has (0, 0, 0, 1) as its last row.
         public property bool isOrthographic

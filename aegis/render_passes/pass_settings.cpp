@@ -12,6 +12,11 @@ namespace
 auto registerPassSettings() -> reflect::TypeRegistry
 {
     reflect::TypeRegistry types;
+    if (auto camera = types.settings<SceneUpdatePass::Settings>("CameraSettings"))
+    {
+        camera->displayName("Camera").field("jitter", &SceneUpdatePass::Settings::jitter);
+        assert(camera->status().has_value());
+    }
     if (auto lighting = types.settings<LightingPass::Settings>("LightingSettings"))
     {
         lighting->displayName("Lighting")

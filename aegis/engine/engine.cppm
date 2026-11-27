@@ -485,8 +485,9 @@ private:
     ///        camera of its own, or the window.
     void updateCameraAspect(const std::vector<RenderView>& views);
     /// @brief This frame's scene of the world 'shown': the main camera's view, or one per view the graph renders,
-    ///        through 'views' camera of the same name if it has one.
-    auto frameScene(world::World& shown, const render_graph::InstanceStore& instances, const std::vector<RenderView>& views) const
+    ///        through 'views' camera of the same name if it has one. A main view whose camera comes from elsewhere
+    ///        than last frame's (another world, main camera or shell camera) is a camera cut (FrameScene::Camera::cut).
+    auto frameScene(world::World& shown, const render_graph::InstanceStore& instances, const std::vector<RenderView>& views)
         -> render_graph::FrameScene;
     /// @brief Opens the ImGui frame, lets the shell build its UI, apply its edits and pick the worlds that update and
     ///        render, and ends the frame.
@@ -533,7 +534,16 @@ private:
     std::vector<WorldUpdate> m_updates;            // This frame's, from the shell (FrameContext::update)
     world::World* m_renderRequest{ nullptr };      // This frame's, from the shell (FrameContext::render); none for the main world
     const world::World* m_lastRendered{ nullptr }; // The world whose instances the passes' buffers hold
-    render_graph::FrameSceneSource m_frameScene;   // Where the passes read the frame scene; outlives the graph
+    /// @brief Where a main view's camera came from (frameScene): a world's main camera, or the shell's camera of it.
+    struct CameraSource
+    {
+        const world::World* world{ nullptr }; // None: the shell's
+        world::Entity mainCamera;
+
+        auto operator==(const CameraSource&) const -> bool = default;
+    };
+    std::unordered_map<std::string, CameraSource> m_cameraSources; // Last frame's, by view name; a view without a camera has none
+    render_graph::FrameSceneSource m_frameScene;                   // Where the passes read the frame scene; outlives the graph
     // The passes' pipelines and BRDF LUT: outlive every frame graph, so a rebuild (followViews) creates none.
     std::unique_ptr<render_graph::PipelineLibrary> m_pipelines{ std::make_unique<render_graph::PipelineLibrary>() };
     // The passes' settings, which the renderer panel edits: outlive every frame graph, so a rebuild keeps them.

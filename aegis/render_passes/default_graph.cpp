@@ -83,7 +83,7 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc, const Vi
     }
 
     const auto& scene = desc.scene;
-    graph.add<SceneUpdatePass>(scene, view.index);
+    graph.add<SceneUpdatePass>(scene, view.index, &desc.settings.camera);
     if (!desc.lights)
         graph.add<LightUpdatePass>(scene);
     if (desc.gpuDriven)

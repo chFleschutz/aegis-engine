@@ -71,15 +71,21 @@ AEGIS_FLAGS(GeometryFlags)
 
 // Buffers ---------------------------------------------------------------------------------------------
 
-/// @brief common::Camera: the main camera, written by the scene update pass once per frame. Matrices are
-///        row-major.
+/// @brief common::Camera: a view's camera, written by its scene update pass once per frame. Matrices are
+///        row-major. Rasterization uses the jittered ones; everything else (culling, reprojection, lighting) the
+///        unjittered ones.
 struct CameraData
 {
     math::Float4x4 view = math::Float4x4::zero();
     math::Float4x4 projection = math::Float4x4::zero();
     math::Float4x4 viewProjection = math::Float4x4::zero();
-    Frustum frustum;
+    math::Float4x4 jitteredProjection = math::Float4x4::zero();     // 'projection' moved by 'jitter'
+    math::Float4x4 jitteredViewProjection = math::Float4x4::zero(); // 'viewProjection' moved by 'jitter'
+    /// @brief Last frame's unjittered view-projection; this frame's on a view's first frame and after a camera cut.
+    math::Float4x4 previousViewProjection = math::Float4x4::zero();
+    Frustum frustum; // Of the unjittered view-projection
     math::Float3 position;
+    math::Float2 jitter; // This frame's sub-pixel offset in normalized device coordinates; zero when not jittering
 };
 
 /// @brief indirectDraw::Instance: one drawable instance as the GPU-driven shaders read it.
