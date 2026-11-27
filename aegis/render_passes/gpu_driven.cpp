@@ -31,6 +31,7 @@ auto makeInstance(const Instance& instance, std::uint32_t frameIndex) -> Instanc
         .normalRow0 = gpuTransform.normalRow0,
         .normalRow1 = gpuTransform.normalRow1,
         .normalRow2 = gpuTransform.normalRow2,
+        .batchSlot = instance.batchSlot,
         .mesh = instance.mesh->meshDataAddress(),
         .material = instance.material->parameterAddress(frameIndex),
         .drawBatch = instance.drawBatch,
@@ -145,25 +146,6 @@ auto InstanceUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo)
     pool.write(m_drawBatchData, std::as_bytes(std::span{ batches }));
 }
 
-// Draw count clear -----------------------------------------------------------------------------------
-
-ClearDrawCountsPass::ClearDrawCountsPass(ResourceDeclarations& declarations) :
-    m_counts{ declarations.addBuffer(names::indirectDrawCounts, Usage::TransferDst,
-        { .size = sizeof(std::uint32_t) * InstanceStore::maxDrawBatches }) }
-{
-}
-
-auto ClearDrawCountsPass::name() const -> std::string_view
-{
-    return "Clear Draw Counts";
-}
-
-auto ClearDrawCountsPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
-{
-    const auto& counts = pool.buffer(m_counts);
-    frameInfo.cmd.fillBuffer(counts, 0, 0, counts.size());
-}
-
 // Culling --------------------------------------------------------------------------------------------
 
 CullingPass::CullingPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
@@ -177,7 +159,6 @@ CullingPass::CullingPass(ResourceDeclarations& declarations, const FrameSceneSou
     m_drawBatchData{ declarations.addReference(names::drawBatches, Usage::ShaderRead) },
     m_visibility{ declarations.addBuffer(names::visibleInstances, Usage::StorageWrite, { .size = sizeof(std::uint32_t) * initialCapacity }) },
     m_commands{ declarations.addBuffer(names::indirectDrawCommands, Usage::StorageWrite, { .size = indirectCommandSize * initialCapacity }) },
-    m_counts{ declarations.addReference(names::indirectDrawCounts, Usage::StorageWrite) },
     m_visibilityCapacity{ initialCapacity },
     m_commandCapacity{ initialCapacity }
 {
@@ -199,8 +180,8 @@ auto CullingPass::createResources(ResourcePool& pool) -> std::expected<void, Err
 
 auto CullingPass::prepare(ResourcePool& pool) -> std::expected<void, Error>
 {
-    // Culling appends each batch's visible instances at its batch offset, so both buffers need an
-    // entry per instance in the store.
+    // Culling writes each instance at its batch's offset plus its slot, so both buffers need an entry per instance in
+    // the store.
     const auto registered = m_scene.current().instances.instanceCount();
     if (auto grown = detail::growBuffer(pool, m_visibility, m_visibilityCapacity, registered, sizeof(std::uint32_t)); !grown)
         return std::unexpected{ std::move(grown.error()) };
@@ -226,11 +207,58 @@ auto CullingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> voi
         .drawBatches = pool.bufferAddress(m_drawBatchData),
         .visibility = pool.bufferAddress(m_visibility),
         .commands = pool.bufferAddress(m_commands),
-        .counts = pool.bufferAddress(m_counts),
         .staticCount = store.staticInstanceCount(),
         .dynamicCount = store.dynamicInstanceCount(),
     });
     cmd.dispatch(groupCount(instanceCount, cullingGroupSize));
+}
+
+// Draw compaction ------------------------------------------------------------------------------------
+
+DrawCompactionPass::DrawCompactionPass(ResourceDeclarations& declarations, const FrameSceneSource& scene,
+    PipelineLibrary& pipelines, std::uint32_t view) :
+    m_scene{ scene },
+    m_pipelines{ pipelines },
+    m_view{ view },
+    m_drawBatchData{ declarations.addReference(names::drawBatches, Usage::ShaderRead) },
+    m_visibility{ declarations.addReference(names::visibleInstances, Usage::StorageWrite) },
+    m_commands{ declarations.addReference(names::indirectDrawCommands, Usage::StorageWrite) },
+    m_counts{ declarations.addBuffer(names::indirectDrawCounts, Usage::StorageWrite,
+        { .size = sizeof(std::uint32_t) * InstanceStore::maxDrawBatches }) }
+{
+}
+
+auto DrawCompactionPass::name() const -> std::string_view
+{
+    return "Draw Compaction";
+}
+
+auto DrawCompactionPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
+{
+    auto pipeline = m_pipelines.compute(pool.device(), "DrawCompaction", "gpu_driven/compaction.slang.spv");
+    if (!pipeline)
+        return std::unexpected{ pipeline.error() };
+    m_pipeline = *pipeline;
+    return {};
+}
+
+auto DrawCompactionPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
+{
+    // The geometry pass draws nothing in the cases culling skips, so their counts need no writing.
+    const auto& store = m_scene.current().instances;
+    if (store.instanceCount() == 0 || !m_scene.current().camera(m_view))
+        return;
+
+    // A workgroup per batch id, freed ones too: each writes its batch's count, 0 for a freed one.
+    const auto& cmd = frameInfo.cmd;
+    cmd.bindPipeline(*m_pipeline);
+    cmd.pushConstants(CompactionConstants{
+        .drawBatches = pool.bufferAddress(m_drawBatchData),
+        .visibility = pool.bufferAddress(m_visibility),
+        .commands = pool.bufferAddress(m_commands),
+        .counts = pool.bufferAddress(m_counts),
+    });
+    cmd.dispatch(static_cast<std::uint32_t>(store.batches().size()));
 }
 
 // GPU-driven geometry --------------------------------------------------------------------------------

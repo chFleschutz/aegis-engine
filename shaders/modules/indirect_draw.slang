@@ -22,6 +22,7 @@ namespace indirectDraw
         public float3 normalRow0;
         public float3 normalRow1;
         public float3 normalRow2;
+        public uint batchSlot; // Its slot in its draw batch (render_graph::Instance::batchSlot)
         public common::Mesh* mesh;
         public MaterialAddress material;
         public uint drawBatch;
@@ -41,6 +42,22 @@ namespace indirectDraw
         {
             get { return float3x3(normalRow0, normalRow1, normalRow2); }
         }
+    }
+
+    /// Where a draw batch's instances live in the visibility and indirect command buffers
+    /// (render_graph::DrawBatchData): from 'offset' on, one entry per instance of the batch.
+    public struct DrawBatch
+    {
+        public uint offset;
+        public uint count;
+    }
+
+    /// VkDrawMeshTasksIndirectCommandEXT. Culling writes one per instance; it launches no task group for a culled one.
+    public struct DrawMeshTasksIndirectCommand
+    {
+        public uint groupCountX;
+        public uint groupCountY;
+        public uint groupCountZ;
     }
 
     /// The push constants of the task, mesh and fragment stages; their files declare

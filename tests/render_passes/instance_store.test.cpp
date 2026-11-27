@@ -37,6 +37,24 @@ auto add(InstanceStore& store, const MaterialVariant& variant, float x = 0.0f,
     REQUIRE(id.has_value());
     return *id;
 }
+
+// Each batch's instances, static and dynamic, hold the slots [0, its instance count) once each.
+auto checkSlotsDense(const InstanceStore& store) -> void
+{
+    std::vector<std::vector<int>> taken(store.batches().size());
+    for (std::uint32_t batch = 0; batch < store.batches().size(); ++batch)
+        taken[batch].resize(store.batches()[batch].instanceCount, 0);
+    for (const auto instances : { store.staticInstances(), store.dynamicInstances() })
+    {
+        for (const auto& instance : instances)
+        {
+            REQUIRE(instance.batchSlot < taken[instance.drawBatch].size());
+            ++taken[instance.drawBatch][instance.batchSlot];
+        }
+    }
+    for (const auto& slots : taken)
+        CHECK(std::ranges::all_of(slots, [](int count) { return count == 1; }));
+}
 }
 
 TEST_SUITE("render_graph::DirtyRange")
@@ -99,6 +117,85 @@ TEST_SUITE("render_graph::InstanceStore")
         store.remove(InstanceId{ 0 });
         CHECK(store.batches()[0].instanceCount == 1);
         CHECK(store.batches()[1].firstInstance == 1);
+    }
+
+    TEST_CASE("each instance takes the next slot of its batch, in both sets")
+    {
+        InstanceStore store;
+        const auto first = makeVariant();
+        const auto second = makeVariant();
+        const auto a = add(store, first);
+        const auto b = add(store, second);
+        const auto c = add(store, first, 0.0f, true);
+        const auto d = add(store, first);
+
+        CHECK(store.get(a).batchSlot == 0);
+        CHECK(store.get(b).batchSlot == 0);
+        CHECK(store.get(c).batchSlot == 1);
+        CHECK(store.get(d).batchSlot == 2);
+        checkSlotsDense(store);
+    }
+
+    TEST_CASE("removing an instance gives its slot to its batch's last instance and marks that one dirty")
+    {
+        InstanceStore store;
+        const auto first = makeVariant();
+        const auto second = makeVariant();
+        const auto a = add(store, first);
+        add(store, second);
+        add(store, second);
+        const auto d = add(store, first, 0.0f, true);
+        const auto e = add(store, first);
+        store.clearDirty();
+
+        store.remove(a);
+        CHECK(store.get(e).batchSlot == 0);
+        CHECK(store.get(d).batchSlot == 1);
+        checkSlotsDense(store);
+        // e moved from position 3 to a's position 0, which marks it dirty anyway; the dynamic d kept its slot.
+        CHECK(store.staticDirty() == DirtyRange{ 0, 1 });
+        CHECK(store.dynamicDirty().empty());
+
+        store.clearDirty();
+        store.remove(e);
+        CHECK(store.get(d).batchSlot == 0);
+        CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
+        checkSlotsDense(store);
+    }
+
+    TEST_CASE("an update to another batch takes its last slot and gives the old slot to the old batch's last instance")
+    {
+        InstanceStore store;
+        const auto first = makeVariant();
+        const auto second = makeVariant();
+        const auto a = add(store, first);
+        const auto b = add(store, first);
+        const auto c = add(store, second);
+        store.clearDirty();
+
+        REQUIRE(store.update(a, at(), second).has_value());
+        CHECK(store.get(a).drawBatch == 1);
+        CHECK(store.get(a).batchSlot == 1);
+        CHECK(store.get(b).batchSlot == 0);
+        CHECK(store.get(c).batchSlot == 0);
+        CHECK(store.staticDirty() == DirtyRange{ 0, 2 });
+        checkSlotsDense(store);
+    }
+
+    TEST_CASE("slots stay dense through adds, removes, updates and moves between the sets")
+    {
+        InstanceStore store;
+        const std::array variants{ makeVariant(), makeVariant(), makeVariant() };
+        std::vector<InstanceId> ids;
+        for (std::uint32_t i = 0; i < 24; ++i)
+            ids.push_back(add(store, variants[i % 3], 0.0f, i % 4 == 0));
+        for (std::uint32_t i = 0; i < 24; i += 5)
+            store.remove(ids[i]);
+        for (std::uint32_t i = 1; i < 24; i += 5)
+            REQUIRE(store.update(ids[i], at(), variants[(i + 1) % 3]).has_value());
+        for (std::uint32_t i = 2; i < 24; i += 5)
+            store.setDynamic(ids[i], !store.isDynamic(ids[i]));
+        checkSlotsDense(store);
     }
 
     TEST_CASE("static and dynamic instances are counted apart")

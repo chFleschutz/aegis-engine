@@ -35,8 +35,7 @@ auto InstanceStore::add(Instance instance, const assets::MaterialVariant& varian
         m_locations.emplace_back();
     }
 
-    instance.drawBatch = *batch;
-    ++m_batches[*batch].instanceCount;
+    joinBatch(id, instance, *batch);
     addMaterial(instance.material, variant);
     insert(id, std::move(instance), dynamic);
     updateOffsets();
@@ -46,7 +45,7 @@ auto InstanceStore::add(Instance instance, const assets::MaterialVariant& varian
 auto InstanceStore::remove(InstanceId id) -> void
 {
     const auto instance = extract(id);
-    leaveBatch(instance.drawBatch);
+    leaveBatch(instance);
     removeMaterial(instance.material.get());
     m_locations[id.index].reset();
     m_freeIds.push_back(id.index);
@@ -64,18 +63,15 @@ auto InstanceStore::update(InstanceId id, Instance instance, const assets::Mater
     {
         // Leaving first frees the current batch if this is its last instance, making room for the new variant at the
         // batch limit. Acquiring fails only if it was not freed, and then the instance rejoins it.
+        // Rejoining takes the batch's last slot, so the instance's slot may change even then.
         const auto previous = current.drawBatch;
-        leaveBatch(previous);
+        leaveBatch(current);
         auto batch = acquireBatch(variant);
-        if (!batch)
-        {
-            ++m_batches[previous].instanceCount;
-            return std::unexpected{ batch.error() };
-        }
-        ++m_batches[*batch].instanceCount;
-        current.drawBatch = *batch;
-        updateOffsets();
+        joinBatch(id, current, batch ? *batch : previous);
         markDirty(set(dynamic).dirty, position);
+        if (!batch)
+            return std::unexpected{ batch.error() };
+        updateOffsets();
     }
     if (instance.material != current.material)
     {
@@ -135,6 +131,7 @@ auto InstanceStore::clear() -> void
     m_locations.clear();
     m_freeIds.clear();
     m_batches.clear();
+    m_batchMembers.clear();
     m_freeBatchIds.clear();
     m_batchIds.clear();
     m_materials.clear();
@@ -196,6 +193,7 @@ auto InstanceStore::acquireBatch(const assets::MaterialVariant& variant) -> std:
     {
         id = static_cast<std::uint32_t>(m_batches.size());
         m_batches.push_back({ .id = id, .firstInstance = 0, .instanceCount = 0, .variant = {} });
+        m_batchMembers.emplace_back();
     }
     else
     {
@@ -206,15 +204,39 @@ auto InstanceStore::acquireBatch(const assets::MaterialVariant& variant) -> std:
     return id;
 }
 
-auto InstanceStore::leaveBatch(std::uint32_t batch) -> void
+auto InstanceStore::joinBatch(InstanceId id, Instance& instance, std::uint32_t batch) -> void
 {
-    auto& entry = m_batches[batch];
+    auto& members = m_batchMembers[batch];
+    instance.drawBatch = batch;
+    instance.batchSlot = static_cast<std::uint32_t>(members.size());
+    members.push_back(id);
+    ++m_batches[batch].instanceCount;
+}
+
+auto InstanceStore::leaveBatch(const Instance& instance) -> void
+{
+    auto& entry = m_batches[instance.drawBatch];
+    auto& members = m_batchMembers[instance.drawBatch];
     assert(entry.instanceCount > 0 && "The batch has no instance to leave");
+    assert(members.size() == entry.instanceCount && instance.batchSlot < members.size());
+
+    // The batch's last instance takes the slot, which the GPU copy of it must learn.
+    const auto slot = instance.batchSlot;
+    if (slot + 1 != members.size())
+    {
+        members[slot] = members.back();
+        const auto [dynamic, position] = location(members[slot]);
+        auto& moved = set(dynamic);
+        moved.instances[position].batchSlot = slot;
+        markDirty(moved.dirty, position);
+    }
+    members.pop_back();
+
     if (--entry.instanceCount > 0)
         return;
     m_batchIds.erase(entry.variant);
     entry.variant = {};
-    m_freeBatchIds.push_back(batch);
+    m_freeBatchIds.push_back(instance.drawBatch);
 }
 
 auto InstanceStore::addMaterial(const std::shared_ptr<assets::Material>& material, const assets::MaterialVariant& variant)
@@ -239,9 +261,8 @@ auto InstanceStore::moveMaterial(const assets::Material* material, std::uint32_t
             auto& instance = source.instances[position];
             if (instance.material.get() != material || instance.drawBatch == batch)
                 continue;
-            leaveBatch(instance.drawBatch);
-            ++m_batches[batch].instanceCount;
-            instance.drawBatch = batch;
+            leaveBatch(instance);
+            joinBatch(source.ids[position], instance, batch);
             markDirty(source.dirty, position);
         }
     }

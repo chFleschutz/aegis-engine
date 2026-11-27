@@ -80,23 +80,10 @@ private:
     ResourceId m_drawBatchData;
 };
 
-/// @brief Zeroes "IndirectDrawCounts" (one counter per draw batch) before culling counts into it.
-class ClearDrawCountsPass : public RenderPass
-{
-public:
-    explicit ClearDrawCountsPass(ResourceDeclarations& declarations);
-
-    [[nodiscard]] auto name() const -> std::string_view override;
-    auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
-
-private:
-    ResourceId m_counts;
-};
-
-/// @brief Frustum-culls every instance on the GPU, appending the visible ones per draw batch to
-///        "VisibleInstances" with their "IndirectDrawCommands", and counting them. Both buffers hold
-///        one entry per instance of the frame's InstanceStore, and grow with it. Without a camera for its view it
-///        culls nothing, and the geometry pass draws nothing.
+/// @brief Frustum-culls every instance on the GPU, writing each at its slot in its draw batch (Instance::batchSlot) to
+///        "VisibleInstances", with its "IndirectDrawCommands" entry, which launches nothing for a culled one. Both
+///        buffers hold one entry per instance of the frame's InstanceStore, and grow with it; DrawCompactionPass then
+///        packs them. Without a camera for its view it culls nothing, and the geometry pass draws nothing.
 class CullingPass : public RenderPass
 {
 public:
@@ -120,9 +107,35 @@ private:
     ResourceId m_drawBatchData;
     ResourceId m_visibility;
     ResourceId m_commands;
-    ResourceId m_counts;
     std::uint32_t m_visibilityCapacity;
     std::uint32_t m_commandCapacity;
+    const rhi::Pipeline* m_pipeline{ nullptr };
+};
+
+/// @brief Packs each draw batch's visible instances, which culling left at their slots in "VisibleInstances" and
+///        "IndirectDrawCommands", to the front of the batch's range, in slot order, and writes the batch's draw count
+///        to "IndirectDrawCounts". Slot order makes the draws the same on every run: an atomic append would order them
+///        as the culling invocations happen to run, and of two surfaces at the same depth the one drawn first wins.
+///        Without a camera for its view it does nothing, as culling does.
+class DrawCompactionPass : public RenderPass
+{
+public:
+    /// @param view The index of the view in FrameScene::views whose culling it follows.
+    DrawCompactionPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+        std::uint32_t view = 0);
+
+    [[nodiscard]] auto name() const -> std::string_view override;
+    [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
+    auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
+
+private:
+    const FrameSceneSource& m_scene;
+    PipelineLibrary& m_pipelines;
+    std::uint32_t m_view;
+    ResourceId m_drawBatchData;
+    ResourceId m_visibility;
+    ResourceId m_commands;
+    ResourceId m_counts;
     const rhi::Pipeline* m_pipeline{ nullptr };
 };
 

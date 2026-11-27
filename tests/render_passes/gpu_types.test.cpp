@@ -50,14 +50,15 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(InstanceData, normalRow0) == 48);
         CHECK(offsetof(InstanceData, normalRow1) == 60);
         CHECK(offsetof(InstanceData, normalRow2) == 72);
-        CHECK(offsetof(InstanceData, mesh) == 88); // 84 rounded up to the pointer's alignment
+        CHECK(offsetof(InstanceData, batchSlot) == 84); // Fills the gap before the pointer's alignment
+        CHECK(offsetof(InstanceData, mesh) == 88);
         CHECK(offsetof(InstanceData, material) == 96);
         CHECK(offsetof(InstanceData, drawBatch) == 104);
         CHECK(offsetof(InstanceData, flags) == 108);
         CHECK(sizeof(InstanceData) == 112);
     }
 
-    TEST_CASE("DrawBatchData matches culling.slang's DrawBatch")
+    TEST_CASE("DrawBatchData matches indirectDraw::DrawBatch")
     {
         CHECK(offsetof(DrawBatchData, offset) == 0);
         CHECK(offsetof(DrawBatchData, count) == 4);
@@ -138,10 +139,18 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(offsetof(CullingConstants, drawBatches) == 24);
         CHECK(offsetof(CullingConstants, visibility) == 32);
         CHECK(offsetof(CullingConstants, commands) == 40);
-        CHECK(offsetof(CullingConstants, counts) == 48);
-        CHECK(offsetof(CullingConstants, staticCount) == 56);
-        CHECK(offsetof(CullingConstants, dynamicCount) == 60);
-        CHECK(sizeof(CullingConstants) == 64);
+        CHECK(offsetof(CullingConstants, staticCount) == 48);
+        CHECK(offsetof(CullingConstants, dynamicCount) == 52);
+        CHECK(sizeof(CullingConstants) == 56);
+    }
+
+    TEST_CASE("CompactionConstants matches compaction.slang")
+    {
+        CHECK(offsetof(CompactionConstants, drawBatches) == 0);
+        CHECK(offsetof(CompactionConstants, visibility) == 8);
+        CHECK(offsetof(CompactionConstants, commands) == 16);
+        CHECK(offsetof(CompactionConstants, counts) == 24);
+        CHECK(sizeof(CompactionConstants) == 32);
     }
 
     TEST_CASE("GpuDrivenGeometryConstants matches indirectDraw::GeometryConstants")
@@ -280,6 +289,7 @@ TEST_SUITE("render_graph::gpu_types")
     {
         constexpr auto limit = aegis::rhi::CommandBuffer::maxPushConstantSize;
         CHECK(sizeof(CullingConstants) <= limit);
+        CHECK(sizeof(CompactionConstants) <= limit);
         CHECK(sizeof(GpuDrivenGeometryConstants) <= limit);
         CHECK(sizeof(StaticMeshConstants) <= limit);
         CHECK(sizeof(LightingConstants) <= limit);
