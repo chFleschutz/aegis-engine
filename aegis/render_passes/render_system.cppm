@@ -16,6 +16,9 @@ struct RenderContext
     std::uint32_t frameIndex;
     rhi::DeviceAddress camera;        // This frame's CameraData
     rhi::DeviceAddress lighting{ 0 }; // This frame's LightingUniforms, in a pass that lights what it draws (ForwardPass)
+    /// @brief This frame's "PreviousModels", in a pass that writes motion vectors (GeometryPass's G-buffer): the
+    ///        instances' previous models, static then dynamic; 0 elsewhere.
+    rhi::DeviceAddress previousModels{ 0 };
     /// @brief The view matrix of the pass's camera (FrameScene::Camera::view), which blended draws sort by
     ///        (detail::sortBackToFront); identity without a camera.
     math::Float4x4 view = math::Float4x4::identity();

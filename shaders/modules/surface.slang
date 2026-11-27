@@ -96,8 +96,8 @@ public func worldNormal(SurfaceInput input, SurfaceOutput surface) -> float3
 }
 
 /// The G-buffer texels of a surface point that surface shader S evaluated: its normal in world space (worldNormal),
-/// and S's shading model in ARM w.
-public func toGBuffer<S : ISurface>(SurfaceInput input, SurfaceOutput surface) -> common::GBuffer
+/// S's shading model in ARM w, and how far it moved on screen since the last frame ('motion', common::motionVector).
+public func toGBuffer<S : ISurface>(SurfaceInput input, SurfaceOutput surface, float2 motion) -> common::GBuffer
 {
     let N = worldNormal(input, surface);
 
@@ -107,5 +107,6 @@ public func toGBuffer<S : ISurface>(SurfaceInput input, SurfaceOutput surface) -
     output.albedo = float4(surface.albedo, 1.0);
     output.arm = float4(surface.ambientOcclusion, surface.roughness, surface.metallic, float(uint(S.shadingModel())));
     output.emissive = float4(surface.emissive, 1.0);
+    output.motion = motion;
     return output;
 }

@@ -21,10 +21,12 @@ inline constexpr std::string_view normal{ "Normal" };
 inline constexpr std::string_view albedo{ "Albedo" };
 inline constexpr std::string_view arm{ "ARM" }; // Ambient occlusion, roughness, metallic
 inline constexpr std::string_view emissive{ "Emissive" };
+inline constexpr std::string_view motionVectors{ "MotionVectors" }; // Screen uv moved since the last frame (common::motionVector)
 inline constexpr std::string_view depth{ "Depth" };
 inline constexpr std::string_view spotShadowAtlas{ "SpotShadowAtlas" }; // Unscoped: every spot shadow view's tile
 
 // Scene data the CPU writes every frame
+inline constexpr std::string_view previousModels{ "PreviousModels" }; // CPU-driven G-buffer: Instance::previousModel rows
 inline constexpr std::string_view cameraData{ "CameraData" };
 inline constexpr std::string_view lightingUniforms{ "LightingUniforms" };
 inline constexpr std::string_view lights{ "Lights" }; // The point and spot lights, LightData

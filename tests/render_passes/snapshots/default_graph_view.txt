@@ -9,12 +9,15 @@
     create Main/Albedo ColorAttachment
     create Main/ARM ColorAttachment
     create Main/Emissive ColorAttachment
+    create Main/MotionVectors ColorAttachment
+    create Main/PreviousModels HostWrite
     create Main/Depth DepthAttachment
     barrier Main/Position: undefined -> ColorAttachment
     barrier Main/Normal: undefined -> ColorAttachment
     barrier Main/Albedo: undefined -> ColorAttachment
     barrier Main/ARM: undefined -> ColorAttachment
     barrier Main/Emissive: undefined -> ColorAttachment
+    barrier Main/MotionVectors: undefined -> ColorAttachment
     barrier Main/Depth: undefined -> DepthAttachment
 4. Main/Lighting
     use    Main/Position StorageRead
@@ -74,6 +77,8 @@ resources
     Main/Albedo: texture RGBA8_UNORM
     Main/ARM: texture RGBA8_UNORM
     Main/Emissive: texture RGBA8_UNORM
+    Main/MotionVectors: texture RG16_SFLOAT
+    Main/PreviousModels: buffer, host written
     Main/Depth: texture D32_SFLOAT
     Main/SceneColor: texture RGBA16_SFLOAT
     Main/LightingUniforms: buffer, host written

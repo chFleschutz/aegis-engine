@@ -19,6 +19,8 @@ struct MSOut
     [vk::location(1)] float3 worldNormal;
     [vk::location(2)] float2 uv;
     [vk::location(3)] nointerpolation uint instanceID; // The fragment shader finds the material through it
+    [vk::location(4)] float4 currentClip;              // Unjittered, for the motion vector
+    [vk::location(5)] float4 previousClip;             // Last frame's, unjittered
 }
 
 [shader("mesh")]
@@ -42,6 +44,9 @@ func meshMain(
         let vertex = mesh->vertices[mesh->meshletVertices[meshlet.vertexOffset + i]];
         float4 worldPos = mul(instance.modelMatrix, float4(vertex.position, 1.0));
         meshVertices[i].position = mul(push.camera->jitteredViewProjection, worldPos);
+        meshVertices[i].currentClip = mul(push.camera->viewProjection, worldPos);
+        float4 previousWorldPos = mul(instance.previousModelMatrix, float4(vertex.position, 1.0));
+        meshVertices[i].previousClip = mul(push.camera->previousViewProjection, previousWorldPos);
         meshVertices[i].worldPosition = worldPos.xyz;
         meshVertices[i].worldNormal = normalize(mul(instance.normalMatrix, vertex.normal));
         meshVertices[i].uv = vertex.uv;
@@ -69,7 +74,7 @@ func fragmentMain(MSOut input, bool isFrontFace : SV_IsFrontFace, out common::GB
 #if defined(ALPHA_MASK)
     alphaTest(surface);
 #endif
-    output = toGBuffer<Surface>(surfaceInput, surface);
+    output = toGBuffer<Surface>(surfaceInput, surface, common::motionVector(input.currentClip, input.previousClip));
 }
 
 #if defined(ALPHA_MASK)

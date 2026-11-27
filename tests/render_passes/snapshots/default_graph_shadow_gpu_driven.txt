@@ -162,6 +162,7 @@
     create Main/Albedo ColorAttachment
     create Main/ARM ColorAttachment
     create Main/Emissive ColorAttachment
+    create Main/MotionVectors ColorAttachment
     create Main/Depth DepthAttachment
     barrier Main/VisibleInstances: StorageWrite -> ShaderRead
     barrier Main/IndirectDrawCommands: StorageWrite -> IndirectRead
@@ -171,6 +172,7 @@
     barrier Main/Albedo: undefined -> ColorAttachment
     barrier Main/ARM: undefined -> ColorAttachment
     barrier Main/Emissive: undefined -> ColorAttachment
+    barrier Main/MotionVectors: undefined -> ColorAttachment
     barrier Main/Depth: undefined -> DepthAttachment
 24. MainShadow0/Scene Update
     create MainShadow0/CameraData HostWrite
@@ -395,6 +397,7 @@ resources
     Main/Albedo: texture RGBA8_UNORM
     Main/ARM: texture RGBA8_UNORM
     Main/Emissive: texture RGBA8_UNORM
+    Main/MotionVectors: texture RG16_SFLOAT
     Main/Depth: texture D32_SFLOAT
     Main/SceneColor: texture RGBA16_SFLOAT
     Main/LightingUniforms: buffer, host written

@@ -76,7 +76,8 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
 
     const auto& cmd = context.cmd;
     const rhi::Pipeline* bound{ nullptr };
-    const auto draw = [&](const Instance& instance) {
+    // 'index' counts the static instances, then the dynamic ones, as "PreviousModels" holds them.
+    const auto draw = [&](const Instance& instance, std::uint32_t index) {
         if (!instance.mesh || !instance.material)
             return;
 
@@ -98,6 +99,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
             .camera = context.camera,
             .mesh = instance.mesh->meshDataAddress(),
             .material = instance.material->parameterAddress(context.frameIndex),
+            .previousModel = context.previousModels != 0 ? context.previousModels + sizeof(math::Float3x4) * index : 0,
         };
         if (m_technique == Technique::Forward)
         {
@@ -122,21 +124,19 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
     };
     const auto staticInstances = instances.staticInstances();
     const auto dynamicInstances = instances.dynamicInstances();
+    const auto instanceAt = [&](std::uint32_t index) -> const Instance& {
+        return index < staticInstances.size() ? staticInstances[index] : dynamicInstances[index - staticInstances.size()];
+    };
+    const auto count = static_cast<std::uint32_t>(staticInstances.size() + dynamicInstances.size());
     if (m_technique != Technique::Forward)
     {
-        for (const auto& instance : staticInstances)
-            draw(instance);
-        for (const auto& instance : dynamicInstances)
-            draw(instance);
+        for (std::uint32_t i = 0; i < count; ++i)
+            draw(instanceAt(i), i);
         return;
     }
 
     // Blended draws compose only back to front: sort the ones this system draws by their bounding sphere's view depth.
-    const auto instanceAt = [&](std::uint32_t index) -> const Instance& {
-        return index < staticInstances.size() ? staticInstances[index] : dynamicInstances[index - staticInstances.size()];
-    };
     m_order.clear();
-    const auto count = static_cast<std::uint32_t>(staticInstances.size() + dynamicInstances.size());
     for (std::uint32_t i = 0; i < count; ++i)
     {
         const auto& instance = instanceAt(i);
@@ -147,7 +147,7 @@ auto StaticMeshRenderSystem::render(const RenderContext& context) -> void
     }
     detail::sortBackToFront(m_order);
     for (const auto& entry : m_order)
-        draw(instanceAt(entry.index));
+        draw(instanceAt(entry.index), entry.index);
 }
 
 auto StaticMeshRenderSystem::findPipeline(const PipelineKey& key) const -> std::expected<const rhi::Pipeline*, Error>

@@ -1,5 +1,6 @@
 module aegis.render_passes;
 import std;
+import aegis.math;
 import aegis.rhi;
 
 namespace aegis::render_graph
@@ -38,7 +39,11 @@ GeometryPass::GeometryPass(ResourceDeclarations& declarations, const FrameSceneS
     m_tile{ std::move(tile) }
 {
     if (technique == Technique::GBuffer)
+    {
         m_gBuffer = std::ranges::to<std::vector>(declareGBuffer(declarations));
+        m_previousModels = declarations.addBuffer(names::previousModels, Usage::HostWrite,
+            { .size = sizeof(math::Float3x4) * initialPreviousModelCapacity, .perFrame = true });
+    }
     m_depth = declareDepth(declarations, m_tile);
     m_cameraData = declarations.addReference(names::cameraData, Usage::ShaderRead);
 }
@@ -51,6 +56,7 @@ auto GeometryPass::declareGBuffer(ResourceDeclarations& declarations) -> std::ar
         declarations.addTexture(names::albedo, Usage::ColorAttachment, { .format = gBufferFormats[2] }),
         declarations.addTexture(names::arm, Usage::ColorAttachment, { .format = gBufferFormats[3] }),
         declarations.addTexture(names::emissive, Usage::ColorAttachment, { .format = gBufferFormats[4] }),
+        declarations.addTexture(names::motionVectors, Usage::ColorAttachment, { .format = gBufferFormats[5] }),
     };
 }
 
@@ -85,8 +91,14 @@ auto GeometryPass::createResources(ResourcePool& pool) -> std::expected<void, Er
     return {};
 }
 
-auto GeometryPass::prepare(ResourcePool& /*pool*/) -> std::expected<void, Error>
+auto GeometryPass::prepare(ResourcePool& pool) -> std::expected<void, Error>
 {
+    if (m_previousModels)
+    {
+        const auto count = m_scene.current().instances.instanceCount();
+        if (auto grown = detail::growBuffer(pool, *m_previousModels, m_previousModelCapacity, count, sizeof(math::Float3x4)); !grown)
+            return std::unexpected{ std::move(grown.error()) };
+    }
     for (const auto& system : m_renderSystems)
     {
         if (auto prepared = system->prepare(m_scene.current()); !prepared)
@@ -118,11 +130,29 @@ auto GeometryPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> vo
         return;
     }
 
+    rhi::DeviceAddress previousModels{ 0 };
+    if (m_previousModels)
+    {
+        // This frame's copy, which no frame in flight reads; prepare grew it to the store.
+        const auto& instances = m_scene.current().instances;
+        std::vector<math::Float3x4> models;
+        models.reserve(instances.instanceCount());
+        for (const auto set : { instances.staticInstances(), instances.dynamicInstances() })
+        {
+            for (const auto& instance : set)
+                models.push_back(instance.previousModel);
+        }
+        if (!models.empty())
+            pool.write(*m_previousModels, std::as_bytes(std::span{ models }));
+        previousModels = pool.bufferAddress(*m_previousModels);
+    }
+
     const RenderContext context{
         .cmd = cmd,
         .frameScene = m_scene.current(),
         .frameIndex = frameInfo.frameIndex,
         .camera = pool.bufferAddress(m_cameraData),
+        .previousModels = previousModels,
     };
     for (const auto& system : m_renderSystems)
         system->render(context);

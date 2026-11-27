@@ -32,10 +32,15 @@ private:
     ResourceId m_atlas;
 };
 
-/// @brief The CPU-driven geometry pass: clears and fills "Position", "Normal", "Albedo", "ARM", "Emissive" and
-///        "Depth" through its render systems, or only "Depth" with Technique::Depth (a shadow view's), or only a tile
-///        of another pass's depth texture (DepthTile). Its render systems draw with the same technique
-///        (StaticMeshRenderSystem's). Without a camera for its view it clears its targets and draws nothing.
+/// @brief The CPU-driven geometry pass: clears and fills "Position", "Normal", "Albedo", "ARM", "Emissive",
+///        "MotionVectors" and "Depth" through its render systems, or only "Depth" with Technique::Depth (a shadow
+///        view's), or only a tile of another pass's depth texture (DepthTile). Its render systems draw with the same
+///        technique (StaticMeshRenderSystem's). Without a camera for its view it clears its targets and draws nothing.
+///
+///        For the G-buffer it also writes every instance's previous model (Instance::previousModel) into
+///        "PreviousModels", a per-frame buffer of math::Float3x4 holding the static instances, then the dynamic ones,
+///        and passes its address on (RenderContext::previousModels): the push constants have no room for a second
+///        model matrix.
 class GeometryPass : public RenderPass
 {
 public:
@@ -45,7 +50,10 @@ public:
         rhi::Format::RGBA8_UNORM,   // Albedo
         rhi::Format::RGBA8_UNORM,   // ARM: ambient occlusion, roughness, metallic
         rhi::Format::RGBA8_UNORM,   // Emissive
+        rhi::Format::RG16_SFLOAT,   // Motion vectors: screen uv moved since the last frame
     };
+    /// @brief Instances "PreviousModels" holds before it first grows.
+    static constexpr std::uint32_t initialPreviousModelCapacity{ 4096 };
     static constexpr auto depthFormat = rhi::Format::D32_SFLOAT;
 
     /// @param view The index of the view in FrameScene::views it draws (whose "CameraData" it reads).
@@ -89,6 +97,8 @@ private:
     ResourceId m_depth;
     std::optional<DepthTile> m_tile;
     ResourceId m_cameraData;
+    std::optional<ResourceId> m_previousModels; // The G-buffer technique's
+    std::uint32_t m_previousModelCapacity{ initialPreviousModelCapacity };
     std::vector<std::unique_ptr<RenderSystem>> m_renderSystems;
 };
 }

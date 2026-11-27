@@ -15,10 +15,21 @@ struct PushConstants
     common::Camera* camera;
     common::Mesh* mesh;
     MaterialAddress material;
+    uint64_t previousModelAddress; // float3x4*: the instance's entry of "PreviousModels"; 0 (a shadow view): no motion
 
     property float4x4 modelMatrix
     {
         get { return float4x4(model, float4(0.0, 0.0, 0.0, 1.0)); }
+    }
+
+    property float4x4 previousModelMatrix
+    {
+        get
+        {
+            if (previousModelAddress == 0)
+                return modelMatrix;
+            return float4x4(*(float3x4*)previousModelAddress, float4(0.0, 0.0, 0.0, 1.0));
+        }
     }
 
     property float3x3 normalMatrix
@@ -35,6 +46,8 @@ struct VSOut
     [vk::location(0)] float3 worldPosition;
     [vk::location(1)] float3 worldNormal;
     [vk::location(2)] float2 uv;
+    [vk::location(3)] float4 currentClip;  // Unjittered, for the motion vector
+    [vk::location(4)] float4 previousClip; // Last frame's, unjittered
 }
 
 [shader("vertex")]
@@ -45,6 +58,8 @@ func vertexMain(uint vertexID : SV_VertexID, out VSOut output)
 
     float4 worldPosition = mul(push.modelMatrix, float4(vertex.position, 1.0));
     output.position = mul(camera->jitteredViewProjection, worldPosition);
+    output.currentClip = mul(camera->viewProjection, worldPosition);
+    output.previousClip = mul(camera->previousViewProjection, mul(push.previousModelMatrix, float4(vertex.position, 1.0)));
     output.worldPosition = worldPosition.xyz;
     output.worldNormal = normalize(mul(push.normalMatrix, vertex.normal));
     output.uv = vertex.uv;
@@ -58,7 +73,7 @@ func fragmentMain(in VSOut input, bool isFrontFace : SV_IsFrontFace, out common:
 #if defined(ALPHA_MASK)
     alphaTest(surface);
 #endif
-    output = toGBuffer<Surface>(surfaceInput, surface);
+    output = toGBuffer<Surface>(surfaceInput, surface, common::motionVector(input.currentClip, input.previousClip));
 }
 
 #if defined(ALPHA_MASK)
