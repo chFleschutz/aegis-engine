@@ -891,8 +891,10 @@ auto AssetLibrary::find(std::string_view path, std::string_view key) const -> st
     return m_database->find(0, path, key);
 }
 
-auto AssetLibrary::addFile(std::string_view path) -> std::expected<AssetId, AssetLibraryError>
+auto AssetLibrary::addFile(std::string_view view) -> std::expected<AssetId, AssetLibraryError>
 {
+    // A copy: 'view' may name an entry's path, which adding the file moves
+    const std::string path{ view };
     auto& database = m_impl->database();
     if (auto added = database.addFile(0, path); !added)
         return makeError(AssetLibraryErrorCode::ReadFailed, added.error(), std::format("cannot add '{}'", path));
