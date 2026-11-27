@@ -154,7 +154,7 @@ auto InstanceStore::isDynamic(InstanceId id) const -> bool
     return location(id).dynamic;
 }
 
-auto InstanceStore::clearDirty() noexcept -> void
+auto InstanceStore::endFrame() noexcept -> void
 {
     m_static.dirty = {};
     m_dynamic.dirty = {};

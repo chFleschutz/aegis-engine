@@ -146,7 +146,7 @@ TEST_SUITE("render_graph::InstanceStore")
         add(store, second);
         const auto d = add(store, first, 0.0f, true);
         const auto e = add(store, first);
-        store.clearDirty();
+        store.endFrame();
 
         store.remove(a);
         CHECK(store.get(e).batchSlot == 0);
@@ -156,7 +156,7 @@ TEST_SUITE("render_graph::InstanceStore")
         CHECK(store.staticDirty() == DirtyRange{ 0, 1 });
         CHECK(store.dynamicDirty().empty());
 
-        store.clearDirty();
+        store.endFrame();
         store.remove(e);
         CHECK(store.get(d).batchSlot == 0);
         CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
@@ -171,7 +171,7 @@ TEST_SUITE("render_graph::InstanceStore")
         const auto a = add(store, first);
         const auto b = add(store, first);
         const auto c = add(store, second);
-        store.clearDirty();
+        store.endFrame();
 
         REQUIRE(store.update(a, at(), second).has_value());
         CHECK(store.get(a).drawBatch == 1);
@@ -218,7 +218,7 @@ TEST_SUITE("render_graph::InstanceStore")
         const auto a = add(store, material, 1.0f);
         const auto b = add(store, material, 2.0f);
         const auto c = add(store, material, 3.0f);
-        store.clearDirty();
+        store.endFrame();
 
         store.remove(a);
         CHECK(!store.contains(a));
@@ -235,7 +235,7 @@ TEST_SUITE("render_graph::InstanceStore")
         const auto material = makeVariant();
         add(store, material);
         const auto last = add(store, material);
-        store.clearDirty();
+        store.endFrame();
 
         store.remove(last);
         CHECK(store.staticDirty().empty());
@@ -262,7 +262,7 @@ TEST_SUITE("render_graph::InstanceStore")
         CHECK(store.staticDirty() == DirtyRange{ 0, 2 });
         CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
 
-        store.clearDirty();
+        store.endFrame();
         CHECK(store.staticDirty().empty());
         CHECK(store.dynamicDirty().empty());
     }
@@ -274,7 +274,7 @@ TEST_SUITE("render_graph::InstanceStore")
         add(store, material);
         add(store, material);
         add(store, material, 0.0f, true);
-        store.clearDirty();
+        store.endFrame();
 
         store.markAllDirty();
         CHECK(store.staticDirty() == DirtyRange{ 0, 2 });
@@ -282,7 +282,7 @@ TEST_SUITE("render_graph::InstanceStore")
         add(store, material); // Beyond the old count: still covered
         CHECK(store.staticDirty() == DirtyRange{ 0, 3 });
 
-        store.clearDirty();
+        store.endFrame();
         CHECK(store.staticDirty().empty());
         CHECK(store.dynamicDirty().empty());
     }
@@ -293,7 +293,7 @@ TEST_SUITE("render_graph::InstanceStore")
         const auto material = makeVariant();
         add(store, material);
         const auto id = add(store, material, 1.0f);
-        store.clearDirty();
+        store.endFrame();
 
         REQUIRE(store.update(id, at(1.0f), material));
         CHECK(store.staticDirty().empty());
@@ -348,7 +348,7 @@ TEST_SUITE("render_graph::InstanceStore")
         twoSided.cullMode = aegis::rhi::CullMode::None;
         add(store, culled);
         const auto id = add(store, culled, 1.0f);
-        store.clearDirty();
+        store.endFrame();
 
         REQUIRE(store.update(id, at(1.0f), twoSided));
         CHECK(store.get(id).drawBatch == *store.batchId(twoSided));
@@ -361,7 +361,7 @@ TEST_SUITE("render_graph::InstanceStore")
     {
         InstanceStore store;
         add(store, makeVariant());
-        store.clearDirty();
+        store.endFrame();
         REQUIRE(store.syncVariants());
         CHECK(store.batchCount() == 1);
         CHECK(store.staticDirty().empty());
@@ -373,7 +373,7 @@ TEST_SUITE("render_graph::InstanceStore")
         const auto material = makeVariant();
         const auto id = add(store, material, 4.0f);
         add(store, material);
-        store.clearDirty();
+        store.endFrame();
 
         store.setDynamic(id, true);
         CHECK(store.isDynamic(id));
@@ -383,7 +383,7 @@ TEST_SUITE("render_graph::InstanceStore")
         CHECK(store.staticDirty() == DirtyRange{ 0, 1 });
         CHECK(store.dynamicDirty() == DirtyRange{ 0, 1 });
 
-        store.clearDirty();
+        store.endFrame();
         store.setDynamic(id, true);
         CHECK(store.dynamicDirty().empty());
         CHECK(store.batches()[0].instanceCount == 2);
