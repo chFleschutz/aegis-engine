@@ -9,6 +9,7 @@ target_sources(
         checks/assets.cpp
         checks/gameplay.cpp
         checks/graph.cpp
+        checks/hot_reload.cpp
         checks/ibl.cpp
         checks/input.cpp
         checks/material_file.cpp
