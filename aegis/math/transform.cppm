@@ -1,3 +1,7 @@
+module;
+
+#include <cassert>
+
 export module aegis.math:transform;
 
 import std;
@@ -93,11 +97,13 @@ template<std::floating_point T>
 }
 
 /// @brief Builds a right handed view matrix for a camera at `location` looking along `forward`, with world::up as up
-/// @note `forward` must not be parallel to world::up.
+/// @note `forward` must not be parallel to world::up (asserted): there is no sideways axis then, and every element
+///       would be NaN.
 template<std::floating_point T>
 [[nodiscard]] auto viewMatrix(Vector<T, 3> location, Vector<T, 3> forward) noexcept -> Matrix<T, 4, 4>
 {
     const Vector<T, 3> f = normalize(forward);
+    assert(length(cross(f, world::up<T>)) > T{ 1e-6 } && "viewMatrix: forward is parallel to world::up (z); look along y");
     const Vector<T, 3> s = normalize(cross(f, world::up<T>)); // Sideways
     const Vector<T, 3> u = cross(s, f);
     return Matrix<T, 4, 4>::fromRows(
@@ -108,10 +114,12 @@ template<std::floating_point T>
 }
 
 /// @brief Builds the inverse of viewMatrix(location, forward): the camera's own transform
+/// @note `forward` must not be parallel to world::up (asserted), as for viewMatrix.
 template<std::floating_point T>
 [[nodiscard]] auto inverseViewMatrix(Vector<T, 3> location, Vector<T, 3> forward) noexcept -> Matrix<T, 4, 4>
 {
     const Vector<T, 3> f = normalize(forward);
+    assert(length(cross(f, world::up<T>)) > T{ 1e-6 } && "inverseViewMatrix: forward is parallel to world::up (z); look along y");
     const Vector<T, 3> s = normalize(cross(f, world::up<T>));
     const Vector<T, 3> u = cross(s, f);
     return Matrix<T, 4, 4>::fromColumns(

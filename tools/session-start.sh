@@ -45,6 +45,16 @@ fi
 
 cd "$(git rev-parse --show-toplevel)"
 
+# A fresh worktree (no commits of its own) can start from an old main: say so before the first edit.
+if [[ -z "$(git log --oneline -1 origin/main..HEAD 2>/dev/null)" ]] &&
+    timeout 15 git fetch --quiet origin main 2>/dev/null; then
+    behind=$(git rev-list --count HEAD..origin/main)
+    if [[ "$behind" -gt 0 ]]; then
+        echo "HEAD is $behind commits behind origin/main and has none of its own: run"
+        echo "\`git merge --ff-only origin/main\` before the first edit."
+    fi
+fi
+
 # build.ninja is written only by a configure that succeeded, so a failed one is retried next time.
 if [[ -e "build/$AEGIS_PRESET/build.ninja" ]]; then
     exit 0
