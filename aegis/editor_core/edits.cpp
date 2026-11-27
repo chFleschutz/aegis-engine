@@ -229,6 +229,75 @@ auto applySubtree(const EditWorld& world, const SubtreeEdit& edit, EditSide side
     return {};
 }
 
+auto applyOverride(const EditWorld& world, const OverrideEdit& edit, EditSide side) -> Result
+{
+    const auto type = findType(world.types, edit.type);
+    if (!type)
+        return std::unexpected{ type.error() };
+    const auto entity = findEntity(world.registry, edit.entity);
+    if (!entity)
+        return std::unexpected{ entity.error() };
+    const auto holder = findEntity(world.registry, edit.holder);
+    if (!holder)
+        return std::unexpected{ holder.error() };
+    if (!world.registry.has<serialize::SceneInstance>(*holder))
+        return makeError(ErrorCode::MissingComponent, "the holder no longer holds a scene instance");
+    const auto* storage = (*type)->attachment<world::ComponentStorage>();
+    void* object = storage ? storage->find(world.registry, *entity) : nullptr;
+    if (!object)
+        return makeError(ErrorCode::MissingComponent, std::format("the entity no longer has '{}'", edit.type));
+
+    const auto& values = side == EditSide::Old ? edit.oldValues : edit.newValues;
+    const auto& overridden = side == EditSide::Old ? edit.oldOverridden : edit.newOverridden;
+    if (auto written = writeComponent(**type, world.registry, *entity, object, values, world.prepare); !written)
+        return makeError(written.error(), std::format("cannot write '{}'", edit.type));
+    auto& instance = world.registry.get<serialize::SceneInstance>(*holder);
+    for (const auto& [field, value] : values)
+    {
+        if (std::ranges::contains(overridden, field))
+            instance.setOverride({ .entity = edit.localId, .component = (*type)->name, .field = field, .value = value });
+        else
+            instance.removeOverride(edit.localId, (*type)->name, field);
+    }
+    return {};
+}
+
+auto applyUnpack(const EditWorld& world, const UnpackEdit& edit, EditSide side) -> Result
+{
+    auto& registry = world.registry;
+    const auto holder = findEntity(registry, edit.holder);
+    if (!holder)
+        return std::unexpected{ holder.error() };
+    const bool unpack = side == EditSide::New;
+    if (registry.has<serialize::SceneInstance>(*holder) != unpack)
+    {
+        return makeError(unpack ? ErrorCode::MissingComponent : ErrorCode::DuplicateComponent,
+            unpack ? "the entity no longer holds a scene instance" : "the entity holds a scene instance again");
+    }
+    std::vector<world::Entity> members;
+    for (const auto& member : edit.members)
+    {
+        const auto entity = findEntity(registry, member.entity);
+        if (!entity)
+            return std::unexpected{ entity.error() };
+        members.push_back(*entity);
+    }
+
+    for (std::size_t i = 0; i < members.size(); ++i)
+    {
+        if (unpack && registry.has<serialize::InstanceMember>(members[i]))
+            registry.remove<serialize::InstanceMember>(members[i]);
+        else if (!unpack && !registry.has<serialize::InstanceMember>(members[i]))
+            registry.add<serialize::InstanceMember>(members[i], edit.members[i].member);
+    }
+    if (unpack)
+        registry.remove<serialize::SceneInstance>(*holder);
+    else
+        registry.add<serialize::SceneInstance>(*holder, edit.instance);
+    registry.invalidateHierarchy(); // The rows show which entities belong to an instance
+    return {};
+}
+
 auto rootName(const SubtreeEdit& edit) -> std::string_view
 {
     const auto root = std::ranges::find(edit.subtree.entities, edit.root.value, &serialize::SceneEntity::id);
@@ -299,8 +368,12 @@ auto describe(const Edit& edit) -> std::string
                 return std::format("moving the entity {:016x}", entry.entity.value);
             else if constexpr (std::same_as<T, MaterialEdit>)
                 return std::format("the edit of {} in '{}'", entry.parameter, entry.file);
-            else
+            else if constexpr (std::same_as<T, SubtreeEdit>)
                 return std::format("{} '{}'", entry.destroy ? "destroying" : "creating", rootName(entry));
+            else if constexpr (std::same_as<T, OverrideEdit>)
+                return std::format("{} {}", entry.newOverridden.empty() ? "the revert of" : "the override of", entry.type);
+            else
+                return std::format("unpacking the instance {:016x}", entry.holder.value);
         },
         edit);
 }
@@ -335,8 +408,22 @@ auto editTitle(const Edit& edit, const world::Registry& registry) -> std::string
                 return std::format("{}{}", entry.oldPlace.parent == entry.newPlace.parent ? "Reorder" : "Reparent", nameSuffix(registry, entry.entity));
             else if constexpr (std::same_as<T, MaterialEdit>)
                 return std::format("{} {}{}", entry.newValue ? "Edit" : "Reset", entry.parameter, nameSuffix(entry.file));
-            else
+            else if constexpr (std::same_as<T, SubtreeEdit>)
                 return std::format("{}{}", entry.destroy ? "Delete" : "Create", nameSuffix(rootName(entry)));
+            else if constexpr (std::same_as<T, OverrideEdit>)
+            {
+                const auto name = nameSuffix(registry, entry.entity);
+                if (entry.newOverridden.empty())
+                    return std::format("Revert {}{}", entry.type, name);
+                const std::string_view field = entry.newValues.size() == 1 ? std::string_view{ entry.newValues.front().field } : std::string_view{};
+                if (const auto verb = transformVerb(entry.type, field); !verb.empty())
+                    return std::format("{}{}", verb, name);
+                if (!field.empty())
+                    return std::format("Edit {}.{}{}", entry.type, field, name);
+                return std::format("Edit {}{}", entry.type, name);
+            }
+            else
+                return std::format("Unpack{}", nameSuffix(registry, entry.holder));
         },
         edit);
 }
@@ -412,8 +499,12 @@ auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::
                 return applyMove(world, entry, side);
             else if constexpr (std::same_as<T, MaterialEdit>)
                 return applyMaterialEdit(world, entry, side);
-            else
+            else if constexpr (std::same_as<T, SubtreeEdit>)
                 return applySubtree(world, entry, side);
+            else if constexpr (std::same_as<T, OverrideEdit>)
+                return applyOverride(world, entry, side);
+            else
+                return applyUnpack(world, entry, side);
         },
         edit);
 }

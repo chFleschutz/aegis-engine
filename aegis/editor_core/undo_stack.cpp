@@ -5,7 +5,7 @@ namespace aegis::editor
 {
 namespace
 {
-// Field, component and rename edits merge while continuous; they have an 'open' flag and a target.
+// Field, component, override and rename edits merge while continuous; they have an 'open' flag and a target.
 template<class T>
 concept Mergeable = requires(T edit) {
     { edit.open } -> std::convertible_to<bool>;
@@ -28,6 +28,11 @@ void extendWith(RenameEdit& edit, RenameEdit&& next)
 void extendWith(MaterialEdit& edit, MaterialEdit&& next)
 {
     edit.newValue = std::move(next.newValue);
+}
+void extendWith(OverrideEdit& edit, OverrideEdit&& next)
+{
+    edit.newValues = std::move(next.newValues);
+    edit.newOverridden = std::move(next.newOverridden);
 }
 
 void setOpen(Edit& edit, bool open)
@@ -73,6 +78,8 @@ auto changesNothing(const Edit& edit) -> bool
         return rename->oldName == rename->newName;
     if (const auto* material = std::get_if<MaterialEdit>(&edit))
         return sameParameter(material->oldValue, material->newValue);
+    if (const auto* overrideEdit = std::get_if<OverrideEdit>(&edit))
+        return sameValues(overrideEdit->oldValues, overrideEdit->newValues) && overrideEdit->oldOverridden == overrideEdit->newOverridden;
     if (const auto* move = std::get_if<MoveEdit>(&edit))
         return move->oldPlace.parent == move->newPlace.parent && (!move->newPlace.parent || move->oldPlace.index == move->newPlace.index);
     return false;

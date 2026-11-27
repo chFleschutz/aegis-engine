@@ -114,8 +114,46 @@ struct MaterialEdit
     [[nodiscard]] auto sameTarget(const MaterialEdit& other) const -> bool { return material == other.material && parameter == other.parameter; }
 };
 
+/// @brief Fields of a component of a scene instance's entity set as overrides (an edit of the entity records one), or
+///        set back to the values of the instance's scene (Revert). The holder's serialize::SceneInstance keeps the
+///        overrides, so saving writes them.
+struct OverrideEdit
+{
+    StableId holder;
+    std::uint64_t localId{ 0 }; ///< The entity's ID in the instance's scene (serialize::InstanceMember::localId)
+    StableId entity;
+    std::string type;                       ///< The registered component type
+    FieldValues oldValues;                  ///< The fields the edit changes, before it
+    FieldValues newValues;                  ///< The same fields after it
+    std::vector<std::string> oldOverridden; ///< Which of those fields had an override before
+    std::vector<std::string> newOverridden; ///< Which have one after: all of them for an edit, none for a revert
+    bool open{ false };                     ///< A continuous edit (a drag) that the next edit of the same fields extends
+
+    [[nodiscard]] auto sameTarget(const OverrideEdit& other) const -> bool
+    {
+        return entity == other.entity && type == other.type && std::ranges::equal(newValues, other.newValues, {}, &FieldValue::field, &FieldValue::field);
+    }
+};
+
+/// @brief One entity of an unpacked scene instance, with what made it part of the instance.
+struct UnpackedMember
+{
+    StableId entity;
+    serialize::InstanceMember member;
+};
+
+/// @brief A scene instance unpacked: the entities of its own scene became plain entities of the world (those of the
+///        instances it holds stay theirs), and the holder lost its SceneInstance with the overrides. The world looks
+///        the same; undo links them again.
+struct UnpackEdit
+{
+    StableId holder;
+    serialize::SceneInstance instance; ///< The holder's, with its overrides
+    std::vector<UnpackedMember> members;
+};
+
 /// @brief One entry of the undo history: any edit the editor makes.
-using Edit = std::variant<FieldEdit, ComponentEdit, AddComponentEdit, AttachScriptEdit, RenameEdit, MoveEdit, SubtreeEdit, MaterialEdit>;
+using Edit = std::variant<FieldEdit, ComponentEdit, AddComponentEdit, AttachScriptEdit, RenameEdit, MoveEdit, SubtreeEdit, MaterialEdit, OverrideEdit, UnpackEdit>;
 
 /// @brief Which side of an edit to write.
 enum class EditSide
@@ -135,6 +173,7 @@ struct EditWorld
     PrepareField prepare{};                  ///< Finishes a written or created component (the asset library resolves its references)
     MaterialDocuments* materials{ nullptr }; ///< The material files a MaterialEdit changes; none refuses them
     ApplyMaterial applyMaterial{};           ///< Shows a changed material file in its loaded material; none changes only the file
+    std::uint64_t scene{ 0 };                ///< The scene asset the world is saved as, which no instance may hold; 0 for none yet
 };
 
 /// @brief What 'edit' does, for messages: "Health.value", "add Health", "destroy 'Lamp'".

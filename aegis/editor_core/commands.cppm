@@ -8,9 +8,27 @@ import :undo_stack;
 
 // The editor's structural edits: each changes the world and records an edit on the undo stack, so undo and redo
 // replay it through applyEdit. They refuse entities of a scene instance (serialize::InstanceMember): those are not
-// saved, so the change would be lost.
+// saved, so the change would be lost. The field edits (editField, resetFields, pasteFields, TransformDrag) record the
+// component fields of an entity of a scene instance as overrides of its holder instead (EntityAccess::Overridable).
 export namespace aegis::editor
 {
+/// @brief How the editor may change an entity.
+enum class EntityAccess
+{
+    Plain,       ///< An entity of the world's own scene: anything
+    Overridable, ///< An entity of a scene instance: only its component fields, recorded as overrides of the holder
+    Locked,      ///< An entity of an instance nested in another (or whose holder is gone): nothing
+};
+
+/// @brief How the editor may change 'entity' (valid).
+[[nodiscard]] auto entityAccess(world::Registry& registry, world::Entity entity) -> EntityAccess;
+
+/// @brief The fields of the component 'type' of 'entity' that its holder overrides; none unless it is Overridable.
+[[nodiscard]] auto overriddenFields(world::Registry& registry, world::Entity entity, std::string_view type) -> std::vector<std::string>;
+
+/// @brief Whether 'entity' holds a scene instance that unpackInstance takes: one that is not part of another instance.
+[[nodiscard]] auto canUnpack(world::Registry& registry, world::Entity entity) -> bool;
+
 /// @brief Creates an entity named 'name', the last child of 'parent' (a root entity for a null one), with a default
 ///        instance of each of 'components' (registered component types with storage). One undo entry: undo removes the entity with
 ///        its components, redo restores it.
@@ -25,7 +43,8 @@ using CreateInstance = std::function<std::expected<world::Entity, Error>(world::
 /// @brief Creates an instance through 'create' (the asset library's instantiateScene) under 'parent' and records it:
 ///        undo destroys the holder and its descendants, redo restores the holder with its StableId, and the holder's
 ///        SceneInstance recreates the instance's entities (through EditWorld::prepare).
-/// @return The holder, or an error (and nothing changed) for a parent of a scene instance or a failed 'create'
+/// @return The holder, or an error (and nothing changed) for a parent of a scene instance, a failed 'create' or an
+///         instance that holds EditWorld::scene, the scene being edited, directly or through its instances (InstanceCycle)
 [[nodiscard]] auto instantiateEntity(const EditWorld& world, UndoStack& history, world::Entity parent, const CreateInstance& create)
     -> std::expected<world::Entity, Error>;
 
@@ -87,11 +106,12 @@ auto editField(const EditWorld& world, UndoStack& history, world::Entity entity,
     -> std::expected<void, Error>;
 
 /// @brief A drag of several entities' local Transforms (the gizmo moving the selected roots), recorded as one undo
-///        entry when it ends. Unlike the other commands it accepts entities of a scene instance, as the gizmo always has.
+///        entry when it ends. An entity of a scene instance is recorded as overrides of its holder; a Locked one is
+///        left out.
 class TransformDrag
 {
 public:
-    /// @brief Begins a drag of 'entities', keeping their Transforms; those without one are left out. 'verb' (Move,
+    /// @brief Begins a drag of 'entities', keeping their Transforms; those without one or Locked are left out. 'verb' (Move,
     ///        Rotate, Scale) titles the entry of several entities: "Move 3 entities".
     TransformDrag(const EditWorld& world, std::span<const world::Entity> entities, std::string verb);
 
@@ -114,6 +134,18 @@ private:
     std::vector<Start> m_starts;
     std::string m_verb;
 };
+
+/// @brief Sets the overridden fields of the component 'type' of 'entity', an Overridable entity, back to the values of
+///        its instance's scene and drops their overrides. One undo entry; none if the component has no overrides.
+/// @return An error (nothing changed) for an entity that is not Overridable or a scene value that cannot be read
+auto revertOverrides(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type)
+    -> std::expected<void, Error>;
+
+/// @brief Unpacks the scene instance 'holder' holds: the entities of its scene become plain entities of the world
+///        with the IDs and values they have (the overrides are written to them already), and the holder loses its
+///        SceneInstance. The instances those entities hold stay instances. Undo links them again.
+/// @return An error (nothing changed) for an entity that holds no instance or is part of one (canUnpack)
+auto unpackInstance(const EditWorld& world, UndoStack& history, world::Entity holder) -> std::expected<void, Error>;
 
 /// @brief Attaches a new script of type 'type' to 'entity', after its other scripts.
 auto attachScript(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type)

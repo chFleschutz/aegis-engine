@@ -8,7 +8,7 @@ export namespace aegis::editor
 {
 enum class ErrorCode
 {
-    NotEditable,        // An entity to edit is null, destroyed or part of a scene instance
+    NotEditable,        // An entity to edit is null, destroyed or part of a scene instance (whose fields may be overridden)
     MissingEntity,      // An entity an edit names by its StableId is gone, or a target entity is null or destroyed
     UnknownType,        // No type is registered under the name an edit or a script names
     UnknownField,       // The type has no field of the name an edit names
@@ -26,6 +26,7 @@ enum class ErrorCode
     HierarchyFailed,    // The hierarchy refused a change; the cause is in Error::hierarchy
     AssetFailed,        // The asset library refused; its text is in Error::assets
     MissingMaterial,    // A material file an edit names is not open in the editor (MaterialDocuments)
+    InstanceCycle,      // An instance that would hold the scene it is part of, directly or through its own instances
 };
 
 struct Error

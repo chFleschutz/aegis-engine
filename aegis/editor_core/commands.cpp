@@ -21,6 +21,54 @@ auto checkEditable(world::Registry& registry, world::Entity entity, std::string_
     return {};
 }
 
+// The holder of an Overridable entity and the entity's local ID in the holder's scene.
+struct OverrideTarget
+{
+    world::Entity holder;
+    std::uint64_t localId{ 0 };
+};
+
+// The target of the field edits of 'entity': none for a Plain entity, an error for a Locked one.
+auto overrideTarget(world::Registry& registry, world::Entity entity) -> std::expected<std::optional<OverrideTarget>, Error>
+{
+    if (!registry.valid(entity))
+        return makeError(ErrorCode::NotEditable, "the entity is null or destroyed");
+    if (!registry.has<serialize::InstanceMember>(entity))
+        return std::nullopt;
+    const auto& member = registry.get<serialize::InstanceMember>(entity);
+    const auto holder = registry.find(StableId{ member.holder });
+    if (!holder || !registry.has<serialize::SceneInstance>(holder))
+        return makeError(ErrorCode::NotEditable, "the entity is part of a scene instance whose holder is gone");
+    if (registry.has<serialize::InstanceMember>(holder))
+        return makeError(ErrorCode::NotEditable, "the entity is part of a scene instance nested in another; edit the outer instance's scene");
+    return OverrideTarget{ .holder = holder, .localId = member.localId };
+}
+
+// The override edit of the fields 'newValues' of the entity's component 'type', from 'oldValues', recording all of them as
+// overridden; only the fields whose value changes or that have no override yet are kept, and no read-only one.
+auto overrideEdit(world::Registry& registry, world::Entity entity, const OverrideTarget& target, const reflect::TypeInfo& type,
+    const FieldValues& oldValues, const FieldValues& newValues) -> OverrideEdit
+{
+    const auto& instance = registry.get<serialize::SceneInstance>(target.holder);
+    OverrideEdit edit{ .holder = registry.get<StableId>(target.holder), .localId = target.localId, .entity = registry.get<StableId>(entity), .type = type.name };
+    for (const auto& value : newValues)
+    {
+        const auto old = std::ranges::find(oldValues, value.field, &FieldValue::field);
+        const auto* field = type.findField(value.field);
+        if (old == oldValues.end() || !field || field->meta.readOnly)
+            continue;
+        const bool overridden = instance.findOverride(target.localId, type.name, value.field) != nullptr;
+        if (sameValue(old->value, value.value) && overridden)
+            continue;
+        edit.oldValues.push_back(*old);
+        edit.newValues.push_back(value);
+        if (overridden)
+            edit.oldOverridden.push_back(value.field);
+        edit.newOverridden.push_back(value.field);
+    }
+    return edit;
+}
+
 auto idOf(world::Registry& registry, world::Entity entity) -> std::optional<StableId>
 {
     return entity ? std::optional{ registry.get<StableId>(entity) } : std::nullopt;
@@ -86,8 +134,11 @@ auto findObject(const EditWorld& world, world::Entity entity, const reflect::Typ
 // Writes 'changes' (fields of the entity's component or script) as one edit that undo reverts whole.
 auto changeFields(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type, std::optional<std::size_t> scriptIndex, FieldValues changes) -> Result
 {
-    if (auto editable = checkEditable(world.registry, entity); !editable)
-        return editable;
+    const auto target = overrideTarget(world.registry, entity);
+    if (!target)
+        return std::unexpected{ target.error() };
+    if (*target && scriptIndex)
+        return makeError(ErrorCode::NotEditable, "the scripts of a scene instance's entity cannot be overridden");
     const void* object = findObject(world, entity, type, scriptIndex);
     if (!object)
         return makeError(ErrorCode::MissingComponent, std::format("the entity has no '{}'", type.name));
@@ -99,6 +150,18 @@ auto changeFields(const EditWorld& world, UndoStack& history, world::Entity enti
         const auto field = std::ranges::find(newValues, changed.field, &FieldValue::field);
         if (field != newValues.end())
             field->value = std::move(changed.value);
+    }
+    if (*target)
+    {
+        // Only the fields that change become overrides
+        FieldValues changed;
+        for (const auto& value : newValues)
+        {
+            const auto old = std::ranges::find(oldValues, value.field, &FieldValue::field);
+            if (old != oldValues.end() && !sameValue(old->value, value.value))
+                changed.push_back(value);
+        }
+        return perform(world, history, overrideEdit(world.registry, entity, **target, type, oldValues, changed));
     }
     return perform(world, history, ComponentEdit{ .entity = world.registry.get<StableId>(entity), .type = type.name, .scriptIndex = scriptIndex, .oldValues = std::move(oldValues), .newValues = std::move(newValues) });
 }
@@ -153,6 +216,11 @@ auto instantiateEntity(const EditWorld& world, UndoStack& history, world::Entity
     const auto holder = create(parent);
     if (!holder)
         return std::unexpected{ holder.error() };
+    if (world.scene != 0 && serialize::holdsScene(registry, world.scene, *holder))
+    {
+        registry.destroySubtree(*holder);
+        return makeError(ErrorCode::InstanceCycle, std::format("the instance holds the scene {:016x} it would be part of", world.scene));
+    }
     auto scene = snapshot(world, *holder);
     if (!scene)
     {
@@ -315,6 +383,11 @@ auto resetFields(const EditWorld& world, UndoStack& history, world::Entity entit
     auto defaults = defaultValues(type);
     if (!defaults)
         return std::unexpected{ defaults.error() };
+    // As Paste does: a read-only field (a SceneInstance's scene) is not the editor's to write
+    std::erase_if(*defaults, [&type](const FieldValue& value) {
+        const auto* field = type.findField(value.field);
+        return field && field->meta.readOnly;
+    });
     return changeFields(world, history, entity, type, scriptIndex, std::move(*defaults));
 }
 
@@ -348,17 +421,111 @@ auto editMaterial(const EditWorld& world, UndoStack& history, std::uint64_t mate
 auto editField(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type, std::optional<std::size_t> scriptIndex, std::string_view field, const reflect::Value& value, bool continuous)
     -> std::expected<void, Error>
 {
-    if (auto editable = checkEditable(world.registry, entity); !editable)
-        return editable;
+    const auto target = overrideTarget(world.registry, entity);
+    if (!target)
+        return std::unexpected{ target.error() };
+    if (*target && scriptIndex)
+        return makeError(ErrorCode::NotEditable, "the scripts of a scene instance's entity cannot be overridden");
     const void* object = findObject(world, entity, type, scriptIndex);
     if (!object)
         return makeError(ErrorCode::MissingComponent, std::format("the entity has no '{}'", type.name));
     const auto* info = type.findField(field);
     if (!info)
         return makeError(ErrorCode::UnknownField, std::format("'{}' has no field '{}'", type.name, field));
+    if (*target)
+    {
+        if (info->meta.readOnly || type.type == typeid(serialize::SceneInstance))
+            return makeError(ErrorCode::NotEditable, std::format("{}.{} of a scene instance's entity cannot be overridden", type.name, info->name));
+        const FieldValues oldValues{ { .field = info->name, .value = info->getter(object) } };
+        const FieldValues newValues{ { .field = info->name, .value = value } };
+        return perform(world, history, overrideEdit(world.registry, entity, **target, type, oldValues, newValues), continuous);
+    }
     return perform(world, history,
         FieldEdit{ .entity = world.registry.get<StableId>(entity), .type = type.name, .field = info->name, .scriptIndex = scriptIndex, .oldValue = info->getter(object), .newValue = value },
         continuous);
+}
+
+auto entityAccess(world::Registry& registry, world::Entity entity) -> EntityAccess
+{
+    const auto target = overrideTarget(registry, entity);
+    if (!target)
+        return EntityAccess::Locked;
+    return *target ? EntityAccess::Overridable : EntityAccess::Plain;
+}
+
+auto overriddenFields(world::Registry& registry, world::Entity entity, std::string_view type) -> std::vector<std::string>
+{
+    std::vector<std::string> fields;
+    const auto target = overrideTarget(registry, entity);
+    if (!target || !*target)
+        return fields;
+    for (const auto& entry : registry.get<serialize::SceneInstance>((*target)->holder).overrides)
+    {
+        if (entry.entity == (*target)->localId && entry.component == type)
+            fields.push_back(entry.field);
+    }
+    return fields;
+}
+
+auto canUnpack(world::Registry& registry, world::Entity entity) -> bool
+{
+    return registry.valid(entity) && registry.has<serialize::SceneInstance>(entity) && !registry.has<serialize::InstanceMember>(entity);
+}
+
+auto revertOverrides(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type) -> std::expected<void, Error>
+{
+    auto& registry = world.registry;
+    const auto target = overrideTarget(registry, entity);
+    if (!target)
+        return std::unexpected{ target.error() };
+    if (!*target)
+        return makeError(ErrorCode::NotEditable, "the entity is not part of a scene instance");
+    const void* object = findObject(world, entity, type, std::nullopt);
+    if (!object)
+        return makeError(ErrorCode::MissingComponent, std::format("the entity has no '{}'", type.name));
+    const auto fields = overriddenFields(registry, entity, type.name);
+    if (fields.empty())
+        return {};
+    const auto& scene = registry.get<serialize::SceneInstance>((*target)->holder).scene;
+    if (!scene)
+        return makeError(ErrorCode::MissingComponent, std::format("the scene {:016x} of the instance is not loaded", scene.id().value));
+
+    OverrideEdit edit{ .holder = registry.get<StableId>((*target)->holder), .localId = (*target)->localId, .entity = registry.get<StableId>(entity), .type = type.name, .oldOverridden = fields };
+    for (const auto& name : fields)
+    {
+        const auto* field = type.findField(name);
+        if (!field)
+            return makeError(ErrorCode::UnknownField, std::format("'{}' has no field '{}'", type.name, name));
+        auto value = serialize::sceneValue(*scene, (*target)->localId, type, *field);
+        if (!value)
+            return makeError(value.error(), std::format("cannot read the scene's {}.{}", type.name, name));
+        edit.oldValues.push_back({ .field = field->name, .value = field->getter(object) });
+        edit.newValues.push_back({ .field = field->name, .value = std::move(*value) });
+    }
+    return perform(world, history, std::move(edit));
+}
+
+auto unpackInstance(const EditWorld& world, UndoStack& history, world::Entity holder) -> std::expected<void, Error>
+{
+    auto& registry = world.registry;
+    if (!registry.valid(holder))
+        return makeError(ErrorCode::NotEditable, "the entity is null or destroyed");
+    if (!registry.has<serialize::SceneInstance>(holder))
+        return makeError(ErrorCode::MissingComponent, "the entity holds no scene instance");
+    if (registry.has<serialize::InstanceMember>(holder))
+        return makeError(ErrorCode::NotEditable, "the instance is part of another scene instance; unpack that one first");
+
+    const auto holderId = registry.get<StableId>(holder);
+    UnpackEdit edit{ .holder = holderId, .instance = registry.get<serialize::SceneInstance>(holder) };
+    for (const auto handle : registry.view<serialize::InstanceMember>())
+    {
+        const world::Entity member{ handle };
+        const auto& link = registry.get<serialize::InstanceMember>(member);
+        if (link.holder == holderId.value)
+            edit.members.push_back({ .entity = registry.get<StableId>(member), .member = link });
+    }
+    std::ranges::sort(edit.members, {}, [](const UnpackedMember& member) { return member.entity.value; });
+    return perform(world, history, std::move(edit));
 }
 
 TransformDrag::TransformDrag(const EditWorld& world, std::span<const world::Entity> entities, std::string verb) :
@@ -369,7 +536,7 @@ TransformDrag::TransformDrag(const EditWorld& world, std::span<const world::Enti
         return;
     for (const auto entity : entities)
     {
-        if (world.registry.valid(entity) && world.registry.has<Transform>(entity))
+        if (world.registry.valid(entity) && world.registry.has<Transform>(entity) && entityAccess(world.registry, entity) != EntityAccess::Locked)
             m_starts.push_back({ .entity = world.registry.get<StableId>(entity), .values = fieldValues(*type, &world.registry.get<Transform>(entity)) });
     }
 }
@@ -402,6 +569,28 @@ void TransformDrag::end(const EditWorld& world, UndoStack& history) const
         const auto entity = world.registry.find(start.entity);
         if (!entity || !world.registry.has<Transform>(entity))
             continue;
+        const auto target = overrideTarget(world.registry, entity);
+        if (!target)
+            continue;
+        if (*target)
+        {
+            // Written by the drag already: applying it records the overrides
+            const auto newValues = fieldValues(*type, &world.registry.get<Transform>(entity));
+            FieldValues changed;
+            for (const auto& value : newValues)
+            {
+                const auto old = std::ranges::find(start.values, value.field, &FieldValue::field);
+                if (old != start.values.end() && !sameValue(old->value, value.value))
+                    changed.push_back(value);
+            }
+            if (changed.empty())
+                continue;
+            auto edit = overrideEdit(world.registry, entity, **target, *type, start.values, changed);
+            if (auto applied = applyEdit(world, edit, EditSide::New); !applied)
+                continue;
+            history.record(std::move(edit));
+            continue;
+        }
         history.record(ComponentEdit{ .entity = start.entity, .type = type->name, .oldValues = start.values, .newValues = fieldValues(*type, &world.registry.get<Transform>(entity)) });
     }
 }
