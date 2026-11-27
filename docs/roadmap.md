@@ -128,10 +128,16 @@ target beyond the render tests: what it lacks becomes issues here.
 **Lanes.** Milestones run in two lanes, each with its own Active and Planning milestone; the lanes'
 areas and rules are in the [`plan-milestone` skill](../.claude/skills/plan-milestone/SKILL.md#milestone-rules).
 - **render** (`render_graph`, `render_passes`, `renderer`, `rhi`): [M22 Image quality](https://github.com/chFleschutz/aegis-engine/milestone/23)
-  (Active: anti-aliasing and auto exposure), then the rest of Render features above: vertex tangents
-  ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) and clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22)).
+  (Active: anti-aliasing and auto exposure), [M24 Render-graph boundaries](https://github.com/chFleschutz/aegis-engine/milestone/25)
+  (Planning: the graph off the renderer, one view plan, batched barriers, the `render_passes` namespace), then:
+  - **RHI hardening:** the rhi's known faults fixed and its contracts explicit before threads arrive: the
+    `ResourceState` split, the threading contract, the deletion queue's retire point, device selection, slot
+    reuse and narrower exports ([#386](https://github.com/chFleschutz/aegis-engine/issues/386), [#345](https://github.com/chFleschutz/aegis-engine/issues/345), [#387](https://github.com/chFleschutz/aegis-engine/issues/387), [#344](https://github.com/chFleschutz/aegis-engine/issues/344), [#353](https://github.com/chFleschutz/aegis-engine/issues/353), [#390](https://github.com/chFleschutz/aegis-engine/issues/390), [#389](https://github.com/chFleschutz/aegis-engine/issues/389), [#356](https://github.com/chFleschutz/aegis-engine/issues/356), [#220](https://github.com/chFleschutz/aegis-engine/issues/220)); [#345](https://github.com/chFleschutz/aegis-engine/issues/345) gates the job system.
+  - the rest of Render features above: vertex tangents ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) and clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22)).
 - **content** (`assets`, `world`, `app`, `editor`, `platform`, `math`, `physics`, `audio`): [M23 Content authoring](https://github.com/chFleschutz/aegis-engine/milestone/24)
-  (Active: material files, prefab overrides, hot reload). Save games ([#168](https://github.com/chFleschutz/aegis-engine/issues/168)) can follow at any point.
+  (Active: material files, prefab overrides, hot reload), [M25 Content layers](https://github.com/chFleschutz/aegis-engine/milestone/26)
+  (Planning: asset library and scripting tests, the world off the GPU stack, generic asset resolving, `Engine`'s
+  service structs). Save games ([#168](https://github.com/chFleschutz/aegis-engine/issues/168)) can follow at any point.
 - The vertical slice needs both lanes' targets; plan it once they are done.
 
 **[M8. Verification tiers](https://github.com/chFleschutz/aegis-engine/milestone/8?closed=1)** (P9, done) added local reference-image comparison and the CI
