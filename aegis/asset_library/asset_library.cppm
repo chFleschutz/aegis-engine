@@ -7,6 +7,7 @@ import aegis.rhi;
 import aegis.serialize;
 import aegis.world;
 
+export import :asset_cache;
 export import :error;
 
 export namespace aegis

@@ -18,6 +18,6 @@ target_link_libraries(
 )
 target_sources(
     aegis-asset-library
-    PUBLIC FILE_SET CXX_MODULES FILES asset_library.cppm asset_library_error.cppm
-    PRIVATE asset_library.cpp
+    PUBLIC FILE_SET CXX_MODULES FILES asset_library.cppm asset_cache.cppm asset_library_error.cppm
+    PRIVATE asset_cache.cpp asset_library.cpp
 )
