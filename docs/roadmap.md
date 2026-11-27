@@ -127,12 +127,11 @@ target beyond the render tests: what it lacks becomes issues here.
 
 **Lanes.** Milestones run in two lanes, each with its own Active and Planning milestone; the lanes'
 areas and rules are in the [`plan-milestone` skill](../.claude/skills/plan-milestone/SKILL.md#milestone-rules).
-- **render** (`render_graph`, `render_passes`, `renderer`, `rhi`): [M19 Frame-graph rebuilds](https://github.com/chFleschutz/aegis-engine/milestone/20)
-  (Active), [M22 Image quality](https://github.com/chFleschutz/aegis-engine/milestone/23) (Planning: anti-aliasing and auto exposure), then the rest of
-  Render features above: vertex tangents ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) and clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22)).
-- **content** (`assets`, `world`, `app`, `editor`, `platform`, `math`, `physics`, `audio`): [M21 Gameplay foundation](https://github.com/chFleschutz/aegis-engine/milestone/22)
-  (Active), [M23 Content authoring](https://github.com/chFleschutz/aegis-engine/milestone/24) (Planning: material files, prefab overrides, hot reload).
-  Save games ([#168](https://github.com/chFleschutz/aegis-engine/issues/168)) can follow M21 at any point.
+- **render** (`render_graph`, `render_passes`, `renderer`, `rhi`): [M22 Image quality](https://github.com/chFleschutz/aegis-engine/milestone/23)
+  (Active: anti-aliasing and auto exposure), then the rest of Render features above: vertex tangents
+  ([#19](https://github.com/chFleschutz/aegis-engine/issues/19)) and clustered light culling ([#22](https://github.com/chFleschutz/aegis-engine/issues/22)).
+- **content** (`assets`, `world`, `app`, `editor`, `platform`, `math`, `physics`, `audio`): [M23 Content authoring](https://github.com/chFleschutz/aegis-engine/milestone/24)
+  (Active: material files, prefab overrides, hot reload). Save games ([#168](https://github.com/chFleschutz/aegis-engine/issues/168)) can follow at any point.
 - The vertical slice needs both lanes' targets; plan it once they are done.
 
 **[M8. Verification tiers](https://github.com/chFleschutz/aegis-engine/milestone/8?closed=1)** (P9, done) added local reference-image comparison and the CI
