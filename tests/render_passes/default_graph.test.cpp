@@ -63,8 +63,9 @@ void checkSnapshot(const std::string& name, const std::string& actual)
     }
 
     const auto expected = readFile(path);
-    REQUIRE_MESSAGE(expected.has_value(), "Missing snapshot ", path.string());
-    CHECK_MESSAGE(actual == *expected, "The plan differs from ", path.string(), ". Actual plan:\n", actual);
+    REQUIRE_MESSAGE(expected.has_value(), "Missing snapshot ", path.string(), ": write it with AEGIS_UPDATE_SNAPSHOTS=1");
+    CHECK_MESSAGE(actual == *expected, "The plan differs from ", path.string(),
+        ". If the change is intended, rerun with AEGIS_UPDATE_SNAPSHOTS=1 and review the diff. Actual plan:\n", actual);
 }
 }
 
