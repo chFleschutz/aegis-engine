@@ -297,6 +297,8 @@ auto describe(const Edit& edit) -> std::string
                 return std::format("renaming '{}' to '{}'", entry.oldName, entry.newName);
             else if constexpr (std::same_as<T, MoveEdit>)
                 return std::format("moving the entity {:016x}", entry.entity.value);
+            else if constexpr (std::same_as<T, MaterialEdit>)
+                return std::format("the edit of {} in '{}'", entry.parameter, entry.file);
             else
                 return std::format("{} '{}'", entry.destroy ? "destroying" : "creating", rootName(entry));
         },
@@ -331,6 +333,8 @@ auto editTitle(const Edit& edit, const world::Registry& registry) -> std::string
                 return std::format("Rename{}", nameSuffix(entry.oldName));
             else if constexpr (std::same_as<T, MoveEdit>)
                 return std::format("{}{}", entry.oldPlace.parent == entry.newPlace.parent ? "Reorder" : "Reparent", nameSuffix(registry, entry.entity));
+            else if constexpr (std::same_as<T, MaterialEdit>)
+                return std::format("{} {}{}", entry.newValue ? "Edit" : "Reset", entry.parameter, nameSuffix(entry.file));
             else
                 return std::format("{}{}", entry.destroy ? "Delete" : "Create", nameSuffix(rootName(entry)));
         },
@@ -368,6 +372,27 @@ auto worldTransform(world::Registry& registry, world::Entity entity) -> GlobalTr
     return global;
 }
 
+namespace
+{
+// Writes one side of a material edit to its file, then to its loaded material; a failure leaves the file as it was.
+auto applyMaterialEdit(const EditWorld& world, const MaterialEdit& edit, EditSide side) -> std::expected<void, Error>
+{
+    auto* document = world.materials ? world.materials->find(edit.material) : nullptr;
+    if (!document)
+        return makeError(ErrorCode::MissingMaterial, std::format("'{}' is not open in the editor", edit.file));
+    const auto* current = document->parameter(edit.parameter);
+    const std::optional<reflect::Node> before = current ? std::optional{ *current } : std::nullopt;
+    if (!document->setParameter(edit.parameter, side == EditSide::Old ? edit.oldValue : edit.newValue) || !world.applyMaterial)
+        return {};
+    if (auto applied = world.applyMaterial(*document); !applied)
+    {
+        document->setParameter(edit.parameter, before);
+        return applied;
+    }
+    return {};
+}
+}
+
 auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::expected<void, Error>
 {
     return std::visit(
@@ -385,6 +410,8 @@ auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::
                 return applyRename(world, entry, side);
             else if constexpr (std::same_as<T, MoveEdit>)
                 return applyMove(world, entry, side);
+            else if constexpr (std::same_as<T, MaterialEdit>)
+                return applyMaterialEdit(world, entry, side);
             else
                 return applySubtree(world, entry, side);
         },

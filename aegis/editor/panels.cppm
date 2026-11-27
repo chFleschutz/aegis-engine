@@ -12,6 +12,7 @@ inline constexpr std::string_view scene = "Scene"; // Its window is titled "Hier
 inline constexpr std::string_view inspector = "Inspector";
 inline constexpr std::string_view content = "Content";
 inline constexpr std::string_view console = "Console";
+inline constexpr std::string_view material = "Material";
 inline constexpr std::string_view preferences = "Preferences";
 inline constexpr std::string_view shortcuts = "Keyboard Shortcuts";
 inline constexpr std::string_view about = "About";
@@ -25,6 +26,7 @@ inline constexpr std::string_view about = "About";
 [[nodiscard]] auto makeInspectorPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeContentPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makeConsolePanel() -> std::unique_ptr<Panel>;
+[[nodiscard]] auto makeMaterialPanel() -> std::unique_ptr<Panel>;
 [[nodiscard]] auto makePreferencesPanel() -> std::unique_ptr<Panel>;
 // The shortcuts of 'actions', which must outlive it, and the viewport's.
 [[nodiscard]] auto makeShortcutsPanel(const ActionRegistry& actions) -> std::unique_ptr<Panel>;

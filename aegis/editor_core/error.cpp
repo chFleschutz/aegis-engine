@@ -27,6 +27,7 @@ auto errorCodeName(ErrorCode code) noexcept -> std::string_view
     case ErrorCode::ReflectFailed: return "ReflectFailed";
     case ErrorCode::HierarchyFailed: return "HierarchyFailed";
     case ErrorCode::AssetFailed: return "AssetFailed";
+    case ErrorCode::MissingMaterial: return "MissingMaterial";
     }
     return "Unknown";
 }

@@ -19,7 +19,7 @@ export namespace aegis::editor
 /// @brief The editor flavor's shell: the world stays in edit mode (no scripts run), and the editor's panels
 ///        read and edit it at the frame's safe point. Play runs a copy of it in a world of its own (the play world),
 ///        which the panels then show and edit, until Stop discards it; the UI is tinted meanwhile. The File menu
-///        creates, opens and saves scene files, and reopens the project's recent ones (kept in
+///        creates, opens and saves scene files (Save also writes the material files edited in the Material panel), and reopens the project's recent ones (kept in
 ///        `<project>/.aegis/editor/recent_scenes.json`); the window title and the menu bar name the scene and mark unsaved changes, and
 ///        closing the window, New or Open ask about them first. A save replaces the file atomically. While the scene has
 ///        unsaved changes, the edit world is autosaved every few minutes (a preference) and on entering Play, to
@@ -78,8 +78,13 @@ private:
     void run(const SceneAction& action, FrameContext& frame);
     /// @brief The document's scene (none for a new scene) as an asset ID.
     [[nodiscard]] auto currentScene() const -> std::optional<assets::AssetId>;
-    /// @brief Writes the edit world to the open scene file, or opens Save As without one (SceneDocument::save).
+    /// @brief Writes the edited material files, then the edit world to the open scene file, or opens Save As without one
+    ///        (SceneDocument::save). A material that fails to save stops it, dropping the pending action.
     void save(FrameContext& frame);
+    /// @brief Writes the material files with unsaved changes (MaterialDocuments::unsaved); false if one failed (logged).
+    [[nodiscard]] auto saveMaterials(FrameContext& frame) -> bool;
+    /// @brief Reverts the material files with unsaved changes and their loaded materials to the files as saved (Don't Save).
+    void revertMaterials(FrameContext& frame);
     /// @brief Writes the edit world to a new file at 'typed' in the project's content folder and opens that.
     auto saveAs(FrameContext& frame, std::string_view typed) -> std::expected<void, Error>;
     void drawFileMenu(FrameContext& frame);

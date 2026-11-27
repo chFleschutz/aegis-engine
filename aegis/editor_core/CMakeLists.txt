@@ -1,4 +1,4 @@
-# The editor's model: selection, the shared context, the editor camera, picking, the inspector's property model, the edits and undo history, and scene files and their autosaves. No ImGui, no GPU; tested by aegis-tests-editor.
+# The editor's model: selection, the shared context, the editor camera, picking, the inspector's property model, the edits and undo history, scene files and their autosaves, and the material files the Material panel edits. No ImGui, no GPU; tested by aegis-tests-editor.
 add_library(aegis-editor-core STATIC)
 
 target_link_libraries(
@@ -35,6 +35,7 @@ target_sources(
                 editor_camera.cppm
                 hierarchy.cppm
                 inspector.cppm
+                material_document.cppm
                 picking.cppm
                 play.cppm
                 preferences.cppm
@@ -62,6 +63,7 @@ target_sources(
         editor_camera.cpp
         hierarchy.cpp
         inspector.cpp
+        material_document.cpp
         picking.cpp
         play.cpp
         preferences.cpp

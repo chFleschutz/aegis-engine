@@ -5,13 +5,17 @@ module;
 module aegis.test;
 
 import std;
+import aegis.asset_library;
 import aegis.assets;
 import aegis.engine;
+import aegis.serialize;
 
-// --material-file: a scene that names a material file renders with it, and a changed file renders differently.
+// --material-file: a scene that names a material file renders with it, a changed file renders differently, and so does
+// an edited copy of the file given to the loaded material (AssetLibrary::applyMaterialFile, the editor's Material panel).
 // The project is written to a temporary folder, so the run needs no sample project: a camera looks at the engine's
 // cube, whose material is the file's. The material is black and lit by nothing (no lights, the default black sky, which
-// the lighting pass needs to run), so the cube shows only its emissive colour; rewriting the file swaps that colour and a second engine renders it again.
+// the lighting pass needs to run), so the cube shows only its emissive colour; rewriting the file swaps that colour and a second engine renders it again. A
+// third engine loads that file and applies a copy with a third colour before it renders, which the frame must show.
 namespace aegis::test
 {
 namespace
@@ -19,9 +23,10 @@ namespace
 constexpr std::string_view materialFile{ "materials/emissive.material" };
 constexpr std::string_view sceneFile{ "scenes/material_file.scene" };
 
-// The emissive colours of the two runs: one channel off in each, so a pixel shows which file was rendered.
+// The emissive colours of the three runs: one channel off in each, so a pixel shows which one was rendered.
 constexpr std::array<int, 3> cyan{ 0, 1, 1 };
 constexpr std::array<int, 3> yellow{ 1, 1, 0 };
+constexpr std::array<int, 3> magenta{ 1, 0, 1 };
 
 // The engine content's cube mesh (content/cube.obj.meta, "StaticMesh/cube/0").
 constexpr std::string_view cubeMesh{ "ebb588c4f30352a9" };
@@ -133,16 +138,20 @@ auto colourPixels(std::span<const std::byte> pixels, const std::array<int, 3>& c
     return count;
 }
 
-// How many pixels of the last frame show each of the two colours.
+// How many pixels of the last frame show each of the three colours.
 struct Counts
 {
     std::size_t cyan{ 0 };
     std::size_t yellow{ 0 };
+    std::size_t magenta{ 0 };
 };
+
+// What a run does to the loaded scene's assets before it renders; nothing for the first two.
+using Prepare = std::function<std::expected<void, std::string>(AssetLibrary& assets)>;
 
 // Renders the scene file of 'project' headless with a fresh engine (and so a fresh asset library) and counts the
 // colours of its last frame.
-auto render(const Options& options, const std::filesystem::path& project, const std::filesystem::path& frameFile)
+auto render(const Options& options, const std::filesystem::path& project, const std::filesystem::path& frameFile, const Prepare& prepare)
     -> std::expected<Counts, std::string>
 {
     {
@@ -166,6 +175,11 @@ auto render(const Options& options, const std::filesystem::path& project, const 
             return std::unexpected{ std::format("'{}' is not in the temporary project", sceneFile) };
         if (auto loaded = (*engine)->loadScene(*scene); !loaded)
             return std::unexpected{ describe(loaded.error()) };
+        if (prepare)
+        {
+            if (auto prepared = prepare((*engine)->assets()); !prepared)
+                return std::unexpected{ prepared.error() };
+        }
         if ((*engine)->run() != exitSuccess)
             return std::unexpected{ "the run failed (see the errors above)" };
     }
@@ -179,7 +193,21 @@ auto render(const Options& options, const std::filesystem::path& project, const 
     if (!image)
         return std::unexpected{ std::format("failed to read the frame '{}'", frameFile.string()) };
     const auto pixels = std::as_bytes(std::span{ image.get(), static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4 });
-    return Counts{ .cyan = colourPixels(pixels, cyan), .yellow = colourPixels(pixels, yellow) };
+    return Counts{ .cyan = colourPixels(pixels, cyan), .yellow = colourPixels(pixels, yellow), .magenta = colourPixels(pixels, magenta) };
+}
+
+// The third run: the loaded material (the yellow file) takes a magenta copy of the file.
+auto applyMagenta(AssetLibrary& assets) -> std::expected<void, std::string>
+{
+    const auto material = assets.find(materialFile);
+    if (!material)
+        return std::unexpected{ std::format("'{}' is not in the temporary project", materialFile) };
+    auto file = serialize::parseMaterial(materialText(magenta));
+    if (!file)
+        return std::unexpected{ serialize::describe(file.error()) };
+    if (auto applied = assets.applyMaterialFile(*material, *file); !applied)
+        return std::unexpected{ describe(applied.error()) };
+    return {};
 }
 }
 
@@ -203,7 +231,7 @@ auto runMaterialFile(const Options& options) -> int
     // A pixel count, not a reference image: software rendering differs in the last bits, and the cube covers about
     // 40000 pixels of the 800x600 frame.
     constexpr std::size_t minimum{ 10000 };
-    std::array<Counts, 2> counts{};
+    std::array<Counts, 3> counts{};
     for (std::size_t run = 0; run < counts.size(); ++run)
     {
         if (run == 1)
@@ -211,7 +239,7 @@ auto runMaterialFile(const Options& options) -> int
             if (auto written = writeText(content / materialFile, materialText(yellow)); !written)
                 return fail(written.error());
         }
-        auto rendered = render(options, project.path, frameFile);
+        auto rendered = render(options, project.path, frameFile, run == 2 ? Prepare{ applyMagenta } : Prepare{});
         if (!rendered)
         {
             if (rendered.error() == skipMeshShaders)
@@ -228,7 +256,10 @@ auto runMaterialFile(const Options& options) -> int
         return fail(std::format("the first file's cube shows {} cyan and {} yellow pixels, expected at least {} and none", counts[0].cyan, counts[0].yellow, minimum));
     if (counts[1].yellow < minimum || counts[1].cyan != 0)
         return fail(std::format("the changed file's cube shows {} yellow and {} cyan pixels, expected at least {} and none", counts[1].yellow, counts[1].cyan, minimum));
-    std::println("Material file verified: the cube showed the file's emissive colour ({} pixels), and the changed file's ({} pixels)", counts[0].cyan, counts[1].yellow);
+    if (counts[2].magenta < minimum || counts[2].yellow != 0)
+        return fail(std::format("the applied copy's cube shows {} magenta and {} yellow pixels, expected at least {} and none", counts[2].magenta, counts[2].yellow, minimum));
+    std::println("Material file verified: the cube showed the file's emissive colour ({} pixels), the changed file's ({} pixels) and the applied copy's ({} pixels)",
+        counts[0].cyan, counts[1].yellow, counts[2].magenta);
     return exitSuccess;
 }
 }

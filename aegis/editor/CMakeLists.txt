@@ -59,6 +59,7 @@ target_sources(
         panels/console_panel.cpp
         panels/preferences_panel.cpp
         panels/inspector_panel.cpp
+        panels/material_panel.cpp
         panels/profiler_panel.cpp
         panels/renderer_panel.cpp
         panels/scene_panel.cpp

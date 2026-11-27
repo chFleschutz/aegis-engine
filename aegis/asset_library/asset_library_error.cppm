@@ -13,6 +13,7 @@ enum class AssetLibraryErrorCode
     ReadFailed,        // A file or the asset database could not be read, parsed, scanned or updated
     CreateFailed,      // A device resource could not be created: the default assets, the IBL pipelines, a material
     InstantiateFailed, // A scene could not be loaded or its entities could not be created
+    InvalidValue,      // A value an asset cannot take: a material parameter the template lacks or of another kind
 };
 
 struct AssetLibraryError
@@ -48,6 +49,7 @@ struct AssetLibraryError
     case AssetLibraryErrorCode::ReadFailed: return "ReadFailed";
     case AssetLibraryErrorCode::CreateFailed: return "CreateFailed";
     case AssetLibraryErrorCode::InstantiateFailed: return "InstantiateFailed";
+    case AssetLibraryErrorCode::InvalidValue: return "InvalidValue";
     }
     return "Unknown";
 }

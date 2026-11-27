@@ -133,6 +133,7 @@ EditorShell::EditorShell()
     m_workspace.add(makeInspectorPanel());
     m_workspace.add(makeContentPanel());
     m_workspace.add(makeConsolePanel());
+    m_workspace.add(makeMaterialPanel());
     m_workspace.add(makeRendererPanel());
     m_workspace.add(makeStatisticsPanel());
     m_workspace.add(makeProfilerPanel());
@@ -285,6 +286,11 @@ void EditorShell::drawUi(FrameContext& frame)
     m_actions.handleShortcuts(frame, m_viewport.givesInputToGame());
     if (m_context.renameRequested())
         m_workspace.reveal(panels::inspector); // The name field is there
+    if (m_context.materialRequested())
+    {
+        m_workspace.reveal(panels::material); // It takes the request when it draws
+        ImGui::SetWindowFocus(windowName(panels::material).c_str());
+    }
     // In full viewport the menu bar, the status bar and the floating windows are not drawn
     const bool full = m_workspace.fullViewport();
     if (!full)
@@ -359,8 +365,47 @@ auto EditorShell::currentScene() const -> std::optional<assets::AssetId>
     return m_document.scene().transform([](std::uint64_t scene) { return assets::AssetId{ scene }; });
 }
 
+auto EditorShell::saveMaterials(FrameContext& frame) -> bool
+{
+    const auto& database = frame.assets.database();
+    bool saved = true;
+    for (auto* document : m_context.materials().unsaved())
+    {
+        const auto* entry = database.find(assets::AssetId{ document->asset() });
+        if (!entry)
+        {
+            log::warn("Cannot save '{}': the file is no longer in the project", document->path());
+            saved = false;
+            continue;
+        }
+        if (auto written = writeFileAtomically(database.absolutePath(*entry), serialize::writeMaterial(document->file())); !written)
+        {
+            log::warn("Cannot save '{}': {}", document->path(), describe(written.error()));
+            saved = false;
+            continue;
+        }
+        document->markSaved();
+    }
+    return saved;
+}
+
+void EditorShell::revertMaterials(FrameContext& frame)
+{
+    for (const auto material : m_context.materials().revert())
+    {
+        const auto* document = m_context.materials().find(material);
+        if (auto applied = frame.assets.applyMaterialFile(assets::AssetId{ material }, document->file()); !applied)
+            log::warn("Cannot revert '{}': {}", document->path(), describe(applied.error()));
+    }
+}
+
 void EditorShell::save(FrameContext& frame)
 {
+    if (!saveMaterials(frame))
+    {
+        m_document.saveFailed(); // Nothing is discarded: the pending action is dropped
+        return;
+    }
     const auto scene = currentScene();
     const auto* entry = scene ? frame.assets.database().find(*scene) : nullptr;
     if (!m_document.save(entry != nullptr))
@@ -598,7 +643,13 @@ void EditorShell::drawUnsavedPrompt(FrameContext& frame)
         ImGui::OpenPopup("Unsaved Changes");
     if (!ImGui::BeginPopupModal("Unsaved Changes", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         return;
-    ImGui::TextUnformatted("The scene has unsaved changes. Save them first?");
+    std::string materials;
+    for (const auto* document : m_context.materials().unsaved())
+        materials += std::format("{}{}", materials.empty() ? "" : ", ", document->fileName());
+    if (materials.empty())
+        ImGui::TextUnformatted("The scene has unsaved changes. Save them first?");
+    else
+        ImGui::Text("Unsaved changes in %s%s. Save them first?", m_context.historyUnsaved() ? "the scene, " : "", materials.c_str());
     ImGui::Spacing();
     if (ImGui::Button("Save"))
     {
@@ -609,6 +660,7 @@ void EditorShell::drawUnsavedPrompt(FrameContext& frame)
     if (ImGui::Button("Don't Save"))
     {
         ImGui::CloseCurrentPopup();
+        revertMaterials(frame); // The loaded materials show their files again
         m_document.discard();
     }
     ImGui::SameLine();

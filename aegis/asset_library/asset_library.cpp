@@ -343,6 +343,37 @@ public:
         return *m_environments.find(m_defaultEnvironment);
     }
 
+    auto applyMaterialFile(AssetId id, const serialize::MaterialFile& file) -> std::expected<void, AssetLibraryError>
+    {
+        const auto* entry = m_database.find(id);
+        if (!entry)
+            return makeError(AssetLibraryErrorCode::NotFound, std::format("no asset has the ID {}", id));
+        if (entry->type != "Material" || !entry->key.empty())
+            return makeError(AssetLibraryErrorCode::WrongType, std::format("'{}' is not a material file", entry->path));
+
+        auto material = loadMaterial(id);
+        if (material.state() != AssetState::Ready)
+            return makeError(AssetLibraryErrorCode::ReadFailed, std::format("'{}' did not load: {}", entry->path, material.slot()->message));
+        auto materialTemplate = fileTemplate(file);
+        if (!materialTemplate)
+            return makeError(AssetLibraryErrorCode::InvalidValue, std::format("'{}': {}", entry->path, materialTemplate.error()));
+        if (*materialTemplate != material->materialTemplate())
+            return makeError(AssetLibraryErrorCode::InvalidValue, std::format("'{}': its template cannot change while it is loaded", entry->path));
+
+        // Every value is converted before any is set, so a bad one changes nothing
+        std::unordered_map<std::string, assets::MaterialValue> overrides;
+        for (const auto& value : file.parameters.items)
+        {
+            auto converted = convertParameter(**materialTemplate, value);
+            if (!converted)
+                return makeError(AssetLibraryErrorCode::InvalidValue, std::format("'{}': {}", entry->path, converted.error()));
+            overrides.insert_or_assign(value.key, std::move(*converted));
+        }
+        if (auto set = material.shared()->setOverrides(std::move(overrides)); !set)
+            return makeError(AssetLibraryErrorCode::InvalidValue, set.error(), std::format("cannot set the parameters of '{}'", entry->path));
+        return {};
+    }
+
 private:
     // The main asset of a .gltf, .glb or .obj file, which loads as a Model and as a Scene.
     static auto isModelFile(const assets::AssetEntry& entry) -> bool
@@ -392,29 +423,42 @@ private:
         if (!file)
             return failMaterial(id, std::format("'{}' {}", entry.path, serialize::describe(file.error())));
 
-        // Only one template exists until custom shaders: the engine content's PBR template, built in code
-        if (AssetId{ file->templateId } != assets::engine::pbrTemplate)
-            return failMaterial(id, std::format("'{}': {} is not a material template", entry.path, AssetId{ file->templateId }));
-        auto material = assets::Material::create(*m_device, m_defaults.pbrTemplate, m_framesInFlight);
+        auto materialTemplate = fileTemplate(*file);
+        if (!materialTemplate)
+            return failMaterial(id, std::format("'{}': {}", entry.path, materialTemplate.error()));
+        auto material = assets::Material::create(*m_device, *materialTemplate, m_framesInFlight);
         if (!material)
             return failMaterial(id, assets::describe(material.error()));
 
         for (const auto& value : file->parameters.items)
         {
-            if (auto set = setParameter(**material, value); !set)
-                return failMaterial(id, std::format("'{}' line {}: {}", entry.path, value.line, set.error()));
+            auto converted = convertParameter(**materialTemplate, value);
+            if (!converted)
+                return failMaterial(id, std::format("'{}' line {}: {}", entry.path, value.line, converted.error()));
+            if (auto set = (*material)->setParameter(value.key, std::move(*converted)); !set)
+                return failMaterial(id, std::format("'{}' line {}: {}", entry.path, value.line, assets::describe(set.error())));
         }
         return m_materials.fill(id, std::move(*material));
     }
 
-    // Sets the parameter 'value.key' from a material file's value, read as the kind of the parameter's default.
-    auto setParameter(assets::Material& material, const reflect::Node& value) -> std::expected<void, std::string>
+    // The template a material file names. Only one exists until custom shaders: the engine content's PBR template,
+    // built in code.
+    auto fileTemplate(const serialize::MaterialFile& file) const -> std::expected<std::shared_ptr<const assets::MaterialTemplate>, std::string>
     {
-        const auto* parameter = material.materialTemplate()->parameter(value.key);
+        if (AssetId{ file.templateId } != assets::engine::pbrTemplate)
+            return std::unexpected{ std::format("{} is not a material template", AssetId{ file.templateId }) };
+        return m_defaults.pbrTemplate;
+    }
+
+    // A material file's value of the parameter 'value.key', read as the kind of the parameter's default. A texture
+    // loads by its ID (the checker if it fails).
+    auto convertParameter(const assets::MaterialTemplate& materialTemplate, const reflect::Node& value) -> std::expected<assets::MaterialValue, std::string>
+    {
+        const auto* parameter = materialTemplate.parameter(value.key);
         if (!parameter)
             return std::unexpected{ std::format("the template has no parameter '{}'", value.key) };
 
-        auto converted = std::visit(
+        return std::visit(
             [&](const auto& defaultValue) -> std::expected<assets::MaterialValue, std::string> {
                 using T = std::decay_t<decltype(defaultValue)>;
                 if constexpr (std::same_as<T, std::shared_ptr<assets::Texture>>)
@@ -422,7 +466,7 @@ private:
                     auto textureId = reflect::fromNode(reflect::FieldKind::AssetRef, value);
                     if (!textureId)
                         return std::unexpected{ std::format("'{}': {}", value.key, reflect::describe(textureId.error())) };
-                    return loadTexture(AssetId{ std::get<std::uint64_t>(*textureId) }).shared(); // The checker if it failed
+                    return loadTexture(AssetId{ std::get<std::uint64_t>(*textureId) }).shared();
                 }
                 else
                 {
@@ -434,11 +478,6 @@ private:
                 }
             },
             parameter->defaultValue);
-        if (!converted)
-            return std::unexpected{ converted.error() };
-        if (auto set = material.setParameter(value.key, std::move(*converted)); !set)
-            return std::unexpected{ assets::describe(set.error()) };
-        return {};
     }
 
     // Loads the model file that 'part' belongs to, which fills the slots of all its parts.
@@ -832,6 +871,11 @@ auto AssetLibrary::instantiateScene(world::World& world, const reflect::TypeRegi
 auto AssetLibrary::createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
 {
     return m_impl->createMaterial(std::move(materialTemplate));
+}
+
+auto AssetLibrary::applyMaterialFile(assets::AssetId material, const serialize::MaterialFile& file) -> std::expected<void, AssetLibraryError>
+{
+    return m_impl->applyMaterialFile(material, file);
 }
 
 auto AssetLibrary::copyMaterial(const AssetRef<assets::Material>& material) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>

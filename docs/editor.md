@@ -311,12 +311,21 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   expandable below it, or (the default) a grid of tiles with large icons and names on up to two lines, a model's
   sub-assets shown after it (filled) by a button at its tile's edge. Every line carries its kind's icon in
   its kind's color (the theme's asset icon tokens); a click selects it, a double click enters a folder,
-  opens a scene file or shows a model's parts. Search and a type filter cover both views. A drag carries an `AssetId` payload with its type:
+  opens a scene file or a material file (in the Material panel) or shows a model's parts. The toolbar's New Material
+  writes `New Material.material` (the PBR template, nothing set) into the open folder of the project and opens it. Search and a type filter cover both views. A drag carries an `AssetId` payload with its type:
   dropping it on an asset slot assigns it (type-checked), and dropping a `Scene` or model on the
   viewport or hierarchy instantiates it (`AssetLibrary::instantiateScene` with a parent; models
   become scenes in [#140]).
   A Rescan button covers the time before the file watcher
   ([#143]).
+- **Material panel** ([#141]): a floating panel with one material file (`.material`) at a time: a row per parameter of
+  its template in block order, showing the file's value or the template's default; a parameter the file sets has its
+  label in the accent color and a reset button, which removes it from the file (as a texture slot set to None does).
+  `MaterialDocuments` (editor core) keeps every material file opened in the session with its edits; a `MaterialEdit`
+  on the one undo history changes the document and the loaded material (`AssetLibrary::applyMaterialFile`), also while
+  playing, so every scene using it shows the edit at once. Save writes the edited material files before the scene, the
+  `*` and the unsaved-changes prompt cover them, and Don't Save reverts them. A model's materials and engine content
+  don't open for editing: "Extract material" is [#245].
 - **Scene files:** New, Open (a picker over the database's `Scene` entries), Save (Ctrl+S), and Save As
   (an in-editor path field inside the project, which writes a new native file with a new ID and adds
   it to the database). The title bar and the scene tab show `*` while dirty. Open, New and closing the
@@ -384,7 +393,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - Grid and debug drawing (light ranges, camera frusta, bounds). This needs a debug-line pass in the render graph.
 - Render debug views (G-buffer channels, wireframe, overdraw), an orthographic editor camera and a view menu for them.
 - Asset thumbnails (textures directly; meshes and materials through an offscreen preview render).
-- Material editing, with native material files and "Extract material" ([#141]).
+- "Extract material" ([#245]): a model's material moved into a material file, which the Material panel ([#141]) edits.
 - Asset hot reload ([#143]); prefab overrides, unpacking and an "edit prefab" mode ([#142]).
 - A separate Game panel next to the Scene viewport while playing (needs two views in one frame).
 - Project settings panel (startup scene, window defaults), recent projects, and a welcome screen when
@@ -683,6 +692,7 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#204]: https://github.com/chFleschutz/aegis-engine/issues/204
 [#205]: https://github.com/chFleschutz/aegis-engine/issues/205
 [#225]: https://github.com/chFleschutz/aegis-engine/issues/225
+[#245]: https://github.com/chFleschutz/aegis-engine/issues/245
 [#275]: https://github.com/chFleschutz/aegis-engine/issues/275
 [#279]: https://github.com/chFleschutz/aegis-engine/issues/279
 [#281]: https://github.com/chFleschutz/aegis-engine/issues/281

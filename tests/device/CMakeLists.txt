@@ -37,6 +37,7 @@ target_link_libraries(
         aegis-renderer
         aegis-rhi
         aegis-scripting # --spawn's script
+        aegis-serialize # --material-file's edited copy of the file
         aegis-world
         imgui
         stb # stb_image_write for --screenshot

@@ -258,7 +258,7 @@ public:
         if (!m_built || database.size() != m_builtSize)
             rebuild(database);
 
-        drawToolbar(frame);
+        drawToolbar(editor, frame);
         if (ImGui::BeginTable("##browser", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV))
         {
             ImGui::TableSetupColumn("Folders", ImGuiTableColumnFlags_WidthFixed, folderColumnWidth * theme::scale());
@@ -332,8 +332,8 @@ private:
         m_folder = m_tree.folders()[index].path;
     }
 
-    // Rescan, the type filter, the view buttons and the search.
-    void drawToolbar(FrameContext& frame)
+    // Rescan, New Material, the type filter, the view buttons and the search.
+    void drawToolbar(EditorContext& editor, FrameContext& frame)
     {
         if (theme::iconButton(theme::icons::rescan, "rescan"))
         {
@@ -342,6 +342,16 @@ private:
             rebuild(frame.assets.database());
         }
         ImGui::SetItemTooltip("Rescan: scan the asset folders again for added, changed and removed files");
+
+        // Only into the project's content folder, the first root: the asset database adds files there
+        const auto& roots = frame.assets.database().roots();
+        const bool projectFolder = m_root == 0 && !roots.empty() && !roots.front().readOnly;
+        ImGui::SameLine(0.0f, 0.0f);
+        ImGui::BeginDisabled(!projectFolder);
+        if (theme::iconButton(theme::icons::newMaterial, "newMaterial"))
+            createMaterial(editor, frame);
+        ImGui::EndDisabled();
+        ImGui::SetItemTooltip("%s", projectFolder ? "New Material: a material file in this folder, opened in the Material panel" : "New Material: open a folder of the project first");
 
         ImGui::SameLine();
         ImGui::SetNextItemWidth(160.0f * theme::scale());
@@ -540,7 +550,42 @@ private:
         };
     }
 
-    // A double click on a line: a folder opens, a scene file opens in the editor, a model shows or hides its parts.
+    // Writes "New Material.material" (numbered while taken) into the open folder of the project: the PBR template with no
+    // parameters set. Selects it and opens it in the Material panel.
+    void createMaterial(EditorContext& editor, FrameContext& frame)
+    {
+        const auto& database = frame.assets.database();
+        const auto& root = database.roots().front().path;
+        const auto fileOf = [&root](std::string_view path) { return root / std::filesystem::path{ std::u8string{ path.begin(), path.end() } }; };
+        const auto path = newMaterialPath(m_folder, [&fileOf](std::string_view candidate) {
+            std::error_code error;
+            return std::filesystem::exists(fileOf(candidate), error) || error;
+        });
+        const serialize::MaterialFile material{ .id = assets::AssetId::generate().value, .templateId = assets::engine::pbrTemplate.value };
+        if (auto written = writeFileAtomically(fileOf(path), serialize::writeMaterial(material)); !written)
+        {
+            log::warn("Cannot create '{}': {}", path, describe(written.error()));
+            return;
+        }
+        auto added = frame.assets.addFile(path);
+        if (!added)
+        {
+            log::warn("'{}' was written, but the asset database does not take it: {}", path, describe(added.error()));
+            return;
+        }
+        rebuild(database);
+        m_selected = std::format("f0/{}", path);
+        editor.requestOpenMaterial(added->value);
+    }
+
+    // Whether the line is a material that is part of a model, which the Material panel cannot open.
+    [[nodiscard]] static auto modelMaterial(const LineView& view) -> bool
+    {
+        return view.item && view.item->type == assets::Material::assetType && !view.item->key.empty();
+    }
+
+    // A double click on a line: a folder opens, a scene file opens in the editor, a material file in the Material panel,
+    // a model shows or hides its parts.
     void activate(EditorContext& editor, const LineView& view, std::optional<std::size_t>& entered)
     {
         if (view.folder)
@@ -552,6 +597,8 @@ private:
             return;
         if (view.item->type == serialize::Scene::assetType && view.file->path.ends_with(".scene"))
             editor.requestOpenScene(view.item->id);
+        else if (view.item->type == assets::Material::assetType && view.item->key.empty())
+            editor.requestOpenMaterial(view.item->id);
         else if (view.hasParts)
             setFileOpen(*view.file, !fileOpen(*view.file));
     }
@@ -608,6 +655,8 @@ private:
             m_selected = view.key;
         if (view.item)
             dragSource(*view.item, view.name);
+        if (modelMaterial(view))
+            ImGui::SetItemTooltip("A model's material: only material files open in the Material panel");
         const bool onLabel = ImGui::GetMousePos().x >= ImGui::GetItemRectMin().x + ImGui::GetTreeNodeToLabelSpacing();
         if (onLabel && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             activate(editor, view, entered);
@@ -658,7 +707,9 @@ private:
             m_selected = view.key;
         if (view.item)
             dragSource(*view.item, view.name);
-        else
+        if (modelMaterial(view))
+            ImGui::SetItemTooltip("%s\nA model's material: only material files open in the Material panel", view.name.c_str());
+        else if (!view.item)
             ImGui::SetItemTooltip("%s", view.name.c_str());
         if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             activate(editor, view, entered);

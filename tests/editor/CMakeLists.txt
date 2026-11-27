@@ -16,6 +16,7 @@ aegis_add_test(
         full_viewport.test.cpp
         hierarchy.test.cpp
         inspector.test.cpp
+        material_document.test.cpp
         picking.test.cpp
         play.test.cpp
         preferences.test.cpp

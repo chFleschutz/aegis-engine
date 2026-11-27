@@ -276,6 +276,18 @@ auto Material::setParameter(const std::string& name, MaterialValue value) -> std
     return {};
 }
 
+auto Material::setOverrides(std::unordered_map<std::string, MaterialValue> overrides) -> std::expected<void, Error>
+{
+    for (const auto& [name, value] : overrides)
+    {
+        if (auto valid = m_template->check(name, value); !valid)
+            return valid;
+    }
+    m_overrides = std::move(overrides);
+    std::ranges::fill(m_dirty, true);
+    return {};
+}
+
 auto Material::parameter(const std::string& name) const -> const MaterialValue*
 {
     if (const auto found = m_overrides.find(name); found != m_overrides.end())

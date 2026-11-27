@@ -1,5 +1,6 @@
 module aegis.editor;
 import std;
+import aegis.asset_library;
 import aegis.assets;
 import aegis.core;
 import aegis.math;
@@ -17,7 +18,7 @@ auto nameOf(world::Registry& registry, world::Entity entity) -> const char*
 }
 
 // The entry's edits, one side of each, written to the world.
-auto apply(std::span<const Edit> edits, EditSide side, const EditorContext& editor, FrameContext& frame) -> bool
+auto apply(std::span<const Edit> edits, EditSide side, EditorContext& editor, FrameContext& frame) -> bool
 {
     const auto failures = applyEdits(editWorld(editor, frame), edits, side);
     for (const auto& failure : failures)
@@ -31,12 +32,18 @@ auto resolveAssets(FrameContext& frame) -> PrepareField
     return [&frame](const reflect::TypeInfo& type, void* object) { frame.assets.resolve(type, object, frame.types); };
 }
 
-auto editWorld(const EditorContext& editor, FrameContext& frame) -> EditWorld
+auto editWorld(EditorContext& editor, FrameContext& frame) -> EditWorld
 {
     return EditWorld{
         .types = frame.types,
         .registry = editor.world()->registry(),
         .prepare = resolveAssets(frame),
+        .materials = &editor.materials(),
+        .applyMaterial = [&frame](const MaterialDocument& document) -> std::expected<void, Error> {
+            if (auto applied = frame.assets.applyMaterialFile(assets::AssetId{ document.asset() }, document.file()); !applied)
+                return makeAssetError(describe(applied.error()), std::format("cannot show the edit of '{}'", document.fileName()));
+            return {};
+        },
     };
 }
 
