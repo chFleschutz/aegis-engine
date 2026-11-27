@@ -22,6 +22,13 @@ import :error;
 //             "Transform": { "location": [0, 0, 1.5], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1] }
 //           },
 //           "scripts": [{ "Rotator": { "speed": 1 } }]
+//         },
+//         {
+//           "id": "3b0f5e2a9c1d4e77",
+//           "name": "Lamp Prefab",
+//           "children": [],
+//           "components": { "SceneInstance": { "scene": "5d2c8e41a7f09b36" }, "Transform": { ... } },
+//           "overrides": { "7a21e4c90d3b5f86": { "PointLight": { "intensity": 300 } } }
 //         }
 //       ]
 //     }
@@ -34,6 +41,11 @@ import :error;
 // - Components and scripts are written by registered name, sorted by name, with every registered field in
 //   registration order. Reading accepts earlier names (aliases), any order and missing fields (they keep their
 //   defaults); unknown types and fields are errors.
+// - `overrides` (only on an entity with a SceneInstance, only written when there are any): field values that
+//   replace those of the instance's scene, by the local ID of the entity in that scene, then by component, as
+//   `components` are written. Their types are in the header's table, and a partial component object goes
+//   through the type's migrations like a whole one. A SceneInstance cannot be overridden (a nested instance
+//   keeps its scene).
 export namespace aegis::serialize
 {
 // The version of the scene layout itself (header, entity list), apart from the component types' versions.
@@ -47,6 +59,14 @@ struct SceneComponent
     reflect::Node fields;
 };
 
+// The overrides of one entity of an instance's scene: components with only the overridden fields.
+struct SceneOverrides
+{
+    std::uint64_t entity{ 0 };              // Its local ID in the instance's scene
+    std::vector<SceneComponent> components; // Sorted by type name
+    std::uint32_t line{ 0 };
+};
+
 struct SceneEntity
 {
     std::uint64_t id{ 0 };
@@ -54,6 +74,7 @@ struct SceneEntity
     std::vector<std::uint64_t> children;    // In sibling order
     std::vector<SceneComponent> components; // Sorted by type name
     std::vector<SceneComponent> scripts;    // In attach order
+    std::vector<SceneOverrides> overrides;  // Sorted by entity; only with a SceneInstance
     std::uint32_t line{ 0 };                // Where the entity starts in the file it was read from
 };
 
@@ -67,19 +88,43 @@ struct Scene
     std::vector<SceneEntity> entities; // Sorted by ID
 };
 
+// One field of an instance's entity set to a value of its own, replacing the scene's: the scene file's
+// `overrides`. Only entities of the instance's own scene can be overridden, not those of the instances it holds.
+struct InstanceOverride
+{
+    std::uint64_t entity{ 0 }; // Its local ID in the instance's scene
+    std::string component;     // The registered component type, by its current name
+    std::string field;         // By its current name
+    reflect::Value value;
+
+    friend auto operator==(const InstanceOverride&, const InstanceOverride&) -> bool = default;
+};
+
 // The entity holding an instance of `scene`: instantiating it creates the scene's entities as its descendants
-// (the scene's roots become its children), with IDs derived from its own (deriveEntityId). Saving writes the
-// holder with this component, not the entities of the instance. A scene may hold instances of other scenes.
+// (the scene's roots become its children), with IDs derived from its own (deriveEntityId), then writes the
+// overrides to them. Saving writes the holder with this component and its overrides, not the entities of the
+// instance. A scene may hold instances of other scenes.
 struct SceneInstance
 {
     assets::AssetRef<Scene> scene;
+    std::vector<InstanceOverride> overrides; // Sorted by entity, component and field; not a registered field
+
+    // The override of a field, or null.
+    [[nodiscard]] auto findOverride(std::uint64_t entity, std::string_view component, std::string_view field) const -> const InstanceOverride*;
+    // Adds the override, or replaces the value of the one for the same field.
+    void setOverride(InstanceOverride override);
+    // Removes the override of a field; false if there was none.
+    auto removeOverride(std::uint64_t entity, std::string_view component, std::string_view field) -> bool;
 };
 
 // An entity created by a scene instance, so saveScene leaves it out (its holder recreates it): `holder` is the
-// world ID of the entity holding the instance. Not registered; it is rebuilt at instantiation.
+// world ID of the entity holding the instance, `localId` the entity's ID in the instance's scene (what overrides
+// name it by). An entity of a nested instance names the nested holder. Not registered; it is rebuilt at
+// instantiation.
 struct InstanceMember
 {
     std::uint64_t holder{ 0 };
+    std::uint64_t localId{ 0 };
 };
 
 // Registers SceneInstance with world::registerComponent, so scene files can hold instances.
@@ -90,8 +135,19 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
 // and overrides name instance entities by it, so it must never change (a test pins it).
 [[nodiscard]] auto deriveEntityId(std::uint64_t holderId, std::uint64_t localId) -> std::uint64_t;
 
+// The value the scene gives the field `field` of the component `type` of its entity `localId`: the file's, or a
+// default instance's if the file leaves out the field or the component (every entity has a Transform). What
+// reverting an override writes back. Fails with MissingEntity for no such entity.
+[[nodiscard]] auto sceneValue(const Scene& scene, std::uint64_t localId, const reflect::TypeInfo& type, const reflect::FieldInfo& field)
+    -> std::expected<reflect::Value, Error>;
+
+// Whether `root` or one of its descendants holds an instance of the scene `scene`, directly or through the
+// instances it holds: a new instance in a world saved as `scene` must not.
+[[nodiscard]] auto holdsScene(world::Registry& registry, std::uint64_t scene, world::Entity root) -> bool;
+
 // Reads a scene file and checks it against the registry: its layout, every type and field, every value's
-// kind, entity IDs (unique and non-zero), children (existing, each listed once) and the hierarchy (no cycle).
+// kind, entity IDs (unique and non-zero), children (existing, each listed once), the hierarchy (no cycle) and
+// overrides (only on an entity with a SceneInstance).
 // Errors carry the line they are about.
 [[nodiscard]] auto parseScene(std::string_view text, const reflect::TypeRegistry& types) -> std::expected<Scene, Error>;
 
@@ -117,7 +173,10 @@ using PrepareComponent = std::function<void(const reflect::TypeInfo& type, void*
 // Creates the scene's entities in `registry`, keeping their IDs (a world's root scene, a level), with their
 // components, scripts and hierarchy, then the entities of the scene instances they hold. Each component is
 // built complete (its fields read, then `prepare`) before it is added, so observers of its construction see the
-// final value; without `prepare`, asset references stay unresolved (an ID without a slot). A singleton
+// final value; without `prepare`, asset references stay unresolved (an ID without a slot). An instance's
+// overrides are written to its components before `prepare`; one whose entity or component is gone from the
+// instance's scene, or whose value the field's setter refuses, is skipped with a warning and kept on the holder
+// (parseScene already checked its type, field and kind). A singleton
 // component (the sky, the main camera) the world already has is dropped with a warning. On failure (an ID the
 // registry already uses, a value that does not fit its field, a type that cannot be created, an instance whose
 // scene did not load, a scene that holds itself through its instances) nothing is created.

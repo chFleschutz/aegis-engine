@@ -8,6 +8,7 @@ aegis_add_test(
         model.test.cpp
         scene.test.cpp
         scene_instance.test.cpp
+        scene_override.test.cpp
         script_spawn.test.cpp
         subtree.test.cpp
     LIBS
