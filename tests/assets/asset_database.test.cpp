@@ -530,6 +530,7 @@ TEST_SUITE("assets::AssetDatabase")
         // A removed source's sidecar keeps its ID in the database; a removed native file takes its ID along
         CHECK(database->find(AssetId{ 3 }));
         CHECK_FALSE(database->find(AssetId{ 4 }));
+        CHECK(changes->gone == std::vector<AssetId>{ AssetId{ 4 } });
         CHECK(database->find(AssetId{ 5 }));
 
         const auto again = database->rescan();

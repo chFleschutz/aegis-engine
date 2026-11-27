@@ -58,20 +58,21 @@ public:
         if (auto taken = claimName(T::assetType, typeid(T), entry.loader != nullptr); !taken)
             return std::unexpected{ std::move(taken.error()) };
         entry.loader = std::make_shared<const AssetLoader<T>>(std::move(loader));
-        entry.reload = [](AssetCache& cache, assets::AssetId id) { return cache.reloadAs<T>(id); };
+        entry.reload = [](AssetCache& cache, assets::AssetId id, bool log) { return cache.reloadAs<T>(id, log); };
         return {};
     }
 
     /// @brief Loads 'id' again for every asset type that has a slot of it, ready or failed, through the type's loader,
     ///        and gives that slot the new contents: the new object, or the loaded one updated by the loader's update
     ///        hook. A failed load gives the slot the loader's fallback (or, with an update hook, updates the loaded object
-    ///        to it) and logs it, like a first load. A type whose loader is not ready, or a pending slot, is skipped.
+    ///        to it) and logs it, like a first load (unless 'logFailures' is false: a part whose owner's failure was
+    ///        logged). A type whose loader is not ready, or a pending slot, is skipped.
     /// @return The names of the asset types it reloaded 'id' as.
-    auto reload(assets::AssetId id) -> std::vector<std::string_view>
+    auto reload(assets::AssetId id, bool logFailures = true) -> std::vector<std::string_view>
     {
         std::vector<std::string_view> reloaded;
         // A copy: a loader may load assets of a type that has no entry yet, which adds one
-        std::vector<std::pair<std::string_view, std::function<bool(AssetCache&, assets::AssetId)>>> types;
+        std::vector<std::pair<std::string_view, std::function<bool(AssetCache&, assets::AssetId, bool)>>> types;
         for (const auto& [index, entry] : m_types)
         {
             if (entry.reload)
@@ -79,7 +80,7 @@ public:
         }
         for (const auto& [name, reloadAs] : types)
         {
-            if (reloadAs(*this, id))
+            if (reloadAs(*this, id, logFailures))
                 reloaded.push_back(name);
         }
         return reloaded;
@@ -145,7 +146,7 @@ private:
         std::shared_ptr<const void> loader;                               // An AssetLoader<T>, or null
         std::unordered_map<assets::AssetId, std::shared_ptr<void>> slots; // AssetSlot<T>s
         std::string_view name;                                            // T::assetType
-        std::function<bool(AssetCache&, assets::AssetId)> reload;         // reloadAs<T>, once T has a loader
+        std::function<bool(AssetCache&, assets::AssetId, bool)> reload;   // reloadAs<T>, once T has a loader
     };
 
     template<Asset T>
@@ -158,7 +159,7 @@ private:
 
     // Reloads the slot of 'id' as a T, if it has one that is not pending and T's loader can run; false otherwise.
     template<Asset T>
-    auto reloadAs(assets::AssetId id) -> bool
+    auto reloadAs(assets::AssetId id, bool log) -> bool
     {
         auto& type = typeEntry<T>();
         const auto found = type.slots.find(id);
@@ -195,7 +196,7 @@ private:
             return true;
         }
 
-        if (loader->logFailures)
+        if (log && loader->logFailures)
             logFailure(T::assetType, id, loaded.error(), inPlace || loader->fallback);
         if (inPlace)
         {

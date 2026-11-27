@@ -35,8 +35,9 @@ struct SourceChanges
     std::vector<SourceFile> changed; // Written since: the source's (or its sidecar's) modification time or size differs
     std::vector<SourceFile> added;   // New since, or back after it was removed
     std::vector<SourceFile> removed; // Gone since: the source (its sidecar may stay, keeping its IDs), or its sidecar too
+    std::vector<AssetId> gone;       // IDs no longer in the database (a removed native file's, a removed sidecar's), sorted
 
-    [[nodiscard]] auto empty() const noexcept -> bool { return changed.empty() && added.empty() && removed.empty(); }
+    [[nodiscard]] auto empty() const noexcept -> bool { return changed.empty() && added.empty() && removed.empty() && gone.empty(); }
 };
 
 /// @brief The index of every asset in the project and the engine content: `ID → path (+ key)`, the one place

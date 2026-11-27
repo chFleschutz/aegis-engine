@@ -422,6 +422,11 @@ auto AssetDatabase::rescan() -> std::expected<SourceChanges, Error>
         return std::unexpected{ std::move(scanned.error()) };
 
     auto changes = diff(m_files, scanned->m_files);
+    for (const auto& entry : m_entries)
+    {
+        if (!scanned->find(entry.id))
+            changes.gone.push_back(entry.id); // m_entries is sorted by ID
+    }
     const bool rewrite = scanned->m_filesRead > 0 || !changes.empty();
     *this = std::move(*scanned);
     if (rewrite)
