@@ -44,6 +44,7 @@ auto editWorld(EditorContext& editor, FrameContext& frame) -> EditWorld
                 return makeAssetError(describe(applied.error()), std::format("cannot show the edit of '{}'", document.fileName()));
             return {};
         },
+        .scene = editor.scene().value_or(0),
     };
 }
 
@@ -110,6 +111,43 @@ auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool
     }
     editor.selection().clear();
     return destroyed;
+}
+
+auto canUnpackSelected(const EditorContext& editor) -> bool
+{
+    if (!editor.world())
+        return false;
+    auto& registry = editor.world()->registry();
+    return std::ranges::any_of(selectedRoots(registry, editor.selection()), [&registry](world::Entity root) { return canUnpack(registry, root); });
+}
+
+auto unpackSelected(EditorContext& editor, FrameContext& frame) -> bool
+{
+    if (!editor.world())
+        return false;
+    auto& registry = editor.world()->registry();
+    std::vector<world::Entity> holders;
+    for (const auto root : selectedRoots(registry, editor.selection()))
+    {
+        if (canUnpack(registry, root))
+            holders.push_back(root);
+    }
+    if (holders.empty())
+        return false;
+    auto& history = editor.undoStack();
+    std::optional<UndoGroup> group;
+    if (holders.size() > 1)
+        group.emplace(history, std::format("Unpack {} instances", holders.size()));
+
+    bool unpacked = false;
+    for (const auto holder : holders)
+    {
+        if (auto result = unpackInstance(editWorld(editor, frame), history, holder))
+            unpacked = true;
+        else
+            log::warn("Cannot unpack '{}': {}", nameOf(registry, holder), describe(result.error()));
+    }
+    return unpacked;
 }
 
 auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t asset, world::Entity parent, std::optional<math::Float3> location) -> bool

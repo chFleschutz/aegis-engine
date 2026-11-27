@@ -285,6 +285,21 @@ _Avoid_: sub-resource, embedded asset
 The `<file>.<ext>.meta` file next to a foreign source file, holding its `AssetId`, its import settings and its sub-assets' IDs.
 _Avoid_: meta file, metadata file
 
+**Scene instance**:
+The entities a scene asset (a prefab, a model) produced in a world, below the holder, which keeps a link to that scene and recreates them from it.
+_Avoid_: prefab instance
+
+**Holder**:
+The entity a scene instance hangs below, which saves as the link to the scene instead of the instance's entities.
+
+**Override**:
+A field of a scene instance's entity set to a value of the instance's own, stored on the holder by the entity's local ID, component and field, and written over the scene's value.
+_Avoid_: modification, property override
+
+**Unpack**:
+Turning a scene instance's entities into plain entities of the scene that holds it, dropping the link and its overrides.
+_Avoid_: break prefab, make local
+
 ### Tests
 
 **Device test**:

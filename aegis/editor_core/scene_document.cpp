@@ -9,6 +9,7 @@ namespace aegis::editor
 void SceneDocument::opened(std::optional<std::uint64_t> scene)
 {
     m_scene = scene;
+    m_context.setScene(scene);
     m_context.resetScene();
     m_autosaveFrom.reset();
     m_recovery.reset();
@@ -64,6 +65,7 @@ void SceneDocument::saved()
 void SceneDocument::savedAs(std::uint64_t scene)
 {
     const auto before = std::exchange(m_scene, scene); // Its autosave holds the changes this saved
+    m_context.setScene(scene);
     m_context.markSaved();
     deleteAutosave(before);
     runPending();

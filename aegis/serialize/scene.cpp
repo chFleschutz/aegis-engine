@@ -70,10 +70,55 @@ auto resolveType(const reflect::TypeRegistry& types, const std::map<const reflec
     return std::pair{ type, version->second };
 }
 
+auto byName(const SceneComponent& component) -> const std::string&
+{
+    return component.type->name;
+}
+
+// An entity's "overrides": by the local ID of an entity of the instance's scene, its components with the
+// overridden fields, read like "components".
+auto readOverrides(const Node& node, const reflect::TypeRegistry& types, const std::map<const reflect::TypeInfo*, std::uint32_t>& versions)
+    -> std::expected<std::vector<SceneOverrides>, Error>
+{
+    std::vector<SceneOverrides> result;
+    for (const Node& entry : node.items)
+    {
+        Node idNode = Node::makeString(entry.key);
+        idNode.line = entry.line;
+        auto id = parseId(idNode, "the entity ID of an override");
+        if (!id)
+            return std::unexpected{ id.error() };
+        if (std::ranges::contains(result, *id, &SceneOverrides::entity))
+            return makeError(ErrorCode::InvalidData, std::format("the overrides of {} are listed twice", formatId(*id)), entry.line);
+        if (auto checked = expectKind(entry, Node::Kind::Object, std::format("the overrides of {}", formatId(*id))); !checked)
+            return std::unexpected{ checked.error() };
+
+        SceneOverrides overrides{ .entity = *id, .line = entry.line };
+        for (const Node& saved : entry.items)
+        {
+            auto type = resolveType(types, versions, saved, reflect::TypeCategory::Component);
+            if (!type)
+                return std::unexpected{ type.error() };
+            if (type->first->type == typeid(SceneInstance))
+                return makeError(ErrorCode::InvalidData, "a SceneInstance cannot be overridden", saved.line);
+            if (std::ranges::contains(overrides.components, type->first, &SceneComponent::type))
+                return makeError(ErrorCode::InvalidData, std::format("the overrides of {} have '{}' twice", formatId(*id), type->first->name), saved.line);
+            auto component = readComponent(*type->first, type->second, saved);
+            if (!component)
+                return std::unexpected{ component.error() };
+            overrides.components.push_back(std::move(*component));
+        }
+        std::ranges::sort(overrides.components, {}, byName);
+        result.push_back(std::move(overrides));
+    }
+    std::ranges::sort(result, {}, &SceneOverrides::entity);
+    return result;
+}
+
 auto readEntity(const Node& node, const reflect::TypeRegistry& types, const std::map<const reflect::TypeInfo*, std::uint32_t>& versions)
     -> std::expected<SceneEntity, Error>
 {
-    static constexpr auto keys = std::to_array<std::string_view>({ "id", "name", "children", "components", "scripts" });
+    static constexpr auto keys = std::to_array<std::string_view>({ "id", "name", "children", "components", "overrides", "scripts" });
     if (auto checked = expectKind(node, Node::Kind::Object, "an entity"); !checked)
         return std::unexpected{ checked.error() };
     if (auto checked = checkKeys(node, keys, "an entity"); !checked)
@@ -148,6 +193,20 @@ auto readEntity(const Node& node, const reflect::TypeRegistry& types, const std:
                 return std::unexpected{ script.error() };
             entity.scripts.push_back(std::move(*script));
         }
+    }
+
+    auto overrides = optional(node, "overrides", Node::Kind::Object);
+    if (!overrides)
+        return std::unexpected{ overrides.error() };
+    if (*overrides)
+    {
+        const bool holder = std::ranges::any_of(entity.components, [](const SceneComponent& component) { return component.type->type == typeid(SceneInstance); });
+        if (!holder)
+            return makeError(ErrorCode::InvalidData, "only an entity with a SceneInstance has overrides", (*overrides)->line);
+        auto read = readOverrides(**overrides, types, versions);
+        if (!read)
+            return std::unexpected{ read.error() };
+        entity.overrides = std::move(*read);
     }
     return entity;
 }
@@ -247,6 +306,58 @@ namespace
 {
 using StoredComponents = std::vector<std::pair<const reflect::TypeInfo*, const world::ComponentStorage*>>;
 
+// A holder's overrides as the file groups them: by entity, then by component.
+auto saveOverrides(const reflect::TypeRegistry& types, std::span<const InstanceOverride> overrides) -> std::expected<std::vector<SceneOverrides>, Error>
+{
+    std::vector<SceneOverrides> saved;
+    for (const InstanceOverride& entry : overrides)
+    {
+        const reflect::TypeInfo* type = types.find(entry.component);
+        const reflect::FieldInfo* field = type ? type->findField(entry.field) : nullptr;
+        if (!field)
+            return makeError(ErrorCode::UnknownField, std::format("the override of '{}.{}' names no registered field", entry.component, entry.field));
+        auto node = reflect::toNode(field->kind, entry.value, field->enumEntries);
+        if (!node)
+            return makeError(ErrorCode::InvalidValue, node.error(), std::format("cannot save the override of '{}.{}'", type->name, field->name));
+
+        auto entity = std::ranges::find(saved, entry.entity, &SceneOverrides::entity);
+        if (entity == saved.end())
+            entity = saved.insert(saved.end(), SceneOverrides{ .entity = entry.entity });
+        auto component = std::ranges::find(entity->components, type, &SceneComponent::type);
+        if (component == entity->components.end())
+            component = entity->components.insert(entity->components.end(), SceneComponent{ .type = type, .fields = Node::makeObject() });
+        component->fields.set(field->name, std::move(*node));
+    }
+    std::ranges::sort(saved, {}, &SceneOverrides::entity);
+    for (SceneOverrides& entity : saved)
+        std::ranges::sort(entity.components, {}, byName);
+    return saved;
+}
+
+// The overrides a scene file gives a holder, as its SceneInstance keeps them.
+auto loadOverrides(std::span<const SceneOverrides> saved) -> std::expected<std::vector<InstanceOverride>, Error>
+{
+    std::vector<InstanceOverride> overrides;
+    for (const SceneOverrides& entity : saved)
+    {
+        for (const SceneComponent& component : entity.components)
+        {
+            for (const Node& node : component.fields.items)
+            {
+                const reflect::FieldInfo* field = component.type->findField(node.key);
+                if (!field)
+                    return makeError(ErrorCode::UnknownField, std::format("type '{}' has no field '{}'", component.type->name, node.key), node.line);
+                auto value = reflect::fromNode(field->kind, node, field->enumEntries);
+                if (!value)
+                    return makeError(ErrorCode::InvalidValue, value.error(), std::format("bad value for '{}.{}'", component.type->name, field->name), node.line);
+                overrides.push_back({ .entity = entity.entity, .component = component.type->name, .field = field->name, .value = std::move(*value) });
+            }
+        }
+    }
+    std::ranges::sort(overrides, {}, [](const InstanceOverride& entry) { return std::tie(entry.entity, entry.component, entry.field); });
+    return overrides;
+}
+
 // The registered components that live on entities, by name
 auto storedComponents(const reflect::TypeRegistry& types) -> StoredComponents
 {
@@ -282,6 +393,14 @@ auto saveEntity(world::Registry& registry, const reflect::TypeRegistry& types, c
                 return std::unexpected{ component.error() };
             saved.components.push_back(std::move(*component));
         }
+    }
+
+    if (registry.has<SceneInstance>(entity))
+    {
+        auto overrides = saveOverrides(types, registry.get<SceneInstance>(entity).overrides);
+        if (!overrides)
+            return std::unexpected{ std::move(overrides.error()) };
+        saved.overrides = std::move(*overrides);
     }
 
     if (registry.has<scripting::Scripts>(entity))
@@ -414,6 +533,9 @@ private:
         const std::uint64_t holderId = holder ? m_registry.get<StableId>(holder).value : 0;
         std::unordered_map<std::uint64_t, world::Entity> created; // By local ID
         std::vector<std::pair<world::Entity, const SceneEntity*>> holders;
+        // A copy: creating the scene's own holders adds SceneInstance components, which may move the holder's
+        const std::vector<InstanceOverride> overrides = holder ? m_registry.get<SceneInstance>(holder).overrides : std::vector<InstanceOverride>{};
+        std::vector<bool> applied(overrides.size(), false);
 
         for (const SceneEntity& saved : scene.entities)
         {
@@ -424,12 +546,21 @@ private:
             m_created.push_back(entity);
             created.emplace(saved.id, entity);
             if (holder)
-                m_registry.add<InstanceMember>(entity, InstanceMember{ holderId });
+                m_registry.add<InstanceMember>(entity, InstanceMember{ .holder = holderId, .localId = saved.id });
 
-            if (auto added = addComponents(saved, entity, id); !added)
+            if (auto added = addComponents(saved, entity, id, overrides, applied); !added)
                 return std::unexpected{ std::move(added.error()) };
             if (m_registry.has<SceneInstance>(entity))
                 holders.emplace_back(entity, &saved);
+        }
+
+        for (std::size_t i = 0; i < overrides.size(); ++i)
+        {
+            if (!applied[i])
+            {
+                log::warn("The override of {}.{} on entity {} of scene {} (held by entity {}) no longer applies; it is kept", overrides[i].component,
+                    overrides[i].field, formatId(overrides[i].entity), formatId(scene.id), formatId(holderId));
+            }
         }
 
         for (const SceneEntity& saved : scene.entities)
@@ -482,7 +613,9 @@ private:
         return {};
     }
 
-    auto addComponents(const SceneEntity& saved, world::Entity entity, std::uint64_t id) -> std::expected<void, Error>
+    // `overrides` are the holder's (none for a world's root scene); those written are marked in `applied`.
+    auto addComponents(const SceneEntity& saved, world::Entity entity, std::uint64_t id, std::span<const InstanceOverride> overrides, std::vector<bool>& applied)
+        -> std::expected<void, Error>
     {
         for (const SceneComponent& component : saved.components)
         {
@@ -506,9 +639,35 @@ private:
                 return makeError(ErrorCode::UnknownType, value.error(), std::format("cannot create '{}'", component.type->name), component.fields.line);
             if (auto loaded = loadFields(component, value->get()); !loaded)
                 return loaded;
+            if (component.type->type == typeid(SceneInstance) && !saved.overrides.empty())
+            {
+                auto loadedOverrides = loadOverrides(saved.overrides);
+                if (!loadedOverrides)
+                    return std::unexpected{ std::move(loadedOverrides.error()) };
+                static_cast<SceneInstance*>(value->get())->overrides = std::move(*loadedOverrides);
+            }
+            applyOverrides(*component.type, value->get(), saved.id, overrides, applied);
             if (m_prepare)
                 m_prepare(*component.type, value->get());
             storage->add(m_registry, entity, value->get());
+        }
+
+        // The components every entity has, which the file may leave out (its Transform), are written in place
+        for (std::size_t i = 0; i < overrides.size(); ++i)
+        {
+            const InstanceOverride& entry = overrides[i];
+            if (applied[i] || entry.entity != saved.id)
+                continue;
+            const reflect::TypeInfo* type = m_types.find(entry.component);
+            const auto* storage = type ? type->attachment<world::ComponentStorage>() : nullptr;
+            void* component = storage ? storage->find(m_registry, entity) : nullptr;
+            const reflect::FieldInfo* field = component ? type->findField(entry.field) : nullptr;
+            if (field && field->setter(component, entry.value))
+            {
+                applied[i] = true;
+                if (storage->changed)
+                    storage->changed(m_registry, entity);
+            }
         }
 
         for (const SceneComponent& script : saved.scripts)
@@ -520,6 +679,20 @@ private:
                 return loaded;
         }
         return {};
+    }
+
+    // Writes the overrides of the component `type` of the entity `localId` to `component`.
+    static void applyOverrides(const reflect::TypeInfo& type, void* component, std::uint64_t localId, std::span<const InstanceOverride> overrides, std::vector<bool>& applied)
+    {
+        for (std::size_t i = 0; i < overrides.size(); ++i)
+        {
+            const InstanceOverride& entry = overrides[i];
+            if (entry.entity != localId || entry.component != type.name)
+                continue;
+            const reflect::FieldInfo* field = type.findField(entry.field);
+            if (field && field->setter(component, entry.value))
+                applied[i] = true;
+        }
     }
 
     world::Registry& m_registry;
@@ -549,6 +722,63 @@ auto deriveEntityId(std::uint64_t holderId, std::uint64_t localId) -> std::uint6
         bytes[8 + i] = static_cast<unsigned char>(localId >> (8 * i));
     }
     return XXH3_64bits(bytes.data(), bytes.size());
+}
+
+auto SceneInstance::findOverride(std::uint64_t entity, std::string_view component, std::string_view field) const -> const InstanceOverride*
+{
+    const auto found = std::ranges::find_if(overrides, [&](const InstanceOverride& entry) { return entry.entity == entity && entry.component == component && entry.field == field; });
+    return found != overrides.end() ? &*found : nullptr;
+}
+
+void SceneInstance::setOverride(InstanceOverride entry)
+{
+    const auto key = [](const InstanceOverride& value) { return std::tie(value.entity, value.component, value.field); };
+    const auto place = std::ranges::lower_bound(overrides, key(entry), {}, key);
+    if (place != overrides.end() && key(*place) == key(entry))
+        place->value = std::move(entry.value);
+    else
+        overrides.insert(place, std::move(entry));
+}
+
+auto SceneInstance::removeOverride(std::uint64_t entity, std::string_view component, std::string_view field) -> bool
+{
+    return std::erase_if(overrides, [&](const InstanceOverride& entry) { return entry.entity == entity && entry.component == component && entry.field == field; }) > 0;
+}
+
+auto sceneValue(const Scene& scene, std::uint64_t localId, const reflect::TypeInfo& type, const reflect::FieldInfo& field) -> std::expected<reflect::Value, Error>
+{
+    const auto entity = std::ranges::find(scene.entities, localId, &SceneEntity::id);
+    if (entity == scene.entities.end())
+        return makeError(ErrorCode::MissingEntity, std::format("the scene {} has no entity {}", formatId(scene.id), formatId(localId)));
+    const auto component = std::ranges::find(entity->components, &type, &SceneComponent::type);
+    if (const Node* node = component != entity->components.end() ? component->fields.find(field.name) : nullptr)
+    {
+        auto value = reflect::fromNode(field.kind, *node, field.enumEntries);
+        if (!value)
+            return makeError(ErrorCode::InvalidValue, value.error(), std::format("bad value for '{}.{}'", type.name, field.name), node->line);
+        return std::move(*value);
+    }
+    auto instance = type.create();
+    if (!instance)
+        return makeError(ErrorCode::UnknownType, instance.error(), std::format("cannot create '{}'", type.name));
+    return field.getter(instance->get());
+}
+
+auto holdsScene(world::Registry& registry, std::uint64_t scene, world::Entity root) -> bool
+{
+    // The instances an instance holds have their holders in the world too, so the world shows every level
+    const auto holds = [&](world::Entity entity) { return registry.has<SceneInstance>(entity) && registry.get<SceneInstance>(entity).scene.id().value == scene; };
+    std::vector<world::Entity> pending{ root };
+    while (!pending.empty())
+    {
+        const world::Entity entity = pending.back();
+        pending.pop_back();
+        if (holds(entity))
+            return true;
+        for (world::Entity child = registry.get<Children>(entity).first; child; child = registry.get<Siblings>(child).next)
+            pending.push_back(child);
+    }
+    return false;
 }
 
 auto parseScene(std::string_view text, const reflect::TypeRegistry& types) -> std::expected<Scene, Error>
@@ -613,6 +843,11 @@ auto writeScene(const Scene& scene) -> std::string
             for (const SceneComponent& component : *list)
                 typeVersions.emplace(component.type->name, component.type->version);
         }
+        for (const SceneOverrides& overrides : entity.overrides)
+        {
+            for (const SceneComponent& component : overrides.components)
+                typeVersions.emplace(component.type->name, component.type->version);
+        }
     }
 
     Node root = writeHeader(sceneType, scene.id, sceneVersion);
@@ -642,6 +877,25 @@ auto writeScene(const Scene& scene) -> std::string
         Node& componentNode = node.add("components", Node::makeObject());
         for (const SceneComponent* component : components)
             componentNode.add(component->type->name, orderedFields(*component));
+
+        if (!entity->overrides.empty())
+        {
+            std::vector<const SceneOverrides*> overridden;
+            for (const SceneOverrides& overrides : entity->overrides)
+                overridden.push_back(&overrides);
+            std::ranges::sort(overridden, {}, [](const SceneOverrides* overrides) { return overrides->entity; });
+            Node& overridesNode = node.add("overrides", Node::makeObject());
+            for (const SceneOverrides* overrides : overridden)
+            {
+                std::vector<const SceneComponent*> sorted;
+                for (const SceneComponent& component : overrides->components)
+                    sorted.push_back(&component);
+                std::ranges::sort(sorted, {}, [](const SceneComponent* component) -> const std::string& { return component->type->name; });
+                Node& entityNode = overridesNode.add(formatId(overrides->entity), Node::makeObject());
+                for (const SceneComponent* component : sorted)
+                    entityNode.add(component->type->name, orderedFields(*component));
+            }
+        }
 
         if (!entity->scripts.empty())
         {

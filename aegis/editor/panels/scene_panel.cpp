@@ -322,6 +322,8 @@ private:
         m_actions.menuItem("edit.duplicate", frame);
         m_actions.menuItem("edit.delete", frame);
         m_actions.menuItem("edit.focus", frame);
+        if (canUnpack(registry, row))
+            m_actions.menuItem("edit.unpack", frame);
         // A scene instance's members take no children: they are recreated from its scene
         if (!registry.has<serialize::InstanceMember>(row))
         {
@@ -343,7 +345,7 @@ private:
     }
 
     // The kind's icon and the name on the row just drawn, which has no label of its own. The members of a scene instance
-    // are muted and locked: the Inspector shows them read-only.
+    // are muted; those of an instance nested in another are locked too: the Inspector shows them read-only.
     static void drawRowLabel(world::Registry& registry, world::Entity entity, bool selected)
     {
         const auto kind = entityKind(registry, entity);
@@ -361,7 +363,7 @@ private:
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddText(position, iconColor, icon);
         position.x += ImGui::CalcTextSize(icon).x + spacing;
-        if (!member)
+        if (!member || entityAccess(registry, entity) != EntityAccess::Locked)
         {
             drawList->AddText(position, textColor, name);
             return;

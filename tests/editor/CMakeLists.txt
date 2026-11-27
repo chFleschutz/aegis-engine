@@ -17,6 +17,7 @@ aegis_add_test(
         hierarchy.test.cpp
         inspector.test.cpp
         material_document.test.cpp
+        overrides.test.cpp
         picking.test.cpp
         play.test.cpp
         preferences.test.cpp

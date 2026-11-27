@@ -272,11 +272,15 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - **Scripts:** a "Scripts" section lists the entity's `ScriptEntry`s, each with its registered fields
   through `ScriptEntry::object`. The one "Add..." popup lists the registry's script types after the components. Attach
   and detach are commands.
-- **Instance members are read-only** until overrides exist ([#142]). Entities created by a scene
-  instance carry `InstanceMember`, and `saveScene` leaves them out, so an edit to them would be lost
-  without warning. The inspector shows them disabled, with a note naming the instanced scene, and the
-  hierarchy shows instances with their own icon. The holder (with its `SceneInstance` and
-  `Transform`) stays editable.
+- **Instance members are edited through overrides** ([#142]). Entities created by a scene instance
+  carry `InstanceMember`, and `saveScene` leaves them out: the holder recreates them. Their component
+  fields stay editable (the inspector, Reset, Paste, the gizmo), and each edit records an override on
+  the holder's `SceneInstance` (`OverrideEdit`), which the scene file saves; an accent bar marks the
+  overridden rows and "Revert Overrides" in a section's menu drops them. Names, scripts, components and
+  the hierarchy stay the scene's. Entities of an instance nested in another are read-only (a note says
+  so, the hierarchy locks them, the gizmo leaves them out). Edit > Unpack (also in a row's menu) makes an
+  instance's entities plain entities of the scene. Instancing a scene that holds the scene being
+  edited is refused.
 - **Custom drawers are the exception.** The generic drawer plus metadata covers every built-in type.
   A drawer registry keyed by type name (editor-side) exists for the few that need more (a future
   `SkinnedMesh`, curves). A game registers drawers from its editor-only sources. Nothing in the
@@ -394,7 +398,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - Render debug views (G-buffer channels, wireframe, overdraw), an orthographic editor camera and a view menu for them.
 - Asset thumbnails (textures directly; meshes and materials through an offscreen preview render).
 - "Extract material" ([#245]): a model's material moved into a material file, which the Material panel ([#141]) edits.
-- Asset hot reload ([#143]); prefab overrides, unpacking and an "edit prefab" mode ([#142]).
+- Asset hot reload ([#143]); an "edit prefab" mode, overrides of nested instances and of scripts, and
+  "Unpack Completely" (prefab overrides and unpacking are done: [#142]).
 - A separate Game panel next to the Scene viewport while playing (needs two views in one frame).
 - Project settings panel (startup scene, window defaults), recent projects, and a welcome screen when
   there is no `--project`.

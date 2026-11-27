@@ -86,9 +86,11 @@ TEST_SUITE("editor::SceneDocument")
         editor.document.opened(7);
 
         CHECK(editor.document.scene() == 7u);
+        CHECK(editor.context.scene() == 7u); // What instances in the world may not hold
         CHECK_FALSE(editor.document.unsaved());
         editor.document.opened(std::nullopt);
         CHECK_FALSE(editor.document.scene());
+        CHECK_FALSE(editor.context.scene());
     }
 
     TEST_CASE("open with unsaved changes asks first")
@@ -160,6 +162,7 @@ TEST_SUITE("editor::SceneDocument")
         editor.document.savedAs(9);
 
         CHECK(editor.document.scene() == 9u);
+        CHECK(editor.context.scene() == 9u);
         CHECK_FALSE(editor.document.unsaved());
         CHECK(editor.document.waiting() == Wait::None);
         CHECK_FALSE(std::filesystem::exists(before)); // The old scene's autosave held the changes it saved

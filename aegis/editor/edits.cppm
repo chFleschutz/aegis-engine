@@ -30,6 +30,13 @@ auto duplicateSelected(EditorContext& editor, FrameContext& frame) -> bool;
 ///        selection; false if nothing is selected or every destroy failed (logged).
 auto destroySelected(EditorContext& editor, FrameContext& frame) -> bool;
 
+/// @brief Whether a selected root holds a scene instance that can be unpacked (canUnpack).
+[[nodiscard]] auto canUnpackSelected(const EditorContext& editor) -> bool;
+
+/// @brief Unpacks the scene instances the selected roots hold (unpackInstance) as one undo entry; false if none holds
+///        one or every unpack failed (logged).
+auto unpackSelected(EditorContext& editor, FrameContext& frame) -> bool;
+
 /// @brief Instantiates the scene or model 'asset' under 'parent' (a root for a null one), at 'location' if given,
 ///        undoably, and selects it; false if it failed (logged).
 auto instantiateAsset(EditorContext& editor, FrameContext& frame, std::uint64_t asset, world::Entity parent, std::optional<math::Float3> location = std::nullopt) -> bool;

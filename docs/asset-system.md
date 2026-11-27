@@ -333,9 +333,17 @@ holding an instance carries `SceneInstance { AssetRef<Scene> scene; }`.
    one). The project file names the startup scene; which scenes are levels is down to folders or tags.
 2. **Nothing world-level outside entities.** No scene settings section: sky, gravity and the active
    camera are components. For singletons the first wins and duplicates warn.
-3. **Overrides (later):** `(localId, component, field) = value` entries next to the instance,
-   applied after the child scene. The first version has none.
-4. **Unpack** copies an instance's entities into the parent scene and drops the link.
+3. **Overrides** (#142): `(localId, component, field) = value` entries next to the instance, in the
+   holder's `"overrides"`, grouped by the entity's local ID and then by component like `"components"`:
+   `"overrides": { "7a21e4c90d3b5f86": { "PointLight": { "intensity": 300 } } }`. Their types are in the
+   header's table and go through migrations like whole components. Instantiating applies the child
+   scene, then the overrides. They reach only the entities of the instance's own scene (a nested holder
+   included), not those of the instances it holds, and only component fields (no names or scripts). An
+   override whose entity or component is gone from the child scene is skipped with a warning and kept;
+   one whose field is gone from its type fails the load, as a component's would. A SceneInstance cannot
+   be overridden.
+4. **Unpack** copies an instance's entities into the parent scene and drops the link and its
+   overrides; one level, so the instances it holds stay instances.
 5. **Cycles** fail at load with the chain in the error; the editor refuses to create them.
 
 ## Values
@@ -567,7 +575,8 @@ accidental format change then fails CI instead of breaking a project.
 ## Open
 
 - `.blend` import through headless Blender, which every importing machine would need.
-- Override details; a `.prefab` extension for the browser (same format either way).
+- Overrides of nested instances (a path of local IDs) and of scripts; a `.prefab` extension for the
+  browser (same format either way).
 - Soft references, hot reload and streaming.
 - Game shaders: content (imported and compiled by the asset pipeline, as material shaders would be)
   or source (`src/`, compiled by CMake through `aegis_add_shaders`, as the engine's are). The engine
