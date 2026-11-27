@@ -129,6 +129,9 @@ public:
     auto verifyGraphRebuild(bool gpuDriven) -> std::expected<void, std::string>;
     auto verifyPipelineSharing(bool gpuDriven) -> std::expected<void, std::string>;
 
+    // checks/motion_vectors.cpp
+    auto verifyMotionVectors(bool gpuDriven) -> std::expected<void, std::string>;
+
 private:
     // One pool per frame in flight, so a frame's timestamps are read only after the GPU finished it.
     struct FrameTimer

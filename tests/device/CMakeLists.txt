@@ -12,6 +12,7 @@ target_sources(
         checks/ibl.cpp
         checks/input.cpp
         checks/material_file.cpp
+        checks/motion_vectors.cpp
         checks/offscreen.cpp
         checks/rhi.cpp
         checks/scene.cpp
