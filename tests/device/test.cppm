@@ -65,6 +65,8 @@ struct Options
     bool spawn{ false };        // With --scene: a script spawns the engine's cube and destroys it again (see SceneShell::checkSpawn)
     bool materialFile{ false }; // Headless: a scene in a temporary project renders with its material file, and again after the
                                 // file changed (see runMaterialFile)
+    bool hotReload{ false };    // Headless: a texture of a temporary project changed, deleted and written back while the engine
+                                // runs reaches the frame through a rescan and a reload (see runHotReload)
     bool gameplay{ false };     // Headless: run the gameplay scene (gameplaySceneFile) for the same simulated time at three frame
                                 // times with scripted input, and check that it plays the same (see runGameplay)
 };
@@ -86,6 +88,9 @@ auto runGameplay(const Options& options) -> int;
 // checks/material_file.cpp: --material-file, a scene that names a material file rendered three times by fresh engines: the
 // file, the file changed, and an edited copy applied to the loaded material. Needs no sample project. Returns the exit code.
 auto runMaterialFile(const Options& options) -> int;
+// checks/hot_reload.cpp: --hot-reload, a texture of a temporary project rewritten, deleted and written back while one engine
+// renders it, each change rescanned and reloaded (AssetLibrary::reload). Needs no sample project. Returns the exit code.
+auto runHotReload(const Options& options) -> int;
 
 // The triangle and the device checks, on a device of its own: they test the RHI under the engine, not its startup.
 class Harness

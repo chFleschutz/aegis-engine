@@ -255,8 +255,11 @@ public:
     {
         // Importing a model adds its parts to the database, so it changes outside a rescan too
         const auto& database = frame.assets.database();
-        if (!m_built || database.size() != m_builtSize)
+        if (!m_built || database.size() != m_builtSize || editor.assetsVersion() != m_builtVersion)
+        {
             rebuild(database);
+            m_builtVersion = editor.assetsVersion();
+        }
 
         drawToolbar(editor, frame);
         if (ImGui::BeginTable("##browser", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV))
@@ -336,12 +339,8 @@ private:
     void drawToolbar(EditorContext& editor, FrameContext& frame)
     {
         if (theme::iconButton(theme::icons::rescan, "rescan"))
-        {
-            if (auto scanned = frame.assets.rescan(); !scanned)
-                log::warn("{}", describe(scanned.error()));
-            rebuild(frame.assets.database());
-        }
-        ImGui::SetItemTooltip("Rescan: scan the asset folders again for added, changed and removed files");
+            editor.requestRescan(); // The editor rescans twice a second anyway, and reloads what changed
+        ImGui::SetItemTooltip("Rescan: scan the asset folders again for added, changed and removed files now");
 
         // Only into the project's content folder, the first root: the asset database adds files there
         const auto& roots = frame.assets.database().roots();
@@ -762,6 +761,7 @@ private:
     std::uint64_t m_treeVersion{ 0 }; // Counts the rebuilds of m_tree
     bool m_built{ false };
     std::size_t m_builtSize{ 0 };
+    std::uint64_t m_builtVersion{ 0 }; // EditorContext::assetsVersion as of the last rebuild
     AssetFilter m_filter;
     AssetView m_view{ AssetView::Grid };
     std::string m_selected; // The selected line's LineView::key; empty for none

@@ -255,6 +255,25 @@ Texture::~Texture()
     m_device.free(m_image);
 }
 
+auto Texture::adopt(Texture& source) -> std::expected<void, Error>
+{
+    const auto& image = m_device.get(source.m_image);
+    auto view = m_device.replace(m_view, source.m_image,
+        rhi::ImageView::Desc{
+            .extent = image.extent(),
+            .format = image.format(),
+            .range = {
+                .mipLevelCount = image.mipLevels(),
+                .arrayLayerCount = image.arrayLayers(),
+            },
+            .usage = rhi::ImageUsage::Sampled,
+        });
+    if (!view)
+        return makeError(view.error(), "Failed to give a texture its reloaded image");
+    std::swap(m_image, source.m_image);
+    return {};
+}
+
 auto Texture::sampledDescriptor() const -> rhi::SampledImageDescriptor
 {
     // The view is created with ImageUsage::Sampled, so the Device always wrote this descriptor.

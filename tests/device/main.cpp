@@ -120,6 +120,10 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         {
             options.materialFile = true;
         }
+        else if (arg == "--hot-reload")
+        {
+            options.hotReload = true;
+        }
         else if (arg == "--no-samples")
         {
             options.noSamples = true;
@@ -153,8 +157,8 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
     {
         if (!options.headless)
             return std::unexpected{ "--gameplay plays its input into the headless engine, so it needs --headless" };
-        if (options.scene || options.materialFile || options.frames != 0 || !options.compare.empty())
-            return std::unexpected{ "--gameplay runs a scene of its own for a time of its own, so it can't run with the --scene checks, --material-file, --frames or --compare" };
+        if (options.scene || options.materialFile || options.hotReload || options.frames != 0 || !options.compare.empty())
+            return std::unexpected{ "--gameplay runs a scene of its own for a time of its own, so it can't run with the --scene checks, --material-file, --hot-reload, --frames or --compare" };
         if (options.noSamples)
             return std::unexpected{ "--gameplay loads the sample project, so it can't run with --no-samples" };
     }
@@ -176,14 +180,16 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         return std::unexpected{ "--spawn and --mutate-scene both count the static instances, so they can't run together" };
     if (options.spawn && options.frames != 0 && options.frames < 30)
         return std::unexpected{ "--spawn needs at least 30 frames to spawn the cube and destroy it again" };
-    if (options.materialFile)
+    if (options.materialFile && options.hotReload)
+        return std::unexpected{ "--material-file and --hot-reload each render a project of their own, so they can't run together" };
+    if (options.materialFile || options.hotReload)
     {
         // --gpu-driven picks its geometry path too; every other scene option is written for the test scene.
         const bool sceneOptions = options.sceneFile != testSceneFile || options.mutateScene || options.spawn || options.mirror || options.unlit ||
                                   options.blend || options.doubleSided || options.view || options.views || options.worlds || options.postProcess || options.audio ||
                                   options.physics || (options.scene && !options.gpuDriven);
         if (!options.headless || !options.compare.empty() || sceneOptions)
-            return std::unexpected{ "--material-file renders a project of its own headless, so it needs --headless and takes no other scene option than --gpu-driven, nor --compare" };
+            return std::unexpected{ "--material-file and --hot-reload render a project of their own headless, so they need --headless and take no other scene option than --gpu-driven, nor --compare" };
         options.scene = false;
     }
     if (options.scene && options.noSamples)
@@ -201,7 +207,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::test::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--spawn] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--audio] [--physics] [--material-file] [--gameplay] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--spawn] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--audio] [--physics] [--material-file] [--hot-reload] [--gameplay] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 
@@ -211,6 +217,8 @@ auto main(int argc, char** argv) -> int
         return aegis::test::runScene(*options);
     if (options->materialFile)
         return aegis::test::runMaterialFile(*options);
+    if (options->hotReload)
+        return aegis::test::runHotReload(*options);
 
     auto harness = aegis::test::Harness::create(*options);
     if (!harness)

@@ -213,4 +213,149 @@ TEST_SUITE("AssetCache")
         CHECK(cache.find<assets::AudioClip>(hello));
         CHECK(loads == 1);
     }
+
+    TEST_CASE("A reload gives every reference to the slot the new contents")
+    {
+        AssetCache cache;
+        std::string source{ "Hello" };
+        AssetLoader<Dialogue> loader;
+        loader.load = [&source](assets::AssetId) -> std::expected<std::shared_ptr<Dialogue>, std::string> {
+            return std::make_shared<Dialogue>(Dialogue{ .text = source });
+        };
+        REQUIRE(cache.registerLoader(std::move(loader)));
+
+        const auto ref = cache.load<Dialogue>(hello);
+        const auto* before = ref.get();
+        source = "Goodbye";
+        CHECK(cache.reload(hello) == std::vector<std::string_view>{ "Dialogue" });
+        CHECK(ref->text == "Goodbye");
+        CHECK(ref.get() != before);
+        CHECK(cache.load<Dialogue>(hello).slot() == ref.slot());
+    }
+
+    TEST_CASE("A reload that fails holds the fallback and is logged, and a later one recovers")
+    {
+        LogCapture log;
+        AssetCache cache;
+        bool broken = false;
+        AssetLoader<Dialogue> loader;
+        loader.load = [&broken](assets::AssetId) -> std::expected<std::shared_ptr<Dialogue>, std::string> {
+            if (broken)
+                return std::unexpected{ "the file is broken" };
+            return std::make_shared<Dialogue>(Dialogue{ .text = "Hello" });
+        };
+        loader.fallback = [](assets::AssetId) { return std::make_shared<Dialogue>(Dialogue{ .text = "..." }); };
+        REQUIRE(cache.registerLoader(std::move(loader)));
+
+        const auto ref = cache.load<Dialogue>(hello);
+        broken = true;
+        CHECK(cache.reload(hello).size() == 1);
+        CHECK(ref.state() == assets::AssetState::Failed);
+        CHECK(ref->text == "...");
+        CHECK(ref.slot()->message == "the file is broken");
+        REQUIRE(log.messages.size() == 1);
+        CHECK(log.messages.front().contains("the file is broken"));
+
+        broken = false;
+        CHECK(cache.reload(hello).size() == 1);
+        CHECK(ref.state() == assets::AssetState::Ready);
+        CHECK(ref->text == "Hello");
+        CHECK(ref.slot()->message.empty());
+    }
+
+    TEST_CASE("An update hook gives the loaded object itself the new contents, or its own fallback")
+    {
+        AssetCache cache;
+        std::optional<std::string> source{ "Hello" };
+        AssetLoader<Dialogue> loader;
+        loader.load = [&source](assets::AssetId) -> std::expected<std::shared_ptr<Dialogue>, std::string> {
+            if (!source)
+                return std::unexpected{ "gone" };
+            return std::make_shared<Dialogue>(Dialogue{ .text = *source });
+        };
+        loader.fallback = [](assets::AssetId) { return std::make_shared<Dialogue>(Dialogue{ .text = "shared" }); };
+        loader.update = [](Dialogue& loaded, std::shared_ptr<Dialogue> fresh) -> std::expected<void, std::string> {
+            loaded.text = fresh ? fresh->text : "own fallback";
+            return {};
+        };
+        REQUIRE(cache.registerLoader(std::move(loader)));
+
+        const auto ref = cache.load<Dialogue>(hello);
+        const auto held = ref.shared(); // What a user holds instead of the slot
+        source = "Goodbye";
+        (void)cache.reload(hello);
+        CHECK(ref.get() == held.get());
+        CHECK(held->text == "Goodbye");
+
+        source.reset();
+        (void)cache.reload(hello);
+        CHECK(ref.state() == assets::AssetState::Failed);
+        CHECK(ref.get() == held.get());
+        CHECK(held->text == "own fallback");
+
+        // The slot still holds the object of its own, so the next reload updates it in place too
+        source = "Back";
+        (void)cache.reload(hello);
+        CHECK(ref.state() == assets::AssetState::Ready);
+        CHECK(ref.get() == held.get());
+        CHECK(held->text == "Back");
+    }
+
+    TEST_CASE("An update hook never changes the shared fallback of a failed first load")
+    {
+        AssetCache cache;
+        bool broken = true;
+        const auto shared = std::make_shared<Dialogue>(Dialogue{ .text = "shared" });
+        AssetLoader<Dialogue> loader;
+        loader.load = [&broken](assets::AssetId) -> std::expected<std::shared_ptr<Dialogue>, std::string> {
+            if (broken)
+                return std::unexpected{ "broken" };
+            return std::make_shared<Dialogue>(Dialogue{ .text = "Hello" });
+        };
+        loader.fallback = [shared](assets::AssetId) { return shared; };
+        loader.update = [](Dialogue& loaded, std::shared_ptr<Dialogue> fresh) -> std::expected<void, std::string> {
+            loaded.text = fresh ? fresh->text : "own fallback";
+            return {};
+        };
+        REQUIRE(cache.registerLoader(std::move(loader)));
+
+        const auto ref = cache.load<Dialogue>(hello);
+        CHECK(ref.get() == shared.get());
+        broken = false;
+        (void)cache.reload(hello);
+        CHECK(ref->text == "Hello");
+        CHECK(ref.get() != shared.get());
+        CHECK(shared->text == "shared");
+    }
+
+    TEST_CASE("An ID is loaded once a type has a ready or failed slot of it")
+    {
+        AssetCache cache;
+        int loads = 0;
+        REQUIRE(cache.registerLoader(dialogueLoader(loads)));
+        CHECK_FALSE(cache.loaded(hello));
+        (void)cache.load<Dialogue>(hello);
+        (void)cache.load<Dialogue>(missing);
+        CHECK(cache.loaded(hello));
+        CHECK(cache.loaded(missing));
+        CHECK_FALSE(cache.loaded(assets::AssetId{ 0x4444 }));
+    }
+
+    TEST_CASE("A reload skips IDs that were not loaded and loaders that are not ready")
+    {
+        AssetCache cache;
+        int loads = 0;
+        bool ready = true;
+        auto loader = dialogueLoader(loads);
+        loader.ready = [&ready] { return ready; };
+        REQUIRE(cache.registerLoader(std::move(loader)));
+
+        CHECK(cache.reload(hello).empty());
+        CHECK(loads == 0);
+
+        (void)cache.load<Dialogue>(hello);
+        ready = false;
+        CHECK(cache.reload(hello).empty());
+        CHECK(loads == 1);
+    }
 }

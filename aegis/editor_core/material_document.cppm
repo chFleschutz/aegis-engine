@@ -40,6 +40,9 @@ public:
     [[nodiscard]] auto dirty() const -> bool;
     /// @brief The file was written: it is the saved one from now on.
     void markSaved();
+    /// @brief The file changed on disk and was read again as 'file' (a hot reload): it is the file and the saved one
+    ///        from now on. Edits not saved are lost, so the editor keeps a dirty document as it is instead.
+    void reload(serialize::MaterialFile file);
     /// @brief Back to the file last read or saved (the unsaved-changes prompt's Don't Save).
     /// @return Whether the file changed.
     auto revert() -> bool;

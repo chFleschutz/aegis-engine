@@ -53,7 +53,36 @@ public:
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return m_defaults; }
     [[nodiscard]] auto database() const -> const assets::AssetDatabase& { return m_database; }
     [[nodiscard]] auto database() -> assets::AssetDatabase& { return m_database; }
-    [[nodiscard]] auto rescan() -> std::expected<void, assets::Error> { return m_database.rescan(); }
+    [[nodiscard]] auto rescan() -> std::expected<assets::SourceChanges, assets::Error> { return m_database.rescan(); }
+
+    auto reload(const assets::SourceChanges& changes) -> ReloadResult
+    {
+        ReloadResult result;
+        // A texture's descriptor is rewritten in place, and no frame may still draw what is swapped out: the device
+        // idles first, once, if anything loaded is affected (a new file or a saved scene is not)
+        if (!affectsLoaded(changes))
+            return result;
+        m_device->waitIdle();
+
+        const auto reloadId = [&](AssetId id, bool log) {
+            const auto types = m_cache.reload(id, log);
+            if (types.empty())
+                return;
+            result.reloaded.push_back(id);
+            result.resync = result.resync || std::ranges::any_of(types, [](std::string_view type) {
+                return type == assets::StaticMesh::assetType || type == assets::Material::assetType || type == assets::Model::assetType;
+            });
+        };
+        for (const auto* files : { &changes.changed, &changes.added, &changes.removed })
+        {
+            for (const auto& file : *files)
+                reloadFile(file, result, reloadId);
+        }
+        // The IDs that left the database (a removed material file's, say): their loads now fail, giving the fallback
+        for (const auto id : changes.gone)
+            reloadId(id, true);
+        return result;
+    }
     [[nodiscard]] auto importCache() const -> const assets::ImportCache& { return m_importCache; }
     [[nodiscard]] auto cache() -> AssetCache& { return m_cache; }
 
@@ -61,9 +90,11 @@ public:
     [[nodiscard]] auto registerLoaders() -> std::expected<void, AssetLibraryError>
     {
         const auto registered = std::array{
+            // A reloaded texture keeps its object and descriptors, which materials hold
             m_cache.registerLoader<assets::Texture>({
                 .load = [this](AssetId id) { return loadTexture(id); },
                 .fallback = [this](AssetId id) { return id != assets::engine::checker ? m_cache.load<assets::Texture>(assets::engine::checker).shared() : nullptr; },
+                .update = [this](assets::Texture& loaded, std::shared_ptr<assets::Texture> fresh) { return updateTexture(loaded, std::move(fresh)); },
             }),
             m_cache.registerLoader<assets::StaticMesh>({
                 .load = [this](AssetId id) { return loadPart<assets::StaticMesh>(id, "mesh"); },
@@ -192,9 +223,11 @@ public:
 
     auto applyMaterialFile(AssetId id, const serialize::MaterialFile& file) -> std::expected<void, AssetLibraryError>
     {
-        const auto* entry = m_database.find(id);
-        if (!entry)
+        const auto* found = m_database.find(id);
+        if (!found)
             return makeError(AssetLibraryErrorCode::NotFound, std::format("no asset has the ID {}", id));
+        // A copy: its textures may load a model, which moves the database's entries
+        const std::optional<assets::AssetEntry> entry{ *found };
         if (entry->type != "Material" || !entry->key.empty())
             return makeError(AssetLibraryErrorCode::WrongType, std::format("'{}' is not a material file", entry->path));
 
@@ -222,6 +255,80 @@ public:
     }
 
 private:
+    // Whether a reload of 'changes' would touch a loaded asset: one of the files' IDs, or a gone ID, has a slot.
+    auto affectsLoaded(const assets::SourceChanges& changes) const -> bool
+    {
+        if (std::ranges::any_of(changes.gone, [this](AssetId id) { return m_cache.loaded(id); }))
+            return true;
+        std::set<std::pair<std::size_t, std::string_view>> files;
+        for (const auto* list : { &changes.changed, &changes.added, &changes.removed })
+        {
+            for (const auto& file : *list)
+                files.emplace(file.root, file.path);
+        }
+        return std::ranges::any_of(m_database.entries(), [&](const assets::AssetEntry& entry) {
+            return files.contains({ entry.root, entry.path }) && m_cache.loaded(entry.id);
+        });
+    }
+
+    // Reloads the loaded assets of one source file: its main asset, and for a model file the parts the new import
+    // fills, then the loaded parts it did not fill, which fall back.
+    template<class ReloadId>
+    auto reloadFile(const assets::SourceFile& file, ReloadResult& result, const ReloadId& reloadId) -> void
+    {
+        const auto main = m_database.find(file.root, file.path);
+        if (!main)
+            return; // A removed native file or sidecar: its IDs are in SourceChanges::gone
+        std::vector<AssetId> parts;
+        for (const auto& entry : m_database.entries())
+        {
+            if (entry.root == file.root && entry.path == file.path && !entry.key.empty())
+                parts.push_back(entry.id);
+        }
+        if (parts.empty())
+        {
+            reloadId(*main, true);
+            return;
+        }
+
+        std::unordered_set<AssetId> filled;
+        m_filledParts = &filled;
+        reloadId(*main, true);
+        // The parts the model's load filled have their new contents (new parts join the database). The loaded parts it
+        // did not fill fall back, quietly when the whole model failed, which was logged.
+        const auto model = m_cache.find<assets::Model>(*main);
+        const bool modelFailed = model && model->state() == AssetState::Failed;
+        for (const auto part : parts)
+        {
+            if (filled.contains(part))
+            {
+                result.reloaded.push_back(part);
+                result.resync = true;
+            }
+            else
+            {
+                reloadId(part, !modelFailed);
+            }
+        }
+        m_filledParts = nullptr;
+    }
+
+    // A texture's update hook: it takes the image of 'fresh', or for a failed reload of a new checker (the fallback
+    // texture is shared).
+    auto updateTexture(assets::Texture& loaded, std::shared_ptr<assets::Texture> fresh) -> std::expected<void, std::string>
+    {
+        if (!fresh)
+        {
+            auto checker = loadTexture(assets::engine::checker);
+            if (!checker)
+                return std::unexpected{ std::format("cannot load the fallback: {}", checker.error()) };
+            fresh = std::move(*checker);
+        }
+        if (auto adopted = loaded.adopt(*fresh); !adopted)
+            return std::unexpected{ assets::describe(adopted.error()) };
+        return {};
+    }
+
     // The loaders of the engine's types. A part of a model file (a mesh, a material or an embedded texture) loads its
     // model, which fills the slots of all its parts.
 
@@ -244,26 +351,28 @@ private:
         return std::move(*texture);
     }
 
-    // A part of a model file: its slot, filled by loading the model.
+    // A part of a model file: its slot, filled by loading the model. While a reload runs, only the parts its new load
+    // filled are there.
     template<class T>
     auto loadPart(AssetId id, std::string_view what) -> Loaded<T>
     {
-        const auto* entry = m_database.find(id);
-        if (!entry)
+        const auto* found = m_database.find(id);
+        if (!found)
             return std::unexpected{ "no asset has this ID" };
-        if (entry->key.empty())
+        const auto entry = *found; // Loading the model may move the database's entries
+        if (entry.key.empty())
             return std::unexpected{ std::format("it is a file, not a {}", what) };
-        loadOwner(*entry);
-        if (auto ref = m_cache.find<T>(id))
+        loadOwner(entry);
+        if (auto ref = m_cache.find<T>(id); ref && (!m_filledParts || m_filledParts->contains(id)))
             return ref->shared();
-        return std::unexpected{ std::format("'{}' has no {} '{}'", entry->path, what, entry->key) };
+        return std::unexpected{ std::format("'{}' has no {} '{}'", entry.path, what, entry.key) };
     }
 
     auto loadMaterial(AssetId id) -> Loaded<assets::Material>
     {
         const auto* entry = m_database.find(id);
         if (entry && entry->key.empty() && entry->type == "Material")
-            return loadMaterialFile(*entry);
+            return loadMaterialFile(*entry); // A copy: its textures may load a model, which moves the database's entries
         return loadPart<assets::Material>(id, "material");
     }
 
@@ -311,19 +420,20 @@ private:
 
     auto loadModel(AssetId id) -> Loaded<assets::Model>
     {
-        const auto* entry = m_database.find(id);
-        if (!entry)
+        const auto* found = m_database.find(id);
+        if (!found)
             return std::unexpected{ "no asset has this ID" };
-        if (!isModelFile(*entry))
-            return std::unexpected{ std::format("'{}' is not a model file", entry->path) };
+        const auto entry = *found; // Registering the parts moves the database's entries
+        if (!isModelFile(entry))
+            return std::unexpected{ std::format("'{}' is not a model file", entry.path) };
 
-        auto imported = m_importCache.loadModel(m_database.absolutePath(*entry), entry->settings);
+        auto imported = m_importCache.loadModel(m_database.absolutePath(entry), entry.settings);
         if (!imported)
             return std::unexpected{ assets::describe(imported.error()) };
         // External images are textures of their own, loaded and shared by their own IDs; embedded ones are parts,
         // with their settings in the model's sidecar.
-        assets::resolveExternalImages(m_database, *entry, imported->model);
-        auto sidecar = readModelSidecar(*entry);
+        assets::resolveExternalImages(m_database, entry, imported->model);
+        auto sidecar = readModelSidecar(entry);
         assets::SubAssetKeys keys{ sidecar.sidecar.settings.strictNames };
         auto imageKeys = assets::embeddedImageKeys(imported->model, keys);
         if (!imageKeys)
@@ -339,7 +449,7 @@ private:
             return std::unexpected{ assets::describe(model.error()) };
 
         auto shared = std::make_shared<assets::Model>(std::move(*model));
-        if (auto registered = registerParts(*entry, std::move(sidecar), keys, *imageKeys, *shared); !registered)
+        if (auto registered = registerParts(entry, std::move(sidecar), keys, *imageKeys, *shared); !registered)
             return std::unexpected{ assets::describe(registered.error()) };
         return shared;
     }
@@ -407,7 +517,7 @@ private:
 
     // A material file: the template's parameters with the file's values. A bad file, an unknown template or a
     // value the template's parameter cannot take fails the whole material (the checker fallback).
-    auto loadMaterialFile(const assets::AssetEntry& entry) -> Loaded<assets::Material>
+    auto loadMaterialFile(assets::AssetEntry entry) -> Loaded<assets::Material>
     {
         auto text = readFile(m_database.absolutePath(entry));
         if (!text)
@@ -546,18 +656,29 @@ private:
     }
 
     // Writes back the sidecar of a model file that got 'added' new IDs (of parts or entities), unless 'keepReason'
-    // says why it must stay as it is.
-    auto saveModelSidecar(const assets::AssetEntry& entry, const assets::Sidecar& sidecar, std::size_t added, const std::string& keepReason) const -> void
+    // says why it must stay as it is. The database then reads it again, so a rescan does not take the library's own
+    // write for a change of the source (which moves the database's entries: 'entry' must not be one of them).
+    auto saveModelSidecar(const assets::AssetEntry& entry, const assets::Sidecar& sidecar, std::size_t added, const std::string& keepReason) -> void
     {
         if (added == 0)
             return;
         const auto path = assets::sidecarPath(m_database.absolutePath(entry));
         if (!keepReason.empty())
+        {
             log::warn("'{}' lacks {} ID(s) and is not rewritten ({}); they are new every run", path.generic_string(), added, keepReason);
-        else if (std::ofstream out{ path, std::ios::binary })
+            return;
+        }
+        {
+            std::ofstream out{ path, std::ios::binary };
+            if (!out)
+            {
+                log::warn("Cannot write the sidecar '{}'; the parts and entities of this model get new IDs next run", path.generic_string());
+                return;
+            }
             out << assets::writeSidecar(sidecar);
-        else
-            log::warn("Cannot write the sidecar '{}'; the parts and entities of this model get new IDs next run", path.generic_string());
+        }
+        if (auto read = m_database.addFile(entry.root, entry.path); !read)
+            log::warn("The asset database does not take the rewritten sidecar '{}': {}", path.generic_string(), assets::describe(read.error()));
     }
 
     // Gives the parts of a freshly loaded model their IDs from the file's sidecar (new parts get new IDs,
@@ -611,6 +732,12 @@ private:
         if (auto added = m_database.addSubAssets(entry.root, entry.path, parts); !added)
             return std::unexpected{ std::move(added.error()) };
 
+        // While a reload runs, it learns which parts the new load has
+        if (m_filledParts)
+        {
+            for (const auto& [key, id] : parts)
+                m_filledParts->insert(id);
+        }
         for (std::size_t i = 0; i < model.textures.size(); ++i)
             m_cache.fill<assets::Texture>(textureIds[i], model.textures[i].texture);
         for (std::size_t i = 0; i < model.materials.size(); ++i)
@@ -641,7 +768,8 @@ private:
     assets::ImportCache m_importCache;
     AssetId m_defaultEnvironment;
     std::shared_ptr<assets::Material> m_fallbackMaterial;
-    const reflect::TypeRegistry* m_types{ nullptr }; // While loadScene runs: the types its scenes are read against
+    const reflect::TypeRegistry* m_types{ nullptr };       // While loadScene runs: the types its scenes are read against
+    std::unordered_set<AssetId>* m_filledParts{ nullptr }; // While reload reloads a model file: the parts its load filled
     AssetCache m_cache;
 };
 
@@ -745,11 +873,17 @@ auto AssetLibrary::create(rhi::Device& device, std::uint32_t framesInFlight, con
     return AssetLibrary{ std::move(impl) };
 }
 
-auto AssetLibrary::rescan() -> std::expected<void, AssetLibraryError>
+auto AssetLibrary::rescan() -> std::expected<assets::SourceChanges, AssetLibraryError>
 {
-    if (auto scanned = m_impl->rescan(); !scanned)
+    auto scanned = m_impl->rescan();
+    if (!scanned)
         return makeError(AssetLibraryErrorCode::ReadFailed, scanned.error(), "failed to rescan the assets");
-    return {};
+    return std::move(*scanned);
+}
+
+auto AssetLibrary::reload(const assets::SourceChanges& changes) -> ReloadResult
+{
+    return m_impl->reload(changes);
 }
 
 auto AssetLibrary::find(std::string_view path, std::string_view key) const -> std::optional<AssetId>
@@ -757,8 +891,10 @@ auto AssetLibrary::find(std::string_view path, std::string_view key) const -> st
     return m_database->find(0, path, key);
 }
 
-auto AssetLibrary::addFile(std::string_view path) -> std::expected<AssetId, AssetLibraryError>
+auto AssetLibrary::addFile(std::string_view view) -> std::expected<AssetId, AssetLibraryError>
 {
+    // A copy: 'view' may name an entry's path, which adding the file moves
+    const std::string path{ view };
     auto& database = m_impl->database();
     if (auto added = database.addFile(0, path); !added)
         return makeError(AssetLibraryErrorCode::ReadFailed, added.error(), std::format("cannot add '{}'", path));

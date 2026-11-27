@@ -19,6 +19,27 @@ struct AssetEntry
     [[nodiscard]] friend auto operator==(const AssetEntry&, const AssetEntry&) -> bool = default;
 };
 
+/// @brief A source file of an asset root: a foreign file with a sidecar, or a native file.
+struct SourceFile
+{
+    std::size_t root{ 0 }; // Index into AssetDatabase::roots()
+    std::string path;      // Relative to the root, with '/'
+
+    [[nodiscard]] friend auto operator==(const SourceFile&, const SourceFile&) -> bool = default;
+};
+
+/// @brief The sources a rescan found changed since the scan before it (AssetDatabase::rescan), each list ordered by
+///        root and path. A foreign file counts by its source and its sidecar together.
+struct SourceChanges
+{
+    std::vector<SourceFile> changed; // Written since: the source's (or its sidecar's) modification time or size differs
+    std::vector<SourceFile> added;   // New since, or back after it was removed
+    std::vector<SourceFile> removed; // Gone since: the source (its sidecar may stay, keeping its IDs), or its sidecar too
+    std::vector<AssetId> gone;       // IDs no longer in the database (a removed native file's, a removed sidecar's), sorted
+
+    [[nodiscard]] auto empty() const noexcept -> bool { return changed.empty() && added.empty() && removed.empty() && gone.empty(); }
+};
+
 /// @brief The index of every asset in the project and the engine content: `ID → path (+ key)`, the one place
 ///        paths exist. Built by scanning the roots for sidecars (`<file>.<ext>.meta`) and native files
 ///        (`.scene`, `.material`, `.template`, whose header carries the ID).
@@ -60,7 +81,8 @@ public:
     /// @brief The ID of the asset made from 'path' (relative to root 'root') and 'key' ("" for the main one).
     [[nodiscard]] auto find(std::size_t root, std::string_view path, std::string_view key = {}) const -> std::optional<AssetId>;
 
-    /// @brief Records the parts of the file at 'path' (relative to root 'root'), as a model import assigned them.
+    /// @brief Records the parts of the file at 'path' (relative to root 'root'), as a model import assigned them. They
+    ///        stay through rescans and in the index until the file's sidecar changes, which then lists them.
     /// @return ErrorCode::InvalidData if an ID is already used by another asset.
     [[nodiscard]] auto addSubAssets(std::size_t root, std::string_view path, std::span<const std::pair<std::string, AssetId>> parts)
         -> std::expected<void, Error>;
@@ -72,9 +94,11 @@ public:
     ///         file that is no asset, an ID another file has, a case-only path clash or an unreadable file.
     [[nodiscard]] auto addFile(std::size_t root, std::string_view path) -> std::expected<void, Error>;
 
-    /// @brief Scans again with the scan's settings, picking up files changed since. On failure the database keeps
-    ///        its entries.
-    [[nodiscard]] auto rescan() -> std::expected<void, Error>;
+    /// @brief Scans again with the scan's settings, picking up files changed since, and reports the sources that changed,
+    ///        came or went since the last scan (or addFile, which records a file as it is then). Only changed files are
+    ///        read again and the index is written only if something changed, so polling it is cheap. On failure the
+    ///        database keeps its entries.
+    [[nodiscard]] auto rescan() -> std::expected<SourceChanges, Error>;
 
     /// @brief The file of an entry on disk.
     [[nodiscard]] auto absolutePath(const AssetEntry& entry) const -> std::filesystem::path;
@@ -89,7 +113,8 @@ public:
     [[nodiscard]] auto filesRead() const noexcept -> std::size_t { return m_filesRead; }
 
 private:
-    // A sidecar or native file read into the database, as the index records it.
+    // A sidecar or native file read into the database, as the index records it, with the stamp of its source (the
+    // file itself for a native file), which tells a rescan whether the source changed.
     struct IndexedFile
     {
         std::size_t root{ 0 };
@@ -97,8 +122,24 @@ private:
         std::int64_t modified{ 0 };
         std::uint64_t size{ 0 };
         std::vector<AssetId> entries;
+        bool sourceExists{ true };
+        std::int64_t sourceModified{ 0 };
+        std::uint64_t sourceSize{ 0 };
     };
 
+    // What a scan may take from an earlier one instead of reading a file again: its stamp and entries, by root and path.
+    struct CachedFile
+    {
+        std::int64_t modified{ 0 };
+        std::uint64_t size{ 0 };
+        std::vector<AssetEntry> entries;
+    };
+    using CachedFiles = std::map<std::pair<std::size_t, std::string>, CachedFile>;
+
+    [[nodiscard]] static auto scanWith(ScanDesc desc, const CachedFiles& cached) -> std::expected<AssetDatabase, Error>;
+    [[nodiscard]] static auto record(std::size_t root, std::string relative, const std::filesystem::path& file) -> IndexedFile;
+    // The changes from 'before' to 'after' (both sorted by root and path).
+    [[nodiscard]] static auto diff(std::span<const IndexedFile> before, std::span<const IndexedFile> after) -> SourceChanges;
     auto writeIndex() const -> void;
 
     ScanDesc m_desc;

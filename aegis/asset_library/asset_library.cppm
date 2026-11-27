@@ -19,6 +19,15 @@ export namespace aegis
 [[nodiscard]] auto loadEngineTemplates(const std::filesystem::path& engineContent, const std::filesystem::path& shaders)
     -> std::expected<assets::EngineTemplates, AssetLibraryError>;
 
+/// @brief What AssetLibrary::reload changed.
+struct ReloadResult
+{
+    std::vector<assets::AssetId> reloaded; // The loaded assets and parts that got new contents or fell back
+    /// @brief A mesh or a material got a new object: the worlds' static sets must be read again
+    ///        (world::Registry::invalidateStatic), or their static instances keep drawing the old one.
+    bool resync{ false };
+};
+
 /// @brief Loads assets by ID and keeps what it loaded: one slot per ID, so loading an ID twice returns the
 ///        same asset and the parts of a model file (its meshes, materials, textures) are shared with
 ///        anything that loads them by their own ID.
@@ -159,8 +168,22 @@ public:
     [[nodiscard]] auto applyMaterialFile(assets::AssetId material, const serialize::MaterialFile& file) -> std::expected<void, AssetLibraryError>;
 
     /// @brief Scans the asset folders again, picking up files added, changed or removed since (new sources get
-    ///        sidecars). Assets already loaded stay as they are (no hot reload); on failure the database is unchanged.
-    [[nodiscard]] auto rescan() -> std::expected<void, AssetLibraryError>;
+    ///        sidecars). Assets already loaded stay as they are until reload is given the changes; on failure the
+    ///        database is unchanged. Cheap enough to poll (assets::AssetDatabase::rescan).
+    /// @return The sources changed, added or removed since the last scan.
+    [[nodiscard]] auto rescan() -> std::expected<assets::SourceChanges, AssetLibraryError>;
+
+    /// @brief Hot reload: gives the loaded assets of the sources in 'changes' (from rescan) their new contents, through
+    ///        each asset type's loader (AssetCache::reload), so every reference sees them. A changed source is imported
+    ///        again through the import cache. A model file's loaded parts get the parts of the new import that have their
+    ///        sub-asset keys; a part the file no longer has, a removed source and a source that fails to import fall
+    ///        back to engine content with one warning each, and come back with their IDs once restored. A texture keeps
+    ///        its object and its descriptors (assets::Texture::adopt), so the materials that hold it need no update; a
+    ///        mesh or material gets a new object (see ReloadResult::resync). A source with nothing loaded only updates the
+    ///        index. Call it at the frame's safe point: it waits for the device to idle first, and old GPU objects are
+    ///        freed once their last user lets go (deferred). A model file's scene (its node tree) is not read again, so
+    ///        new instances of it keep the old tree, and placed scenes are not updated entity by entity.
+    auto reload(const assets::SourceChanges& changes) -> ReloadResult;
 
     [[nodiscard]] auto defaults() const -> const assets::DefaultAssets& { return *m_defaults; }
     [[nodiscard]] auto database() const -> const assets::AssetDatabase& { return *m_database; }

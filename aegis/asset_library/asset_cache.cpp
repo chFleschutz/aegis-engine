@@ -20,4 +20,9 @@ void AssetCache::logFailure(std::string_view assetType, assets::AssetId id, cons
 {
     log::warn("Failed to load {} {}: {}{}", assetType, id, message, fallback ? "; using a fallback" : "");
 }
+
+void AssetCache::logReloadFailure(std::string_view assetType, assets::AssetId id, const std::string& message)
+{
+    log::warn("Cannot update {} {} in place on a reload: {}; what holds it keeps the old contents", assetType, id, message);
+}
 }

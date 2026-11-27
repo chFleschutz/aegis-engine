@@ -320,16 +320,17 @@ Ctrl+Z  ─────────────────> undo: SetField appl
   dropping it on an asset slot assigns it (type-checked), and dropping a `Scene` or model on the
   viewport or hierarchy instantiates it (`AssetLibrary::instantiateScene` with a parent; models
   become scenes in [#140]).
-  A Rescan button covers the time before the file watcher
-  ([#143]).
+  The editor rescans the asset folders about twice a second and reloads what changed ([#143]); the Rescan button
+  does it at once.
 - **Material panel** ([#141]): a floating panel with one material file (`.material`) at a time: a row per parameter of
   its template in block order, showing the file's value or the template's default; a parameter the file sets has its
   label in the accent color and a reset button, which removes it from the file (as a texture slot set to None does).
   `MaterialDocuments` (editor core) keeps every material file opened in the session with its edits; a `MaterialEdit`
   on the one undo history changes the document and the loaded material (`AssetLibrary::applyMaterialFile`), also while
   playing, so every scene using it shows the edit at once. Save writes the edited material files before the scene, the
-  `*` and the unsaved-changes prompt cover them, and Don't Save reverts them. A model's materials and engine content
-  don't open for editing: "Extract material" is [#245].
+  `*` and the unsaved-changes prompt cover them, and Don't Save reverts them. A file changed on disk reloads ([#143]):
+  an open document without unsaved edits reads it again; one with them keeps them, puts them back on the reloaded
+  material and warns. A model's materials and engine content don't open for editing: "Extract material" is [#245].
 - **Scene files:** New, Open (a picker over the database's `Scene` entries), Save (Ctrl+S), and Save As
   (an in-editor path field inside the project, which writes a new native file with a new ID and adds
   it to the database). The title bar and the scene tab show `*` while dirty. Open, New and closing the
@@ -398,8 +399,8 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - Render debug views (G-buffer channels, wireframe, overdraw), an orthographic editor camera and a view menu for them.
 - Asset thumbnails (textures directly; meshes and materials through an offscreen preview render).
 - "Extract material" ([#245]): a model's material moved into a material file, which the Material panel ([#141]) edits.
-- Asset hot reload ([#143]); an "edit prefab" mode, overrides of nested instances and of scripts, and
-  "Unpack Completely" (prefab overrides and unpacking are done: [#142]).
+- An "edit prefab" mode, overrides of nested instances and of scripts, and "Unpack Completely" (prefab overrides
+  and unpacking are done: [#142], asset hot reload: [#143]).
 - A separate Game panel next to the Scene viewport while playing (needs two views in one frame).
 - Project settings panel (startup scene, window defaults), recent projects, and a welcome screen when
   there is no `--project`.

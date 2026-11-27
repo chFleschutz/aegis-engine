@@ -503,4 +503,120 @@ TEST_SUITE("assets::AssetDatabase")
         CHECK(database->size() == 2);
         CHECK(database->roots().size() == 1);
     }
+
+    TEST_CASE("a rescan reports the sources changed, added and removed since the last scan")
+    {
+        TempRoot root;
+        root.writeSidecarFor("changed.png", sidecarOf(AssetId{ 1 }, {}, "texture"));
+        root.writeSidecarFor("same.png", sidecarOf(AssetId{ 2 }, {}, "texture"));
+        root.writeSidecarFor("removed.png", sidecarOf(AssetId{ 3 }, {}, "texture"));
+        root.write("gone.scene", R"({"type":"Scene","id":"0000000000000004","version":1})");
+        auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE(database);
+
+        const auto nothing = database->rescan();
+        REQUIRE(nothing);
+        CHECK(nothing->empty());
+
+        root.write("changed.png", "a longer source");
+        std::filesystem::remove(root.path / "removed.png"); // Its sidecar stays
+        std::filesystem::remove(root.path / "gone.scene");
+        root.writeSidecarFor("models/added.gltf", sidecarOf(AssetId{ 5 }));
+        const auto changes = database->rescan();
+        REQUIRE(changes);
+        CHECK(changes->changed == std::vector<SourceFile>{ { 0, "changed.png" } });
+        CHECK(changes->added == std::vector<SourceFile>{ { 0, "models/added.gltf" } });
+        CHECK(changes->removed == std::vector<SourceFile>{ { 0, "gone.scene" }, { 0, "removed.png" } });
+        // A removed source's sidecar keeps its ID in the database; a removed native file takes its ID along
+        CHECK(database->find(AssetId{ 3 }));
+        CHECK_FALSE(database->find(AssetId{ 4 }));
+        CHECK(changes->gone == std::vector<AssetId>{ AssetId{ 4 } });
+        CHECK(database->find(AssetId{ 5 }));
+
+        const auto again = database->rescan();
+        REQUIRE(again);
+        CHECK(again->empty());
+    }
+
+    TEST_CASE("a source written with the same size counts by its modification time")
+    {
+        TempRoot root;
+        root.writeSidecarFor("a.png", sidecarOf(AssetId{ 1 }, {}, "texture"));
+        auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE(database);
+
+        const auto file = root.path / "a.png";
+        std::filesystem::last_write_time(file, std::filesystem::last_write_time(file) + std::chrono::seconds{ 5 });
+        const auto changes = database->rescan();
+        REQUIRE(changes);
+        CHECK(changes->changed == std::vector<SourceFile>{ { 0, "a.png" } });
+    }
+
+    TEST_CASE("a changed sidecar is a change of its source")
+    {
+        TempRoot root;
+        root.writeSidecarFor("a.png", sidecarOf(AssetId{ 1 }, {}, "texture"));
+        auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE(database);
+
+        auto sidecar = sidecarOf(AssetId{ 1 }, {}, "texture");
+        sidecar.settings.srgb = false;
+        root.write("a.png.meta", writeSidecar(sidecar));
+        const auto changes = database->rescan();
+        REQUIRE(changes);
+        CHECK(changes->changed == std::vector<SourceFile>{ { 0, "a.png" } });
+        CHECK(database->find(AssetId{ 1 })->settings.srgb == false);
+    }
+
+    TEST_CASE("a removed source that comes back is added with its IDs")
+    {
+        TempRoot root;
+        root.writeSidecarFor("a.gltf", sidecarOf(AssetId{ 1 }, { { "StaticMesh/Cube/0", AssetId{ 2 } } }));
+        auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE(database);
+
+        std::filesystem::remove(root.path / "a.gltf");
+        const auto removed = database->rescan();
+        REQUIRE(removed);
+        CHECK(removed->removed == std::vector<SourceFile>{ { 0, "a.gltf" } });
+
+        root.write("a.gltf", "back");
+        const auto added = database->rescan();
+        REQUIRE(added);
+        CHECK(added->added == std::vector<SourceFile>{ { 0, "a.gltf" } });
+        CHECK(database->find(0, "a.gltf", "StaticMesh/Cube/0") == AssetId{ 2 });
+    }
+
+    TEST_CASE("a file added after the scan is no change for the next rescan")
+    {
+        TempRoot root;
+        auto database = AssetDatabase::scan({ .roots = { { root.path } } });
+        REQUIRE(database);
+
+        root.write("a.scene", R"({"type":"Scene","id":"0000000000000001","version":1})");
+        REQUIRE(database->addFile(0, "a.scene"));
+        const auto changes = database->rescan();
+        REQUIRE(changes);
+        CHECK(changes->empty());
+    }
+
+    TEST_CASE("parts added after the scan stay through a rescan and in the index")
+    {
+        TempRoot root;
+        root.writeSidecarFor("a.gltf", sidecarOf(AssetId{ 1 }));
+        const auto indexFile = root.path / ".aegis" / "index";
+        auto database = AssetDatabase::scan({ .roots = { { root.path } }, .indexFile = indexFile });
+        REQUIRE(database);
+
+        const std::vector<std::pair<std::string, AssetId>> parts{ { "Material/A", AssetId{ 10 } } };
+        REQUIRE(database->addSubAssets(0, "a.gltf", parts));
+        CHECK(database->find(AssetId{ 10 })->type == "Material");
+        root.write("b.scene", R"({"type":"Scene","id":"0000000000000002","version":1})"); // So the rescan writes the index
+        REQUIRE(database->rescan());
+        CHECK(database->find(0, "a.gltf", "Material/A") == AssetId{ 10 });
+
+        const auto next = AssetDatabase::scan({ .roots = { { root.path } }, .indexFile = indexFile });
+        REQUIRE(next);
+        CHECK(next->find(0, "a.gltf", "Material/A") == AssetId{ 10 });
+    }
 }

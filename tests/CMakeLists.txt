@@ -83,6 +83,15 @@ if(TARGET compile_shaders)
         ARGS --headless --material-file --gpu-driven --frames 30
         LABELS mesh-shaders
     )
+    # Hot reload (#143): a texture changed on disk reaches the running engine through a rescan and a reload, and falls
+    # back while it is deleted; a part removed from a glTF falls back and comes back. A temporary project, so it runs
+    # without the samples, on both geometry paths.
+    aegis_add_device_test(aegis-test-hot-reload ARGS --headless --hot-reload --frames 24)
+    aegis_add_device_test(
+        aegis-test-hot-reload-gpu-driven
+        ARGS --headless --hot-reload --gpu-driven --frames 24
+        LABELS mesh-shaders
+    )
     # Reference images: the last frame against tests/device/golden, generated on the dev GPU (see tests/README.md). Local
     # only: the lavapipe CI job runs the other device tests but excludes these with -LE golden, since software
     # rendering differs from the dev GPU (the triangle by 1 per channel, the scenes by up to 176 on ~80k pixels:
