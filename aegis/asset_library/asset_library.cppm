@@ -136,8 +136,9 @@ public:
         std::uint64_t holderId = 0) -> std::expected<world::Entity, AssetLibraryError>;
 
     /// @brief Loads the asset references of 'component', an instance of 'type', that are IDs without a slot: what
-    ///        instantiateScene does to each component it reads (a MeshRenderer's mesh and material, a Sky's
-    ///        environment, a SceneInstance's scene). The editor calls it after assigning an asset by ID.
+    ///        instantiateScene does to each component and script it reads (a MeshRenderer's mesh and material, a Sky's
+    ///        environment, a SceneInstance's scene; of any other type, such as a script, the AssetRef fields that a
+    ///        member holds, of the engine's asset types). The editor calls it after assigning an asset by ID.
     void resolve(const reflect::TypeInfo& type, void* component, const reflect::TypeRegistry& types);
 
     /// @brief Registers an asset made at run time under a new ID, so it can be referenced like a loaded one.

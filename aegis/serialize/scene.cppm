@@ -165,15 +165,16 @@ auto registerComponents(reflect::TypeRegistry& types) -> std::expected<void, ref
 [[nodiscard]] auto saveScene(world::Registry& registry, const reflect::TypeRegistry& types, world::Entity root, std::uint64_t id)
     -> std::expected<Scene, Error>;
 
-// Finishes a component read from a scene file before it joins its entity: `component` is an instance of `type`
-// with the file's fields set. The asset library loads the asset references here, which the file gives as IDs,
-// including the scene of a SceneInstance.
+// Finishes a component read from a scene file before it joins its entity, and a script once its fields are read:
+// `component` is an instance of `type` with the file's fields set. The asset library loads the asset references
+// here, which the file gives as IDs, including the scene of a SceneInstance.
 using PrepareComponent = std::function<void(const reflect::TypeInfo& type, void* component)>;
 
 // Creates the scene's entities in `registry`, keeping their IDs (a world's root scene, a level), with their
 // components, scripts and hierarchy, then the entities of the scene instances they hold. Each component is
 // built complete (its fields read, then `prepare`) before it is added, so observers of its construction see the
-// final value; without `prepare`, asset references stay unresolved (an ID without a slot). An instance's
+// final value; a script gets `prepare` after its fields are read, so its asset references are loaded before its
+// onCreate runs. Without `prepare`, asset references stay unresolved (an ID without a slot). An instance's
 // overrides are written to its components before `prepare`; one whose entity or component is gone from the
 // instance's scene, or whose value the field's setter refuses, is skipped with a warning and kept on the holder
 // (parseScene already checked its type, field and kind). A singleton

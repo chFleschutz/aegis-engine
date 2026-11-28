@@ -8,10 +8,24 @@ import aegis.reflect;
 import aegis.renderer;
 import aegis.rhi;
 import aegis.math;
+import aegis.scripting;
+import aegis.serialize;
 import aegis.world;
 
 namespace aegis::test
 {
+namespace
+{
+// A script with an asset field, which notes whether the field was loaded when its onCreate ran
+struct TextureUser : scripting::Script
+{
+    assets::AssetRef<assets::Texture> texture;
+    bool loadedAtCreate{ false };
+
+    void onCreate(scripting::ScriptContext&) override { loadedAtCreate = texture.state() == assets::AssetState::Ready; }
+};
+}
+
 // Renderer textures must reach shaders through bindless, cover all their mips, and keep their
 // bindless slot across a resize. The name is a temporary on purpose: the renderer must copy it.
 // aegis.assets against a real device: default assets, a texture read back after its upload left
@@ -310,10 +324,30 @@ auto Harness::verifyAssetLibrary() -> std::expected<void, std::string>
                 entityIds.size(), recorded.size()));
     }
 
+    // A script's AssetRef field read from a scene file is loaded, as a component's is, before its onCreate runs
+    if (auto script = scripting::registerScript<TextureUser>(types, "TextureUser"); !script || !script->field("texture", &TextureUser::texture).status())
+        return fail("Registering a script with an asset field failed");
+    const auto sceneText = std::format(R"({{ "type": "Scene", "id": "00000000000000aa", "version": 1, "types": {{ "TextureUser": 1, "Transform": 1 }},
+  "entities": [ {{ "id": "0000000000000001", "name": "User", "scripts": [ {{ "TextureUser": {{ "texture": "{:016x}" }} }} ] }} ] }})",
+        assets::engine::checker.value);
+    const auto scriptScene = serialize::parseScene(sceneText, types);
+    if (!scriptScene)
+        return fail(std::format("Parsing a scene with a script: {}", serialize::describe(scriptScene.error())));
+    aegis::world::World scriptWorld;
+    scriptWorld.addSystem<scripting::ScriptSystem>();
+    const auto prepare = [&](const reflect::TypeInfo& type, void* object) { library->resolve(type, object, types); };
+    if (auto created = serialize::instantiate(scriptWorld.registry(), types, *scriptScene, prepare); !created)
+        return fail(std::format("Instantiating a scene with a script: {}", serialize::describe(created.error())));
+    scriptWorld.update(1.0f / 60.0f);
+    const auto userEntity = scriptWorld.registry().find(aegis::StableId{ 1 });
+    const auto* user = dynamic_cast<const TextureUser*>(scriptWorld.registry().get<scripting::Scripts>(userEntity).entries.at(0).script.get());
+    if (!user || !user->loadedAtCreate || user->texture.get() != library->loadTexture(assets::engine::checker).get())
+        return fail("A script's asset field from a scene file must be loaded when its onCreate runs");
+
     if (auto result = flushAndWait(); !result)
         return result;
     std::println("Asset library verified: one load per ID, {} mesh parts and the textures shared by ID, engine content, fallbacks, "
-                 "model entity IDs in the sidecar",
+                 "model entity IDs in the sidecar, a script's asset field loaded from a scene file",
         parts);
     return {};
 }

@@ -189,6 +189,38 @@ public:
             if (source.clip.id().valid() && !source.clip.slot())
                 source.clip = m_cache.load<assets::AudioClip>(source.clip.id());
         }
+        else
+        {
+            resolveFields(type, component, types);
+        }
+    }
+
+    // Loads the AssetRef fields of any other type (a script's) that a member holds; a property's are left as they are.
+    auto resolveFields(const reflect::TypeInfo& type, void* object, const reflect::TypeRegistry& types) -> void
+    {
+        for (const reflect::FieldInfo& field : type.fields)
+        {
+            if (field.kind != reflect::FieldKind::AssetRef || !field.member)
+                continue;
+            resolveField<assets::Texture>(field, object);
+            resolveField<assets::StaticMesh>(field, object);
+            resolveField<assets::Material>(field, object);
+            resolveField<assets::Environment>(field, object);
+            resolveField<assets::Model>(field, object);
+            resolveField<assets::AudioClip>(field, object);
+            if (auto* scene = static_cast<AssetRef<serialize::Scene>*>(field.member(object, typeid(AssetRef<serialize::Scene>)));
+                scene && scene->id().valid() && !scene->slot())
+                *scene = loadScene(scene->id(), types);
+        }
+    }
+
+    // Loads `field` of `object` if its member is an unresolved AssetRef<T>.
+    template<class T>
+    auto resolveField(const reflect::FieldInfo& field, void* object) -> void
+    {
+        auto* ref = static_cast<AssetRef<T>*>(field.member(object, typeid(AssetRef<T>)));
+        if (ref && ref->id().valid() && !ref->slot())
+            *ref = m_cache.load<T>(ref->id());
     }
 
     auto createMaterial(std::shared_ptr<const assets::MaterialTemplate> materialTemplate) -> std::expected<AssetRef<assets::Material>, AssetLibraryError>
