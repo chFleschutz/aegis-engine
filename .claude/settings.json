@@ -6,6 +6,7 @@
       "Bash(git push -f*)",
       "Bash(git push * --force*)",
       "Bash(git push * -f*)",
+      "Bash(git push * +*)",
       "Bash(git push origin main*)",
       "Bash(git push * main)",
       "PowerShell(gh pr merge*)",
@@ -13,6 +14,7 @@
       "PowerShell(git push -f*)",
       "PowerShell(git push * --force*)",
       "PowerShell(git push * -f*)",
+      "PowerShell(git push * +*)",
       "PowerShell(git push origin main*)",
       "PowerShell(git push * main)"
     ],
