@@ -7,25 +7,20 @@ namespace aegis::render_graph
 {
 // Spot shadow atlas ----------------------------------------------------------------------------------
 
-SpotShadowAtlasPass::SpotShadowAtlasPass(ResourceDeclarations& declarations) :
-    m_atlas{ declarations.addTexture(names::spotShadowAtlas, Usage::DepthAttachment,
-        { .format = GeometryPass::depthFormat, .extent = spotShadowAtlasExtent }) }
+auto addSpotShadowAtlasPass(GraphBuilder& graph) -> void
 {
-}
-
-auto SpotShadowAtlasPass::name() const -> std::string_view
-{
-    return "Spot Shadow Atlas";
-}
-
-auto SpotShadowAtlasPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
-{
-    // Each spot shadow view clears its own tile too; this clears the tiles no view draws, and gives the atlas its first
-    // layout.
-    frameInfo.cmd.beginRendering({
-        .depthAttachment = rhi::Attachment::depth(pool.texture(m_atlas).view, rhi::ClearDepthStencil{ 1.0f, 0 }),
+    graph.addPass("Spot Shadow Atlas", [](ResourceDeclarations& declarations) {
+        const auto atlas = declarations.addTexture(names::spotShadowAtlas, Usage::DepthAttachment,
+            { .format = GeometryPass::depthFormat, .extent = spotShadowAtlasExtent });
+        return [atlas](ResourcePool& pool, const FrameInfo& frameInfo) {
+            // Each spot shadow view clears its own tile too; this clears the tiles no view draws, and gives the atlas
+            // its first layout.
+            frameInfo.cmd.beginRendering({
+                .depthAttachment = rhi::Attachment::depth(pool.texture(atlas).view, rhi::ClearDepthStencil{ 1.0f, 0 }),
+            });
+            frameInfo.cmd.endRendering();
+        };
     });
-    frameInfo.cmd.endRendering();
 }
 
 // Geometry -------------------------------------------------------------------------------------------

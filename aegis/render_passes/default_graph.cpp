@@ -67,7 +67,7 @@ auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> Shar
 {
     SharedPasses shared{ .lights = &graph.add<LightUpdatePass>(desc.scene) };
     if (drawsSpotShadows(desc))
-        graph.add<SpotShadowAtlasPass>();
+        addSpotShadowAtlasPass(graph);
     if (desc.gpuDriven)
         graph.add<InstanceUpdatePass>(desc.scene);
     return shared;
