@@ -241,6 +241,24 @@ TEST_SUITE("reflect::TypeRegistry")
         REQUIRE(info->set(&object, "doubled", 10.0f).has_value());
         CHECK(object.own == 5.0f);
         CHECK(info->set(&object, "doubled", std::string{ "text" }).error().code == ErrorCode::TypeMismatch);
+        CHECK_FALSE(info->fields[0].member);
+    }
+
+    TEST_CASE("gives the address of a field's member only for its own type")
+    {
+        TypeRegistry types;
+        auto builder = types.component<Derived>("Derived");
+        REQUIRE(builder.has_value());
+        builder->field("baseValue", &Base::baseValue).field("own", &Derived::own);
+        REQUIRE(builder->status().has_value());
+
+        Derived object;
+        const TypeInfo* info = types.find<Derived>();
+        const FieldInfo* own = info->findField("own");
+        REQUIRE(own->member);
+        CHECK(own->member(&object, typeid(float)) == &object.own);
+        CHECK(own->member(&object, typeid(int)) == nullptr);
+        CHECK(info->findField("baseValue")->member(&object, typeid(int)) == &object.baseValue);
     }
 
     TEST_CASE("rejects an accessor field under a name already taken")

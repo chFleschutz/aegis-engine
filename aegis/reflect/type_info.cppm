@@ -52,6 +52,10 @@ struct FieldInfo
 
     std::function<Value(const void* object)> getter;
     std::function<std::expected<void, Error>(void* object, const Value& value)> setter;
+    // The address of the member that holds the field in `object` when the member's C++ type is `type`, else null:
+    // a layer that knows the type changes the member in place where the setter cannot (the asset library loads an
+    // AssetRef field, which the setter only gives an ID). Empty for a property, which no member holds.
+    std::function<void*(void* object, std::type_index type)> member;
 };
 
 enum class TypeCategory

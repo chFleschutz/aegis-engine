@@ -675,8 +675,11 @@ private:
             auto attached = scripting::attachScript(m_registry, m_types, entity, script.type->name);
             if (!attached)
                 return makeError(ErrorCode::UnknownType, attached.error(), std::format("cannot attach the script '{}'", script.type->name), script.fields.line);
-            if (auto loaded = loadFields(script, m_registry.get<scripting::Scripts>(entity).entries.back().object); !loaded)
+            void* object = m_registry.get<scripting::Scripts>(entity).entries.back().object;
+            if (auto loaded = loadFields(script, object); !loaded)
                 return loaded;
+            if (m_prepare)
+                m_prepare(*script.type, object);
         }
         return {};
     }

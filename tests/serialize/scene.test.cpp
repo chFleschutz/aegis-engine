@@ -1,6 +1,7 @@
 #include <doctest/doctest.h>
 
 import std;
+import aegis.assets;
 import aegis.math;
 import aegis.reflect;
 import aegis.scripting;
@@ -37,6 +38,13 @@ class Spinner : public aegis::scripting::Script
 {
 public:
     float speed{ 1.0f };
+};
+
+// A game's script that names an asset
+class Shooter : public aegis::scripting::Script
+{
+public:
+    aegis::assets::AssetRef<aegis::serialize::Scene> projectile;
 };
 }
 
@@ -313,6 +321,38 @@ TEST_SUITE("serialize::scene")
         REQUIRE(aegis::serialize::instantiate(registry, types, *scene, prepare).has_value());
         CHECK(prepared == std::vector<std::string>{ "Health" });
         CHECK(seen == 10.0f); // The observer saw the prepared value
+    }
+
+    TEST_CASE("prepares each script once its fields are read")
+    {
+        TypeRegistry types;
+        registerTypes(types);
+        auto shooter = aegis::scripting::registerScript<Shooter>(types, "Shooter");
+        REQUIRE(shooter.has_value());
+        REQUIRE(shooter->field("projectile", &Shooter::projectile).status().has_value());
+        auto scene = parse(sceneText(entityText("0000000000000001", R"(, "scripts": [{ "Shooter": { "projectile": "00000000000000bb" } }])"),
+                               R"("Shooter": 1, "Transform": 1)"),
+            types);
+        REQUIRE(scene.has_value());
+
+        // Stands in for the asset library, which loads the reference the file gives as an ID
+        const auto projectile = aegis::assets::AssetRef<Scene>::ready(aegis::assets::AssetId{ 0xbb }, std::make_shared<Scene>());
+        std::vector<std::string> prepared;
+        auto prepare = [&prepared, &projectile](const aegis::reflect::TypeInfo& type, void* object) {
+            prepared.push_back(type.name);
+            if (type.type != typeid(Shooter))
+                return;
+            auto& ref = static_cast<Shooter*>(object)->projectile;
+            if (ref.id() == projectile.id())
+                ref = projectile;
+        };
+        Registry registry;
+        REQUIRE(aegis::serialize::instantiate(registry, types, *scene, prepare).has_value());
+
+        CHECK(prepared == std::vector<std::string>{ "Shooter" });
+        const auto& entries = registry.get<aegis::scripting::Scripts>(registry.find(aegis::StableId{ 1 })).entries;
+        REQUIRE(entries.size() == 1);
+        CHECK(static_cast<Shooter*>(entries[0].script.get())->projectile.slot() == projectile.slot());
     }
 
     TEST_CASE("leaves the world unchanged when the scene does not fit it")
