@@ -40,6 +40,21 @@ public:
         return ref;
     }
 
+    /// @brief Adds a callback pass (CallbackPass) named 'name': 'setup' declares its resources on the
+    ///        ResourceDeclarations, as a class pass's constructor does, and returns the RecordPass that records it.
+    ///        Ordered, and named inside a scope ("<scope>/<name>"), as add's passes.
+    template<typename Setup>
+        requires std::invocable<Setup, ResourceDeclarations&> &&
+                 std::constructible_from<RecordPass, std::invoke_result_t<Setup, ResourceDeclarations&>>
+    auto addPass(std::string_view name, Setup setup) -> CallbackPass&
+    {
+        m_declarations.beginPass(name);
+        auto pass = std::make_unique<CallbackPass>(name, RecordPass{ std::invoke(std::move(setup), m_declarations) });
+        auto& ref = *pass;
+        m_passes.push_back(std::move(pass));
+        return ref;
+    }
+
     /// @brief Starts a scope: the passes added until endScope create resources of their own, named after it
     ///        (ResourceDeclarations::beginScope), and its textures follow 'extent' (none: the output).
     auto beginScope(std::string_view name, std::optional<rhi::Extent2D> extent = std::nullopt) -> void
