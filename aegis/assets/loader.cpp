@@ -51,7 +51,7 @@ private:
                 m_textures.push_back(nullptr);
                 continue;
             }
-            auto texture = Texture::create(m_desc.device, *data, image.name);
+            auto texture = Texture::create(m_desc.device, *data, image.name, modelSamplerDesc(image.sampler));
             if (!texture)
                 return std::unexpected{ texture.error() };
             m_textures.push_back(std::move(*texture));
@@ -200,6 +200,36 @@ auto modelMaterialModes(const ModelMaterial& material) noexcept -> ModelMaterial
         .alphaMode = material.alphaMode,
         .cullMode = material.doubleSided ? rhi::CullMode::None : rhi::CullMode::Back,
     };
+}
+
+auto modelSamplerDesc(const ModelSampler& sampler) noexcept -> rhi::Sampler::Desc
+{
+    const auto filter = [](TextureFilter f) { return f == TextureFilter::Nearest ? rhi::Filter::Nearest : rhi::Filter::Linear; };
+    const auto addressMode = [&] {
+        switch (sampler.wrapU)
+        {
+        case TextureWrap::MirroredRepeat:
+            return rhi::SamplerAddressMode::MirroredRepeat;
+        case TextureWrap::ClampToEdge:
+            return rhi::SamplerAddressMode::ClampToEdge;
+        case TextureWrap::Repeat:
+            break;
+        }
+        return rhi::SamplerAddressMode::Repeat;
+    }();
+
+    rhi::Sampler::Desc desc{
+        .magFilter = filter(sampler.magFilter),
+        .minFilter = filter(sampler.minFilter),
+        .addressMode = addressMode,
+    };
+    if (sampler.mipmapFilter)
+        desc.mipmapMode = *sampler.mipmapFilter == TextureFilter::Nearest ? rhi::SamplerMipmapMode::Nearest : rhi::SamplerMipmapMode::Linear;
+    else
+        desc.maxLod = 0.0f;
+    if (sampler.magFilter == TextureFilter::Nearest || sampler.minFilter == TextureFilter::Nearest)
+        desc.maxAnisotropy = 1.0f;
+    return desc;
 }
 
 auto Loader::load(const Desc& desc, const std::filesystem::path& path) -> std::expected<Model, Error>

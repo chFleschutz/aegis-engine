@@ -73,7 +73,8 @@ auto triangleGltf(std::string_view name = "tri") -> std::string
     {{ "bufferView": 2, "componentType": 5123, "count": 3, "type": "SCALAR" }}
   ],
   "images": [ {{ "uri": "data:image/png;base64,{}" }}, {{ "uri": "tex.png" }} ],
-  "textures": [ {{ "source": 0 }}, {{ "source": 1 }} ],
+  "samplers": [ {{ "magFilter": 9728, "minFilter": 9729, "wrapS": 33071, "wrapT": 33071 }} ],
+  "textures": [ {{ "sampler": 0, "source": 0 }}, {{ "source": 1 }} ],
   "materials": [ {{ "name": "m", "pbrMetallicRoughness": {{ "baseColorTexture": {{ "index": 0 }}, "metallicRoughnessTexture": {{ "index": 1 }} }} }} ],
   "meshes": [ {{ "name": "{}", "primitives": [ {{ "attributes": {{ "POSITION": 0, "TEXCOORD_0": 1 }}, "indices": 2, "material": 0 }} ] }} ],
   "nodes": [ {{ "name": "n", "mesh": 0, "translation": [1, 2, 3] }} ],
@@ -255,7 +256,13 @@ TEST_SUITE("assets::ImportCache")
             CHECK(second.model.images[i].uri == first.model.images[i].uri);
             CHECK(second.model.images[i].srgb == first.model.images[i].srgb);
             CHECK(second.model.images[i].encoded == first.model.images[i].encoded);
+            CHECK(second.model.images[i].sampler == first.model.images[i].sampler);
         }
+        // The first image's sampler has no mipmap filter, which the entry leaves out; the second has the defaults.
+        CHECK(second.model.images[0].sampler.wrapU == assets::TextureWrap::ClampToEdge);
+        CHECK(second.model.images[0].sampler.magFilter == assets::TextureFilter::Nearest);
+        CHECK_FALSE(second.model.images[0].sampler.mipmapFilter.has_value());
+        CHECK(second.model.images[1].sampler == assets::ModelSampler{});
         CHECK(second.model.images[0].uri.empty());
         CHECK_FALSE(second.model.images[0].encoded.empty());
         CHECK(second.model.images[1].uri == "tex.png");

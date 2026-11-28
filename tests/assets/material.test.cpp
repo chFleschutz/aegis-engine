@@ -16,7 +16,15 @@ using aegis::assets::MaterialValue;
 using aegis::assets::ModelMaterial;
 using aegis::assets::ModelMaterialModes;
 using aegis::assets::modelMaterialModes;
+using aegis::assets::ModelSampler;
+using aegis::assets::modelSamplerDesc;
+using aegis::assets::TextureFilter;
+using aegis::assets::TextureWrap;
 using aegis::rhi::CullMode;
+using aegis::rhi::Filter;
+using aegis::rhi::Sampler;
+using aegis::rhi::SamplerAddressMode;
+using aegis::rhi::SamplerMipmapMode;
 
 template<typename T>
 auto readAt(const std::array<std::byte, 64>& block, std::size_t offset) -> T
@@ -168,5 +176,51 @@ TEST_SUITE("assets::modelMaterialModes")
     {
         const ModelMaterial material{ .alphaMode = AlphaMode::Blend };
         CHECK(modelMaterialModes(material) == ModelMaterialModes{ .alphaMode = AlphaMode::Blend, .cullMode = CullMode::Back });
+    }
+}
+
+TEST_SUITE("assets::modelSamplerDesc")
+{
+    TEST_CASE("the default sampler is the default rhi sampler")
+    {
+        const auto desc = modelSamplerDesc(ModelSampler{});
+        const Sampler::Desc defaults{};
+        CHECK(desc.addressMode == defaults.addressMode);
+        CHECK(desc.magFilter == defaults.magFilter);
+        CHECK(desc.minFilter == defaults.minFilter);
+        CHECK(desc.mipmapMode == defaults.mipmapMode);
+        CHECK(desc.maxAnisotropy == defaults.maxAnisotropy);
+        CHECK(desc.maxLod == defaults.maxLod);
+    }
+
+    TEST_CASE("clamps to the edge and filters as the sampler names")
+    {
+        // MetalRoughSpheres.gltf's sampler.
+        const auto desc = modelSamplerDesc({ .wrapU = TextureWrap::ClampToEdge, .wrapV = TextureWrap::ClampToEdge, .magFilter = TextureFilter::Linear, .minFilter = TextureFilter::Nearest, .mipmapFilter = TextureFilter::Linear });
+        CHECK(desc.addressMode == SamplerAddressMode::ClampToEdge);
+        CHECK(desc.magFilter == Filter::Linear);
+        CHECK(desc.minFilter == Filter::Nearest);
+        CHECK(desc.mipmapMode == SamplerMipmapMode::Linear);
+        CHECK(desc.maxLod == Sampler::LodClampNone);
+    }
+
+    TEST_CASE("a nearest filter turns anisotropy off and linear filters keep it")
+    {
+        CHECK(modelSamplerDesc({ .magFilter = TextureFilter::Nearest }).maxAnisotropy <= 1.0f);
+        CHECK(modelSamplerDesc({ .minFilter = TextureFilter::Nearest }).maxAnisotropy <= 1.0f);
+        CHECK(modelSamplerDesc({ .mipmapFilter = TextureFilter::Nearest }).maxAnisotropy == Sampler::Desc{}.maxAnisotropy);
+    }
+
+    TEST_CASE("no mipmap filter reads the base level only")
+    {
+        const auto desc = modelSamplerDesc({ .mipmapFilter = std::nullopt });
+        CHECK(desc.maxLod == 0.0f);
+        CHECK(modelSamplerDesc({ .mipmapFilter = TextureFilter::Nearest }).mipmapMode == SamplerMipmapMode::Nearest);
+    }
+
+    TEST_CASE("wraps every axis like U")
+    {
+        CHECK(modelSamplerDesc({ .wrapU = TextureWrap::MirroredRepeat, .wrapV = TextureWrap::ClampToEdge }).addressMode == SamplerAddressMode::MirroredRepeat);
+        CHECK(modelSamplerDesc({ .wrapU = TextureWrap::Repeat, .wrapV = TextureWrap::ClampToEdge }).addressMode == SamplerAddressMode::Repeat);
     }
 }
