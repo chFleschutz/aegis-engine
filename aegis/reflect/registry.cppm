@@ -43,6 +43,9 @@ public:
             static_cast<T*>(object)->*member = std::move(*converted);
             return {};
         };
+        info.member = [member](void* object, std::type_index type) -> void* {
+            return type == std::type_index{ typeid(Member) } ? static_cast<void*>(&(static_cast<T*>(object)->*member)) : nullptr;
+        };
         m_info->fields.push_back(std::move(info));
         return *this;
     }
