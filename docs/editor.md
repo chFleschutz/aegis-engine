@@ -325,6 +325,7 @@ Ctrl+Z  ─────────────────> undo: SetField appl
 - **Material panel** ([#141]): a floating panel with one material file (`.material`) at a time: a row per parameter of
   its template in block order, showing the file's value or the template's default; a parameter the file sets has its
   label in the accent color and a reset button, which removes it from the file (as a texture slot set to None does).
+  Above them, an Alpha Mode and a Cull Mode row pick the material's variant ([#419]), as a `MaterialModeEdit`.
   `MaterialDocuments` (editor core) keeps every material file opened in the session with its edits; a `MaterialEdit`
   on the one undo history changes the document and the loaded material (`AssetLibrary::applyMaterialFile`), also while
   playing, so every scene using it shows the edit at once. Save writes the edited material files before the scene, the
@@ -709,4 +710,5 @@ Decided in [#83]: the name `Shell` (in `aegis.engine`, next to `Engine`), and ed
 [#324]: https://github.com/chFleschutz/aegis-engine/issues/324
 [#325]: https://github.com/chFleschutz/aegis-engine/issues/325
 [#393]: https://github.com/chFleschutz/aegis-engine/issues/393
+[#419]: https://github.com/chFleschutz/aegis-engine/issues/419
 [m10]: https://github.com/chFleschutz/aegis-engine/milestone/11

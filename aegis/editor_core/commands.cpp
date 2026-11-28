@@ -1,6 +1,8 @@
 module aegis.editor.core;
 import std;
+import aegis.assets;
 import aegis.reflect;
+import aegis.rhi;
 import aegis.scripting;
 import aegis.serialize;
 import aegis.world;
@@ -416,6 +418,24 @@ auto editMaterial(const EditWorld& world, UndoStack& history, std::uint64_t mate
             .newValue = std::move(value),
         },
         continuous);
+}
+
+auto editMaterialModes(const EditWorld& world, UndoStack& history, std::uint64_t material, assets::AlphaMode alphaMode,
+    rhi::CullMode cullMode) -> std::expected<void, Error>
+{
+    const auto* document = world.materials ? world.materials->find(material) : nullptr;
+    if (!document)
+        return makeError(ErrorCode::MissingMaterial, std::format("the material {:016x} is not open in the editor", material));
+    return perform(world, history,
+        MaterialModeEdit{
+            .material = material,
+            .file = std::string{ document->fileName() },
+            .oldAlphaMode = document->file().alphaMode,
+            .newAlphaMode = alphaMode,
+            .oldCullMode = document->file().cullMode,
+            .newCullMode = cullMode,
+        },
+        false);
 }
 
 auto editField(const EditWorld& world, UndoStack& history, world::Entity entity, const reflect::TypeInfo& type, std::optional<std::size_t> scriptIndex, std::string_view field, const reflect::Value& value, bool continuous)

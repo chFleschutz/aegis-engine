@@ -4,9 +4,11 @@ add_library(aegis-editor-core STATIC)
 target_link_libraries(
     aegis-editor-core
     PUBLIC
+        aegis-assets # AlphaMode of material files and their edits
         aegis-core
         aegis-math
         aegis-reflect
+        aegis-rhi # CullMode of material files and their edits
         aegis-serialize # Subtree snapshots of the structural edits, the play copy and scene files
         aegis-world
     PRIVATE

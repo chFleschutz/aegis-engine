@@ -1,6 +1,8 @@
 export module aegis.editor.core:material_document;
 import std;
+import aegis.assets;
 import aegis.reflect;
+import aegis.rhi;
 import aegis.serialize;
 import :error;
 
@@ -35,6 +37,9 @@ public:
     /// @brief Gives the parameter 'name' the value 'value', or removes it from the file for none.
     /// @return Whether the file changed.
     auto setParameter(std::string_view name, std::optional<reflect::Node> value) -> bool;
+    /// @brief Gives the file the alpha mode and cull mode that pick its material's variant.
+    /// @return Whether the file changed.
+    auto setModes(assets::AlphaMode alphaMode, rhi::CullMode cullMode) -> bool;
 
     /// @brief Whether the file differs from the one last read or saved, by value (sameParameter).
     [[nodiscard]] auto dirty() const -> bool;

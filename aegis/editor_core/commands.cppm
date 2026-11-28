@@ -1,6 +1,8 @@
 export module aegis.editor.core:commands;
 import std;
+import aegis.assets;
 import aegis.reflect;
+import aegis.rhi;
 import aegis.world;
 import :edits;
 import :error;
@@ -62,6 +64,12 @@ auto destroyEntity(const EditWorld& world, UndoStack& history, world::Entity ent
 /// @return MissingMaterial if the file is not open, or why the loaded material refused it (nothing changed then)
 auto editMaterial(const EditWorld& world, UndoStack& history, std::uint64_t material, std::string_view parameter,
     std::optional<reflect::Node> value, bool continuous = false) -> std::expected<void, Error>;
+
+/// @brief Gives the material file 'material' (open in EditWorld::materials) the alpha mode and cull mode that pick its
+///        material's variant, and shows them in the loaded material (EditWorld::applyMaterial).
+/// @return MissingMaterial if the file is not open, or why the loaded material refused it (nothing changed then)
+auto editMaterialModes(const EditWorld& world, UndoStack& history, std::uint64_t material, assets::AlphaMode alphaMode,
+    rhi::CullMode cullMode) -> std::expected<void, Error>;
 
 /// @brief Renames 'entity'. With 'continuous' (the name is still being typed) the next rename extends this one.
 auto renameEntity(const EditWorld& world, UndoStack& history, world::Entity entity, std::string name, bool continuous = false)

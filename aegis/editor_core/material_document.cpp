@@ -1,6 +1,8 @@
 module aegis.editor.core;
 import std;
+import aegis.assets;
 import aegis.reflect;
+import aegis.rhi;
 import aegis.serialize;
 
 namespace aegis::editor
@@ -82,9 +84,19 @@ auto MaterialDocument::setParameter(std::string_view name, std::optional<Node> v
     return true;
 }
 
+auto MaterialDocument::setModes(assets::AlphaMode alphaMode, rhi::CullMode cullMode) -> bool
+{
+    if (m_file.alphaMode == alphaMode && m_file.cullMode == cullMode)
+        return false;
+    m_file.alphaMode = alphaMode;
+    m_file.cullMode = cullMode;
+    return true;
+}
+
 auto MaterialDocument::dirty() const -> bool
 {
-    return m_file.id != m_saved.id || m_file.templateId != m_saved.templateId || !sameNode(m_file.parameters, m_saved.parameters);
+    return m_file.id != m_saved.id || m_file.templateId != m_saved.templateId || m_file.alphaMode != m_saved.alphaMode ||
+           m_file.cullMode != m_saved.cullMode || !sameNode(m_file.parameters, m_saved.parameters);
 }
 
 void MaterialDocument::markSaved()
