@@ -19,51 +19,7 @@ import aegis.scripting;
 
 export namespace aegis
 {
-/// @brief The ImGui context and both its backends, for the engine's lifetime: the platform one (GLFW, attach) and the
-///        Vulkan one (rhi::ImGuiBackend, createBackend), which no frame-graph rebuild restarts. It also holds the UI's
-///        place in the frame: beginFrame opens it after the input was read, endFrame closes it (ImGui::Render) before
-///        the frame graph's UI pass records it through the backend (backend). The textures the UI shows are registered
-///        with the backend (uiTexture).
-class Presentation
-{
-public:
-    Presentation();
-    Presentation(const Presentation&) = delete;
-    Presentation(Presentation&&) = delete;
-    ~Presentation();
-
-    auto operator=(const Presentation&) -> Presentation& = delete;
-    auto operator=(Presentation&&) -> Presentation& = delete;
-
-    /// @brief Follows the window's input through ImGui's GLFW backend; without it (headless) the UI is
-    ///        drawn, not interacted with.
-    void attach(platform::Window& window);
-    /// @brief Opens the frame. Headless, the display is 'extent' and time advances by 'deltaSeconds'.
-    void beginFrame(rhi::Extent2D extent, float deltaSeconds);
-    /// @brief Ends the frame: its draw data is ready for the UI pass.
-    void endFrame();
-
-    /// @brief Starts ImGui's Vulkan backend, once the device exists, and what uiTexture registers with.
-    [[nodiscard]] auto createBackend(const rhi::Context& context, rhi::Device& device, std::uint32_t framesInFlight) -> std::expected<void, std::string>;
-    /// @brief The backend the frame graph's UI pass records through (UiPass::Desc::backend); null before createBackend.
-    [[nodiscard]] auto backend() noexcept -> rhi::ImGuiBackend*;
-    /// @brief An ImTextureID showing 'view' (an image of the frame graph, say) with ImGui::Image, valid in this
-    ///        frame only: ask again in every frame that shows it. 0 before createBackend.
-    /// @note The UI pass samples it: the image must be in a shader read state by then, as a view's "Final" is.
-    [[nodiscard]] auto uiTexture(rhi::ImageViewHandle view) -> std::uint64_t;
-    /// @brief Releases every texture uiTexture handed out. The GPU must be idle: call it before the views the UI shows
-    ///        are recreated (the frame graph is resized or rebuilt).
-    void releaseTextures();
-    /// @brief Releases the textures and shuts the Vulkan backend down, while the device exists.
-    void destroyBackend();
-
-private:
-    struct Textures; // The registrations, kept out of this interface
-
-    bool m_glfw{ false }; // ImGui's GLFW backend is initialized
-    std::unique_ptr<rhi::ImGuiBackend> m_backend;
-    std::unique_ptr<Textures> m_textures;
-};
+class Presentation;
 
 /// @brief A command-line option parseArgs leaves to the shell: its name as typed ("--editor-select") and the token after
 ///        it, unless that starts with "--".
@@ -231,6 +187,98 @@ struct ViewTarget
     render_graph::ResourceId final;
 };
 
+/// @brief What the engine shows, for its lifetime: the UI and the frame graph that renders the world and the UI.
+///        The UI is the ImGui context and both its backends: the platform one (GLFW) and the Vulkan one
+///        (rhi::ImGuiBackend), which no frame-graph rebuild restarts. beginFrame opens the UI's frame after the input
+///        was read, endFrame closes it (ImGui::Render) before the frame graph's UI pass records it through the backend.
+///        The textures the UI shows are registered with the backend (uiTexture). The frame graph is rebuilt for the
+///        shell's views (followViews) and keeps what outlives every rebuild: the frame scene's source, the passes'
+///        pipelines and their settings.
+class Presentation
+{
+public:
+    /// @brief Declares the frame graph's passes for 'desc' (buildFrameGraph, with the game's passes and the shell's).
+    using GraphDeclaration = std::function<void(render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc)>;
+
+    struct Desc
+    {
+        /// @brief Whose input the UI follows through ImGui's GLFW backend; null (headless) draws the UI without
+        ///        interaction.
+        platform::Window* window{ nullptr };
+        const rhi::Context& context;
+        rhi::Device& device;
+        /// @brief Gives the frame graph its target's format and extent.
+        const renderer::Renderer& renderer;
+        std::uint32_t framesInFlight;
+        /// @brief Whether the frame graph renders GPU-driven (Engine::useGpuDrivenRendering).
+        bool gpuDriven;
+        GraphDeclaration declare;
+    };
+
+    /// @brief Creates the ImGui context and both its backends. The frame graph follows (buildGraph).
+    [[nodiscard]] static auto create(const Desc& desc) -> std::expected<std::unique_ptr<Presentation>, EngineError>;
+
+    Presentation(const Presentation&) = delete;
+    Presentation(Presentation&&) = delete;
+    ~Presentation();
+
+    auto operator=(const Presentation&) -> Presentation& = delete;
+    auto operator=(Presentation&&) -> Presentation& = delete;
+
+    /// @brief Opens the UI's frame. Headless, the display is 'extent' and time advances by 'deltaSeconds'.
+    void beginFrame(rhi::Extent2D extent, float deltaSeconds);
+    /// @brief Ends the UI's frame: its draw data is ready for the UI pass.
+    void endFrame();
+    /// @brief An ImTextureID showing 'view' (an image of the frame graph, say) with ImGui::Image, valid in this
+    ///        frame only: ask again in every frame that shows it.
+    /// @note The UI pass samples it: the image must be in a shader read state by then, as a view's "Final" is.
+    [[nodiscard]] auto uiTexture(rhi::ImageViewHandle view) -> std::uint64_t;
+
+    /// @brief Replaces the frame graph with one rendering the main camera onto the renderer's target, or, with
+    ///        'views', each of them into a target of its own. Frames in flight must have finished.
+    [[nodiscard]] auto buildGraph(std::vector<ViewTarget> views = {}) -> std::expected<void, EngineError>;
+    /// @brief Rebuilds or resizes the frame graph for the shell's views, if they changed since the last frame. Waits
+    ///        for the frames in flight first.
+    [[nodiscard]] auto followViews(const std::vector<RenderView>& views) -> std::expected<void, EngineError>;
+    /// @brief Follows the renderer's resized target, unless the graph renders into views of its own. The renderer
+    ///        waited for the frames in flight.
+    [[nodiscard]] auto targetResized() -> std::expected<void, EngineError>;
+
+    /// @brief The frame graph; buildGraph must have run.
+    [[nodiscard]] auto frameGraph() -> render_graph::FrameGraph& { return *m_frameGraph; }
+    /// @brief The views the frame graph renders into targets of their own; none: onto the renderer's target.
+    [[nodiscard]] auto views() const -> const std::vector<ViewTarget>& { return m_views; }
+    /// @brief Where the passes read the frame scene: bind each frame's before the graph records it.
+    [[nodiscard]] auto frameScene() -> render_graph::FrameSceneSource& { return m_frameScene; }
+    /// @brief The passes' pipelines and BRDF LUT, which every frame graph shares.
+    [[nodiscard]] auto pipelines() const -> const render_graph::PipelineLibrary& { return *m_pipelines; }
+
+private:
+    struct Textures; // The registrations, kept out of this interface
+
+    explicit Presentation(const Desc& desc);
+
+    /// @brief Releases every texture uiTexture handed out, before the views the UI shows are recreated. The GPU is idle.
+    void releaseTextures();
+
+    rhi::Device* m_device;
+    const renderer::Renderer* m_renderer;
+    bool m_gpuDriven;
+    GraphDeclaration m_declare;
+    // The destructor ends what goes through ImGui (the frame graph's UI pass, the textures, the backends) before
+    // the ImGui context.
+    bool m_glfw{ false }; // ImGui's GLFW backend is initialized
+    std::unique_ptr<rhi::ImGuiBackend> m_backend;
+    std::unique_ptr<Textures> m_textures;
+    // What the frame graph reads, which outlives every graph: a rebuild creates no pipelines and keeps the settings
+    // the renderer panel edits.
+    render_graph::FrameSceneSource m_frameScene;
+    std::unique_ptr<render_graph::PipelineLibrary> m_pipelines{ std::make_unique<render_graph::PipelineLibrary>() };
+    render_graph::RenderSettings m_renderSettings;
+    std::unique_ptr<render_graph::FrameGraph> m_frameGraph;
+    std::vector<ViewTarget> m_views;
+};
+
 /// @brief What a shell gets at the frame's safe point: input has been read and the ImGui frame is open,
 ///        and no world is being updated or rendered, so the shell can read and write the worlds directly. Here it
 ///        also decides which worlds update this frame (update) and which one renders (render).
@@ -370,13 +418,13 @@ public:
 
     /// @brief The audio every world plays through: a device when windowed, none when headless (the mix advances by
     ///        frame time; see audio::AudioEngine::Desc::device). Its stats count the sounds started and playing.
-    [[nodiscard]] auto audio() -> audio::AudioEngine& { return *m_audio; }
+    [[nodiscard]] auto audio() -> audio::AudioEngine& { return *m_platform->audio; }
 
     /// @brief Finds assets by path and loads them by ID.
     [[nodiscard]] auto assets() -> AssetLibrary& { return *m_assets; }
 
     /// @brief The passes' pipelines and BRDF LUT, which every frame graph the engine builds shares.
-    [[nodiscard]] auto pipelines() const -> const render_graph::PipelineLibrary& { return *m_pipelines; }
+    [[nodiscard]] auto pipelines() const -> const render_graph::PipelineLibrary& { return m_presentation->pipelines(); }
 
     /// @brief The main world: scenes load into it (loadScene), and it renders unless the shell renders another
     ///        (FrameContext::render). It exists from create() on and is never destroyed.
@@ -449,12 +497,12 @@ public:
     [[nodiscard]] auto desc() const -> const AppDesc& { return m_desc; }
 
     /// @brief No window, input or platform backend: frames render offscreen (AppDesc::headless).
-    [[nodiscard]] auto headless() const -> bool { return !m_window; }
+    [[nodiscard]] auto headless() const -> bool { return !m_platform->window; }
 
     /// @brief The input every world's scripts read when headless: the project's input map, and nothing down until a
     ///        check applies events to it (beginFrame, then apply, at the safe point before the worlds update). Null
     ///        with a window, whose input comes from the platform.
-    [[nodiscard]] auto headlessInput() -> platform::InputState* { return m_window ? nullptr : &m_headlessInput; }
+    [[nodiscard]] auto headlessInput() -> platform::InputState* { return headless() ? &m_platform->headlessInput : nullptr; }
 
 private:
     friend struct FrameContext; // Its update and render ask for this frame's updates and rendered world
@@ -466,21 +514,38 @@ private:
         world::UpdateMode mode;
     };
 
+    /// @brief The OS's devices: the window and its input (none headless), the input state scripts read when headless,
+    ///        and the audio (without a device headless). The worlds' systems read the input and play through the audio.
+    struct Platform
+    {
+        [[nodiscard]] static auto create(const AppDesc& desc) -> std::expected<std::unique_ptr<Platform>, EngineError>;
+
+        std::unique_ptr<platform::Window> window;
+        std::unique_ptr<platform::Input> input; // After the window, whose callbacks it installs
+        platform::InputState headlessInput;     // The input map, and what checks apply
+        std::unique_ptr<audio::AudioEngine> audio;
+    };
+
+    /// @brief The Vulkan context, the device and the renderer that draws onto the window (or, headless, an offscreen
+    ///        target).
+    struct Gpu
+    {
+        /// @brief With 'window' null, the renderer draws offscreen at the size AppDesc gives.
+        [[nodiscard]] static auto create(const AppDesc& desc, platform::Window* window) -> std::expected<std::unique_ptr<Gpu>, EngineError>;
+
+        // Each after what creates it: the context creates the device, which the renderer draws with.
+        std::unique_ptr<rhi::Context> context;
+        std::unique_ptr<rhi::Device> device;
+        std::unique_ptr<renderer::Renderer> renderer;
+    };
+
     explicit Engine(const AppDesc& desc);
 
     auto initialize() -> std::expected<void, EngineError>;
-    auto createWindow() -> std::expected<void, EngineError>;
-    auto createRenderer() -> std::expected<void, EngineError>;
     auto createAssets() -> std::expected<void, EngineError>;
-    auto createAudio() -> std::expected<void, EngineError>;
     /// @brief Reads the project file and hands its input map to the input (or the headless state).
     auto loadProjectFile() -> std::expected<void, EngineError>;
-    /// @brief Replaces the frame graph with one rendering the main camera onto the renderer's target, or, with
-    ///        'views', each of them into a target of its own. Frames in flight must have finished.
-    auto createFrameGraph(std::vector<ViewTarget> views = {}) -> std::expected<void, EngineError>;
     bool resize();
-    /// @brief Rebuilds or resizes the frame graph for the shell's views, if they changed since the last frame.
-    bool followViews(const std::vector<RenderView>& views);
     /// @brief Gives every world's main camera the aspect of what it renders into: the first of 'views' without a
     ///        camera of its own, or the window.
     void updateCameraAspect(const std::vector<RenderView>& views);
@@ -509,26 +574,21 @@ private:
     /// @brief Longest frame time the scene and scripts see.
     static constexpr float MAX_FRAME_DELTA_SEC{ 0.1f };
 
-    // Order matters: members are destroyed bottom up, and everything holding GPU resources must go
-    // before the device.
+    // Members are destroyed bottom up. A failed create() leaves the later services empty.
     AppDesc m_desc;
-    std::unique_ptr<aegis::platform::Window> m_window; // null when headless
-    // Before ImGui's GLFW backend installs its callbacks, which chain to the window's. Null when headless.
-    std::unique_ptr<aegis::platform::Input> m_input;
-    aegis::platform::InputState m_headlessInput; // What scripts read when headless: the input map, and what checks apply
-    Presentation m_presentation;                 // The ImGui context: outlives the frame graph's UI pass and the shell
-    std::uint32_t m_lastFrameIndex{ 0 };         // The frame slot the last frame drew into
-    std::unique_ptr<aegis::rhi::Context> m_context;
-    std::unique_ptr<aegis::rhi::Device> m_device;
-    std::unique_ptr<aegis::renderer::Renderer> m_renderer;
+    // Platform first, as the window is what the GPU draws onto and the worlds' systems read its input.
+    std::unique_ptr<Platform> m_platform;
+    // Gpu: everything below that holds GPU resources (the assets, the worlds' instances, Presentation) goes
+    // before it.
+    std::unique_ptr<Gpu> m_gpu;
+    std::uint32_t m_lastFrameIndex{ 0 }; // The frame slot the last frame drew into
     std::optional<AssetLibrary> m_assets;
     reflect::TypeRegistry m_types;
     std::unique_ptr<scripting::Spawner> m_spawner;                              // What scripts spawn through: every world's registry context
-    std::unique_ptr<audio::AudioEngine> m_audio;                                // Outlives the worlds, whose AudioSystems play through it
     core::FrameClock m_clock{ core::FrameClock::clamped(MAX_FRAME_DELTA_SEC) }; // The UI's; each world has its own
     std::function<void(world::World&)> m_worldSetup;                            // The game's systems
     GraphBuild m_graphBuild;                                                    // The game's scene passes; empty for the engine's
-    // Their instances hold meshes and materials: they go before the device.
+    // The worlds last of these: their entities hold the assets and their registries point at the spawner.
     Worlds m_worlds{ [this](world::World& world) { setUpWorld(world); } };
     world::World* m_mainWorld{ nullptr };          // The first of m_worlds
     std::vector<WorldUpdate> m_updates;            // This frame's, from the shell (FrameContext::update)
@@ -543,15 +603,16 @@ private:
         auto operator==(const CameraSource&) const -> bool = default;
     };
     std::unordered_map<std::string, CameraSource> m_cameraSources; // Last frame's, by view name; a view without a camera has none
-    render_graph::FrameSceneSource m_frameScene;                   // Where the passes read the frame scene; outlives the graph
-    // The passes' pipelines and BRDF LUT: outlive every frame graph, so a rebuild (followViews) creates none.
-    std::unique_ptr<render_graph::PipelineLibrary> m_pipelines{ std::make_unique<render_graph::PipelineLibrary>() };
-    // The passes' settings, which the renderer panel edits: outlive every frame graph, so a rebuild keeps them.
-    render_graph::RenderSettings m_renderSettings;
-    std::unique_ptr<aegis::render_graph::FrameGraph> m_frameGraph;
-    std::vector<ViewTarget> m_views; // The views the frame graph renders into targets of their own; none: onto the target
-    bool m_quit{ false };            // quit(): run() ends after this frame
-    // Last, so it goes first, while everything it may reference (the worlds, the frame graph, ImGui) exists.
-    std::unique_ptr<Shell> m_shell{ std::make_unique<GameShell>() };
+    bool m_quit{ false };                                          // quit(): run() ends after this frame
+    // Presentation: its frame graph and UI backend live on the device, and ImGui's GLFW backend chains to the
+    // input's callbacks on the window, so it goes before Gpu and Platform.
+    std::unique_ptr<Presentation> m_presentation;
+    std::unique_ptr<Shell> m_shell{ std::make_unique<GameShell>() }; // The destructor ends it first
 };
+}
+
+namespace aegis
+{
+// The module's own, for its implementation units
+auto makeError(EngineErrorCode code, std::string message) -> EngineError;
 }
