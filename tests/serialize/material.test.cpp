@@ -128,6 +128,8 @@ TEST_SUITE("serialize::material")
                 member));
             REQUIRE_FALSE(material.has_value());
             CHECK(material.error().line == 2);
+            if (member.find('"', member.find(':')) != std::string_view::npos)
+                CHECK(material.error().code == ErrorCode::InvalidValue);
         }
     }
 
