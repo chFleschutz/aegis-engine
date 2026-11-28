@@ -266,9 +266,14 @@ JSON (see "Formats and libraries") with a common header:
   "id": "5b0e17d2c94af3a1",
   "version": 1,
   "template": "2e7a90c4d15b8f63",
+  "alphaMode": "mask",
+  "cullMode": "none",
   "parameters": { "roughness": 0.4, "albedoMap": "08e3f5b6a1c47d29" }
 }
 ```
+
+A material's optional `alphaMode` (`opaque`, `mask`, `blend`) and `cullMode` (`back`, `none`,
+`front`) pick its variant; each is written only when it is not the default (`opaque`, `back`).
 
 - **The header decides, the extension is for people:** the loader dispatches on `type` through the
   type registry; extensions are plain words (`.scene`, `.material`) for the browser and git.

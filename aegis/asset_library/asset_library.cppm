@@ -159,9 +159,9 @@ public:
     [[nodiscard]] auto copyMaterial(const assets::AssetRef<assets::Material>& material)
         -> std::expected<assets::AssetRef<assets::Material>, AssetLibraryError>;
 
-    /// @brief Gives the loaded material file 'material' the parameters of 'file' (the editor's edited copy of it), loading
-    ///        it first if needed: the parameters 'file' leaves out take the template's default again. Every user of the
-    ///        material sees the change; the file on disk is not written.
+    /// @brief Gives the loaded material file 'material' the parameters, alpha mode and cull mode of 'file' (the editor's
+    ///        edited copy of it), loading it first if needed: the parameters 'file' leaves out take the template's
+    ///        default again. Every user of the material sees the change; the file on disk is not written.
     /// @return NotFound or WrongType if 'material' names no material file, ReadFailed if it failed to load (its
     ///         fallback is shared, so it stays as it is), InvalidValue if 'file' names another template or a value the
     ///         template does not take; the material is unchanged then.

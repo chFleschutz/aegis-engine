@@ -1,12 +1,16 @@
 #include <doctest/doctest.h>
 
 import std;
+import aegis.assets;
 import aegis.reflect;
+import aegis.rhi;
 import aegis.serialize;
 
 namespace
 {
+using aegis::assets::AlphaMode;
 using aegis::reflect::Node;
+using aegis::rhi::CullMode;
 using aegis::serialize::ErrorCode;
 using aegis::serialize::MaterialFile;
 using aegis::serialize::parseMaterial;
@@ -71,6 +75,60 @@ TEST_SUITE("serialize::material")
         auto material = parseMaterial(R"({ "type": "Material", "id": "00000000000000bb", "version": 1, "template": "00000000000000cc" })");
         REQUIRE(material.has_value());
         CHECK(material->parameters.items.empty());
+        CHECK(material->alphaMode == AlphaMode::Opaque);
+        CHECK(material->cullMode == CullMode::Back);
+    }
+
+    TEST_CASE("reads and writes back a masked double-sided material")
+    {
+        const std::string text = R"({
+  "type": "Material",
+  "id": "00000000000000bb",
+  "version": 1,
+  "template": "00000000000000cc",
+  "alphaMode": "mask",
+  "cullMode": "none",
+  "parameters": {}
+}
+)";
+        auto material = parseMaterial(text);
+        REQUIRE(material.has_value());
+        CHECK(material->alphaMode == AlphaMode::Mask);
+        CHECK(material->cullMode == CullMode::None);
+        CHECK(writeMaterial(*material) == text);
+    }
+
+    TEST_CASE("round-trips every alpha and cull mode")
+    {
+        for (const auto alphaMode : { AlphaMode::Opaque, AlphaMode::Mask, AlphaMode::Blend })
+        {
+            for (const auto cullMode : { CullMode::Back, CullMode::None, CullMode::Front })
+            {
+                CAPTURE(static_cast<int>(alphaMode));
+                CAPTURE(static_cast<int>(cullMode));
+                const MaterialFile material{ .id = 0xbb, .templateId = 0xcc, .alphaMode = alphaMode, .cullMode = cullMode };
+                const std::string text = writeMaterial(material);
+                CHECK((text.find("alphaMode") != std::string::npos) == (alphaMode != AlphaMode::Opaque));
+                CHECK((text.find("cullMode") != std::string::npos) == (cullMode != CullMode::Back));
+                auto read = parseMaterial(text);
+                REQUIRE(read.has_value());
+                CHECK(read->alphaMode == alphaMode);
+                CHECK(read->cullMode == cullMode);
+            }
+        }
+    }
+
+    TEST_CASE("rejects an unknown alpha or cull mode at its line")
+    {
+        for (std::string_view member : { R"("alphaMode": "cutout")", R"("cullMode": "both")", R"("alphaMode": 1)", R"("cullMode": "Back")" })
+        {
+            CAPTURE(member);
+            auto material = parseMaterial(std::format(R"({{ "type": "Material", "id": "00000000000000bb", "version": 1, "template": "00000000000000cc",
+  {} }})",
+                member));
+            REQUIRE_FALSE(material.has_value());
+            CHECK(material.error().line == 2);
+        }
     }
 
     TEST_CASE("rejects a value of no parameter shape at its line")

@@ -8,6 +8,7 @@ import std;
 import aegis.asset_library;
 import aegis.assets;
 import aegis.engine;
+import aegis.rhi;
 import aegis.serialize;
 
 // --material-file: a scene that names a material file renders with it, a changed file renders differently, and so does
@@ -16,6 +17,8 @@ import aegis.serialize;
 // cube, whose material is the file's. The material is black and lit by nothing (no lights, the default black sky, which
 // the lighting pass needs to run), so the cube shows only its emissive colour; rewriting the file swaps that colour and a second engine renders it again. A
 // third engine loads that file and applies a copy with a third colour before it renders, which the frame must show.
+// The changed file is also masked and double-sided ("alphaMode", "cullMode"): the third engine checks that its loaded
+// material has that variant, and that the applied copy, which names neither, gives it the default variant again.
 namespace aegis::test
 {
 namespace
@@ -31,13 +34,15 @@ constexpr std::array<int, 3> magenta{ 1, 0, 1 };
 // The engine content's cube mesh (content/cube.obj.meta, "StaticMesh/cube/0").
 constexpr std::string_view cubeMesh{ "ebb588c4f30352a9" };
 
-auto materialText(const std::array<int, 3>& emissive) -> std::string
+// With 'masked', the file is masked and double-sided; the cube's alpha is 1 (no albedo map), so it still covers the
+// same pixels.
+auto materialText(const std::array<int, 3>& emissive, bool masked = false) -> std::string
 {
     return std::format(R"({{
   "type": "Material",
   "id": "4d8e1f0a7b3c9265",
   "version": 1,
-  "template": "{}",
+  "template": "{}",{}
   "parameters": {{
     "albedo": [0, 0, 0],
     "emissive": [{}, {}, {}],
@@ -46,7 +51,8 @@ auto materialText(const std::array<int, 3>& emissive) -> std::string
   }}
 }}
 )",
-        assets::engine::pbrTemplate, emissive[0], emissive[1], emissive[2]);
+        assets::engine::pbrTemplate, masked ? "\n  \"alphaMode\": \"mask\",\n  \"cullMode\": \"none\"," : "", emissive[0], emissive[1],
+        emissive[2]);
 }
 
 auto sceneText() -> std::string
@@ -196,17 +202,26 @@ auto render(const Options& options, const std::filesystem::path& project, const 
     return Counts{ .cyan = colourPixels(pixels, cyan), .yellow = colourPixels(pixels, yellow), .magenta = colourPixels(pixels, magenta) };
 }
 
-// The third run: the loaded material (the yellow file) takes a magenta copy of the file.
+// The third run: the loaded material (the yellow file, masked and double-sided) takes a magenta copy of the file, which
+// names no modes.
 auto applyMagenta(AssetLibrary& assets) -> std::expected<void, std::string>
 {
     const auto material = assets.find(materialFile);
     if (!material)
         return std::unexpected{ std::format("'{}' is not in the temporary project", materialFile) };
+    const auto loaded = assets.load<assets::Material>(*material);
+    if (!loaded)
+        return std::unexpected{ std::format("'{}' did not load", materialFile) };
+    if (loaded->alphaMode() != assets::AlphaMode::Mask || loaded->cullMode() != rhi::CullMode::None)
+        return std::unexpected{ std::format("'{}' loaded without its file's alpha mode Mask and cull mode None", materialFile) };
+
     auto file = serialize::parseMaterial(materialText(magenta));
     if (!file)
         return std::unexpected{ serialize::describe(file.error()) };
     if (auto applied = assets.applyMaterialFile(*material, *file); !applied)
         return std::unexpected{ describe(applied.error()) };
+    if (loaded->alphaMode() != assets::AlphaMode::Opaque || loaded->cullMode() != rhi::CullMode::Back)
+        return std::unexpected{ "the applied copy did not give the material the default alpha and cull mode again" };
     return {};
 }
 }
@@ -236,7 +251,7 @@ auto runMaterialFile(const Options& options) -> int
     {
         if (run == 1)
         {
-            if (auto written = writeText(content / materialFile, materialText(yellow)); !written)
+            if (auto written = writeText(content / materialFile, materialText(yellow, true)); !written)
                 return fail(written.error());
         }
         auto rendered = render(options, project.path, frameFile, run == 2 ? Prepare{ applyMagenta } : Prepare{});

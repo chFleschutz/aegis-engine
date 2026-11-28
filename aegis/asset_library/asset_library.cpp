@@ -251,6 +251,9 @@ public:
         }
         if (auto set = material.shared()->setOverrides(std::move(overrides)); !set)
             return makeError(AssetLibraryErrorCode::InvalidValue, set.error(), std::format("cannot set the parameters of '{}'", entry->path));
+        // The renderer moves the material's instances to the new variant's batch (InstanceStore::syncVariants)
+        material.shared()->setAlphaMode(file.alphaMode);
+        material.shared()->setCullMode(file.cullMode);
         return {};
     }
 
@@ -541,6 +544,8 @@ private:
             if (auto set = (*material)->setParameter(value.key, std::move(*converted)); !set)
                 return std::unexpected{ std::format("'{}' line {}: {}", entry.path, value.line, assets::describe(set.error())) };
         }
+        (*material)->setAlphaMode(file->alphaMode);
+        (*material)->setCullMode(file->cullMode);
         return std::move(*material);
     }
 

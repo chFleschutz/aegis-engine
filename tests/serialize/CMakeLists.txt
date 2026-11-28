@@ -17,6 +17,7 @@ aegis_add_test(
         aegis-world
         aegis-reflect
         aegis-assets
+        aegis-rhi
         aegis-math
         aegis-core
 )
