@@ -1,6 +1,7 @@
 ---
 name: retro
-description: Look back on a coding session and suggest improvements to the agent's environment.
+description: Look back on a coding session, or the recent ones, and suggest improvements to the agent's environment.
+argument-hint: [session id | recent [N]]
 disable-model-invocation: true
 ---
 
@@ -15,6 +16,11 @@ in the repo let the struggle happen.
 2. Read the primary sources for the session in `$ARGUMENTS`; default to the current one. Other
    sessions are at `~/.claude/projects/<working directory, with each non-alphanumeric character as
    ->/<session id>.jsonl`. A worktree has its own folder there.
+
+   `$ARGUMENTS` is `recent [N]`: the subject is the last N sessions (default 60), for gotchas that
+   recur, which one session can't show. Run `python tools/session-errors.py --sessions N` (`python3`
+   on Linux): it lists failed tool calls by error, most sessions first. Each error that hit three
+   sessions or more is a candidate; open one session it hit and find the moment, as below.
 
 3. Look for candidates in these categories. Every candidate traces to a specific moment in the
    session; drop any you can't trace, so no category gets filled with generic advice.

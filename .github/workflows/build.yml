@@ -50,6 +50,11 @@ jobs:
       - name: Check formatting
         run: tools/format.sh --all --check
 
+      # A ";" in a TEST_CASE name makes CTest run zero cases for it while showing green.
+      - name: Check test case names
+        if: ${{ !cancelled() }}
+        run: tools/check-test-names.sh
+
   linux:
     name: ${{ matrix.lavapipe && format('Linux device tests (lavapipe, {0})', matrix.shard) || format('Linux ({0})', matrix.config) }}
     # Ubuntu 26.04 ships Clang 22 and libstdc++ 15 with a working libstdc++.modules.json (earlier
