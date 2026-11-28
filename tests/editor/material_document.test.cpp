@@ -1,15 +1,19 @@
 #include <doctest/doctest.h>
 
 import std;
+import aegis.assets;
 import aegis.editor.core;
 import aegis.math;
 import aegis.reflect;
+import aegis.rhi;
 import aegis.serialize;
 import aegis.world;
 
 namespace
 {
+using aegis::assets::AlphaMode;
 using aegis::editor::editMaterial;
+using aegis::editor::editMaterialModes;
 using aegis::editor::EditSide;
 using aegis::editor::editTitle;
 using aegis::editor::EditWorld;
@@ -17,12 +21,14 @@ using aegis::editor::ErrorCode;
 using aegis::editor::MaterialDocument;
 using aegis::editor::MaterialDocuments;
 using aegis::editor::MaterialEdit;
+using aegis::editor::MaterialModeEdit;
 using aegis::editor::MaterialParameterInfo;
 using aegis::editor::UndoStack;
 using aegis::reflect::FieldKind;
 using aegis::reflect::FieldWidget;
 using aegis::reflect::Node;
 using aegis::reflect::Value;
+using aegis::rhi::CullMode;
 using aegis::world::World;
 
 constexpr std::uint64_t brick{ 0x5b0e17d2c94af3a1 };
@@ -122,6 +128,43 @@ TEST_SUITE("editor::MaterialDocument")
         REQUIRE(written->parameters.items.size() == 2);
         CHECK(written->parameters.items[0].key == "albedoMap");
         CHECK(written->parameters.items[1].key == "roughness");
+    }
+}
+
+TEST_SUITE("editor::MaterialDocument modes")
+{
+    TEST_CASE("sets the alpha and cull mode and is dirty until they are back or saved")
+    {
+        MaterialDocument document{ brick, "brick.material", brickFile() };
+        CHECK(document.file().alphaMode == AlphaMode::Opaque);
+        CHECK(document.file().cullMode == CullMode::Back);
+        CHECK_FALSE(document.setModes(AlphaMode::Opaque, CullMode::Back));
+
+        CHECK(document.setModes(AlphaMode::Mask, CullMode::Back));
+        CHECK(document.dirty());
+        CHECK(document.setModes(AlphaMode::Opaque, CullMode::Back));
+        CHECK_FALSE(document.dirty());
+
+        CHECK(document.setModes(AlphaMode::Mask, CullMode::None));
+        document.markSaved();
+        CHECK_FALSE(document.dirty());
+        document.setModes(AlphaMode::Blend, CullMode::Front);
+        CHECK(document.revert());
+        CHECK(document.file().alphaMode == AlphaMode::Mask);
+        CHECK(document.file().cullMode == CullMode::None);
+    }
+
+    TEST_CASE("writes the modes it was given and reads them back")
+    {
+        MaterialDocument document{ brick, "brick.material", brickFile() };
+        document.setModes(AlphaMode::Mask, CullMode::None);
+        const std::string text = aegis::serialize::writeMaterial(document.file());
+        CHECK(text.find(R"("alphaMode": "mask")") != std::string::npos);
+        CHECK(text.find(R"("cullMode": "none")") != std::string::npos);
+        const auto written = aegis::serialize::parseMaterial(text);
+        REQUIRE(written.has_value());
+        CHECK(written->alphaMode == AlphaMode::Mask);
+        CHECK(written->cullMode == CullMode::None);
     }
 }
 
@@ -263,6 +306,67 @@ TEST_SUITE("editor::editMaterial")
         const auto edited = editMaterial(edits, history, brick, "roughness", number(0.3));
         REQUIRE_FALSE(edited.has_value());
         CHECK(edited.error().code == ErrorCode::MissingMaterial);
+    }
+
+    TEST_CASE("records a mode edit that undo and redo write to the file and the loaded material")
+    {
+        World world;
+        aegis::reflect::TypeRegistry types;
+        MaterialDocuments documents;
+        documents.open(brick, "brick.material", brickFile());
+        int applied = 0;
+        const EditWorld edits{
+            .types = types,
+            .registry = world.registry(),
+            .materials = &documents,
+            .applyMaterial = [&applied](const MaterialDocument&) -> std::expected<void, aegis::editor::Error> { ++applied; return {}; },
+        };
+        UndoStack history;
+        const auto& file = documents.find(brick)->file();
+
+        REQUIRE(editMaterialModes(edits, history, brick, AlphaMode::Mask, CullMode::Back).has_value());
+        REQUIRE(editMaterialModes(edits, history, brick, AlphaMode::Mask, CullMode::None).has_value());
+        REQUIRE(editMaterialModes(edits, history, brick, AlphaMode::Mask, CullMode::None).has_value()); // Changes nothing
+        CHECK(applied == 2);
+        CHECK(file.alphaMode == AlphaMode::Mask);
+        CHECK(file.cullMode == CullMode::None);
+
+        REQUIRE(aegis::editor::applyEdits(edits, history.undo(), EditSide::Old).empty());
+        CHECK(file.alphaMode == AlphaMode::Mask);
+        CHECK(file.cullMode == CullMode::Back);
+        REQUIRE(aegis::editor::applyEdits(edits, history.undo(), EditSide::Old).empty());
+        CHECK(file.alphaMode == AlphaMode::Opaque);
+        CHECK_FALSE(history.canUndo());
+        CHECK_FALSE(documents.dirty());
+        REQUIRE(aegis::editor::applyEdits(edits, history.redo(), EditSide::New).empty());
+        CHECK(file.alphaMode == AlphaMode::Mask);
+        CHECK(applied == 5);
+    }
+
+    TEST_CASE("leaves the modes as they were when the loaded material refuses them")
+    {
+        World world;
+        aegis::reflect::TypeRegistry types;
+        MaterialDocuments documents;
+        documents.open(brick, "brick.material", brickFile());
+        const EditWorld edits{
+            .types = types,
+            .registry = world.registry(),
+            .materials = &documents,
+            .applyMaterial = [](const MaterialDocument&) -> std::expected<void, aegis::editor::Error> { return aegis::editor::makeAssetError("no", "refused"); },
+        };
+        UndoStack history;
+        CHECK_FALSE(editMaterialModes(edits, history, brick, AlphaMode::Blend, CullMode::None).has_value());
+        CHECK(documents.find(brick)->file().alphaMode == AlphaMode::Opaque);
+        CHECK(documents.find(brick)->file().cullMode == CullMode::Back);
+        CHECK_FALSE(history.canUndo());
+    }
+
+    TEST_CASE("names a mode edit by the mode and the file")
+    {
+        World world;
+        CHECK(editTitle(MaterialModeEdit{ .material = brick, .file = "brick.material", .newAlphaMode = AlphaMode::Mask }, world.registry()) == "Edit alpha mode 'brick.material'");
+        CHECK(editTitle(MaterialModeEdit{ .material = brick, .file = "brick.material", .newCullMode = CullMode::None }, world.registry()) == "Edit cull mode 'brick.material'");
     }
 
     TEST_CASE("names an edit or reset by the parameter and the file")

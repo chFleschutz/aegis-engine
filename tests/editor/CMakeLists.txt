@@ -29,7 +29,7 @@ aegis_add_test(
         side_rail.test.cpp
         settled_extent.test.cpp
         undo_stack.test.cpp
-    LIBS aegis-editor-core aegis-scripting
+    LIBS aegis-editor-core aegis-assets aegis-rhi aegis-scripting
 )
 
 # The editor's ImGui layer (aegis.editor): only its pure parts, no ImGui context or device.

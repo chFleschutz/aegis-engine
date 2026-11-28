@@ -1,6 +1,8 @@
 module aegis.editor.core;
 import std;
+import aegis.assets;
 import aegis.reflect;
+import aegis.rhi;
 import aegis.scripting;
 import aegis.serialize;
 import aegis.world;
@@ -347,6 +349,16 @@ auto nameSuffix(std::string_view name) -> std::string
 {
     return name.empty() ? std::string{} : std::format(" '{}'", name);
 }
+
+// What a material mode edit changes, for titles: the alpha mode, the cull mode, or both.
+auto materialModeName(const MaterialModeEdit& edit) -> std::string_view
+{
+    const bool alpha = edit.oldAlphaMode != edit.newAlphaMode;
+    const bool cull = edit.oldCullMode != edit.newCullMode;
+    if (alpha && cull)
+        return "alpha and cull mode";
+    return cull ? "cull mode" : "alpha mode";
+}
 }
 
 auto describe(const Edit& edit) -> std::string
@@ -368,6 +380,8 @@ auto describe(const Edit& edit) -> std::string
                 return std::format("moving the entity {:016x}", entry.entity.value);
             else if constexpr (std::same_as<T, MaterialEdit>)
                 return std::format("the edit of {} in '{}'", entry.parameter, entry.file);
+            else if constexpr (std::same_as<T, MaterialModeEdit>)
+                return std::format("the edit of {} in '{}'", materialModeName(entry), entry.file);
             else if constexpr (std::same_as<T, SubtreeEdit>)
                 return std::format("{} '{}'", entry.destroy ? "destroying" : "creating", rootName(entry));
             else if constexpr (std::same_as<T, OverrideEdit>)
@@ -408,6 +422,8 @@ auto editTitle(const Edit& edit, const world::Registry& registry) -> std::string
                 return std::format("{}{}", entry.oldPlace.parent == entry.newPlace.parent ? "Reorder" : "Reparent", nameSuffix(registry, entry.entity));
             else if constexpr (std::same_as<T, MaterialEdit>)
                 return std::format("{} {}{}", entry.newValue ? "Edit" : "Reset", entry.parameter, nameSuffix(entry.file));
+            else if constexpr (std::same_as<T, MaterialModeEdit>)
+                return std::format("Edit {}{}", materialModeName(entry), nameSuffix(entry.file));
             else if constexpr (std::same_as<T, SubtreeEdit>)
                 return std::format("{}{}", entry.destroy ? "Delete" : "Create", nameSuffix(rootName(entry)));
             else if constexpr (std::same_as<T, OverrideEdit>)
@@ -478,6 +494,25 @@ auto applyMaterialEdit(const EditWorld& world, const MaterialEdit& edit, EditSid
     }
     return {};
 }
+
+// Writes one side of a material mode edit to its file, then to its loaded material; a failure leaves the file as it was.
+auto applyMaterialModeEdit(const EditWorld& world, const MaterialModeEdit& edit, EditSide side) -> std::expected<void, Error>
+{
+    auto* document = world.materials ? world.materials->find(edit.material) : nullptr;
+    if (!document)
+        return makeError(ErrorCode::MissingMaterial, std::format("'{}' is not open in the editor", edit.file));
+    const auto beforeAlpha = document->file().alphaMode;
+    const auto beforeCull = document->file().cullMode;
+    const bool old = side == EditSide::Old;
+    if (!document->setModes(old ? edit.oldAlphaMode : edit.newAlphaMode, old ? edit.oldCullMode : edit.newCullMode) || !world.applyMaterial)
+        return {};
+    if (auto applied = world.applyMaterial(*document); !applied)
+    {
+        document->setModes(beforeAlpha, beforeCull);
+        return applied;
+    }
+    return {};
+}
 }
 
 auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::expected<void, Error>
@@ -499,6 +534,8 @@ auto applyEdit(const EditWorld& world, const Edit& edit, EditSide side) -> std::
                 return applyMove(world, entry, side);
             else if constexpr (std::same_as<T, MaterialEdit>)
                 return applyMaterialEdit(world, entry, side);
+            else if constexpr (std::same_as<T, MaterialModeEdit>)
+                return applyMaterialModeEdit(world, entry, side);
             else if constexpr (std::same_as<T, SubtreeEdit>)
                 return applySubtree(world, entry, side);
             else if constexpr (std::same_as<T, OverrideEdit>)

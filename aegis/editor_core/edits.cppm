@@ -1,6 +1,8 @@
 export module aegis.editor.core:edits;
 import std;
+import aegis.assets;
 import aegis.reflect;
+import aegis.rhi;
 import aegis.serialize;
 import aegis.world;
 import :error;
@@ -114,6 +116,17 @@ struct MaterialEdit
     [[nodiscard]] auto sameTarget(const MaterialEdit& other) const -> bool { return material == other.material && parameter == other.parameter; }
 };
 
+/// @brief The alpha mode and cull mode of a material file changed: the variant its material draws with.
+struct MaterialModeEdit
+{
+    std::uint64_t material{ 0 }; ///< The material file's asset ID
+    std::string file;            ///< The file's name, for titles ("brick.material")
+    assets::AlphaMode oldAlphaMode{ assets::AlphaMode::Opaque };
+    assets::AlphaMode newAlphaMode{ assets::AlphaMode::Opaque };
+    rhi::CullMode oldCullMode{ rhi::CullMode::Back };
+    rhi::CullMode newCullMode{ rhi::CullMode::Back };
+};
+
 /// @brief Fields of a component of a scene instance's entity set as overrides (an edit of the entity records one), or
 ///        set back to the values of the instance's scene (Revert). The holder's serialize::SceneInstance keeps the
 ///        overrides, so saving writes them.
@@ -153,7 +166,8 @@ struct UnpackEdit
 };
 
 /// @brief One entry of the undo history: any edit the editor makes.
-using Edit = std::variant<FieldEdit, ComponentEdit, AddComponentEdit, AttachScriptEdit, RenameEdit, MoveEdit, SubtreeEdit, MaterialEdit, OverrideEdit, UnpackEdit>;
+using Edit = std::variant<FieldEdit, ComponentEdit, AddComponentEdit, AttachScriptEdit, RenameEdit, MoveEdit, SubtreeEdit, MaterialEdit, MaterialModeEdit, OverrideEdit,
+    UnpackEdit>;
 
 /// @brief Which side of an edit to write.
 enum class EditSide
@@ -171,7 +185,7 @@ struct EditWorld
     const reflect::TypeRegistry& types;
     world::Registry& registry;
     PrepareField prepare{};                  ///< Finishes a written or created component (the asset library resolves its references)
-    MaterialDocuments* materials{ nullptr }; ///< The material files a MaterialEdit changes; none refuses them
+    MaterialDocuments* materials{ nullptr }; ///< The material files a MaterialEdit or MaterialModeEdit changes; none refuses them
     ApplyMaterial applyMaterial{};           ///< Shows a changed material file in its loaded material; none changes only the file
     std::uint64_t scene{ 0 };                ///< The scene asset the world is saved as, which no instance may hold; 0 for none yet
 };

@@ -78,6 +78,8 @@ auto changesNothing(const Edit& edit) -> bool
         return rename->oldName == rename->newName;
     if (const auto* material = std::get_if<MaterialEdit>(&edit))
         return sameParameter(material->oldValue, material->newValue);
+    if (const auto* modes = std::get_if<MaterialModeEdit>(&edit))
+        return modes->oldAlphaMode == modes->newAlphaMode && modes->oldCullMode == modes->newCullMode;
     if (const auto* overrideEdit = std::get_if<OverrideEdit>(&edit))
         return sameValues(overrideEdit->oldValues, overrideEdit->newValues) && overrideEdit->oldOverridden == overrideEdit->newOverridden;
     if (const auto* move = std::get_if<MoveEdit>(&edit))

@@ -13,6 +13,7 @@ import aegis.assets;
 import aegis.core;
 import aegis.math;
 import aegis.reflect;
+import aegis.rhi;
 import aegis.serialize;
 import :edits;
 import :panels;
@@ -79,6 +80,18 @@ auto templateParameters(const assets::MaterialTemplate& materialTemplate) -> std
     return parameters;
 }
 
+// The choices of the alpha mode and cull mode rows; the first of each is the default, which the file leaves out.
+constexpr auto alphaModes = std::to_array<std::pair<const char*, assets::AlphaMode>>({
+    { "Opaque", assets::AlphaMode::Opaque },
+    { "Mask", assets::AlphaMode::Mask },
+    { "Blend", assets::AlphaMode::Blend },
+});
+constexpr auto cullModes = std::to_array<std::pair<const char*, rhi::CullMode>>({
+    { "Back", rhi::CullMode::Back },
+    { "None (double-sided)", rhi::CullMode::None },
+    { "Front", rhi::CullMode::Front },
+});
+
 auto readText(const std::filesystem::path& file) -> std::optional<std::string>
 {
     std::ifstream stream{ file, std::ios::binary };
@@ -94,7 +107,8 @@ constexpr float labelMaxShare{ 0.4f };
 // One material file (`.material`) at a time, opened by a double click in the content browser or New Material: a row
 // per parameter of its template, with the file's value or the template's default. A parameter the file sets has its
 // label in the accent colour and a reset button, which removes it from the file (as does a texture of None). Edits
-// change the loaded material at once, are undone with the scene's edits and are written by Save.
+// change the loaded material at once, are undone with the scene's edits and are written by Save. Above them, the alpha
+// mode and cull mode pick the material's variant, in the accent colour when not the default.
 class MaterialPanel final : public Panel
 {
 public:
@@ -197,6 +211,14 @@ private:
         ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("Reset", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight());
 
+        const auto& file = document.file();
+        if (const auto alphaMode = drawModeRow("Alpha Mode", "How the material uses its alpha: ignored, cut out below the cutoff, or blended",
+                file.alphaMode, alphaModes, readOnly))
+            editModes(editor, frame, document, *alphaMode, file.cullMode);
+        if (const auto cullMode = drawModeRow("Cull Mode", "Which faces are not drawn: None draws both sides (foliage, cloth)", file.cullMode,
+                cullModes, readOnly))
+            editModes(editor, frame, document, file.alphaMode, *cullMode);
+
         for (std::size_t i = 0; i < m_rows.size(); ++i)
         {
             const auto& row = m_rows[i];
@@ -240,6 +262,57 @@ private:
             ImGui::PopID();
         }
         ImGui::EndTable();
+    }
+
+    // A row with a combo of 'modes' showing 'current', and a reset button when it is not the default (the first).
+    // @return The mode picked, if one was.
+    template<typename Mode, std::size_t N>
+    static auto drawModeRow(const char* label, const char* tooltip, Mode current, const std::array<std::pair<const char*, Mode>, N>& modes,
+        bool readOnly) -> std::optional<Mode>
+    {
+        const bool set = current != modes.front().second;
+        const auto found = std::ranges::find(modes, current, &std::pair<const char*, Mode>::second);
+        std::optional<Mode> picked;
+        ImGui::PushID(label);
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        if (set)
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::accent);
+        ImGui::TextUnformatted(label);
+        if (set)
+            ImGui::PopStyleColor();
+        ImGui::SetItemTooltip("%s", tooltip);
+
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::BeginDisabled(readOnly);
+        if (ImGui::BeginCombo("##mode", found == modes.end() ? "?" : found->first))
+        {
+            for (const auto& [name, mode] : modes)
+            {
+                if (ImGui::Selectable(name, mode == current) && mode != current)
+                    picked = mode;
+                if (mode == current)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::EndDisabled();
+
+        ImGui::TableNextColumn();
+        if (set && !readOnly && theme::iconButton(theme::icons::resetValue, "##reset"))
+            picked = modes.front().second;
+        if (set && !readOnly)
+            ImGui::SetItemTooltip("Reset to %s", modes.front().first);
+        ImGui::PopID();
+        return picked;
+    }
+
+    static void editModes(EditorContext& editor, FrameContext& frame, const MaterialDocument& document, assets::AlphaMode alphaMode, rhi::CullMode cullMode)
+    {
+        if (auto edited = editMaterialModes(editWorld(editor, frame), editor.undoStack(), document.asset(), alphaMode, cullMode); !edited)
+            log::warn("Cannot set the modes of '{}': {}", document.fileName(), describe(edited.error()));
     }
 
     static void edit(EditorContext& editor, FrameContext& frame, const MaterialDocument& document, const std::string& parameter, std::optional<reflect::Node> value, bool continuous)
