@@ -66,6 +66,12 @@ struct ModelMaterialModes
 /// @brief The modes 'material' draws with: its alpha mode, and no culling if it is double-sided.
 [[nodiscard]] auto modelMaterialModes(const ModelMaterial& material) noexcept -> ModelMaterialModes;
 
+/// @brief The rhi sampler a model texture with 'sampler' is sampled with: its filters, and wrapU as the address mode
+///        of every axis (an rhi sampler has one). Without a mipmap filter only the base level is read (maxLod 0). A
+///        nearest mag or min filter turns anisotropy off, which would otherwise blur it; linear filtering keeps the
+///        default anisotropy.
+[[nodiscard]] auto modelSamplerDesc(const ModelSampler& sampler) noexcept -> rhi::Sampler::Desc;
+
 /// @brief Loads a model file into GPU objects.
 class Loader
 {
