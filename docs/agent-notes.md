@@ -16,11 +16,12 @@ Gotchas from past sessions, to read when a build, tool or test behaves unexpecte
   SDK install keeps the old `VULKAN_SDK`; configure then fails with "Could NOT find Vulkan". Pass
   `-DVulkan_ROOT=` or export `VULKAN_SDK` explicitly. A configure that failed the SDK check can make
   the next `--fresh` fail once in compiler detection ("CMAKE_C_COMPILER not set"); run it again.
-- **"unexpected EOF while looking for matching `'`" from a Bash heredoc:** the Bash tool can misread a
-  Python heredoc even with a quoted `<<'EOF'`. Backslashes are one cause (a doubled one arrives single,
-  so `'\\'` becomes an unterminated string); a long multi-line edit script (#464: 136 lines of C++
-  replacements) failed the same way. Write the script to a file in the scratchpad and run it, or edit
-  with the Edit tool.
+- **Bash heredocs: write the file with the Write tool instead.** The Bash tool fails a heredoc command
+  of about 100 lines or more with "unexpected EOF while looking for matching `'`", although bash parses
+  it, and delivers a doubled backslash as a single one, even inside `<<'EOF'` or single quotes (so
+  `'\\'` becomes an unterminated string). The `PreToolUse` hook `tools/check-heredoc.sh` refuses a
+  heredoc command over 80 lines and a `\\` in a quoted heredoc. Its copy in the main checkout is the
+  one that runs, so it is active once the main checkout has it.
 - **clangd needs `--experimental-modules-support`.** The root `.clangd` points clangd at
   `build/windows-clang-debug`'s compile commands but strips the build's `-fmodule-file` and
   `-fmodule-output` flags, so clangd builds its own BMIs (the first file takes 40–90 s). A clangd
