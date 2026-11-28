@@ -90,9 +90,9 @@ auto Harness::verifyMotionVectors(bool gpuDriven) -> std::expected<void, std::st
     {
         render_graph::FrameSceneSource source;
         render_graph::PipelineLibrary pipelines;
-        render_graph::SceneUpdatePass::Settings cameraSettings{ .jitter = true };
+        const render_graph::TemporalAaPass::Settings temporalAa; // Enabled: the camera jitters
         render_graph::GraphBuilder builder;
-        builder.add<render_graph::SceneUpdatePass>(source, 0u, &cameraSettings);
+        builder.add<render_graph::SceneUpdatePass>(source, 0u, &temporalAa);
         if (gpuDriven)
         {
             builder.add<render_graph::InstanceUpdatePass>(source);

@@ -70,7 +70,7 @@ PostProcessingPass::PostProcessingPass(ResourceDeclarations& declarations, const
     PipelineLibrary& pipelines, Desc desc) :
     m_scene{ scene },
     m_pipelines{ pipelines },
-    m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
+    m_color{ declarations.addReference(names::temporalColor, Usage::StorageRead) },
     m_bloom{ desc.bloom ? std::optional{ declarations.addReference(names::bloom, Usage::StorageRead) } : std::nullopt },
     // 16-bit: the image may stay linear until the blit onto an sRGB target encodes it (see execute). As a
     // view's target it is also copied out, for a screenshot.
@@ -96,13 +96,13 @@ auto PostProcessingPass::createResources(ResourcePool& pool) -> std::expected<vo
 auto PostProcessingPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
 {
     const auto& settings = m_scene.current().postProcess;
-    const auto sceneColor = pool.storageDescriptor(m_sceneColor);
+    const auto color = pool.storageDescriptor(m_color);
     const auto& cmd = frameInfo.cmd;
     cmd.bindPipeline(*m_pipeline);
     cmd.pushConstants(PostProcessConstants{
         .final = pool.storageDescriptor(m_final),
-        .sceneColor = sceneColor,
-        .bloom = m_bloom ? pool.storageDescriptor(*m_bloom) : sceneColor,
+        .color = color,
+        .bloom = m_bloom ? pool.storageDescriptor(*m_bloom) : color,
         .toneMapping = settings.toneMapping,
         .bloomIntensity = m_bloom ? settings.bloomIntensity : 0.0f,
         .exposure = settings.exposure,

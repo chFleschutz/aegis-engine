@@ -1,12 +1,12 @@
 import modules.bindless;
 
-// HDR scene color (+ bloom) -> tone mapped, gamma corrected final image.
+// HDR color ("TemporalColor", + bloom) -> tone mapped, gamma corrected final image.
 
 struct PushConstants
 {
     bindless::StorageImageDescriptor final;
-    bindless::StorageImageDescriptor sceneColor;
-    bindless::StorageImageDescriptor bloom; // Without a bloom pass: sceneColor, with bloomIntensity 0
+    bindless::StorageImageDescriptor color;
+    bindless::StorageImageDescriptor bloom; // Without a bloom pass: color, with bloomIntensity 0
     int toneMappingMode;
     float bloomIntensity;
     float exposure;
@@ -50,7 +50,7 @@ func main(uint3 dispatchID: SV_DispatchThreadID)
     if (any(dispatchID.xy >= size))
         return;
 
-    float3 sceneColor = bindless::storage2D(push.sceneColor)[dispatchID.xy].rgb;
+    float3 sceneColor = bindless::storage2D(push.color)[dispatchID.xy].rgb;
     float3 bloomColor = bindless::storage2D(push.bloom)[dispatchID.xy].rgb;
 
     float3 color = sceneColor + push.bloomIntensity * bloomColor;

@@ -1,6 +1,3 @@
-module;
-#include <cassert>
-
 module aegis.render_passes;
 import std;
 import aegis.math;
@@ -8,10 +5,10 @@ import aegis.math;
 namespace aegis::render_graph
 {
 SceneUpdatePass::SceneUpdatePass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view,
-    Settings* settings) :
+    const TemporalAaPass::Settings* temporalAa) :
     m_scene{ scene },
     m_view{ view },
-    m_settings{ settings },
+    m_temporalAa{ temporalAa },
     m_cameraData{ declarations.addBuffer(names::cameraData, Usage::HostWrite, { .size = sizeof(CameraData), .perFrame = true }) }
 {
 }
@@ -30,22 +27,13 @@ auto SceneUpdatePass::execute(ResourcePool& pool, const FrameInfo& frameInfo) ->
         return;
     }
 
-    const auto jitter = m_settings && m_settings->jitter
+    const auto jitter = m_temporalAa && m_temporalAa->enabled
                             ? detail::jitterOffset(detail::haltonJitter(m_frame), frameInfo.extent)
                             : math::Float2{};
     const auto data = detail::makeCameraData(*camera, jitter, camera->cut ? std::nullopt : m_previousViewProjection);
     pool.write(m_cameraData, std::as_bytes(std::span{ &data, 1 }));
     m_previousViewProjection = data.viewProjection;
     m_frame = (m_frame + 1) % jitterSequenceLength;
-}
-
-auto SceneUpdatePass::settings() -> std::optional<PassSettings>
-{
-    if (!m_settings)
-        return std::nullopt;
-    const auto* type = passSettingsTypes().find<Settings>();
-    assert(type && "SceneUpdatePass::Settings is registered in passSettingsTypes");
-    return PassSettings{ .type = *type, .object = m_settings };
 }
 
 namespace detail

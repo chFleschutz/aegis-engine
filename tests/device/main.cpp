@@ -47,6 +47,11 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
             options.scene = true;
             options.views = true;
         }
+        else if (arg == "--moving-camera")
+        {
+            options.scene = true;
+            options.movingCamera = true;
+        }
         else if (arg == "--mirror")
         {
             options.scene = true;
@@ -166,6 +171,10 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
         return std::unexpected{ "--compare needs --headless" };
     if (options.postProcess && (options.view || options.views))
         return std::unexpected{ "--post-process renders through a view of its own, so it can't run with --view or --views" };
+    if (options.movingCamera && (options.view || options.views || options.postProcess))
+        return std::unexpected{ "--moving-camera renders through a view of its own, so it can't run with --view, --views or --post-process" };
+    if (options.movingCamera && options.frames != 0 && options.frames < cameraCutFrame + cameraCutSettleFrames + 2)
+        return std::unexpected{ std::format("--moving-camera needs at least {} frames to cut and settle", cameraCutFrame + cameraCutSettleFrames + 2) };
     if (options.view && options.views)
         return std::unexpected{ "--view and --views each pick the views to render, so they can't run together" };
     if (options.views && options.frames != 0 && options.frames < 50)
@@ -186,7 +195,7 @@ auto parseOptions(std::span<char*> args) -> std::expected<Options, std::string>
     {
         // --gpu-driven picks its geometry path too; every other scene option is written for the test scene.
         const bool sceneOptions = options.sceneFile != testSceneFile || options.mutateScene || options.spawn || options.mirror || options.unlit ||
-                                  options.blend || options.doubleSided || options.view || options.views || options.worlds || options.postProcess || options.audio ||
+                                  options.blend || options.doubleSided || options.view || options.views || options.worlds || options.postProcess || options.movingCamera || options.audio ||
                                   options.physics || (options.scene && !options.gpuDriven);
         if (!options.headless || !options.compare.empty() || sceneOptions)
             return std::unexpected{ "--material-file and --hot-reload render a project of their own headless, so they need --headless and take no other scene option than --gpu-driven, nor --compare" };
@@ -207,7 +216,7 @@ auto main(int argc, char** argv) -> int
     const auto options = aegis::test::parseOptions(std::span{ argv, static_cast<std::size_t>(argc) });
     if (!options)
     {
-        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--spawn] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--audio] [--physics] [--material-file] [--hot-reload] [--gameplay] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
+        std::println("{}\nUsage: aegis-test [--headless] [--frames <n>] [--scene] [--scene-file <path>] [--gpu-driven] [--mutate-scene] [--spawn] [--mirror] [--unlit] [--blend] [--blend-swap] [--double-sided] [--view] [--views] [--worlds] [--post-process] [--moving-camera] [--audio] [--physics] [--material-file] [--hot-reload] [--gameplay] [--no-overlay] [--no-samples] [--screenshot <png>] [--compare <png> [--tolerance <0-255>]]", options.error());
         return 2;
     }
 

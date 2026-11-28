@@ -5,6 +5,7 @@ export module aegis.test;
 
 import std;
 import aegis.platform;
+import aegis.render_graph;
 import aegis.renderer;
 import aegis.rhi;
 
@@ -58,6 +59,8 @@ struct Options
                                 // frames (see SceneShell::switchWorlds)
     bool postProcess{ false };  // With --scene: give the main camera a PostProcess (postProcessSettings), and rebuild the
                                 // frame graph halfway (a view for the first half of the frames, none after it)
+    bool movingCamera{ false }; // With --scene: render through a camera that moves past the helmet, then cuts to a pose facing
+                                // the sky, and check that no history from before the cut shows (see SceneShell::checkCameraCut)
     bool noSamples{ false };    // Skip the checks that load the sample project (games/examples/project/ not checked out)
     bool audio{ false };        // Run the audio scene (audioSceneFile) and check that its one sound started and still plays
     bool physics{ false };      // Run the physics scene (physicsSceneFile) and check that its dynamic bodies fell, stayed above the
@@ -77,11 +80,18 @@ inline constexpr rhi::Extent2D sceneExtent{ 800, 600 };
 inline constexpr rhi::Extent2D viewExtent{ 480, 270 };
 inline constexpr rhi::Extent2D resizedViewExtent{ 400, 300 };
 inline constexpr rhi::Extent2D sideViewExtent{ 320, 240 };
+// --moving-camera: the frame of the camera cut, and how many frames later the converged frame is compared with it.
+inline constexpr std::uint32_t cameraCutFrame{ 40 };
+inline constexpr std::uint32_t cameraCutSettleFrames{ 20 };
 // --gameplay: the target's size, small since it renders about 1400 frames.
 inline constexpr rhi::Extent2D gameplayExtent{ 320, 240 };
 
 // checks/scene.cpp: --scene, the test scene file loaded and run by aegis::Engine (see the Options). Returns the exit code.
 auto runScene(const Options& options) -> int;
+// checks/scene.cpp: turns temporal AA off for every view of the engine's graphs, through the first pass's settings as the
+// renderer panel sets them (the engine's RenderSettings, which outlive the graph's rebuilds). For checks that compare a
+// frame right after a change (a rebuilt graph, a reloaded texture) with exact colours, which TAA blends with history.
+auto disableTemporalAa(render_graph::FrameGraph& graph) -> std::expected<void, std::string>;
 // checks/gameplay.cpp: --gameplay, the gameplay scene at three frame times (see the Options). Returns the exit code.
 auto runGameplay(const Options& options) -> int;
 

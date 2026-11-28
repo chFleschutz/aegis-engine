@@ -31,7 +31,7 @@ TEST_SUITE("render_graph::passSettingsTypes")
     TEST_CASE("registers each pass's settings in the Settings category")
     {
         const auto& types = passSettingsTypes();
-        for (const auto* type : { types.find<SceneUpdatePass::Settings>(), types.find<LightingPass::Settings>(), types.find<BloomPass::Settings>() })
+        for (const auto* type : { types.find<TemporalAaPass::Settings>(), types.find<LightingPass::Settings>(), types.find<BloomPass::Settings>() })
         {
             REQUIRE(type != nullptr);
             CAPTURE(type->name);
@@ -70,22 +70,27 @@ TEST_SUITE("render_graph::passSettingsTypes")
         CHECK(bloom.downsampleScale == doctest::Approx(1.0f));
     }
 
-    TEST_CASE("sets the scene update pass's jitter by name, without the editor")
+    TEST_CASE("sets the temporal AA pass's settings by name, without the editor")
     {
-        SceneUpdatePass::Settings camera;
+        TemporalAaPass::Settings temporalAa;
         GraphBuilder builder;
-        auto& pass = builder.add<SceneUpdatePass>(scene, 0u, &camera);
+        auto& pass = builder.add<TemporalAaPass>(scene, pipelines, temporalAa);
         const auto settings = pass.settings();
         REQUIRE(settings.has_value());
-        CHECK(settings->object == &camera);
+        CHECK(settings->object == &temporalAa);
+        CHECK(settings->type.name == "TemporalAaSettings");
 
-        REQUIRE(settings->type.setText(settings->object, "jitter", "true").has_value());
-        CHECK(camera.jitter);
+        REQUIRE(settings->type.setText(settings->object, "enabled", "false").has_value());
+        REQUIRE(settings->type.set(settings->object, "currentWeight", reflect::Value{ 0.25f }).has_value());
+        CHECK_FALSE(temporalAa.enabled);
+        CHECK(temporalAa.currentWeight == doctest::Approx(0.25f));
     }
 
-    TEST_CASE("a scene update pass without settings never jitters and shows none")
+    TEST_CASE("the scene update pass shows no settings: the temporal AA pass shows the ones it jitters by")
     {
+        TemporalAaPass::Settings temporalAa;
         GraphBuilder builder;
+        CHECK_FALSE(builder.add<SceneUpdatePass>(scene, 0u, &temporalAa).settings().has_value());
         CHECK_FALSE(builder.add<SceneUpdatePass>(scene).settings().has_value());
     }
 
@@ -117,7 +122,7 @@ TEST_SUITE("render_graph::passSettingsTypes")
         // The rebuilt graph, with a second view, starts from what was set: both views' passes read the one object.
         GraphBuilder rebuilt;
         addDefaultPasses(rebuilt, { .scene = scene, .pipelines = pipelines, .settings = settings, .gpuDriven = false, .targetFormat = targetFormat, .views = { edit, play } });
-        CHECK(settingsObjects(rebuilt) == std::vector<void*>{ &settings.camera, &settings.lighting, &settings.bloom, &settings.camera, &settings.lighting, &settings.bloom });
+        CHECK(settingsObjects(rebuilt) == std::vector<void*>{ &settings.lighting, &settings.temporalAa, &settings.bloom, &settings.lighting, &settings.temporalAa, &settings.bloom });
         CHECK(settings.lighting.viewMode == LightingViewMode::Albedo);
         CHECK(settings.bloom.downsampleScale == doctest::Approx(0.5f));
     }

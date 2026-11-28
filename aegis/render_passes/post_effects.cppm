@@ -10,7 +10,55 @@ import aegis.rhi;
 
 export namespace aegis::render_graph
 {
-/// @brief Extracts the bright parts of "SceneColor" and blurs them through a mip chain into
+/// @brief Temporal anti-aliasing: accumulates the view's jittered frames (SceneUpdatePass jitters while it is enabled)
+///        into this frame's image of the history pair "TemporalColor" (RGBA16F, the view's extent), which bloom and
+///        post-processing read instead of "SceneColor". Each pixel reprojects the previous image by the motion
+///        ("MotionVectors") of its closest-depth neighbour ("Depth") in a 3x3 window, samples it with Catmull-Rom,
+///        clips it to the current frame's 3x3 neighbourhood (variance clipping in YCoCg) and blends it with the
+///        current colour, weighted by luminance. History that reprojects off-screen is dropped, and the history weight
+///        is zero (detail::historyWeight) while "TemporalColor" is fresh, on the view's camera cut and while disabled.
+class TemporalAaPass : public RenderPass
+{
+public:
+    /// @brief Tuning knobs of the resolve, not scene data: registered with aegis.reflect (passSettingsTypes), so the
+    ///        editor's renderer panel shows them. The pass reads them from its caller's object
+    ///        (RenderSettings::temporalAa), and so does the view's SceneUpdatePass, which jitters while it is enabled.
+    struct Settings
+    {
+        /// @brief Off: no jitter, and the pass resolves with a history weight of zero (it stays in the graph, so
+        ///        toggling it rebuilds nothing).
+        bool enabled{ true };
+        /// @brief The weight of the current frame in the blend, from 0 (history only) to 1 (no accumulation).
+        float currentWeight{ 0.1f };
+    };
+
+    /// @param settings Read while recording, never copied; it must outlive the pass.
+    /// @param view The index of the view in FrameScene::views whose camera cut resets its history.
+    TemporalAaPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
+        Settings& settings, std::uint32_t view = 0);
+    ~TemporalAaPass() override;
+
+    [[nodiscard]] auto name() const -> std::string_view override;
+    [[nodiscard]] auto createResources(ResourcePool& pool) -> std::expected<void, Error> override;
+    auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
+    [[nodiscard]] auto settings() -> std::optional<PassSettings> override;
+
+private:
+    const FrameSceneSource& m_scene;
+    PipelineLibrary& m_pipelines;
+    Settings& m_settings;
+    std::uint32_t m_view;
+    ResourceId m_sceneColor;
+    ResourceId m_depth;
+    ResourceId m_motion;
+    ResourceId m_temporalColor;
+    ResourceId m_history;                    // The previous frame's "TemporalColor"
+    rhi::Device* m_samplerDevice{ nullptr }; // Frees m_sampler
+    std::optional<rhi::SamplerHandle> m_sampler;
+    const rhi::Pipeline* m_pipeline{ nullptr };
+};
+
+/// @brief Extracts the bright parts of "TemporalColor" and blurs them through a mip chain into
 ///        "Bloom" (mip 0 holds the result), which PostProcessingPass adds back. The threshold is the frame's
 ///        (FrameScene::PostProcess).
 class BloomPass : public RenderPass
@@ -40,7 +88,7 @@ private:
     const FrameSceneSource& m_scene;
     PipelineLibrary& m_pipelines;
     Settings& m_settings;
-    ResourceId m_sceneColor;
+    ResourceId m_temporalColor;
     ResourceId m_bloom;
     rhi::Device* m_samplerDevice{ nullptr }; // Frees m_sampler
     std::optional<rhi::SamplerHandle> m_sampler;
@@ -102,6 +150,11 @@ private:
 
 export namespace aegis::render_graph::detail
 {
+/// @brief The weight of the reprojected history in TemporalAaPass's blend: none while the history is fresh
+///        (ResourcePool::isFresh: the first frame, a resize, a graph rebuild), on the view's camera cut
+///        (FrameScene::Camera::cut) and while the pass is disabled; otherwise what the current frame's weight leaves.
+[[nodiscard]] auto historyWeight(bool fresh, bool cut, const TemporalAaPass::Settings& settings) -> float;
+
 /// @brief The billboard of one point light: its size grows with intensity and scale.
 [[nodiscard]] auto makePointLightConstants(const FrameScene::PointLight& light, rhi::DeviceAddress camera)
     -> PointLightConstants;

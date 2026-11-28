@@ -79,20 +79,30 @@
     use    Edit/CameraData ShaderRead
     use    Edit/SceneColor ColorAttachment
     barrier Edit/SceneColor: ColorAttachment -> ColorAttachment
-11. Edit/Bloom
+11. Edit/Temporal AA
     use    Edit/SceneColor StorageRead
-    create Edit/Bloom StorageWrite
+    use    Edit/Depth SampledCompute
+    use    Edit/MotionVectors SampledCompute
+    use    Edit/TemporalColor SampledCompute (previous frame)
+    create Edit/TemporalColor StorageWrite
     barrier Edit/SceneColor: ColorAttachment -> StorageRead
+    barrier Edit/MotionVectors: ColorAttachment -> SampledCompute
+    barrier Edit/TemporalColor (previous frame): last frame's StorageRead -> SampledCompute
+    barrier Edit/TemporalColor: last frame's SampledCompute -> StorageWrite
+12. Edit/Bloom
+    use    Edit/TemporalColor StorageRead
+    create Edit/Bloom StorageWrite
+    barrier Edit/TemporalColor: StorageWrite -> StorageRead
     barrier Edit/Bloom: undefined -> StorageWrite
-12. Edit/Post Processing
-    use    Edit/SceneColor StorageRead
+13. Edit/Post Processing
+    use    Edit/TemporalColor StorageRead
     use    Edit/Bloom StorageRead
     create Edit/Final StorageWrite
     barrier Edit/Bloom: StorageWrite -> StorageRead
     barrier Edit/Final: undefined -> StorageWrite
-13. Play/Scene Update
+14. Play/Scene Update
     create Play/CameraData HostWrite
-14. Play/Culling
+15. Play/Culling
     use    Play/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -101,7 +111,7 @@
     create Play/IndirectDrawCommands StorageWrite
     barrier Play/VisibleInstances: last frame's ShaderRead -> StorageWrite
     barrier Play/IndirectDrawCommands: last frame's IndirectRead -> StorageWrite
-15. Play/Draw Compaction
+16. Play/Draw Compaction
     use    DrawBatches ShaderRead
     use    Play/VisibleInstances StorageWrite
     use    Play/IndirectDrawCommands StorageWrite
@@ -109,7 +119,7 @@
     barrier Play/VisibleInstances: StorageWrite -> StorageWrite
     barrier Play/IndirectDrawCommands: StorageWrite -> StorageWrite
     barrier Play/IndirectDrawCounts: last frame's IndirectRead -> StorageWrite
-16. Play/GPU Driven Geometry
+17. Play/GPU Driven Geometry
     use    Play/CameraData ShaderRead
     use    StaticInstances ShaderRead
     use    DynamicInstances ShaderRead
@@ -133,7 +143,7 @@
     barrier Play/Emissive: undefined -> ColorAttachment
     barrier Play/MotionVectors: undefined -> ColorAttachment
     barrier Play/Depth: undefined -> DepthAttachment
-17. Play/Lighting
+18. Play/Lighting
     use    Play/Position StorageRead
     use    Play/Normal StorageRead
     use    Play/Albedo StorageRead
@@ -148,35 +158,45 @@
     barrier Play/ARM: ColorAttachment -> StorageRead
     barrier Play/Emissive: ColorAttachment -> StorageRead
     barrier Play/SceneColor: undefined -> StorageWrite
-18. Play/Sky Box
+19. Play/Sky Box
     use    Play/Depth DepthRead
     use    Play/SceneColor ColorAttachment
     barrier Play/Depth: DepthAttachment -> DepthRead
     barrier Play/SceneColor: StorageWrite -> ColorAttachment
-19. Play/Forward
+20. Play/Forward
     use    Play/Depth DepthRead
     use    Play/CameraData ShaderRead
     use    Play/LightingUniforms ShaderRead
     use    Lights ShaderRead
     use    Play/SceneColor ColorAttachment
     barrier Play/SceneColor: ColorAttachment -> ColorAttachment
-20. Play/Transparent
+21. Play/Transparent
     use    Play/Depth DepthRead
     use    Play/CameraData ShaderRead
     use    Play/SceneColor ColorAttachment
     barrier Play/SceneColor: ColorAttachment -> ColorAttachment
-21. Play/Bloom
+22. Play/Temporal AA
     use    Play/SceneColor StorageRead
-    create Play/Bloom StorageWrite
+    use    Play/Depth SampledCompute
+    use    Play/MotionVectors SampledCompute
+    use    Play/TemporalColor SampledCompute (previous frame)
+    create Play/TemporalColor StorageWrite
     barrier Play/SceneColor: ColorAttachment -> StorageRead
+    barrier Play/MotionVectors: ColorAttachment -> SampledCompute
+    barrier Play/TemporalColor (previous frame): last frame's StorageRead -> SampledCompute
+    barrier Play/TemporalColor: last frame's SampledCompute -> StorageWrite
+23. Play/Bloom
+    use    Play/TemporalColor StorageRead
+    create Play/Bloom StorageWrite
+    barrier Play/TemporalColor: StorageWrite -> StorageRead
     barrier Play/Bloom: undefined -> StorageWrite
-22. Play/Post Processing
-    use    Play/SceneColor StorageRead
+24. Play/Post Processing
+    use    Play/TemporalColor StorageRead
     use    Play/Bloom StorageRead
     create Play/Final StorageWrite
     barrier Play/Bloom: StorageWrite -> StorageRead
     barrier Play/Final: undefined -> StorageWrite
-23. UI
+25. UI
     use    Edit/Final SampledFragment
     use    Play/Final SampledFragment
     import Target ColorAttachment
@@ -203,6 +223,7 @@ resources
     Edit/Depth: texture D32_SFLOAT
     Edit/SceneColor: texture RGBA16_SFLOAT
     Edit/LightingUniforms: buffer, host written
+    Edit/TemporalColor: texture RGBA16_SFLOAT, history pair
     Edit/Bloom: texture RGBA16_SFLOAT
     Edit/Final: texture RGBA16_SFLOAT
     Play/CameraData: buffer, host written
@@ -218,6 +239,7 @@ resources
     Play/Depth: texture D32_SFLOAT
     Play/SceneColor: texture RGBA16_SFLOAT
     Play/LightingUniforms: buffer, host written
+    Play/TemporalColor: texture RGBA16_SFLOAT, history pair
     Play/Bloom: texture RGBA16_SFLOAT
     Play/Final: texture RGBA16_SFLOAT
     Target: imported texture BGRA8_SRGB

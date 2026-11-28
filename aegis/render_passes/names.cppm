@@ -41,6 +41,7 @@ inline constexpr std::string_view indirectDrawCounts{ "IndirectDrawCounts" };
 
 // Lit and post-processed images
 inline constexpr std::string_view sceneColor{ "SceneColor" };
+inline constexpr std::string_view temporalColor{ "TemporalColor" }; // A history pair: "SceneColor" anti-aliased over time
 inline constexpr std::string_view bloom{ "Bloom" };
 inline constexpr std::string_view finalImage{ "Final" };
 }

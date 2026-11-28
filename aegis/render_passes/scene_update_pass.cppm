@@ -4,6 +4,7 @@ import aegis.math;
 import aegis.rhi;
 import :frame_scene;
 import :gpu_types;
+import :post_effects;
 import aegis.render_graph;
 
 export namespace aegis::render_graph
@@ -13,35 +14,26 @@ inline constexpr std::uint32_t jitterSequenceLength = 8;
 
 /// @brief Writes per-frame scene data the other passes read: "CameraData" (a per-frame buffer of
 ///        CameraData), for the camera of one view (FrameScene::views). It keeps the view's unjittered view-projection
-///        for the next frame (CameraData::previousViewProjection) and, with Settings::jitter on, moves the view's
-///        rasterization by a sub-pixel offset each frame (CameraData::jitteredViewProjection).
+///        for the next frame (CameraData::previousViewProjection) and, while temporal anti-aliasing is enabled
+///        (TemporalAaPass::Settings::enabled), moves the view's rasterization by a sub-pixel offset each frame
+///        (CameraData::jitteredViewProjection).
 class SceneUpdatePass : public RenderPass
 {
 public:
-    /// @brief Tuning knobs of the view's camera data, not scene data: registered with aegis.reflect
-    ///        (passSettingsTypes), so the editor's renderer panel shows them. The pass reads them from its caller's
-    ///        object (RenderSettings::camera).
-    struct Settings
-    {
-        /// @brief Jitter the rasterization by a sub-pixel Halton offset each frame, for temporal anti-aliasing; off:
-        ///        the jittered matrices are the unjittered ones.
-        bool jitter{ false };
-    };
-
     /// @param view The index of the view in FrameScene::views whose camera it writes.
-    /// @param settings Read while recording, never copied; it must outlive the pass. None: the view never jitters
-    ///        (a shadow view).
+    /// @param temporalAa The view's temporal anti-aliasing settings (RenderSettings::temporalAa): it jitters while
+    ///        they are enabled, so the TemporalAaPass shows them, not this pass. Read while recording, never copied; it
+    ///        must outlive the pass. None: the view never jitters (a shadow view).
     SceneUpdatePass(ResourceDeclarations& declarations, const FrameSceneSource& scene, std::uint32_t view = 0,
-        Settings* settings = nullptr);
+        const TemporalAaPass::Settings* temporalAa = nullptr);
 
     [[nodiscard]] auto name() const -> std::string_view override;
     auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
-    [[nodiscard]] auto settings() -> std::optional<PassSettings> override;
 
 private:
     const FrameSceneSource& m_scene;
     std::uint32_t m_view;
-    Settings* m_settings;
+    const TemporalAaPass::Settings* m_temporalAa;
     ResourceId m_cameraData;
     /// @brief The unjittered view-projection the view was rendered with last frame; none before its first frame and
     ///        after a frame without a camera.
