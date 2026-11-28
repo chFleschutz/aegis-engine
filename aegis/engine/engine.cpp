@@ -60,11 +60,6 @@ constexpr std::array ENGINE_OPTIONS{
 // Fixed, so a headless run does not depend on the machine; one fixed step of the worlds per frame
 constexpr float HEADLESS_FRAME_DELTA_SEC{ world::FixedStep::DEFAULT_STEP_SEC };
 
-auto makeError(EngineErrorCode code, std::string message) -> EngineError
-{
-    return EngineError{ .code = code, .message = std::move(message) };
-}
-
 auto parseCount(std::string_view option, std::string_view value) -> std::expected<std::uint32_t, EngineError>
 {
     std::uint32_t count{ 0 };
@@ -87,6 +82,11 @@ auto assetSources(const AppDesc& desc) -> AssetLibrary::Sources
     }
     return sources;
 }
+}
+
+auto makeError(EngineErrorCode code, std::string message) -> EngineError
+{
+    return EngineError{ .code = code, .message = std::move(message) };
 }
 
 auto describe(const EngineError& error) -> std::string
@@ -320,19 +320,19 @@ void Engine::newScene()
 
 void Engine::setTitle(std::string_view title)
 {
-    if (m_window)
-        m_window->setTitle(title);
+    if (m_platform->window)
+        m_platform->window->setTitle(title);
 }
 
 void Engine::restoreCursor()
 {
-    if (m_input)
-        m_input->setCursorMode(platform::CursorMode::Normal);
+    if (m_platform->input)
+        m_platform->input->setCursorMode(platform::CursorMode::Normal);
 }
 
 auto Engine::contentScale() const -> float
 {
-    return m_window ? m_window->contentScale() : 1.0f;
+    return m_platform->window ? m_platform->window->contentScale() : 1.0f;
 }
 
 auto Engine::createWorld() -> world::World&
@@ -367,16 +367,16 @@ void Engine::setUpWorld(world::World& world)
 {
     // The engine's systems, always present. Their phases order them (scripts, physics, then
     // transforms, then cameras); the game's come after them (setWorldSetup), in the phase they declare.
-    if (m_input)
-        world.addSystem<scripting::ScriptSystem>(m_input->state(), m_input.get());
+    if (m_platform->input)
+        world.addSystem<scripting::ScriptSystem>(m_platform->input->state(), m_platform->input.get());
     else
-        world.addSystem<scripting::ScriptSystem>(m_headlessInput); // Scripts see the input map, and what checks apply
-    world.addSystem<physics::PhysicsSystem>();                     // After the scripts, whose fixed steps move kinematic bodies
+        world.addSystem<scripting::ScriptSystem>(m_platform->headlessInput); // Scripts see the input map, and what checks apply
+    world.addSystem<physics::PhysicsSystem>();                               // After the scripts, whose fixed steps move kinematic bodies
     world.addSystem<world::TransformSystem>();
     world.addSystem<world::CameraSystem>();
     if (m_spawner)
         world.registry().setContext<scripting::Spawner>(*m_spawner);
-    world.addSystem<audio::AudioSystem>(*m_audio);
+    world.addSystem<audio::AudioSystem>(*m_platform->audio);
     if (m_worldSetup)
         m_worldSetup(world);
 }
@@ -449,17 +449,34 @@ auto Engine::initialize() -> std::expected<void, EngineError>
                           .and_then([this] { return physics::registerComponents(m_types); });
     if (!registered)
         return std::unexpected{ makeError(EngineErrorCode::TypesFailed, std::format("Failed to register the built-in types: {}", reflect::describe(registered.error()))) };
-    if (auto created = createWindow(); !created)
-        return created;
+    auto platform = Platform::create(m_desc);
+    if (!platform)
+        return std::unexpected{ std::move(platform.error()) };
+    m_platform = std::move(*platform);
+    if (m_platform->window)
+        m_platform->window->setCloseHandler([this] { return m_shell->canClose(); });
     if (auto loaded = loadProjectFile(); !loaded)
         return loaded;
-    if (auto created = createRenderer(); !created)
-        return created;
+    auto gpu = Gpu::create(m_desc, m_platform->window.get());
+    if (!gpu)
+        return std::unexpected{ std::move(gpu.error()) };
+    m_gpu = std::move(*gpu);
     if (auto created = createAssets(); !created)
         return created;
-    if (auto created = createAudio(); !created)
-        return created;
-    m_mainWorld = &createWorld(); // After the input, which its scripts read
+    m_mainWorld = &createWorld();
+    auto presentation = Presentation::create({
+        .window = m_platform->window.get(),
+        .context = *m_gpu->context,
+        .device = *m_gpu->device,
+        .renderer = *m_gpu->renderer,
+        .framesInFlight = FRAMES_IN_FLIGHT,
+        .gpuDriven = useGpuDrivenRendering(),
+        // The game's passes and the shell as they are when the graph is built (setGraphBuild, setShell)
+        .declare = [this](render_graph::GraphBuilder& graph, const render_graph::DefaultPassesDesc& desc) { buildFrameGraph(graph, desc, m_graphBuild, *m_shell); },
+    });
+    if (!presentation)
+        return std::unexpected{ std::move(presentation.error()) };
+    m_presentation = std::move(*presentation);
 
     log::info("Engine Initialized!");
     log::info("Using {} Driven Rendering{}", useGpuDrivenRendering() ? "GPU" : "CPU", m_desc.headless ? " (headless)" : "");
@@ -477,25 +494,25 @@ auto Engine::initialize() -> std::expected<void, EngineError>
 
 Engine::~Engine()
 {
-    // The GPU may still use what the members below free. The shell ends first, while the worlds, the
-    // frame graph and ImGui still exist; the members then go bottom up (the ImGui backends before the ImGui
-    // context). A failed create() leaves the later members empty.
-    if (m_device)
-        m_device->waitIdle();
+    // The GPU may still use what the members free. The shell ends first, while the worlds, the frame graph and ImGui
+    // still exist; the members then go bottom up. A failed create() leaves the later members empty.
+    if (m_gpu)
+        m_gpu->device->waitIdle();
     m_shell->onShutdown();
     m_shell.reset();
-    // The UI's backend and textures go through the device, which outlives them.
-    m_presentation.destroyBackend();
 }
 
 auto Engine::useGpuDrivenRendering() const -> bool
 {
-    return m_desc.gpuDriven && m_device->capabilities().meshShaders;
+    return m_desc.gpuDriven && m_gpu->device->capabilities().meshShaders;
 }
 
 auto Engine::run() -> int
 {
-    const bool headless = !m_window;
+    const bool headless = this->headless();
+    auto* window = m_platform->window.get();
+    auto& device = *m_gpu->device;
+    auto& renderer = *m_gpu->renderer;
     std::uint32_t frames{ 0 };
     int exitCode{ exitSuccess };
 
@@ -511,7 +528,7 @@ auto Engine::run() -> int
         return exitFailure;
     }
     // Once the game's passes (setGraphBuild) and the shell, with its options, are known.
-    if (auto created = createFrameGraph(); !created)
+    if (auto created = m_presentation->buildGraph(); !created)
     {
         log::fatal("{}", describe(created.error()));
         return exitFailure;
@@ -520,7 +537,7 @@ auto Engine::run() -> int
     if (headless)
         m_clock = core::FrameClock::fixed(HEADLESS_FRAME_DELTA_SEC);
     resetClocks(std::chrono::steady_clock::now());
-    while (!m_quit && (headless || !m_window->shouldClose()) && (m_desc.frames == 0 || frames < m_desc.frames))
+    while (!m_quit && (headless || !window->shouldClose()) && (m_desc.frames == 0 || frames < m_desc.frames))
     {
         ScopeProfiler frameTime("Frame Time");
 
@@ -528,14 +545,14 @@ auto Engine::run() -> int
 
         if (!headless)
         {
-            m_window->update();
-            if (m_window->isMinimized())
+            window->update();
+            if (window->isMinimized())
             {
-                m_window->waitEvents();
+                window->waitEvents();
                 resetClocks(std::chrono::steady_clock::now()); // Not part of the next frame's delta
                 continue;
             }
-            if (m_window->wasResized() || m_renderer->needsResize())
+            if (window->wasResized() || renderer.needsResize())
             {
                 if (!resize())
                 {
@@ -546,13 +563,14 @@ auto Engine::run() -> int
 
             // The shell decides what the game doesn't see, from the UI it built last frame.
             captureInput();
-            m_input->update();
+            m_platform->input->update();
         }
         // The clock clamps a long frame (a breakpoint, a load) so the UI doesn't get the whole stall; so do the worlds'.
         const float frameTimeSec = m_clock.tick(currentFrameBegin);
         // The graph follows the views the shell's UI asked for last frame, before this frame's UI shows their textures.
-        if (!followViews(m_shell->renderViews()))
+        if (auto followed = m_presentation->followViews(m_shell->renderViews()); !followed)
         {
+            log::fatal("{}", describe(followed.error()));
             exitCode = exitFailure;
             break;
         }
@@ -569,10 +587,10 @@ auto Engine::run() -> int
         // derive from them (camera matrices included). In edit mode only the derived ones run.
         updateWorlds(currentFrameBegin);
         // Headless, the sounds advance by the frame's time; either way the finished ones are freed.
-        m_audio->advance(frameTimeSec);
+        m_platform->audio->advance(frameTimeSec);
 
         // Rendering: uploads queued this frame (or while loading) go first, on the same queue.
-        if (auto flushed = m_device->flushUploads(); !flushed)
+        if (auto flushed = device.flushUploads(); !flushed)
         {
             log::fatal("Failed to flush uploads: {}", rhi::describe(flushed.error()));
             exitCode = exitFailure;
@@ -590,18 +608,19 @@ auto Engine::run() -> int
         m_worlds.sync(shown);
         const auto scene = frameScene(shown, instances, views);
         // The passes read it until the end of this frame's iteration.
-        const auto boundScene = m_frameScene.bind(scene);
+        const auto boundScene = m_presentation->frameScene().bind(scene);
         // What recording can't do without (the draw batches' pipelines, buffers grown to the frame's instances and
         // lights) is created before it; failing that ends the run, as a failed frame does.
-        if (auto prepared = m_frameGraph->prepare(); !prepared)
+        auto& frameGraph = m_presentation->frameGraph();
+        if (auto prepared = frameGraph.prepare(); !prepared)
         {
             log::fatal("Failed to prepare a frame: {}", render_graph::describe(prepared.error()));
             exitCode = exitFailure;
             break;
         }
-        auto rendered = m_renderer->renderFrame([this, &instances](const aegis::renderer::Renderer::FrameInfo& frame) {
+        auto rendered = renderer.renderFrame([this, &frameGraph, &instances](const aegis::renderer::Renderer::FrameInfo& frame) {
             m_lastFrameIndex = frame.frameIndex;
-            m_frameGraph->execute(frame.cmd, frame.frameIndex, frame.target);
+            frameGraph.execute(frame.cmd, frame.frameIndex, frame.target);
             // Recorded: the next frame needs only what changes after this one.
             instances.endFrame();
         });
@@ -612,11 +631,11 @@ auto Engine::run() -> int
             break;
         }
         // Frame Time less this is the CPU's time (the editor's status bar)
-        Profiler::instance().addTime("Frame Wait", m_renderer->waitMs());
+        Profiler::instance().addTime("Frame Wait", renderer.waitMs());
         ++frames;
     }
 
-    m_device->waitIdle();
+    device.waitIdle();
 
     if (exitCode == exitSuccess && !m_desc.screenshot.empty())
     {
@@ -635,19 +654,23 @@ auto Engine::run() -> int
     return exitCode;
 }
 
-auto Engine::createWindow() -> std::expected<void, EngineError>
+auto Engine::Platform::create(const AppDesc& desc) -> std::expected<std::unique_ptr<Platform>, EngineError>
 {
-    if (m_desc.headless)
-        return {};
-
-    auto window = platform::Window::create({ .title = m_desc.title, .width = m_desc.width, .height = m_desc.height });
-    if (!window)
-        return std::unexpected{ makeError(EngineErrorCode::WindowFailed, std::format("Failed to create the window: {}", platform::describe(window.error()))) };
-    m_window = std::make_unique<platform::Window>(std::move(*window));
-    m_input = std::make_unique<platform::Input>(*m_window);
-    m_window->setCloseHandler([this] { return m_shell->canClose(); });
-    m_presentation.attach(*m_window); // After the input: ImGui's callbacks chain to the window's
-    return {};
+    auto created = std::make_unique<Platform>();
+    if (!desc.headless)
+    {
+        auto window = platform::Window::create({ .title = desc.title, .width = desc.width, .height = desc.height });
+        if (!window)
+            return std::unexpected{ makeError(EngineErrorCode::WindowFailed, std::format("Failed to create the window: {}", platform::describe(window.error()))) };
+        created->window = std::make_unique<platform::Window>(std::move(*window));
+        created->input = std::make_unique<platform::Input>(*created->window);
+    }
+    // Headless runs never open a device, so they behave the same on every machine.
+    auto audio = audio::AudioEngine::create({ .device = !desc.headless });
+    if (!audio)
+        return std::unexpected{ makeError(EngineErrorCode::AudioFailed, std::format("Failed to start the audio: {}", audio::describe(audio.error()))) };
+    created->audio = std::move(*audio);
+    return created;
 }
 
 auto Engine::loadProjectFile() -> std::expected<void, EngineError>
@@ -655,43 +678,41 @@ auto Engine::loadProjectFile() -> std::expected<void, EngineError>
     auto file = aegis::loadProjectFile(m_desc.project.empty() ? paths::project() : m_desc.project);
     if (!file)
         return std::unexpected{ makeError(EngineErrorCode::ProjectFailed, std::format("Failed to read the project file {}", file.error())) };
-    if (m_input)
-        m_input->setMap(std::move(file->input));
+    if (m_platform->input)
+        m_platform->input->setMap(std::move(file->input));
     else
-        m_headlessInput.setMap(std::move(file->input));
+        m_platform->headlessInput.setMap(std::move(file->input));
     return {};
 }
 
-auto Engine::createRenderer() -> std::expected<void, EngineError>
+auto Engine::Gpu::create(const AppDesc& desc, platform::Window* window) -> std::expected<std::unique_ptr<Gpu>, EngineError>
 {
-    auto context = aegis::rhi::Context::create({ .appName = m_desc.title.c_str(), .window = m_window.get() });
+    auto created = std::make_unique<Gpu>();
+    auto context = rhi::Context::create({ .appName = desc.title.c_str(), .window = window });
     if (!context)
-        return std::unexpected{ makeError(EngineErrorCode::DeviceFailed, std::format("Failed to create the Vulkan context ({})", aegis::rhi::describe(context.error()))) };
-    m_context = std::move(*context);
+        return std::unexpected{ makeError(EngineErrorCode::DeviceFailed, std::format("Failed to create the Vulkan context ({})", rhi::describe(context.error()))) };
+    created->context = std::move(*context);
 
-    auto device = m_context->createDevice({});
+    auto device = created->context->createDevice({});
     if (!device)
-        return std::unexpected{ makeError(EngineErrorCode::DeviceFailed, std::format("Failed to create the Vulkan device ({})", aegis::rhi::describe(device.error()))) };
-    m_device = std::move(*device);
+        return std::unexpected{ makeError(EngineErrorCode::DeviceFailed, std::format("Failed to create the Vulkan device ({})", rhi::describe(device.error()))) };
+    created->device = std::move(*device);
 
-    auto renderer = aegis::renderer::Renderer::create({
-        .context = *m_context,
-        .device = *m_device,
-        .window = m_window.get(),
-        .offscreen = { .extent = { m_desc.width, m_desc.height } },
+    auto renderer = renderer::Renderer::create({
+        .context = *created->context,
+        .device = *created->device,
+        .window = window,
+        .offscreen = { .extent = { desc.width, desc.height } },
     });
     if (!renderer)
-        return std::unexpected{ makeError(EngineErrorCode::RendererFailed, std::format("Failed to create the renderer: {}", aegis::renderer::describe(renderer.error()))) };
-    m_renderer = std::move(*renderer);
-
-    if (auto created = m_presentation.createBackend(*m_context, *m_device, FRAMES_IN_FLIGHT); !created)
-        return std::unexpected{ makeError(EngineErrorCode::RendererFailed, std::format("Failed to create the UI backend: {}", created.error())) };
-    return {};
+        return std::unexpected{ makeError(EngineErrorCode::RendererFailed, std::format("Failed to create the renderer: {}", renderer::describe(renderer.error()))) };
+    created->renderer = std::move(*renderer);
+    return created;
 }
 
 auto Engine::createAssets() -> std::expected<void, EngineError>
 {
-    auto assets = AssetLibrary::create(*m_device, FRAMES_IN_FLIGHT, assetSources(m_desc));
+    auto assets = AssetLibrary::create(*m_gpu->device, FRAMES_IN_FLIGHT, assetSources(m_desc));
     if (!assets)
         return std::unexpected{ makeError(EngineErrorCode::AssetsFailed, describe(assets.error())) };
     m_assets.emplace(std::move(*assets));
@@ -699,135 +720,44 @@ auto Engine::createAssets() -> std::expected<void, EngineError>
     return {};
 }
 
-auto Engine::createAudio() -> std::expected<void, EngineError>
-{
-    // Headless runs never open a device, so they behave the same on every machine.
-    auto created = audio::AudioEngine::create({ .device = !m_desc.headless });
-    if (!created)
-        return std::unexpected{ makeError(EngineErrorCode::AudioFailed, std::format("Failed to start the audio: {}", audio::describe(created.error()))) };
-    m_audio = std::move(*created);
-    return {};
-}
-
-auto Engine::createFrameGraph(std::vector<ViewTarget> views) -> std::expected<void, EngineError>
-{
-    using aegis::render_graph::DefaultPassesDesc;
-
-    m_views = std::move(views);
-    m_frameGraph.reset(); // Frees the old graph's resources before the new one creates its own
-    DefaultPassesDesc desc{
-        .scene = m_frameScene,
-        .pipelines = *m_pipelines,
-        .settings = m_renderSettings,
-        .gpuDriven = useGpuDrivenRendering(),
-        .targetFormat = m_renderer->targetFormat(),
-        .ui = true, // The shell's UI, empty for a game; headless too, for screenshots of it
-        .uiBackend = m_presentation.backend(),
-        .views = graphViews(m_views), // frameScene gives the scene the same views
-        // Without views of its own the main camera renders onto the target, following it.
-        .shownViews = !m_views.empty(),
-    };
-    render_graph::GraphBuilder builder;
-    buildFrameGraph(builder, desc, m_graphBuild, *m_shell);
-    auto created = render_graph::FrameGraph::create(*m_device, std::move(builder), m_renderer->extent());
-    if (!created)
-        return std::unexpected{ makeError(EngineErrorCode::FrameGraphFailed, std::format("Failed to compile the frame graph: {}", describe(created.error()))) };
-    m_frameGraph = std::move(*created);
-    for (auto& view : m_views)
-    {
-        const auto final = m_frameGraph->declarations().find(render_graph::scopedName(view.name, render_graph::names::finalImage));
-        if (!final)
-            return std::unexpected{ makeError(EngineErrorCode::FrameGraphFailed, std::format("The frame graph's view '{}' has no \"Final\"", view.name)) };
-        view.final = *final;
-    }
-    return {};
-}
-
-bool Engine::followViews(const std::vector<RenderView>& views)
-{
-    std::vector<ViewTarget> wanted;
-    for (const auto& view : views)
-    {
-        auto name = view.name.empty() ? std::string{ render_graph::names::mainView } : view.name;
-        if (name.contains('/') || std::ranges::contains(wanted, name, &ViewTarget::name))
-        {
-            log::fatal("The shell's view name '{}' is used twice or has a '/'", name);
-            return false;
-        }
-        wanted.push_back({ .name = std::move(name), .extent = { std::max(view.extent.x, 1u), std::max(view.extent.y, 1u) } });
-    }
-    const bool sameViews = std::ranges::equal(wanted, m_views, {}, &ViewTarget::name, &ViewTarget::name);
-    if (sameViews && std::ranges::equal(wanted, m_views, {}, &ViewTarget::extent, &ViewTarget::extent))
-        return true;
-
-    // Frames in flight still use the graph's textures (and, rebuilding, its passes), the UI's registrations too.
-    m_device->waitIdle();
-    m_presentation.releaseTextures();
-    if (!sameViews)
-    {
-        if (auto created = createFrameGraph(std::move(wanted)); !created)
-        {
-            log::fatal("{}", describe(created.error()));
-            return false;
-        }
-        return true;
-    }
-    // The same views, some at a new extent: only their textures are recreated.
-    for (std::size_t i = 0; i < wanted.size(); ++i)
-    {
-        if (wanted[i].extent == m_views[i].extent)
-            continue;
-        m_views[i].extent = wanted[i].extent;
-        if (auto resized = m_frameGraph->resized(m_views[i].name, m_views[i].extent); !resized)
-        {
-            log::fatal("Failed to resize the view '{}': {}", m_views[i].name, describe(resized.error()));
-            return false;
-        }
-    }
-    return true;
-}
-
 bool Engine::resize()
 {
-    if (auto resized = m_renderer->resize(aegis::rhi::Extent2D{ m_window->extent() }); !resized)
+    auto& renderer = *m_gpu->renderer;
+    if (auto resized = renderer.resize(rhi::Extent2D{ m_platform->window->extent() }); !resized)
     {
-        log::fatal("Failed to resize the renderer: {}", aegis::renderer::describe(resized.error()));
+        log::fatal("Failed to resize the renderer: {}", renderer::describe(resized.error()));
         return false;
     }
-    m_window->resetResized();
-    if (!m_views.empty())
-        return true; // The graph follows the views, not the window
-    // The renderer waited for the frames in flight; the graph's views are about to be recreated.
-    m_presentation.releaseTextures();
-    if (auto resized = m_frameGraph->resized(m_renderer->extent()); !resized)
-        log::fatal("Failed to resize the frame graph: {}", describe(resized.error()));
+    m_platform->window->resetResized();
+    if (auto followed = m_presentation->targetResized(); !followed)
+        log::fatal("{}", describe(followed.error()));
     return true;
 }
 
 void Engine::captureInput()
 {
     const auto capture = m_shell->inputCapture();
-    m_input->setCaptured(capture.keyboard, capture.mouse);
+    m_platform->input->setCaptured(capture.keyboard, capture.mouse);
 }
 
 void Engine::runShell(float deltaSeconds)
 {
     m_updates.clear();
     m_renderRequest = nullptr;
-    m_presentation.beginFrame(m_renderer->extent(), deltaSeconds);
+    m_presentation->beginFrame(m_gpu->renderer->extent(), deltaSeconds);
     FrameContext frame{
         .engine = *this,
         .world = world(),
         .types = m_types,
         .assets = *m_assets,
-        .frameGraph = *m_frameGraph,
-        .views = m_views,
-        .presentation = m_presentation,
-        .renderer = *m_renderer,
+        .frameGraph = m_presentation->frameGraph(),
+        .views = m_presentation->views(),
+        .presentation = *m_presentation,
+        .renderer = *m_gpu->renderer,
         .deltaSeconds = deltaSeconds,
     };
     m_shell->onFrame(frame);
-    m_presentation.endFrame();
+    m_presentation->endFrame();
 }
 
 void Engine::updateWorlds(core::FrameClock::Clock::time_point now)
@@ -852,16 +782,17 @@ void Engine::resetClocks(core::FrameClock::Clock::time_point now)
 void Engine::updateCameraAspect(const std::vector<RenderView>& views)
 {
     // The main camera renders into the first view without a camera of its own, or onto the window.
-    auto extent = m_window ? rhi::Extent2D{ m_window->extent() } : m_renderer->extent();
-    if (!m_views.empty())
+    const auto& targets = m_presentation->views();
+    auto extent = m_platform->window ? rhi::Extent2D{ m_platform->window->extent() } : m_gpu->renderer->extent();
+    if (!targets.empty())
     {
-        const auto throughMain = std::ranges::find_if(m_views, [&](const ViewTarget& target) {
+        const auto throughMain = std::ranges::find_if(targets, [&](const ViewTarget& target) {
             const auto view = std::ranges::find_if(views, [&](const RenderView& each) {
                 return (each.name.empty() ? render_graph::names::mainView : std::string_view{ each.name }) == target.name;
             });
             return view == views.end() || !view->camera;
         });
-        extent = throughMain != m_views.end() ? throughMain->extent : m_views.front().extent;
+        extent = throughMain != targets.end() ? throughMain->extent : targets.front().extent;
     }
     if (extent.y == 0)
         return;
@@ -882,7 +813,8 @@ auto Engine::frameScene(world::World& shown, const render_graph::InstanceStore& 
     // through the camera of the shell's view of its name asked for this frame, else the world's main camera; without
     // views of its own (the graph follows the shell's from the next frame) always the main camera, onto the target.
     const auto mainCamera = scene.camera(0);
-    scene.views = render_graph::frameSceneViews(graphViews(m_views));
+    const auto& targets = m_presentation->views();
+    scene.views = render_graph::frameSceneViews(graphViews(targets));
     const CameraSource mainSource{ .world = &shown, .mainCamera = shown.mainCamera() };
     std::unordered_map<std::string, CameraSource> sources;
     for (auto& target : scene.views)
@@ -890,7 +822,7 @@ auto Engine::frameScene(world::World& shown, const render_graph::InstanceStore& 
         if (target.kind != render_graph::ViewKind::Main)
             continue;
         auto source = mainSource;
-        if (m_views.empty())
+        if (targets.empty())
             target.camera = mainCamera;
         else
         {
@@ -921,7 +853,7 @@ auto Engine::readBack(const renderer::Texture& image, rhi::Extent2D extent, bool
     const std::size_t texelSize{ view ? 4 * sizeof(std::uint16_t) : 4 };
     const auto byteSize = std::size_t{ extent.x } * extent.y * texelSize;
 
-    auto readback = m_device->createBuffer({
+    auto readback = m_gpu->device->createBuffer({
         .name = "ScreenshotReadback",
         .size = byteSize,
         .usage = rhi::BufferUsage::TransferDst,
@@ -930,10 +862,10 @@ auto Engine::readBack(const renderer::Texture& image, rhi::Extent2D extent, bool
     if (!readback)
         return std::unexpected{ "failed to create the readback buffer" };
 
-    auto pool = m_device->createCommandPool({ .name = "ScreenshotReadback", .queueFamily = m_device->graphicsQueue().family() });
+    auto pool = m_gpu->device->createCommandPool({ .name = "ScreenshotReadback", .queueFamily = m_gpu->device->graphicsQueue().family() });
     if (!pool)
         return std::unexpected{ "failed to create the command pool" };
-    auto cmd = m_device->createCommandBuffer({ .name = "ScreenshotReadback", .pool = *pool });
+    auto cmd = m_gpu->device->createCommandBuffer({ .name = "ScreenshotReadback", .pool = *pool });
     if (!cmd)
         return std::unexpected{ "failed to create the command buffer" };
 
@@ -941,17 +873,17 @@ auto Engine::readBack(const renderer::Texture& image, rhi::Extent2D extent, bool
     const std::array regions{ rhi::BufferImageCopy{ .extent = rhi::Extent3D{ extent } } };
     cmd->begin(true);
     cmd->transitionImageLayout(image.view, state, rhi::ResourceState::CopySrc);
-    cmd->copyImageToBuffer(image.image, m_device->get(*readback), regions);
+    cmd->copyImageToBuffer(image.image, m_gpu->device->get(*readback), regions);
     cmd->transitionImageLayout(image.view, rhi::ResourceState::CopySrc, state);
     cmd->end();
-    auto submitted = m_device->graphicsQueue().submit(*cmd);
+    auto submitted = m_gpu->device->graphicsQueue().submit(*cmd);
     if (!submitted)
         return std::unexpected{ "failed to submit the readback" };
-    m_device->graphicsQueue().wait(*submitted);
+    m_gpu->device->graphicsQueue().wait(*submitted);
 
     std::vector<std::byte> pixels(byteSize);
-    m_device->get(*readback).read(pixels.data(), byteSize);
-    m_device->free(*readback);
+    m_gpu->device->get(*readback).read(pixels.data(), byteSize);
+    m_gpu->device->free(*readback);
     if (view)
     {
         // RGBA16F to RGBA8, rounded to the nearest.
@@ -967,11 +899,12 @@ auto Engine::readBack(const renderer::Texture& image, rhi::Extent2D extent, bool
 
 auto Engine::readView(std::string_view name) -> std::expected<std::vector<std::byte>, std::string>
 {
-    const auto view = std::ranges::find(m_views, name, &ViewTarget::name);
-    if (view == m_views.end())
+    const auto& targets = m_presentation->views();
+    const auto view = std::ranges::find(targets, name, &ViewTarget::name);
+    if (view == targets.end())
         return std::unexpected{ std::format("the frame graph renders no view '{}'", name) };
-    m_device->waitIdle();
-    return readBack(m_frameGraph->pool().texture(view->final), view->extent, true);
+    m_gpu->device->waitIdle();
+    return readBack(m_presentation->frameGraph().pool().texture(view->final), view->extent, true);
 }
 
 // Reads the offscreen target back (the last frame's slot), the whole frame with the shell's UI over it, or with
@@ -979,7 +912,8 @@ auto Engine::readView(std::string_view name) -> std::expected<std::vector<std::b
 auto Engine::saveScreenshot() -> std::expected<void, std::string>
 {
     // The target's format also decides the view's encoding (PostProcessingPass): RGBA8 gets it gamma encoded.
-    if (!m_renderer->offscreen() || m_renderer->targetFormat() != rhi::Format::RGBA8_UNORM)
+    const auto& renderer = *m_gpu->renderer;
+    if (!renderer.offscreen() || renderer.targetFormat() != rhi::Format::RGBA8_UNORM)
         return std::unexpected{ "screenshots need the headless RGBA8 target" };
 
     const auto write = [](const std::string& path, rhi::Extent2D extent, const std::vector<std::byte>& pixels) -> std::expected<void, std::string> {
@@ -991,21 +925,22 @@ auto Engine::saveScreenshot() -> std::expected<void, std::string>
         return {};
     };
 
-    if (m_views.empty() || !m_desc.screenshotView)
+    const auto& targets = m_presentation->views();
+    if (targets.empty() || !m_desc.screenshotView)
     {
-        const auto pixels = readBack(m_renderer->offscreenTarget(m_lastFrameIndex), m_renderer->extent(), false);
+        const auto pixels = readBack(renderer.offscreenTarget(m_lastFrameIndex), renderer.extent(), false);
         if (!pixels)
             return std::unexpected{ pixels.error() };
-        return write(m_desc.screenshot, m_renderer->extent(), *pixels);
+        return write(m_desc.screenshot, renderer.extent(), *pixels);
     }
     // One view's goes to the path; several go next to it, each named after its view.
     const std::filesystem::path path{ m_desc.screenshot };
-    for (const auto& view : m_views)
+    for (const auto& view : targets)
     {
-        const auto pixels = readBack(m_frameGraph->pool().texture(view.final), view.extent, true);
+        const auto pixels = readBack(m_presentation->frameGraph().pool().texture(view.final), view.extent, true);
         if (!pixels)
             return std::unexpected{ pixels.error() };
-        const auto viewPath = m_views.size() == 1
+        const auto viewPath = targets.size() == 1
                                   ? path
                                   : path.parent_path() / std::format("{}-{}{}", path.stem().string(), view.name, path.extension().string());
         if (auto written = write(viewPath.string(), view.extent, *pixels); !written)
