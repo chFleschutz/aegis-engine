@@ -33,6 +33,11 @@ struct PassSettings
 
 /// @brief One node of the frame graph. The constructor declares resources on the ResourceDeclarations.
 ///
+///        Two ways to write one: a class deriving from RenderPass (GraphBuilder::add) for a pass with state of its
+///        own beyond the ids of the resources it declares, such as pipelines, settings, buffers it grows or the scene
+///        it draws; a callback pass (GraphBuilder::addPass, CallbackPass) for one without, such as a clear, a copy or
+///        a debug pass, which needs no class, no name() override and no members.
+///
 ///        Everything that can fail (pipelines, shaders, buffer growth) runs in createResources, or in prepare when
 ///        it depends on what a frame draws, and returns its error; execute only records, into what those created.
 ///        A pass never logs a failure in execute and draws less: an error from prepare ends the frame loop
@@ -66,5 +71,29 @@ public:
 
     /// @brief The pass's runtime tunables, or none for a pass without any. The editor's renderer panel shows them.
     [[nodiscard]] virtual auto settings() -> std::optional<PassSettings> { return std::nullopt; }
+};
+
+/// @brief What records a callback pass (CallbackPass::execute). It keeps the ResourceIds it records with, captured by
+///        value.
+using RecordPass = std::move_only_function<void(ResourcePool&, const FrameInfo&)>;
+
+/// @brief A pass made of a name and a RecordPass, added with GraphBuilder::addPass: for a pass with no state of its
+///        own beyond the ids of the resources it declares. It creates and prepares nothing and has no settings; plans,
+///        GPU timings and the renderer panel show it as any other pass.
+class CallbackPass final : public RenderPass
+{
+public:
+    CallbackPass(std::string_view name, RecordPass record) :
+        m_name{ name },
+        m_record{ std::move(record) }
+    {
+    }
+
+    [[nodiscard]] auto name() const -> std::string_view override { return m_name; }
+    auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override { m_record(pool, frameInfo); }
+
+private:
+    std::string m_name;
+    RecordPass m_record;
 };
 }

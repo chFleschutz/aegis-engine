@@ -109,7 +109,7 @@ auto addShadowViews(std::vector<DefaultPassesDesc::View>& views) -> void;
 [[nodiscard]] auto viewDeclarationOrder(std::span<const DefaultPassesDesc::View> views) -> std::vector<std::uint32_t>;
 
 /// @brief Adds the passes all views share, outside any scope: the LightUpdatePass writing the frame's lights, the
-///        SpotShadowAtlasPass creating "SpotShadowAtlas" when a view draws into it (View::tile) and, with gpuDriven,
+///        "Spot Shadow Atlas" pass creating "SpotShadowAtlas" when a view draws into it (View::tile) and, with gpuDriven,
 ///        the InstanceUpdatePass writing its instances and draw batches, which the views' GPU-driven passes share
 ///        instead of adding one of their own.
 auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> SharedPasses;

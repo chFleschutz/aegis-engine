@@ -19,20 +19,6 @@ struct DepthTile
     rhi::Rect2D rect;    // In texels
 };
 
-/// @brief Creates "SpotShadowAtlas" (spotShadowAtlasExtent, GeometryPass::depthFormat) and clears it, before the spot
-///        shadow views draw their tiles into it (DepthTile).
-class SpotShadowAtlasPass : public RenderPass
-{
-public:
-    explicit SpotShadowAtlasPass(ResourceDeclarations& declarations);
-
-    [[nodiscard]] auto name() const -> std::string_view override;
-    auto execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void override;
-
-private:
-    ResourceId m_atlas;
-};
-
 /// @brief The CPU-driven geometry pass: clears and fills "Position", "Normal", "Albedo", "ARM", "Emissive",
 ///        "MotionVectors" and "Depth" through its render systems, or only "Depth" with Technique::Depth (a shadow
 ///        view's), or only a tile of another pass's depth texture (DepthTile). Its render systems draw with the same
@@ -103,4 +89,8 @@ private:
     std::vector<math::Float3x4> m_previousModelRows; // This frame's "PreviousModels", kept to reuse its memory
     std::vector<std::unique_ptr<RenderSystem>> m_renderSystems;
 };
+
+/// @brief Adds the callback pass "Spot Shadow Atlas", which creates "SpotShadowAtlas" (spotShadowAtlasExtent,
+///        GeometryPass::depthFormat) and clears it, before the spot shadow views draw their tiles into it (DepthTile).
+auto addSpotShadowAtlasPass(GraphBuilder& graph) -> void;
 }

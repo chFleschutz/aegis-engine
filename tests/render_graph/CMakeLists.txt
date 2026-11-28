@@ -4,6 +4,7 @@ aegis_add_test(
         declarations.test.cpp
         error.test.cpp
         frustum.test.cpp
+        graph_builder.test.cpp
         resource_usage.test.cpp
         schedule.test.cpp
         texture_extent.test.cpp
