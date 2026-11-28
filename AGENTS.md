@@ -13,8 +13,9 @@ unexpectedly, check `docs/agent-notes.md`: gotchas from past sessions.
 ## Build & run
 
 CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets (`build/<preset>/`):
-`windows-clang-*`, `windows-msvc-*`, `linux-clang-*`, each `-debug` / `-dev` / `-release`. Default
-`windows-clang-debug`; on Linux `linux-clang-debug`. Main library target: `aegis-engine`.
+`windows-clang-*`, `linux-clang-*` and `windows-msvc-*` (which doesn't build yet; `docs/agent-notes.md`),
+each `-debug` / `-dev` / `-release`. Default `windows-clang-debug`; on Linux `linux-clang-debug`. Main
+library target: `aegis-engine`.
 
     cmake --preset windows-clang-debug
     cmake --build --preset windows-clang-debug
@@ -24,18 +25,10 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
   headless `aegis-test` Sponza run takes about half as long. Keep `-debug` for stepping through code.
   `CMAKE_BUILD_TYPE` is `Debug`, `Development` or `Release`; generator expressions that mean "not
   Release" name both (`$<CONFIG:Debug,Development>`).
-- `-DAEGIS_BUILD_BENCHMARKS=ON` adds `aegis-bench-math` (`tools/bench_math/`), `aegis.math` against glm on six
-  operations; run it from a `-release` and a `-dev` build (it exits 1 past the gate, 2 when the libraries disagree) and never from `ctest`.
-- The MSVC presets **don't build yet** (internal compiler errors in `render_graph`) and configure only
-  from a shell with the Visual Studio environment (`vcvars64.bat`).
 - Clone with `--recurse-submodules`. The sample project (the examples' scenes and the assets the
   device tests load) is the opt-in submodule `samples`, checked out at the `Examples` game's project
   folder: `git submodule update --init --checkout games/examples/project`. Without it configure
   skips the `Examples` game and the device tests that load samples.
-  It clones the full history, so `tools/init-submodules.sh` shares the main checkout's copy with
-  worktrees and git can tell whether a pointer is on its `origin/main`; a main checkout whose
-  samples are still shallow (cloned before #327) needs `git -C games/examples/project fetch
-  --unshallow` once, and the same for `external/zstd` (cloned before #370).
   aegis-samples is asset storage, split off only to keep the heavy assets out of this repository's
   GitHub storage, so a samples change takes no PR: commit it on top of its `origin/main` and push
   it straight to `main`, then bump the `samples` pointer to that commit in the engine PR. The
@@ -48,9 +41,7 @@ CMake ≥4.5 (for `import std`; 4.5.0-rc1 until the release) + Ninja via presets
 > (`import vulkan`), which still changes between releases, and configure rejects other SDKs. Set
 > `Vulkan_ROOT` to the pinned SDK once in your user environment (it wins over `$VULKAN_SDK`, so new
 > worktrees configure without flags); on Linux, `source <sdk>/setup-env.sh`. A build dir that already
-> found another SDK needs `--fresh`:
->
->     cmake --preset windows-clang-debug --fresh -DVulkan_ROOT="C:/VulkanSDK/1.4.363.0"
+> found another SDK needs `--fresh` (`docs/agent-notes.md`).
 
 ### `import std`
 The engine uses `import std` instead of standard headers, on both standard libraries. Rules:
@@ -141,7 +132,8 @@ linked PRIVATE, so code outside rhi cannot name `vk::` types. ImGui's Vulkan bac
 
 **Math is `aegis.math`** ([`docs/adr/0013-own-generic-row-major-math-library.md`](docs/adr/0013-own-generic-row-major-math-library.md)):
 write `math::Float3`, `math::Float4x4`, `math::Quat`, always qualified. glm is only the oracle of
-`aegis-tests-math` and `aegis-bench-math`; no engine, game or other test target includes or links it.
+`aegis-tests-math` and `aegis-bench-math` (`tools/bench_math/`, built with `-DAEGIS_BUILD_BENCHMARKS=ON`);
+no engine, game or other test target includes or links it.
 - *Row-major storage, column vectors:* `M * v` transforms `v`, and `projection * view * model`
   composes right to left. Matrices go to the GPU as they are (the shaders are row-major too).
 - *Elements are `m[row, column]`;* there is no single-index `[]`. Whole rows and columns are
@@ -198,11 +190,6 @@ before committing (it formats the files changed on your branch, C++ and CMake). 
 lines you didn't touch, commit that as a separate formatting commit before your change. A tree-wide
 reformat goes in its own commit and into `.git-blame-ignore-revs`. Guard deliberately hand-aligned
 blocks (e.g. enum tables) with `// clang-format off` / `on`, or `# gersemi: off` / `on` in CMake.
-- gersemi joins an argument list onto one line when it fits, so a comment trailing the list's last
-  item ends up describing the whole line: put a comment that names one argument on its own line
-  above it.
-- A new CMake function with keyword arguments formats by them only if `.gersemirc`'s `definitions`
-  lists its file (`cmake/` is listed whole); otherwise gersemi warns about an unknown command.
 
 **Line endings are LF** in the repository and in every checkout, Windows included; scripted edits
 (sed, perl) can match `\n` alone.

@@ -59,6 +59,11 @@ Gotchas from past sessions, to read when a build, tool or test behaves unexpecte
   `render_graph` and its tests. It also needs `<compare>` in every translation unit that instantiates
   a defaulted `operator<=>` (Vulkan-Hpp's `vk::Flags` included), and resolves `std::pair` structured
   bindings in templates at the instantiating TU.
+- **gersemi joins an argument list onto one line when it fits,** so a comment trailing the list's last
+  item ends up describing the whole line: put a comment that names one argument on its own line
+  above it.
+- **A new CMake function with keyword arguments** formats by them only if `.gersemirc`'s `definitions`
+  lists its file (`cmake/` is listed whole); otherwise gersemi warns about an unknown command.
 
 ## C++ and modules
 
