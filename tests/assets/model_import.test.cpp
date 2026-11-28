@@ -553,6 +553,115 @@ TEST_SUITE("assets::importGltf")
         CHECK(log.mentions("normal"));
     }
 
+    TEST_CASE("reads the sampler of each texture onto its image")
+    {
+        // MetalRoughSpheres.gltf's sampler: CLAMP_TO_EDGE, LINEAR mag, NEAREST_MIPMAP_LINEAR min.
+        const LogCapture log;
+        const auto bytes = singleMesh(std::format(R"json({}, "material": 0)json", listPrimitive),
+            R"json("images": [ { "uri": "Spheres_BaseColor.png" }, { "uri": "Spheres_MetalRough.png" } ],
+  "samplers": [ { "magFilter": 9729, "minFilter": 9986, "wrapS": 33071, "wrapT": 33071 } ],
+  "textures": [ { "sampler": 0, "source": 0 }, { "sampler": 0, "source": 1 } ],
+  "materials": [ { "pbrMetallicRoughness": { "baseColorTexture": { "index": 0 }, "metallicRoughnessTexture": { "index": 1 } } } ])json");
+        const auto model = assets::importGltf(bytes);
+        REQUIRE(model.has_value());
+        REQUIRE(model->images.size() == 2);
+        const assets::ModelSampler expected{
+            .wrapU = assets::TextureWrap::ClampToEdge,
+            .wrapV = assets::TextureWrap::ClampToEdge,
+            .magFilter = assets::TextureFilter::Linear,
+            .minFilter = assets::TextureFilter::Nearest,
+            .mipmapFilter = assets::TextureFilter::Linear,
+        };
+        CHECK(model->images[0].sampler == expected);
+        CHECK(model->images[1].sampler == expected);
+        CHECK(log.warnings.empty());
+    }
+
+    TEST_CASE("a texture without a sampler, or a sampler without filters, samples with the defaults")
+    {
+        const auto bytes = singleMesh(std::format(R"json({}, "material": 0)json", listPrimitive),
+            R"json("images": [ { "uri": "a.png" }, { "uri": "b.png" } ],
+  "samplers": [ {} ],
+  "textures": [ { "source": 0 }, { "sampler": 0, "source": 1 } ],
+  "materials": [ { "pbrMetallicRoughness": { "baseColorTexture": { "index": 0 } }, "normalTexture": { "index": 1 } } ])json");
+        const auto model = assets::importGltf(bytes);
+        REQUIRE(model.has_value());
+        REQUIRE(model->images.size() == 2);
+        CHECK(model->images[0].sampler == assets::ModelSampler{});
+        CHECK(model->images[1].sampler == assets::ModelSampler{});
+    }
+
+    TEST_CASE("a minFilter without mipmaps reads the base level only")
+    {
+        const auto bytes = singleMesh(std::format(R"json({}, "material": 0)json", listPrimitive),
+            R"json("images": [ { "uri": "a.png" } ],
+  "samplers": [ { "magFilter": 9728, "minFilter": 9729, "wrapS": 33648, "wrapT": 33648 } ],
+  "textures": [ { "sampler": 0, "source": 0 } ],
+  "materials": [ { "normalTexture": { "index": 0 } } ])json");
+        const auto model = assets::importGltf(bytes);
+        REQUIRE(model.has_value());
+        const auto& sampler = model->images.at(0).sampler;
+        CHECK(sampler.wrapU == assets::TextureWrap::MirroredRepeat);
+        CHECK(sampler.magFilter == assets::TextureFilter::Nearest);
+        CHECK(sampler.minFilter == assets::TextureFilter::Linear);
+        CHECK_FALSE(sampler.mipmapFilter.has_value());
+    }
+
+    TEST_CASE("a sampler that wraps S and T differently keeps both and warns")
+    {
+        const LogCapture log;
+        const auto bytes = singleMesh(std::format(R"json({}, "material": 0)json", listPrimitive),
+            R"json("images": [ { "uri": "a.png" } ],
+  "samplers": [ { "wrapS": 33071, "wrapT": 10497 } ],
+  "textures": [ { "sampler": 0, "source": 0 } ],
+  "materials": [ { "normalTexture": { "index": 0 } } ])json");
+        const auto model = assets::importGltf(bytes);
+        REQUIRE(model.has_value());
+        const auto& sampler = model->images.at(0).sampler;
+        CHECK(sampler.wrapU == assets::TextureWrap::ClampToEdge);
+        CHECK(sampler.wrapV == assets::TextureWrap::Repeat);
+        CHECK(log.mentions("sampler 0 wraps S and T differently"));
+    }
+
+    TEST_CASE("an image read through textures with different samplers keeps the first one and warns")
+    {
+        const LogCapture log;
+        const auto bytes = singleMesh(std::format(R"json({}, "material": 0)json", listPrimitive),
+            R"json("images": [ { "uri": "a.png" } ],
+  "samplers": [ { "wrapS": 33071, "wrapT": 33071 } ],
+  "textures": [ { "sampler": 0, "source": 0 }, { "source": 0 } ],
+  "materials": [ { "pbrMetallicRoughness": { "baseColorTexture": { "index": 0 } }, "emissiveTexture": { "index": 1 } } ])json");
+        const auto model = assets::importGltf(bytes);
+        REQUIRE(model.has_value());
+        REQUIRE(model->images.size() == 1);
+        CHECK(model->images[0].sampler.wrapU == assets::TextureWrap::ClampToEdge);
+        CHECK(log.mentions("different samplers"));
+    }
+
+    TEST_CASE("rejects a texture whose sampler is missing")
+    {
+        const auto bytes = singleMesh(std::format(R"json({}, "material": 0)json", listPrimitive),
+            R"json("images": [ { "uri": "a.png" } ],
+  "textures": [ { "sampler": 3, "source": 0 } ],
+  "materials": [ { "normalTexture": { "index": 0 } } ])json");
+        const auto model = assets::importGltf(bytes);
+        REQUIRE_FALSE(model.has_value());
+        CHECK(model.error().code == ErrorCode::InvalidData);
+    }
+
+    TEST_CASE("a texture that reads TEXCOORD_1 is a warning naming its material and texture")
+    {
+        const LogCapture log;
+        const auto bytes = singleMesh(std::format(R"json({}, "material": 0)json", listPrimitive),
+            R"json("images": [ { "uri": "a.png" } ],
+  "textures": [ { "source": 0 } ],
+  "materials": [ { "name": "decal", "occlusionTexture": { "index": 0, "texCoord": 1 } } ])json");
+        const auto model = assets::importGltf(bytes);
+        REQUIRE(model.has_value());
+        CHECK(model->materials.at(0).occlusionImage == 0);
+        CHECK(log.mentions("glTF material 'decal': the occlusion texture (texture 0) uses TEXCOORD_1"));
+    }
+
     TEST_CASE("rejects a document it cannot parse")
     {
         SUBCASE("not JSON")

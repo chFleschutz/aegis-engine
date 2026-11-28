@@ -20,6 +20,35 @@ enum class AlphaMode
     Blend,  // Alpha blends with what is behind
 };
 
+/// @brief What a texture coordinate outside [0, 1] reads (a glTF sampler's wrapS / wrapT).
+enum class TextureWrap
+{
+    Repeat,
+    MirroredRepeat,
+    ClampToEdge,
+};
+
+enum class TextureFilter
+{
+    Nearest,
+    Linear,
+};
+
+/// @brief How a model's texture is sampled, as the file names it (a glTF sampler). The defaults are a texture
+///        without a sampler, or a sampler that leaves a filter unset: repeat, linear filtering and linear mipmaps.
+///        Loader turns it into an rhi sampler (modelSamplerDesc).
+struct ModelSampler
+{
+    TextureWrap wrapU{ TextureWrap::Repeat }; // glTF wrapS
+    TextureWrap wrapV{ TextureWrap::Repeat }; // glTF wrapT
+    TextureFilter magFilter{ TextureFilter::Linear };
+    TextureFilter minFilter{ TextureFilter::Linear };
+    /// @brief How mip levels are blended; none reads the base level only (glTF's NEAREST and LINEAR minFilter).
+    std::optional<TextureFilter> mipmapFilter{ TextureFilter::Linear };
+
+    [[nodiscard]] friend auto operator==(const ModelSampler&, const ModelSampler&) -> bool = default;
+};
+
 /// @brief An image of a model and how its materials read its pixels. An image embedded in the file (data URI, GLB
 ///        chunk) is decoded and belongs to the model. An external image, one the file names by URI, is a file of
 ///        its own with its own Texture asset and import settings (docs/asset-system.md, "Identity"): the importer
@@ -33,6 +62,10 @@ struct ModelImage
     ///        and occlusion are linear. An embedded image is read this way unless its settings say otherwise; an
     ///        external one by its own settings (see textureSrgb).
     bool srgb{ false };
+    /// @brief The sampler of the first texture of the file that reads this image (an image read through textures with
+    ///        different samplers is a warning). The loader samples an embedded image's texture with it; an external
+    ///        image's texture is an asset of its own and keeps its own sampler.
+    ModelSampler sampler;
     /// @brief An embedded image's settings as a part of the model, from the model's sidecar (applyEmbeddedImageSettings);
     ///        defaults for an external one, which has settings of its own.
     ImportSettings settings;
@@ -119,6 +152,9 @@ struct ModelData
 ///       fans are imported (strips and fans converted to lists); other topologies are rejected. Missing
 ///       normals are generated. An undecodable embedded texture is logged with aegis::log::warn and left out of
 ///       its material; the model still imports. Textures only the unused parts of the file refer to are left out.
+///       Warnings, the import carrying on: a texture that reads a TEXCOORD other than 0 (it is read with TEXCOORD_0),
+///       a sampler whose wrapS and wrapT differ (rhi samplers wrap all axes alike; wrapS is used), an image read
+///       through textures with different samplers.
 /// @return ErrorCode::DecodeFailed if the document cannot be parsed, ErrorCode::UnsupportedFormat for an
 ///         unsupported topology, ErrorCode::InvalidData for inconsistent data (no scenes, a missing node,
 ///         a node reached twice, an accessor of the wrong type, no POSITION).

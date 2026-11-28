@@ -63,6 +63,55 @@ auto toAlphaMode(fastgltf::AlphaMode mode) -> AlphaMode
     return AlphaMode::Opaque;
 }
 
+auto toWrap(fastgltf::Wrap wrap) -> TextureWrap
+{
+    switch (wrap)
+    {
+    case fastgltf::Wrap::ClampToEdge:
+        return TextureWrap::ClampToEdge;
+    case fastgltf::Wrap::MirroredRepeat:
+        return TextureWrap::MirroredRepeat;
+    case fastgltf::Wrap::Repeat:
+        return TextureWrap::Repeat;
+    }
+    return TextureWrap::Repeat;
+}
+
+/// @brief The filter within a mip level: the first half of a glTF minFilter, or a magFilter.
+auto toFilter(fastgltf::Filter filter) -> TextureFilter
+{
+    switch (filter)
+    {
+    case fastgltf::Filter::Nearest:
+    case fastgltf::Filter::NearestMipMapNearest:
+    case fastgltf::Filter::NearestMipMapLinear:
+        return TextureFilter::Nearest;
+    case fastgltf::Filter::Linear:
+    case fastgltf::Filter::LinearMipMapNearest:
+    case fastgltf::Filter::LinearMipMapLinear:
+        return TextureFilter::Linear;
+    }
+    return TextureFilter::Linear;
+}
+
+/// @brief The filter between mip levels a glTF minFilter names; none for NEAREST and LINEAR, which read the base level.
+auto toMipmapFilter(fastgltf::Filter filter) -> std::optional<TextureFilter>
+{
+    switch (filter)
+    {
+    case fastgltf::Filter::NearestMipMapNearest:
+    case fastgltf::Filter::LinearMipMapNearest:
+        return TextureFilter::Nearest;
+    case fastgltf::Filter::NearestMipMapLinear:
+    case fastgltf::Filter::LinearMipMapLinear:
+        return TextureFilter::Linear;
+    case fastgltf::Filter::Nearest:
+    case fastgltf::Filter::Linear:
+        return std::nullopt;
+    }
+    return std::nullopt;
+}
+
 /// @brief 'path' as UTF-8 text with '/', as ModelData::dependencies holds it.
 auto utf8(const std::filesystem::path& path) -> std::string
 {
@@ -127,6 +176,8 @@ public:
         m_materialIndices.assign(m_gltf.materials.size(), std::nullopt);
         m_imageIndices.assign(m_gltf.images.size(), std::nullopt);
         m_imageAttempted.assign(m_gltf.images.size(), false);
+        m_samplerConflictWarned.assign(m_gltf.images.size(), false);
+        m_samplers.assign(m_gltf.samplers.size(), std::nullopt);
 
         const auto& sceneName = m_gltf.scenes[sceneIndex].name;
         m_model.name = sceneName.empty() ? m_name : std::string{ sceneName };
@@ -381,11 +432,14 @@ private:
         }
         if (textureInfo->texCoordIndex != 0)
         {
-            log::warn("glTF material '{}': the {} texture uses TEXCOORD_{}, only TEXCOORD_0 is supported", materialName, slot,
-                textureInfo->texCoordIndex);
+            log::warn("glTF material '{}': the {} texture (texture {}) uses TEXCOORD_{}; only TEXCOORD_0 is imported, so it reads that",
+                materialName, slot, textureInfo->textureIndex, textureInfo->texCoordIndex);
         }
 
         const auto& texture = m_gltf.textures[textureInfo->textureIndex];
+        const auto sampler = samplerFor(texture, textureInfo->textureIndex);
+        if (!sampler)
+            return std::unexpected{ sampler.error() };
         if (!texture.imageIndex)
         {
             log::warn("glTF material '{}': the {} texture has no supported image source", materialName, slot);
@@ -404,6 +458,7 @@ private:
             auto image = importImage(imageIndex);
             if (image)
             {
+                image->sampler = *sampler;
                 m_imageIndices[imageIndex] = static_cast<std::uint32_t>(m_model.images.size());
                 m_model.images.push_back(std::move(*image));
             }
@@ -412,7 +467,41 @@ private:
                 log::warn("glTF material '{}': the {} texture is left out ({})", materialName, slot, describe(image.error()));
             }
         }
+        else if (const auto index = m_imageIndices[imageIndex];
+            index && m_model.images[*index].sampler != *sampler && !m_samplerConflictWarned[imageIndex])
+        {
+            m_samplerConflictWarned[imageIndex] = true;
+            log::warn("glTF image {} is read through textures with different samplers; it is sampled with the first one's: '{}'",
+                imageIndex, m_name);
+        }
         return m_imageIndices[imageIndex];
+    }
+
+    /// @brief The sampler of 'texture' (glTF texture 'textureIndex'): its sampler, converted on first use, or the
+    ///        defaults if it names none.
+    auto samplerFor(const fastgltf::Texture& texture, std::size_t textureIndex) -> std::expected<ModelSampler, Error>
+    {
+        if (!texture.samplerIndex)
+            return ModelSampler{};
+        const auto index = *texture.samplerIndex;
+        if (index >= m_gltf.samplers.size())
+            return makeError(ErrorCode::InvalidData, std::format("glTF texture {} refers to missing sampler {}", textureIndex, index));
+        if (m_samplers[index])
+            return *m_samplers[index];
+
+        const auto& sampler = m_gltf.samplers[index];
+        ModelSampler result{ .wrapU = toWrap(sampler.wrapS), .wrapV = toWrap(sampler.wrapT) };
+        if (sampler.magFilter)
+            result.magFilter = toFilter(*sampler.magFilter);
+        if (sampler.minFilter)
+        {
+            result.minFilter = toFilter(*sampler.minFilter);
+            result.mipmapFilter = toMipmapFilter(*sampler.minFilter);
+        }
+        if (sampler.wrapS != sampler.wrapT)
+            log::warn("glTF sampler {} wraps S and T differently; both are wrapped like S: '{}'", index, m_name);
+        m_samplers[index] = result;
+        return result;
     }
 
     auto importMaterial(std::size_t materialIndex) -> std::expected<std::uint32_t, Error>
@@ -508,6 +597,8 @@ private:
     std::vector<std::optional<std::uint32_t>> m_materialIndices; // Per glTF material, once imported
     std::vector<std::optional<std::uint32_t>> m_imageIndices;    // Per glTF image, once decoded
     std::vector<bool> m_imageAttempted;                          // Per glTF image
+    std::vector<bool> m_samplerConflictWarned;                   // Per glTF image
+    std::vector<std::optional<ModelSampler>> m_samplers;         // Per glTF sampler, once converted
 };
 }
 

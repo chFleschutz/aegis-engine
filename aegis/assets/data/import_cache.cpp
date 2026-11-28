@@ -13,7 +13,7 @@ namespace aegis::assets
 namespace
 {
 /// Bumped when the model entry's or the manifest's JSON changes shape; one of another version is a miss.
-constexpr std::uint32_t modelEntryVersion{ 1 };
+constexpr std::uint32_t modelEntryVersion{ 2 };
 constexpr std::uint32_t manifestVersion{ 1 };
 constexpr std::string_view modelEntryFile{ "model.json" };
 constexpr std::string_view textureEntryFile{ "texture.ktx2" };
@@ -57,12 +57,22 @@ struct MaterialEntry
     bool doubleSided{ false };
 };
 
+struct SamplerEntry
+{
+    std::uint32_t wrapU{ 0 };                  // TextureWrap
+    std::uint32_t wrapV{ 0 };                  // TextureWrap
+    std::uint32_t magFilter{ 1 };              // TextureFilter
+    std::uint32_t minFilter{ 1 };              // TextureFilter
+    std::optional<std::uint32_t> mipmapFilter; // TextureFilter; none reads the base level only
+};
+
 struct ImageEntry
 {
     std::string name;
     std::string uri;      // An external image, relative to the model file
     std::string embedded; // Or the entry's file holding an embedded image's encoded bytes
     bool srgb{ false };
+    SamplerEntry sampler;
 };
 
 struct PrimitiveEntry
@@ -114,10 +124,18 @@ struct glz::meta<aegis::assets::MaterialEntry>
 };
 
 template<>
+struct glz::meta<aegis::assets::SamplerEntry>
+{
+    using T = aegis::assets::SamplerEntry;
+    static constexpr auto value = object("wrapU", &T::wrapU, "wrapV", &T::wrapV, "magFilter", &T::magFilter, "minFilter", &T::minFilter,
+        "mipmapFilter", &T::mipmapFilter);
+};
+
+template<>
 struct glz::meta<aegis::assets::ImageEntry>
 {
     using T = aegis::assets::ImageEntry;
-    static constexpr auto value = object("name", &T::name, "uri", &T::uri, "embedded", &T::embedded, "srgb", &T::srgb);
+    static constexpr auto value = object("name", &T::name, "uri", &T::uri, "embedded", &T::embedded, "srgb", &T::srgb, "sampler", &T::sampler);
 };
 
 template<>
@@ -475,7 +493,19 @@ auto readModel(const ModelEntry& entry, const std::filesystem::path& directory, 
 
     for (const auto& image : entry.images)
     {
-        ModelImage out{ .name = image.name, .uri = image.uri, .srgb = image.srgb };
+        const auto& sampler = image.sampler;
+        ModelImage out{
+            .name = image.name,
+            .uri = image.uri,
+            .srgb = image.srgb,
+            .sampler = {
+                .wrapU = static_cast<TextureWrap>(sampler.wrapU),
+                .wrapV = static_cast<TextureWrap>(sampler.wrapV),
+                .magFilter = static_cast<TextureFilter>(sampler.magFilter),
+                .minFilter = static_cast<TextureFilter>(sampler.minFilter),
+                .mipmapFilter = sampler.mipmapFilter.transform([](std::uint32_t filter) { return static_cast<TextureFilter>(filter); }),
+            },
+        };
         // An external image is an asset of its own, not part of the entry.
         if (!image.embedded.empty())
         {
@@ -556,7 +586,20 @@ auto writeModel(const ModelData& model, const std::filesystem::path& directory, 
     for (std::size_t i = 0; i < model.images.size(); ++i)
     {
         const auto& image = model.images[i];
-        ImageEntry out{ .name = image.name, .uri = image.uri, .embedded = {}, .srgb = image.srgb };
+        const auto& sampler = image.sampler;
+        ImageEntry out{
+            .name = image.name,
+            .uri = image.uri,
+            .embedded = {},
+            .srgb = image.srgb,
+            .sampler = {
+                .wrapU = static_cast<std::uint32_t>(sampler.wrapU),
+                .wrapV = static_cast<std::uint32_t>(sampler.wrapV),
+                .magFilter = static_cast<std::uint32_t>(sampler.magFilter),
+                .minFilter = static_cast<std::uint32_t>(sampler.minFilter),
+                .mipmapFilter = sampler.mipmapFilter.transform([](TextureFilter filter) { return static_cast<std::uint32_t>(filter); }),
+            },
+        };
         if (image.uri.empty())
         {
             out.embedded = std::format("image-{}.bin", i);
