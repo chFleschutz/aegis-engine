@@ -117,21 +117,31 @@
     use    Main/CameraData ShaderRead
     use    Main/SceneColor ColorAttachment
     barrier Main/SceneColor: ColorAttachment -> ColorAttachment
-25. Main/Bloom
+25. Main/Temporal AA
     use    Main/SceneColor StorageRead
-    create Main/Bloom StorageWrite
+    use    Main/Depth SampledCompute
+    use    Main/MotionVectors SampledCompute
+    use    Main/TemporalColor SampledCompute (previous frame)
+    create Main/TemporalColor StorageWrite
     barrier Main/SceneColor: ColorAttachment -> StorageRead
+    barrier Main/MotionVectors: ColorAttachment -> SampledCompute
+    barrier Main/TemporalColor (previous frame): last frame's StorageRead -> SampledCompute
+    barrier Main/TemporalColor: last frame's SampledCompute -> StorageWrite
+26. Main/Bloom
+    use    Main/TemporalColor StorageRead
+    create Main/Bloom StorageWrite
+    barrier Main/TemporalColor: StorageWrite -> StorageRead
     barrier Main/Bloom: undefined -> StorageWrite
-26. Main/Post Processing
-    use    Main/SceneColor StorageRead
+27. Main/Post Processing
+    use    Main/TemporalColor StorageRead
     use    Main/Bloom StorageRead
     create Main/Final StorageWrite
     barrier Main/Bloom: StorageWrite -> StorageRead
     barrier Main/Final: undefined -> StorageWrite
-27. UI
+28. UI
     use    Main/Final ColorAttachment
     barrier Main/Final: StorageWrite -> ColorAttachment
-28. Present
+29. Present
     use    Main/Final TransferSrc
     import Target TransferDst
     barrier Main/Final: ColorAttachment -> TransferSrc
@@ -156,6 +166,7 @@ resources
     Main/Depth: texture D32_SFLOAT
     Main/SceneColor: texture RGBA16_SFLOAT
     Main/LightingUniforms: buffer, host written
+    Main/TemporalColor: texture RGBA16_SFLOAT, history pair
     Main/Bloom: texture RGBA16_SFLOAT
     Main/Final: texture RGBA16_SFLOAT
     MainShadow0/CameraData: buffer, host written

@@ -116,7 +116,8 @@ auto addSharedPasses(GraphBuilder& graph, const DefaultPassesDesc& desc) -> Shar
 
 /// @brief Adds the passes that render 'view': for a main view, into "Final": scene update, light update
 ///        (without desc.lights), CPU- or GPU-driven geometry, lighting (sampling its shadow views' "Depth"), sky box,
-///        forward (blended materials, CPU-driven on both paths), transparent (point lights), bloom and post-processing; for a shadow view, addShadowPasses. Its lighting samples
+///        forward (blended materials, CPU-driven on both paths), transparent (point lights), temporal
+///        anti-aliasing, bloom and post-processing; for a shadow view, addShadowPasses. Its lighting samples
 ///        "SpotShadowAtlas" when its view has shadow views and a view draws into the atlas. Call it inside the
 ///        view's scope (GraphBuilder::beginScope). Passes added after a main view's and before addOutputPasses draw
 ///        onto "Final" before the frame shows it (a game's or the editor's overlays).

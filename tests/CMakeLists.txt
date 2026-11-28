@@ -216,6 +216,18 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
         ARGS --headless --scene --post-process --frames 120
     )
 
+    # A camera moving past the helmet, then cutting to the sky (#498): the frame right after the cut matches the frame 20
+    # frames later, so no temporal AA history survives the cut, on both paths.
+    aegis_add_device_test(
+        aegis-test-scene-moving-camera
+        ARGS --headless --scene --moving-camera --no-overlay --frames 70
+    )
+    aegis_add_device_test(
+        aegis-test-scene-gpu-driven-moving-camera
+        ARGS --headless --gpu-driven --moving-camera --no-overlay --frames 70
+        LABELS mesh-shaders
+    )
+
     # The audio scene (#465): its looping AudioSource starts once on begin and still plays after the last frame. Headless
     # runs mix without an audio device, so this runs the same on every machine.
     aegis_add_device_test(aegis-test-audio ARGS --headless --audio --frames 120)
@@ -367,7 +379,8 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
             0
         LABELS golden
     )
-    # Back on the main world after the second one rendered, the last frame is the plain scene's.
+    # Back on the main world after the second one rendered, the last frame is the plain scene's. 360 frames: the 120 after
+    # the switch back (a camera cut) let temporal AA converge to the plain run's frame exactly.
     aegis_add_device_test(
         aegis-test-golden-scene-worlds
         ARGS
@@ -375,7 +388,7 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
             --scene
             --worlds
             --frames
-            120
+            360
             --no-overlay
             --compare
             ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene.png
@@ -390,7 +403,7 @@ if(TARGET compile_shaders AND AEGIS_SAMPLES)
             --gpu-driven
             --worlds
             --frames
-            120
+            360
             --no-overlay
             --compare
             ${CMAKE_CURRENT_SOURCE_DIR}/device/golden/scene-gpu-driven.png

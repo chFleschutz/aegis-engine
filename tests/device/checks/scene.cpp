@@ -8,6 +8,7 @@ module aegis.test;
 import std;
 import aegis.assets;
 import aegis.engine;
+import aegis.math;
 import aegis.physics;
 import aegis.render_bridge;
 import aegis.render_graph;
@@ -201,6 +202,19 @@ public:
         auto& registry = frame.world.registry();
         if (m_frame == 0)
             setUp(frame.world);
+        // --views compares a view rendered alone, right after a graph rebuild, with it rendered together: without
+        // temporal AA, as a rebuilt view starts its history and jitter over.
+        if (m_options.views && m_frame == 0)
+        {
+            if (auto disabled = test::disableTemporalAa(frame.frameGraph); !disabled)
+                m_result.errors.push_back(std::format("Disabling temporal AA failed: {}", disabled.error()));
+        }
+        if (m_options.movingCamera)
+        {
+            m_movingCamera = movingCamera();
+            if (auto checked = checkCameraCut(); !checked)
+                m_result.errors.push_back(std::format("Camera cut check failed: {}", checked.error()));
+        }
         if (m_options.unlit && m_frame == 1)
         {
             if (auto added = addUnlitCubes(frame); !added)
@@ -285,6 +299,8 @@ public:
                 return { RenderView{ .extent = sceneExtent } };
             return {};
         }
+        if (m_options.movingCamera)
+            return { RenderView{ .name = std::string{ mainView }, .camera = m_movingCamera, .extent = sceneExtent } };
         if (m_options.views)
         {
             // Both views, or one of them alone while checkViews renders it apart.
@@ -410,6 +426,63 @@ private:
         Main,
         Side,
     };
+
+    // --moving-camera: this frame's camera. Until cameraCutFrame it looks at the helmet from in front while moving
+    // sideways past it, so the history must follow the motion; from then on it stands still behind the scene facing
+    // away from it, at the sky alone, and its first frame there is a cut.
+    [[nodiscard]] auto movingCamera() const -> RenderView::Camera
+    {
+        const auto aspect = static_cast<float>(sceneExtent.x) / static_cast<float>(sceneExtent.y);
+        const auto projection = math::perspective(math::radians(60.0f), aspect, 0.1f, 1000.0f);
+        const bool cut = m_frame >= cameraCutFrame;
+        const math::Float3 position = cut ? math::Float3{ 0.0f, -6.0f, 0.5f }
+                                          : math::Float3{ -0.6f + 0.03f * static_cast<float>(m_frame), -3.0f, 0.0f };
+        const auto forward = cut ? -math::world::forward<float> : math::world::forward<float>;
+        return RenderView::Camera{
+            .view = math::viewMatrix(position, forward),
+            .projection = projection,
+            .position = position,
+            .cut = m_frame == cameraCutFrame,
+        };
+    }
+
+    // --moving-camera, at the safe point: the view's image of the frame of the cut (read the frame after it) must match
+    // the one cameraCutSettleFrames later, once the history converged. The sky alone has no edges to accumulate, so
+    // only history kept from the helmet before the cut can tell them apart.
+    auto checkCameraCut() -> std::expected<void, std::string>
+    {
+        constexpr int tolerance{ 2 };            // Per channel, of 255: the fp16 history rounds a little differently
+        constexpr double maxDiffering{ 0.0001 }; // The share of pixels allowed past it: kept history shows in ~0.1%
+        if (m_frame != cameraCutFrame + 1 && m_frame != cameraCutFrame + cameraCutSettleFrames + 1)
+            return {};
+        auto pixels = m_engine->readView(mainView);
+        if (!pixels)
+            return std::unexpected{ std::format("reading the view back failed: {}", pixels.error()) };
+        if (m_frame == cameraCutFrame + 1)
+        {
+            m_afterCut = std::move(*pixels);
+            return {};
+        }
+        if (pixels->size() != m_afterCut.size())
+            return std::unexpected{ std::format("the settled frame has {} bytes, the frame after the cut {}", pixels->size(), m_afterCut.size()) };
+        std::size_t differing{ 0 };
+        int largest{ 0 };
+        for (std::size_t i = 0; i < pixels->size(); i += 4)
+        {
+            int difference{ 0 };
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                difference = std::max(difference, std::abs(std::to_integer<int>((*pixels)[i + channel]) - std::to_integer<int>(m_afterCut[i + channel])));
+            largest = std::max(largest, difference);
+            differing += difference > tolerance ? 1 : 0;
+        }
+        const auto total = pixels->size() / 4;
+        if (static_cast<double>(differing) > maxDiffering * static_cast<double>(total))
+            return std::unexpected{ std::format("the frame after the cut differs from the one {} frames later in {} of {} pixels by more than {} (up to {}): history from before the cut",
+                cameraCutSettleFrames, differing, total, tolerance, largest) };
+        std::println("Camera cut verified: the frame after the cut matches the one {} frames later ({} of {} pixels differ by more than {}, up to {})",
+            cameraCutSettleFrames, differing, total, tolerance, largest);
+        return {};
+    }
 
     // --views: the frame from which the world no longer updates, so each view renders the same scene together and alone.
     static constexpr std::uint32_t viewsFreezeFrame{ 10 };
@@ -1045,6 +1118,8 @@ private:
     world::Entity m_viewCamera;                                            // --view, --views: the camera the view renders through, not the main one
     ViewsShown m_viewsShown{ ViewsShown::Both };                           // --views: the views rendered
     std::map<std::string, std::vector<std::byte>, std::less<>> m_together; // --views: each view's image, rendered with the other
+    std::optional<RenderView::Camera> m_movingCamera;                      // --moving-camera: this frame's camera
+    std::vector<std::byte> m_afterCut;                                     // --moving-camera: the view's image of the cut's frame
     std::uint32_t m_staticDrawn{ 0 };                                      // --mutate-scene: drawable static entities before the last change
     world::Entity m_spawner;                                               // --spawn: the entity with CubeSpawner
     std::uint32_t m_spawnBaseline{ 0 };                                    // --spawn: drawable static entities before the spawn
@@ -1135,6 +1210,20 @@ auto verifyFrame(const Options& options, const std::filesystem::path& file, rhi:
     std::println("Offscreen scene frame verified: {}x{} {} read back, not uniform", extent.x, extent.y, options.view || options.views ? "view" : "target");
     return {};
 }
+}
+
+auto disableTemporalAa(render_graph::FrameGraph& graph) -> std::expected<void, std::string>
+{
+    for (auto* pass : graph.passes())
+    {
+        const auto settings = pass->settings();
+        if (!settings || settings->type.name != "TemporalAaSettings")
+            continue;
+        if (auto set = settings->type.setText(settings->object, "enabled", "false"); !set)
+            return std::unexpected{ reflect::describe(set.error()) };
+        return {};
+    }
+    return std::unexpected{ "the frame graph has no temporal AA pass" };
 }
 
 auto runScene(const Options& options) -> int

@@ -31,7 +31,7 @@ private:
     const rhi::Pipeline* m_pipeline{ nullptr };
 };
 
-/// @brief Tone maps "SceneColor" (plus "Bloom", if enabled) into "Final" (RGBA16F), gamma encoded
+/// @brief Tone maps "TemporalColor" (plus "Bloom", if enabled) into "Final" (RGBA16F), gamma encoded
 ///        unless the frame's target is an sRGB format that encodes by itself. The settings are the frame's
 ///        (FrameScene::PostProcess).
 class PostProcessingPass : public RenderPass
@@ -56,7 +56,7 @@ public:
 private:
     const FrameSceneSource& m_scene;
     PipelineLibrary& m_pipelines;
-    ResourceId m_sceneColor;
+    ResourceId m_color; // "TemporalColor"
     std::optional<ResourceId> m_bloom;
     ResourceId m_final;
     bool m_targetEncodes;

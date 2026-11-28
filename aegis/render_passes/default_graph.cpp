@@ -83,7 +83,7 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc, const Vi
     }
 
     const auto& scene = desc.scene;
-    graph.add<SceneUpdatePass>(scene, view.index, &desc.settings.camera);
+    graph.add<SceneUpdatePass>(scene, view.index, &desc.settings.temporalAa);
     if (!desc.lights)
         graph.add<LightUpdatePass>(scene);
     if (desc.gpuDriven)
@@ -107,6 +107,7 @@ auto addScenePasses(GraphBuilder& graph, const DefaultPassesDesc& desc, const Vi
     // Blended draws take the CPU-driven draw on both geometry paths.
     graph.add<ForwardPass>(scene, desc.pipelines, view.index, shadow).addRenderSystem<StaticMeshRenderSystem>(Technique::Forward);
     graph.add<TransparentPass>(scene, desc.pipelines, view.index).addRenderSystem<PointLightRenderSystem>();
+    graph.add<TemporalAaPass>(scene, desc.pipelines, desc.settings.temporalAa, view.index);
     graph.add<BloomPass>(scene, desc.pipelines, desc.settings.bloom);
     graph.add<PostProcessingPass>(scene, desc.pipelines, PostProcessingPass::Desc{ .targetEncodes = desc.targetEncodes() });
 }

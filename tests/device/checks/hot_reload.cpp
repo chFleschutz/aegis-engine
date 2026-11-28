@@ -295,6 +295,12 @@ public:
 
     void onFrame(FrameContext& frame) override
     {
+        // Each step reads the frame right after a change for its exact colours: without temporal AA's history.
+        if (m_frame == 0)
+        {
+            if (auto disabled = disableTemporalAa(frame.frameGraph); !disabled)
+                m_errors.push_back(std::format("Disabling temporal AA failed: {}", disabled.error()));
+        }
         frame.update(frame.world, world::UpdateMode::Play);
         if (auto stepped = step(frame); !stepped)
             m_errors.push_back(stepped.error());

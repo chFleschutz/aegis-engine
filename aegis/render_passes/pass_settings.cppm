@@ -4,7 +4,6 @@ import aegis.reflect;
 import :gpu_types;
 import :lighting_pass;
 import :post_effects;
-import :scene_update_pass;
 
 // The save-file names of the lighting pass's view modes
 export template<>
@@ -28,12 +27,12 @@ export namespace aegis::render_graph
 ///        (DefaultPassesDesc::settings), so a rebuilt graph keeps what was set and every view's passes read the same.
 struct RenderSettings
 {
-    SceneUpdatePass::Settings camera;
+    TemporalAaPass::Settings temporalAa; // Read by each main view's TemporalAaPass and SceneUpdatePass
     LightingPass::Settings lighting;
     BloomPass::Settings bloom;
 };
 
-/// @brief The Settings types of the engine's passes (SceneUpdatePass::Settings, LightingPass::Settings,
+/// @brief The Settings types of the engine's passes (TemporalAaPass::Settings, LightingPass::Settings,
 ///        BloomPass::Settings), registered in the reflect::TypeCategory::Settings category: what
 ///        RenderPass::settings names. Built on first use.
 [[nodiscard]] auto passSettingsTypes() -> const reflect::TypeRegistry&;

@@ -8,6 +8,85 @@ import aegis.math;
 
 namespace aegis::render_graph
 {
+// Temporal anti-aliasing -----------------------------------------------------------------------------
+
+TemporalAaPass::TemporalAaPass(ResourceDeclarations& declarations, const FrameSceneSource& scene,
+    PipelineLibrary& pipelines, Settings& settings, std::uint32_t view) :
+    m_scene{ scene },
+    m_pipelines{ pipelines },
+    m_settings{ settings },
+    m_view{ view },
+    m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
+    // Depth and motion are fetched texel by texel (Texture2D::Load): a depth format has no storage view.
+    m_depth{ declarations.addReference(names::depth, Usage::SampledCompute) },
+    m_motion{ declarations.addReference(names::motionVectors, Usage::SampledCompute) },
+    m_temporalColor{ declarations.addTexture(names::temporalColor, Usage::StorageWrite,
+        { .format = rhi::Format::RGBA16_SFLOAT, .lifetime = Lifetime::History }) },
+    m_history{ declarations.addHistoryReference(names::temporalColor, Usage::SampledCompute) }
+{
+}
+
+TemporalAaPass::~TemporalAaPass()
+{
+    if (m_sampler)
+        m_samplerDevice->free(*m_sampler);
+}
+
+auto TemporalAaPass::name() const -> std::string_view
+{
+    return "Temporal AA";
+}
+
+auto TemporalAaPass::createResources(ResourcePool& pool) -> std::expected<void, Error>
+{
+    auto& device = pool.device();
+    auto pipeline = m_pipelines.compute(device, "TemporalAa", "temporal_aa.slang.spv");
+    if (!pipeline)
+        return std::unexpected{ pipeline.error() };
+    m_pipeline = *pipeline;
+
+    // Bilinear, for the Catmull-Rom filter's taps between texels.
+    auto sampler = device.createSampler({
+        .name = "TemporalAaSampler",
+        .addressMode = rhi::SamplerAddressMode::ClampToEdge,
+        .maxAnisotropy = 1.0f,
+    });
+    if (!sampler)
+        return makeError(ErrorCode::ResourceCreationFailed, "Failed to create the temporal AA sampler", sampler.error());
+    m_sampler = *sampler;
+    m_samplerDevice = &device;
+    return {};
+}
+
+auto TemporalAaPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
+{
+    const auto& device = pool.device();
+    const auto sampled = [&](ResourceId id) { return *device.get(pool.texture(id).view).sampledDescriptor(); };
+    const auto camera = m_scene.current().camera(m_view);
+    // Without a camera the view draws nothing worth keeping: start over once it has one.
+    const bool cut = !camera || camera->cut;
+
+    const auto& cmd = frameInfo.cmd;
+    cmd.bindPipeline(*m_pipeline);
+    cmd.pushConstants(TemporalAaConstants{
+        .output = pool.storageDescriptor(m_temporalColor),
+        .sceneColor = pool.storageDescriptor(m_sceneColor),
+        .depth = sampled(m_depth),
+        .motion = sampled(m_motion),
+        .history = { sampled(m_history), device.get(*m_sampler).descriptor() },
+        .historyWeight = detail::historyWeight(pool.isFresh(m_temporalColor), cut, m_settings),
+    });
+    const auto extent = pool.extent(m_temporalColor);
+    cmd.dispatch(groupCount(extent.x, computeGroupSize), groupCount(extent.y, computeGroupSize));
+}
+
+auto TemporalAaPass::settings() -> std::optional<PassSettings>
+{
+    const auto* type = passSettingsTypes().find<Settings>();
+    assert(type && "TemporalAaPass::Settings is registered in passSettingsTypes");
+    return PassSettings{ .type = *type, .object = &m_settings };
+}
+
 // Bloom ----------------------------------------------------------------------------------------------
 
 BloomPass::BloomPass(ResourceDeclarations& declarations, const FrameSceneSource& scene, PipelineLibrary& pipelines,
@@ -15,7 +94,7 @@ BloomPass::BloomPass(ResourceDeclarations& declarations, const FrameSceneSource&
     m_scene{ scene },
     m_pipelines{ pipelines },
     m_settings{ settings },
-    m_sceneColor{ declarations.addReference(names::sceneColor, Usage::StorageRead) },
+    m_temporalColor{ declarations.addReference(names::temporalColor, Usage::StorageRead) },
     m_bloom{ declarations.addTexture(names::bloom, Usage::StorageWrite,
         { .format = rhi::Format::RGBA16_SFLOAT, .mipLevels = mipLevels, .usage = rhi::ImageUsage::Sampled }) }
 {
@@ -78,7 +157,7 @@ auto BloomPass::execute(ResourcePool& pool, const FrameInfo& frameInfo) -> void
     // Bright regions into mip 0. The graph left every mip in ComputeStorage.
     cmd.bindPipeline(*m_threshold);
     cmd.pushConstants(BloomThresholdConstants{
-        .input = pool.storageDescriptor(m_sceneColor),
+        .input = pool.storageDescriptor(m_temporalColor),
         .output = storage(0),
         .threshold = settings.bloomThreshold,
         .softThreshold = settings.bloomSoftThreshold,
@@ -236,6 +315,13 @@ auto PointLightRenderSystem::render(const RenderContext& context) -> void
 
 namespace aegis::render_graph::detail
 {
+auto historyWeight(bool fresh, bool cut, const TemporalAaPass::Settings& settings) -> float
+{
+    if (fresh || cut || !settings.enabled)
+        return 0.0f;
+    return 1.0f - std::clamp(settings.currentWeight, 0.0f, 1.0f);
+}
+
 auto makePointLightConstants(const FrameScene::PointLight& light, rhi::DeviceAddress camera) -> PointLightConstants
 {
     constexpr float pointLightScale{ 0.002f };

@@ -12,10 +12,12 @@ namespace
 auto registerPassSettings() -> reflect::TypeRegistry
 {
     reflect::TypeRegistry types;
-    if (auto camera = types.settings<SceneUpdatePass::Settings>("CameraSettings"))
+    if (auto temporalAa = types.settings<TemporalAaPass::Settings>("TemporalAaSettings"))
     {
-        camera->displayName("Camera").field("jitter", &SceneUpdatePass::Settings::jitter);
-        assert(camera->status().has_value());
+        temporalAa->displayName("Temporal AA")
+            .field("enabled", &TemporalAaPass::Settings::enabled)
+            .field("currentWeight", &TemporalAaPass::Settings::currentWeight, { .widget = reflect::FieldWidget::Slider, .min = 0.01, .max = 1.0 });
+        assert(temporalAa->status().has_value());
     }
     if (auto lighting = types.settings<LightingPass::Settings>("LightingSettings"))
     {

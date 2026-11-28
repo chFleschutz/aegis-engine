@@ -545,3 +545,29 @@ TEST_SUITE("render_graph::detail::makePointLightConstants")
         CHECK(constants.camera == 42);
     }
 }
+
+TEST_SUITE("render_graph::detail::historyWeight")
+{
+    using aegis::render_graph::TemporalAaPass;
+    using aegis::render_graph::detail::historyWeight;
+
+    TEST_CASE("an enabled pass keeps what the current frame's weight leaves to the history")
+    {
+        CHECK(historyWeight(false, false, {}) == doctest::Approx(0.9f));
+        CHECK(historyWeight(false, false, { .currentWeight = 0.25f }) == doctest::Approx(0.75f));
+    }
+
+    TEST_CASE("fresh history, a camera cut or a disabled pass keep none")
+    {
+        CHECK(historyWeight(true, false, {}) == 0.0f);
+        CHECK(historyWeight(false, true, {}) == 0.0f);
+        CHECK(historyWeight(false, false, { .enabled = false }) == 0.0f);
+        CHECK(historyWeight(true, true, { .enabled = false }) == 0.0f);
+    }
+
+    TEST_CASE("a current weight outside 0 to 1 is clamped")
+    {
+        CHECK(historyWeight(false, false, { .currentWeight = 1.5f }) == 0.0f);
+        CHECK(historyWeight(false, false, { .currentWeight = -0.5f }) == 1.0f);
+    }
+}

@@ -234,13 +234,24 @@ TEST_SUITE("render_graph::gpu_types")
     TEST_CASE("PostProcessConstants matches post_process.slang")
     {
         CHECK(offsetof(PostProcessConstants, final) == 0);
-        CHECK(offsetof(PostProcessConstants, sceneColor) == 4);
+        CHECK(offsetof(PostProcessConstants, color) == 4);
         CHECK(offsetof(PostProcessConstants, bloom) == 8);
         CHECK(offsetof(PostProcessConstants, toneMapping) == 12);
         CHECK(offsetof(PostProcessConstants, bloomIntensity) == 16);
         CHECK(offsetof(PostProcessConstants, exposure) == 20);
         CHECK(offsetof(PostProcessConstants, gamma) == 24);
         CHECK(sizeof(PostProcessConstants) == 28);
+    }
+
+    TEST_CASE("TemporalAaConstants matches temporal_aa.slang")
+    {
+        CHECK(offsetof(TemporalAaConstants, output) == 0);
+        CHECK(offsetof(TemporalAaConstants, sceneColor) == 4);
+        CHECK(offsetof(TemporalAaConstants, depth) == 8);
+        CHECK(offsetof(TemporalAaConstants, motion) == 12);
+        CHECK(offsetof(TemporalAaConstants, history) == 16);
+        CHECK(offsetof(TemporalAaConstants, historyWeight) == 24);
+        CHECK(sizeof(TemporalAaConstants) == 28);
     }
 
     TEST_CASE("PointLightConstants matches point_light.slang")
@@ -301,6 +312,7 @@ TEST_SUITE("render_graph::gpu_types")
         CHECK(sizeof(LightingConstants) <= limit);
         CHECK(sizeof(SkyBoxConstants) <= limit);
         CHECK(sizeof(PostProcessConstants) <= limit);
+        CHECK(sizeof(TemporalAaConstants) <= limit);
         CHECK(sizeof(PointLightConstants) <= limit);
         CHECK(sizeof(BloomThresholdConstants) <= limit);
         CHECK(sizeof(BloomDownsampleConstants) <= limit);

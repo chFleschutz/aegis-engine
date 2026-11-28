@@ -250,7 +250,7 @@ struct SkyBoxConstants
 struct PostProcessConstants
 {
     rhi::StorageImageDescriptor final;
-    rhi::StorageImageDescriptor sceneColor;
+    rhi::StorageImageDescriptor color; // "TemporalColor"
     rhi::StorageImageDescriptor bloom;
     ToneMapping toneMapping; // FrameScene's
     float bloomIntensity;
@@ -274,6 +274,17 @@ struct BloomThresholdConstants
     rhi::StorageImageDescriptor output;
     float threshold;
     float softThreshold;
+};
+
+/// @brief temporal_aa.slang
+struct TemporalAaConstants
+{
+    rhi::StorageImageDescriptor output; // This frame's "TemporalColor"
+    rhi::StorageImageDescriptor sceneColor;
+    rhi::SampledImageDescriptor depth;
+    rhi::SampledImageDescriptor motion; // "MotionVectors"
+    rhi::TextureDescriptor history;     // The previous frame's "TemporalColor", bilinear and clamped
+    float historyWeight;                // detail::historyWeight
 };
 
 /// @brief bloom/downsample.slang
